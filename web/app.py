@@ -682,7 +682,10 @@ def quiz_write_assignment_note(assignment_id: int, base_url: str) -> None:
         rows = []
         for x in attempts:
             attempt_path = quiz_attempt_note_path(assignment_id, x["student_name"], x["submitted_at"])
-            rel = attempt_path.relative_to(path.parent).as_posix()
+            # Use basename without .md so Obsidian wikilink resolution finds the file
+            # regardless of where it sits in the vault. Filesystem-relative paths like
+            # "attempts/foo.md" don't resolve in Obsidian.
+            rel = attempt_path.stem
             score = f'{x["score_correct"]}/{x["score_total"]}' if x["submitted_at"] else "в процес"
             rows.append(
                 f'| [[{rel}|{x["student_name"]}]] | {score} | {x["started_at"]} | {x["submitted_at"] or "—"} |'
