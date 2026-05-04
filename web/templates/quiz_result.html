@@ -24,27 +24,39 @@
 
 {% for q in questions %}
   <article class="card question-card {{ 'correct' if q.is_correct else 'incorrect' }}">
-    <h2>Въпрос {{ loop.index }}</h2>
-    <p>{{ q.prompt }}</p>
-
-    {% if q.is_correct %}
-      <p><span class="badge done">Верен отговор</span></p>
-    {% else %}
-      <p><span class="badge open">Грешен отговор</span></p>
-    {% endif %}
-
-    <div class="answer-line">
-      <strong>Твоят отговор:</strong>
-      {% if q.chosen_text %}
-        {{ q.chosen_text }}
+    <div class="result-question-header">
+      <h2>Въпрос {{ loop.index }}</h2>
+      {% if q.is_correct %}
+        <span class="status-pill status-pill--correct">Вярно</span>
       {% else %}
-        няма отговор
+        <span class="status-pill status-pill--wrong">Грешно</span>
       {% endif %}
     </div>
 
-    <div class="answer-line">
-      <strong>Правилен отговор:</strong> {{ q.correct_text }}
+    <p class="prompt">{{ q.prompt }}</p>
+
+    <div class="quiz-options quiz-options--readonly">
+      {% for opt in q.options %}
+        {% set is_correct_option = opt.is_correct %}
+        {% set is_chosen = q.chosen_letter and opt.option_letter == q.chosen_letter %}
+        <div class="result-option-card
+          {% if is_correct_option %}is-correct{% endif %}
+          {% if is_chosen and not is_correct_option %}is-wrong-chosen{% endif %}
+          {% if is_chosen %}is-chosen{% endif %}">
+          <span class="quiz-option-letter">{{ opt.display_letter }})</span>
+          <span class="quiz-option-text">{{ opt.option_text }}</span>
+          {% if is_chosen %}
+            <span class="result-option-tag">твоят отговор</span>
+          {% elif is_correct_option %}
+            <span class="result-option-tag">правилен</span>
+          {% endif %}
+        </div>
+      {% endfor %}
     </div>
+
+    {% if not q.chosen_letter %}
+      <p class="muted">Няма избран отговор.</p>
+    {% endif %}
   </article>
 {% endfor %}
 

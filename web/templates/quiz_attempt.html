@@ -30,11 +30,12 @@
       <h2>Въпрос {{ loop.index }} от {{ questions|length }}</h2>
       <p>{{ q.prompt }}</p>
 
-      <div class="options">
+      <div class="quiz-options">
         {% for opt in q.options %}
-          <label class="option">
+          <label class="quiz-option-card">
             <input type="radio" name="q_{{ q.id }}" value="{{ opt.option_letter }}">
-            <span><strong>{{ opt.display_letter }})</strong> {{ opt.option_text }}</span>
+            <span class="quiz-option-letter">{{ opt.display_letter }})</span>
+            <span class="quiz-option-text">{{ opt.option_text }}</span>
           </label>
         {% endfor %}
       </div>
@@ -43,6 +44,23 @@
 
   <button type="submit">Предай теста</button>
 </form>
+
+<script>
+(function () {
+  // Toggle .is-selected on the option card matching the checked radio in each group.
+  const form = document.getElementById("quiz-form");
+  if (!form) return;
+  form.addEventListener("change", function (ev) {
+    const input = ev.target;
+    if (!(input instanceof HTMLInputElement) || input.type !== "radio") return;
+    const group = form.querySelectorAll('input[type="radio"][name="' + input.name + '"]');
+    group.forEach(function (radio) {
+      const card = radio.closest(".quiz-option-card");
+      if (card) card.classList.toggle("is-selected", radio.checked);
+    });
+  });
+})();
+</script>
 
 {% if remaining_seconds is not none %}
 <script>

@@ -53,9 +53,40 @@
 
   <div class="share-box">
     <div class="label">Линк за ученици</div>
-    <a href="{{ quiz_url }}">{{ quiz_url }}</a>
+    <div class="share-row">
+      <input type="text" id="share-link" class="share-input" value="{{ quiz_url }}" readonly>
+      <button type="button" class="button" id="share-copy" data-target="share-link">Копирай</button>
+    </div>
   </div>
 </div>
+
+<script>
+(function () {
+  const btn = document.getElementById("share-copy");
+  if (!btn) return;
+  const input = document.getElementById(btn.dataset.target);
+  if (!input) return;
+  const orig = btn.textContent;
+  btn.addEventListener("click", function () {
+    input.select();
+    input.setSelectionRange(0, input.value.length);
+    let ok = false;
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(input.value).then(function () {
+        btn.textContent = "Копирано";
+        setTimeout(function () { btn.textContent = orig; }, 1500);
+      }).catch(function () {});
+      ok = true;
+    } else {
+      try { ok = document.execCommand("copy"); } catch (e) { ok = false; }
+      if (ok) {
+        btn.textContent = "Копирано";
+        setTimeout(function () { btn.textContent = orig; }, 1500);
+      }
+    }
+  });
+})();
+</script>
 
 <section class="card">
   <div class="section-heading">
