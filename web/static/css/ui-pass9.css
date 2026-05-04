@@ -95,7 +95,7 @@ h2 { margin: 0 0 var(--space-3); font-size: 1.2rem; }
 .profile-link.active {
   background: var(--color-primary);
   border-color: var(--color-primary);
-  color: var(--color-bg);
+  color: #ffffff;
   cursor: default;
 }
 
@@ -127,8 +127,8 @@ h2 { margin: 0 0 var(--space-3); font-size: 1.2rem; }
 }
 
 .hero {
-  padding: var(--space-5);
-  margin-bottom: var(--space-5);
+  padding: var(--space-4) var(--space-5);
+  margin-bottom: var(--space-4);
   background: linear-gradient(135deg, var(--color-bg), var(--color-primary-soft));
 }
 
@@ -136,7 +136,7 @@ h2 { margin: 0 0 var(--space-3); font-size: 1.2rem; }
   margin: 0 0 var(--space-1);
   color: var(--color-primary);
   font-size: 0.76rem;
-  font-weight: 900;
+  font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
@@ -160,9 +160,9 @@ button {
   border: 1px solid var(--color-primary);
   border-radius: var(--radius-md);
   background: var(--color-primary);
-  color: var(--color-bg);
+  color: #ffffff;
   font: inherit;
-  font-weight: 800;
+  font-weight: 600;
   cursor: pointer;
   transition: transform var(--t-base), background var(--t-base), border-color var(--t-base);
 }
@@ -184,9 +184,9 @@ button.secondary {
   grid-template-columns: 1fr auto;
   gap: var(--space-5);
   align-items: center;
-  min-height: 160px;
-  padding: var(--space-6);
-  margin-bottom: var(--space-5);
+  min-height: 120px;
+  padding: var(--space-5);
+  margin-bottom: var(--space-4);
   border: 1px solid var(--color-border);
   border-left: 4px solid var(--color-accent-dzi);
   border-radius: var(--radius-xl);
@@ -202,19 +202,19 @@ button.secondary {
 .home-dzi-title {
   margin: 0;
   color: var(--color-text);
-  font-size: 1.55rem;
-  font-weight: 950;
+  font-size: 1.4rem;
+  font-weight: 700;
 }
 .home-dzi-icon {
-  font-size: 3.2rem;
+  font-size: 2.6rem;
   line-height: 1;
 }
 .home-dzi-stats {
   display: flex;
   gap: var(--space-3);
-  margin-top: var(--space-4);
+  margin-top: var(--space-3);
   color: var(--color-text-muted);
-  font-weight: 800;
+  font-weight: 600;
 }
 
 .grade-grid {
@@ -485,7 +485,7 @@ button.secondary {
 .segmented-button.active {
   background: var(--color-primary);
   border-color: var(--color-primary);
-  color: var(--color-bg);
+  color: #ffffff;
 }
 .toolbar-divider {
   width: 1px;
@@ -527,6 +527,7 @@ button.secondary {
 .questions-list {
   display: grid;
   gap: var(--space-3);
+  max-width: 880px;
 }
 .question {
   position: relative;
@@ -590,8 +591,8 @@ button.secondary {
 .question .prompt {
   margin: 0 0 var(--space-4);
   color: var(--color-text);
-  font-weight: 600;
-  line-height: 1.6;
+  font-weight: 500;
+  line-height: 1.7;
 }
 .options-list {
   display: grid;
@@ -716,15 +717,161 @@ th {
   color: var(--color-warning);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-pill);
-  font-weight: 900;
+  font-weight: 600;
 }
 .result-summary { text-align: center; }
-.result-score { font-size: 2.4rem; font-weight: 950; margin: var(--space-2) 0; }
+.result-score { font-size: 2.4rem; font-weight: 700; margin: var(--space-2) 0; }
 .answer-line {
   padding: var(--space-3);
   border-radius: var(--radius-md);
   background: var(--color-bg-subtle);
   margin: var(--space-2) 0;
+}
+
+/*
+ * Quiz attempt + result: full-width card per option, left-aligned.
+ *
+ * .quiz-option-card        — used as a <label> on the attempt page
+ * .result-option-card      — used as a <div> on the result page
+ *
+ * Both share a 3-column grid: radio | letter | text (+ optional tag).
+ */
+.quiz-options {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+.quiz-option-card {
+  display: grid;
+  grid-template-columns: 1rem 2rem 1fr;
+  gap: var(--space-3);
+  align-items: start;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-subtle);
+  color: var(--color-text);
+  cursor: pointer;
+  transition: border-color var(--t-base), background var(--t-base);
+}
+.quiz-option-card:hover {
+  border-color: color-mix(in srgb, var(--color-primary) 60%, var(--color-border));
+}
+.quiz-option-card input[type="radio"] {
+  width: 1rem;
+  margin-top: 0.3rem;
+  accent-color: var(--color-primary);
+}
+.quiz-option-card.is-selected {
+  border-color: var(--color-primary);
+  background: var(--color-primary-soft);
+}
+
+.quiz-option-letter {
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  font-weight: 700;
+  line-height: 1.5;
+}
+.quiz-option-text {
+  line-height: 1.6;
+}
+
+/*
+ * Result page: same 3-col grid, no radio. Add a trailing tag column.
+ */
+.quiz-options--readonly {
+  margin-top: var(--space-3);
+}
+
+.result-option-card {
+  display: grid;
+  grid-template-columns: 2rem 1fr auto;
+  gap: var(--space-3);
+  align-items: start;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-subtle);
+  color: var(--color-text);
+}
+.result-option-card.is-correct {
+  border-color: var(--color-success);
+  background: var(--color-success-soft);
+}
+.result-option-card.is-wrong-chosen {
+  border-color: var(--color-danger);
+  background: var(--color-danger-soft);
+}
+.result-option-tag {
+  align-self: center;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: lowercase;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.result-option-card.is-correct .result-option-tag {
+  border-color: var(--color-success);
+  color: var(--color-success);
+}
+.result-option-card.is-wrong-chosen .result-option-tag {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+
+/*
+ * Result-page header row: question title + status pill.
+ */
+.result-question-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--color-border);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+.status-pill--correct {
+  background: var(--color-success-soft);
+  border-color: var(--color-success);
+  color: var(--color-success);
+}
+.status-pill--wrong {
+  background: var(--color-danger-soft);
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+
+/*
+ * Teacher-page share link: read-only input + copy button on one row.
+ * Stays calm: blue button, no amber.
+ */
+.share-box {
+  margin-top: var(--space-4);
+}
+.share-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--space-2);
+  align-items: center;
+  margin-top: var(--space-2);
+}
+.share-input {
+  font-family: var(--font-mono);
+  font-size: 0.86rem;
 }
 
 pre {
