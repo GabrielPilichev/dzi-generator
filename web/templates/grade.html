@@ -38,24 +38,19 @@
             {% set s = item.section %}
             {% set m = item.module %}
             {% set pin_color = 'var(--color-primary)' %}
-            {% set pin_icon = '📌' %}
             {% set pin_label = 'Обобщение' %}
             {% if s.section_type == 'dzi_training' %}
                 {% set pin_color = 'var(--color-accent-dzi)' %}
-                {% set pin_icon = '🎓' %}
-                {% set pin_label = 'Подготовка за матура' %}
+                    {% set pin_label = 'Подготовка за матура' %}
             {% elif 'module-4' in m.module_slug %}
                 {% set pin_color = 'var(--color-module-4)' %}
-                {% set pin_icon = '🧩' %}
-                {% set pin_label = 'Обобщение М4' %}
+                    {% set pin_label = 'Обобщение М4' %}
             {% elif 'module-3' in m.module_slug %}
                 {% set pin_color = 'var(--color-module-3)' %}
-                {% set pin_icon = '🌐' %}
-                {% set pin_label = 'Обобщение М3' %}
+                    {% set pin_label = 'Обобщение М3' %}
             {% endif %}
 
             <a class="pinned-card" href="{{ url_for('section_view', slug=s.section_slug) }}" style="--pin-color: {{ pin_color }};">
-                <div class="pin-icon">{{ pin_icon }}</div>
                 <div>
                     <div class="pin-title">{{ s.section_title }}</div>
                     <div class="pin-meta">{{ pin_label }}</div>
