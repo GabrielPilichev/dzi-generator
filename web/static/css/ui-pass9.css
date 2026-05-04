@@ -415,6 +415,17 @@ button.secondary {
   padding: var(--space-4);
   margin-bottom: var(--space-4);
 }
+.mix-card {
+  padding: var(--space-4);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  text-align: center;
+}
+.mix-card .label {
+  margin-bottom: var(--space-2);
+}
 .detail-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
@@ -645,6 +656,16 @@ button.secondary {
 .warning { background: var(--color-warning-soft); color: var(--color-warning); }
 .success { background: var(--color-success-soft); color: var(--color-success); }
 .error { background: var(--color-danger-soft); color: var(--color-danger); }
+
+.warning--spaced { margin-top: var(--space-4); }
+
+.quiz-meta--center { justify-content: center; }
+
+.rule {
+  border: 0;
+  border-top: 1px solid var(--color-border);
+  margin: var(--space-5) 0;
+}
 
 form label {
   display: block;
