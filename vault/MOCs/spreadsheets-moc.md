@@ -21,7 +21,7 @@ tags: [moc, spreadsheets]
 - Условни функции и форматиране
 - [[Topics/lookup|VLOOKUP, HLOOKUP, LOOKUP]]
 - [[Topics/pivot-table|Pivot Table, Pivot Chart]]
-- Финансови функции ([[Topics/pmt-function|PMT, APMT, PPMT]])
+- Финансови функции ([[Topics/pmt-ipmt-ppmt|PMT, IPMT, PPMT]])
 - Статистически: COUNT, COUNTA, [[Topics/countif|COUNTIF]], [[Topics/sumif|SUMIF]]
 - Сценарии (what-if analysis)
 - Външни данни (CSV, XML, web)
@@ -35,7 +35,7 @@ tags: [moc, spreadsheets]
 - [[Topics/countif|COUNTIF]]
 - [[Topics/lookup|VLOOKUP/HLOOKUP/LOOKUP]]
 - [[Topics/pivot-table|Pivot Table]]
-- [[Topics/pmt-function|PMT функции]]
+- [[Topics/pmt-ipmt-ppmt|PMT функции]]
 - [[Topics/data-validation|Валидиране на данни]]
 - [[Topics/filtering-data|Филтриране]]
 - [[Topics/dsum|DSUM/DCOUNT/DAVERAGE]]
