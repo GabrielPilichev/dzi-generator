@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="bg">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}ДЗИ Generator{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/tokens.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/ui-pass9.css') }}">
+</head>
+<body>
+    <div class="app-shell">
+        <header class="top-nav">
+            <div class="top-nav-row">
+                <a class="brand" href="{{ url_for('index') }}">
+                    <span class="brand-title">ДЗИ Generator</span>
+                    <span class="brand-subtitle">въпроси · тестове · матура</span>
+                </a>
+
+                <nav class="nav-links" aria-label="Съдържание">
+                    {% set current_grade = request.view_args.grade if request.endpoint == 'grade_view' else none %}
+
+                    <a class="{% if request.endpoint == 'index' %}nav-current{% else %}nav-link{% endif %}"
+                       {% if request.endpoint != 'index' %}href="{{ url_for('index') }}"{% endif %}>Класове</a>
+
+                    {% for grade_num in [8, 9, 10, 11, 12] %}
+                        {% if current_grade == grade_num %}
+                            <span class="nav-current">{{ grade_num }}. клас</span>
+                        {% else %}
+                            <a class="nav-link" href="{{ url_for('grade_view', grade=grade_num) }}">{{ grade_num }}. клас</a>
+                        {% endif %}
+                    {% endfor %}
+
+                    <a class="{% if request.path == '/section/grade12-dzi-preparation' %}nav-current{% else %}nav-link{% endif %}"
+                       {% if request.path != '/section/grade12-dzi-preparation' %}href="{{ url_for('section_view', slug='grade12-dzi-preparation') }}"{% endif %}>ДЗИ</a>
+
+                    {% if ui_profile == "admin" %}
+                        <a class="nav-link" href="{{ url_for('teacher_dashboard') }}">Учител</a>
+                        <a class="nav-link" href="{{ url_for('teacher_assignments') }}">Тестове</a>
+                    {% endif %}
+
+                    {% if can_generate_tests %}
+                        <a class="nav-link" href="{{ url_for('teacher_new') }}">+ Нов тест</a>
+                    {% endif %}
+                </nav>
+
+                <div class="profile-switch" aria-label="Профил">
+                    <span class="profile-label">Профил</span>
+
+                    {% if admin_authenticated %}
+                        <span class="profile-link active">Админ</span>
+                        <a class="profile-link" href="{{ url_for('admin_logout') }}">Изход</a>
+                    {% else %}
+                        <a class="profile-link" href="{{ url_for('admin_login', next=request.path) }}">Админ вход</a>
+                    {% endif %}
+
+                    {% if tester_authenticated and not admin_authenticated %}
+                        <span class="profile-link active">Тестер</span>
+                        <a class="profile-link" href="{{ url_for('tester_logout') }}">Изход</a>
+                    {% elif not tester_authenticated and not admin_authenticated %}
+                        <a class="profile-link" href="{{ url_for('tester_login', next=request.path) }}">Тестер вход</a>
+                    {% endif %}
+                </div>
+            </div>
+        </header>
+
+        <nav class="breadcrumb">
+            {% block breadcrumb %}
+                <a href="{{ url_for('index') }}">Начало</a>
+            {% endblock %}
+        </nav>
+
+        {% block content %}{% endblock %}
+
+        <footer>
+            ДЗИ Generator · {{ app_version }}
+            {% if last_sync_label %} · последна промяна: {{ last_sync_label }}{% endif %}
+            · {{ ui_profile_label }}
+            {% if source_url %} · <a href="{{ source_url }}">source</a>{% endif %}
+        </footer>
+    </div>
+</body>
+</html>

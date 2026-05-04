@@ -1,0 +1,1 @@
+"""ДЗИ Generator — scrape package."""

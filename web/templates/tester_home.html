@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block title %}Тестерски режим{% endblock %}
+
+{% block breadcrumb %}
+    <a href="{{ url_for('index') }}">Начало</a>
+    <span>›</span>
+    Тестер
+{% endblock %}
+
+{% block content %}
+<section class="hero">
+    <p class="eyebrow">Тестерски режим</p>
+    <h1>Добре дошъл</h1>
+    <p class="subtitle">
+        Тук можеш да разглеждаш въпросите по класове и да тестваш подготовката за матура.
+    </p>
+</section>
+
+<section class="card">
+    <div class="section-heading">
+        <h2>Бърз достъп</h2>
+        <span class="pill">публично</span>
+    </div>
+
+    <div class="grade-grid">
+        <a class="grade-card" href="{{ url_for('grade_view', grade=8) }}">
+            <div class="label">8. клас</div>
+            <div class="meta">основи и преговор</div>
+        </a>
+        <a class="grade-card" href="{{ url_for('grade_view', grade=9) }}">
+            <div class="label">9. клас</div>
+            <div class="meta">мрежи, приложения, уеб</div>
+        </a>
+        <a class="grade-card" href="{{ url_for('grade_view', grade=10) }}">
+            <div class="label">10. клас</div>
+            <div class="meta">алгоритми и безопасност</div>
+        </a>
+        <a class="grade-card" href="{{ url_for('grade_view', grade=11) }}">
+            <div class="label">11. клас</div>
+            <div class="meta">данни, БД, мултимедия</div>
+        </a>
+        <a class="grade-card" href="{{ url_for('grade_view', grade=12) }}">
+            <div class="label">12. клас</div>
+            <div class="meta">уеб, ИКТ, матура</div>
+        </a>
+    </div>
+</section>
+
+<section class="card">
+    <div class="section-heading">
+        <h2>Матура</h2>
+        <span class="pill">ДЗИ</span>
+    </div>
+
+    <p class="subtitle">
+        Разделът „Подготовка за матура“ включва всички налични въпроси. Разпределението по проценти се използва само при генериране на тренировъчен тест.
+    </p>
+
+    <p>
+        <a class="button" href="{{ url_for('section_view', slug='grade12-dzi-preparation') }}">
+            Отвори „Подготовка за матура“
+        </a>
+    </p>
+</section>
+{% endblock %}

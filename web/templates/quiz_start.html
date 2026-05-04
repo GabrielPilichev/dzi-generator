@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block title %}{{ assignment.title_bg }} — Старт{% endblock %}
+
+{% block breadcrumb %}
+    <a href="{{ url_for('index') }}">Начало</a>
+    <span>›</span>
+    Тест
+{% endblock %}
+
+{% block content %}
+<section class="quiz-hero">
+  <p class="eyebrow">Тест</p>
+  <h1>{{ assignment.title_bg }}</h1>
+  <p class="subtitle">Въведи име, за да започнеш или продължиш теста.</p>
+
+  <div class="quiz-meta">
+    <span class="pill">{{ assignment.question_count }} въпроса</span>
+    {% if assignment.time_limit_minutes %}
+      <span class="pill">{{ assignment.time_limit_minutes }} мин.</span>
+    {% else %}
+      <span class="pill">без ограничение</span>
+    {% endif %}
+  </div>
+</section>
+
+<form method="post" class="card form-card">
+  <label for="student_name">Име на ученик</label>
+  <input id="student_name" name="student_name" autocomplete="name" required placeholder="Например: Иван Петров">
+
+  <div class="help">
+    Ако вече си започнал тест със същото име, ще продължиш съществуващия опит.
+  </div>
+
+  <button type="submit">Започни теста</button>
+</form>
+{% endblock %}

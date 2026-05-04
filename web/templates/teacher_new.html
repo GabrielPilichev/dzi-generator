@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+
+{% block title %}Създай тест{% endblock %}
+
+{% block breadcrumb %}
+    <a href="{{ url_for('index') }}">Начало</a>
+    <span>›</span>
+    <a href="{{ url_for('teacher_dashboard') }}">Учител</a>
+    <span>›</span>
+    Създай тест
+{% endblock %}
+
+{% block content %}
+<section class="hero">
+    <p class="eyebrow">Нов тест</p>
+    <h1>Създай тест за ученици</h1>
+    <p class="subtitle">
+        Избери раздел, брой въпроси и по желание ограничение във времето.
+        След създаване ще получиш линк, който можеш да изпратиш на учениците.
+    </p>
+</section>
+
+<form method="post" class="card form-card" id="new-assignment-form">
+    <div class="section-heading">
+        <h2>1. Избери раздел</h2>
+        <span class="pill">{{ sections|length }} налични</span>
+    </div>
+
+    <label for="section_id">Раздел с въпроси</label>
+    <select id="section_id" name="section_id" required>
+        <option value="">— избери раздел —</option>
+        {% for s in sections %}
+            <option
+                value="{{ s.id }}"
+                data-count="{{ s.question_count }}"
+                data-grade="{{ s.class }}"
+            >
+                {{ s.class }}. клас — {{ s.title_bg }} ({{ s.question_count }} въпроса)
+            </option>
+        {% endfor %}
+    </select>
+    <div class="help" id="section-help">
+        Показват се само раздели, в които има въпроси с избираем отговор.
+    </div>
+
+    <hr style="border: 0; border-top: 1px solid #e5e7eb; margin: 1.2rem 0;">
+
+    <div class="section-heading">
+        <h2>2. Настройки</h2>
+    </div>
+
+    <div class="detail-grid">
+        <div>
+            <label for="question_count">Брой въпроси</label>
+            <input id="question_count" name="question_count" type="number" min="1" value="10" required>
+            <div class="help" id="count-help">Ако въведеш повече от наличните, системата ще използва максимума.</div>
+        </div>
+
+        <div>
+            <label for="time_limit_minutes">Време в минути</label>
+            <input id="time_limit_minutes" name="time_limit_minutes" type="number" min="1" placeholder="без ограничение">
+            <div class="help">Остави празно за тест без таймер.</div>
+        </div>
+    </div>
+
+    <div class="warning" style="margin-top: 1rem;">
+        Тестът избира въпросите автоматично. Всеки ученик получава стабилен ред според името си, а отговорите се разбъркват.
+    </div>
+
+    <button type="submit">Създай тест</button>
+</form>
+
+<script>
+(function () {
+    const section = document.getElementById("section_id");
+    const count = document.getElementById("question_count");
+    const sectionHelp = document.getElementById("section-help");
+    const countHelp = document.getElementById("count-help");
+
+    function updateHelp() {
+        const selected = section.options[section.selectedIndex];
+        const available = parseInt(selected.dataset.count || "0", 10);
+        const grade = selected.dataset.grade;
+
+        if (!available) {
+            sectionHelp.textContent = "Показват се само раздели, в които има въпроси с избираем отговор.";
+            countHelp.textContent = "Ако въведеш повече от наличните, системата ще използва максимума.";
+            return;
+        }
+
+        sectionHelp.textContent = `${grade}. клас · налични въпроси с избираем отговор: ${available}`;
+        count.max = String(available);
+
+        if (parseInt(count.value || "0", 10) > available) {
+            count.value = String(available);
+        }
+
+        countHelp.textContent = `Максимум за този раздел: ${available} въпроса.`;
+    }
+
+    section.addEventListener("change", updateHelp);
+    count.addEventListener("input", updateHelp);
+    updateHelp();
+})();
+</script>
+{% endblock %}

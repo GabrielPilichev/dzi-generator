@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+
+{% block title %}{{ grade }}. клас — Учебна програма{% endblock %}
+
+{% block breadcrumb %}
+    <a href="{{ url_for('index') }}">Начало</a>
+    <span>›</span>
+    {{ grade }}. клас
+{% endblock %}
+
+{% set section_type_labels = {
+    "review": "преговор",
+    "content": "съдържание",
+    "project": "проект",
+    "summary": "обобщение",
+    "dzi_training": "матура"
+} %}
+
+{% block content %}
+<section class="hero">
+    <p class="eyebrow">Учебна програма</p>
+    <h1>{{ grade }}. клас</h1>
+    <p class="subtitle">Празните раздели са скрити. Обобщенията и подготовката са изведени най-отгоре.</p>
+</section>
+
+{% set ns = namespace(featured=[]) %}
+{% for module in modules %}
+    {% for s in module.sections %}
+        {% if s.question_count > 0 and (s.section_type in ['summary', 'dzi_training'] or 'матура' in s.section_title|lower) %}
+            {% set ns.featured = ns.featured + [dict(section=s, module=module)] %}
+        {% endif %}
+    {% endfor %}
+{% endfor %}
+
+{% if ns.featured %}
+    <section class="pinned-grid">
+        {% for item in ns.featured %}
+            {% set s = item.section %}
+            {% set m = item.module %}
+            {% set pin_color = 'var(--color-primary)' %}
+            {% set pin_icon = '📌' %}
+            {% set pin_label = 'Обобщение' %}
+            {% if s.section_type == 'dzi_training' %}
+                {% set pin_color = 'var(--color-accent-dzi)' %}
+                {% set pin_icon = '🎓' %}
+                {% set pin_label = 'Подготовка за матура' %}
+            {% elif 'module-4' in m.module_slug %}
+                {% set pin_color = 'var(--color-module-4)' %}
+                {% set pin_icon = '🧩' %}
+                {% set pin_label = 'Обобщение М4' %}
+            {% elif 'module-3' in m.module_slug %}
+                {% set pin_color = 'var(--color-module-3)' %}
+                {% set pin_icon = '🌐' %}
+                {% set pin_label = 'Обобщение М3' %}
+            {% endif %}
+
+            <a class="pinned-card" href="{{ url_for('section_view', slug=s.section_slug) }}" style="--pin-color: {{ pin_color }};">
+                <div class="pin-icon">{{ pin_icon }}</div>
+                <div>
+                    <div class="pin-title">{{ s.section_title }}</div>
+                    <div class="pin-meta">{{ pin_label }}</div>
+                </div>
+                <span class="count-pill">{{ s.question_count }} въпр.</span>
+            </a>
+        {% endfor %}
+    </section>
+{% endif %}
+
+{% for module in modules %}
+    {% set visible_sections = module.sections
+        | rejectattr('question_count', 'equalto', 0)
+        | rejectattr('section_type', 'equalto', 'summary')
+        | rejectattr('section_type', 'equalto', 'dzi_training')
+        | list
+    %}
+
+    {% if visible_sections %}
+        {% set module_color = 'var(--color-primary)' %}
+        {% if 'module-3' in module.module_slug or 'web' in module.module_slug %}
+            {% set module_color = 'var(--color-module-3)' %}
+        {% elif 'module-4' in module.module_slug or 'ict' in module.module_slug or 'solving-problems' in module.module_slug %}
+            {% set module_color = 'var(--color-module-4)' %}
+        {% elif module.module_slug == 'module-dzi-preparation' %}
+            {% set module_color = 'var(--color-accent-dzi)' %}
+        {% endif %}
+
+        <section class="module-card" style="--module-color: {{ module_color }};">
+            <div class="module-titlebar">
+                {% if module.module_slug == "module-dzi-preparation" %}
+                    <span class="module-name">{{ module.module_title }}</span>
+                {% else %}
+                    <span class="module-kicker">Модул {{ module.module_number }}</span>
+                    <span class="module-name">{{ module.module_title }}</span>
+                {% endif %}
+            </div>
+
+            <ul class="section-list">
+                {% for s in visible_sections %}
+                    <li class="section-item">
+                        <div>
+                            <div class="section-title-row">
+                                <a href="{{ url_for('section_view', slug=s.section_slug) }}">{{ s.section_title }}</a>
+
+                                {% if s.section_type and s.section_type != 'content' %}
+                                    <span class="section-type-badge">{{ section_type_labels.get(s.section_type, s.section_type) }}</span>
+                                {% endif %}
+
+                                {% if s.has_test %}
+                                    <span class="section-type-badge">тест</span>
+                                {% endif %}
+                            </div>
+
+                            {% if ui_profile == 'admin' %}
+                                <span class="admin-debug">{{ s.section_slug }}</span>
+                            {% endif %}
+                        </div>
+
+                        <span class="count-pill">{{ s.question_count }} въпр.</span>
+                    </li>
+                {% endfor %}
+            </ul>
+        </section>
+    {% endif %}
+{% else %}
+    <p class="empty-state">За този клас още няма дефинирани модули.</p>
+{% endfor %}
+{% endblock %}

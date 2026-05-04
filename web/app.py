@@ -1,0 +1,1315 @@
+"""
+ДЗИ Generator — Web app, Phase 1.
+
+Браузър за секции и въпроси от curriculum-а. Read-only.
+
+Структура:
+  /                   → начална страница, списък с класове 8-12
+  /grade/<n>          → секции за избран клас, групирани по модул
+  /section/<slug>     → въпроси в избрана секция
+
+Зависимости:
+  pip3 install flask
+
+Употреба:
+  cd ~/dzi-generator
+  python3 web/app.py
+  → отвори http://127.0.0.1:5000
+"""
+
+from __future__ import annotations
+
+import os
+import hmac
+
+import sqlite3
+from pathlib import Path
+
+from flask import Flask, abort, g, render_template, url_for, request, redirect, session
+
+
+# ---------------------------------------------------------------------------
+# Config
+# ---------------------------------------------------------------------------
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+DB_PATH = PROJECT_ROOT / "data" / "questions.db"
+
+app = Flask(__name__)
+app.config["DB_PATH"] = str(DB_PATH)
+app.config["SECRET_KEY"] = os.environ.get("DZI_SECRET_KEY", "local-dzi-generator-dev-key")
+
+
+
+# ---------------------------------------------------------------------------
+# Local UI profiles
+# ---------------------------------------------------------------------------
+
+VALID_UI_PROFILES = {"admin", "tester"}
+
+@app.before_request
+def load_ui_profile():
+    profile = session.get("ui_profile", "tester")
+    if profile not in VALID_UI_PROFILES:
+        profile = "tester"
+
+    if profile == "admin" and not session.get("admin_authenticated"):
+        profile = "tester"
+
+    session["ui_profile"] = profile
+    g.ui_profile = profile
+
+
+
+@app.context_processor
+def inject_app_meta():
+    sync_label = None
+    try:
+        db_mtime = DB_PATH.stat().st_mtime
+        vault_path = BASE_DIR / "vault"
+        vault_mtime = vault_path.stat().st_mtime if vault_path.exists() else db_mtime
+        latest = max(db_mtime, vault_mtime)
+        sync_label = datetime.fromtimestamp(latest).strftime("%Y-%m-%d %H:%M")
+    except Exception:
+        sync_label = None
+
+    return {
+        "app_version": "UI pass 9",
+        "last_sync_label": sync_label,
+        "source_url": os.environ.get("DZI_SOURCE_URL"),
+    }
+
+
+@app.context_processor
+def inject_ui_profile():
+    profile = getattr(g, "ui_profile", "admin")
+    return {
+        "ui_profile": profile,
+        "ui_profile_label": "Админ" if profile == "admin" else "Тестер",
+    }
+
+
+@app.route("/profile/<profile>")
+def switch_profile(profile: str):
+    if profile not in VALID_UI_PROFILES:
+        abort(404)
+
+    session["ui_profile"] = profile
+    next_url = request.args.get("next") or (url_for("tester_home") if profile == "tester" else url_for("index"))
+    if not next_url.startswith("/"):
+        next_url = url_for("index")
+    return redirect(next_url)
+
+
+
+
+# ---------------------------------------------------------------------------
+# Tester password protection
+# ---------------------------------------------------------------------------
+
+def tester_password_configured() -> bool:
+    return bool(os.environ.get("DZI_TESTER_PASSWORD"))
+
+
+def is_tester_authenticated() -> bool:
+    return bool(session.get("tester_authenticated")) or is_admin_authenticated()
+
+
+def can_generate_tests() -> bool:
+    return is_tester_authenticated() or is_admin_authenticated()
+
+
+@app.context_processor
+def inject_tester_auth():
+    return {
+        "tester_authenticated": is_tester_authenticated(),
+        "tester_password_configured": tester_password_configured(),
+        "can_generate_tests": can_generate_tests(),
+    }
+
+
+@app.route("/tester/login", methods=["GET", "POST"])
+def tester_login():
+    error = None
+    next_url = request.args.get("next") or request.form.get("next") or url_for("tester_home")
+
+    if not next_url.startswith("/"):
+        next_url = url_for("tester_home")
+
+    if request.method == "POST":
+        configured_password = os.environ.get("DZI_TESTER_PASSWORD", "")
+        submitted_password = request.form.get("password", "")
+
+        if not configured_password:
+            error = "Тестерската парола не е зададена. Стартирай сървъра с DZI_TESTER_PASSWORD."
+        elif hmac.compare_digest(submitted_password, configured_password):
+            session["tester_authenticated"] = True
+            session["ui_profile"] = "tester"
+            return redirect(next_url)
+        else:
+            error = "Грешна парола."
+
+    return render_template("tester_login.html", error=error, next_url=next_url)
+
+
+@app.route("/tester/logout")
+def tester_logout():
+    session.pop("tester_authenticated", None)
+    if not session.get("admin_authenticated"):
+        session["ui_profile"] = "tester"
+    return redirect(url_for("tester_home"))
+
+
+# ---------------------------------------------------------------------------
+# Admin password protection
+# ---------------------------------------------------------------------------
+
+def admin_password_configured() -> bool:
+    return bool(os.environ.get("DZI_ADMIN_PASSWORD"))
+
+
+def is_admin_authenticated() -> bool:
+    return bool(session.get("admin_authenticated"))
+
+
+@app.context_processor
+def inject_admin_auth():
+    return {
+        "admin_authenticated": is_admin_authenticated(),
+        "admin_password_configured": admin_password_configured(),
+    }
+
+
+@app.before_request
+def protect_admin_routes():
+    endpoint = request.endpoint or ""
+
+    if endpoint in {"static", "admin_login", "switch_profile"}:
+        # /profile/admin is handled below inside switch_profile route protection.
+        if endpoint != "switch_profile":
+            return
+
+    if endpoint == "switch_profile":
+        profile = (request.view_args or {}).get("profile")
+        if profile == "admin" and not is_admin_authenticated():
+            return redirect(url_for("admin_login", next=request.args.get("next") or request.referrer or url_for("index")))
+        return
+
+    if endpoint == "teacher_new" and not can_generate_tests():
+        session["ui_profile"] = "tester"
+        return redirect(url_for("tester_login", next=request.path))
+
+    if endpoint.startswith("teacher") and endpoint != "teacher_new" and not is_admin_authenticated():
+        session["ui_profile"] = "tester"
+        return redirect(url_for("admin_login", next=request.path))
+
+
+@app.route("/admin/login", methods=["GET", "POST"])
+def admin_login():
+    error = None
+    next_url = request.args.get("next") or request.form.get("next") or url_for("teacher_dashboard")
+
+    if not next_url.startswith("/"):
+        next_url = url_for("teacher_dashboard")
+
+    if request.method == "POST":
+        configured_password = os.environ.get("DZI_ADMIN_PASSWORD", "")
+        submitted_password = request.form.get("password", "")
+
+        if not configured_password:
+            error = "Админ паролата не е зададена. Стартирай сървъра с DZI_ADMIN_PASSWORD."
+        elif hmac.compare_digest(submitted_password, configured_password):
+            session["admin_authenticated"] = True
+            session["ui_profile"] = "admin"
+            return redirect(next_url)
+        else:
+            error = "Грешна парола."
+
+    return render_template("admin_login.html", error=error, next_url=next_url)
+
+
+@app.route("/admin/logout")
+def admin_logout():
+    session.pop("admin_authenticated", None)
+    session["ui_profile"] = "tester"
+    return redirect(url_for("index"))
+
+
+# ---------------------------------------------------------------------------
+# DB helpers
+# ---------------------------------------------------------------------------
+
+def get_db() -> sqlite3.Connection:
+    """Per-request SQLite connection. Closed in teardown."""
+    if "db" not in g:
+        conn = sqlite3.connect(app.config["DB_PATH"])
+        conn.row_factory = sqlite3.Row
+        g.db = conn
+    return g.db
+
+
+@app.teardown_appcontext
+def close_db(exception):
+    db = g.pop("db", None)
+    if db is not None:
+        db.close()
+
+
+# ---------------------------------------------------------------------------
+# Queries
+# ---------------------------------------------------------------------------
+
+def fetch_grades_with_counts() -> list[dict]:
+    """List of grades 8-12 with question counts (production-ready only)."""
+    db = get_db()
+    rows = db.execute("""
+        SELECT
+            tc.class AS grade,
+            COUNT(DISTINCT q.id) AS question_count,
+            COUNT(DISTINCT t.id) AS topic_count
+        FROM topic_classes tc
+        JOIN curriculum_topics t ON t.id = tc.topic_id
+        LEFT JOIN questions q
+            ON q.topic_id = t.id
+            AND (q.is_ai_generated = 0 OR q.quality_score >= 1.0)
+        WHERE tc.class BETWEEN 8 AND 12
+        GROUP BY tc.class
+        ORDER BY tc.class
+    """).fetchall()
+    return [dict(r) for r in rows]
+
+
+def fetch_sections_for_grade(grade: int) -> list[dict]:
+    """Sections for a grade, grouped by module."""
+    db = get_db()
+    rows = db.execute("""
+        SELECT
+            cs.id              AS section_id,
+            cs.section_slug    AS section_slug,
+            cs.title_bg        AS section_title,
+            cs.section_type    AS section_type,
+            cs.has_section_test AS has_test,
+            cm.module_slug     AS module_slug,
+            cm.title_bg        AS module_title,
+            cm.module_number   AS module_number,
+            (
+                SELECT COUNT(DISTINCT q.id)
+                FROM topic_section_assignments tsa
+                JOIN questions q ON q.topic_id = tsa.topic_id
+                WHERE tsa.section_id = cs.id
+                  AND (q.is_ai_generated = 0 OR q.quality_score >= 1.0)
+            ) AS question_count
+        FROM curriculum_sections cs
+        LEFT JOIN curriculum_modules cm ON cm.id = cs.module_id
+        WHERE cs.class = ?
+        ORDER BY COALESCE(cm.module_number, 99), cs.display_order, cs.title_bg
+    """, (grade,)).fetchall()
+    return [dict(r) for r in rows]
+
+
+def fetch_section(slug: str) -> dict | None:
+    db = get_db()
+    row = db.execute("""
+        SELECT
+            cs.id              AS section_id,
+            cs.section_slug    AS section_slug,
+            cs.title_bg        AS section_title,
+            cs.class           AS grade,
+            cm.title_bg        AS module_title,
+            cm.module_number   AS module_number
+        FROM curriculum_sections cs
+        LEFT JOIN curriculum_modules cm ON cm.id = cs.module_id
+        WHERE cs.section_slug = ?
+    """, (slug,)).fetchone()
+    return dict(row) if row else None
+
+
+def fetch_questions_in_section(section_id: int) -> list[dict]:
+    """Approved questions linked to this section via topic_section_assignments."""
+    db = get_db()
+    rows = db.execute("""
+        SELECT DISTINCT
+            q.id            AS question_id,
+            q.prompt        AS prompt,
+            q.question_type AS question_type,
+            q.difficulty    AS difficulty,
+            t.topic_slug    AS topic_slug,
+            t.title_bg      AS topic_title
+        FROM topic_section_assignments tsa
+        JOIN questions q ON q.topic_id = tsa.topic_id
+        JOIN curriculum_topics t ON t.id = q.topic_id
+        WHERE tsa.section_id = ?
+          AND (q.is_ai_generated = 0 OR q.quality_score >= 1.0)
+        ORDER BY t.topic_slug, q.id
+    """, (section_id,)).fetchall()
+
+    questions = []
+    for r in rows:
+        q = dict(r)
+        if q["question_type"] in ("multiple_choice", "true_false"):
+            opts = db.execute("""
+                SELECT option_letter, option_text, is_correct
+                FROM multiple_choice_options
+                WHERE question_id = ?
+                ORDER BY option_letter
+            """, (q["question_id"],)).fetchall()
+            q["options"] = [dict(o) for o in opts]
+        else:
+            q["options"] = []
+        questions.append(q)
+    return questions
+
+
+# ---------------------------------------------------------------------------
+# Routes
+# ---------------------------------------------------------------------------
+
+@app.route("/tester")
+def tester_home():
+    return render_template("tester_home.html")
+
+
+@app.route("/")
+def index():
+    grades = fetch_grades_with_counts()
+    return render_template("index.html", grades=grades)
+
+
+@app.route("/grade/<int:grade>")
+def grade_view(grade: int):
+    if not 8 <= grade <= 12:
+        abort(404)
+    sections = fetch_sections_for_grade(grade)
+
+    # Group by module for display
+    modules: dict[str, dict] = {}
+    for s in sections:
+        key = s["module_slug"]
+        if key not in modules:
+            modules[key] = {
+                "module_slug": key,
+                "module_title": s["module_title"],
+                "module_number": s["module_number"],
+                "sections": [],
+            }
+        modules[key]["sections"].append(s)
+
+    modules_list = sorted(
+        modules.values(),
+        key=lambda m: (m["module_number"] or 99, m["module_title"]),
+    )
+
+    return render_template(
+        "grade.html",
+        grade=grade,
+        modules=modules_list,
+    )
+
+
+@app.route("/section/<slug>")
+def section_view(slug: str):
+    section = fetch_section(slug)
+    if section is None:
+        abort(404)
+    questions = fetch_questions_in_section(section["section_id"])
+    return render_template(
+        "section.html",
+        section=section,
+        questions=questions,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Error handlers
+# ---------------------------------------------------------------------------
+
+@app.errorhandler(404)
+def not_found(e):
+    return render_template("404.html"), 404
+
+
+# ---------------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------------
+
+
+
+# === QUIZ PHASE 2 START ===
+
+import hashlib as _quiz_hashlib
+import json as _quiz_json
+import os as _quiz_os
+import random as _quiz_random
+import re as _quiz_re
+import sqlite3 as _quiz_sqlite3
+import sys as _quiz_sys
+from datetime import datetime as _quiz_datetime
+from pathlib import Path as _QuizPath
+
+from flask import abort as _quiz_abort
+from flask import redirect as _quiz_redirect
+from flask import request as _quiz_request
+from flask import url_for as _quiz_url_for
+from flask import render_template as _quiz_render_template
+
+
+QUIZ_APPROVED_FILTER = "(q.is_ai_generated = 0 OR q.quality_score >= 1.0)"
+QUIZ_DB_PATH = _QuizPath(_quiz_os.environ.get("DZI_DB", "data/questions.db"))
+QUIZ_VAULT_PATH = _QuizPath(
+    _quiz_os.environ.get(
+        "DZI_VAULT",
+        str(_QuizPath.home() / "dzi-generator" / "vault"),
+    )
+)
+
+
+def quiz_db():
+    conn = _quiz_sqlite3.connect(str(QUIZ_DB_PATH))
+    conn.row_factory = _quiz_sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
+    return conn
+
+
+def quiz_apply_migration() -> None:
+    migration = _QuizPath("web/migrations/001_quiz_tables.sql")
+    if not migration.exists():
+        return
+    conn = quiz_db()
+    conn.executescript(migration.read_text(encoding="utf-8"))
+    conn.commit()
+    conn.close()
+
+
+def quiz_slugify(value: str) -> str:
+    bg = {
+        "а": "a", "б": "b", "в": "v", "г": "g", "д": "d", "е": "e", "ж": "zh",
+        "з": "z", "и": "i", "й": "y", "к": "k", "л": "l", "м": "m", "н": "n",
+        "о": "o", "п": "p", "р": "r", "с": "s", "т": "t", "у": "u", "ф": "f",
+        "х": "h", "ц": "ts", "ч": "ch", "ш": "sh", "щ": "sht", "ъ": "a",
+        "ь": "", "ю": "yu", "я": "ya",
+    }
+    out = []
+    for ch in (value or "").lower():
+        out.append(bg.get(ch, ch))
+    value = "".join(out)
+    value = _quiz_re.sub(r"[^a-z0-9]+", "-", value).strip("-")
+    return value or "quiz"
+
+
+def quiz_markdown_escape(value: str | None) -> str:
+    return (value or "").replace("\r\n", "\n").replace("\r", "\n")
+
+
+def quiz_frontmatter(data: dict) -> str:
+    lines = ["---"]
+    for key, value in data.items():
+        if isinstance(value, list):
+            inner = ", ".join(str(v) for v in value)
+            lines.append(f"{key}: [{inner}]")
+        elif value is None:
+            lines.append(f"{key}: null")
+        elif isinstance(value, str):
+            safe = value.replace('"', '\\"')
+            lines.append(f'{key}: "{safe}"')
+        else:
+            lines.append(f"{key}: {value}")
+    lines.append("---")
+    return "\n".join(lines)
+
+
+def quiz_assignment_note_path(assignment_id: int, section_slug: str, created_at: str | None = None) -> _QuizPath:
+    date = (created_at or _quiz_datetime.now().isoformat())[:10]
+    filename = f"{date}-assignment-{assignment_id}-{quiz_slugify(section_slug)}.md"
+    return QUIZ_VAULT_PATH / "Generated" / "Quizzes" / filename
+
+
+def quiz_attempt_note_path(assignment_id: int, student_name: str, submitted_at: str | None = None) -> _QuizPath:
+    date = (submitted_at or _quiz_datetime.now().isoformat())[:10]
+    filename = f"{date}-assignment-{assignment_id}-{quiz_slugify(student_name)}.md"
+    return QUIZ_VAULT_PATH / "Generated" / "Quizzes" / "attempts" / filename
+
+
+def quiz_fetch_assignment(conn, assignment_id: int):
+    return conn.execute("""
+        SELECT
+            qa.*,
+            cs.section_slug,
+            cs.title_bg AS section_title,
+            cs.class AS section_class
+        FROM quiz_assignments qa
+        JOIN curriculum_sections cs ON cs.id = qa.section_id
+        WHERE qa.id = ?
+    """, (assignment_id,)).fetchone()
+
+
+def quiz_section_question_ids(conn, section_id: int) -> list[int]:
+    rows = conn.execute(f"""
+        SELECT DISTINCT q.id
+        FROM questions q
+        JOIN topic_section_assignments tsa ON tsa.topic_id = q.topic_id
+        WHERE tsa.section_id = ?
+          AND {QUIZ_APPROVED_FILTER}
+          AND q.question_type = 'multiple_choice'
+        ORDER BY q.id
+    """, (section_id,)).fetchall()
+    return [int(r["id"]) for r in rows]
+
+
+def quiz_seed(assignment_id: int, student_name: str) -> str:
+    raw = f"{assignment_id}|{student_name.strip().lower()}".encode("utf-8")
+    return _quiz_hashlib.sha256(raw).hexdigest()
+
+
+def quiz_pick_questions(conn, assignment, student_name: str) -> tuple[str, list[int]]:
+    seed = quiz_seed(int(assignment["id"]), student_name)
+    ids = quiz_section_question_ids(conn, int(assignment["section_id"]))
+    rng = _quiz_random.Random(seed)
+    rng.shuffle(ids)
+    count = min(int(assignment["question_count"]), len(ids))
+    return seed, ids[:count]
+
+
+def quiz_shuffle_options(seed: str, question_id: int, options: list[dict]) -> list[dict]:
+    shuffled = [dict(o) for o in options]
+    rng = _quiz_random.Random(f"{seed}|options|{question_id}")
+    rng.shuffle(shuffled)
+
+    display_letters = ["А", "Б", "В", "Г", "Д", "Е"]
+    for i, opt in enumerate(shuffled):
+        opt["display_letter"] = display_letters[i] if i < len(display_letters) else str(i + 1)
+
+    return shuffled
+
+
+def quiz_load_questions(conn, question_ids: list[int], seed: str, include_correct: bool = False) -> list[dict]:
+    if not question_ids:
+        return []
+
+    placeholders = ",".join("?" for _ in question_ids)
+    q_rows = conn.execute(f"""
+        SELECT id, prompt, question_type
+        FROM questions
+        WHERE id IN ({placeholders})
+    """, question_ids).fetchall()
+
+    by_id = {int(r["id"]): dict(r) for r in q_rows}
+    result = []
+
+    for qid in question_ids:
+        q = by_id.get(int(qid))
+        if not q:
+            continue
+
+        if include_correct:
+            opt_rows = conn.execute("""
+                SELECT id, option_letter, option_text, is_correct
+                FROM multiple_choice_options
+                WHERE question_id = ?
+                ORDER BY option_letter
+            """, (qid,)).fetchall()
+        else:
+            opt_rows = conn.execute("""
+                SELECT id, option_letter, option_text
+                FROM multiple_choice_options
+                WHERE question_id = ?
+                ORDER BY option_letter
+            """, (qid,)).fetchall()
+
+        q["options"] = quiz_shuffle_options(seed, int(qid), [dict(o) for o in opt_rows])
+        result.append(q)
+
+    return result
+
+
+def quiz_time_taken_seconds(attempt) -> int:
+    try:
+        started = _quiz_datetime.fromisoformat(attempt["started_at"])
+        ended_raw = attempt["submitted_at"] or _quiz_datetime.now().isoformat(timespec="seconds")
+        ended = _quiz_datetime.fromisoformat(ended_raw)
+        return max(0, int((ended - started).total_seconds()))
+    except Exception:
+        return 0
+
+
+def quiz_format_duration(seconds: int) -> str:
+    minutes = seconds // 60
+    rest = seconds % 60
+    if minutes:
+        return f"{minutes} мин. {rest} сек."
+    return f"{rest} сек."
+
+
+def quiz_remaining_seconds(assignment, attempt) -> int | None:
+    limit = assignment["time_limit_minutes"]
+    if not limit:
+        return None
+
+    try:
+        started = _quiz_datetime.fromisoformat(attempt["started_at"])
+        elapsed = int((_quiz_datetime.now() - started).total_seconds())
+        return max(0, int(limit) * 60 - elapsed)
+    except Exception:
+        return int(limit) * 60
+
+
+def quiz_write_assignment_note(assignment_id: int, base_url: str) -> None:
+    try:
+        conn = quiz_db()
+        a = quiz_fetch_assignment(conn, assignment_id)
+        if not a:
+            conn.close()
+            return
+
+        attempts = conn.execute("""
+            SELECT *
+            FROM quiz_attempts
+            WHERE assignment_id = ?
+            ORDER BY started_at
+        """, (assignment_id,)).fetchall()
+
+        submitted = [x for x in attempts if x["submitted_at"]]
+        avg = None
+        if submitted:
+            percentages = [
+                (float(x["score_correct"] or 0) / max(1, int(x["score_total"] or 1))) * 100
+                for x in submitted
+            ]
+            avg = round(sum(percentages) / len(percentages), 1)
+
+        quiz_link = base_url.rstrip("/") + _quiz_url_for("quiz_start", assignment_id=assignment_id)
+        path = quiz_assignment_note_path(assignment_id, a["section_slug"], a["created_at"])
+
+        rows = []
+        for x in attempts:
+            attempt_path = quiz_attempt_note_path(assignment_id, x["student_name"], x["submitted_at"])
+            rel = attempt_path.relative_to(path.parent).as_posix()
+            score = f'{x["score_correct"]}/{x["score_total"]}' if x["submitted_at"] else "в процес"
+            rows.append(
+                f'| [[{rel}|{x["student_name"]}]] | {score} | {x["started_at"]} | {x["submitted_at"] or "—"} |'
+            )
+
+        fm = quiz_frontmatter({
+            "title": a["title_bg"],
+            "type": "quiz_assignment",
+            "section_slug": a["section_slug"],
+            "class": a["section_class"],
+            "question_count": a["question_count"],
+            "time_limit_minutes": a["time_limit_minutes"],
+            "created_at": a["created_at"],
+            "attempts_count": len(attempts),
+            "average_score": avg,
+            "status": "open",
+            "tags": ["quiz", "assignment"],
+        })
+
+        body = f"""{fm}
+
+# {a["title_bg"]}
+
+**Секция:** {a["section_title"]}
+**Брой въпроси:** {a["question_count"]}
+**Време:** {str(a["time_limit_minutes"]) + " минути" if a["time_limit_minutes"] else "без ограничение"}
+**Споделяем линк:** {quiz_link}
+
+## Опити
+
+| Ученик | Резултат | Начало | Предадено |
+|--------|----------|--------|-----------|
+{chr(10).join(rows) if rows else "| — | — | — | — |"}
+"""
+
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(body, encoding="utf-8")
+        conn.close()
+    except Exception as e:
+        print(f"[quiz vault] assignment note failed: {e}", file=_quiz_sys.stderr)
+
+
+def quiz_write_attempt_note(attempt_id: int) -> None:
+    try:
+        conn = quiz_db()
+        attempt = conn.execute("SELECT * FROM quiz_attempts WHERE id = ?", (attempt_id,)).fetchone()
+        if not attempt:
+            conn.close()
+            return
+
+        assignment = quiz_fetch_assignment(conn, int(attempt["assignment_id"]))
+        if not assignment:
+            conn.close()
+            return
+
+        seed = attempt["seed"]
+        qids = _quiz_json.loads(attempt["question_ids_json"])
+        questions = quiz_load_result_questions(conn, attempt, qids, seed)
+
+        path = quiz_attempt_note_path(int(assignment["id"]), attempt["student_name"], attempt["submitted_at"])
+        seconds = quiz_time_taken_seconds(attempt)
+        pct = round((float(attempt["score_correct"] or 0) / max(1, int(attempt["score_total"] or 1))) * 100, 1)
+
+        fm = quiz_frontmatter({
+            "title": f'{attempt["student_name"]} — {assignment["title_bg"]}',
+            "type": "quiz_attempt",
+            "assignment_id": assignment["id"],
+            "student_name": attempt["student_name"],
+            "score_correct": attempt["score_correct"],
+            "score_total": attempt["score_total"],
+            "time_taken_seconds": seconds,
+            "submitted_at": attempt["submitted_at"],
+            "tags": ["quiz", "attempt"],
+        })
+
+        parts = [fm, "", "# Резултат", ""]
+        parts.append(f'**Точен резултат:** {attempt["score_correct"]}/{attempt["score_total"]} ({pct}%)')
+        parts.append(f"**Време:** {quiz_format_duration(seconds)}")
+        parts.append("")
+        parts.append("## Въпроси")
+        parts.append("")
+
+        for i, q in enumerate(questions, 1):
+            parts.append(f"### Q{i}: {quiz_markdown_escape(q['prompt'])}")
+            parts.append("")
+            parts.append(f"- Отговор на ученика: {quiz_markdown_escape(q['chosen_text'] or 'няма отговор')}")
+            parts.append(f"- Правилен отговор: {quiz_markdown_escape(q['correct_text'])}")
+            parts.append(f"- Резултат: {'✓ вярно' if q['is_correct'] else '✗ грешно'}")
+            parts.append("")
+
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text("\n".join(parts), encoding="utf-8")
+        conn.close()
+    except Exception as e:
+        print(f"[quiz vault] attempt note failed: {e}", file=_quiz_sys.stderr)
+
+
+def quiz_load_result_questions(conn, attempt, question_ids: list[int], seed: str) -> list[dict]:
+    questions = quiz_load_questions(conn, question_ids, seed, include_correct=True)
+    answer_rows = conn.execute("""
+        SELECT question_id, chosen_letter, is_correct
+        FROM quiz_answers
+        WHERE attempt_id = ?
+    """, (attempt["id"],)).fetchall()
+    answers = {int(r["question_id"]): r for r in answer_rows}
+
+    for q in questions:
+        ans = answers.get(int(q["id"]))
+        chosen_letter = ans["chosen_letter"] if ans else None
+
+        chosen_text = None
+        correct_text = None
+
+        for opt in q["options"]:
+            if opt["option_letter"] == chosen_letter:
+                chosen_text = opt["option_text"]
+            if int(opt.get("is_correct") or 0) == 1:
+                correct_text = opt["option_text"]
+
+        q["chosen_letter"] = chosen_letter
+        q["chosen_text"] = chosen_text
+        q["correct_text"] = correct_text or "—"
+        q["is_correct"] = bool(ans and ans["is_correct"])
+
+    return questions
+
+
+quiz_apply_migration()
+
+
+
+
+
+@app.route("/teacher/dzi-training", methods=["GET", "POST"])
+def teacher_dzi_training():
+    import json
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    project_root = Path(__file__).resolve().parents[1]
+    config_path = project_root / "data" / "dzi_training" / "class_mix.json"
+    generator_path = project_root / "src" / "generate_dzi_training_set.py"
+    sets_dir = project_root / "vault" / "Generated" / "DZI-Training" / "sets"
+
+    generated_output = None
+    generated_ok = None
+
+    if config_path.exists():
+        try:
+            config = json.loads(config_path.read_text(encoding="utf-8"))
+        except Exception as exc:
+            config = {
+                "status": "error",
+                "classes": {},
+                "error": str(exc),
+            }
+    else:
+        config = {
+            "status": "missing",
+            "classes": {},
+            "error": f"Missing config: {config_path}",
+        }
+
+    if _quiz_request.method == "POST":
+        raw_count = (_quiz_request.form.get("count") or "28").strip()
+        raw_seed = (_quiz_request.form.get("seed") or "").strip()
+        raw_name = (_quiz_request.form.get("name") or "").strip()
+
+        try:
+            count = int(raw_count)
+        except ValueError:
+            count = 28
+
+        count = max(1, min(count, 100))
+        name = raw_name or f"ДЗИ тренировъчен комплект — {count} въпроса"
+
+        if not generator_path.exists():
+            generated_ok = False
+            generated_output = f"Generator script not found: {generator_path}"
+        else:
+            cmd = [
+                sys.executable,
+                str(generator_path),
+                "--count",
+                str(count),
+                "--name",
+                name,
+            ]
+
+            if raw_seed:
+                cmd.extend(["--seed", raw_seed])
+
+            proc = subprocess.run(
+                cmd,
+                cwd=str(project_root),
+                text=True,
+                capture_output=True,
+                timeout=60,
+            )
+
+            generated_ok = proc.returncode == 0
+            generated_output = (proc.stdout or "") + (proc.stderr or "")
+
+    recent_sets = []
+    if sets_dir.exists():
+        for path in sorted(sets_dir.glob("*.md"), key=lambda p: p.stat().st_mtime, reverse=True)[:20]:
+            recent_sets.append({
+                "name": path.name,
+                "relative_path": str(path.relative_to(project_root / "vault")),
+                "size": path.stat().st_size,
+                "modified": path.stat().st_mtime,
+            })
+
+    return _quiz_render_template(
+        "teacher_dzi_training.html",
+        config=config,
+        recent_sets=recent_sets,
+        generated_output=generated_output,
+        generated_ok=generated_ok,
+    )
+
+
+@app.route("/teacher")
+def teacher_dashboard():
+    conn = quiz_db()
+
+    stats = conn.execute("""
+        SELECT
+            (SELECT COUNT(*) FROM quiz_assignments) AS assignments_count,
+            (SELECT COUNT(*) FROM quiz_attempts) AS attempts_count,
+            (SELECT COUNT(*) FROM quiz_attempts WHERE submitted_at IS NOT NULL) AS submitted_count,
+            (SELECT COUNT(*) FROM quiz_attempts WHERE submitted_at IS NULL) AS unfinished_count,
+            (
+              SELECT AVG(100.0 * score_correct / score_total)
+              FROM quiz_attempts
+              WHERE submitted_at IS NOT NULL
+                AND score_total IS NOT NULL
+                AND score_total > 0
+            ) AS avg_percent
+    """).fetchone()
+
+    recent_assignments = conn.execute("""
+        SELECT
+            qa.id,
+            qa.title_bg,
+            qa.question_count,
+            qa.time_limit_minutes,
+            qa.created_at,
+            cs.class,
+            cs.section_slug,
+            cs.title_bg AS section_title,
+            COUNT(DISTINCT qt.id) AS attempts_count,
+            SUM(CASE WHEN qt.submitted_at IS NOT NULL THEN 1 ELSE 0 END) AS submitted_count
+        FROM quiz_assignments qa
+        JOIN curriculum_sections cs ON cs.id = qa.section_id
+        LEFT JOIN quiz_attempts qt ON qt.assignment_id = qa.id
+        GROUP BY qa.id
+        ORDER BY qa.created_at DESC, qa.id DESC
+        LIMIT 5
+    """).fetchall()
+
+    recent_attempts = conn.execute("""
+        SELECT
+            qt.id,
+            qt.assignment_id,
+            qt.student_name,
+            qt.started_at,
+            qt.submitted_at,
+            qt.score_correct,
+            qt.score_total,
+            qa.title_bg AS assignment_title,
+            CASE
+              WHEN qt.score_total IS NOT NULL AND qt.score_total > 0
+              THEN ROUND(100.0 * qt.score_correct / qt.score_total, 1)
+              ELSE NULL
+            END AS percent
+        FROM quiz_attempts qt
+        JOIN quiz_assignments qa ON qa.id = qt.assignment_id
+        ORDER BY qt.started_at DESC, qt.id DESC
+        LIMIT 8
+    """).fetchall()
+
+    conn.close()
+
+    return _quiz_render_template(
+        "teacher_dashboard.html",
+        stats=stats,
+        recent_assignments=recent_assignments,
+        recent_attempts=recent_attempts,
+    )
+
+
+@app.route("/teacher/assignments")
+def teacher_assignments():
+    conn = quiz_db()
+
+    assignments = conn.execute("""
+        SELECT
+            qa.id,
+            qa.section_id,
+            qa.title_bg,
+            qa.question_count,
+            qa.time_limit_minutes,
+            qa.created_at,
+            cs.class,
+            cs.title_bg AS section_title,
+            cs.section_slug,
+            COUNT(DISTINCT qt.id) AS attempts_count,
+            SUM(CASE WHEN qt.submitted_at IS NOT NULL THEN 1 ELSE 0 END) AS submitted_count
+        FROM quiz_assignments qa
+        JOIN curriculum_sections cs ON cs.id = qa.section_id
+        LEFT JOIN quiz_attempts qt ON qt.assignment_id = qa.id
+        GROUP BY qa.id
+        ORDER BY qa.created_at DESC, qa.id DESC
+    """).fetchall()
+
+    conn.close()
+
+    return _quiz_render_template(
+        "teacher_assignments.html",
+        assignments=assignments,
+    )
+
+
+@app.route("/teacher/new", methods=["GET", "POST"])
+def teacher_new():
+    conn = quiz_db()
+
+    if _quiz_request.method == "POST":
+        section_id = int(_quiz_request.form.get("section_id") or 0)
+        requested_count = int(_quiz_request.form.get("question_count") or 10)
+        raw_limit = (_quiz_request.form.get("time_limit_minutes") or "").strip()
+        time_limit = int(raw_limit) if raw_limit else None
+
+        section = conn.execute("""
+            SELECT id, title_bg
+            FROM curriculum_sections
+            WHERE id = ?
+        """, (section_id,)).fetchone()
+
+        if not section:
+            conn.close()
+            _quiz_abort(404)
+
+        available = len(quiz_section_question_ids(conn, section_id))
+        question_count = max(1, min(requested_count, available))
+
+        cur = conn.execute("""
+            INSERT INTO quiz_assignments (section_id, title_bg, question_count, time_limit_minutes)
+            VALUES (?, ?, ?, ?)
+        """, (section_id, section["title_bg"], question_count, time_limit))
+        assignment_id = cur.lastrowid
+        conn.commit()
+        conn.close()
+
+        quiz_write_assignment_note(assignment_id, _quiz_request.host_url)
+        return _quiz_redirect(_quiz_url_for("teacher_assignment", assignment_id=assignment_id))
+
+    sections = conn.execute(f"""
+        SELECT
+            cs.id,
+            cs.class,
+            cs.title_bg,
+            COUNT(DISTINCT q.id) AS question_count
+        FROM curriculum_sections cs
+        LEFT JOIN topic_section_assignments tsa ON tsa.section_id = cs.id
+        LEFT JOIN questions q
+          ON q.topic_id = tsa.topic_id
+         AND {QUIZ_APPROVED_FILTER}
+         AND q.question_type = 'multiple_choice'
+        GROUP BY cs.id
+        HAVING question_count > 0
+        ORDER BY cs.class, cs.display_order, cs.title_bg
+    """).fetchall()
+    conn.close()
+
+    return _quiz_render_template("teacher_new.html", sections=sections)
+
+
+@app.route("/teacher/assignment/<int:assignment_id>")
+def teacher_assignment(assignment_id):
+    conn = quiz_db()
+    assignment = quiz_fetch_assignment(conn, assignment_id)
+    if not assignment:
+        conn.close()
+        _quiz_abort(404)
+
+    attempts = conn.execute("""
+        SELECT *
+        FROM quiz_attempts
+        WHERE assignment_id = ?
+        ORDER BY started_at
+    """, (assignment_id,)).fetchall()
+
+    quiz_url = _quiz_request.host_url.rstrip("/") + _quiz_url_for("quiz_start", assignment_id=assignment_id)
+    conn.close()
+
+    return _quiz_render_template(
+        "teacher_assignment.html",
+        assignment=assignment,
+        attempts=attempts,
+        quiz_url=quiz_url,
+    )
+
+
+
+@app.route("/teacher/assignment/<int:assignment_id>/results")
+def teacher_assignment_results(assignment_id):
+    conn = quiz_db()
+    assignment = quiz_fetch_assignment(conn, assignment_id)
+    if not assignment:
+        conn.close()
+        _quiz_abort(404)
+
+    attempts = conn.execute("""
+        SELECT
+            id,
+            student_name,
+            started_at,
+            submitted_at,
+            score_correct,
+            score_total,
+            CASE
+              WHEN score_total IS NOT NULL AND score_total > 0
+              THEN ROUND(100.0 * score_correct / score_total, 1)
+              ELSE NULL
+            END AS percent
+        FROM quiz_attempts
+        WHERE assignment_id = ?
+        ORDER BY
+            submitted_at IS NULL,
+            submitted_at DESC,
+            started_at DESC,
+            student_name
+    """, (assignment_id,)).fetchall()
+
+    totals = conn.execute("""
+        SELECT
+            COUNT(*) AS attempts_count,
+            SUM(CASE WHEN submitted_at IS NOT NULL THEN 1 ELSE 0 END) AS submitted_count,
+            SUM(CASE WHEN submitted_at IS NULL THEN 1 ELSE 0 END) AS unfinished_count,
+            AVG(CASE
+              WHEN submitted_at IS NOT NULL AND score_total > 0
+              THEN 100.0 * score_correct / score_total
+              ELSE NULL
+            END) AS avg_percent
+        FROM quiz_attempts
+        WHERE assignment_id = ?
+    """, (assignment_id,)).fetchone()
+
+    conn.close()
+
+    return _quiz_render_template(
+        "teacher_results.html",
+        assignment=assignment,
+        attempts=attempts,
+        totals=totals,
+    )
+
+
+@app.route("/quiz/<int:assignment_id>", methods=["GET", "POST"])
+def quiz_start(assignment_id):
+    conn = quiz_db()
+    assignment = quiz_fetch_assignment(conn, assignment_id)
+    if not assignment:
+        conn.close()
+        _quiz_abort(404)
+
+    if _quiz_request.method == "POST":
+        student_name = " ".join((_quiz_request.form.get("student_name") or "").strip().split())
+        if not student_name:
+            conn.close()
+            return _quiz_redirect(_quiz_url_for("quiz_start", assignment_id=assignment_id))
+
+        existing = conn.execute("""
+            SELECT *
+            FROM quiz_attempts
+            WHERE assignment_id = ?
+              AND student_name = ?
+        """, (assignment_id, student_name)).fetchone()
+
+        if existing:
+            conn.close()
+            if existing["submitted_at"]:
+                return _quiz_redirect(_quiz_url_for("quiz_result", attempt_id=existing["id"]))
+            return _quiz_redirect(_quiz_url_for("quiz_attempt", attempt_id=existing["id"]))
+
+        seed, question_ids = quiz_pick_questions(conn, assignment, student_name)
+
+        cur = conn.execute("""
+            INSERT INTO quiz_attempts (assignment_id, student_name, seed, question_ids_json, score_total)
+            VALUES (?, ?, ?, ?, ?)
+        """, (
+            assignment_id,
+            student_name,
+            seed,
+            _quiz_json.dumps(question_ids),
+            len(question_ids),
+        ))
+        attempt_id = cur.lastrowid
+        conn.commit()
+        conn.close()
+
+        return _quiz_redirect(_quiz_url_for("quiz_attempt", attempt_id=attempt_id))
+
+    conn.close()
+    return _quiz_render_template("quiz_start.html", assignment=assignment)
+
+
+@app.route("/quiz/attempt/<int:attempt_id>", methods=["GET", "POST"])
+def quiz_attempt(attempt_id):
+    conn = quiz_db()
+    attempt = conn.execute("SELECT * FROM quiz_attempts WHERE id = ?", (attempt_id,)).fetchone()
+    if not attempt:
+        conn.close()
+        _quiz_abort(404)
+
+    assignment = quiz_fetch_assignment(conn, int(attempt["assignment_id"]))
+    if not assignment:
+        conn.close()
+        _quiz_abort(404)
+
+    if attempt["submitted_at"]:
+        conn.close()
+        return _quiz_redirect(_quiz_url_for("quiz_result", attempt_id=attempt_id))
+
+    question_ids = _quiz_json.loads(attempt["question_ids_json"])
+    seed = attempt["seed"]
+
+    if _quiz_request.method == "POST":
+        correct_by_qid = {}
+        for qid in question_ids:
+            row = conn.execute("""
+                SELECT option_letter
+                FROM multiple_choice_options
+                WHERE question_id = ?
+                  AND is_correct = 1
+                LIMIT 1
+            """, (qid,)).fetchone()
+            correct_by_qid[int(qid)] = row["option_letter"] if row else None
+
+        score = 0
+        total = len(question_ids)
+
+        for qid in question_ids:
+            chosen = _quiz_request.form.get(f"q_{qid}")
+            correct_letter = correct_by_qid.get(int(qid))
+            is_correct = 1 if chosen and correct_letter and chosen == correct_letter else 0
+            score += is_correct
+
+            conn.execute("""
+                INSERT INTO quiz_answers (attempt_id, question_id, chosen_letter, is_correct)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT(attempt_id, question_id)
+                DO UPDATE SET chosen_letter = excluded.chosen_letter,
+                              is_correct = excluded.is_correct
+            """, (attempt_id, qid, chosen, is_correct))
+
+        conn.execute("""
+            UPDATE quiz_attempts
+            SET submitted_at = CURRENT_TIMESTAMP,
+                score_correct = ?,
+                score_total = ?
+            WHERE id = ?
+        """, (score, total, attempt_id))
+
+        conn.commit()
+        conn.close()
+
+        quiz_write_attempt_note(attempt_id)
+        quiz_write_assignment_note(int(assignment["id"]), _quiz_request.host_url)
+
+        return _quiz_redirect(_quiz_url_for("quiz_result", attempt_id=attempt_id))
+
+    questions = quiz_load_questions(conn, question_ids, seed, include_correct=False)
+    remaining = quiz_remaining_seconds(assignment, attempt)
+    conn.close()
+
+    return _quiz_render_template(
+        "quiz_attempt.html",
+        assignment=assignment,
+        attempt=attempt,
+        questions=questions,
+        remaining_seconds=remaining,
+    )
+
+
+@app.route("/quiz/attempt/<int:attempt_id>/result")
+def quiz_result(attempt_id):
+    conn = quiz_db()
+    attempt = conn.execute("SELECT * FROM quiz_attempts WHERE id = ?", (attempt_id,)).fetchone()
+    if not attempt:
+        conn.close()
+        _quiz_abort(404)
+
+    assignment = quiz_fetch_assignment(conn, int(attempt["assignment_id"]))
+    if not assignment:
+        conn.close()
+        _quiz_abort(404)
+
+    if not attempt["submitted_at"]:
+        conn.close()
+        return _quiz_redirect(_quiz_url_for("quiz_attempt", attempt_id=attempt_id))
+
+    qids = _quiz_json.loads(attempt["question_ids_json"])
+    questions = quiz_load_result_questions(conn, attempt, qids, attempt["seed"])
+    seconds = quiz_time_taken_seconds(attempt)
+    conn.close()
+
+    return _quiz_render_template(
+        "quiz_result.html",
+        assignment=assignment,
+        attempt=attempt,
+        questions=questions,
+        time_taken=quiz_format_duration(seconds),
+    )
+
+# === QUIZ PHASE 2 END ===
+
+
+if __name__ == "__main__":
+    if not DB_PATH.exists():
+        print(f"❌ DB не намерен: {DB_PATH}")
+        raise SystemExit(1)
+    print(f"📚 ДЗИ Generator — Web app")
+    print(f"   DB:      {DB_PATH}")
+    print(f"   URL:     http://127.0.0.1:5000")
+    print(f"   Stop:    Ctrl+C")
+    app.run(host="127.0.0.1", port=5000, debug=True)

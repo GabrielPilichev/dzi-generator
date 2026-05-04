@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block title %}Тестер вход{% endblock %}
+
+{% block breadcrumb %}
+    <a href="{{ url_for('index') }}">Начало</a>
+    <span>›</span>
+    Тестер вход
+{% endblock %}
+
+{% block content %}
+<section class="hero">
+    <p class="eyebrow">Тестер</p>
+    <h1>Вход за тестери</h1>
+    <p class="subtitle">
+        Въведи тестерската парола, за да можеш да създаваш тестове. Това не дава достъп до админ/учителското табло.
+    </p>
+</section>
+
+{% if error %}
+    <div class="error">{{ error }}</div>
+{% endif %}
+
+<form method="post" class="card form-card">
+    <input type="hidden" name="next" value="{{ next_url }}">
+
+    <label for="password">Тестер парола</label>
+    <input id="password" name="password" type="password" autocomplete="current-password" required autofocus>
+
+    <button type="submit">Вход</button>
+</form>
+{% endblock %}

@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+
+{% block title %}Резултати — {{ assignment.title_bg }}{% endblock %}
+
+{% block breadcrumb %}
+    <a href="{{ url_for('index') }}">Начало</a>
+    <span>›</span>
+    <a href="{{ url_for('teacher_dashboard') }}">Учител</a>
+    <span>›</span>
+    <a href="{{ url_for('teacher_assignments') }}">Създадени тестове</a>
+    <span>›</span>
+    <a href="{{ url_for('teacher_assignment', assignment_id=assignment.id) }}">Тест #{{ assignment.id }}</a>
+    <span>›</span>
+    Резултати
+{% endblock %}
+
+{% block content %}
+<section class="page-header">
+  <div>
+    <p class="eyebrow">Резултати</p>
+    <h1>{{ assignment.title_bg }}</h1>
+    <p class="subtitle">
+      Тест #{{ assignment.id }} · {{ assignment.question_count }} въпроса
+      {% if assignment.time_limit_minutes %}
+        · време: {{ assignment.time_limit_minutes }} мин.
+      {% endif %}
+    </p>
+  </div>
+  <div class="header-actions">
+    <a class="button secondary" href="{{ url_for('teacher_assignment', assignment_id=assignment.id) }}">Към заданието</a>
+  </div>
+</section>
+
+<div class="cards">
+  <div class="card">
+    <div class="label">Всички опити</div>
+    <div class="value">{{ totals.attempts_count or 0 }}</div>
+  </div>
+  <div class="card">
+    <div class="label">Предадени</div>
+    <div class="value">{{ totals.submitted_count or 0 }}</div>
+  </div>
+  <div class="card">
+    <div class="label">Незавършени</div>
+    <div class="value">{{ totals.unfinished_count or 0 }}</div>
+  </div>
+  <div class="card">
+    <div class="label">Среден резултат</div>
+    <div class="value">
+      {% if totals.avg_percent is not none %}
+        {{ "%.1f"|format(totals.avg_percent) }}%
+      {% else %}
+        —
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<section class="card">
+  {% if attempts %}
+    <table>
+      <thead>
+        <tr>
+          <th>Ученик</th>
+          <th>Статус</th>
+          <th>Резултат</th>
+          <th>Започнат</th>
+          <th>Предаден</th>
+          <th>Връзка</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in attempts %}
+          <tr>
+            <td><strong>{{ a.student_name }}</strong></td>
+            <td>
+              {% if a.submitted_at %}
+                <span class="badge done">предаден</span>
+              {% else %}
+                <span class="badge open">незавършен</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if a.submitted_at %}
+                {{ a.score_correct }}/{{ a.score_total }}
+                {% if a.percent is not none %}
+                  <div class="muted">{{ "%.1f"|format(a.percent) }}%</div>
+                {% endif %}
+              {% else %}
+                —
+              {% endif %}
+            </td>
+            <td>{{ a.started_at }}</td>
+            <td>{{ a.submitted_at or "—" }}</td>
+            <td>
+              {% if a.submitted_at %}
+                <a href="{{ url_for('quiz_result', attempt_id=a.id) }}">виж резултат</a>
+              {% else %}
+                —
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p class="empty-state">Още няма опити за този тест.</p>
+  {% endif %}
+</section>
+{% endblock %}

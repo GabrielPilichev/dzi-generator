@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}ДЗИ Generator — Преглед{% endblock %}
+
+{% set total_questions = namespace(value=0) %}
+{% for g in grades %}
+    {% set total_questions.value = total_questions.value + g.question_count %}
+{% endfor %}
+
+{% block content %}
+<section class="hero">
+    <p class="eyebrow">Учебен браузър</p>
+    <h1>Информационни технологии</h1>
+    <p class="subtitle">Изберете клас или започнете директно от подготовката за матура.</p>
+</section>
+
+<a href="{{ url_for('section_view', slug='grade12-dzi-preparation') }}" class="home-dzi-card">
+    <div>
+        <p class="eyebrow">Primary action</p>
+        <h2 class="home-dzi-title">Подготовка за ДЗИ</h2>
+        <p class="subtitle">Общ тренировъчен раздел с всички налични въпроси.</p>
+        <div class="home-dzi-stats">
+            <span>{{ total_questions.value }} въпроса</span>
+            <span>·</span>
+            <span>{{ grades|length }} класа</span>
+        </div>
+    </div>
+    <div class="home-dzi-icon" aria-hidden="true">🎓</div>
+</a>
+
+<div class="grade-grid">
+    {% for g in grades|sort(attribute='grade') %}
+        <a href="{{ url_for('grade_view', grade=g.grade) }}" class="grade-card {% if g.question_count == 0 %}disabled{% endif %}">
+            <div class="label">{{ g.grade }}. клас</div>
+            <div class="stat-row">
+                <div class="stat-box">
+                    <span class="stat-number">{{ g.question_count }}</span>
+                    <span class="stat-label">въпроса</span>
+                </div>
+                <div class="stat-box">
+                    <span class="stat-number">{{ g.topic_count }}</span>
+                    <span class="stat-label">теми</span>
+                </div>
+            </div>
+        </a>
+    {% else %}
+        <p class="empty-state">Няма налични класове.</p>
+    {% endfor %}
+</div>
+{% endblock %}

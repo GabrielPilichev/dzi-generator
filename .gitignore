@@ -1,0 +1,63 @@
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+*.env
+
+# Logs / temp
+*.log
+*.tmp
+
+# Local backups / checkpoints
+*.bak
+*.backup
+*.backup-*
+*.before-*
+*.after-*
+*.old
+*.orig
+vault.backup-*/
+web/templates.*.bak/
+web/static.*.bak/
+data/questions.backup-*.db
+
+# SQLite runtime sidecars
+*.db-shm
+*.db-wal
+
+# Generated/exported office files at project root
+exam_v*.docx
+
+# Local generated output, if not needed in repo
+output/
+
+# Stray shell typo/temp files
+=
+
+# Duplicate/local source data copies
+src/data/
+
+# Local generated data/logs/audits/reference exports
+data/audits/
+data/dzi_training/
+data/reference/
+data/worksheets/
+data/*_log.jsonl
+data/*.log
+data/dzi_relevance_audit.csv
+data/dzi_relevance_audit.txt
+
+# Obsidian local UI state
+vault/.obsidian/workspace.json
+vault/.obsidian/workspace-mobile.json
+
+# Old Obsidian backup folder
+vault/_backup_initial_mocs/
+
+# Large/reference PDFs unless intentionally added later
+*.pdf

@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block title %}{{ assignment.title_bg }} — Тест{% endblock %}
+
+{% block breadcrumb %}
+    <a href="{{ url_for('index') }}">Начало</a>
+    <span>›</span>
+    {{ assignment.title_bg }}
+{% endblock %}
+
+{% block content %}
+<section class="page-header">
+  <div>
+    <p class="eyebrow">Тест</p>
+    <h1>{{ assignment.title_bg }}</h1>
+    <p class="subtitle">Ученик: <strong>{{ attempt.student_name }}</strong></p>
+  </div>
+
+  {% if remaining_seconds is not none %}
+    <div class="timer">
+      Оставащо време:
+      <span id="countdown" data-remaining="{{ remaining_seconds }}">{{ remaining_seconds }}</span>
+    </div>
+  {% endif %}
+</section>
+
+<form method="post" id="quiz-form">
+  {% for q in questions %}
+    <article class="card question-card quiz-card">
+      <h2>Въпрос {{ loop.index }} от {{ questions|length }}</h2>
+      <p>{{ q.prompt }}</p>
+
+      <div class="options">
+        {% for opt in q.options %}
+          <label class="option">
+            <input type="radio" name="q_{{ q.id }}" value="{{ opt.option_letter }}">
+            <span><strong>{{ opt.display_letter }})</strong> {{ opt.option_text }}</span>
+          </label>
+        {% endfor %}
+      </div>
+    </article>
+  {% endfor %}
+
+  <button type="submit">Предай теста</button>
+</form>
+
+{% if remaining_seconds is not none %}
+<script>
+(function () {
+  const el = document.getElementById("countdown");
+  const form = document.getElementById("quiz-form");
+  let remaining = parseInt(el.dataset.remaining, 10);
+
+  function fmt(seconds) {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
+  }
+
+  function tick() {
+    el.textContent = fmt(Math.max(0, remaining));
+    if (remaining <= 0) {
+      form.submit();
+      return;
+    }
+    remaining -= 1;
+    setTimeout(tick, 1000);
+  }
+
+  tick();
+})();
+</script>
+{% endif %}
+{% endblock %}

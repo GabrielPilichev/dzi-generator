@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+
+{% block title %}{{ section.section_title }} — {{ section.grade }}. клас{% endblock %}
+
+{% block breadcrumb %}
+    <a href="{{ url_for('index') }}">Начало</a>
+    <span>›</span>
+    <a href="{{ url_for('grade_view', grade=section.grade) }}">{{ section.grade }}. клас</a>
+    <span>›</span>
+    {{ section.section_title }}
+{% endblock %}
+
+{% block content %}
+<section class="hero">
+    <p class="eyebrow">{{ section.grade }}. клас</p>
+    <h1>{{ section.section_title }}</h1>
+    <p class="subtitle">
+        {% if section.module_title %}{{ section.module_title }} · {% endif %}
+        {{ questions|length }} въпрос{{ '' if questions|length == 1 else 'а' }}
+    </p>
+</section>
+
+<div class="question-toolbar">
+    <a class="button secondary" href="{{ url_for('grade_view', grade=section.grade) }}">← Обратно към {{ section.grade }}. клас</a>
+    <span class="pill">{{ questions|length }} въпрос{{ '' if questions|length == 1 else 'а' }}</span>
+</div>
+
+{% if questions %}
+    <section class="section-toolbar" data-section-tools data-section-slug="{{ section.section_slug }}">
+        <div class="toolbar-row">
+            <input id="question-search" class="toolbar-search" type="search" placeholder="Търсене по въпрос, тема или отговор...">
+
+            <select id="question-type-filter" class="toolbar-select" aria-label="Тип въпрос">
+                <option value="">Тип</option>
+                <option value="multiple_choice">Избираем</option>
+                <option value="true_false">Вярно/невярно</option>
+                <option value="fill_in">Попълване</option>
+                <option value="open">Отворени</option>
+            </select>
+
+            <select id="question-difficulty-filter" class="toolbar-select" aria-label="Трудност">
+                <option value="">Трудност</option>
+                <option value="easy">easy</option>
+                <option value="medium">medium</option>
+                <option value="hard">hard</option>
+                <option value="unknown">unknown</option>
+            </select>
+
+            <span class="toolbar-divider" aria-hidden="true"></span>
+
+            <button class="segmented-button" type="button" id="toggle-correct" aria-pressed="false">
+                👁 <span class="button-label">Hide answers</span>
+            </button>
+
+            <button class="segmented-button" type="button" id="bookmarks-only" aria-pressed="false">
+                ⭐ <span class="button-label">Само маркирани</span>
+            </button>
+
+            <button class="segmented-button" type="button" id="shuffle-questions">
+                🔀 <span class="button-label">Shuffle</span>
+            </button>
+
+            <button class="icon-button" type="button" id="reset-view" title="Нулирай изгледа">↻</button>
+
+            <div class="shortcuts-wrap">
+                <button class="icon-button" type="button" id="shortcuts-button" title="Shortcuts">?</button>
+                <div class="shortcuts-popover" id="shortcuts-popover" hidden>
+                    <div><kbd>/</kbd> focus search</div>
+                    <div><kbd>s</kbd> shuffle</div>
+                    <div><kbd>h</kbd> hide answers</div>
+                    <div><kbd>Esc</kbd> clear/unfocus</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="toolbar-meta">
+            <span id="filter-summary">Показани: {{ questions|length }} от {{ questions|length }}</span>
+            <span id="bookmark-summary">Маркирани: 0</span>
+        </div>
+    </section>
+
+    <div id="questions-list" class="questions-list">
+        {% for q in questions %}
+            {% set difficulty = q.difficulty or 'unknown' %}
+            {% set type_class = q.question_type|replace(' ', '_') %}
+            <article
+                class="question"
+                data-question-id="{{ q.question_id }}"
+                data-question-type="{{ q.question_type }}"
+                data-difficulty="{{ difficulty }}"
+                data-search-text="{{ (q.prompt ~ ' ' ~ q.topic_title ~ ' ' ~ q.question_type ~ ' ' ~ difficulty ~ ' ' ~ (q.options | map(attribute='option_text') | join(' '))) | lower | e }}"
+            >
+                <div class="question-header">
+                    <div class="question-meta">
+                        <span class="question-number">[{{ "%02d"|format(loop.index) }}]</span>
+                        <span class="question-topic">{{ q.topic_title }}</span>
+                        <span class="badge type-badge type-{{ type_class }}">{{ q.question_type }}</span>
+                        <span class="badge diff-{{ difficulty }}">трудност: {{ difficulty }}</span>
+                    </div>
+
+                    <button class="bookmark-button" type="button" aria-label="Маркирай въпроса">⭐</button>
+                </div>
+
+                <div class="prompt">{{ q.prompt }}</div>
+
+                {% if q.options %}
+                    <ol class="options-list">
+                        {% for opt in q.options %}
+                            <li class="option-row {% if opt.is_correct %}correct{% endif %}">
+                                <span class="option-letter">{{ opt.option_letter }}</span>
+                                <span>{{ opt.option_text }}</span>
+                            </li>
+                        {% endfor %}
+                    </ol>
+                {% else %}
+                    <div class="open-question-note">отворен въпрос</div>
+                {% endif %}
+            </article>
+        {% endfor %}
+    </div>
+
+    <script src="{{ url_for('static', filename='js/section-tools.js') }}"></script>
+{% else %}
+    <p class="empty-state">Все още няма одобрени въпроси за тази секция.</p>
+{% endif %}
+{% endblock %}

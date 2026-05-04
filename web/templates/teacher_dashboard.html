@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+
+{% block title %}Учителско табло{% endblock %}
+
+{% block breadcrumb %}
+    <a href="{{ url_for('index') }}">Начало</a>
+    <span>›</span>
+    Учител
+{% endblock %}
+
+{% block content %}
+<section class="page-header">
+  <div>
+    <p class="eyebrow">Учител</p>
+    <h1>Учителско табло</h1>
+    <p class="subtitle">Бърз преглед на тестове, опити и резултати.</p>
+  </div>
+  <div class="header-actions">
+    <a class="button secondary" href="{{ url_for('teacher_assignments') }}">Създадени тестове</a>
+    <a class="button secondary" href="{{ url_for('teacher_dzi_training') }}">ДЗИ подготовка</a>
+    <a class="button" href="{{ url_for('teacher_new') }}">+ Създай тест</a>
+  </div>
+</section>
+
+<div class="cards">
+  <div class="card">
+    <div class="label">Създадени тестове</div>
+    <div class="value">{{ stats.assignments_count or 0 }}</div>
+  </div>
+  <div class="card">
+    <div class="label">Всички опити</div>
+    <div class="value">{{ stats.attempts_count or 0 }}</div>
+  </div>
+  <div class="card">
+    <div class="label">Предадени</div>
+    <div class="value">{{ stats.submitted_count or 0 }}</div>
+  </div>
+  <div class="card">
+    <div class="label">Незавършени</div>
+    <div class="value">{{ stats.unfinished_count or 0 }}</div>
+  </div>
+  <div class="card">
+    <div class="label">Среден резултат</div>
+    <div class="value">
+      {% if stats.avg_percent is not none %}
+        {{ "%.1f"|format(stats.avg_percent) }}%
+      {% else %}
+        —
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<section class="card">
+  <div class="section-heading">
+    <h2>Последни тестове</h2>
+    <a href="{{ url_for('teacher_assignments') }}">виж всички</a>
+  </div>
+
+  {% if recent_assignments %}
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Тест</th>
+          <th>Раздел</th>
+          <th>Въпроси</th>
+          <th>Опити</th>
+          <th>Създаден</th>
+          <th>Връзки</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in recent_assignments %}
+          <tr>
+            <td>{{ a.id }}</td>
+            <td>
+              <strong>{{ a.title_bg }}</strong>
+              {% if a.time_limit_minutes %}
+                <div class="muted">Време: {{ a.time_limit_minutes }} мин.</div>
+              {% endif %}
+            </td>
+            <td>
+              {{ a.section_title }}
+              <div class="muted">{{ a.class }}. клас · {{ a.section_slug }}</div>
+            </td>
+            <td>{{ a.question_count }}</td>
+            <td>
+              {{ a.attempts_count or 0 }}
+              <div class="muted">предадени: {{ a.submitted_count or 0 }}</div>
+            </td>
+            <td>{{ a.created_at }}</td>
+            <td>
+              <div class="links">
+                <a href="{{ url_for('teacher_assignment', assignment_id=a.id) }}">детайли</a>
+                <a href="{{ url_for('teacher_assignment_results', assignment_id=a.id) }}">резултати</a>
+              </div>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p class="empty-state">Все още няма създадени тестове.</p>
+  {% endif %}
+</section>
+
+<section class="card">
+  <div class="section-heading">
+    <h2>Последни опити</h2>
+  </div>
+
+  {% if recent_attempts %}
+    <table>
+      <thead>
+        <tr>
+          <th>Ученик</th>
+          <th>Тест</th>
+          <th>Статус</th>
+          <th>Резултат</th>
+          <th>Започнат</th>
+          <th>Връзка</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in recent_attempts %}
+          <tr>
+            <td><strong>{{ a.student_name }}</strong></td>
+            <td>
+              {{ a.assignment_title }}
+              <div class="muted">Тест #{{ a.assignment_id }}</div>
+            </td>
+            <td>
+              {% if a.submitted_at %}
+                <span class="badge done">предаден</span>
+              {% else %}
+                <span class="badge open">незавършен</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if a.submitted_at %}
+                {{ a.score_correct }}/{{ a.score_total }}
+                {% if a.percent is not none %}
+                  <div class="muted">{{ "%.1f"|format(a.percent) }}%</div>
+                {% endif %}
+              {% else %}
+                —
+              {% endif %}
+            </td>
+            <td>{{ a.started_at }}</td>
+            <td>
+              {% if a.submitted_at %}
+                <a href="{{ url_for('quiz_result', attempt_id=a.id) }}">виж резултат</a>
+              {% else %}
+                <a href="{{ url_for('teacher_assignment', assignment_id=a.assignment_id) }}">към теста</a>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p class="empty-state">Все още няма започнати опити.</p>
+  {% endif %}
+</section>
+{% endblock %}

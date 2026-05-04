@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+
+{% block title %}ДЗИ подготовка{% endblock %}
+
+{% block breadcrumb %}
+    <a href="{{ url_for('index') }}">Начало</a>
+    <span>›</span>
+    <a href="{{ url_for('teacher_dashboard') }}">Учител</a>
+    <span>›</span>
+    ДЗИ подготовка
+{% endblock %}
+
+{% block content %}
+<section class="page-header">
+  <div>
+    <p class="eyebrow">ДЗИ</p>
+    <h1>ДЗИ подготовка</h1>
+    <p class="subtitle">Генериране на тренировъчни комплекти с контролирано разпределение по класове.</p>
+  </div>
+</section>
+
+<div class="warning">
+  Това е тренировъчен генератор. Официалната ДЗИ релевантност още не е потвърдена срещу програма на МОН.
+</div>
+
+<section class="panel">
+  <div class="section-heading">
+    <h2>Текущо разпределение</h2>
+    <span class="pill">{{ config.status }}</span>
+  </div>
+
+  {% if config.error %}
+    <div class="error">{{ config.error }}</div>
+  {% endif %}
+
+  <div class="cards">
+    {% for cls, pct in config.classes.items() %}
+      <div class="mix-card">
+        <div class="label">{{ cls }}. клас</div>
+        <div class="value">{{ pct }}%</div>
+      </div>
+    {% endfor %}
+  </div>
+
+  <p class="muted">Пулът може да включва всички налични въпроси; процентите се използват само при генериране на тренировъчен тест.</p>
+</section>
+
+<section class="panel">
+  <h2>Създай тренировъчен комплект</h2>
+
+  <form method="post">
+    <label for="name">Заглавие</label>
+    <input id="name" name="name" value="ДЗИ тренировъчен комплект" autocomplete="off">
+
+    <label for="count">Брой въпроси</label>
+    <input id="count" name="count" type="number" min="1" max="100" value="28">
+    <div class="help">28 е стандартният размер за тренировъчен комплект по структурата на ДЗИ.</div>
+
+    <label for="seed">Seed</label>
+    <input id="seed" name="seed" value="" placeholder="например dzi-training-v2">
+    <div class="help">Остави празно за автоматичен seed. Един и същ seed дава същия избор.</div>
+
+    <button type="submit">Генерирай комплект</button>
+  </form>
+</section>
+
+{% if generated_output is not none %}
+  {% if generated_ok %}
+    <div class="success">Комплектът е генериран успешно.</div>
+  {% else %}
+    <div class="error">Генерирането не успя.</div>
+  {% endif %}
+  <pre>{{ generated_output }}</pre>
+{% endif %}
+
+<section class="card">
+  <div class="section-heading">
+    <h2>Последни генерирани комплекти</h2>
+    <span class="pill">{{ recent_sets|length }} файла</span>
+  </div>
+
+  {% if recent_sets %}
+    <table>
+      <thead>
+        <tr>
+          <th>Файл</th>
+          <th>Път във vault</th>
+          <th>Размер</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in recent_sets %}
+          <tr>
+            <td><strong>{{ s.name }}</strong></td>
+            <td><code>{{ s.relative_path }}</code></td>
+            <td>{{ s.size }} B</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p class="empty-state">Все още няма генерирани комплекти.</p>
+  {% endif %}
+</section>
+{% endblock %}

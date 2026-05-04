@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}Резултат — {{ assignment.title_bg }}{% endblock %}
+
+{% block breadcrumb %}
+    <a href="{{ url_for('index') }}">Начало</a>
+    <span>›</span>
+    Резултат
+{% endblock %}
+
+{% block content %}
+<section class="quiz-hero result-summary">
+  <p class="eyebrow">Резултат</p>
+  <h1>{{ assignment.title_bg }}</h1>
+  <p class="subtitle">{{ attempt.student_name }}</p>
+
+  <div class="result-score">{{ attempt.score_correct }}/{{ attempt.score_total }}</div>
+  <p class="subtitle">верни отговори</p>
+
+  <div class="quiz-meta" style="justify-content: center;">
+    <span class="pill">Време: {{ time_taken }}</span>
+  </div>
+</section>
+
+{% for q in questions %}
+  <article class="card question-card {{ 'correct' if q.is_correct else 'incorrect' }}">
+    <h2>Въпрос {{ loop.index }}</h2>
+    <p>{{ q.prompt }}</p>
+
+    {% if q.is_correct %}
+      <p><span class="badge done">Верен отговор</span></p>
+    {% else %}
+      <p><span class="badge open">Грешен отговор</span></p>
+    {% endif %}
+
+    <div class="answer-line">
+      <strong>Твоят отговор:</strong>
+      {% if q.chosen_text %}
+        {{ q.chosen_text }}
+      {% else %}
+        няма отговор
+      {% endif %}
+    </div>
+
+    <div class="answer-line">
+      <strong>Правилен отговор:</strong> {{ q.correct_text }}
+    </div>
+  </article>
+{% endfor %}
+
+<p><a class="button secondary" href="{{ url_for('index') }}">Към началото</a></p>
+{% endblock %}

@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+launchd конфигурация за DZI Generator vault watcher.
+
+Поведение:
+  - RunAtLoad: стартира при влизане в системата
+  - KeepAlive (SuccessfulExit=false): рестартира ако падне с грешка, НЕ ако излезе чисто
+  - ThrottleInterval: 30 сек минимум между restart-и (предпазва от crash loop)
+  - StandardOutPath / StandardErrorPath: stdout/stderr → лог файлове
+
+ВАЖНО: __HOME__ е placeholder. install_watcher.sh ще го замени с реалния path.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.gabriel.dzi-generator.watcher</string>
+    
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/bin/python3</string>
+        <string>__HOME__/dzi-generator/src/watch_vault.py</string>
+    </array>
+    
+    <key>WorkingDirectory</key>
+    <string>__HOME__/dzi-generator</string>
+    
+    <key>RunAtLoad</key>
+    <true/>
+    
+    <key>KeepAlive</key>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>
+    </dict>
+    
+    <key>ThrottleInterval</key>
+    <integer>30</integer>
+    
+    <key>StandardOutPath</key>
+    <string>__HOME__/dzi-generator/data/watcher.stdout.log</string>
+    
+    <key>StandardErrorPath</key>
+    <string>__HOME__/dzi-generator/data/watcher.stderr.log</string>
+    
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin</string>
+        <key>LANG</key>
+        <string>en_US.UTF-8</string>
+        <key>LC_ALL</key>
+        <string>en_US.UTF-8</string>
+    </dict>
+</dict>
+</plist>

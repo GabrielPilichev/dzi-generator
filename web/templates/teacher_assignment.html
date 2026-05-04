@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block title %}{{ assignment.title_bg }} — Задание{% endblock %}
+
+{% block breadcrumb %}
+    <a href="{{ url_for('index') }}">Начало</a>
+    <span>›</span>
+    <a href="{{ url_for('teacher_dashboard') }}">Учител</a>
+    <span>›</span>
+    <a href="{{ url_for('teacher_assignments') }}">Създадени тестове</a>
+    <span>›</span>
+    Тест #{{ assignment.id }}
+{% endblock %}
+
+{% block content %}
+<section class="page-header">
+  <div>
+    <p class="eyebrow">Учителски изглед</p>
+    <h1>{{ assignment.title_bg }}</h1>
+    <p class="subtitle">Споделяем линк за ученици и списък с опити.</p>
+  </div>
+  <div class="header-actions">
+    <a class="button secondary" href="{{ url_for('teacher_assignment_results', assignment_id=assignment.id) }}">Виж резултати</a>
+    <a class="button" href="{{ url_for('quiz_start', assignment_id=assignment.id) }}">Отвори теста</a>
+  </div>
+</section>
+
+<div class="card">
+  <div class="detail-grid">
+    <div>
+      <div class="label">Секция</div>
+      <div class="value-small">{{ assignment.section_title }}</div>
+    </div>
+    <div>
+      <div class="label">Клас</div>
+      <div class="value-small">{{ assignment.section_class }}. клас</div>
+    </div>
+    <div>
+      <div class="label">Брой въпроси</div>
+      <div class="value-small">{{ assignment.question_count }}</div>
+    </div>
+    <div>
+      <div class="label">Време</div>
+      <div class="value-small">
+        {% if assignment.time_limit_minutes %}
+          {{ assignment.time_limit_minutes }} мин.
+        {% else %}
+          без ограничение
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="share-box">
+    <div class="label">Линк за ученици</div>
+    <a href="{{ quiz_url }}">{{ quiz_url }}</a>
+  </div>
+</div>
+
+<section class="card">
+  <div class="section-heading">
+    <h2>Опити досега</h2>
+    <span class="pill">{{ attempts|length }} общо</span>
+  </div>
+
+  {% if attempts %}
+    <table>
+      <thead>
+        <tr>
+          <th>Ученик</th>
+          <th>Резултат</th>
+          <th>Начало</th>
+          <th>Предадено</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in attempts %}
+          <tr>
+            <td><strong>{{ a.student_name }}</strong></td>
+            <td>
+              {% if a.submitted_at %}
+                <span class="badge done">{{ a.score_correct }}/{{ a.score_total }}</span>
+              {% else %}
+                <span class="badge open">в процес</span>
+              {% endif %}
+            </td>
+            <td>{{ a.started_at }}</td>
+            <td>{{ a.submitted_at or "—" }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p class="empty-state">Още няма започнати опити.</p>
+  {% endif %}
+</section>
+{% endblock %}

@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block title %}Създадени тестове{% endblock %}
+
+{% block breadcrumb %}
+    <a href="{{ url_for('index') }}">Начало</a>
+    <span>›</span>
+    <a href="{{ url_for('teacher_dashboard') }}">Учител</a>
+    <span>›</span>
+    Създадени тестове
+{% endblock %}
+
+{% block content %}
+<section class="page-header">
+  <div>
+    <p class="eyebrow">Учител</p>
+    <h1>Създадени тестове</h1>
+    <p class="subtitle">Всички създадени задания и връзките към тях.</p>
+  </div>
+  <div class="header-actions">
+    <a class="button" href="{{ url_for('teacher_new') }}">+ Създай нов тест</a>
+  </div>
+</section>
+
+<section class="card">
+  {% if assignments %}
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Тест</th>
+          <th>Раздел</th>
+          <th>Въпроси</th>
+          <th>Опити</th>
+          <th>Създаден</th>
+          <th>Връзки</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in assignments %}
+          <tr>
+            <td>{{ a.id }}</td>
+            <td>
+              <strong>{{ a.title_bg }}</strong>
+              {% if a.time_limit_minutes %}
+                <div class="muted">Време: {{ a.time_limit_minutes }} мин.</div>
+              {% endif %}
+            </td>
+            <td>
+              {{ a.section_title }}
+              <div class="muted">{{ a.class }}. клас · {{ a.section_slug }}</div>
+            </td>
+            <td>{{ a.question_count }}</td>
+            <td>
+              {{ a.attempts_count or 0 }}
+              <div class="muted">предадени: {{ a.submitted_count or 0 }}</div>
+            </td>
+            <td>{{ a.created_at }}</td>
+            <td>
+              <div class="links">
+                <a href="{{ url_for('teacher_assignment', assignment_id=a.id) }}">Учителски изглед</a>
+                <a href="{{ url_for('teacher_assignment_results', assignment_id=a.id) }}">Резултати</a>
+                <a href="{{ url_for('quiz_start', assignment_id=a.id) }}">Линк за ученици</a>
+              </div>
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p class="empty-state">Все още няма създадени тестове.</p>
+    <p><a class="button" href="{{ url_for('teacher_new') }}">Създай първи тест</a></p>
+  {% endif %}
+</section>
+{% endblock %}
