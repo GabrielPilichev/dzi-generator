@@ -40,7 +40,7 @@ XI клас, профилирана подготовка. **72 часа годи
 - Филтриране, шаблони
 
 ### 1.6. Финансови и статистически функции
-- [[Topics/pmt-function|PMT, APMT, PPMT]]
+- [[Topics/pmt-ipmt-ppmt|PMT, IPMT, PPMT]]
 - COUNT, COUNTA, [[Topics/countif|COUNTIF]], [[Topics/sumif|SUMIF]]
 
 ### 1.7. Сценарии (what-if analysis)

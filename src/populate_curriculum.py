@@ -476,7 +476,7 @@ XI клас, профилирана подготовка. **72 часа годи
 - Филтриране, шаблони
 
 ### 1.6. Финансови и статистически функции
-- [[Topics/pmt-function|PMT, APMT, PPMT]]
+- [[Topics/pmt-ipmt-ppmt|PMT, IPMT, PPMT]]
 - COUNT, COUNTA, [[Topics/countif|COUNTIF]], [[Topics/sumif|SUMIF]]
 
 ### 1.7. Сценарии (what-if analysis)
@@ -895,7 +895,7 @@ tags: [moc, spreadsheets]
 - Условни функции и форматиране
 - [[Topics/lookup|VLOOKUP, HLOOKUP, LOOKUP]]
 - [[Topics/pivot-table|Pivot Table, Pivot Chart]]
-- Финансови функции ([[Topics/pmt-function|PMT, APMT, PPMT]])
+- Финансови функции ([[Topics/pmt-ipmt-ppmt|PMT, IPMT, PPMT]])
 - Статистически: COUNT, COUNTA, [[Topics/countif|COUNTIF]], [[Topics/sumif|SUMIF]]
 - Сценарии (what-if analysis)
 - Външни данни (CSV, XML, web)
@@ -909,7 +909,7 @@ tags: [moc, spreadsheets]
 - [[Topics/countif|COUNTIF]]
 - [[Topics/lookup|VLOOKUP/HLOOKUP/LOOKUP]]
 - [[Topics/pivot-table|Pivot Table]]
-- [[Topics/pmt-function|PMT функции]]
+- [[Topics/pmt-ipmt-ppmt|PMT функции]]
 - [[Topics/data-validation|Валидиране на данни]]
 - [[Topics/filtering-data|Филтриране]]
 - [[Topics/dsum|DSUM/DCOUNT/DAVERAGE]]
@@ -1391,7 +1391,7 @@ TOPICS_TO_CREATE = [
     ("countif", "COUNTIF", "spreadsheets", "[11]", "spreadsheets, klas11", "spreadsheets-moc"),
     ("lookup", "VLOOKUP / HLOOKUP / LOOKUP", "spreadsheets", "[11]", "spreadsheets, klas11", "spreadsheets-moc"),
     ("pivot-table", "Pivot Table и Pivot Chart", "spreadsheets", "[11]", "spreadsheets, klas11", "spreadsheets-moc"),
-    ("pmt-function", "PMT / APMT / PPMT — финансови функции", "spreadsheets", "[11]", "spreadsheets, klas11", "spreadsheets-moc"),
+    ("pmt-ipmt-ppmt", "PMT / IPMT / PPMT — финансови функции", "spreadsheets", "[11]", "spreadsheets, klas11", "spreadsheets-moc"),
     ("data-validation", "Валидиране на данни в ЕТ", "spreadsheets", "[9, 11]", "spreadsheets, klas9, klas11", "spreadsheets-moc"),
     ("filtering-data", "Филтриране на данни", "spreadsheets", "[9]", "spreadsheets, klas9", "spreadsheets-moc"),
     ("dsum", "DSUM / DCOUNT / DAVERAGE", "spreadsheets", "[11]", "spreadsheets, klas11", "spreadsheets-moc"),

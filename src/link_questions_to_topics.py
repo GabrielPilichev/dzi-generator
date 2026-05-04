@@ -35,7 +35,7 @@ KEYWORD_TO_SLUG = [
     (["countif"], "countif"),
     (["vlookup", "hlookup", "lookup"], "lookup"),
     (["pivot", "обобщаваща таблица", "обобщаваща диаграма"], "pivot-table"),
-    (["pmt", "apmt", "ppmt"], "pmt-function"),
+    (["pmt", "ipmt", "ppmt"], "pmt-ipmt-ppmt"),
     (["dsum", "dcount", "daverage"], "dsum"),
     (["валидиране", "validation"], "data-validation"),
     (["филтри", "филтър", "filter"], "filtering-data"),
