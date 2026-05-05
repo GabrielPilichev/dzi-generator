@@ -1,0 +1,161 @@
+{
+  "source_slug": "may_2025_v2",
+  "source_title": "ДЗИ ИТ ПП - май 2025, вариант 2",
+  "tasks": [
+    {
+      "task_number": 1,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "sumif",
+      "section_slug": "grade11-m1-spreadsheets-big-data",
+      "prompt": "Дадена е електронна таблица\nС коя от изброените функции може да се пресметне общият брой рекламации за\nопределен продукт?",
+      "source_page": 1,
+      "options": [
+        {
+          "letter": "А",
+          "text": "SUM",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "COUNT",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "SUMIF",
+          "is_correct": true
+        },
+        {
+          "letter": "Г",
+          "text": "COUNTIF",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "task_number": 2,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "system-architecture",
+      "section_slug": "grade11-m1-information-systems-intro",
+      "prompt": "В кой етап при създаването на информационна система отделните софтуерни\nкомпоненти се тестват и интегрират като цялостна информационна система?",
+      "source_page": 2,
+      "options": [
+        {
+          "letter": "А",
+          "text": "Проектиране",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "Разработване",
+          "is_correct": true
+        },
+        {
+          "letter": "В",
+          "text": "Проучване",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "Внедряване",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "task_number": 3,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "system-architecture",
+      "section_slug": "grade11-m1-information-systems-intro",
+      "prompt": "Кое от изброените е функционално изискване към информационна система?",
+      "source_page": 2,
+      "options": [
+        {
+          "letter": "А",
+          "text": "Възможни операции с данните",
+          "is_correct": true
+        },
+        {
+          "letter": "Б",
+          "text": "Скорост на изпълнение на операциите",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "Сигурност на данните в системата",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "Изисквания за използвания хардуер",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "task_number": 4,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "raster-vs-vector",
+      "section_slug": "grade11-m2-vector-images",
+      "prompt": "Кое от изброените твърдения е вярно за векторната графика?",
+      "source_page": 2,
+      "options": [
+        {
+          "letter": "А",
+          "text": "Векторните изображения са съставени от пиксели и губят качество при\nмащабиране.",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "Векторните изображения заемат повече дисково пространство от растерните.",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "Векторните изображения се използват основно за обработка на снимки.",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "Векторните изображения са изградени от математически криви и не губят\nкачество",
+          "is_correct": true
+        }
+      ]
+    },
+    {
+      "task_number": 5,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "raster-vs-vector",
+      "section_slug": "grade11-m2-vector-images",
+      "prompt": "При преобразуване на растерна графика във векторна графика се получава:",
+      "source_page": 2,
+      "options": [
+        {
+          "letter": "А",
+          "text": "запазване на формата и загуба на цветове и нюанси на обект",
+          "is_correct": true
+        },
+        {
+          "letter": "Б",
+          "text": "запазване на формата, цветове и нюанси на обект",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "загуба на формата, цветове и нюанси на обект",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "загуба на формата и запазване на цветове и нюанси на обект",
+          "is_correct": false
+        }
+      ]
+    }
+  ]
+}
