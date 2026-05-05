@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import os
 import hmac
+import json
 
 import sqlite3
 from pathlib import Path
@@ -198,6 +199,10 @@ def protect_admin_routes():
     if endpoint == "teacher_new" and not can_generate_tests():
         session["ui_profile"] = "tester"
         return redirect(url_for("tester_login", next=request.path))
+
+    if endpoint in {"dzi_index", "dzi_source_view"} and not is_admin_authenticated():
+        session["ui_profile"] = "tester"
+        return redirect(url_for("admin_login", next=request.path))
 
     if endpoint.startswith("teacher") and endpoint != "teacher_new" and not is_admin_authenticated():
         session["ui_profile"] = "tester"
@@ -507,6 +512,25 @@ def fetch_dzi_question_options(question_id: int) -> list[dict]:
     return [dict(row) for row in rows]
 
 
+def dzi_json_text_list(value: str | None) -> list[str]:
+    if value is None:
+        return []
+    value = str(value).strip()
+    if not value:
+        return []
+    try:
+        parsed = json.loads(value)
+    except (TypeError, json.JSONDecodeError):
+        return [value]
+    if parsed is None:
+        return []
+    if isinstance(parsed, list):
+        return [str(item) for item in parsed if item is not None and str(item).strip()]
+    if isinstance(parsed, str):
+        return [parsed] if parsed.strip() else []
+    return [str(parsed)]
+
+
 def fetch_dzi_fill_subquestions(question_id: int) -> list[dict]:
     db = get_db()
     rows = db.execute("""
@@ -515,7 +539,13 @@ def fetch_dzi_fill_subquestions(question_id: int) -> list[dict]:
         WHERE question_id = ?
         ORDER BY subquestion_number
     """, (question_id,)).fetchall()
-    return [dict(row) for row in rows]
+    subquestions = []
+    for row in rows:
+        subquestion = dict(row)
+        subquestion["correct_answers"] = dzi_json_text_list(row["correct_answer"])
+        subquestion["answer_alternatives_list"] = dzi_json_text_list(row["answer_alternatives"])
+        subquestions.append(subquestion)
+    return subquestions
 
 
 def fetch_dzi_tasks(exam_id: int) -> dict[str, list[dict]]:

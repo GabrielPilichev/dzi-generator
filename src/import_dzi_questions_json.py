@@ -751,6 +751,46 @@ def validate_payload(
     return exam, validated, summary
 
 
+def validate_sample_payload(payload: dict[str, Any], allow_missing_assets: bool) -> Summary:
+    source_slug = payload.get("source_slug")
+    if not isinstance(source_slug, str) or not source_slug.strip():
+        raise ValueError("source_slug is required")
+    tasks = payload.get("tasks")
+    if not isinstance(tasks, list):
+        raise ValueError("tasks must be an array")
+
+    summary = Summary(source_slug=source_slug, exam_id=None, tasks_read=len(tasks))
+    for index, task in enumerate(tasks, start=1):
+        try:
+            if not isinstance(task, dict):
+                raise ValueError("each task must be an object")
+            task_number = task.get("task_number")
+            if not isinstance(task_number, int) or not 1 <= task_number <= 25:
+                raise ValueError("task_number must be an integer in 1..25")
+            task_kind = task.get("task_kind")
+            if task_kind not in QUESTION_TYPE_BY_TASK_KIND:
+                raise ValueError("task_kind must be multiple_choice or short_answer")
+            points = task.get("points")
+            if not isinstance(points, int):
+                raise ValueError("points must be an integer")
+            prompt = task.get("prompt")
+            if not isinstance(prompt, str) or not prompt.strip():
+                raise ValueError("prompt must be a non-empty string")
+            if task_kind == "multiple_choice":
+                validate_options(task)
+                summary.options_inserted += len(task["options"])
+            else:
+                validate_short_answer(task)
+                summary.fill_in_subquestions_inserted += len(task.get("subquestions") or [task])
+            validate_assets(task, allow_missing_assets)
+        except ValueError as exc:
+            summary.validation_errors.append(f"task #{index}: {exc}")
+
+    if summary.validation_errors:
+        raise ValueError("\n".join(summary.validation_errors))
+    return summary
+
+
 def planned_question_action(
     conn: sqlite3.Connection,
     source_slug: str,
@@ -769,6 +809,10 @@ def run_import(
 ) -> Summary:
     if payload.get("_sample_only") is True and not dry_run:
         raise ValueError("sample-only JSON files may only be used with --dry-run")
+
+    if payload.get("_sample_only") is True and dry_run:
+        print("sample-only dry-run: skipping exam resolution")
+        return validate_sample_payload(payload, allow_missing_assets)
 
     exam, validated_tasks, summary = validate_payload(
         conn,

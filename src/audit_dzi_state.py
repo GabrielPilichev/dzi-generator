@@ -141,6 +141,17 @@ def audit_exam(conn: sqlite3.Connection, exam: sqlite3.Row) -> dict[str, Any]:
     missing_source_file = "yes" if not (exam["source_file"] or "").strip() else "no"
     missing_assets = missing_linked_asset_count(conn, exam_id)
 
+    q_links_1_25 = scalar(
+        conn,
+        """
+        SELECT COUNT(DISTINCT etq.question_id)
+        FROM exam_task_questions etq
+        JOIN exam_tasks et ON et.id = etq.task_id
+        WHERE et.exam_id = ? AND et.task_number BETWEEN 1 AND 25
+        """,
+        (exam_id,),
+    )
+
     row = {
         "exam_id": exam_id,
         "source_slug": make_source_slug(exam["year"], exam["session"], exam["variant"]),
@@ -168,16 +179,7 @@ def audit_exam(conn: sqlite3.Connection, exam: sqlite3.Row) -> dict[str, Any]:
         "exam_pdf_sources": official_exam_pdf_sources,
         "source_pdf_assets": source_pdf_assets,
         "missing_source_file": missing_source_file,
-        "q_links_1_25": scalar(
-            conn,
-            """
-            SELECT COUNT(DISTINCT etq.question_id)
-            FROM exam_task_questions etq
-            JOIN exam_tasks et ON et.id = etq.task_id
-            WHERE et.exam_id = ? AND et.task_number BETWEEN 1 AND 25
-            """,
-            (exam_id,),
-        ),
+        "q_links_1_25": q_links_1_25,
         "q_links_26_28": scalar(
             conn,
             """
@@ -204,7 +206,12 @@ def audit_exam(conn: sqlite3.Connection, exam: sqlite3.Row) -> dict[str, Any]:
         and source_pdf_assets >= 1
         and missing_source_file == "no"
     )
-    row["status"] = "READY_FOR_PART1_IMPORT" if ready else "NEEDS_ATTENTION"
+    if ready and q_links_1_25 == 25:
+        row["status"] = "PART1_IMPORTED"
+    elif ready:
+        row["status"] = "READY_FOR_PART1_IMPORT"
+    else:
+        row["status"] = "NEEDS_ATTENTION"
     return row
 
 
@@ -273,8 +280,9 @@ def main() -> int:
         ]
         print_table(rows, columns)
 
+        imported_count = sum(1 for row in rows if row["status"] == "PART1_IMPORTED")
         ready_count = sum(1 for row in rows if row["status"] == "READY_FOR_PART1_IMPORT")
-        needs_attention_count = len(rows) - ready_count
+        needs_attention_count = sum(1 for row in rows if row["status"] == "NEEDS_ATTENTION")
         total_missing_assets = sum(row["missing_asset_files"] for row in rows)
         total_official_sources = scalar(conn, "SELECT COUNT(*) FROM official_exam_sources")
         total_assets = scalar(conn, "SELECT COUNT(*) FROM assets")
@@ -283,6 +291,7 @@ def main() -> int:
         print("\nOverall totals")
         print("--------------")
         print(f"DZI exams: {len(rows)}")
+        print(f"PART1_IMPORTED: {imported_count}")
         print(f"READY_FOR_PART1_IMPORT: {ready_count}")
         print(f"NEEDS_ATTENTION: {needs_attention_count}")
         print(f"total official sources: {total_official_sources}")

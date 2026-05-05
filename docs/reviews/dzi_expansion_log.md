@@ -37,3 +37,12 @@ P1 readiness work was implemented before importing May 2025 Part 1.
 - Documented the re-import caveat: re-importing a task replaces options/subquestions for that official question, which can affect historical quiz attempt interpretation.
 
 Audit result summary: `src/audit_dzi_state.py` exits with `audit_dzi_exit=0`. All seven `dzi_it_pp_2025_format` official DZI sources are `READY_FOR_PART1_IMPORT` by the skeleton/PDF criteria: each has 28 `exam_tasks`, 100 points, 3 practical rows, at least one official `exam_pdf` source, at least one source PDF asset, no missing `source_file`, and no missing linked asset files. The audit also shows that most Part 1 question links are still missing, which is expected before real official Part 1 JSON import.
+
+## Immediate Non-Schema Fixes
+
+After May 2025 v2 Part 1 was imported, immediate non-schema fixes were applied before importing another official exam.
+
+- Fixed DZI inspection answer rendering so JSON-encoded `fill_in_subquestions` answers display as plain accepted values instead of raw JSON text.
+- Fixed sample-only dry-run behavior so fictional sample source slugs can validate JSON structure without resolving an exam.
+- Gated `/dzi` and `/dzi/source/<source_slug>` behind existing admin authentication because the pages reveal official answers.
+- Updated `src/audit_dzi_state.py` to distinguish `PART1_IMPORTED` from `READY_FOR_PART1_IMPORT`.

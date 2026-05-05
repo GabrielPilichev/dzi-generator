@@ -61,9 +61,9 @@
                         <span class="option-letter">{{ sub.subquestion_number }}</span>
                         <span>
                             {% if sub.subquestion_text %}{{ sub.subquestion_text }} · {% endif %}
-                            {{ sub.correct_answer }}
-                            {% if sub.answer_alternatives %}
-                                <span class="subtitle"> · алтернативи: {{ sub.answer_alternatives }}</span>
+                            {{ sub.correct_answers | join(", ") }}
+                            {% if sub.answer_alternatives_list %}
+                                <span class="subtitle"> · алтернативи: {{ sub.answer_alternatives_list | join(", ") }}</span>
                             {% endif %}
                         </span>
                     </li>
