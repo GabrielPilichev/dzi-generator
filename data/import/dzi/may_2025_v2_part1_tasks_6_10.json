@@ -1,0 +1,161 @@
+{
+  "source_slug": "may_2025_v2",
+  "source_title": "ДЗИ ИТ ПП - май 2025, вариант 2",
+  "tasks": [
+    {
+      "task_number": 6,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "audio-playback-devices",
+      "section_slug": "grade11-m2-digital-audio-processing",
+      "prompt": "Кое от изброените устройства се използва за възпроизвеждане на аналогов запис\nна звук?",
+      "source_page": 2,
+      "options": [
+        {
+          "letter": "А",
+          "text": "Диктофон, записващ MP3",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "Фонограф",
+          "is_correct": true
+        },
+        {
+          "letter": "В",
+          "text": "MP3 плеър",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "CD плеър",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "task_number": 7,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "video-codec",
+      "section_slug": "grade11-m2-video-creation",
+      "prompt": "Времевата линия е елемент от интерфейса на софтуер за обработка на видео,\nслужещ за:",
+      "source_page": 3,
+      "options": [
+        {
+          "letter": "А",
+          "text": "рендиране и експортиране на финалния видеоклип",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "импортиране на изображения, аудио и видео",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "подреждане на монтажните елементи в хронологичен ред",
+          "is_correct": true
+        },
+        {
+          "letter": "Г",
+          "text": "избор на кодеци и резолюция на видеопродукцията",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "task_number": 8,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "sdlc",
+      "section_slug": "grade12-m4-project-management",
+      "prompt": "Разработката на мултимедийно приложение е на етап „Разработка на\nсъдържанието“. Какво е характерно за този етап?",
+      "source_page": 3,
+      "options": [
+        {
+          "letter": "А",
+          "text": "Оптимизация на производителността и потребителско тестване",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "Избор на цветове, шрифтове и разположение на елементи",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "Изследване на потребителите, техните предпочитания и очаквания",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "Подготовка на графики, текстове, анимации и аудиофайлове",
+          "is_correct": true
+        }
+      ]
+    },
+    {
+      "task_number": 9,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "cms",
+      "section_slug": "grade12-m3-cms",
+      "prompt": "Трябва да създадете уеб сайт за училищния театрален клуб. Сайтът ще съдържа\nинформация за предстоящи представления, галерия със снимки и форма за\nзаписване. Кой от изброените варианти представя правилната последователност\nот действия за стартиране на проекта?",
+      "source_page": 3,
+      "options": [
+        {
+          "letter": "А",
+          "text": "Избор на хостинг → Регистрация на домейн → Създаване на структура на сайта→\nПроучване на целевата аудитория",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "Създаване на структура на сайта → Проучване на целевата аудитория →\nРегистрация на домейн → Избор на хостинг",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "Проучване на целевата аудитория → Създаване на структура на сайта → Избор на\nхостинг → Регистрация на домейн",
+          "is_correct": true
+        },
+        {
+          "letter": "Г",
+          "text": "Регистрация на домейн → Проучване на целевата аудитория → Избор на\nхостинг→ Създаване на структура на сайта",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "task_number": 10,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "standards-organizations",
+      "section_slug": "grade12-m3-build-test-publish-website",
+      "prompt": "Коя организация отговаря за стандартите за кодиране на текстове и символи\nна различни езици?",
+      "source_page": 3,
+      "options": [
+        {
+          "letter": "А",
+          "text": "Internet Assigned Numbers Authority (IANA)",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "European Computer Manufacturers Association (ECMA)",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "World Wide Web Consortium (W3C)",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "Unicode Consortium (Unicode)",
+          "is_correct": true
+        }
+      ]
+    }
+  ]
+}
