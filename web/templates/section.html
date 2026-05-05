@@ -108,7 +108,10 @@
                         {% for opt in q.options %}
                             <li class="option-row {% if opt.is_correct %}correct{% endif %}">
                                 <span class="option-letter">{{ opt.option_letter }}</span>
-                                <span>{{ opt.option_text }}</span>
+                                <span class="option-text">{{ opt.option_text }}</span>
+                                {% if opt.is_correct %}
+                                    <span class="option-status">верен</span>
+                                {% endif %}
                             </li>
                         {% endfor %}
                     </ol>

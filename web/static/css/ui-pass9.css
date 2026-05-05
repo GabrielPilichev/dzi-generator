@@ -737,39 +737,67 @@ button.secondary {
 }
 .option-row {
   display: grid;
-  grid-template-columns: 28px 1fr;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
   gap: var(--space-3);
   align-items: flex-start;
-  padding: var(--space-3);
-  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
   border-left: 3px solid transparent;
-  transition: background var(--t-fast), border-color var(--t-fast);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-subtle);
+  color: var(--color-text);
+  transition: background var(--t-fast), border-color var(--t-fast), transform var(--t-fast);
 }
-.option-row:hover { background: var(--color-bg-subtle); }
+.option-row:hover {
+  border-color: var(--color-border-strong);
+  transform: translateY(-1px);
+}
 .option-letter {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
-  border-radius: var(--radius-pill);
-  background: var(--color-bg-subtle);
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
   border: 1px solid var(--color-border);
   color: var(--color-text-muted);
   font-weight: 900;
+  line-height: 1;
+}
+.option-text {
+  min-width: 0;
+  line-height: 1.58;
+}
+.option-status {
+  align-self: center;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--color-bg);
+  border: 1px solid var(--color-success);
+  color: var(--color-success);
+  font-size: 0.72rem;
+  font-weight: 850;
+  text-transform: lowercase;
+  white-space: nowrap;
 }
 .option-row.correct {
   background: var(--color-success-soft);
+  border-color: color-mix(in srgb, var(--color-success) 70%, var(--color-border));
   border-left-color: var(--color-success);
 }
 .question.hide-correct .option-row.correct {
-  background: transparent;
+  background: var(--color-bg-subtle);
+  border-color: var(--color-border);
   border-left-color: transparent;
 }
 .question.hide-correct .option-row.correct .option-letter {
-  background: var(--color-bg-subtle);
+  background: var(--color-bg);
   border-color: var(--color-border);
   color: var(--color-text-muted);
+}
+.question.hide-correct .option-row.correct .option-status {
+  display: none;
 }
 .open-question-note {
   display: inline-flex;
@@ -872,43 +900,70 @@ th {
  */
 .quiz-options {
   display: grid;
-  gap: var(--space-2);
-  margin-top: var(--space-3);
+  gap: var(--space-3);
+  margin-top: var(--space-4);
 }
 
 .quiz-option-card {
   display: grid;
-  grid-template-columns: 1rem 2rem 1fr;
+  grid-template-columns: 1rem 32px minmax(0, 1fr);
   gap: var(--space-3);
   align-items: start;
-  padding: var(--space-3) var(--space-4);
+  margin: 0;
+  padding: var(--space-4);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   background: var(--color-bg-subtle);
   color: var(--color-text);
   cursor: pointer;
-  transition: border-color var(--t-base), background var(--t-base);
+  font-weight: 500;
+  transition: border-color var(--t-base), background var(--t-base), box-shadow var(--t-base), transform var(--t-base);
+}
+form .quiz-option-card {
+  display: grid;
+  margin: 0;
+  font-weight: 500;
 }
 .quiz-option-card:hover {
   border-color: color-mix(in srgb, var(--color-primary) 60%, var(--color-border));
+  background: color-mix(in srgb, var(--color-primary-soft) 34%, var(--color-bg-subtle));
+  transform: translateY(-1px);
+}
+.quiz-option-card:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-soft);
 }
 .quiz-option-card input[type="radio"] {
   width: 1rem;
-  margin-top: 0.3rem;
+  margin: 0.38rem 0 0;
   accent-color: var(--color-primary);
 }
 .quiz-option-card.is-selected {
   border-color: var(--color-primary);
   background: var(--color-primary-soft);
 }
+.quiz-option-card.is-selected .quiz-option-letter {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: #1a1410;
+}
 
 .quiz-option-letter {
-  color: var(--color-text-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  min-height: 32px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg);
+  color: var(--color-text);
   font-family: var(--font-mono);
-  font-weight: 700;
-  line-height: 1.5;
+  font-weight: 900;
+  line-height: 1;
 }
 .quiz-option-text {
+  min-width: 0;
   line-height: 1.6;
 }
 
@@ -921,22 +976,30 @@ th {
 
 .result-option-card {
   display: grid;
-  grid-template-columns: 2rem 1fr auto;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
   gap: var(--space-3);
   align-items: start;
-  padding: var(--space-3) var(--space-4);
+  padding: var(--space-4);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   background: var(--color-bg-subtle);
   color: var(--color-text);
 }
 .result-option-card.is-correct {
-  border-color: var(--color-success);
+  border-color: color-mix(in srgb, var(--color-success) 78%, var(--color-border));
   background: var(--color-success-soft);
 }
 .result-option-card.is-wrong-chosen {
-  border-color: var(--color-danger);
+  border-color: color-mix(in srgb, var(--color-danger) 82%, var(--color-border));
   background: var(--color-danger-soft);
+}
+.result-option-card.is-correct .quiz-option-letter {
+  border-color: var(--color-success);
+  color: var(--color-success);
+}
+.result-option-card.is-wrong-chosen .quiz-option-letter {
+  border-color: var(--color-danger);
+  color: var(--color-danger);
 }
 .result-option-tag {
   align-self: center;
@@ -958,6 +1021,20 @@ th {
 .result-option-card.is-wrong-chosen .result-option-tag {
   border-color: var(--color-danger);
   color: var(--color-danger);
+}
+.answer-note {
+  margin: var(--space-3) 0 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-subtle);
+  color: var(--color-text-muted);
+  font-weight: 700;
+}
+.answer-note--unanswered {
+  border-color: color-mix(in srgb, var(--color-warning) 70%, var(--color-border));
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
 }
 
 /*
