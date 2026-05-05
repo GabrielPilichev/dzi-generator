@@ -124,16 +124,22 @@ def load_blueprint_slots(
     return slots
 
 
-def select_exam_id(
+def select_existing_exam(
     conn: sqlite3.Connection,
     year: int,
     session: str,
     variant: int | None,
-) -> int | None:
-    variant_clause, variant_params = null_safe_clause("variant", variant)
+) -> sqlite3.Row | None:
+    if variant is None:
+        variant_clause = "variant IS NULL"
+        params: list[Any] = [SUBJECT, LEVEL, year, session]
+    else:
+        variant_clause = "variant = ?"
+        params = [SUBJECT, LEVEL, year, session, variant]
+
     row = conn.execute(
         f"""
-        SELECT id
+        SELECT *
         FROM exams
         WHERE subject = ?
           AND level = ?
@@ -143,9 +149,9 @@ def select_exam_id(
         ORDER BY id
         LIMIT 1
         """,
-        [SUBJECT, LEVEL, year, session, *variant_params],
+        params,
     ).fetchone()
-    return int(row["id"]) if row else None
+    return row
 
 
 def upsert_exam(conn: sqlite3.Connection, args: argparse.Namespace) -> int:
@@ -169,10 +175,10 @@ def upsert_exam(conn: sqlite3.Connection, args: argparse.Namespace) -> int:
     if "parser_version" in columns:
         values["parser_version"] = PARSER_VERSION
 
-    exam_id = select_exam_id(conn, args.year, args.session, args.variant)
+    existing_exam = select_existing_exam(conn, args.year, args.session, args.variant)
     available_values = {key: value for key, value in values.items() if key in columns}
 
-    if exam_id is None:
+    if existing_exam is None:
         insert_columns = list(available_values)
         placeholders = ", ".join("?" for _ in insert_columns)
         conn.execute(
@@ -185,11 +191,22 @@ def upsert_exam(conn: sqlite3.Connection, args: argparse.Namespace) -> int:
         exam_id = int(conn.execute("SELECT last_insert_rowid()").fetchone()[0])
         return exam_id
 
-    update_values = {
-        key: value
-        for key, value in available_values.items()
-        if key not in {"subject", "level", "year", "session", "variant"}
-    }
+    exam_id = int(existing_exam["id"])
+    update_values: dict[str, Any] = {}
+    if "format_version" in columns:
+        update_values["format_version"] = args.format_version
+    if "title" in columns:
+        update_values["title"] = args.title
+    if "source_slug" in columns:
+        update_values["source_slug"] = args.source_slug
+    if "source_url" in columns and args.source_url:
+        update_values["source_url"] = args.source_url
+    if "source_file" in columns and args.local_pdf_path:
+        update_values["source_file"] = args.local_pdf_path
+    if "parser_version" in columns and not (existing_exam["parser_version"] or "").strip():
+        # Preserve parser provenance from previously parsed exams; skeleton import only fills blanks.
+        update_values["parser_version"] = PARSER_VERSION
+
     if update_values:
         assignments = ", ".join(f"{column} = ?" for column in update_values)
         conn.execute(
