@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}ДЗИ Generator{% endblock %}</title>
+    <title>{% block title %}LearnPilot{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/tokens.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/ui-pass9.css') }}">
 </head>
@@ -12,7 +12,7 @@
         <header class="top-nav">
             <div class="top-nav-row">
                 <a class="brand" href="{{ url_for('index') }}">
-                    <span class="brand-title">ДЗИ Generator</span>
+                    <span class="brand-title">LearnPilot</span>
                     <span class="brand-subtitle">въпроси · тестове · матура</span>
                 </a>
 
@@ -72,7 +72,7 @@
         {% block content %}{% endblock %}
 
         <footer>
-            ДЗИ Generator · {{ app_version }}
+            LearnPilot · {{ app_version }}
             {% if last_sync_label %} · последна промяна: {{ last_sync_label }}{% endif %}
             · {{ ui_profile_label }}
             {% if source_url %} · <a href="{{ source_url }}">source</a>{% endif %}

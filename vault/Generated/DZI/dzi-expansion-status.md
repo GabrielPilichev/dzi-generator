@@ -1,14 +1,14 @@
 ---
-title: "DZI Expansion Status"
+title: "LearnPilot DZI Expansion Status"
 type: dzi_status
 tags: [dzi, expansion, status]
 ---
 
-# DZI Expansion Status
+# LearnPilot DZI Expansion Status
 
 ## Goal
 
-Expand **Подготовка за матура** into a real DZI preparation engine.
+Expand LearnPilot's **Подготовка за матура** into a real DZI preparation engine.
 
 ## Exam format
 

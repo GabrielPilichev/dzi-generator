@@ -1,4 +1,4 @@
-# ДЗИ Generator — Agent Instructions
+# LearnPilot — Agent Instructions
 
 ## Stack
 - Python stdlib + Flask

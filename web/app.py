@@ -1,5 +1,5 @@
 """
-ДЗИ Generator — Web app, Phase 1.
+LearnPilot — Web app, Phase 1.
 
 Браузър за секции и въпроси от curriculum-а. Read-only.
 
@@ -1560,7 +1560,7 @@ if __name__ == "__main__":
     if not DB_PATH.exists():
         print(f"❌ DB не намерен: {DB_PATH}")
         raise SystemExit(1)
-    print(f"📚 ДЗИ Generator — Web app")
+    print(f"📚 LearnPilot — Web app")
     print(f"   DB:      {DB_PATH}")
     print(f"   URL:     http://127.0.0.1:5000")
     print(f"   Stop:    Ctrl+C")
