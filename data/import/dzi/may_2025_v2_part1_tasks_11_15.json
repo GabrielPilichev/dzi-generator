@@ -1,0 +1,161 @@
+{
+  "source_slug": "may_2025_v2",
+  "source_title": "ДЗИ ИТ ПП - май 2025, вариант 2",
+  "tasks": [
+    {
+      "task_number": 11,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "web-security",
+      "section_slug": "grade12-m3-web-security",
+      "prompt": "Кой от следните протоколи осигурява криптирана връзка между уеб сайт и\nбраузъра на потребителя?",
+      "source_page": 4,
+      "options": [
+        {
+          "letter": "А",
+          "text": "HTTP",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "HTTPS",
+          "is_correct": true
+        },
+        {
+          "letter": "В",
+          "text": "SMTP",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "FTP",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "task_number": 12,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "sdlc",
+      "section_slug": "grade12-m4-project-management",
+      "prompt": "На кой етап при изпълнението на софтуерен проект се определя срок, бюджет\nи мениджър на проекта?",
+      "source_page": 4,
+      "options": [
+        {
+          "letter": "А",
+          "text": "Планиране",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "Разработване",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "Приключване",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "Инициализиране",
+          "is_correct": true
+        }
+      ]
+    },
+    {
+      "task_number": 13,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "hardware-cpu",
+      "section_slug": "grade8-computer-systems",
+      "prompt": "Кой от изброените хардуерни компоненти влияе върху производителността\nпри работа с няколко програми едновременно?",
+      "source_page": 4,
+      "options": [
+        {
+          "letter": "А",
+          "text": "Звукова карта",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "RAM памет",
+          "is_correct": true
+        },
+        {
+          "letter": "В",
+          "text": "ROM памет",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "Твърд диск",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "task_number": 14,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "system-architecture",
+      "section_slug": "grade11-m1-information-systems-intro",
+      "prompt": "Кое приложение на операционната система Windows контролира\nавтоматичното изпълнение на приложенията и защитава информацията в\nкомпютърната система?",
+      "source_page": 4,
+      "options": [
+        {
+          "letter": "А",
+          "text": "Windows Defender Firewall",
+          "is_correct": true
+        },
+        {
+          "letter": "Б",
+          "text": "System Restore",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "Task Manager",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "Device Manager",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "task_number": 15,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "web-domain",
+      "section_slug": "grade12-m3-website-planning",
+      "prompt": "Гарантирането на изключителното право на използване на определено име,\nлого или символ се осигурява чрез регистрация на:",
+      "source_page": 4,
+      "options": [
+        {
+          "letter": "А",
+          "text": "патент",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "авторско право",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "търговска марка",
+          "is_correct": true
+        },
+        {
+          "letter": "Г",
+          "text": "лиценз",
+          "is_correct": false
+        }
+      ]
+    }
+  ]
+}
