@@ -56,3 +56,5 @@ Importer sample dry-run output was clarified so sample-only fixtures report stru
 ## LearnPilot Branding Follow-Up
 
 Product/app branding was changed to LearnPilot in visible UI text, docs, source comments, and vault notes. DZI remains the exam preparation module/feature name. The repo and local folder are still named `dzi-generator` for now, so path and watcher references that point to the existing folder were left unchanged.
+
+Added the root `README.md` with the LearnPilot product description, current DZI preparation focus, stack, key docs, and local run command. Updated the visible `src/install_watcher.sh` help branding to "LearnPilot DZI watcher manager." The repo/folder rename remains deferred.

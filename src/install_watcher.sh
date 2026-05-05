@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Install/uninstall на launchd watcher-а за DZI Generator.
+# Install/uninstall на launchd watcher-а за LearnPilot.
 #
 # Употреба:
 #   ./install_watcher.sh install    — инсталира и стартира
@@ -113,7 +113,7 @@ case "$cmd" in
   
   help|--help|-h|*)
     cat <<EOF
-DZI Generator vault watcher manager.
+LearnPilot DZI watcher manager.
 
 Употреба:
   $0 install     Инсталира launchd plist и стартира watcher-а
