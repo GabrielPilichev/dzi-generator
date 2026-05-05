@@ -14,10 +14,21 @@
   <h1>{{ assignment.title_bg }}</h1>
   <p class="subtitle">{{ attempt.student_name }}</p>
 
-  <div class="result-score">{{ attempt.score_correct }}/{{ attempt.score_total }}</div>
-  <p class="subtitle">верни отговори</p>
+  <div class="result-score-card {{ 'is-complete' if attempt.score_correct == attempt.score_total else 'needs-review' }}">
+    <span class="result-score-label">Точен резултат</span>
+    <span class="result-score">{{ attempt.score_correct }}/{{ attempt.score_total }}</span>
+    <span class="result-score-note">
+      {% if attempt.score_correct == attempt.score_total %}
+        Всички отговори са верни.
+      {% elif attempt.score_correct and attempt.score_correct > 0 %}
+        Има верни отговори и въпроси за преговор.
+      {% else %}
+        Нужен е преговор на темата.
+      {% endif %}
+    </span>
+  </div>
 
-  <div class="quiz-meta quiz-meta--center">
+  <div class="quiz-meta quiz-meta--center result-meta">
     <span class="pill">Време: {{ time_taken }}</span>
   </div>
 </section>
@@ -34,6 +45,27 @@
     </div>
 
     <p class="prompt">{{ q.prompt }}</p>
+
+    <div class="answer-summary-grid">
+      {% if q.chosen_letter %}
+        <div class="answer-note {{ 'answer-note--correct' if q.is_correct else 'answer-note--wrong' }}">
+          <span class="answer-note-label">Твоят отговор</span>
+          <span>{{ q.chosen_text or '—' }}</span>
+        </div>
+      {% else %}
+        <div class="answer-note answer-note--unanswered">
+          <span class="answer-note-label">Твоят отговор</span>
+          <span>Няма избран отговор.</span>
+        </div>
+      {% endif %}
+
+      {% if not q.is_correct %}
+        <div class="answer-note answer-note--correct">
+          <span class="answer-note-label">Правилен отговор</span>
+          <span>{{ q.correct_text }}</span>
+        </div>
+      {% endif %}
+    </div>
 
     <div class="quiz-options quiz-options--readonly">
       {% for opt in q.options %}
@@ -53,10 +85,6 @@
         </div>
       {% endfor %}
     </div>
-
-    {% if not q.chosen_letter %}
-      <p class="answer-note answer-note--unanswered">Няма избран отговор.</p>
-    {% endif %}
   </article>
 {% endfor %}
 

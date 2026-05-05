@@ -50,14 +50,21 @@
   // Toggle .is-selected on the option card matching the checked radio in each group.
   const form = document.getElementById("quiz-form");
   if (!form) return;
-  form.addEventListener("change", function (ev) {
-    const input = ev.target;
-    if (!(input instanceof HTMLInputElement) || input.type !== "radio") return;
+
+  function syncGroup(input) {
     const group = form.querySelectorAll('input[type="radio"][name="' + input.name + '"]');
     group.forEach(function (radio) {
       const card = radio.closest(".quiz-option-card");
       if (card) card.classList.toggle("is-selected", radio.checked);
     });
+  }
+
+  form.querySelectorAll('input[type="radio"]:checked').forEach(syncGroup);
+
+  form.addEventListener("change", function (ev) {
+    const input = ev.target;
+    if (!(input instanceof HTMLInputElement) || input.type !== "radio") return;
+    syncGroup(input);
   });
 })();
 </script>

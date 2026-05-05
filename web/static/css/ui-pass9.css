@@ -877,12 +877,45 @@ th {
   padding: var(--space-2) var(--space-3);
   background: var(--color-warning-soft);
   color: var(--color-warning);
-  border: 1px solid var(--color-border);
+  border: 1px solid color-mix(in srgb, var(--color-warning) 70%, var(--color-border));
   border-radius: var(--radius-pill);
-  font-weight: 600;
+  font-weight: 800;
 }
 .result-summary { text-align: center; }
-.result-score { font-size: 2.4rem; font-weight: 700; margin: var(--space-2) 0; }
+.result-score-card {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-1);
+  max-width: 360px;
+  margin: var(--space-5) auto 0;
+  padding: var(--space-5);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-subtle);
+}
+.result-score-card.is-complete {
+  border-color: color-mix(in srgb, var(--color-success) 70%, var(--color-border));
+  background: var(--color-success-soft);
+}
+.result-score-card.needs-review {
+  border-color: color-mix(in srgb, var(--color-warning) 55%, var(--color-border));
+}
+.result-score-label {
+  color: var(--color-text-muted);
+  font-size: 0.76rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.result-score { font-size: 3rem; font-weight: 850; line-height: 1; }
+.result-score-note {
+  color: var(--color-text-muted);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+.result-meta {
+  justify-content: center;
+}
 .answer-line {
   padding: var(--space-3);
   border-radius: var(--radius-md);
@@ -932,6 +965,10 @@ form .quiz-option-card {
 .quiz-option-card:focus-within {
   border-color: var(--color-primary);
   box-shadow: 0 0 0 3px var(--color-primary-soft);
+}
+.quiz-option-card input[type="radio"]:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 3px;
 }
 .quiz-option-card input[type="radio"] {
   width: 1rem;
@@ -1023,6 +1060,8 @@ form .quiz-option-card {
   color: var(--color-danger);
 }
 .answer-note {
+  display: grid;
+  gap: var(--space-1);
   margin: var(--space-3) 0 0;
   padding: var(--space-3) var(--space-4);
   border: 1px solid var(--color-border);
@@ -1030,6 +1069,31 @@ form .quiz-option-card {
   background: var(--color-bg-subtle);
   color: var(--color-text-muted);
   font-weight: 700;
+}
+.answer-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-3);
+  margin: var(--space-4) 0;
+}
+.answer-summary-grid .answer-note {
+  margin: 0;
+}
+.answer-note-label {
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.answer-note--correct {
+  border-color: color-mix(in srgb, var(--color-success) 76%, var(--color-border));
+  background: var(--color-success-soft);
+  color: var(--color-success);
+}
+.answer-note--wrong {
+  border-color: color-mix(in srgb, var(--color-danger) 82%, var(--color-border));
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
 }
 .answer-note--unanswered {
   border-color: color-mix(in srgb, var(--color-warning) 70%, var(--color-border));
