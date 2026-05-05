@@ -1,7 +1,7 @@
 {
   "_comment": "SAMPLE ONLY. Use with --dry-run against real DB. Do not import into production data/questions.db.",
   "_sample_only": true,
-  "source_slug": "may_2025_v2",
+  "source_slug": "sample_2099_v0",
   "source_title": "SAMPLE ONLY - fake DZI Part 1 import data",
   "tasks": [
     {
