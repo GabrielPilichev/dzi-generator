@@ -42,6 +42,7 @@ class Summary:
     assets_linked: int = 0
     unknown_topics: int = 0
     unknown_sections: int = 0
+    sample_only_dry_run: bool = False
     skipped: int = 0
     validation_errors: list[str] = field(default_factory=list)
 
@@ -537,18 +538,6 @@ def link_exam_task(
     return "inserted"
 
 
-def update_exam_task_question_id_if_present(
-    conn: sqlite3.Connection,
-    exam_task_id: int,
-    question_id: int,
-) -> None:
-    if "question_id" in get_columns(conn, "exam_tasks"):
-        conn.execute(
-            "UPDATE exam_tasks SET question_id = ? WHERE id = ?",
-            (question_id, exam_task_id),
-        )
-
-
 def sha256_file(path: Path) -> str | None:
     if not path.exists():
         return None
@@ -759,7 +748,7 @@ def validate_sample_payload(payload: dict[str, Any], allow_missing_assets: bool)
     if not isinstance(tasks, list):
         raise ValueError("tasks must be an array")
 
-    summary = Summary(source_slug=source_slug, exam_id=None, tasks_read=len(tasks))
+    summary = Summary(source_slug=source_slug, exam_id=None, tasks_read=len(tasks), sample_only_dry_run=True)
     for index, task in enumerate(tasks, start=1):
         try:
             if not isinstance(task, dict):
@@ -788,6 +777,8 @@ def validate_sample_payload(payload: dict[str, Any], allow_missing_assets: bool)
 
     if summary.validation_errors:
         raise ValueError("\n".join(summary.validation_errors))
+    print(f"sample-only dry-run: {summary.tasks_read} task(s) structurally valid")
+    print("sample-only dry-run: no DB writes planned")
     return summary
 
 
@@ -858,7 +849,6 @@ def run_import(
         link_action = link_exam_task(conn, int(exam_task["id"]), question_id)
         if link_action == "inserted":
             summary.exam_task_links_inserted += 1
-        update_exam_task_question_id_if_present(conn, int(exam_task["id"]), question_id)
         summary.assets_linked += link_assets(conn, question_id, int(exam_task["id"]), task)
         upsert_topic_assignment(conn, question_id, topic_id, section_id)
 
@@ -898,6 +888,8 @@ def main() -> int:
                     allow_unknown_topic=args.allow_unknown_topic,
                     allow_unknown_section=args.allow_unknown_section,
                 )
+                if summary.sample_only_dry_run:
+                    return 0
             else:
                 if payload.get("_sample_only") is True:
                     raise ValueError("sample-only JSON files may only be used with --dry-run")

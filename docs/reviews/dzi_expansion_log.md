@@ -46,3 +46,9 @@ After May 2025 v2 Part 1 was imported, immediate non-schema fixes were applied b
 - Fixed sample-only dry-run behavior so fictional sample source slugs can validate JSON structure without resolving an exam.
 - Gated `/dzi` and `/dzi/source/<source_slug>` behind existing admin authentication because the pages reveal official answers.
 - Updated `src/audit_dzi_state.py` to distinguish `PART1_IMPORTED` from `READY_FOR_PART1_IMPORT`.
+
+## Legacy Slug Safety Cleanup
+
+Added `src/cleanup_legacy_dzi_question_slugs.py` as a conservative data-only cleanup tool for known legacy DZI question slugs such as `may_2022` and `may_2024`. The script supports dry-run mode, refuses mappings when the canonical target already has rows, verifies the canonical exam row, and does not delete anything.
+
+Importer sample dry-run output was clarified so sample-only fixtures report structural validation and explicitly state that no DB writes are planned. The old compatibility path for `exam_tasks.question_id` was removed because `exam_task_questions` is the canonical link table. The DZI state audit now counts filled Part 1 task slots rather than distinct linked question rows.

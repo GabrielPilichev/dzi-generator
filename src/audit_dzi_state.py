@@ -144,10 +144,17 @@ def audit_exam(conn: sqlite3.Connection, exam: sqlite3.Row) -> dict[str, Any]:
     q_links_1_25 = scalar(
         conn,
         """
-        SELECT COUNT(DISTINCT etq.question_id)
-        FROM exam_task_questions etq
-        JOIN exam_tasks et ON et.id = etq.task_id
-        WHERE et.exam_id = ? AND et.task_number BETWEEN 1 AND 25
+        SELECT COUNT(*)
+        FROM exam_tasks et
+        WHERE et.exam_id = ?
+          AND et.task_number BETWEEN 1 AND 25
+          AND EXISTS (
+              SELECT 1
+              FROM exam_task_questions etq
+              JOIN questions q ON q.id = etq.question_id
+              WHERE etq.task_id = et.id
+                AND (q.is_ai_generated = 0 OR q.quality_score >= 1.0)
+          )
         """,
         (exam_id,),
     )
