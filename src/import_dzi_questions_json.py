@@ -40,6 +40,8 @@ class Summary:
     fill_in_subquestions_inserted: int = 0
     exam_task_links_inserted: int = 0
     assets_linked: int = 0
+    unknown_topics: int = 0
+    unknown_sections: int = 0
     skipped: int = 0
     validation_errors: list[str] = field(default_factory=list)
 
@@ -52,6 +54,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--json", required=True)
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--allow-missing-assets", action="store_true")
+    parser.add_argument("--allow-unknown-topic", action="store_true")
+    parser.add_argument("--allow-unknown-section", action="store_true")
     return parser.parse_args()
 
 
@@ -157,7 +161,12 @@ def resolve_exam(conn: sqlite3.Connection, source_slug: str) -> sqlite3.Row:
     return row
 
 
-def resolve_topic_id(conn: sqlite3.Connection, topic_slug: str | None) -> int | None:
+def resolve_topic_id(
+    conn: sqlite3.Connection,
+    topic_slug: str | None,
+    allow_unknown_topic: bool,
+    summary: Summary,
+) -> int | None:
     if not topic_slug:
         return None
     row = conn.execute(
@@ -165,11 +174,20 @@ def resolve_topic_id(conn: sqlite3.Connection, topic_slug: str | None) -> int | 
         (topic_slug,),
     ).fetchone()
     if row is None:
+        if allow_unknown_topic:
+            summary.unknown_topics += 1
+            print(f"warning: unknown topic_slug '{topic_slug}'; importing with topic_id=NULL")
+            return None
         raise ValueError(f"Unknown topic_slug '{topic_slug}'")
     return int(row["id"])
 
 
-def resolve_section_id(conn: sqlite3.Connection, section_slug: str | None) -> int | None:
+def resolve_section_id(
+    conn: sqlite3.Connection,
+    section_slug: str | None,
+    allow_unknown_section: bool,
+    summary: Summary,
+) -> int | None:
     if not section_slug:
         return None
     row = conn.execute(
@@ -177,6 +195,10 @@ def resolve_section_id(conn: sqlite3.Connection, section_slug: str | None) -> in
         (section_slug,),
     ).fetchone()
     if row is None:
+        if allow_unknown_section:
+            summary.unknown_sections += 1
+            print(f"warning: unknown section_slug '{section_slug}'; importing with section_id=NULL")
+            return None
         raise ValueError(f"Unknown section_slug '{section_slug}'")
     return int(row["id"])
 
@@ -266,8 +288,11 @@ def validate_assets(task: dict[str, Any], allow_missing_assets: bool) -> None:
             raise ValueError(f"asset {index} requires file_path")
         if asset_type not in VALID_ASSET_TYPES:
             raise ValueError(f"asset {index} has invalid asset_type '{asset_type}'")
-        if not allow_missing_assets and not Path(file_path).exists():
-            raise ValueError(f"asset file does not exist: {file_path}")
+        if not Path(file_path).exists():
+            if allow_missing_assets:
+                print(f"warning: asset file missing, metadata will be NULL: {file_path}")
+            else:
+                raise ValueError(f"asset file does not exist: {file_path}")
 
 
 def validate_task(
@@ -275,6 +300,9 @@ def validate_task(
     exam_id: int,
     task: Any,
     allow_missing_assets: bool,
+    allow_unknown_topic: bool,
+    allow_unknown_section: bool,
+    summary: Summary,
 ) -> tuple[sqlite3.Row, int | None, int | None]:
     if not isinstance(task, dict):
         raise ValueError("each task must be an object")
@@ -320,8 +348,8 @@ def validate_task(
         validate_short_answer(task)
 
     validate_assets(task, allow_missing_assets)
-    topic_id = resolve_topic_id(conn, task.get("topic_slug"))
-    section_id = resolve_section_id(conn, task.get("section_slug"))
+    topic_id = resolve_topic_id(conn, task.get("topic_slug"), allow_unknown_topic, summary)
+    section_id = resolve_section_id(conn, task.get("section_slug"), allow_unknown_section, summary)
     return exam_task, topic_id, section_id
 
 
@@ -690,6 +718,8 @@ def validate_payload(
     conn: sqlite3.Connection,
     payload: dict[str, Any],
     allow_missing_assets: bool,
+    allow_unknown_topic: bool,
+    allow_unknown_section: bool,
 ) -> tuple[sqlite3.Row, list[tuple[dict[str, Any], sqlite3.Row, int | None, int | None]], Summary]:
     source_slug = payload.get("source_slug")
     if not isinstance(source_slug, str) or not source_slug.strip():
@@ -708,6 +738,9 @@ def validate_payload(
                 int(exam["id"]),
                 task,
                 allow_missing_assets,
+                allow_unknown_topic,
+                allow_unknown_section,
+                summary,
             )
             validated.append((task, exam_task, topic_id, section_id))
         except ValueError as exc:
@@ -731,11 +764,19 @@ def run_import(
     payload: dict[str, Any],
     dry_run: bool,
     allow_missing_assets: bool,
+    allow_unknown_topic: bool,
+    allow_unknown_section: bool,
 ) -> Summary:
     if payload.get("_sample_only") is True and not dry_run:
         raise ValueError("sample-only JSON files may only be used with --dry-run")
 
-    exam, validated_tasks, summary = validate_payload(conn, payload, allow_missing_assets)
+    exam, validated_tasks, summary = validate_payload(
+        conn,
+        payload,
+        allow_missing_assets,
+        allow_unknown_topic,
+        allow_unknown_section,
+    )
 
     if dry_run:
         for task, exam_task, _topic_id, _section_id in validated_tasks:
@@ -790,6 +831,8 @@ def print_summary(summary: Summary) -> None:
     print(f"fill_in_subquestions inserted: {summary.fill_in_subquestions_inserted}")
     print(f"exam_task links inserted: {summary.exam_task_links_inserted}")
     print(f"assets linked: {summary.assets_linked}")
+    print(f"unknown topics: {summary.unknown_topics}")
+    print(f"unknown sections: {summary.unknown_sections}")
     print(f"skipped/validation errors: {len(summary.validation_errors)}")
 
 
@@ -803,15 +846,30 @@ def main() -> int:
         try:
             require_tables(conn)
             if args.dry_run:
-                summary = run_import(conn, payload, dry_run=True, allow_missing_assets=args.allow_missing_assets)
+                summary = run_import(
+                    conn,
+                    payload,
+                    dry_run=True,
+                    allow_missing_assets=args.allow_missing_assets,
+                    allow_unknown_topic=args.allow_unknown_topic,
+                    allow_unknown_section=args.allow_unknown_section,
+                )
             else:
-                with conn:
-                    summary = run_import(
-                        conn,
-                        payload,
-                        dry_run=False,
-                        allow_missing_assets=args.allow_missing_assets,
-                    )
+                if payload.get("_sample_only") is True:
+                    raise ValueError("sample-only JSON files may only be used with --dry-run")
+                try:
+                    with conn:
+                        summary = run_import(
+                            conn,
+                            payload,
+                            dry_run=False,
+                            allow_missing_assets=args.allow_missing_assets,
+                            allow_unknown_topic=args.allow_unknown_topic,
+                            allow_unknown_section=args.allow_unknown_section,
+                        )
+                except Exception:
+                    print("ROLLED BACK — no DB changes committed", file=sys.stderr)
+                    raise
             print_summary(summary)
         finally:
             conn.close()

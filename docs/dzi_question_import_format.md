@@ -253,6 +253,14 @@ Optional asset fields:
 - Official imported questions must use `quality_score = 1.0`.
 - The importer must reject missing answer keys. It must not guess answers.
 
+## Re-Import Caveat
+
+Re-importing a task updates the official question identified by `source_exam` and `source_number`.
+
+For `multiple_choice` tasks, re-import replaces the options for that exact official question. For `short_answer` tasks, re-import replaces the fill-in subquestions for that exact official question.
+
+If quiz attempts already exist for that question, changing options, answers, or subquestions may affect historical answer interpretation. The recommended rule is to freeze official imported questions once they have been used in quizzes, or version corrected imports instead of overwriting the used question.
+
 ## Notes About Images
 
 Store image and crop files under:
