@@ -790,9 +790,121 @@ def quiz_fetch_assignment(conn, assignment_id: int):
     """, (assignment_id,)).fetchone()
 
 
+QUIZ_VISUAL_DEPENDENT_PATTERNS = (
+    "изображението",
+    "на изображението",
+    "даденото изображение",
+    "следното изображение",
+    "показаното изображение",
+    "диаграмата",
+    "диаграма е представена",
+    "графиката",
+    "разгледайте графиката",
+    "таблицата по-долу",
+    "фигурата",
+    "показаната таблица",
+    "показаната диаграма",
+    "дадената таблица",
+    "даден е фрагмент от електронна таблица",
+)
+
+
+def quiz_clean_answer_text(value: object) -> str:
+    return str(value or "").strip()
+
+
+def quiz_answer_text_is_real(value: object) -> bool:
+    text = quiz_clean_answer_text(value)
+    return bool(text) and text not in {"-", "—", "[]"}
+
+
+def quiz_prompt_needs_visual(prompt: str | None) -> bool:
+    text = (prompt or "").lower()
+    return any(pattern in text for pattern in QUIZ_VISUAL_DEPENDENT_PATTERNS)
+
+
+def quiz_path_exists(path_value: object) -> bool:
+    raw_path = quiz_clean_answer_text(path_value)
+    if not raw_path or raw_path in {"-", "—"}:
+        return False
+
+    path = _QuizPath(raw_path)
+    if path.is_absolute():
+        return path.exists()
+    return (PROJECT_ROOT / path).exists()
+
+
+def question_has_usable_visual(conn, question) -> bool:
+    if quiz_path_exists(question["image_path"]):
+        return True
+
+    if int(question["has_image"] or 0) and quiz_path_exists(question["image_path"]):
+        return True
+
+    asset_rows = conn.execute("""
+        SELECT a.local_path
+        FROM asset_links al
+        JOIN assets a ON a.id = al.asset_id
+        WHERE al.owner_type IN ('question', 'questions')
+          AND al.owner_id = ?
+          AND a.asset_type IN ('image', 'pdf_crop')
+    """, (question["id"],)).fetchall()
+
+    return any(quiz_path_exists(row["local_path"]) for row in asset_rows)
+
+
+def quiz_multiple_choice_is_eligible(conn, question_id: int) -> bool:
+    options = conn.execute("""
+        SELECT option_text, is_correct
+        FROM multiple_choice_options
+        WHERE question_id = ?
+        ORDER BY option_letter
+    """, (question_id,)).fetchall()
+
+    if len(options) != 4:
+        return False
+
+    if any(not quiz_answer_text_is_real(row["option_text"]) for row in options):
+        return False
+
+    correct_options = [row for row in options if int(row["is_correct"] or 0) == 1]
+    if len(correct_options) != 1:
+        return False
+
+    return quiz_answer_text_is_real(correct_options[0]["option_text"])
+
+
+def quiz_fill_in_is_eligible(conn, question_id: int) -> bool:
+    rows = conn.execute("""
+        SELECT correct_answer
+        FROM fill_in_subquestions
+        WHERE question_id = ?
+        ORDER BY subquestion_number
+    """, (question_id,)).fetchall()
+
+    if not rows:
+        return False
+
+    return all(quiz_answer_text_is_real(row["correct_answer"]) for row in rows)
+
+
+def is_quiz_question_eligible(conn, question) -> bool:
+    if quiz_prompt_needs_visual(question["prompt"]) and not question_has_usable_visual(conn, question):
+        return False
+
+    question_type = question["question_type"]
+    if question_type == "multiple_choice":
+        return quiz_multiple_choice_is_eligible(conn, int(question["id"]))
+
+    if question_type in {"fill_in", "short_answer"}:
+        return quiz_fill_in_is_eligible(conn, int(question["id"]))
+
+    return False
+
+
 def quiz_section_question_ids(conn, section_id: int) -> list[int]:
     rows = conn.execute(f"""
-        SELECT DISTINCT q.id
+        SELECT DISTINCT q.id, q.prompt, q.question_type, q.has_image, q.image_path
         FROM questions q
         JOIN topic_section_assignments tsa ON tsa.topic_id = q.topic_id
         WHERE tsa.section_id = ?
@@ -800,7 +912,7 @@ def quiz_section_question_ids(conn, section_id: int) -> list[int]:
           AND q.question_type = 'multiple_choice'
         ORDER BY q.id
     """, (section_id,)).fetchall()
-    return [int(r["id"]) for r in rows]
+    return [int(r["id"]) for r in rows if is_quiz_question_eligible(conn, r)]
 
 
 def quiz_seed(assignment_id: int, student_name: str) -> str:
@@ -1280,6 +1392,10 @@ def teacher_new():
             _quiz_abort(404)
 
         available = len(quiz_section_question_ids(conn, section_id))
+        if available <= 0:
+            conn.close()
+            return _quiz_redirect(_quiz_url_for("teacher_new"))
+
         question_count = max(1, min(requested_count, available))
 
         cur = conn.execute("""
@@ -1293,7 +1409,7 @@ def teacher_new():
         quiz_write_assignment_note(assignment_id, _quiz_request.host_url)
         return _quiz_redirect(_quiz_url_for("teacher_assignment", assignment_id=assignment_id))
 
-    sections = conn.execute(f"""
+    section_rows = conn.execute(f"""
         SELECT
             cs.id,
             cs.class,
@@ -1309,6 +1425,16 @@ def teacher_new():
         HAVING question_count > 0
         ORDER BY cs.class, cs.display_order, cs.title_bg
     """).fetchall()
+
+    sections = []
+    for row in section_rows:
+        section = dict(row)
+        eligible_count = len(quiz_section_question_ids(conn, int(section["id"])))
+        if eligible_count <= 0:
+            continue
+        section["question_count"] = eligible_count
+        sections.append(section)
+
     conn.close()
 
     return _quiz_render_template("teacher_new.html", sections=sections)
