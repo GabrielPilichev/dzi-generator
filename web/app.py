@@ -185,7 +185,7 @@ def inject_admin_auth():
 def protect_admin_routes():
     endpoint = request.endpoint or ""
 
-    if endpoint in {"static", "admin_login", "switch_profile"}:
+    if endpoint in {"static", "admin_login", "tester_login", "switch_profile"}:
         # /profile/admin is handled below inside switch_profile route protection.
         if endpoint != "switch_profile":
             return
@@ -196,17 +196,16 @@ def protect_admin_routes():
             return redirect(url_for("admin_login", next=request.args.get("next") or request.referrer or url_for("index")))
         return
 
-    if endpoint == "teacher_new" and not can_generate_tests():
-        session["ui_profile"] = "tester"
-        return redirect(url_for("tester_login", next=request.path))
+    if endpoint.startswith("admin") and endpoint != "admin_login" and not is_admin_authenticated():
+        return redirect(url_for("admin_login", next=request.path))
 
     if endpoint in {"dzi_index", "dzi_source_view"} and not is_admin_authenticated():
         session["ui_profile"] = "tester"
         return redirect(url_for("admin_login", next=request.path))
 
-    if endpoint.startswith("teacher") and endpoint != "teacher_new" and not is_admin_authenticated():
+    if endpoint.startswith("teacher") and not can_generate_tests():
         session["ui_profile"] = "tester"
-        return redirect(url_for("admin_login", next=request.path))
+        return redirect(url_for("tester_login", next=request.path))
 
 
 @app.route("/admin/login", methods=["GET", "POST"])
