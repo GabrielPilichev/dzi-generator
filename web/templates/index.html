@@ -8,42 +8,95 @@
 {% endfor %}
 
 {% block content %}
-<section class="hero">
-    <p class="eyebrow">Учебен браузър</p>
-    <h1>Информационни технологии</h1>
-    <p class="subtitle">Изберете клас или започнете директно от подготовката за матура.</p>
+<section class="hero home-hero">
+    <p class="eyebrow">LearnPilot</p>
+    <h1>Учи по-умно. Подготвяй се уверено.</h1>
+    <p class="subtitle">Локална платформа за информационни технологии, подготовка за ДЗИ и тренировъчни тестове с подредено съдържание по класове.</p>
+    <div class="home-hero-stats">
+        <span>{{ total_questions.value }} въпроса</span>
+        <span>{{ grades|length }} класа</span>
+    </div>
 </section>
 
-<a href="{{ url_for('section_view', slug='grade12-dzi-preparation') }}" class="home-dzi-card">
-    <div>
-        <p class="eyebrow">Бърз старт</p>
-        <h2 class="home-dzi-title">Подготовка за ДЗИ</h2>
-        <p class="subtitle">Общ тренировъчен раздел с всички налични въпроси.</p>
-        <div class="home-dzi-stats">
-            <span>{{ total_questions.value }} въпроса</span>
-            <span>·</span>
-            <span>{{ grades|length }} класа</span>
-        </div>
-    </div>
-</a>
+<section class="mode-grid" aria-label="Основни режими">
+    <a href="#grades" class="mode-card">
+        <p class="eyebrow">Преглед</p>
+        <h2>Класове и раздели</h2>
+        <p class="subtitle">Бърз достъп до учебните теми, въпроси и обобщения.</p>
+        <span class="mode-action">Към класовете</span>
+    </a>
 
-<div class="grade-grid">
-    {% for g in grades|sort(attribute='grade') %}
-        <a href="{{ url_for('grade_view', grade=g.grade) }}" class="grade-card {% if g.question_count == 0 %}disabled{% endif %}">
-            <div class="label">{{ g.grade }}. клас</div>
-            <div class="stat-row">
-                <div class="stat-box">
-                    <span class="stat-number">{{ g.question_count }}</span>
-                    <span class="stat-label">въпроса</span>
-                </div>
-                <div class="stat-box">
-                    <span class="stat-number">{{ g.topic_count }}</span>
-                    <span class="stat-label">теми</span>
-                </div>
-            </div>
+    <a href="{{ url_for('section_view', slug='grade12-dzi-preparation') }}" class="mode-card mode-card--dzi">
+        <p class="eyebrow">ДЗИ подготовка</p>
+        <h2>Матура по ИТ</h2>
+        <p class="subtitle">Тренировъчен раздел за подготовка по структурата на ДЗИ.</p>
+        <span class="mode-action">Започни подготовка</span>
+        {% if admin_authenticated %}
+            <span class="mode-admin-link">админ преглед: /dzi</span>
+        {% endif %}
+    </a>
+
+    {% if can_generate_tests %}
+        <a href="{{ url_for('teacher_new') }}" class="mode-card">
+            <p class="eyebrow">Тестове</p>
+            <h2>Нов тест</h2>
+            <p class="subtitle">Създай тренировъчен тест от наличните въпроси.</p>
+            <span class="mode-action">Създай тест</span>
         </a>
     {% else %}
-        <p class="empty-state">Няма налични класове.</p>
-    {% endfor %}
-</div>
+        <div class="mode-card mode-card--inactive">
+            <p class="eyebrow">Тестове</p>
+            <h2>Тренировъчни тестове</h2>
+            <p class="subtitle">Генерирането на тестове е достъпно след вход.</p>
+            <span class="mode-action">скоро</span>
+        </div>
+    {% endif %}
+
+    {% if admin_authenticated %}
+        <a href="{{ url_for('teacher_dashboard') }}" class="mode-card">
+            <p class="eyebrow">Учител</p>
+            <h2>Управление</h2>
+            <p class="subtitle">Преглед на задания, резултати и учителски инструменти.</p>
+            <span class="mode-action">Към панела</span>
+        </a>
+    {% else %}
+        <a href="{{ url_for('teacher_new') }}" class="mode-card">
+            <p class="eyebrow">Учител</p>
+            <h2>Създаване на тест</h2>
+            <p class="subtitle">Входът отключва учителските инструменти и нови задания.</p>
+            <span class="mode-action">Учителски вход</span>
+        </a>
+    {% endif %}
+</section>
+
+<section id="grades" class="home-section">
+    <div class="section-heading">
+        <div>
+            <p class="eyebrow">Учебно съдържание</p>
+            <h2>Класове</h2>
+        </div>
+        <span class="pill">{{ total_questions.value }} въпроса общо</span>
+    </div>
+
+    <div class="grade-grid">
+        {% for g in grades|sort(attribute='grade') %}
+            <a href="{{ url_for('grade_view', grade=g.grade) }}" class="grade-card {% if g.question_count == 0 %}disabled{% endif %}">
+                <span class="grade-card-ghost">{{ g.grade }}</span>
+                <div class="label">{{ g.grade }}. клас</div>
+                <div class="stat-row">
+                    <div class="stat-box">
+                        <span class="stat-number">{{ g.question_count }}</span>
+                        <span class="stat-label">въпроса</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-number">{{ g.topic_count }}</span>
+                        <span class="stat-label">теми</span>
+                    </div>
+                </div>
+            </a>
+        {% else %}
+            <p class="empty-state">Няма налични класове.</p>
+        {% endfor %}
+    </div>
+</section>
 {% endblock %}
