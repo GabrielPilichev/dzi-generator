@@ -52,3 +52,7 @@ After May 2025 v2 Part 1 was imported, immediate non-schema fixes were applied b
 Added `src/cleanup_legacy_dzi_question_slugs.py` as a conservative data-only cleanup tool for known legacy DZI question slugs such as `may_2022` and `may_2024`. The script supports dry-run mode, refuses mappings when the canonical target already has rows, verifies the canonical exam row, and does not delete anything.
 
 Importer sample dry-run output was clarified so sample-only fixtures report structural validation and explicitly state that no DB writes are planned. The old compatibility path for `exam_tasks.question_id` was removed because `exam_task_questions` is the canonical link table. The DZI state audit now counts filled Part 1 task slots rather than distinct linked question rows.
+
+## LearnPilot Branding Follow-Up
+
+Product/app branding was changed to LearnPilot in visible UI text, docs, source comments, and vault notes. DZI remains the exam preparation module/feature name. The repo and local folder are still named `dzi-generator` for now, so path and watcher references that point to the existing folder were left unchanged.

@@ -38,7 +38,7 @@ DB_PATH = PROJECT_ROOT / "data" / "questions.db"
 
 app = Flask(__name__)
 app.config["DB_PATH"] = str(DB_PATH)
-app.config["SECRET_KEY"] = os.environ.get("DZI_SECRET_KEY", "local-dzi-generator-dev-key")
+app.config["SECRET_KEY"] = os.environ.get("DZI_SECRET_KEY", "local-learnpilot-dev-key")
 
 
 
