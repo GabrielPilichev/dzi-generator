@@ -203,9 +203,13 @@ def protect_admin_routes():
         session["ui_profile"] = "tester"
         return redirect(url_for("admin_login", next=request.path))
 
-    if endpoint.startswith("teacher") and not can_generate_tests():
+    if endpoint == "teacher_new" and not can_generate_tests():
         session["ui_profile"] = "tester"
         return redirect(url_for("tester_login", next=request.path))
+
+    if endpoint.startswith("teacher") and endpoint != "teacher_new" and not is_admin_authenticated():
+        session["ui_profile"] = "tester"
+        return redirect(url_for("admin_login", next=request.path))
 
 
 @app.route("/admin/login", methods=["GET", "POST"])
@@ -1374,6 +1378,7 @@ def teacher_assignments():
 @app.route("/teacher/new", methods=["GET", "POST"])
 def teacher_new():
     conn = quiz_db()
+    preselected_section_id = None
 
     if _quiz_request.method == "POST":
         section_id = int(_quiz_request.form.get("section_id") or 0)
@@ -1435,9 +1440,23 @@ def teacher_new():
         section["question_count"] = eligible_count
         sections.append(section)
 
+    section_slug = (_quiz_request.args.get("section") or "").strip()
+    if section_slug:
+        preselected = conn.execute("""
+            SELECT id
+            FROM curriculum_sections
+            WHERE section_slug = ?
+        """, (section_slug,)).fetchone()
+        if preselected:
+            preselected_section_id = int(preselected["id"])
+
     conn.close()
 
-    return _quiz_render_template("teacher_new.html", sections=sections)
+    return _quiz_render_template(
+        "teacher_new.html",
+        sections=sections,
+        preselected_section_id=preselected_section_id,
+    )
 
 
 @app.route("/teacher/assignment/<int:assignment_id>")

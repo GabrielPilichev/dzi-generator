@@ -26,52 +26,65 @@
 </div>
 
 {% if questions %}
+    <section class="review-banner">
+        <div>
+            <p class="eyebrow">Преговорен режим</p>
+            <p class="subtitle">Преглеждаш въпроси с показани отговори. За решаване създай тест от този раздел.</p>
+        </div>
+        <a class="button" href="{{ url_for('teacher_new', section=section.section_slug) }}">Реши като тест</a>
+    </section>
+
     <section class="section-toolbar" data-section-tools data-section-slug="{{ section.section_slug }}">
-        <div class="toolbar-row">
+        <div class="toolbar-row toolbar-row--search">
             <input id="question-search" class="toolbar-search" type="search" placeholder="Търсене по въпрос, тема или отговор...">
+        </div>
 
-            <select id="question-type-filter" class="toolbar-select" aria-label="Тип въпрос">
-                <option value="">Тип</option>
-                <option value="multiple_choice">Избираем</option>
-                <option value="true_false">Вярно/невярно</option>
-                <option value="fill_in">Попълване</option>
-                <option value="open">Отворени</option>
-            </select>
+        <details class="toolbar-details">
+            <summary>Опции за преглед</summary>
+            <div class="toolbar-row toolbar-row--advanced">
+                <select id="question-type-filter" class="toolbar-select" aria-label="Тип въпрос">
+                    <option value="">Тип</option>
+                    <option value="multiple_choice">Избираем</option>
+                    <option value="true_false">Вярно/невярно</option>
+                    <option value="fill_in">Попълване</option>
+                    <option value="open">Отворени</option>
+                </select>
 
-            <select id="question-difficulty-filter" class="toolbar-select" aria-label="Трудност">
-                <option value="">Трудност</option>
-                <option value="easy">easy</option>
-                <option value="medium">medium</option>
-                <option value="hard">hard</option>
-                <option value="unknown">unknown</option>
-            </select>
+                <select id="question-difficulty-filter" class="toolbar-select" aria-label="Трудност">
+                    <option value="">Трудност</option>
+                    <option value="easy">easy</option>
+                    <option value="medium">medium</option>
+                    <option value="hard">hard</option>
+                    <option value="unknown">unknown</option>
+                </select>
 
-            <span class="toolbar-divider" aria-hidden="true"></span>
+                <span class="toolbar-divider" aria-hidden="true"></span>
 
-            <button class="segmented-button" type="button" id="toggle-correct" aria-pressed="false">
-                <span class="button-label">Hide answers</span>
-            </button>
+                <button class="segmented-button" type="button" id="toggle-correct" aria-pressed="false">
+                    <span class="button-label">Скрий отговорите</span>
+                </button>
 
-            <button class="segmented-button" type="button" id="bookmarks-only" aria-pressed="false">
-                <span class="button-label">Само маркирани</span>
-            </button>
+                <button class="segmented-button" type="button" id="bookmarks-only" aria-pressed="false">
+                    <span class="button-label">Само маркирани</span>
+                </button>
 
-            <button class="segmented-button" type="button" id="shuffle-questions">
-                <span class="button-label">Shuffle</span>
-            </button>
+                <button class="segmented-button" type="button" id="shuffle-questions">
+                    <span class="button-label">Разбъркай</span>
+                </button>
 
-            <button class="icon-button" type="button" id="reset-view" title="Нулирай изгледа">Reset</button>
+                <button class="icon-button" type="button" id="reset-view" title="Нулирай изгледа">Нулирай</button>
 
-            <div class="shortcuts-wrap">
-                <button class="icon-button" type="button" id="shortcuts-button" title="Shortcuts">?</button>
-                <div class="shortcuts-popover" id="shortcuts-popover" hidden>
-                    <div><kbd>/</kbd> focus search</div>
-                    <div><kbd>s</kbd> shuffle</div>
-                    <div><kbd>h</kbd> hide answers</div>
-                    <div><kbd>Esc</kbd> clear/unfocus</div>
+                <div class="shortcuts-wrap">
+                    <button class="icon-button" type="button" id="shortcuts-button" title="Клавишни комбинации">?</button>
+                    <div class="shortcuts-popover" id="shortcuts-popover" hidden>
+                        <div><kbd>/</kbd> търсене</div>
+                        <div><kbd>s</kbd> разбъркай</div>
+                        <div><kbd>h</kbd> скрий отговорите</div>
+                        <div><kbd>Esc</kbd> изчисти</div>
+                    </div>
                 </div>
             </div>
-        </div>
+        </details>
 
         <div class="toolbar-meta">
             <span id="filter-summary">Показани: {{ questions|length }} от {{ questions|length }}</span>
@@ -79,7 +92,7 @@
         </div>
     </section>
 
-    <div id="questions-list" class="questions-list">
+    <div id="questions-list" class="questions-list section-readonly">
         {% for q in questions %}
             {% set difficulty = q.difficulty or 'unknown' %}
             {% set type_class = q.question_type|replace(' ', '_') %}

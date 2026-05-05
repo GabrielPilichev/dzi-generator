@@ -26,15 +26,18 @@
         <span class="mode-action">Към класовете</span>
     </a>
 
-    <a href="{{ url_for('section_view', slug='grade12-dzi-preparation') }}" class="mode-card mode-card--dzi">
+    <div class="mode-card mode-card--dzi">
         <p class="eyebrow">ДЗИ подготовка</p>
         <h2>Матура по ИТ</h2>
         <p class="subtitle">Тренировъчен раздел за подготовка по структурата на ДЗИ.</p>
-        <span class="mode-action">Започни подготовка</span>
+        <div class="mode-actions">
+            <a class="button secondary" href="{{ url_for('section_view', slug='grade12-dzi-preparation') }}">Преглед</a>
+            <a class="button" href="{{ url_for('teacher_new', section='grade12-dzi-preparation') }}">Създай тест</a>
+        </div>
         {% if admin_authenticated %}
             <span class="mode-admin-link">админ преглед: /dzi</span>
         {% endif %}
-    </a>
+    </div>
 
     {% if can_generate_tests %}
         <a href="{{ url_for('teacher_new') }}" class="mode-card">
