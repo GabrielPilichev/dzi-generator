@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+
+{% block title %}{{ exam.title }}{% endblock %}
+
+{% block breadcrumb %}
+    <a href="{{ url_for('index') }}">Начало</a>
+    <span>›</span>
+    <a href="{{ url_for('dzi_index') }}">Официални ДЗИ</a>
+    <span>›</span>
+    {{ exam.source_slug }}
+{% endblock %}
+
+{% macro render_task(task) %}
+    <article class="question">
+        <div class="question-header">
+            <div class="question-meta">
+                <span class="question-number">Задача {{ task.task_number }}</span>
+                <span class="badge type-badge type-{{ task.task_kind }}">{{ task.task_kind }}</span>
+                <span class="badge">{{ task.points }} т.</span>
+                {% if task.linked %}
+                    <span class="badge diff-easy">свързан въпрос</span>
+                {% else %}
+                    <span class="badge diff-hard">без въпрос</span>
+                {% endif %}
+                {% if task.asset_count %}
+                    <span class="badge">assets: {{ task.asset_count }}</span>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if task.topic_title %}
+            <p class="question-topic">{{ task.topic_title }}</p>
+        {% endif %}
+
+        {% if task.question_prompt %}
+            <div class="prompt">{{ task.question_prompt|truncate(420, True) }}</div>
+        {% elif task.task_number >= 26 %}
+            <div class="open-question-note">
+                Практическа задача{% if task.work_environment %}: {{ task.work_environment }}{% endif %}.
+                Подробните ресурси и рубрики предстоят.
+            </div>
+        {% else %}
+            <div class="open-question-note">Няма свързан официален въпрос.</div>
+        {% endif %}
+
+        {% if task.options %}
+            <ol class="options-list">
+                {% for opt in task.options %}
+                    <li class="option-row {% if opt.is_correct %}correct{% endif %}">
+                        <span class="option-letter">{{ opt.option_letter }}</span>
+                        <span>{{ opt.option_text }}</span>
+                    </li>
+                {% endfor %}
+            </ol>
+        {% endif %}
+
+        {% if task.subquestions %}
+            <ol class="options-list">
+                {% for sub in task.subquestions %}
+                    <li class="option-row correct">
+                        <span class="option-letter">{{ sub.subquestion_number }}</span>
+                        <span>
+                            {% if sub.subquestion_text %}{{ sub.subquestion_text }} · {% endif %}
+                            {{ sub.correct_answer }}
+                            {% if sub.answer_alternatives %}
+                                <span class="subtitle"> · алтернативи: {{ sub.answer_alternatives }}</span>
+                            {% endif %}
+                        </span>
+                    </li>
+                {% endfor %}
+            </ol>
+        {% endif %}
+    </article>
+{% endmacro %}
+
+{% block content %}
+<section class="hero">
+    <p class="eyebrow">{{ exam.source_slug }}</p>
+    <h1>{{ exam.title }}</h1>
+    <p class="subtitle">Преглед само за четене на задачите, въпросите, отговорите и практическата част.</p>
+</section>
+
+<div class="question-toolbar">
+    <a class="button secondary" href="{{ url_for('dzi_index') }}">← Към всички ДЗИ източници</a>
+    <span class="pill">{{ tasks.part1|length + tasks.part2|length }} задачи</span>
+</div>
+
+<section>
+    <h2>Част 1: задачи 1–25</h2>
+    <div class="questions-list">
+        {% for task in tasks.part1 %}
+            {{ render_task(task) }}
+        {% else %}
+            <p class="empty-state">Няма задачи в част 1.</p>
+        {% endfor %}
+    </div>
+</section>
+
+<section>
+    <h2>Част 2: задачи 26–28</h2>
+    <div class="questions-list">
+        {% for task in tasks.part2 %}
+            {{ render_task(task) }}
+        {% else %}
+            <p class="empty-state">Няма задачи в част 2.</p>
+        {% endfor %}
+    </div>
+</section>
+{% endblock %}

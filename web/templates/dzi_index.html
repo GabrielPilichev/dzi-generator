@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}Официални ДЗИ източници{% endblock %}
+
+{% block breadcrumb %}
+    <a href="{{ url_for('index') }}">Начало</a>
+    <span>›</span>
+    Официални ДЗИ
+{% endblock %}
+
+{% block content %}
+<section class="hero">
+    <p class="eyebrow">Официални източници</p>
+    <h1>ДЗИ по информационни технологии</h1>
+    <p class="subtitle">Преглед на внесените скелети, PDF източници и свързани въпроси.</p>
+</section>
+
+{% if sources %}
+    <div class="cards">
+        {% for source in sources %}
+            <article class="card">
+                <div class="question-header">
+                    <div>
+                        <p class="eyebrow">{{ source.source_slug }}</p>
+                        <h2>{{ source.title }}</h2>
+                    </div>
+                    <span class="badge">{{ source.source_pdf_status }}</span>
+                </div>
+
+                <div class="stat-row">
+                    <div class="stat-box">
+                        <span class="stat-number">{{ source.task_count }}</span>
+                        <span class="stat-label">задачи</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-number">{{ source.total_points }}</span>
+                        <span class="stat-label">точки</span>
+                    </div>
+                    <div class="stat-box">
+                        <span class="stat-number">{{ source.part1_linked_questions }}</span>
+                        <span class="stat-label">въпроса в част 1</span>
+                    </div>
+                </div>
+
+                <p class="subtitle">
+                    PDF източници: {{ source.exam_pdf_sources }} · PDF assets: {{ source.source_pdf_assets }}
+                </p>
+
+                <a class="button secondary" href="{{ url_for('dzi_source_view', source_slug=source.source_slug) }}">
+                    Детайлен преглед
+                </a>
+            </article>
+        {% endfor %}
+    </div>
+{% else %}
+    <p class="empty-state">Няма внесени официални ДЗИ източници.</p>
+{% endif %}
+{% endblock %}
