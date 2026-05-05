@@ -7,6 +7,12 @@
 - Obsidian vault in vault/
 - No npm, no JS framework, no SQLAlchemy unless explicitly approved
 
+## UI
+- Prefer a warm dark palette and avoid blue-dominant UI.
+- Button backgrounds and body text must meet contrast requirements.
+- Use dark text on amber/orange filled buttons when needed.
+- Keep success green visually distinct from amber/warning states.
+
 ## Rules
 - Inspect before editing.
 - Prefer additive DB migrations.

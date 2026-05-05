@@ -95,7 +95,7 @@ h2 { margin: 0 0 var(--space-3); font-size: 1.2rem; }
 .profile-link.active {
   background: var(--color-primary);
   border-color: var(--color-primary);
-  color: #ffffff;
+  color: #1a1410;
   cursor: default;
 }
 
@@ -160,7 +160,7 @@ button {
   border: 1px solid var(--color-primary);
   border-radius: var(--radius-md);
   background: var(--color-primary);
-  color: #ffffff;
+  color: #1a1410;
   font: inherit;
   font-weight: 600;
   cursor: pointer;
@@ -485,7 +485,7 @@ button.secondary {
 .segmented-button.active {
   background: var(--color-primary);
   border-color: var(--color-primary);
-  color: #ffffff;
+  color: #1a1410;
 }
 .toolbar-divider {
   width: 1px;
@@ -857,7 +857,7 @@ th {
 
 /*
  * Teacher-page share link: read-only input + copy button on one row.
- * Stays calm: blue button, no amber.
+ * Stays calm: primary button, not warning amber.
  */
 .share-box {
   margin-top: var(--space-4);
