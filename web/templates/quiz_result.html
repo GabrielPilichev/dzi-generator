@@ -33,60 +33,66 @@
   </div>
 </section>
 
-{% for q in questions %}
-  <article class="card question-card {{ 'correct' if q.is_correct else 'incorrect' }}">
-    <div class="result-question-header">
-      <h2>Въпрос {{ loop.index }}</h2>
-      {% if q.is_correct %}
-        <span class="status-pill status-pill--correct">Вярно</span>
-      {% else %}
-        <span class="status-pill status-pill--wrong">Грешно</span>
-      {% endif %}
-    </div>
+{% if stale_attempt_message %}
+  <section class="card warning warning--spaced">
+    {{ stale_attempt_message }}
+  </section>
+{% else %}
+  {% for q in questions %}
+    <article class="card question-card {{ 'correct' if q.is_correct else 'incorrect' }}">
+      <div class="result-question-header">
+        <h2>Въпрос {{ loop.index }}</h2>
+        {% if q.is_correct %}
+          <span class="status-pill status-pill--correct">Вярно</span>
+        {% else %}
+          <span class="status-pill status-pill--wrong">Грешно</span>
+        {% endif %}
+      </div>
 
-    <p class="prompt">{{ q.prompt }}</p>
+      <p class="prompt">{{ q.prompt }}</p>
 
-    <div class="answer-summary-grid">
-      {% if q.chosen_letter %}
-        <div class="answer-note {{ 'answer-note--correct' if q.is_correct else 'answer-note--wrong' }}">
-          <span class="answer-note-label">Твоят отговор</span>
-          <span>{{ q.chosen_text or '—' }}</span>
-        </div>
-      {% else %}
-        <div class="answer-note answer-note--unanswered">
-          <span class="answer-note-label">Твоят отговор</span>
-          <span>Няма избран отговор.</span>
-        </div>
-      {% endif %}
+      <div class="answer-summary-grid">
+        {% if q.chosen_letter %}
+          <div class="answer-note {{ 'answer-note--correct' if q.is_correct else 'answer-note--wrong' }}">
+            <span class="answer-note-label">Твоят отговор</span>
+            <span>{{ q.chosen_text or '—' }}</span>
+          </div>
+        {% else %}
+          <div class="answer-note answer-note--unanswered">
+            <span class="answer-note-label">Твоят отговор</span>
+            <span>Няма избран отговор.</span>
+          </div>
+        {% endif %}
 
-      {% if not q.is_correct %}
-        <div class="answer-note answer-note--correct">
-          <span class="answer-note-label">Правилен отговор</span>
-          <span>{{ q.correct_text }}</span>
-        </div>
-      {% endif %}
-    </div>
+        {% if not q.is_correct %}
+          <div class="answer-note answer-note--correct">
+            <span class="answer-note-label">Правилен отговор</span>
+            <span>{{ q.correct_text }}</span>
+          </div>
+        {% endif %}
+      </div>
 
-    <div class="quiz-options quiz-options--readonly">
-      {% for opt in q.options %}
-        {% set is_correct_option = opt.is_correct %}
-        {% set is_chosen = q.chosen_letter and opt.option_letter == q.chosen_letter %}
-        <div class="result-option-card
-          {% if is_correct_option %}is-correct{% endif %}
-          {% if is_chosen and not is_correct_option %}is-wrong-chosen{% endif %}
-          {% if is_chosen %}is-chosen{% endif %}">
-          <span class="quiz-option-letter">{{ opt.display_letter }})</span>
-          <span class="quiz-option-text">{{ opt.option_text }}</span>
-          {% if is_chosen %}
-            <span class="result-option-tag">твоят отговор</span>
-          {% elif is_correct_option %}
-            <span class="result-option-tag">правилен</span>
-          {% endif %}
-        </div>
-      {% endfor %}
-    </div>
-  </article>
-{% endfor %}
+      <div class="quiz-options quiz-options--readonly">
+        {% for opt in q.options %}
+          {% set is_correct_option = opt.is_correct %}
+          {% set is_chosen = q.chosen_letter and opt.option_letter == q.chosen_letter %}
+          <div class="result-option-card
+            {% if is_correct_option %}is-correct{% endif %}
+            {% if is_chosen and not is_correct_option %}is-wrong-chosen{% endif %}
+            {% if is_chosen %}is-chosen{% endif %}">
+            <span class="quiz-option-letter">{{ opt.display_letter }})</span>
+            <span class="quiz-option-text">{{ opt.option_text }}</span>
+            {% if is_chosen %}
+              <span class="result-option-tag">твоят отговор</span>
+            {% elif is_correct_option %}
+              <span class="result-option-tag">правилен</span>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+    </article>
+  {% endfor %}
+{% endif %}
 
 <p><a class="button secondary" href="{{ url_for('index') }}">Към началото</a></p>
 {% endblock %}
