@@ -812,6 +812,8 @@ QUIZ_VISUAL_DEPENDENT_PATTERNS = (
     "разгледайте графиката",
     "таблицата по-долу",
     "фигурата",
+    "в диаграмата",
+    "показана диаграма",
     "показаната таблица",
     "показаната диаграма",
     "дадената таблица",
@@ -855,10 +857,19 @@ def question_has_usable_visual(conn, question) -> bool:
         SELECT a.local_path
         FROM asset_links al
         JOIN assets a ON a.id = al.asset_id
-        WHERE al.owner_type IN ('question', 'questions')
-          AND al.owner_id = ?
+        WHERE (
+            (al.owner_type IN ('question', 'questions') AND al.owner_id = ?)
+            OR (
+                al.owner_type = 'exam_task'
+                AND al.owner_id IN (
+                    SELECT task_id
+                    FROM exam_task_questions
+                    WHERE question_id = ?
+                )
+            )
+          )
           AND a.asset_type IN ('image', 'pdf_crop')
-    """, (question["id"],)).fetchall()
+    """, (question["id"], question["id"])).fetchall()
 
     return any(quiz_path_exists(row["local_path"]) for row in asset_rows)
 

@@ -48,6 +48,11 @@ class QuizAttemptRenderTest(unittest.TestCase):
                 (cls.valid_question_id,),
             ).fetchone()["prompt"]
             cls.invalid_question_id = cls._insert_invalid_question(conn)
+            (
+                cls.visual_filter_section_id,
+                cls.visual_filter_question_id,
+                cls.visual_filter_text_question_id,
+            ) = cls._insert_visual_filter_fixture(conn)
             conn.commit()
         finally:
             conn.close()
@@ -79,6 +84,82 @@ class QuizAttemptRenderTest(unittest.TestCase):
         ))
         return int(cur.lastrowid)
 
+    @staticmethod
+    def _insert_eligible_mc_question(conn, *, source_number, topic_id, prompt):
+        cur = conn.execute("""
+            INSERT INTO questions (
+                source_exam, source_number, question_type, topic, topic_id,
+                difficulty, points, prompt, has_image, image_path,
+                is_ai_generated, quality_score
+            )
+            VALUES (?, ?, 'multiple_choice', 'visual-filter-test', ?, 'medium', 1, ?, 0, NULL, 0, NULL)
+        """, (
+            "temp-visual-filter-test",
+            source_number,
+            topic_id,
+            prompt,
+        ))
+        question_id = int(cur.lastrowid)
+        for letter, text, is_correct in (
+            ("А", "Първа възможност", 0),
+            ("Б", "Втора възможност", 1),
+            ("В", "Трета възможност", 0),
+            ("Г", "Четвърта възможност", 0),
+        ):
+            conn.execute("""
+                INSERT INTO multiple_choice_options (question_id, option_letter, option_text, is_correct)
+                VALUES (?, ?, ?, ?)
+            """, (question_id, letter, text, is_correct))
+        return question_id
+
+    @classmethod
+    def _insert_visual_filter_fixture(cls, conn):
+        section_cur = conn.execute("""
+            INSERT INTO curriculum_sections (
+                section_slug, title_bg, class, section_type, display_order,
+                has_section_test, is_dzi_relevant
+            )
+            VALUES (?, ?, 12, 'test', 9999, 1, 1)
+        """, (
+            "temp-visual-filter-section",
+            "Temp visual filter section",
+        ))
+        section_id = int(section_cur.lastrowid)
+
+        topic_cur = conn.execute("""
+            INSERT INTO curriculum_topics (
+                topic_slug, title_bg, difficulty, exam_relevance
+            )
+            VALUES (?, ?, 'medium', ?)
+        """, (
+            "temp-visual-filter-topic",
+            "Temp visual filter topic",
+            json.dumps(["DZI"]),
+        ))
+        topic_id = int(topic_cur.lastrowid)
+
+        conn.execute("""
+            INSERT INTO topic_section_assignments (topic_id, section_id, relationship_type, is_primary)
+            VALUES (?, ?, 'covers', 1)
+        """, (topic_id, section_id))
+
+        visual_question_id = cls._insert_eligible_mc_question(
+            conn,
+            source_number=1,
+            topic_id=topic_id,
+            prompt=(
+                "Даденото изображение представлява визуално представяне на уеб страница. "
+                "Кой е правилният извод?"
+            ),
+        )
+        text_question_id = cls._insert_eligible_mc_question(
+            conn,
+            source_number=2,
+            topic_id=topic_id,
+            prompt="Кое твърдение за електронна таблица е вярно?",
+        )
+        return section_id, visual_question_id, text_question_id
+
     def setUp(self):
         self.client = self.app.test_client()
 
@@ -93,6 +174,46 @@ class QuizAttemptRenderTest(unittest.TestCase):
         self.assertEqual(health["filtered_count"], 10)
         self.assertEqual(health["not_yet_supported_count"], 10)
         self.assertEqual(health["invalid_mc_count"], 0)
+
+    def test_generated_quiz_excludes_visual_dependent_question_without_asset(self):
+        conn = web_app.quiz_db()
+        try:
+            question_ids = web_app.quiz_section_question_ids(conn, self.visual_filter_section_id)
+        finally:
+            conn.close()
+
+        self.assertIn(self.visual_filter_text_question_id, question_ids)
+        self.assertNotIn(self.visual_filter_question_id, question_ids)
+
+    def test_visual_eligibility_helper_rejects_missing_visual_but_allows_text_only(self):
+        conn = web_app.quiz_db()
+        try:
+            rows = conn.execute("""
+                SELECT id, prompt, question_type, has_image, image_path
+                FROM questions
+                WHERE id IN (?, ?)
+                ORDER BY id
+            """, (
+                self.visual_filter_question_id,
+                self.visual_filter_text_question_id,
+            )).fetchall()
+            eligibility = {
+                int(row["id"]): web_app.is_quiz_question_eligible(conn, row)
+                for row in rows
+            }
+        finally:
+            conn.close()
+
+        self.assertFalse(eligibility[self.visual_filter_question_id])
+        self.assertTrue(eligibility[self.visual_filter_text_question_id])
+
+    def test_visual_prompt_heuristic_is_conservative(self):
+        self.assertTrue(web_app.quiz_prompt_needs_visual("Даденото изображение показва уеб страница."))
+        self.assertTrue(web_app.quiz_prompt_needs_visual("В показана диаграма са дадени стойности."))
+        self.assertTrue(web_app.quiz_prompt_needs_visual("Коя стойност се вижда в диаграмата?"))
+        self.assertTrue(web_app.quiz_prompt_needs_visual("Какво е отбелязано на изображението?"))
+        self.assertTrue(web_app.quiz_prompt_needs_visual("Използвайте показаната таблица."))
+        self.assertFalse(web_app.quiz_prompt_needs_visual("Кое твърдение за електронна таблица е вярно?"))
 
     def _create_assignment(self):
         conn = web_app.quiz_db()
