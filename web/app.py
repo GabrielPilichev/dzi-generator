@@ -946,18 +946,26 @@ def fetch_dzi_pool_health(source_slug: str = "may_2025_v2") -> dict | None:
             ORDER BY et.task_number, q.id
         """, (exam["id"],)).fetchall()
 
-        usable_count = sum(
-            1
-            for row in rows
-            if row["question_type"] == "multiple_choice"
-            and is_quiz_question_eligible(conn, row)
-        )
+        usable_count = 0
+        not_yet_supported_count = 0
+        invalid_mc_count = 0
+
+        for row in rows:
+            if row["question_type"] != "multiple_choice":
+                not_yet_supported_count += 1
+            elif is_quiz_question_eligible(conn, row):
+                usable_count += 1
+            else:
+                invalid_mc_count += 1
+
         imported_count = len(rows)
         return {
             "source_slug": source_slug,
             "imported_count": imported_count,
             "usable_count": usable_count,
             "filtered_count": imported_count - usable_count,
+            "not_yet_supported_count": not_yet_supported_count,
+            "invalid_mc_count": invalid_mc_count,
         }
     finally:
         conn.close()

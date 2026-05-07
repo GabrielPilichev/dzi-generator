@@ -91,6 +91,8 @@ class QuizAttemptRenderTest(unittest.TestCase):
         self.assertEqual(health["imported_count"], 25)
         self.assertEqual(health["usable_count"], 15)
         self.assertEqual(health["filtered_count"], 10)
+        self.assertEqual(health["not_yet_supported_count"], 10)
+        self.assertEqual(health["invalid_mc_count"], 0)
 
     def _create_assignment(self):
         conn = web_app.quiz_db()

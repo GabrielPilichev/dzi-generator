@@ -33,20 +33,29 @@
   <div class="stat-row">
     <div class="stat-box">
       <span class="stat-number">{{ dzi_pool_health.imported_count }}</span>
-      <span class="stat-label">общо внесени Part 1 въпроси</span>
+      <span class="stat-label">Общо импортирани</span>
     </div>
     <div class="stat-box">
       <span class="stat-number">{{ dzi_pool_health.usable_count }}</span>
-      <span class="stat-label">готови за MC тест</span>
+      <span class="stat-label">Готови за MC тест</span>
     </div>
     <div class="stat-box">
-      <span class="stat-number">{{ dzi_pool_health.filtered_count }}</span>
-      <span class="stat-label">кратък отговор / предстои</span>
+      <span class="stat-number">{{ dzi_pool_health.not_yet_supported_count }}</span>
+      <span class="stat-label">Кратък отговор / предстои</span>
+    </div>
+    <div class="stat-box">
+      <span class="stat-number">{{ dzi_pool_health.invalid_mc_count }}</span>
+      <span class="stat-label">Невалидни MC</span>
     </div>
   </div>
 
   <p class="muted">
-    Тези въпроси са внесени, но не са в автоматични тестове още.
+    Въпросите с кратък отговор са валидни, но не са в автоматични MC тестове още.
+    {% if dzi_pool_health.invalid_mc_count == 0 %}
+      Няма открити невалидни MC въпроси в този източник.
+    {% else %}
+      Невалидните MC въпроси трябва да се поправят преди да влизат в тестове.
+    {% endif %}
   </p>
 </section>
 {% endif %}
