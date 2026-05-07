@@ -47,6 +47,7 @@ app.config["SECRET_KEY"] = os.environ.get("DZI_SECRET_KEY", "local-learnpilot-de
 # ---------------------------------------------------------------------------
 
 VALID_UI_PROFILES = {"admin", "tester"}
+TESTER_TEACHER_ENDPOINTS = {"teacher_new", "teacher_assignment"}
 
 @app.before_request
 def load_ui_profile():
@@ -203,11 +204,11 @@ def protect_admin_routes():
         session["ui_profile"] = "tester"
         return redirect(url_for("admin_login", next=request.path))
 
-    if endpoint == "teacher_new" and not can_generate_tests():
+    if endpoint in TESTER_TEACHER_ENDPOINTS and not can_generate_tests():
         session["ui_profile"] = "tester"
         return redirect(url_for("tester_login", next=request.path))
 
-    if endpoint.startswith("teacher") and endpoint != "teacher_new" and not is_admin_authenticated():
+    if endpoint.startswith("teacher") and endpoint not in TESTER_TEACHER_ENDPOINTS and not is_admin_authenticated():
         session["ui_profile"] = "tester"
         return redirect(url_for("admin_login", next=request.path))
 
