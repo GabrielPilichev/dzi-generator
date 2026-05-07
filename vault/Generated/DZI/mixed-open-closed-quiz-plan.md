@@ -406,6 +406,72 @@ Explicit non-goals:
 - No mixed quiz UI.
 - No migration execution without a separate plan/checkpoint.
 
+## First behavior-changing PR plan
+
+Goal:
+
+- Add teacher/admin controls for mixed quiz planning without changing student submission or result rendering yet.
+
+Route/template areas likely touched:
+
+- `web/app.py` teacher assignment creation route, likely the existing teacher/new assignment handler.
+- `web/app.py` DZI training/teacher helper area only if the source selector already belongs there.
+- Teacher assignment creation template that currently captures quiz count/options.
+- Existing teacher DZI training template if it already has the DZI source selection flow.
+- No student attempt route, submission route, result route, or generated quiz note writer should change in this PR.
+
+Proposed controls:
+
+- `closed_count`: number of MC questions.
+- `open_count`: number of fill-in/open questions, default `0`.
+- `source_slug` or the existing DZI source selector if already available in the teacher/admin flow.
+
+Default behavior:
+
+- Existing MC-only quiz generation remains unchanged when `open_count` is `0`.
+- Existing paths that submit only the old `question_count` should continue to generate closed-only quizzes.
+- Mixed planning is only considered when `open_count > 0` through an explicit teacher/admin control or flag.
+
+Safety:
+
+- Use only open candidates returned by `fetch_open_question_candidates`.
+- Exclude visual-dependent questions.
+- Exclude practical tasks 26-28.
+- Exclude questions with missing accepted answers.
+- Keep the current MC eligibility path for closed questions.
+
+What happens in this first PR:
+
+- Generate a mixed quiz plan in memory with `build_mixed_quiz_plan`.
+- Show counts and shortfalls to the teacher/admin before any student-facing mixed attempt exists.
+- Prefer rendering open questions as read-only preview, or keep mixed generation disabled behind an explicit flag if preview UX is not ready.
+- Keep all writes limited to the existing MC-only path unless the implementation explicitly gates and proves no student text submission is possible yet.
+
+What must not happen yet:
+
+- No student text submission.
+- No `quiz_text_answers` writes from routes.
+- No result-page mixed scoring.
+- No teacher manual grading.
+- No schema migration execution as part of this PR.
+- No asset imports or practical task modeling.
+
+Tests needed:
+
+- Existing MC-only flow is unchanged.
+- `open_count` default is zero.
+- `open_count > 0` requires the explicit path/control.
+- Mixed plan uses eligible open candidates only.
+- Visual-dependent, practical 26-28, and missing-answer fill-in questions are excluded.
+- Shortfall messaging/context is present when the requested open count is not available.
+
+Rollback plan:
+
+- Remove or hide the new teacher/admin controls.
+- Keep `open_count` defaulting to `0`.
+- Leave helper code unused if the preview path is disabled.
+- Because no student submission, result rendering, or `quiz_text_answers` route writes are introduced, rollback should not require data cleanup.
+
 ## Implementation checklist draft
 
 1. Schema migration file
