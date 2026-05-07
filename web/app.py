@@ -1056,6 +1056,47 @@ def grade_quiz_text_answers(submitted_answers, accepted_answers_by_slot, *, grad
     return results
 
 
+def record_quiz_text_answers(
+    conn,
+    *,
+    attempt_id: int,
+    question_id: int,
+    submitted_answers,
+    accepted_answers_by_slot,
+    grading_mode: str = "ordered",
+    subquestion_ids_by_slot=None,
+    grader_version: str | None = None,
+) -> list[dict]:
+    graded_results = grade_quiz_text_answers(
+        submitted_answers,
+        accepted_answers_by_slot,
+        grading_mode=grading_mode,
+    )
+    subquestion_ids = dict(_quiz_slot_items(subquestion_ids_by_slot)) if subquestion_ids_by_slot else {}
+
+    recorded = []
+    for result in graded_results:
+        subquestion_number = int(result["subquestion_number"])
+        row_id = insert_quiz_text_answer(
+            conn,
+            attempt_id=attempt_id,
+            question_id=question_id,
+            subquestion_id=subquestion_ids.get(subquestion_number),
+            subquestion_number=subquestion_number,
+            raw_answer=result["raw_answer"],
+            normalized_answer=result["normalized_answer"],
+            grading_mode=grading_mode,
+            accepted_answers_json=result["accepted_answers_json"],
+            matched_answer=result["matched_answer"],
+            is_correct=result["is_correct"],
+            points_awarded=result["points_awarded"],
+            points_possible=result["points_possible"],
+            grader_version=grader_version,
+        )
+        recorded.append({**result, "id": row_id})
+    return recorded
+
+
 def quiz_answer_text_is_real(value: object) -> bool:
     text = quiz_clean_answer_text(value)
     return bool(text) and text not in {"-", "—", "[]"}
