@@ -101,13 +101,21 @@
   </form>
 </section>
 
+{% if dzi_generation_error %}
+  <div class="error">
+    {{ dzi_generation_error }}
+  </div>
+{% endif %}
+
 {% if generated_output is not none %}
   {% if generated_ok %}
     <div class="success">Комплектът е генериран успешно.</div>
-  {% else %}
+  {% elif not dzi_generation_error %}
     <div class="error">Генерирането не успя.</div>
   {% endif %}
-  <pre>{{ generated_output }}</pre>
+  {% if generated_output %}
+    <pre>{{ generated_output }}</pre>
+  {% endif %}
 {% endif %}
 
 <section class="card">

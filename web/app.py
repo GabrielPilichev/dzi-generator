@@ -1294,7 +1294,14 @@ def teacher_dzi_training():
 
     generated_output = None
     generated_ok = None
+    dzi_generation_error = None
     dzi_pool_health = fetch_dzi_pool_health("may_2025_v2")
+
+    def short_generator_output(*parts) -> str:
+        text = "\n".join(str(part).strip() for part in parts if part).strip()
+        if len(text) > 1200:
+            return text[:1200].rstrip() + "\n..."
+        return text
 
     if config_path.exists():
         try:
@@ -1327,7 +1334,11 @@ def teacher_dzi_training():
 
         if not generator_path.exists():
             generated_ok = False
-            generated_output = f"Generator script not found: {generator_path}"
+            dzi_generation_error = (
+                "Не успях да генерирам тренировъчен ДЗИ комплект. "
+                "Опитай пак след малко или провери входните данни."
+            )
+            generated_output = "Скриптът за генериране не е намерен."
         else:
             cmd = [
                 sys.executable,
@@ -1341,16 +1352,30 @@ def teacher_dzi_training():
             if raw_seed:
                 cmd.extend(["--seed", raw_seed])
 
-            proc = subprocess.run(
-                cmd,
-                cwd=str(project_root),
-                text=True,
-                capture_output=True,
-                timeout=60,
-            )
-
-            generated_ok = proc.returncode == 0
-            generated_output = (proc.stdout or "") + (proc.stderr or "")
+            try:
+                proc = subprocess.run(
+                    cmd,
+                    cwd=str(project_root),
+                    text=True,
+                    capture_output=True,
+                    timeout=60,
+                )
+            except subprocess.TimeoutExpired as exc:
+                generated_ok = False
+                dzi_generation_error = (
+                    "Не успях да генерирам тренировъчен ДЗИ комплект. "
+                    "Опитай пак след малко или провери входните данни."
+                )
+                generated_output = short_generator_output(exc.stdout, exc.stderr)
+            else:
+                generated_ok = proc.returncode == 0
+                generated_output = (proc.stdout or "") + (proc.stderr or "")
+                if proc.returncode != 0:
+                    dzi_generation_error = (
+                        "Не успях да генерирам тренировъчен ДЗИ комплект. "
+                        "Опитай пак след малко или провери входните данни."
+                    )
+                    generated_output = short_generator_output(proc.stdout, proc.stderr)
 
     recent_sets = []
     if sets_dir.exists():
@@ -1368,6 +1393,7 @@ def teacher_dzi_training():
         recent_sets=recent_sets,
         generated_output=generated_output,
         generated_ok=generated_ok,
+        dzi_generation_error=dzi_generation_error,
         dzi_pool_health=dzi_pool_health,
     )
 
