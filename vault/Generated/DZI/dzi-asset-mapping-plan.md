@@ -12,6 +12,34 @@ May 2025 v2 Part 1 is imported, but visual assets/images are not fully attached.
 
 Current audit shows exam-level asset status, but not per-task missing visual needs.
 
+## First audit result — may_2025_v2
+
+Command run:
+
+`python3 src/audit_dzi_assets.py --source-slug may_2025_v2`
+
+Result:
+
+- total tasks audited: 28
+- linked questions: 25
+- visual-dependent linked questions: 1
+- tasks with asset links: 0
+- tasks with missing asset files: 0
+- quiz-blocking visual gaps: 0
+
+Interpretation:
+
+- Tasks 1–15 are MC and currently not blocked by asset gaps.
+- Task 16 is `fill_in` and visual-dependent, with `link_missing`, but not quiz-blocking.
+- Tasks 26–28 have no linked questions yet, so asset audit cannot fully evaluate them yet.
+- May 2025 v2 current generated MC tests are not blocked by missing assets.
+
+Next step:
+
+- No urgent asset patch for May 2025 v2 MC quizzes.
+- Asset work should wait until open/fill-in support or practical tasks 26–28 are being modeled.
+- When doing asset work, start with task 16 and practical tasks 26–28.
+
 ## Proposed audit
 
 Add a read-only audit script later:
