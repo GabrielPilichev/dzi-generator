@@ -231,6 +231,62 @@ This handles repeated identical answers without awarding full credit. If a futur
 8. Result render branch.
 9. Pool-health open count.
 
+## Implementation checklist draft
+
+1. Schema migration file
+   - Files likely touched: `migrations/` or the repo's current SQLite migration path; migration README/log if present.
+   - Tests to add or update: migration smoke on a copied DB; foreign key check; schema introspection for table, indexes, and constraints.
+   - Explicit non-goals: no data backfill, no changes to `quiz_answers`, no generated quiz behavior change.
+   - Rollback/safety note: additive-only migration; rollback can drop `quiz_text_answers` before any production open-answer attempts exist.
+
+2. Normalization helper + unit tests
+   - Files likely touched: `web/app.py` or a small quiz utility module if one already exists; focused unit test file.
+   - Tests to add or update: trim, whitespace collapse, casefold, Unicode normalize, smart quote handling, Bulgarian diacritics preserved.
+   - Explicit non-goals: no punctuation engine, no Cyrillic/Latin homoglyph conversion, no formula equivalence.
+   - Rollback/safety note: helper can be unused behind later phases until grading writes text answers.
+
+3. Fill-in eligibility helper
+   - Files likely touched: `web/app.py`; possibly `src/audit_dzi_state.py` or pool-health helpers later.
+   - Tests to add or update: fill-in question with complete subquestions is eligible; missing/blank accepted answer is excluded; visual-dependent fill-in without asset remains blocked only where open generation requires assets.
+   - Explicit non-goals: no mixed picker yet, no open-answer UI, no teacher override.
+   - Rollback/safety note: keep helper separate from existing MC eligibility until generation path is explicitly switched.
+
+4. Generation path changes
+   - Files likely touched: `web/app.py`; teacher assignment creation templates if count controls are introduced in the same phase.
+   - Tests to add or update: closed-only generation remains unchanged; mixed generation selects requested `closed_count` and `open_count`; missing-visual MC remains excluded; no-open-section behavior is explicit.
+   - Explicit non-goals: no grading changes beyond storing selected question IDs; no practical tasks 26–28.
+   - Rollback/safety note: keep `open_count` default `0` so existing assignments remain closed-only.
+
+5. Answer submission handling
+   - Files likely touched: `web/app.py`; quiz attempt template; result/attempt form parsing helpers.
+   - Tests to add or update: MC answers still insert into `quiz_answers`; fill-in answers insert into `quiz_text_answers`; empty text answers are stored and graded as incorrect; stale question IDs do not crash.
+   - Explicit non-goals: no manual grading UI, no teacher edits, no answer-key privacy behavior change.
+   - Rollback/safety note: submissions can branch by `question_type`; closed-only attempts should not touch the new table.
+
+6. Grading logic
+   - Files likely touched: `web/app.py` or quiz grading helper module.
+   - Tests to add or update: ordered fill-in grading; order-independent set/multiset grading; repeated identical answers receive credit once; accepted-answer snapshot is stored; task 18 formula variants only match manually listed alternatives.
+   - Explicit non-goals: no regex/synonym engine, no spreadsheet formula parser, no all-or-nothing task scoring unless explicitly decided later.
+   - Rollback/safety note: preserve existing MC score semantics and compute mixed totals from separate MC/text rows.
+
+7. Result rendering
+   - Files likely touched: quiz result template; `web/app.py` result query/context.
+   - Tests to add or update: result groups text blanks under parent question; partial credit is visible; MC-only result stays unchanged; skipped invalid-count behavior still works.
+   - Explicit non-goals: no teacher review controls, no DZI 100-point conversion unless designed separately.
+   - Rollback/safety note: render text-answer blocks only when rows exist for the attempt.
+
+8. Teacher assignment controls
+   - Files likely touched: teacher assignment/new templates; `web/app.py`; CSS only if existing controls cannot cover the layout.
+   - Tests to add or update: default closed-only assignment; explicit `closed_count`/`open_count`; validation for negative counts and insufficient pools; tester/admin auth behavior unchanged.
+   - Explicit non-goals: no per-student tokens, no broad auth refactor, no answer-key visibility redesign.
+   - Rollback/safety note: keep old `question_count` path valid while new fields are introduced.
+
+9. Audit/backward compatibility checks
+   - Files likely touched: `src/audit_dzi_state.py`, `src/audit_dzi_assets.py`, AGENTS/docs if wording changes.
+   - Tests to add or update: MC pool-health numbers remain pinned; open-ready count is separate; old attempts without `quiz_text_answers` still render; foreign key check passes.
+   - Explicit non-goals: no new imports, no asset mapping, no cleanup of historical attempts.
+   - Rollback/safety note: audits should be read-only and report mixed-readiness separately from current MC readiness.
+
 ## Open questions
 
 - Sections with no open questions.
