@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+
+{% block title %}Отворени въпроси · планиране{% endblock %}
+
+{% block breadcrumb %}
+    <a href="{{ url_for('index') }}">Начало</a>
+    <span>›</span>
+    <a href="{{ url_for('teacher_dashboard') }}">Учител</a>
+    <span>›</span>
+    Отворени въпроси
+{% endblock %}
+
+{% block content %}
+<section class="page-header">
+  <div>
+    <p class="eyebrow">Планиране</p>
+    <h1>Отворени въпроси за смесени тестове</h1>
+    <p class="subtitle">Само за преглед. Текущият MC-only поток за тестове остава непроменен.</p>
+  </div>
+</section>
+
+<div class="warning">
+  Тази страница е read-only: не създава тестове, не записва отговори и не използва <code>quiz_text_answers</code>.
+</div>
+
+<section class="panel">
+  <div class="section-heading">
+    <h2>Обобщение</h2>
+    <span class="pill">read-only</span>
+  </div>
+
+  <div class="stat-row">
+    <div class="stat-box">
+      <span class="stat-number">{{ total_candidates }}</span>
+      <span class="stat-label">Подходящи отворени въпроси</span>
+    </div>
+  </div>
+
+  <p class="muted">
+    Кандидатите минават през текущите правила за автоматично оценяване: без визуално зависими въпроси,
+    без практически задачи 26-28 и без липсващи приети отговори.
+  </p>
+</section>
+
+<section class="panel">
+  <div class="section-heading">
+    <h2>По източник</h2>
+    <span class="pill">{{ grouped_sources|length }} източника</span>
+  </div>
+
+  {% if grouped_sources %}
+    <table>
+      <thead>
+        <tr>
+          <th>Източник</th>
+          <th>Кандидати</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for source in grouped_sources %}
+          <tr>
+            <td><code>{{ source.source_slug }}</code></td>
+            <td>{{ source.count }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p class="empty-state">Няма подходящи отворени въпроси.</p>
+  {% endif %}
+</section>
+
+<section class="panel">
+  <div class="section-heading">
+    <h2>Кандидати</h2>
+    <span class="pill">{{ total_candidates }} реда</span>
+  </div>
+
+  {% if candidates %}
+    <table>
+      <thead>
+        <tr>
+          <th>question_id</th>
+          <th>Източник</th>
+          <th>Задача</th>
+          <th>Оценяване</th>
+          <th>Подвъпроси</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for candidate in candidates %}
+          <tr>
+            <td>{{ candidate.question_id }}</td>
+            <td><code>{{ candidate.source_slug }}</code></td>
+            <td>{{ candidate.task_number }}</td>
+            <td>{{ candidate.grading_mode }}</td>
+            <td>{{ candidate.subquestion_count }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p class="empty-state">Няма редове за показване.</p>
+  {% endif %}
+</section>
+{% endblock %}

@@ -677,6 +677,32 @@ def dzi_source_view(source_slug: str):
     return render_template("dzi_source.html", exam=exam, tasks=tasks)
 
 
+@app.route("/admin/open-question-candidates")
+def admin_open_question_candidates():
+    conn = quiz_db()
+    try:
+        candidates = fetch_open_question_candidates(conn)
+    finally:
+        conn.close()
+
+    grouped: dict[str, int] = {}
+    for candidate in candidates:
+        source_slug = candidate.get("source_slug") or "unknown"
+        grouped[source_slug] = grouped.get(source_slug, 0) + 1
+
+    grouped_sources = [
+        {"source_slug": source_slug, "count": count}
+        for source_slug, count in sorted(grouped.items())
+    ]
+
+    return _quiz_render_template(
+        "open_question_candidates.html",
+        candidates=candidates,
+        grouped_sources=grouped_sources,
+        total_candidates=len(candidates),
+    )
+
+
 # ---------------------------------------------------------------------------
 # Error handlers
 # ---------------------------------------------------------------------------
