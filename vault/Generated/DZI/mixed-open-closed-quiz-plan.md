@@ -231,6 +231,21 @@ This handles repeated identical answers without awarding full credit. If a futur
 8. Result render branch.
 9. Pool-health open count.
 
+## Completed groundwork
+
+- Normalization helper merged.
+- Fill-in eligibility helper merged.
+- `quiz_text_answers` migration file added but not run.
+- Migration SQL text test added.
+- In-memory migration execution test added.
+- `data/questions.db` has not been migrated.
+- Quiz generation behavior has not changed.
+- Answer submission, grading, and result rendering have not changed.
+
+Next gated step:
+
+- Running the migration against `data/questions.db` is a separate explicit step and should not happen without a dedicated plan/checkpoint.
+
 ## Implementation checklist draft
 
 1. Schema migration file
