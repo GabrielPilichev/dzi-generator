@@ -53,16 +53,79 @@
     <div class="detail-grid">
         <div>
             <label for="question_count">Брой въпроси</label>
-            <input id="question_count" name="question_count" type="number" min="1" value="10" required>
+            <input id="question_count" name="question_count" type="number" min="1" value="{{ form_values.question_count }}" required>
             <div class="help" id="count-help">Ако въведеш повече от наличните, системата ще използва максимума.</div>
         </div>
 
         <div>
             <label for="time_limit_minutes">Време в минути</label>
-            <input id="time_limit_minutes" name="time_limit_minutes" type="number" min="1" placeholder="без ограничение">
+            <input id="time_limit_minutes" name="time_limit_minutes" type="number" min="1" placeholder="без ограничение" value="{{ form_values.time_limit_minutes }}">
             <div class="help">Остави празно за тест без таймер.</div>
         </div>
     </div>
+
+    <div class="warning warning--spaced">
+        Смесените тестове с отворени въпроси са в режим планиране. По подразбиране се създава само MC тест.
+    </div>
+
+    <div class="detail-grid">
+        <div>
+            <label>
+                <input
+                    type="checkbox"
+                    name="include_open_questions"
+                    value="1"
+                    {% if form_values.include_open_questions %}checked{% endif %}
+                >
+                Включи отворени въпроси за планиране
+            </label>
+            <div class="help">
+                Налични автоматично оценими отворени въпроси: {{ total_open_candidates }}.
+                Ако е включено, засега се показва план, а не ученически смесен тест.
+            </div>
+        </div>
+
+        <div>
+            <label for="open_count">Брой отворени въпроси</label>
+            <input id="open_count" name="open_count" type="number" min="0" value="{{ form_values.open_count }}">
+            <div class="help">0 запазва текущия MC-only поток.</div>
+        </div>
+    </div>
+
+    <label for="source_slug">ДЗИ източник за отворени въпроси</label>
+    <select id="source_slug" name="source_slug">
+        <option value="">Всички налични източници</option>
+        {% for source in open_source_options %}
+            <option value="{{ source.source_slug }}" {% if form_values.source_slug == source.source_slug %}selected{% endif %}>
+                {{ source.source_slug }} ({{ source.count }} отворени)
+            </option>
+        {% endfor %}
+    </select>
+    <div class="help">Използват се само кандидати, които минават автоматичната проверка за отворени въпроси.</div>
+
+    {% if mixed_planning_result %}
+        <div class="warning warning--spaced" id="mixed-planning-result">
+            <strong>Планиране само за учител/админ.</strong>
+            Смесеният ученически тест още не е включен.
+            MC-only създаването остава непроменено, докато броят отворени въпроси е 0.
+
+            <ul>
+                <li>Източник: {{ mixed_planning_result.source_slug }}</li>
+                <li>MC въпроси: {{ mixed_planning_result.closed_count }}/{{ mixed_planning_result.requested_closed_count }} налични за плана</li>
+                <li>Отворени въпроси: {{ mixed_planning_result.open_count }}/{{ mixed_planning_result.requested_open_count }} налични за плана</li>
+                <li>Общо налични MC кандидати: {{ mixed_planning_result.available_closed_count }}</li>
+                <li>Общо налични отворени кандидати: {{ mixed_planning_result.available_open_count }}</li>
+            </ul>
+
+            {% if mixed_planning_result.open_shortfall or mixed_planning_result.closed_shortfall %}
+                <p>
+                    Има недостиг за заявения план:
+                    {% if mixed_planning_result.closed_shortfall %}MC: {{ mixed_planning_result.closed_shortfall }}{% endif %}
+                    {% if mixed_planning_result.open_shortfall %}отворени: {{ mixed_planning_result.open_shortfall }}{% endif %}
+                </p>
+            {% endif %}
+        </div>
+    {% endif %}
 
     <div class="warning warning--spaced">
         Тестът избира въпросите автоматично. Всеки ученик получава стабилен ред според името си, а отговорите се разбъркват.
