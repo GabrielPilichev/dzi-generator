@@ -1969,12 +1969,30 @@ def teacher_assignments():
 def teacher_new():
     conn = quiz_db()
     preselected_section_id = None
+    mixed_planning_result = None
+    form_values = {
+        "question_count": 10,
+        "time_limit_minutes": "",
+        "include_open_questions": False,
+        "open_count": 0,
+        "source_slug": "",
+    }
 
     if _quiz_request.method == "POST":
         section_id = int(_quiz_request.form.get("section_id") or 0)
         requested_count = int(_quiz_request.form.get("question_count") or 10)
         raw_limit = (_quiz_request.form.get("time_limit_minutes") or "").strip()
         time_limit = int(raw_limit) if raw_limit else None
+        include_open_questions = bool(_quiz_request.form.get("include_open_questions"))
+        open_count = max(0, int(_quiz_request.form.get("open_count") or 0))
+        source_slug = (_quiz_request.form.get("source_slug") or "").strip()
+        form_values = {
+            "question_count": requested_count,
+            "time_limit_minutes": raw_limit,
+            "include_open_questions": include_open_questions,
+            "open_count": open_count,
+            "source_slug": source_slug,
+        }
 
         section = conn.execute("""
             SELECT id, title_bg
@@ -1993,16 +2011,37 @@ def teacher_new():
 
         question_count = max(1, min(requested_count, available))
 
-        cur = conn.execute("""
-            INSERT INTO quiz_assignments (section_id, title_bg, question_count, time_limit_minutes)
-            VALUES (?, ?, ?, ?)
-        """, (section_id, section["title_bg"], question_count, time_limit))
-        assignment_id = cur.lastrowid
-        conn.commit()
-        conn.close()
+        if include_open_questions and open_count > 0:
+            plan = build_mixed_quiz_plan(
+                conn,
+                closed_count=question_count,
+                open_count=open_count,
+                source_slug=source_slug or None,
+            )
+            mixed_planning_result = {
+                "planning_only": True,
+                "source_slug": source_slug or "всички",
+                "closed_count": len(plan["closed_questions"]),
+                "open_count": len(plan["open_questions"]),
+                "requested_closed_count": plan["requested_closed_count"],
+                "requested_open_count": plan["requested_open_count"],
+                "available_closed_count": plan["available_closed_count"],
+                "available_open_count": plan["available_open_count"],
+                "closed_shortfall": max(0, plan["requested_closed_count"] - plan["available_closed_count"]),
+                "open_shortfall": max(0, plan["requested_open_count"] - plan["available_open_count"]),
+            }
+            preselected_section_id = section_id
+        else:
+            cur = conn.execute("""
+                INSERT INTO quiz_assignments (section_id, title_bg, question_count, time_limit_minutes)
+                VALUES (?, ?, ?, ?)
+            """, (section_id, section["title_bg"], question_count, time_limit))
+            assignment_id = cur.lastrowid
+            conn.commit()
+            conn.close()
 
-        quiz_write_assignment_note(assignment_id, _quiz_request.host_url)
-        return _quiz_redirect(_quiz_url_for("teacher_assignment", assignment_id=assignment_id))
+            quiz_write_assignment_note(assignment_id, _quiz_request.host_url)
+            return _quiz_redirect(_quiz_url_for("teacher_assignment", assignment_id=assignment_id))
 
     section_rows = conn.execute(f"""
         SELECT
@@ -2040,12 +2079,26 @@ def teacher_new():
         if preselected:
             preselected_section_id = int(preselected["id"])
 
+    open_candidates = fetch_open_question_candidates(conn)
+    open_source_counts: dict[str, int] = {}
+    for candidate in open_candidates:
+        source_slug = candidate.get("source_slug") or "unknown"
+        open_source_counts[source_slug] = open_source_counts.get(source_slug, 0) + 1
+    open_source_options = [
+        {"source_slug": source_slug, "count": count}
+        for source_slug, count in sorted(open_source_counts.items())
+    ]
+
     conn.close()
 
     return _quiz_render_template(
         "teacher_new.html",
         sections=sections,
         preselected_section_id=preselected_section_id,
+        form_values=form_values,
+        mixed_planning_result=mixed_planning_result,
+        open_source_options=open_source_options,
+        total_open_candidates=len(open_candidates),
     )
 
 
