@@ -104,6 +104,117 @@ class MigrationRunnerDryRunTest(unittest.TestCase):
         self.assertIn("applied migrations:\n  - 001_first.sql", output)
         self.assertIn("pending migrations:\n  - 002_second.sql", output)
 
+    def test_baseline_dry_run_does_not_create_schema_migrations(self):
+        _db_temp, db_path = self.make_temp_db()
+        _migrations_temp, migrations_dir = self.make_migrations_dir([
+            "001_quiz_tables.sql",
+        ])
+
+        exit_code = manage_migrations.main(
+            ["--db", str(db_path), "--migrations-dir", str(migrations_dir), "--baseline-dry-run"],
+            out=io.StringIO(),
+            err=io.StringIO(),
+        )
+
+        self.assertEqual(exit_code, 0)
+        conn = sqlite3.connect(db_path)
+        try:
+            row = conn.execute("""
+                SELECT 1
+                FROM sqlite_master
+                WHERE type = 'table'
+                  AND name = 'schema_migrations'
+            """).fetchone()
+        finally:
+            conn.close()
+        self.assertIsNone(row)
+
+    def test_baseline_dry_run_marks_existing_objects_baselineable_and_leaves_005_pending(self):
+        _db_temp, db_path = self.make_temp_db()
+        conn = sqlite3.connect(db_path)
+        try:
+            conn.executescript("""
+                CREATE TABLE quiz_attempts (id INTEGER PRIMARY KEY);
+                CREATE TABLE quiz_answers (id INTEGER PRIMARY KEY);
+                CREATE TABLE questions (source_exam TEXT, source_number INTEGER);
+                CREATE TABLE curriculum_sections (
+                    id INTEGER PRIMARY KEY,
+                    source_url TEXT,
+                    source_title TEXT,
+                    source_authority TEXT,
+                    dzi_relevance_verified INTEGER NOT NULL DEFAULT 0,
+                    dzi_relevance_notes TEXT
+                );
+                CREATE TABLE dzi_blueprints (id INTEGER PRIMARY KEY);
+                CREATE TABLE dzi_blueprint_slots (id INTEGER PRIMARY KEY);
+                CREATE TABLE assets (id INTEGER PRIMARY KEY);
+                CREATE TABLE asset_links (id INTEGER PRIMARY KEY);
+                CREATE UNIQUE INDEX uniq_questions_source_exam_number
+                    ON questions(source_exam, source_number)
+                    WHERE source_exam IS NOT NULL AND source_number IS NOT NULL;
+            """)
+            conn.commit()
+        finally:
+            conn.close()
+        _migrations_temp, migrations_dir = self.make_migrations_dir([
+            "001_quiz_tables.sql",
+            "002_curriculum_section_provenance.sql",
+            "003_dzi_tasks_assets_blueprint.sql",
+            "004_dzi_safety_constraints.sql",
+            "005_quiz_text_answers.sql",
+        ])
+        out = io.StringIO()
+
+        exit_code = manage_migrations.main(
+            ["--db", str(db_path), "--migrations-dir", str(migrations_dir), "--baseline-dry-run"],
+            out=out,
+            err=io.StringIO(),
+        )
+
+        self.assertEqual(exit_code, 0)
+        output = out.getvalue()
+        self.assertIn("001_quiz_tables.sql: baselineable", output)
+        self.assertIn("002_curriculum_section_provenance.sql: baselineable", output)
+        self.assertIn("003_dzi_tasks_assets_blueprint.sql: baselineable", output)
+        self.assertIn("004_dzi_safety_constraints.sql: baselineable", output)
+        self.assertIn("005_quiz_text_answers.sql: not baselineable", output)
+        self.assertIn("remaining pending migrations:\n  - 005_quiz_text_answers.sql", output)
+        self.assertIn("BASELINE DRY RUN ONLY: no changes applied", output)
+
+    def test_baseline_dry_run_reports_missing_objects_and_manual_review(self):
+        _db_temp, db_path = self.make_temp_db()
+        conn = sqlite3.connect(db_path)
+        try:
+            conn.executescript("""
+                CREATE TABLE curriculum_sections (id INTEGER PRIMARY KEY);
+                CREATE TABLE questions (source_exam TEXT, source_number INTEGER);
+            """)
+            conn.commit()
+        finally:
+            conn.close()
+        _migrations_temp, migrations_dir = self.make_migrations_dir([
+            "001_quiz_tables.sql",
+            "002_curriculum_section_provenance.sql",
+            "003_dzi_tasks_assets_blueprint.sql",
+            "004_dzi_safety_constraints.sql",
+            "005_quiz_text_answers.sql",
+        ])
+        out = io.StringIO()
+
+        exit_code = manage_migrations.main(
+            ["--db", str(db_path), "--migrations-dir", str(migrations_dir), "--baseline-dry-run"],
+            out=out,
+            err=io.StringIO(),
+        )
+
+        self.assertEqual(exit_code, 0)
+        output = out.getvalue()
+        self.assertIn("001_quiz_tables.sql: not baselineable", output)
+        self.assertIn("002_curriculum_section_provenance.sql: not baselineable", output)
+        self.assertIn("003_dzi_tasks_assets_blueprint.sql: not baselineable", output)
+        self.assertIn("004_dzi_safety_constraints.sql: manual review required", output)
+        self.assertIn("005_quiz_text_answers.sql: not baselineable", output)
+
     def test_apply_creates_schema_migrations(self):
         _db_temp, db_path = self.make_temp_db()
         _migrations_temp, migrations_dir = self.make_migrations_dir({

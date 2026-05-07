@@ -23,6 +23,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--db", default=str(DEFAULT_DB_PATH), help="SQLite DB path.")
     parser.add_argument("--migrations-dir", default=str(DEFAULT_MIGRATIONS_DIR), help="Directory with *.sql migrations.")
     parser.add_argument("--dry-run", action="store_true", help="Print pending migrations without applying changes.")
+    parser.add_argument("--baseline-dry-run", action="store_true", help="Plan adoption of existing migrations without writing.")
     parser.add_argument("--apply", action="store_true", help="Apply pending migrations.")
     return parser.parse_args(argv)
 
@@ -112,6 +113,72 @@ def sql_string_literal(value: str) -> str:
     return "'" + value.replace("'", "''") + "'"
 
 
+def table_exists(conn: sqlite3.Connection, table_name: str) -> bool:
+    row = conn.execute("""
+        SELECT 1
+        FROM sqlite_master
+        WHERE type = 'table'
+          AND name = ?
+    """, (table_name,)).fetchone()
+    return row is not None
+
+
+def index_exists(conn: sqlite3.Connection, index_name: str) -> bool:
+    row = conn.execute("""
+        SELECT 1
+        FROM sqlite_master
+        WHERE type = 'index'
+          AND name = ?
+    """, (index_name,)).fetchone()
+    return row is not None
+
+
+def columns_exist(conn: sqlite3.Connection, table_name: str, column_names: list[str]) -> bool:
+    if not table_exists(conn, table_name):
+        return False
+    rows = conn.execute(f"PRAGMA table_info({table_name})").fetchall()
+    existing = {str(row["name"]) for row in rows}
+    return all(column_name in existing for column_name in column_names)
+
+
+def baseline_status(conn: sqlite3.Connection, filename: str) -> tuple[str, str]:
+    if filename == "001_quiz_tables.sql":
+        if table_exists(conn, "quiz_attempts") and table_exists(conn, "quiz_answers"):
+            return "baselineable", "quiz_attempts and quiz_answers exist"
+        return "not baselineable", "quiz_attempts or quiz_answers missing"
+
+    if filename == "002_curriculum_section_provenance.sql":
+        expected_columns = [
+            "source_url",
+            "source_title",
+            "source_authority",
+            "dzi_relevance_verified",
+            "dzi_relevance_notes",
+        ]
+        if columns_exist(conn, "curriculum_sections", expected_columns):
+            return "baselineable", "curriculum_sections provenance columns exist"
+        return "not baselineable", "curriculum_sections provenance columns missing"
+
+    if filename == "003_dzi_tasks_assets_blueprint.sql":
+        expected_tables = ["dzi_blueprints", "dzi_blueprint_slots", "assets", "asset_links"]
+        missing = [table_name for table_name in expected_tables if not table_exists(conn, table_name)]
+        if not missing:
+            return "baselineable", "DZI blueprint and asset tables exist"
+        return "not baselineable", f"missing objects: {', '.join(missing)}"
+
+    if filename == "004_dzi_safety_constraints.sql":
+        if index_exists(conn, "uniq_questions_source_exam_number"):
+            return "baselineable", "uniq_questions_source_exam_number exists"
+        return "manual review required", "safety constraint not safely detectable"
+
+    if filename == "005_quiz_text_answers.sql":
+        if table_exists(conn, "quiz_text_answers"):
+            return "baselineable", "quiz_text_answers exists"
+        return "not baselineable", "quiz_text_answers absent; leave pending"
+
+    return "manual review required", "no baseline rule defined"
+
+
 def print_plan(db_path: Path, migrations_dir: Path, applied: list[str], pending: list[str], out: TextIO) -> None:
     print(f"database path: {db_path}", file=out)
     print(f"migration directory: {migrations_dir}", file=out)
@@ -139,6 +206,37 @@ def dry_run(db_path: Path, migrations_dir: Path, out: TextIO = sys.stdout) -> No
         conn.close()
     pending = pending_migrations(all_migrations, applied)
     print_plan(db_path, migrations_dir, applied, pending, out)
+
+
+def baseline_dry_run(db_path: Path, migrations_dir: Path, out: TextIO = sys.stdout) -> None:
+    all_migrations = migration_filenames(migrations_dir)
+    conn = open_read_only_db(db_path)
+    try:
+        applied = applied_migrations(conn)
+        pending = pending_migrations(all_migrations, applied)
+        print(f"database path: {db_path}", file=out)
+        print(f"migration directory: {migrations_dir}", file=out)
+        print("baseline candidates:", file=out)
+        if pending:
+            for filename in pending:
+                status, reason = baseline_status(conn, filename)
+                print(f"  - {filename}: {status} ({reason})", file=out)
+        else:
+            print("  - none", file=out)
+        print("remaining pending migrations:", file=out)
+        remaining = [
+            filename
+            for filename in pending
+            if baseline_status(conn, filename)[0] != "baselineable"
+        ]
+        if remaining:
+            for filename in remaining:
+                print(f"  - {filename}", file=out)
+        else:
+            print("  - none", file=out)
+        print("BASELINE DRY RUN ONLY: no changes applied", file=out)
+    finally:
+        conn.close()
 
 
 def apply_migrations(db_path: Path, migrations_dir: Path, out: TextIO = sys.stdout) -> int:
@@ -202,6 +300,9 @@ def main(argv: list[str] | None = None, out: TextIO = sys.stdout, err: TextIO = 
     args = parse_args(argv)
 
     try:
+        if args.baseline_dry_run:
+            baseline_dry_run(Path(args.db), Path(args.migrations_dir), out)
+            return 0
         if args.apply:
             return apply_migrations(Path(args.db), Path(args.migrations_dir), out)
         dry_run(Path(args.db), Path(args.migrations_dir), out)
