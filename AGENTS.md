@@ -81,7 +81,7 @@
   `sqlite3 "file:data/questions.db?mode=ro" "SELECT * FROM pragma_foreign_key_check;"`
   `python3 src/audit_dzi_state.py --source-slug may_2025_v2`
 - `audit_dzi_state.py` reports structural DZI readiness; unittest/tests pin quiz pool-health numbers.
-- Current DZI pool health expectation for `may_2025_v2`: imported 25, usable 15, filtered/excluded 10.
+- Current DZI pool health expectation for `may_2025_v2`: 25 total imported Part 1 questions, 15 MC quiz-ready, 10 short-answer/not-yet-quiz-ready.
 
 ## Before finishing
 Run relevant checks:

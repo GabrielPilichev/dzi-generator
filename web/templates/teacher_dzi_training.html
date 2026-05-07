@@ -33,20 +33,20 @@
   <div class="stat-row">
     <div class="stat-box">
       <span class="stat-number">{{ dzi_pool_health.imported_count }}</span>
-      <span class="stat-label">внесени/свързани въпроси</span>
+      <span class="stat-label">общо внесени Part 1 въпроси</span>
     </div>
     <div class="stat-box">
       <span class="stat-number">{{ dzi_pool_health.usable_count }}</span>
-      <span class="stat-label">използваеми за тест</span>
+      <span class="stat-label">готови за MC тест</span>
     </div>
     <div class="stat-box">
       <span class="stat-number">{{ dzi_pool_health.filtered_count }}</span>
-      <span class="stat-label">филтрирани/изключени</span>
+      <span class="stat-label">кратък отговор / предстои</span>
     </div>
   </div>
 
   <p class="muted">
-    Филтрираните въпроси са внесени, но не се използват в тестове, ако липсват валидни отговори или нужните визуални ресурси.
+    Тези въпроси са внесени, но не са в автоматични тестове още.
   </p>
 </section>
 {% endif %}
