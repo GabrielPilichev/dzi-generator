@@ -1,0 +1,162 @@
+{
+  "source_slug": "aug_2024_v2",
+  "source_title": "ДЗИ ИТ ПП - август 2024, вариант 2",
+  "tasks": [
+    {
+      "task_number": 6,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "audio-effects",
+      "section_slug": "grade11-m2-digital-audio-processing",
+      "prompt": "Кой ефект при аудио обработка променя звуковата област към постепенно\nнамаляване силата на звука?",
+      "source_page": 2,
+      "options": [
+        {
+          "letter": "А",
+          "text": "Reverse",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "Echo",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "Fade out",
+          "is_correct": true
+        },
+        {
+          "letter": "Г",
+          "text": "Fade in",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "task_number": 7,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "layers",
+      "section_slug": "grade11-m2-raster-images",
+      "prompt": "Видеомонтаж, при който се използват повече от една видеопътечки, се нарича:",
+      "source_page": 2,
+      "options": [
+        {
+          "letter": "А",
+          "text": "Нелинеен монтаж",
+          "is_correct": true
+        },
+        {
+          "letter": "Б",
+          "text": "Монтаж с преходи",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "Монтаж с ефекти",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "Линеен монтаж",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "task_number": 8,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "system-architecture",
+      "section_slug": "grade11-m1-information-systems-intro",
+      "prompt": "Коя от изброените дейности е етап при проектирането на мултимедийно\nприложение?",
+      "source_page": 3,
+      "options": [
+        {
+          "letter": "А",
+          "text": "Разработване на основна версия",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "Написване на сценарий",
+          "is_correct": true
+        },
+        {
+          "letter": "В",
+          "text": "Тестване и отстраняване на грешки",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "Пакетиране на приложението",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "task_number": 9,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "wireframe-mockup",
+      "section_slug": "grade12-m3-web-design-and-graphic-design",
+      "prompt": "Даденото изображение представлява визуално представяне на уеб страница. Как се\nнарича?",
+      "source_page": 3,
+      "assets": [],
+      "options": [
+        {
+          "letter": "А",
+          "text": "Навигационна структура",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "Цветова схема",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "Графичен модел",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "Схематичен дизайн",
+          "is_correct": true
+        }
+      ]
+    },
+    {
+      "task_number": 10,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "web-domain",
+      "section_slug": "grade12-m3-website-planning",
+      "prompt": "Уеб дизайн стандартите:",
+      "source_page": 3,
+      "options": [
+        {
+          "letter": "А",
+          "text": "препоръчват използването на нестандартни решения като разполагане на\nсъдържанието на уеб страница в таблица",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "систематизират създаването на самостоятелни инсталационни програми за\nконкретна операционна система",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "гарантират използваемост на уеб страницата независимо от устройство, операционна\nсистема и браузър",
+          "is_correct": true
+        },
+        {
+          "letter": "Г",
+          "text": "съдържат общи препоръчителни насоки за създаване на статични уеб сайтове с\nHTML",
+          "is_correct": false
+        }
+      ]
+    }
+  ]
+}
