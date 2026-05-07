@@ -913,6 +913,56 @@ def is_fill_in_question_auto_gradable(question, subquestions) -> bool:
     return True
 
 
+def insert_quiz_text_answer(
+    conn,
+    *,
+    attempt_id: int,
+    question_id: int,
+    subquestion_number: int,
+    raw_answer: object,
+    normalized_answer: str,
+    subquestion_id: int | None = None,
+    response_order: int | None = None,
+    grading_mode: str = "ordered",
+    accepted_answers_json: str = "[]",
+    matched_answer: str | None = None,
+    is_correct: bool = False,
+    points_awarded: float = 0,
+    points_possible: float = 1,
+    grader_version: str | None = None,
+) -> int:
+    if grading_mode not in {"ordered", "order_independent"}:
+        raise ValueError("grading_mode must be 'ordered' or 'order_independent'")
+    if normalized_answer is None:
+        raise ValueError("normalized_answer is required")
+
+    cur = conn.execute("""
+        INSERT INTO quiz_text_answers (
+            attempt_id, question_id, subquestion_id, subquestion_number,
+            response_order, raw_answer, normalized_answer, grading_mode,
+            accepted_answers_json, matched_answer, is_correct,
+            points_awarded, points_possible, grader_version
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (
+        attempt_id,
+        question_id,
+        subquestion_id,
+        subquestion_number,
+        response_order,
+        "" if raw_answer is None else str(raw_answer),
+        normalized_answer,
+        grading_mode,
+        accepted_answers_json,
+        matched_answer,
+        1 if is_correct else 0,
+        points_awarded,
+        points_possible,
+        grader_version,
+    ))
+    return int(cur.lastrowid)
+
+
 def quiz_answer_text_is_real(value: object) -> bool:
     text = quiz_clean_answer_text(value)
     return bool(text) and text not in {"-", "—", "[]"}
