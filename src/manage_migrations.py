@@ -24,6 +24,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--migrations-dir", default=str(DEFAULT_MIGRATIONS_DIR), help="Directory with *.sql migrations.")
     parser.add_argument("--dry-run", action="store_true", help="Print pending migrations without applying changes.")
     parser.add_argument("--baseline-dry-run", action="store_true", help="Plan adoption of existing migrations without writing.")
+    parser.add_argument("--baseline-apply", action="store_true", help="Record baselineable existing migrations without executing SQL.")
     parser.add_argument("--apply", action="store_true", help="Apply pending migrations.")
     return parser.parse_args(argv)
 
@@ -239,6 +240,62 @@ def baseline_dry_run(db_path: Path, migrations_dir: Path, out: TextIO = sys.stdo
         conn.close()
 
 
+def baseline_apply(db_path: Path, migrations_dir: Path, out: TextIO = sys.stdout) -> int:
+    all_migrations = migration_filenames(migrations_dir)
+    if is_default_real_db_path(db_path):
+        backup_path = create_backup_for_default_db(db_path)
+        print(f"backup path: {backup_path}", file=out)
+
+    conn = open_writable_db(db_path)
+    try:
+        ensure_schema_migrations(conn)
+        conn.commit()
+
+        applied = applied_migrations(conn)
+        pending = pending_migrations(all_migrations, applied)
+        baselineable = []
+        remaining = []
+        for filename in pending:
+            status, _reason = baseline_status(conn, filename)
+            if status == "baselineable":
+                baselineable.append(filename)
+            else:
+                remaining.append(filename)
+
+        print(f"database path: {db_path}", file=out)
+        print(f"migration directory: {migrations_dir}", file=out)
+        print("recorded baseline migrations:", file=out)
+        if baselineable:
+            for filename in baselineable:
+                conn.execute(
+                    "INSERT INTO schema_migrations (filename, applied_at) VALUES (?, CURRENT_TIMESTAMP)",
+                    (filename,),
+                )
+                print(f"  - {filename}", file=out)
+            conn.commit()
+        else:
+            print("  - none", file=out)
+
+        print("remaining pending migrations:", file=out)
+        if remaining:
+            for filename in remaining:
+                print(f"  - {filename}", file=out)
+        else:
+            print("  - none", file=out)
+
+        fk_rows = foreign_key_check_rows(conn)
+        if fk_rows:
+            print(f"foreign_key_check failed: {len(fk_rows)} row(s)", file=out)
+            for row in fk_rows:
+                print(f"  - {tuple(row)}", file=out)
+            return 1
+
+        print("foreign_key_check: ok", file=out)
+        return 0
+    finally:
+        conn.close()
+
+
 def apply_migrations(db_path: Path, migrations_dir: Path, out: TextIO = sys.stdout) -> int:
     all_migrations = migration_filenames(migrations_dir)
     if is_default_real_db_path(db_path):
@@ -303,6 +360,8 @@ def main(argv: list[str] | None = None, out: TextIO = sys.stdout, err: TextIO = 
         if args.baseline_dry_run:
             baseline_dry_run(Path(args.db), Path(args.migrations_dir), out)
             return 0
+        if args.baseline_apply:
+            return baseline_apply(Path(args.db), Path(args.migrations_dir), out)
         if args.apply:
             return apply_migrations(Path(args.db), Path(args.migrations_dir), out)
         dry_run(Path(args.db), Path(args.migrations_dir), out)
