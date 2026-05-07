@@ -10,6 +10,17 @@ tags: [dzi, expansion, status]
 
 Expand LearnPilot's **Подготовка за матура** into a real DZI preparation engine.
 
+## 2026-05-07 next-session decision
+
+- Pause additional Part 1 DZI imports for now.
+- Next work session should be mixed open/closed quiz migration design only.
+- Scope is planning/design, not code:
+  - answer the open decisions in [[mixed-open-closed-quiz-plan|Mixed Open/Closed Quiz Plan]]
+  - propose additive `quiz_text_answers` schema
+  - include worked row examples for ordered and order-independent fill-in answers
+  - do not implement migration, grader, or UI yet
+- Resume imports after the open-answer model is clearer.
+
 ## 2026-05-07 aug_2024_v2 Part 1 imported
 
 - Import batches completed:
