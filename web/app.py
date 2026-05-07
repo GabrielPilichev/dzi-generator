@@ -701,6 +701,7 @@ import random as _quiz_random
 import re as _quiz_re
 import sqlite3 as _quiz_sqlite3
 import sys as _quiz_sys
+import unicodedata as _quiz_unicodedata
 from datetime import datetime as _quiz_datetime
 from pathlib import Path as _QuizPath
 
@@ -823,6 +824,24 @@ QUIZ_VISUAL_DEPENDENT_PATTERNS = (
 
 def quiz_clean_answer_text(value: object) -> str:
     return str(value or "").strip()
+
+
+_QUIZ_SMART_QUOTE_TRANSLATION = str.maketrans({
+    "‘": "'",
+    "’": "'",
+    "“": '"',
+    "”": '"',
+})
+
+
+def quiz_normalize_text_answer(value: object) -> str:
+    if value is None:
+        return ""
+
+    text = _quiz_unicodedata.normalize("NFKC", str(value))
+    text = text.translate(_QUIZ_SMART_QUOTE_TRANSLATION)
+    text = " ".join(text.strip().split())
+    return text.casefold()
 
 
 def quiz_answer_text_is_real(value: object) -> bool:
