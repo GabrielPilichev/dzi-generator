@@ -3,6 +3,7 @@ import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from src import manage_migrations
 
@@ -48,6 +49,20 @@ class MigrationRunnerDryRunTest(unittest.TestCase):
         for filename, sql in items:
             (migrations_dir / filename).write_text(sql, encoding="utf-8")
         return temp_dir, migrations_dir
+
+    def make_temp_project_default_db(self):
+        temp_dir = tempfile.TemporaryDirectory()
+        self.addCleanup(temp_dir.cleanup)
+        project_root = Path(temp_dir.name)
+        db_dir = project_root / "data"
+        db_dir.mkdir()
+        db_path = db_dir / "questions.db"
+        self.assertNotEqual(db_path.resolve(), REAL_DB_PATH.resolve())
+        conn = sqlite3.connect(db_path)
+        conn.close()
+        migrations_dir = project_root / "web" / "migrations"
+        migrations_dir.mkdir(parents=True)
+        return temp_dir, project_root, db_path, migrations_dir
 
     def test_lists_pending_migrations_without_schema_migrations_table(self):
         _db_temp, db_path = self.make_temp_db()
@@ -115,6 +130,55 @@ class MigrationRunnerDryRunTest(unittest.TestCase):
             conn.close()
         self.assertIsNotNone(row)
         self.assertEqual(applied, [("001_first.sql",)])
+
+    def test_explicit_temp_db_apply_does_not_create_local_backups(self):
+        _db_temp, db_path = self.make_temp_db()
+        _migrations_temp, migrations_dir = self.make_migrations_dir({
+            "001_first.sql": "CREATE TABLE first_table (id INTEGER PRIMARY KEY);\n",
+        })
+        backup_dir = db_path.parent / "local_backups"
+
+        exit_code = manage_migrations.main(
+            ["--db", str(db_path), "--migrations-dir", str(migrations_dir), "--apply"],
+            out=io.StringIO(),
+            err=io.StringIO(),
+        )
+
+        self.assertEqual(exit_code, 0)
+        self.assertFalse(backup_dir.exists())
+
+    def test_default_db_apply_creates_backup_before_applying_in_temp_project(self):
+        _temp, project_root, db_path, migrations_dir = self.make_temp_project_default_db()
+        (migrations_dir / "001_first.sql").write_text(
+            "CREATE TABLE first_table (id INTEGER PRIMARY KEY);\n",
+            encoding="utf-8",
+        )
+        out = io.StringIO()
+
+        with mock.patch.object(manage_migrations, "PROJECT_ROOT", project_root):
+            exit_code = manage_migrations.main(
+                ["--db", str(db_path), "--migrations-dir", str(migrations_dir), "--apply"],
+                out=out,
+                err=io.StringIO(),
+            )
+
+        self.assertEqual(exit_code, 0)
+        backup_dir = project_root / "local_backups"
+        backups = list(backup_dir.glob("questions.db.backup-*"))
+        self.assertEqual(len(backups), 1)
+        self.assertIn(f"backup path: {backups[0]}", out.getvalue())
+        conn = sqlite3.connect(backups[0])
+        try:
+            first_table = conn.execute("""
+                SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'first_table'
+            """).fetchone()
+            schema_migrations = conn.execute("""
+                SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'schema_migrations'
+            """).fetchone()
+        finally:
+            conn.close()
+        self.assertIsNone(first_table)
+        self.assertIsNone(schema_migrations)
 
     def test_apply_applies_pending_migrations_in_filename_order(self):
         _db_temp, db_path = self.make_temp_db()
@@ -216,6 +280,24 @@ class MigrationRunnerDryRunTest(unittest.TestCase):
         finally:
             conn.close()
         self.assertIsNone(row)
+
+    def test_dry_run_does_not_create_backup_for_default_db_in_temp_project(self):
+        _temp, project_root, db_path, migrations_dir = self.make_temp_project_default_db()
+        (migrations_dir / "001_first.sql").write_text("-- dry run only\n", encoding="utf-8")
+
+        with mock.patch.object(manage_migrations, "PROJECT_ROOT", project_root):
+            exit_code = manage_migrations.main(
+                ["--db", str(db_path), "--migrations-dir", str(migrations_dir), "--dry-run"],
+                out=io.StringIO(),
+                err=io.StringIO(),
+            )
+
+        self.assertEqual(exit_code, 0)
+        self.assertFalse((project_root / "local_backups").exists())
+
+    def test_local_backups_directory_is_ignored(self):
+        gitignore = (ROOT / ".gitignore").read_text(encoding="utf-8")
+        self.assertIn("local_backups/", gitignore)
 
 
 if __name__ == "__main__":
