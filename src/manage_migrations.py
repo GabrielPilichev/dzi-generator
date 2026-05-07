@@ -4,14 +4,18 @@
 from __future__ import annotations
 
 import argparse
+import shutil
 import sqlite3
 import sys
+from datetime import datetime
 from pathlib import Path
 from typing import TextIO
 
 
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_DB_PATH = Path("data/questions.db")
 DEFAULT_MIGRATIONS_DIR = Path("web/migrations")
+BACKUP_DIR_NAME = "local_backups"
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -44,6 +48,25 @@ def open_writable_db(db_path: Path) -> sqlite3.Connection:
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     return conn
+
+
+def default_real_db_path() -> Path:
+    return (PROJECT_ROOT / DEFAULT_DB_PATH).resolve()
+
+
+def is_default_real_db_path(db_path: Path) -> bool:
+    return db_path.resolve() == default_real_db_path()
+
+
+def create_backup_for_default_db(db_path: Path) -> Path:
+    backup_dir = PROJECT_ROOT / BACKUP_DIR_NAME
+    backup_dir.mkdir(parents=True, exist_ok=True)
+    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    backup_path = backup_dir / f"questions.db.backup-{timestamp}"
+    shutil.copy2(db_path, backup_path)
+    if not backup_path.exists():
+        raise RuntimeError(f"Backup was not created: {backup_path}")
+    return backup_path
 
 
 def schema_migrations_exists(conn: sqlite3.Connection) -> bool:
@@ -120,6 +143,10 @@ def dry_run(db_path: Path, migrations_dir: Path, out: TextIO = sys.stdout) -> No
 
 def apply_migrations(db_path: Path, migrations_dir: Path, out: TextIO = sys.stdout) -> int:
     all_migrations = migration_filenames(migrations_dir)
+    if is_default_real_db_path(db_path):
+        backup_path = create_backup_for_default_db(db_path)
+        print(f"backup path: {backup_path}", file=out)
+
     conn = open_writable_db(db_path)
     try:
         ensure_schema_migrations(conn)
