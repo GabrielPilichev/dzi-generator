@@ -23,6 +23,7 @@ class Mapping:
 
 MAPPINGS = (
     Mapping("may_2022", "may_2022_v1", 2022, "may", 1),
+    Mapping("aug_2024", "aug_2024_v2", 2024, "august", 2),
     Mapping("may_2024", "may_2024_v1", 2024, "may", 1),
 )
 

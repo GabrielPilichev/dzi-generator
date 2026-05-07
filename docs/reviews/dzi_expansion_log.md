@@ -51,6 +51,8 @@ After May 2025 v2 Part 1 was imported, immediate non-schema fixes were applied b
 
 Added `src/cleanup_legacy_dzi_question_slugs.py` as a conservative data-only cleanup tool for known legacy DZI question slugs such as `may_2022` and `may_2024`. The script supports dry-run mode, refuses mappings when the canonical target already has rows, verifies the canonical exam row, and does not delete anything.
 
+Read-only inspection found that legacy `source_exam='aug_2024'` rows correspond to the official `aug_2024_v2` PDF, so the cleanup mapping was extended to `aug_2024 -> aug_2024_v2`. This cleanup only fixes provenance; official JSON review/import is still required because correct MC flags, official task links, and any needed assets are not complete.
+
 Importer sample dry-run output was clarified so sample-only fixtures report structural validation and explicitly state that no DB writes are planned. The old compatibility path for `exam_tasks.question_id` was removed because `exam_task_questions` is the canonical link table. The DZI state audit now counts filled Part 1 task slots rather than distinct linked question rows.
 
 ## LearnPilot Branding Follow-Up
