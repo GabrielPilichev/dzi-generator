@@ -109,6 +109,7 @@ class QuizAttemptRenderTest(unittest.TestCase):
         assignment_id = self._create_assignment()
         conn = web_app.quiz_db()
         try:
+            renderable_question_ids, _skipped_count = web_app.filter_renderable_attempt_question_ids(conn, question_ids)
             cur = conn.execute("""
                 INSERT INTO quiz_attempts (
                     assignment_id, student_name, seed, question_ids_json,
@@ -120,7 +121,7 @@ class QuizAttemptRenderTest(unittest.TestCase):
                 student_name,
                 "stale-seed",
                 json.dumps(question_ids),
-                len(question_ids),
+                len(renderable_question_ids),
             ))
             attempt_id = int(cur.lastrowid)
 
@@ -129,7 +130,7 @@ class QuizAttemptRenderTest(unittest.TestCase):
                     UPDATE quiz_attempts
                     SET submitted_at = NULL, score_correct = NULL, score_total = ?
                     WHERE id = ?
-                """, (len(question_ids), attempt_id))
+                """, (len(renderable_question_ids), attempt_id))
             elif self.valid_question_id in question_ids:
                 wrong_letter = self._wrong_letter(conn, self.valid_question_id)
                 conn.execute("""
@@ -172,6 +173,8 @@ class QuizAttemptRenderTest(unittest.TestCase):
         self.assertNotIn("Invalid stale render question".encode("utf-8"), response.data)
         self.assertNotIn("Правилен отговор: —".encode("utf-8"), response.data)
         self.assertNotIn(STALE_MESSAGE.encode("utf-8"), response.data)
+        self.assertIn("Първоначално зададени: 2".encode("utf-8"), response.data)
+        self.assertIn("Пропуснати: 1 невалидни въпроса".encode("utf-8"), response.data)
 
     def test_all_invalid_result_shows_stale_message(self):
         _assignment_id, attempt_id = self._create_attempt(
@@ -183,6 +186,19 @@ class QuizAttemptRenderTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(STALE_MESSAGE.encode("utf-8"), response.data)
         self.assertNotIn("Правилен отговор: —".encode("utf-8"), response.data)
+        self.assertIn("Първоначално зададени: 1".encode("utf-8"), response.data)
+        self.assertIn("Пропуснати: 1 невалидни въпроса".encode("utf-8"), response.data)
+
+    def test_result_hides_skipped_count_when_all_questions_render(self):
+        _assignment_id, attempt_id = self._create_attempt(
+            [self.valid_question_id],
+            student_name="Valid Result",
+        )
+
+        response = self.client.get(f"/quiz/attempt/{attempt_id}/result")
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn("Първоначално зададени:".encode("utf-8"), response.data)
+        self.assertNotIn("Пропуснати:".encode("utf-8"), response.data)
 
     def test_mixed_stale_active_attempt_filters_invalid_question(self):
         _assignment_id, attempt_id = self._create_attempt(

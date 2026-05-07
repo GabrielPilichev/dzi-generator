@@ -1795,6 +1795,9 @@ def quiz_result(attempt_id):
 
     stored_qids = _quiz_json.loads(attempt["question_ids_json"])
     qids, skipped_count = filter_renderable_attempt_question_ids(conn, stored_qids)
+    original_question_count = len(stored_qids or [])
+    renderable_question_count = len(qids)
+    skipped_question_count = max(0, original_question_count - renderable_question_count)
     questions = quiz_load_result_questions(conn, attempt, qids, attempt["seed"])
     seconds = quiz_time_taken_seconds(attempt)
     conn.close()
@@ -1806,7 +1809,9 @@ def quiz_result(attempt_id):
         questions=questions,
         time_taken=quiz_format_duration(seconds),
         stale_attempt_message=STALE_ATTEMPT_MESSAGE if not questions else None,
-        skipped_question_count=skipped_count,
+        original_question_count=original_question_count,
+        renderable_question_count=renderable_question_count,
+        skipped_question_count=skipped_question_count,
     )
 
 # === QUIZ PHASE 2 END ===
