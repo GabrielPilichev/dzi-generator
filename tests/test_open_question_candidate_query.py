@@ -19,7 +19,7 @@ _TMP_VAULT.mkdir()
 os.environ["DZI_DB"] = str(_TMP_DB)
 os.environ["DZI_VAULT"] = str(_TMP_VAULT)
 
-from web.app import fetch_open_question_candidates  # noqa: E402
+from web.app import build_mixed_quiz_plan, fetch_open_question_candidates  # noqa: E402
 
 
 class OpenQuestionCandidateQueryTest(unittest.TestCase):
@@ -34,7 +34,16 @@ class OpenQuestionCandidateQueryTest(unittest.TestCase):
                 question_type TEXT NOT NULL,
                 prompt TEXT NOT NULL,
                 has_image INTEGER DEFAULT 0,
-                image_path TEXT
+                image_path TEXT,
+                is_ai_generated INTEGER DEFAULT 0,
+                quality_score REAL
+            );
+            CREATE TABLE multiple_choice_options (
+                id INTEGER PRIMARY KEY,
+                question_id INTEGER NOT NULL,
+                option_letter TEXT NOT NULL,
+                option_text TEXT NOT NULL,
+                is_correct INTEGER DEFAULT 0
             );
             CREATE TABLE fill_in_subquestions (
                 id INTEGER PRIMARY KEY,
@@ -45,6 +54,9 @@ class OpenQuestionCandidateQueryTest(unittest.TestCase):
             );
         """)
         self.insert_question(1, "source_a", 1, "multiple_choice", "MC question")
+        self.insert_mc_options(1)
+        self.insert_question(8, "source_a", 8, "multiple_choice", "Second MC question")
+        self.insert_mc_options(8)
         self.insert_question(2, "source_a", 2, "fill_in", "Ordered fill-in")
         self.insert_subquestion(2, 1, "300")
         self.insert_subquestion(2, 2, '["540", "540 лв."]')
@@ -68,10 +80,23 @@ class OpenQuestionCandidateQueryTest(unittest.TestCase):
     def insert_question(self, question_id, source_exam, source_number, question_type, prompt):
         self.conn.execute("""
             INSERT INTO questions (
-                id, source_exam, source_number, question_type, prompt, has_image, image_path
+                id, source_exam, source_number, question_type, prompt, has_image, image_path,
+                is_ai_generated, quality_score
             )
-            VALUES (?, ?, ?, ?, ?, 0, NULL)
+            VALUES (?, ?, ?, ?, ?, 0, NULL, 0, NULL)
         """, (question_id, source_exam, source_number, question_type, prompt))
+
+    def insert_mc_options(self, question_id):
+        for letter, text, is_correct in (
+            ("А", "Първа възможност", 1),
+            ("Б", "Втора възможност", 0),
+            ("В", "Трета възможност", 0),
+            ("Г", "Четвърта възможност", 0),
+        ):
+            self.conn.execute("""
+                INSERT INTO multiple_choice_options (question_id, option_letter, option_text, is_correct)
+                VALUES (?, ?, ?, ?)
+            """, (question_id, letter, text, is_correct))
 
     def insert_subquestion(self, question_id, subquestion_number, correct_answer):
         self.conn.execute("""
@@ -123,6 +148,48 @@ class OpenQuestionCandidateQueryTest(unittest.TestCase):
     def test_limit(self):
         candidates = fetch_open_question_candidates(self.conn, limit=1)
         self.assertEqual(len(candidates), 1)
+
+    def test_mixed_plan_returns_requested_counts_when_available(self):
+        plan = build_mixed_quiz_plan(
+            self.conn,
+            closed_count=2,
+            open_count=2,
+            source_slug="source_a",
+        )
+
+        self.assertEqual(len(plan["closed_questions"]), 2)
+        self.assertEqual(len(plan["open_questions"]), 2)
+        self.assertEqual(plan["requested_closed_count"], 2)
+        self.assertEqual(plan["requested_open_count"], 2)
+        self.assertEqual(plan["available_closed_count"], 2)
+        self.assertEqual(plan["available_open_count"], 2)
+
+    def test_mixed_plan_reports_open_shortfall(self):
+        plan = build_mixed_quiz_plan(
+            self.conn,
+            closed_count=1,
+            open_count=3,
+            source_slug="source_a",
+        )
+
+        self.assertEqual(len(plan["closed_questions"]), 1)
+        self.assertEqual(len(plan["open_questions"]), 2)
+        self.assertEqual(plan["available_open_count"], 2)
+
+    def test_mixed_plan_source_slug_filter(self):
+        plan = build_mixed_quiz_plan(
+            self.conn,
+            closed_count=2,
+            open_count=2,
+            source_slug="source_b",
+        )
+
+        self.assertEqual(plan["closed_questions"], [])
+        self.assertEqual([question["question_id"] for question in plan["open_questions"]], [7])
+
+    def test_mixed_plan_rejects_negative_counts(self):
+        with self.assertRaises(ValueError):
+            build_mixed_quiz_plan(self.conn, closed_count=-1, open_count=0)
 
     def test_fetch_does_not_write(self):
         before = self.conn.total_changes
