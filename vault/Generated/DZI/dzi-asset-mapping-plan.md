@@ -30,8 +30,8 @@ Commands run:
 
 Rows needing attention:
 
-- task 9, question 124, `multiple_choice`: `prompt_needs_visual=yes`, `asset_status=link_missing`, `quiz_blocking=yes`
-- task 17, question 132, `fill_in`: `prompt_needs_visual=yes`, `asset_status=link_missing`, `quiz_blocking=no`
+- task 9, question 124, `multiple_choice`: `prompt_needs_visual=yes`, `asset_status=link_missing`, `quiz_blocking=yes`; excluded from generated quizzes until an asset is linked.
+- task 17, question 132, `fill_in`: `prompt_needs_visual=yes`, `asset_status=link_missing`, `quiz_blocking=no`; future open-answer fidelity gap, not blocking current MC quiz generation.
 
 ### `may_2025_v2`
 
@@ -48,8 +48,9 @@ Rows needing attention:
 
 ### Interpretation
 
-- Current MC quiz generation is blocked by missing visuals only for `aug_2024_v2` task 9.
-- Inspect `aug_2024_v2` task 9 first, then task 17 and `may_2025_v2` task 16.
+- Generated quizzes now exclude missing-visual MC questions like `aug_2024_v2` task 9.
+- Current MC quiz generation is blocked by missing visuals only for `aug_2024_v2` task 9; the blocker is handled by exclusion, not by an asset fix.
+- Inspect `aug_2024_v2` task 9 first for MC fidelity, then task 17 and `may_2025_v2` task 16 for future fill-in/open-answer support.
 - Visual-dependent prompts are likely under-detected: manual review also flagged `aug_2024_v2` tasks 3, 16, 19, and 21.
 - No asset files are linked yet for either imported Part 1 source.
 
@@ -94,7 +95,7 @@ Likely visual tasks:
 
 No asset files were added during import. Assets remain future work.
 
-Current MC quiz generation should only be blocked by visual-dependent MC if eligibility detects it. Task 9 is the main MC visual candidate to inspect first.
+Generated quizzes exclude visual-dependent MC questions without linked assets. Task 9 is the current MC visual blocker and the first asset candidate to inspect.
 
 ## Proposed audit
 
