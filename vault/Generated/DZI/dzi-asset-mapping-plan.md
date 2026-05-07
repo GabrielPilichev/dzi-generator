@@ -12,6 +12,47 @@ May 2025 v2 Part 1 is imported, but visual assets/images are not fully attached.
 
 Current audit shows exam-level asset status, but not per-task missing visual needs.
 
+## 2026-05-07 asset audit snapshot
+
+Commands run:
+
+- `python3 src/audit_dzi_assets.py --source-slug aug_2024_v2`
+- `python3 src/audit_dzi_assets.py --source-slug may_2025_v2`
+
+### `aug_2024_v2`
+
+- total tasks audited: 28
+- linked questions: 25
+- visual-dependent linked questions: 2
+- tasks with asset links: 0
+- tasks with missing asset files: 0
+- quiz-blocking visual gaps: 1
+
+Rows needing attention:
+
+- task 9, question 124, `multiple_choice`: `prompt_needs_visual=yes`, `asset_status=link_missing`, `quiz_blocking=yes`
+- task 17, question 132, `fill_in`: `prompt_needs_visual=yes`, `asset_status=link_missing`, `quiz_blocking=no`
+
+### `may_2025_v2`
+
+- total tasks audited: 28
+- linked questions: 25
+- visual-dependent linked questions: 1
+- tasks with asset links: 0
+- tasks with missing asset files: 0
+- quiz-blocking visual gaps: 0
+
+Rows needing attention:
+
+- task 16, question 16, `fill_in`: `prompt_needs_visual=yes`, `asset_status=link_missing`, `quiz_blocking=no`
+
+### Interpretation
+
+- Current MC quiz generation is blocked by missing visuals only for `aug_2024_v2` task 9.
+- Inspect `aug_2024_v2` task 9 first, then task 17 and `may_2025_v2` task 16.
+- Visual-dependent prompts are likely under-detected: manual review also flagged `aug_2024_v2` tasks 3, 16, 19, and 21.
+- No asset files are linked yet for either imported Part 1 source.
+
 ## First audit result — may_2025_v2
 
 Command run:

@@ -31,6 +31,7 @@ Expand LearnPilot's **Подготовка за матура** into a real DZI p
   - task 17 chart-dependent
   - task 19 pivot-table visual-dependent
   - task 21 database table visual likely needed
+- Asset audit snapshot recorded in [[dzi-asset-mapping-plan|DZI Asset Mapping Plan]].
 - Part 2/practical tasks 26–28 are not imported as questions yet.
 
 ## 2026-05-07 live tester progress
