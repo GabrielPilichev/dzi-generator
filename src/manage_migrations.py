@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Dry-run-only migration planner for numbered SQLite migrations."""
+"""Migration planner/runner for numbered SQLite migrations."""
 
 from __future__ import annotations
 
@@ -15,11 +15,11 @@ DEFAULT_MIGRATIONS_DIR = Path("web/migrations")
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Plan SQLite migrations without applying them.")
+    parser = argparse.ArgumentParser(description="Plan or apply SQLite migrations.")
     parser.add_argument("--db", default=str(DEFAULT_DB_PATH), help="SQLite DB path.")
     parser.add_argument("--migrations-dir", default=str(DEFAULT_MIGRATIONS_DIR), help="Directory with *.sql migrations.")
     parser.add_argument("--dry-run", action="store_true", help="Print pending migrations without applying changes.")
-    parser.add_argument("--apply", action="store_true", help="Not implemented yet.")
+    parser.add_argument("--apply", action="store_true", help="Apply pending migrations.")
     return parser.parse_args(argv)
 
 
@@ -34,6 +34,15 @@ def open_read_only_db(db_path: Path) -> sqlite3.Connection:
         raise FileNotFoundError(f"Database not found: {db_path}")
     conn = sqlite3.connect(f"{db_path.resolve().as_uri()}?mode=ro", uri=True)
     conn.row_factory = sqlite3.Row
+    return conn
+
+
+def open_writable_db(db_path: Path) -> sqlite3.Connection:
+    if not db_path.exists():
+        raise FileNotFoundError(f"Database not found: {db_path}")
+    conn = sqlite3.connect(str(db_path))
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
     return conn
 
 
@@ -61,6 +70,23 @@ def applied_migrations(conn: sqlite3.Connection) -> list[str]:
 def pending_migrations(all_migrations: list[str], applied: list[str]) -> list[str]:
     applied_set = set(applied)
     return [filename for filename in all_migrations if filename not in applied_set]
+
+
+def ensure_schema_migrations(conn: sqlite3.Connection) -> None:
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS schema_migrations (
+            filename TEXT PRIMARY KEY,
+            applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+
+
+def foreign_key_check_rows(conn: sqlite3.Connection) -> list[sqlite3.Row]:
+    return conn.execute("PRAGMA foreign_key_check").fetchall()
+
+
+def sql_string_literal(value: str) -> str:
+    return "'" + value.replace("'", "''") + "'"
 
 
 def print_plan(db_path: Path, migrations_dir: Path, applied: list[str], pending: list[str], out: TextIO) -> None:
@@ -92,13 +118,65 @@ def dry_run(db_path: Path, migrations_dir: Path, out: TextIO = sys.stdout) -> No
     print_plan(db_path, migrations_dir, applied, pending, out)
 
 
+def apply_migrations(db_path: Path, migrations_dir: Path, out: TextIO = sys.stdout) -> int:
+    all_migrations = migration_filenames(migrations_dir)
+    conn = open_writable_db(db_path)
+    try:
+        ensure_schema_migrations(conn)
+        conn.commit()
+
+        applied = applied_migrations(conn)
+        pending = pending_migrations(all_migrations, applied)
+
+        print(f"database path: {db_path}", file=out)
+        print(f"migration directory: {migrations_dir}", file=out)
+        print("skipped migrations:", file=out)
+        skipped = [filename for filename in all_migrations if filename in set(applied)]
+        if skipped:
+            for filename in skipped:
+                print(f"  - {filename}", file=out)
+        else:
+            print("  - none", file=out)
+
+        print("applied migrations:", file=out)
+        if not pending:
+            print("  - none", file=out)
+
+        for filename in pending:
+            sql = (migrations_dir / filename).read_text(encoding="utf-8")
+            script = f"""
+BEGIN;
+{sql}
+INSERT INTO schema_migrations (filename, applied_at)
+VALUES ({sql_string_literal(filename)}, CURRENT_TIMESTAMP);
+COMMIT;
+"""
+            try:
+                conn.executescript(script)
+            except sqlite3.Error:
+                conn.rollback()
+                raise
+            print(f"  - {filename}", file=out)
+
+        fk_rows = foreign_key_check_rows(conn)
+        if fk_rows:
+            print(f"foreign_key_check failed: {len(fk_rows)} row(s)", file=out)
+            for row in fk_rows:
+                print(f"  - {tuple(row)}", file=out)
+            return 1
+
+        print("foreign_key_check: ok", file=out)
+        return 0
+    finally:
+        conn.close()
+
+
 def main(argv: list[str] | None = None, out: TextIO = sys.stdout, err: TextIO = sys.stderr) -> int:
     args = parse_args(argv)
-    if args.apply:
-        print("--apply is not implemented yet", file=err)
-        return 2
 
     try:
+        if args.apply:
+            return apply_migrations(Path(args.db), Path(args.migrations_dir), out)
         dry_run(Path(args.db), Path(args.migrations_dir), out)
     except (FileNotFoundError, sqlite3.Error) as exc:
         print(f"error: {exc}", file=err)
