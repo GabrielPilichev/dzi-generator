@@ -23,10 +23,22 @@ os.environ["DZI_TESTER_PASSWORD"] = "tester-pass"
 from web import app as web_app  # noqa: E402
 
 
+def _register_dzi_default_denied_test_route(app):
+    endpoint = "dzi_test_only_default_denied"
+    if endpoint in app.view_functions:
+        return
+
+    def view():
+        return "test-only DZI endpoint"
+
+    app.add_url_rule("/__test__/dzi-default-denied", endpoint=endpoint, view_func=view)
+
+
 class AuthGuardTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.app = web_app.app
+        _register_dzi_default_denied_test_route(cls.app)
         cls.app.config.update(TESTING=True)
         conn = web_app.quiz_db()
         try:
@@ -156,6 +168,24 @@ class AuthGuardTest(unittest.TestCase):
         for path in paths:
             response = self.client.get(path)
             self.assertEqual(response.status_code, 200, path)
+
+    def test_future_dzi_named_endpoint_is_admin_only_by_default(self):
+        path = "/__test__/dzi-default-denied"
+
+        response = self.client.get(path)
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/admin/login", response.headers["Location"])
+
+        self._login_tester()
+        response = self.client.get(path)
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/admin/login", response.headers["Location"])
+
+        self.client = self.app.test_client()
+        self._login_admin()
+        response = self.client.get(path)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data, b"test-only DZI endpoint")
 
 
 if __name__ == "__main__":
