@@ -913,6 +913,78 @@ def is_fill_in_question_auto_gradable(question, subquestions) -> bool:
     return True
 
 
+def _quiz_subquestion_accepted_answers(subquestion) -> list[str]:
+    accepted = []
+    accepted.extend(_quiz_answer_values(_quiz_mapping_get(subquestion, "accepted_answers")))
+    accepted.extend(_quiz_answer_values(_quiz_mapping_get(subquestion, "correct_answers")))
+    accepted.extend(_quiz_answer_values(_quiz_mapping_get(subquestion, "correct_answer")))
+    accepted.extend(_quiz_answer_values(_quiz_mapping_get(subquestion, "answer_alternatives")))
+    return accepted
+
+
+def _quiz_candidate_grading_mode(subquestions: list[dict]) -> str:
+    accepted_sets = [
+        {quiz_normalize_text_answer(value) for value in _quiz_subquestion_accepted_answers(row)}
+        for row in subquestions
+    ]
+    if len(accepted_sets) > 1 and all(values and values == accepted_sets[0] for values in accepted_sets):
+        return "order_independent"
+    return "ordered"
+
+
+def fetch_open_question_candidates(conn, *, source_slug: str | None = None, limit: int | None = None) -> list[dict]:
+    params = []
+    source_filter = ""
+    if source_slug is not None:
+        source_filter = "AND q.source_exam = ?"
+        params.append(source_slug)
+
+    limit_clause = ""
+    if limit is not None:
+        limit_clause = "LIMIT ?"
+        params.append(limit)
+
+    question_rows = conn.execute(f"""
+        SELECT
+            q.id,
+            q.source_exam,
+            q.source_number,
+            q.question_type,
+            q.prompt,
+            q.has_image,
+            q.image_path
+        FROM questions q
+        WHERE q.question_type IN ('fill_in', 'short_answer')
+          {source_filter}
+        ORDER BY q.source_exam, q.source_number, q.id
+        {limit_clause}
+    """, params).fetchall()
+
+    candidates = []
+    for question in question_rows:
+        subquestions = [
+            dict(row)
+            for row in conn.execute("""
+                SELECT id, subquestion_number, correct_answer, answer_alternatives
+                FROM fill_in_subquestions
+                WHERE question_id = ?
+                ORDER BY subquestion_number
+            """, (question["id"],)).fetchall()
+        ]
+        question_dict = dict(question)
+        if not is_fill_in_question_auto_gradable(question_dict, subquestions):
+            continue
+        candidates.append({
+            "question_id": int(question["id"]),
+            "source_slug": question["source_exam"],
+            "task_number": question["source_number"],
+            "grading_mode": _quiz_candidate_grading_mode(subquestions),
+            "subquestion_count": len(subquestions),
+        })
+
+    return candidates
+
+
 def insert_quiz_text_answer(
     conn,
     *,
