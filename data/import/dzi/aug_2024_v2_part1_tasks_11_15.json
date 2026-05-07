@@ -1,0 +1,161 @@
+{
+  "source_slug": "aug_2024_v2",
+  "source_title": "ДЗИ ИТ ПП - август 2024, вариант 2",
+  "tasks": [
+    {
+      "task_number": 11,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "cms",
+      "section_slug": "grade12-m3-cms",
+      "prompt": "С кой инструмент в система за управление на съдържание се групират\nпубликациите?",
+      "source_page": 4,
+      "options": [
+        {
+          "letter": "А",
+          "text": "Страница",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "Категория",
+          "is_correct": true
+        },
+        {
+          "letter": "В",
+          "text": "Джаджа",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "Тема",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "task_number": 12,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "sdlc",
+      "section_slug": "grade12-m4-project-management",
+      "prompt": "В кой етап при изпълнението на софтуерен проект се извършва анализът на риска?",
+      "source_page": 4,
+      "options": [
+        {
+          "letter": "А",
+          "text": "Планиране",
+          "is_correct": true
+        },
+        {
+          "letter": "Б",
+          "text": "Разработване",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "Инициализиране",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "Приключване",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "task_number": 13,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "hardware-motherboard",
+      "section_slug": "grade8-computer-systems",
+      "prompt": "В компютърна конфигурация хардуерът, който осигурява комуникацията между\nдве устройства, се нарича:",
+      "source_page": 4,
+      "options": [
+        {
+          "letter": "А",
+          "text": "Централен процесор",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "Дънна платка",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "Интерфейс",
+          "is_correct": true
+        },
+        {
+          "letter": "Г",
+          "text": "Кеш памет",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "task_number": 14,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "web-security",
+      "section_slug": "grade12-m3-web-security",
+      "prompt": "Коя защитна функция на операционната система трябва да се използва, за да се\nпровери кои програми имат достъп до външни мрежи (интернет)?",
+      "source_page": 4,
+      "options": [
+        {
+          "letter": "А",
+          "text": "Windows Firewall",
+          "is_correct": true
+        },
+        {
+          "letter": "Б",
+          "text": "Account protection",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "System restore",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "Device security",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "task_number": 15,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "copyright-law",
+      "section_slug": "grade12-m4-computer-systems-and-application-software-management",
+      "prompt": "При създаване на софтуер обект на авторско право е:",
+      "source_page": 4,
+      "options": [
+        {
+          "letter": "А",
+          "text": "програмният език, на който е написан софтуерa",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "ръководството, което съпътства софтуера",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "графичният интерфейс на софтуера",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "изходният и обектният код на софтуера",
+          "is_correct": true
+        }
+      ]
+    }
+  ]
+}
