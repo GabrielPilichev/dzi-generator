@@ -1,0 +1,162 @@
+{
+  "source_slug": "aug_2024_v2",
+  "source_title": "ДЗИ ИТ ПП - август 2024, вариант 2",
+  "tasks": [
+    {
+      "task_number": 1,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "data-validation",
+      "section_slug": "grade9-application-programs",
+      "prompt": "В електронна таблица трябва САМО някои избрани клетки да са достъпни за\nредакция. Каква защита ще приложите?",
+      "source_page": 1,
+      "options": [
+        {
+          "letter": "А",
+          "text": "Задаване на ограничение с Data Validation за избраните клетки",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "Задаване на отметка Hidden за избраните клетки, след което избиране на Protect\nWorkbook",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "Премахване на отметка Locked за избраните клетки, след което избиране на Protect\nSheet",
+          "is_correct": true
+        },
+        {
+          "letter": "Г",
+          "text": "Задаване на Conditional Formatting за избраните клетки",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "task_number": 2,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "sdlc",
+      "section_slug": "grade12-m4-project-management",
+      "prompt": "На кой етап от създаването на една информационна система се извършва тестване за\nправилното ѝ функциониране според заложените изисквания?",
+      "source_page": 1,
+      "options": [
+        {
+          "letter": "А",
+          "text": "Разработване",
+          "is_correct": true
+        },
+        {
+          "letter": "Б",
+          "text": "Проектиране",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "Внедряване",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "Поддръжка",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "task_number": 3,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "sql-select",
+      "section_slug": "grade11-m1-databases-and-information-systems",
+      "prompt": "В база от данни е показана част от заявка в режим Design:\nКакъв е видът на заявката?",
+      "source_page": 1,
+      "assets": [],
+      "options": [
+        {
+          "letter": "А",
+          "text": "параметрична заявка",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "заявка за обновяване на данни",
+          "is_correct": true
+        },
+        {
+          "letter": "В",
+          "text": "кръстосана заявка",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "заявка за изтриване на данни",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "task_number": 4,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "image-filters",
+      "section_slug": "grade11-m2-raster-images",
+      "prompt": "Композиционната техника Правило на третините:",
+      "source_page": 2,
+      "options": [
+        {
+          "letter": "А",
+          "text": "мислено разделя композицията на три равни части по вертикала или хоризонтала\nкато значимите обекти трябва да са разположени в средата",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "мислено разделя изображението на девет еднакви части с помощта на две\nхоризонтални и вертикални успоредни линии, като значимите обекти трябва да\nбъдат разположени близо или върху пресечната точка на тези линии",
+          "is_correct": true
+        },
+        {
+          "letter": "В",
+          "text": "мислено разделя композицията на девет части с помощта на две хоризонтални и две\nвертикални успоредни линии, като всяка от тях дели съответните страни в\nотношение приблизително равно на 1,618",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "мислено разделя изображението с помощта на диагонални линии, които създават\nусещане на драматизъм и движение",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "task_number": 5,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "raster-vs-vector",
+      "section_slug": "grade11-m2-vector-images",
+      "prompt": "Процесът на съхраняване на векторно изображение във формат PNG се нарича:",
+      "source_page": 2,
+      "options": [
+        {
+          "letter": "А",
+          "text": "Трасиране",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "Архивиране",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "Векторизиране",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "Растеризиране",
+          "is_correct": true
+        }
+      ]
+    }
+  ]
+}
