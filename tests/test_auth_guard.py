@@ -53,6 +53,18 @@ class AuthGuardTest(unittest.TestCase):
             SELECT year, session, variant
             FROM exams
             WHERE format_version = ?
+              AND year = 2025
+              AND session = 'may'
+              AND variant = 2
+            LIMIT 1
+        """, (web_app.DZI_FORMAT_VERSION,)).fetchone()
+        if row is not None:
+            return web_app.dzi_source_slug(row)
+
+        row = conn.execute("""
+            SELECT year, session, variant
+            FROM exams
+            WHERE format_version = ?
             ORDER BY year DESC, session, variant
             LIMIT 1
         """, (web_app.DZI_FORMAT_VERSION,)).fetchone()
@@ -90,7 +102,13 @@ class AuthGuardTest(unittest.TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertIn("/tester/login", response.headers["Location"])
 
-        for path in ("/teacher", "/teacher/assignments", "/teacher/dzi-training", "/dzi"):
+        for path in (
+            "/teacher",
+            "/teacher/assignments",
+            "/teacher/dzi-training",
+            "/dzi",
+            f"/dzi/source/{self.dzi_source_slug}",
+        ):
             response = self.client.get(path)
             self.assertEqual(response.status_code, 302, path)
             self.assertIn("/admin/login", response.headers["Location"], path)
@@ -137,7 +155,7 @@ class AuthGuardTest(unittest.TestCase):
         )
         for path in paths:
             response = self.client.get(path)
-            self.assertNotEqual(response.status_code, 302, path)
+            self.assertEqual(response.status_code, 200, path)
 
 
 if __name__ == "__main__":

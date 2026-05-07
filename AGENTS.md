@@ -26,8 +26,14 @@
 - /
 - /grade/<n>
 - /section/<slug>
+- /dzi
+- /dzi/source/<source_slug>
+- /teacher
 - /teacher/new
+- /teacher/assignments
+- /teacher/dzi-training
 - /teacher/assignment/<id>
+- /teacher/assignment/<id>/results
 - /quiz/<assignment_id>
 - /quiz/attempt/<id>
 - /quiz/attempt/<id>/result
@@ -64,6 +70,7 @@
 ## Localhost smoke/release checklist
 - Local smoke server:
   `DZI_ADMIN_PASSWORD=admin123 DZI_TESTER_PASSWORD=tester123 python3 -c 'from web.app import app; app.run(host="127.0.0.1", port=5001, debug=True, use_reloader=False)'`
+- For Cloudflare tunnel sharing, run Flask with `debug=False`.
 - Local-only passwords: tester `tester123`, admin `admin123`.
 - Tester may use `/teacher/new` and the created assignment detail flow.
 - Tester must not access `/dzi`, `/teacher`, `/teacher/assignments`, `/teacher/dzi-training`, teacher results, or admin-like teacher/DZI pages.
@@ -73,6 +80,7 @@
   `python3 -m py_compile web/app.py tests/test_auth_guard.py tests/test_quiz_attempt_render.py`
   `sqlite3 "file:data/questions.db?mode=ro" "SELECT * FROM pragma_foreign_key_check;"`
   `python3 src/audit_dzi_state.py --source-slug may_2025_v2`
+- `audit_dzi_state.py` reports structural DZI readiness; unittest/tests pin quiz pool-health numbers.
 - Current DZI pool health expectation for `may_2025_v2`: imported 25, usable 15, filtered/excluded 10.
 
 ## Before finishing

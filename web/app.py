@@ -182,6 +182,11 @@ def inject_admin_auth():
     }
 
 
+PUBLIC_DZI_ENDPOINTS: set[str] = set()
+# DZI endpoints default to admin-only. Add future intentionally public
+# endpoint names here instead of weakening the default-deny guard below.
+
+
 @app.before_request
 def protect_admin_routes():
     endpoint = request.endpoint or ""
@@ -200,7 +205,7 @@ def protect_admin_routes():
     if endpoint.startswith("admin") and endpoint != "admin_login" and not is_admin_authenticated():
         return redirect(url_for("admin_login", next=request.path))
 
-    if endpoint in {"dzi_index", "dzi_source_view"} and not is_admin_authenticated():
+    if endpoint.startswith("dzi") and endpoint not in PUBLIC_DZI_ENDPOINTS and not is_admin_authenticated():
         session["ui_profile"] = "tester"
         return redirect(url_for("admin_login", next=request.path))
 
