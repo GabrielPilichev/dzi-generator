@@ -939,11 +939,6 @@ def fetch_open_question_candidates(conn, *, source_slug: str | None = None, limi
         source_filter = "AND q.source_exam = ?"
         params.append(source_slug)
 
-    limit_clause = ""
-    if limit is not None:
-        limit_clause = "LIMIT ?"
-        params.append(limit)
-
     question_rows = conn.execute(f"""
         SELECT
             q.id,
@@ -957,7 +952,6 @@ def fetch_open_question_candidates(conn, *, source_slug: str | None = None, limi
         WHERE q.question_type IN ('fill_in', 'short_answer')
           {source_filter}
         ORDER BY q.source_exam, q.source_number, q.id
-        {limit_clause}
     """, params).fetchall()
 
     candidates = []
@@ -981,8 +975,65 @@ def fetch_open_question_candidates(conn, *, source_slug: str | None = None, limi
             "grading_mode": _quiz_candidate_grading_mode(subquestions),
             "subquestion_count": len(subquestions),
         })
+        if limit is not None and len(candidates) >= limit:
+            break
 
     return candidates
+
+
+def build_mixed_quiz_plan(
+    conn,
+    *,
+    closed_count: int,
+    open_count: int,
+    source_slug: str | None = None,
+) -> dict:
+    if closed_count < 0 or open_count < 0:
+        raise ValueError("closed_count and open_count must be non-negative")
+
+    params = []
+    source_filter = ""
+    if source_slug is not None:
+        source_filter = "AND q.source_exam = ?"
+        params.append(source_slug)
+
+    closed_rows = conn.execute(f"""
+        SELECT
+            q.id,
+            q.source_exam,
+            q.source_number,
+            q.prompt,
+            q.question_type,
+            q.has_image,
+            q.image_path
+        FROM questions q
+        WHERE q.question_type = 'multiple_choice'
+          AND {QUIZ_APPROVED_FILTER}
+          {source_filter}
+        ORDER BY q.source_exam, q.source_number, q.id
+    """, params).fetchall()
+
+    closed_candidates = []
+    for row in closed_rows:
+        if not is_quiz_question_eligible(conn, row):
+            continue
+        closed_candidates.append({
+            "question_id": int(row["id"]),
+            "source_slug": row["source_exam"],
+            "task_number": row["source_number"],
+            "question_type": "multiple_choice",
+        })
+
+    open_candidates = fetch_open_question_candidates(conn, source_slug=source_slug)
+
+    return {
+        "closed_questions": closed_candidates[:closed_count],
+        "open_questions": open_candidates[:open_count],
+        "requested_closed_count": closed_count,
+        "requested_open_count": open_count,
+        "available_closed_count": len(closed_candidates),
+        "available_open_count": len(open_candidates),
+    }
 
 
 def insert_quiz_text_answer(
