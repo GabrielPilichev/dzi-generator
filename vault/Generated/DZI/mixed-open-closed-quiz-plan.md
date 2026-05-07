@@ -246,6 +246,60 @@ Next gated step:
 
 - Running the migration against `data/questions.db` is a separate explicit step and should not happen without a dedicated plan/checkpoint.
 
+## Migration runbook draft
+
+Pre-checks:
+
+- `git status --short` must be clean.
+- Run the current 38-test suite.
+- Run read-only FK check:
+  - `sqlite3 "file:data/questions.db?mode=ro" "SELECT * FROM pragma_foreign_key_check;"`
+- Run `python3 src/audit_dzi_state.py` and confirm expected totals:
+  - `PART1_IMPORTED: 2`
+  - `READY_FOR_PART1_IMPORT: 5`
+  - `NEEDS_ATTENTION: 0`
+  - `foreign key check rows: 0`
+
+Backup step:
+
+- Copy `data/questions.db` to a timestamped backup outside git or to a clearly named local backup, for example `data/questions.db.backup-YYYYMMDD-HHMMSS`.
+- Do not continue unless the backup exists and can be restored.
+
+Migration execution step:
+
+- No general migration runner currently exists for numbered `web/migrations/*.sql`.
+- `web/app.py` only applies `web/migrations/001_quiz_tables.sql` automatically.
+- Running `web/migrations/005_quiz_text_answers.sql` against `data/questions.db` needs a separate migration-runner decision/checkpoint.
+
+Post-checks:
+
+- Inspect new table shape:
+  - `PRAGMA table_info(quiz_text_answers);`
+  - `PRAGMA foreign_key_list(quiz_text_answers);`
+  - `PRAGMA index_list(quiz_text_answers);`
+- Run read-only FK check:
+  - `sqlite3 "file:data/questions.db?mode=ro" "SELECT * FROM pragma_foreign_key_check;"`
+- Run the current test suite.
+- Run `python3 src/audit_dzi_state.py` and confirm expected totals remain:
+  - `PART1_IMPORTED: 2`
+  - `READY_FOR_PART1_IMPORT: 5`
+  - `NEEDS_ATTENTION: 0`
+  - `foreign key check rows: 0`
+
+Rollback:
+
+- Stop the app/processes using the DB.
+- Restore the DB backup over `data/questions.db`.
+- Re-run the pre-check FK/audit/test commands.
+
+Explicit non-goals:
+
+- No quiz generation changes.
+- No answer submission changes.
+- No grading/result rendering changes.
+- No imports/assets.
+- No mixed quiz UI.
+
 ## Implementation checklist draft
 
 1. Schema migration file
