@@ -35,6 +35,11 @@ Vault за LearnPilot. Учебно съдържание по ИТ за гимн
 - [[dzi-moc|ДЗИ — Държавен зрелостен изпит]]
 - [[nvo-10-moc|НВО — 10 клас]]
 
+## LearnPilot статус
+
+- [[Generated/DZI/dzi-expansion-status|DZI expansion status]]
+- [[Generated/DZI/live-tester-feedback-2026-05-07|Live tester feedback — 2026-05-07]]
+
 ## Работни области
 
 - [[pedagogy-moc|Педагогика и методика]]

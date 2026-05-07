@@ -10,6 +10,35 @@ tags: [dzi, expansion, status]
 
 Expand LearnPilot's **Подготовка за матура** into a real DZI preparation engine.
 
+## 2026-05-07 live tester progress
+
+- LearnPilot branding is active.
+- Warm dark UI palette applied.
+- Homepage dashboard added.
+- Quiz answer cards and result page improved.
+- Tester password now allows normal test creation.
+- Admin-only DZI inspection remains protected.
+- Section pages now show **Преговорен режим**.
+- Advanced review controls are collapsed under **Опции за преглед**.
+- DZI prep now has clearer **Преглед / Създай тест** flow.
+- New quiz attempts filter invalid old-bank questions:
+  - missing correct answers
+  - invalid MC options
+  - visual-dependent questions without usable image/asset
+- Result page can show skipped invalid question count when needed.
+- May 2025 v2 Part 1 is imported: 25 linked questions.
+- DZI pool wording clarified:
+  - 25 total imported Part 1
+  - 15 MC quiz-ready
+  - 10 short-answer/not-yet-quiz-ready
+
+Known gaps:
+
+- DZI visual assets/images still not attached for some tasks.
+- Mixed open/closed quizzes are not implemented yet.
+- Real deployment is not done; current tester sharing uses Cloudflare quick tunnel.
+- Repo/folder rename from `dzi-generator` to LearnPilot is deferred.
+
 ## Exam format
 
 - Part 1: 25 tasks, 90 minutes, 45 points
