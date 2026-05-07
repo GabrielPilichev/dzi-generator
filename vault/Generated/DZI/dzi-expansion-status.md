@@ -10,6 +10,29 @@ tags: [dzi, expansion, status]
 
 Expand LearnPilot's **Подготовка за матура** into a real DZI preparation engine.
 
+## 2026-05-07 aug_2024_v2 Part 1 imported
+
+- Import batches completed:
+  - tasks 1–5
+  - tasks 6–10
+  - tasks 11–15
+  - tasks 16–20
+  - tasks 21–25
+- `q_links_1_25 = 25`
+- Status: `PART1_IMPORTED`
+- Overall DZI source state: 2 imported, 5 ready, 0 attention.
+- `PART1_IMPORTED` sources:
+  - `may_2025_v2`
+  - `aug_2024_v2`
+- Known asset/fidelity gaps for `aug_2024_v2`:
+  - task 3 likely needs database Design view visual
+  - task 9 likely needs web page schematic image
+  - task 16 spreadsheet/table context may need visual asset
+  - task 17 chart-dependent
+  - task 19 pivot-table visual-dependent
+  - task 21 database table visual likely needed
+- Part 2/practical tasks 26–28 are not imported as questions yet.
+
 ## 2026-05-07 live tester progress
 
 - LearnPilot branding is active.

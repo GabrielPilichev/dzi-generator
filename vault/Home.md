@@ -37,6 +37,7 @@ Vault за LearnPilot. Учебно съдържание по ИТ за гимн
 
 ## LearnPilot статус
 
+- 2 DZI Part 1 sources imported: `may_2025_v2` and `aug_2024_v2`.
 - [[Generated/DZI/dzi-expansion-status|DZI expansion status]]
 - [[Generated/DZI/live-tester-feedback-2026-05-07|Live tester feedback — 2026-05-07]]
 - [[Generated/DZI/mixed-open-closed-quiz-plan|Mixed open/closed quiz plan]]

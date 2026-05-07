@@ -40,6 +40,21 @@ Next step:
 - Asset work should wait until open/fill-in support or practical tasks 26–28 are being modeled.
 - When doing asset work, start with task 16 and practical tasks 26–28.
 
+## aug_2024_v2 asset notes after Part 1 import
+
+Likely visual tasks:
+
+- 3: database Design view visual
+- 9: web page schematic image
+- 16: spreadsheet/table context
+- 17: chart-dependent
+- 19: pivot-table visual-dependent
+- 21: database table visual
+
+No asset files were added during import. Assets remain future work.
+
+Current MC quiz generation should only be blocked by visual-dependent MC if eligibility detects it. Task 9 is the main MC visual candidate to inspect first.
+
 ## Proposed audit
 
 Add a read-only audit script later:
