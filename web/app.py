@@ -1481,6 +1481,18 @@ def quiz_load_questions(conn, question_ids: list[int], seed: str, include_correc
         if not q:
             continue
 
+        if q["question_type"] in {"fill_in", "short_answer"}:
+            sub_rows = conn.execute("""
+                SELECT id, subquestion_number
+                FROM fill_in_subquestions
+                WHERE question_id = ?
+                ORDER BY subquestion_number
+            """, (qid,)).fetchall()
+            q["options"] = []
+            q["subquestions"] = [dict(row) for row in sub_rows]
+            result.append(q)
+            continue
+
         if include_correct:
             opt_rows = conn.execute("""
                 SELECT id, option_letter, option_text, is_correct
@@ -1508,7 +1520,43 @@ STALE_ATTEMPT_MESSAGE = (
 )
 
 
-def filter_renderable_attempt_question_ids(conn, question_ids) -> tuple[list[int], int]:
+def quiz_parse_attempt_question_plan(raw_value) -> dict:
+    try:
+        parsed = _quiz_json.loads(raw_value or "[]")
+    except (_quiz_json.JSONDecodeError, TypeError):
+        parsed = []
+
+    if isinstance(parsed, dict):
+        raw_question_ids = parsed.get("question_ids", [])
+        raw_open_ids = parsed.get("open_question_ids", [])
+        mixed_open_enabled = bool(parsed.get("mixed_open_enabled"))
+    else:
+        raw_question_ids = parsed
+        raw_open_ids = []
+        mixed_open_enabled = False
+
+    return {
+        "question_ids": raw_question_ids if isinstance(raw_question_ids, list) else [],
+        "open_question_ids": raw_open_ids if isinstance(raw_open_ids, list) else [],
+        "mixed_open_enabled": mixed_open_enabled,
+    }
+
+
+def filter_renderable_attempt_question_ids(
+    conn,
+    question_ids,
+    *,
+    open_question_ids: list[int] | None = None,
+) -> tuple[list[int], int]:
+    allowed_open_ids = set()
+    for qid in open_question_ids or []:
+        try:
+            if isinstance(qid, bool):
+                raise ValueError
+            allowed_open_ids.add(int(qid))
+        except (TypeError, ValueError):
+            pass
+
     parsed_ids = []
     skipped = 0
     for qid in question_ids or []:
@@ -1534,10 +1582,24 @@ def filter_renderable_attempt_question_ids(conn, question_ids) -> tuple[list[int
     valid_ids = []
     for qid in parsed_ids:
         question = by_id.get(qid)
-        if (
-            question
-            and question["question_type"] == "multiple_choice"
-            and is_quiz_question_eligible(conn, question)
+        if not question:
+            skipped += 1
+            continue
+
+        if question["question_type"] == "multiple_choice" and is_quiz_question_eligible(conn, question):
+            valid_ids.append(qid)
+        elif (
+            qid in allowed_open_ids
+            and question["question_type"] in {"fill_in", "short_answer"}
+            and is_fill_in_question_auto_gradable(
+                question,
+                conn.execute("""
+                    SELECT id, subquestion_number, correct_answer, answer_alternatives
+                    FROM fill_in_subquestions
+                    WHERE question_id = ?
+                    ORDER BY subquestion_number
+                """, (qid,)).fetchall(),
+            )
         ):
             valid_ids.append(qid)
         else:
@@ -2249,8 +2311,17 @@ def quiz_attempt(attempt_id):
         conn.close()
         return _quiz_redirect(_quiz_url_for("quiz_result", attempt_id=attempt_id))
 
-    stored_question_ids = _quiz_json.loads(attempt["question_ids_json"])
-    question_ids, skipped_count = filter_renderable_attempt_question_ids(conn, stored_question_ids)
+    attempt_question_plan = quiz_parse_attempt_question_plan(attempt["question_ids_json"])
+    open_question_ids = (
+        attempt_question_plan["open_question_ids"]
+        if attempt_question_plan["mixed_open_enabled"]
+        else []
+    )
+    question_ids, skipped_count = filter_renderable_attempt_question_ids(
+        conn,
+        attempt_question_plan["question_ids"],
+        open_question_ids=open_question_ids,
+    )
     seed = attempt["seed"]
 
     if _quiz_request.method == "POST":
@@ -2267,7 +2338,17 @@ def quiz_attempt(attempt_id):
             )
 
         correct_by_qid = {}
+        mc_question_ids = []
         for qid in question_ids:
+            row = conn.execute("""
+                SELECT question_type
+                FROM questions
+                WHERE id = ?
+            """, (qid,)).fetchone()
+            if row and row["question_type"] == "multiple_choice":
+                mc_question_ids.append(qid)
+
+        for qid in mc_question_ids:
             row = conn.execute("""
                 SELECT option_letter
                 FROM multiple_choice_options
@@ -2278,10 +2359,10 @@ def quiz_attempt(attempt_id):
             correct_by_qid[int(qid)] = row["option_letter"] if row else None
 
         score = 0
-        # Stale invalid IDs are excluded because the UI cannot render them safely.
-        total = len(question_ids)
+        # Stale invalid IDs and planned open fields are excluded from MC scoring.
+        total = len(mc_question_ids)
 
-        for qid in question_ids:
+        for qid in mc_question_ids:
             chosen = _quiz_request.form.get(f"q_{qid}")
             correct_letter = correct_by_qid.get(int(qid))
             is_correct = 1 if chosen and correct_letter and chosen == correct_letter else 0
@@ -2345,7 +2426,9 @@ def quiz_result(attempt_id):
         conn.close()
         return _quiz_redirect(_quiz_url_for("quiz_attempt", attempt_id=attempt_id))
 
-    stored_qids = _quiz_json.loads(attempt["question_ids_json"])
+    attempt_question_plan = quiz_parse_attempt_question_plan(attempt["question_ids_json"])
+    stored_qids = attempt_question_plan["question_ids"]
+    # Result rendering is still MC-only; planned open answers are not graded or displayed yet.
     qids, skipped_count = filter_renderable_attempt_question_ids(conn, stored_qids)
     original_question_count = len(stored_qids or [])
     renderable_question_count = len(qids)

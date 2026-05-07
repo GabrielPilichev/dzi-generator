@@ -112,6 +112,37 @@ class QuizAttemptRenderTest(unittest.TestCase):
             """, (question_id, letter, text, is_correct))
         return question_id
 
+    @staticmethod
+    def _insert_eligible_open_question(conn, *, source_exam=None, source_number=16):
+        if source_exam is None:
+            count = conn.execute("""
+                SELECT COUNT(*)
+                FROM questions
+                WHERE source_exam LIKE 'temp-mixed-open-render-%'
+            """).fetchone()[0]
+            source_exam = f"temp-mixed-open-render-{count + 1}"
+
+        cur = conn.execute("""
+            INSERT INTO questions (
+                source_exam, source_number, question_type, topic, difficulty,
+                points, prompt, has_image, is_ai_generated, quality_score
+            )
+            VALUES (?, ?, 'fill_in', 'test', 'medium', 1, ?, 0, 0, NULL)
+        """, (
+            source_exam,
+            source_number,
+            "Попълнете липсващите стойности.",
+        ))
+        question_id = int(cur.lastrowid)
+        for number, answer in ((1, "клиент"), (2, '["jpeg", "jpg"]')):
+            conn.execute("""
+                INSERT INTO fill_in_subquestions (
+                    question_id, subquestion_number, correct_answer, answer_alternatives
+                )
+                VALUES (?, ?, ?, NULL)
+            """, (question_id, number, answer))
+        return question_id
+
     @classmethod
     def _insert_visual_filter_fixture(cls, conn):
         section_cur = conn.execute("""
@@ -266,6 +297,55 @@ class QuizAttemptRenderTest(unittest.TestCase):
         finally:
             conn.close()
 
+    def _create_mixed_planned_attempt(self, *, submitted=False, student_name="Mixed Open Render"):
+        assignment_id = self._create_assignment()
+        conn = web_app.quiz_db()
+        try:
+            open_question_id = self._insert_eligible_open_question(conn)
+            question_plan = {
+                "mixed_open_enabled": True,
+                "question_ids": [self.valid_question_id, open_question_id],
+                "open_question_ids": [open_question_id],
+            }
+            cur = conn.execute("""
+                INSERT INTO quiz_attempts (
+                    assignment_id, student_name, seed, question_ids_json,
+                    submitted_at, score_correct, score_total
+                )
+                VALUES (?, ?, ?, ?, NULL, NULL, 1)
+            """, (
+                assignment_id,
+                student_name,
+                "mixed-open-seed",
+                json.dumps(question_plan),
+            ))
+            attempt_id = int(cur.lastrowid)
+            if submitted:
+                conn.execute("""
+                    UPDATE quiz_attempts
+                    SET submitted_at = CURRENT_TIMESTAMP, score_correct = 0, score_total = 1
+                    WHERE id = ?
+                """, (attempt_id,))
+            conn.commit()
+            return assignment_id, attempt_id, open_question_id
+        finally:
+            conn.close()
+
+    def _quiz_text_answer_count(self):
+        conn = web_app.quiz_db()
+        try:
+            exists = conn.execute("""
+                SELECT 1
+                FROM sqlite_master
+                WHERE type = 'table'
+                  AND name = 'quiz_text_answers'
+            """).fetchone()
+            if not exists:
+                return 0
+            return conn.execute("SELECT COUNT(*) FROM quiz_text_answers").fetchone()[0]
+        finally:
+            conn.close()
+
     @staticmethod
     def _wrong_letter(conn, question_id):
         row = conn.execute("""
@@ -335,6 +415,70 @@ class QuizAttemptRenderTest(unittest.TestCase):
         self.assertIn(self.valid_prompt.encode("utf-8"), response.data)
         self.assertNotIn("Invalid stale render question".encode("utf-8"), response.data)
         self.assertNotIn(STALE_MESSAGE.encode("utf-8"), response.data)
+
+    def test_mc_only_active_attempt_does_not_render_open_text_inputs(self):
+        _assignment_id, attempt_id = self._create_attempt(
+            [self.valid_question_id],
+            submitted=False,
+            student_name="MC Only Active",
+        )
+
+        response = self.client.get(f"/quiz/attempt/{attempt_id}")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(self.valid_prompt.encode("utf-8"), response.data)
+        self.assertNotIn(b'name="open_q_', response.data)
+        self.assertNotIn("Отворените отговори".encode("utf-8"), response.data)
+
+    def test_mixed_planned_attempt_renders_open_text_inputs(self):
+        _assignment_id, attempt_id, open_question_id = self._create_mixed_planned_attempt()
+
+        response = self.client.get(f"/quiz/attempt/{attempt_id}")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(self.valid_prompt.encode("utf-8"), response.data)
+        self.assertIn("Попълнете липсващите стойности.".encode("utf-8"), response.data)
+        self.assertIn(f'name="open_q_{open_question_id}_1"'.encode("utf-8"), response.data)
+        self.assertIn(f'name="open_q_{open_question_id}_2"'.encode("utf-8"), response.data)
+        self.assertIn("няма да бъде оценен или записан".encode("utf-8"), response.data)
+
+    def test_submitting_mixed_open_text_does_not_write_quiz_text_answers(self):
+        _assignment_id, attempt_id, open_question_id = self._create_mixed_planned_attempt(
+            student_name="Mixed Submit",
+        )
+        before_text_answers = self._quiz_text_answer_count()
+        conn = web_app.quiz_db()
+        try:
+            wrong_letter = self._wrong_letter(conn, self.valid_question_id)
+        finally:
+            conn.close()
+
+        response = self.client.post(f"/quiz/attempt/{attempt_id}", data={
+            f"q_{self.valid_question_id}": wrong_letter,
+            f"open_q_{open_question_id}_1": "клиент",
+            f"open_q_{open_question_id}_2": "jpg",
+        })
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(f"/quiz/attempt/{attempt_id}/result", response.headers["Location"])
+        self.assertEqual(self._quiz_text_answer_count(), before_text_answers)
+
+        conn = web_app.quiz_db()
+        try:
+            text_answer_rows = conn.execute("""
+                SELECT COUNT(*)
+                FROM quiz_answers
+                WHERE attempt_id = ?
+                  AND question_id = ?
+            """, (attempt_id, open_question_id)).fetchone()[0]
+            attempt = conn.execute("""
+                SELECT score_total
+                FROM quiz_attempts
+                WHERE id = ?
+            """, (attempt_id,)).fetchone()
+        finally:
+            conn.close()
+
+        self.assertEqual(text_answer_rows, 0)
+        self.assertEqual(attempt["score_total"], 1)
 
     def test_all_invalid_active_attempt_shows_stale_message(self):
         _assignment_id, attempt_id = self._create_attempt(
