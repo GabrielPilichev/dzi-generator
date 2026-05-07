@@ -38,6 +38,7 @@ Known gaps:
 - Mixed open/closed quizzes are not implemented yet.
 - Real deployment is not done; current tester sharing uses Cloudflare quick tunnel.
 - Repo/folder rename from `dzi-generator` to LearnPilot is deferred.
+- Planning notes added: [[mixed-open-closed-quiz-plan|Mixed Open/Closed Quiz Plan]] and [[dzi-asset-mapping-plan|DZI Asset Mapping Plan]].
 
 ## Exam format
 

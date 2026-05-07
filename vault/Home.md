@@ -39,6 +39,8 @@ Vault за LearnPilot. Учебно съдържание по ИТ за гимн
 
 - [[Generated/DZI/dzi-expansion-status|DZI expansion status]]
 - [[Generated/DZI/live-tester-feedback-2026-05-07|Live tester feedback — 2026-05-07]]
+- [[Generated/DZI/mixed-open-closed-quiz-plan|Mixed open/closed quiz plan]]
+- [[Generated/DZI/dzi-asset-mapping-plan|DZI asset mapping plan]]
 
 ## Работни области
 
