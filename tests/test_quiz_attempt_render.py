@@ -37,6 +37,7 @@ class QuizAttemptRenderTest(unittest.TestCase):
         web_app.QUIZ_VAULT_PATH = _TMP_VAULT
         cls.app = web_app.app
         cls.app.config.update(TESTING=True)
+        cls.app.config["DB_PATH"] = str(_TMP_DB)
 
         conn = web_app.quiz_db()
         try:
@@ -80,6 +81,16 @@ class QuizAttemptRenderTest(unittest.TestCase):
 
     def setUp(self):
         self.client = self.app.test_client()
+
+    def test_dzi_pool_health_counts_may_2025_v2(self):
+        with self.app.app_context():
+            health = web_app.fetch_dzi_pool_health("may_2025_v2")
+
+        self.assertIsNotNone(health)
+        self.assertEqual(health["source_slug"], "may_2025_v2")
+        self.assertEqual(health["imported_count"], 25)
+        self.assertEqual(health["usable_count"], 15)
+        self.assertEqual(health["filtered_count"], 10)
 
     def _create_assignment(self):
         conn = web_app.quiz_db()

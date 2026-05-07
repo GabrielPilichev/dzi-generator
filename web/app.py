@@ -920,6 +920,44 @@ def quiz_section_question_ids(conn, section_id: int) -> list[int]:
     return [int(r["id"]) for r in rows if is_quiz_question_eligible(conn, r)]
 
 
+def fetch_dzi_pool_health(source_slug: str = "may_2025_v2") -> dict | None:
+    exam = dzi_find_exam(source_slug)
+    if exam is None:
+        return None
+
+    conn = quiz_db()
+    try:
+        rows = conn.execute(f"""
+            SELECT DISTINCT q.id, q.prompt, q.question_type, q.has_image, q.image_path
+            FROM exam_tasks et
+            JOIN exam_task_questions etq
+              ON etq.task_id = et.id
+             AND etq.role = 'primary'
+            JOIN questions q
+              ON q.id = etq.question_id
+            WHERE et.exam_id = ?
+              AND et.task_number BETWEEN 1 AND 25
+              AND {QUIZ_APPROVED_FILTER}
+            ORDER BY et.task_number, q.id
+        """, (exam["id"],)).fetchall()
+
+        usable_count = sum(
+            1
+            for row in rows
+            if row["question_type"] == "multiple_choice"
+            and is_quiz_question_eligible(conn, row)
+        )
+        imported_count = len(rows)
+        return {
+            "source_slug": source_slug,
+            "imported_count": imported_count,
+            "usable_count": usable_count,
+            "filtered_count": imported_count - usable_count,
+        }
+    finally:
+        conn.close()
+
+
 def quiz_seed(assignment_id: int, student_name: str) -> str:
     raw = f"{assignment_id}|{student_name.strip().lower()}".encode("utf-8")
     return _quiz_hashlib.sha256(raw).hexdigest()
@@ -1243,6 +1281,7 @@ def teacher_dzi_training():
 
     generated_output = None
     generated_ok = None
+    dzi_pool_health = fetch_dzi_pool_health("may_2025_v2")
 
     if config_path.exists():
         try:
@@ -1316,6 +1355,7 @@ def teacher_dzi_training():
         recent_sets=recent_sets,
         generated_output=generated_output,
         generated_ok=generated_ok,
+        dzi_pool_health=dzi_pool_health,
     )
 
 

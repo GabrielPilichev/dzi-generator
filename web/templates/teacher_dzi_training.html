@@ -23,6 +23,34 @@
   Това е тренировъчен генератор. Официалната ДЗИ релевантност още не е потвърдена срещу програма на МОН.
 </div>
 
+{% if dzi_pool_health %}
+<section class="panel">
+  <div class="section-heading">
+    <h2>Състояние на ДЗИ въпросите</h2>
+    <span class="pill">{{ dzi_pool_health.source_slug }}</span>
+  </div>
+
+  <div class="stat-row">
+    <div class="stat-box">
+      <span class="stat-number">{{ dzi_pool_health.imported_count }}</span>
+      <span class="stat-label">внесени/свързани въпроси</span>
+    </div>
+    <div class="stat-box">
+      <span class="stat-number">{{ dzi_pool_health.usable_count }}</span>
+      <span class="stat-label">използваеми за тест</span>
+    </div>
+    <div class="stat-box">
+      <span class="stat-number">{{ dzi_pool_health.filtered_count }}</span>
+      <span class="stat-label">филтрирани/изключени</span>
+    </div>
+  </div>
+
+  <p class="muted">
+    Филтрираните въпроси са внесени, но не се използват в тестове, ако липсват валидни отговори или нужните визуални ресурси.
+  </p>
+</section>
+{% endif %}
+
 <section class="panel">
   <div class="section-heading">
     <h2>Текущо разпределение</h2>
