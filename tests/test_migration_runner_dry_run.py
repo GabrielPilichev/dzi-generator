@@ -215,6 +215,138 @@ class MigrationRunnerDryRunTest(unittest.TestCase):
         self.assertIn("004_dzi_safety_constraints.sql: manual review required", output)
         self.assertIn("005_quiz_text_answers.sql: not baselineable", output)
 
+    def seed_baselineable_objects(self, db_path):
+        conn = sqlite3.connect(db_path)
+        try:
+            conn.executescript("""
+                CREATE TABLE quiz_attempts (id INTEGER PRIMARY KEY);
+                CREATE TABLE quiz_answers (id INTEGER PRIMARY KEY);
+                CREATE TABLE questions (source_exam TEXT, source_number INTEGER);
+                CREATE TABLE curriculum_sections (
+                    id INTEGER PRIMARY KEY,
+                    source_url TEXT,
+                    source_title TEXT,
+                    source_authority TEXT,
+                    dzi_relevance_verified INTEGER NOT NULL DEFAULT 0,
+                    dzi_relevance_notes TEXT
+                );
+                CREATE TABLE dzi_blueprints (id INTEGER PRIMARY KEY);
+                CREATE TABLE dzi_blueprint_slots (id INTEGER PRIMARY KEY);
+                CREATE TABLE assets (id INTEGER PRIMARY KEY);
+                CREATE TABLE asset_links (id INTEGER PRIMARY KEY);
+                CREATE UNIQUE INDEX uniq_questions_source_exam_number
+                    ON questions(source_exam, source_number)
+                    WHERE source_exam IS NOT NULL AND source_number IS NOT NULL;
+            """)
+            conn.commit()
+        finally:
+            conn.close()
+
+    def test_baseline_apply_creates_schema_migrations_in_temp_db(self):
+        _db_temp, db_path = self.make_temp_db()
+        self.seed_baselineable_objects(db_path)
+        _migrations_temp, migrations_dir = self.make_migrations_dir([
+            "001_quiz_tables.sql",
+        ])
+
+        exit_code = manage_migrations.main(
+            ["--db", str(db_path), "--migrations-dir", str(migrations_dir), "--baseline-apply"],
+            out=io.StringIO(),
+            err=io.StringIO(),
+        )
+
+        self.assertEqual(exit_code, 0)
+        conn = sqlite3.connect(db_path)
+        try:
+            row = conn.execute("""
+                SELECT 1
+                FROM sqlite_master
+                WHERE type = 'table'
+                  AND name = 'schema_migrations'
+            """).fetchone()
+        finally:
+            conn.close()
+        self.assertIsNotNone(row)
+
+    def test_baseline_apply_records_baselineable_only_and_leaves_005_pending(self):
+        _db_temp, db_path = self.make_temp_db()
+        self.seed_baselineable_objects(db_path)
+        _migrations_temp, migrations_dir = self.make_migrations_dir([
+            "001_quiz_tables.sql",
+            "002_curriculum_section_provenance.sql",
+            "003_dzi_tasks_assets_blueprint.sql",
+            "004_dzi_safety_constraints.sql",
+            "005_quiz_text_answers.sql",
+        ])
+        out = io.StringIO()
+
+        exit_code = manage_migrations.main(
+            ["--db", str(db_path), "--migrations-dir", str(migrations_dir), "--baseline-apply"],
+            out=out,
+            err=io.StringIO(),
+        )
+
+        self.assertEqual(exit_code, 0)
+        conn = sqlite3.connect(db_path)
+        try:
+            rows = conn.execute("SELECT filename FROM schema_migrations ORDER BY filename").fetchall()
+        finally:
+            conn.close()
+        self.assertEqual(rows, [
+            ("001_quiz_tables.sql",),
+            ("002_curriculum_section_provenance.sql",),
+            ("003_dzi_tasks_assets_blueprint.sql",),
+            ("004_dzi_safety_constraints.sql",),
+        ])
+        output = out.getvalue()
+        self.assertIn("recorded baseline migrations:", output)
+        self.assertIn("remaining pending migrations:\n  - 005_quiz_text_answers.sql", output)
+
+    def test_baseline_apply_does_not_record_non_baselineable_migration(self):
+        _db_temp, db_path = self.make_temp_db()
+        conn = sqlite3.connect(db_path)
+        try:
+            conn.execute("CREATE TABLE quiz_attempts (id INTEGER PRIMARY KEY)")
+            conn.commit()
+        finally:
+            conn.close()
+        _migrations_temp, migrations_dir = self.make_migrations_dir([
+            "001_quiz_tables.sql",
+            "002_curriculum_section_provenance.sql",
+        ])
+
+        exit_code = manage_migrations.main(
+            ["--db", str(db_path), "--migrations-dir", str(migrations_dir), "--baseline-apply"],
+            out=io.StringIO(),
+            err=io.StringIO(),
+        )
+
+        self.assertEqual(exit_code, 0)
+        conn = sqlite3.connect(db_path)
+        try:
+            rows = conn.execute("SELECT filename FROM schema_migrations ORDER BY filename").fetchall()
+        finally:
+            conn.close()
+        self.assertEqual(rows, [])
+
+    def test_baseline_apply_uses_backup_guard_for_default_db_in_temp_project(self):
+        _temp, project_root, db_path, migrations_dir = self.make_temp_project_default_db()
+        self.seed_baselineable_objects(db_path)
+        (migrations_dir / "001_quiz_tables.sql").write_text("-- baseline only\n", encoding="utf-8")
+        out = io.StringIO()
+
+        with mock.patch.object(manage_migrations, "PROJECT_ROOT", project_root):
+            exit_code = manage_migrations.main(
+                ["--db", str(db_path), "--migrations-dir", str(migrations_dir), "--baseline-apply"],
+                out=out,
+                err=io.StringIO(),
+            )
+
+        self.assertEqual(exit_code, 0)
+        backups = list((project_root / "local_backups").glob("questions.db.backup-*"))
+        self.assertEqual(len(backups), 1)
+        self.assertIn(f"backup path: {backups[0]}", out.getvalue())
+
     def test_apply_creates_schema_migrations(self):
         _db_temp, db_path = self.make_temp_db()
         _migrations_temp, migrations_dir = self.make_migrations_dir({
