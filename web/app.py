@@ -963,6 +963,99 @@ def insert_quiz_text_answer(
     return int(cur.lastrowid)
 
 
+def _quiz_slot_items(values) -> list[tuple[int, object]]:
+    if hasattr(values, "items"):
+        return sorted((int(slot), value) for slot, value in values.items())
+    return [(index, value) for index, value in enumerate(values or [], start=1)]
+
+
+def _quiz_accepted_by_slot(values) -> dict[int, list[str]]:
+    accepted = {}
+    for slot, slot_values in _quiz_slot_items(values):
+        if slot_values is None:
+            accepted[slot] = []
+        elif isinstance(slot_values, (list, tuple, set)):
+            accepted[slot] = [str(value) for value in slot_values if value is not None]
+        else:
+            accepted[slot] = [str(slot_values)]
+    return accepted
+
+
+def _quiz_text_grade_result(
+    subquestion_number: int,
+    raw_answer: object,
+    accepted_answers: list[str],
+    *,
+    matched_answer: str | None,
+    is_correct: bool,
+) -> dict:
+    return {
+        "subquestion_number": subquestion_number,
+        "raw_answer": "" if raw_answer is None else str(raw_answer),
+        "normalized_answer": quiz_normalize_text_answer(raw_answer),
+        "accepted_answers": accepted_answers,
+        "accepted_answers_json": _quiz_json.dumps(accepted_answers, ensure_ascii=False),
+        "matched_answer": matched_answer,
+        "is_correct": is_correct,
+        "points_awarded": 1 if is_correct else 0,
+        "points_possible": 1,
+    }
+
+
+def grade_quiz_text_answers(submitted_answers, accepted_answers_by_slot, *, grading_mode: str = "ordered") -> list[dict]:
+    if grading_mode not in {"ordered", "order_independent"}:
+        raise ValueError("grading_mode must be 'ordered' or 'order_independent'")
+
+    submitted = dict(_quiz_slot_items(submitted_answers))
+    accepted_by_slot = _quiz_accepted_by_slot(accepted_answers_by_slot)
+    slots = sorted(set(submitted) | set(accepted_by_slot))
+
+    if grading_mode == "ordered":
+        results = []
+        for slot in slots:
+            raw_answer = submitted.get(slot, "")
+            accepted_answers = accepted_by_slot.get(slot, [])
+            normalized_answer = quiz_normalize_text_answer(raw_answer)
+            matched_answer = None
+            for accepted_answer in accepted_answers:
+                if normalized_answer and normalized_answer == quiz_normalize_text_answer(accepted_answer):
+                    matched_answer = accepted_answer
+                    break
+            results.append(_quiz_text_grade_result(
+                slot,
+                raw_answer,
+                accepted_answers,
+                matched_answer=matched_answer,
+                is_correct=matched_answer is not None,
+            ))
+        return results
+
+    remaining = {}
+    for accepted_answers in accepted_by_slot.values():
+        for accepted_answer in accepted_answers:
+            normalized = quiz_normalize_text_answer(accepted_answer)
+            if not normalized:
+                continue
+            remaining.setdefault(normalized, []).append(accepted_answer)
+
+    results = []
+    for slot in slots:
+        raw_answer = submitted.get(slot, "")
+        accepted_answers = accepted_by_slot.get(slot, [])
+        normalized_answer = quiz_normalize_text_answer(raw_answer)
+        matched_answer = None
+        if normalized_answer and remaining.get(normalized_answer):
+            matched_answer = remaining[normalized_answer].pop(0)
+        results.append(_quiz_text_grade_result(
+            slot,
+            raw_answer,
+            accepted_answers,
+            matched_answer=matched_answer,
+            is_correct=matched_answer is not None,
+        ))
+    return results
+
+
 def quiz_answer_text_is_real(value: object) -> bool:
     text = quiz_clean_answer_text(value)
     return bool(text) and text not in {"-", "—", "[]"}
