@@ -1097,6 +1097,39 @@ def record_quiz_text_answers(
     return recorded
 
 
+def fetch_quiz_text_answers_for_attempt(conn, attempt_id: int, *, question_id: int | None = None) -> list[dict]:
+    params = [attempt_id]
+    question_filter = ""
+    if question_id is not None:
+        question_filter = "AND question_id = ?"
+        params.append(question_id)
+
+    rows = conn.execute(f"""
+        SELECT
+            id,
+            attempt_id,
+            question_id,
+            subquestion_id,
+            subquestion_number,
+            raw_answer,
+            normalized_answer,
+            grading_mode,
+            accepted_answers_json,
+            matched_answer,
+            is_correct,
+            points_awarded,
+            points_possible,
+            grader_version,
+            teacher_override,
+            teacher_note
+        FROM quiz_text_answers
+        WHERE attempt_id = ?
+          {question_filter}
+        ORDER BY question_id, subquestion_number
+    """, params).fetchall()
+    return [dict(row) for row in rows]
+
+
 def quiz_answer_text_is_real(value: object) -> bool:
     text = quiz_clean_answer_text(value)
     return bool(text) and text not in {"-", "—", "[]"}
