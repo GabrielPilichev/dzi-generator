@@ -844,6 +844,75 @@ def quiz_normalize_text_answer(value: object) -> str:
     return text.casefold()
 
 
+def _quiz_mapping_get(value: object, key: str, default: object = None) -> object:
+    if value is None:
+        return default
+    if hasattr(value, "keys"):
+        try:
+            return value[key]  # sqlite3.Row supports mapping-style access without get().
+        except (IndexError, KeyError):
+            return default
+    return getattr(value, key, default)
+
+
+def _quiz_int_value(value: object) -> int | None:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _quiz_answer_values(value: object) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, (list, tuple, set)):
+        return [str(item) for item in value if quiz_answer_text_is_real(item)]
+
+    text = str(value).strip()
+    if not text:
+        return []
+
+    try:
+        parsed = _quiz_json.loads(text)
+    except (TypeError, ValueError):
+        return [text] if quiz_answer_text_is_real(text) else []
+
+    if isinstance(parsed, (list, tuple, set)):
+        return [str(item) for item in parsed if quiz_answer_text_is_real(item)]
+    if quiz_answer_text_is_real(parsed):
+        return [str(parsed)]
+    return []
+
+
+def is_fill_in_question_auto_gradable(question, subquestions) -> bool:
+    question_type = _quiz_mapping_get(question, "question_type")
+    if question_type not in {"fill_in", "short_answer"}:
+        return False
+
+    source_number = _quiz_int_value(_quiz_mapping_get(question, "source_number"))
+    task_number = _quiz_int_value(_quiz_mapping_get(question, "task_number"))
+    if question_type == "practical" or source_number in {26, 27, 28} or task_number in {26, 27, 28}:
+        return False
+
+    if quiz_prompt_needs_visual(_quiz_mapping_get(question, "prompt", "")):
+        return False
+
+    rows = list(subquestions or [])
+    if not rows:
+        return False
+
+    for row in rows:
+        accepted = []
+        accepted.extend(_quiz_answer_values(_quiz_mapping_get(row, "accepted_answers")))
+        accepted.extend(_quiz_answer_values(_quiz_mapping_get(row, "correct_answers")))
+        accepted.extend(_quiz_answer_values(_quiz_mapping_get(row, "correct_answer")))
+        accepted.extend(_quiz_answer_values(_quiz_mapping_get(row, "answer_alternatives")))
+        if not accepted:
+            return False
+
+    return True
+
+
 def quiz_answer_text_is_real(value: object) -> bool:
     text = quiz_clean_answer_text(value)
     return bool(text) and text not in {"-", "—", "[]"}
