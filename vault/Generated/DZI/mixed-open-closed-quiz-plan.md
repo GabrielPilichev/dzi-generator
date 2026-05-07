@@ -300,6 +300,47 @@ Explicit non-goals:
 - No imports/assets.
 - No mixed quiz UI.
 
+## Migration baseline checkpoint
+
+Observed dry-run summary:
+
+- `python3 src/manage_migrations.py --dry-run` currently reports all numbered migrations as pending:
+  - `001_quiz_tables.sql`
+  - `002_curriculum_section_provenance.sql`
+  - `003_dzi_tasks_assets_blueprint.sql`
+  - `004_dzi_safety_constraints.sql`
+  - `005_quiz_text_answers.sql`
+- This is a metadata gap, not proof that the existing database lacks the older schema changes.
+
+Current DB facts:
+
+- `schema_migrations` is absent.
+- `quiz_text_answers` is absent.
+- Existing app tables are present, including `quiz_attempts`, `quiz_answers`, `questions`, `exams`, `fill_in_subquestions`, `assets`, and `dzi_blueprints`.
+
+Risk:
+
+- Existing migrations `001`–`004` appear pending only because `schema_migrations` does not exist.
+- Applying them blindly could fail or mutate existing schema unexpectedly.
+- Running `--apply` on `data/questions.db` is unsafe until the migration history is baselined.
+
+Recommended next step:
+
+- Add a safe baseline/adopt command to the migration runner, or manually insert baseline rows only after a dedicated plan.
+
+Preferred approach:
+
+- Implement `--baseline-existing` or equivalent in a separate PR.
+- It should record `001`–`004` as applied only after verifying their expected tables/constraints already exist.
+- It should leave `005` pending.
+- It should require backup when touching `data/questions.db`.
+
+Explicit non-goals:
+
+- Do not run `005` yet.
+- Do not import questions/assets.
+- Do not alter quiz generation, submission, grading, or result rendering.
+
 ## Migration runner design draft
 
 Context:
