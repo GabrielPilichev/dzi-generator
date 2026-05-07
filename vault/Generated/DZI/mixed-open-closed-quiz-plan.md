@@ -300,6 +300,71 @@ Explicit non-goals:
 - No imports/assets.
 - No mixed quiz UI.
 
+## Migration runner design draft
+
+Context:
+
+- `web/app.py` currently auto-applies only `web/migrations/001_quiz_tables.sql`.
+- Numbered migrations such as `web/migrations/005_quiz_text_answers.sql` are not covered by a general runner yet.
+- Do not run `005_quiz_text_answers.sql` until a runner/checkpoint decision is made.
+
+Small future runner design:
+
+- Track applied migrations in a `schema_migrations` table.
+- Apply `web/migrations/*.sql` in filename order.
+- Run each migration inside a transaction where SQLite allows.
+- Record `filename` and `applied_at` timestamp after successful application.
+- Refuse a dirty working tree unless explicitly overridden.
+- Print a dry-run plan before applying.
+- Support `--dry-run` and `--apply`.
+- Back up `data/questions.db` before `--apply`.
+- Verify `PRAGMA foreign_key_check` after apply.
+
+Proposed command examples:
+
+- `python3 src/run_migrations.py --db data/questions.db --dry-run`
+- `python3 src/run_migrations.py --db data/questions.db --apply`
+- `python3 src/run_migrations.py --db data/questions.db --apply --allow-dirty`
+
+Safety checks:
+
+- Confirm DB path exists and is not opened in read-only mode for `--apply`.
+- Confirm `git status --short` is clean unless `--allow-dirty` is set.
+- Confirm all migration filenames sort deterministically.
+- Confirm already-applied filenames are skipped, not re-run.
+- Refuse if a lower-numbered migration is missing from `schema_migrations` while a higher one is already applied.
+- Print pending migration filenames and require explicit `--apply` for writes.
+- Create and verify a timestamped DB backup before applying.
+- Run `PRAGMA foreign_keys = ON` before migration execution.
+- Run `PRAGMA foreign_key_check` after each apply batch.
+
+Rollback strategy:
+
+- Stop app/processes using `data/questions.db`.
+- Restore the timestamped DB backup over `data/questions.db`.
+- Re-run `PRAGMA foreign_key_check`, the current test suite, and `python3 src/audit_dzi_state.py`.
+- Do not attempt automatic down migrations for v1 runner.
+
+Tests needed:
+
+- Unit test pending-file discovery and filename ordering.
+- Unit test `schema_migrations` table creation on an in-memory DB.
+- Unit test dry-run output does not execute migration SQL.
+- In-memory apply test with stub migration files.
+- Test already-applied migrations are skipped.
+- Test dirty-tree guard can block apply and can be overridden.
+- Test backup path generation without writing into git-tracked locations.
+- Test FK check failure causes non-zero exit.
+
+Explicit non-goals:
+
+- No automatic down/rollback migrations.
+- No app startup auto-run of all numbered migrations.
+- No data import or asset import.
+- No quiz generation, submission, grading, or result rendering changes.
+- No mixed quiz UI.
+- No migration execution without a separate plan/checkpoint.
+
 ## Implementation checklist draft
 
 1. Schema migration file
