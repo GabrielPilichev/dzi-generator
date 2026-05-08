@@ -476,6 +476,7 @@ class QuizAttemptRenderTest(unittest.TestCase):
         self.assertNotIn("Отворени отговори".encode("utf-8"), response.data)
         self.assertNotIn("не са включени в точния резултат".encode("utf-8"), response.data)
         self.assertNotIn("Информационен сбор за отворени отговори".encode("utf-8"), response.data)
+        self.assertNotIn("Интеграцията на отворените отговори".encode("utf-8"), response.data)
 
     def test_mc_only_post_does_not_write_quiz_text_answers_and_keeps_quiz_answers(self):
         _assignment_id, attempt_id = self._create_attempt(
@@ -592,6 +593,7 @@ class QuizAttemptRenderTest(unittest.TestCase):
         self.assertIn("Няма автоматично съвпадение".encode("utf-8"), response.data)
         self.assertIn("Автоматичните точки са само информативни".encode("utf-8"), response.data)
         self.assertIn("не са включени в точния резултат".encode("utf-8"), response.data)
+        self.assertIn("Интеграцията на отворените отговори във финалния резултат още не е включена".encode("utf-8"), response.data)
         self.assertIn("1.0/1.0 т.".encode("utf-8"), response.data)
         self.assertIn("0.0/1.0 т.".encode("utf-8"), response.data)
         self.assertIn("Информационен сбор за отворени отговори".encode("utf-8"), response.data)
@@ -631,6 +633,11 @@ class QuizAttemptRenderTest(unittest.TestCase):
         self.assertIn("Инф. точки".encode("utf-8"), response.data)
         self.assertIn("ordered".encode("utf-8"), response.data)
         self.assertIn("не са включени в крайния резултат".encode("utf-8"), response.data)
+        self.assertIn("Интеграцията на отворените отговори във финалния резултат още не е включена".encode("utf-8"), response.data)
+        self.assertIn(b"<fieldset disabled", response.data)
+        self.assertIn(b"Include open answers in final score", response.data)
+        self.assertIn(b'name="include_open_answers_in_final_score_preview"', response.data)
+        self.assertNotIn(b'name="include_open_answers_in_final_score"', response.data)
         self.assertIn("Учителският override".encode("utf-8"), response.data)
         self.assertIn(b"<form", response.data)
         self.assertIn(b'name="text_answer_id"', response.data)
@@ -676,6 +683,8 @@ class QuizAttemptRenderTest(unittest.TestCase):
         self.assertNotIn("Отворени отговори".encode("utf-8"), response.data)
         self.assertNotIn("Инф. точки".encode("utf-8"), response.data)
         self.assertNotIn("Информационен сбор".encode("utf-8"), response.data)
+        self.assertNotIn("Include open answers in final score".encode("utf-8"), response.data)
+        self.assertNotIn("Интеграцията на отворените отговори".encode("utf-8"), response.data)
 
     def test_admin_can_save_teacher_open_answer_override_without_score_change(self):
         assignment_id, attempt_id, open_question_id = self._create_mixed_planned_attempt(

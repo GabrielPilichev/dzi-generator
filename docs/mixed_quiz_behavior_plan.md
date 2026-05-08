@@ -139,6 +139,12 @@ When enabled later:
    - Display an open-answer subtotal separately on student and teacher/admin review pages.
    - Open-answer subtotals remain informational until a separate scoring design explicitly includes them in final totals.
 
+7. Final score integration plan.
+   - MC score remains canonical until explicit opt-in is implemented.
+   - Open-answer subtotal may later be included only for explicitly planned mixed/open attempts.
+   - Teacher overrides must take precedence over auto-grading for included open rows.
+   - Final score integration must be a separate PR with its own tests and rollback notes.
+
 ## Testing Expectations
 
 - MC-only flow unchanged.
