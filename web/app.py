@@ -1279,6 +1279,60 @@ def fetch_quiz_text_answers_for_attempt(conn, attempt_id: int, *, question_id: i
     return [dict(row) for row in rows]
 
 
+def quiz_record_planned_open_text_answers(
+    conn,
+    *,
+    attempt_id: int,
+    question_ids: list[int],
+    open_question_ids: list[int],
+    form,
+) -> None:
+    planned_open_ids = set()
+    renderable_ids = {int(qid) for qid in question_ids}
+    for qid in open_question_ids or []:
+        try:
+            if isinstance(qid, bool):
+                raise ValueError
+            planned_qid = int(qid)
+        except (TypeError, ValueError):
+            continue
+        if planned_qid in renderable_ids:
+            planned_open_ids.add(planned_qid)
+
+    for qid in question_ids:
+        if int(qid) not in planned_open_ids:
+            continue
+
+        subquestions = conn.execute("""
+            SELECT id, subquestion_number, correct_answer, answer_alternatives
+            FROM fill_in_subquestions
+            WHERE question_id = ?
+            ORDER BY subquestion_number
+        """, (qid,)).fetchall()
+        submitted_answers = {}
+        accepted_answers_by_slot = {}
+        subquestion_ids_by_slot = {}
+
+        for row in subquestions:
+            slot = int(row["subquestion_number"])
+            field_name = f"open_q_{qid}_{slot}"
+            if field_name in form:
+                submitted_answers[slot] = form.get(field_name, "")
+            accepted_answers_by_slot[slot] = _quiz_subquestion_accepted_answers(row)
+            subquestion_ids_by_slot[slot] = int(row["id"])
+
+        if submitted_answers:
+            record_quiz_text_answers(
+                conn,
+                attempt_id=attempt_id,
+                question_id=int(qid),
+                submitted_answers=submitted_answers,
+                accepted_answers_by_slot=accepted_answers_by_slot,
+                grading_mode=_quiz_candidate_grading_mode([dict(row) for row in subquestions]),
+                subquestion_ids_by_slot=subquestion_ids_by_slot,
+            )
+
+
 def quiz_answer_text_is_real(value: object) -> bool:
     text = quiz_clean_answer_text(value)
     return bool(text) and text not in {"-", "—", "[]"}
@@ -2375,6 +2429,14 @@ def quiz_attempt(attempt_id):
                 DO UPDATE SET chosen_letter = excluded.chosen_letter,
                               is_correct = excluded.is_correct
             """, (attempt_id, qid, chosen, is_correct))
+
+        quiz_record_planned_open_text_answers(
+            conn,
+            attempt_id=attempt_id,
+            question_ids=question_ids,
+            open_question_ids=open_question_ids,
+            form=_quiz_request.form,
+        )
 
         conn.execute("""
             UPDATE quiz_attempts
