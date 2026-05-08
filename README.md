@@ -27,6 +27,12 @@ rename is handled separately.
 
 ## Local Run
 
+Set a stable Flask secret key for local/deployed runs:
+
+```bash
+export DZI_SECRET_KEY="$(python3 -c 'import secrets; print(secrets.token_urlsafe(32))')"
+```
+
 ```bash
 cd ~/dzi-generator
 DZI_ADMIN_PASSWORD=admin123 DZI_TESTER_PASSWORD=tester123 python3 - <<'PY'
