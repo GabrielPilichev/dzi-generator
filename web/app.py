@@ -2275,6 +2275,19 @@ def teacher_assignment_results(assignment_id):
             student_name
     """, (assignment_id,)).fetchall()
 
+    open_text_answers = []
+    for attempt in attempts:
+        if not attempt["submitted_at"]:
+            continue
+        for answer in fetch_quiz_text_answers_for_attempt(conn, int(attempt["id"])):
+            open_text_answers.append({
+                **answer,
+                "student_name": attempt["student_name"],
+                "attempt_score_correct": attempt["score_correct"],
+                "attempt_score_total": attempt["score_total"],
+                "submitted_at": attempt["submitted_at"],
+            })
+
     totals = conn.execute("""
         SELECT
             COUNT(*) AS attempts_count,
@@ -2295,6 +2308,7 @@ def teacher_assignment_results(assignment_id):
         "teacher_results.html",
         assignment=assignment,
         attempts=attempts,
+        open_text_answers=open_text_answers,
         totals=totals,
     )
 

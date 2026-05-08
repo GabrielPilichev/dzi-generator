@@ -107,4 +107,59 @@
     <p class="empty-state">Още няма опити за този тест.</p>
   {% endif %}
 </section>
+
+{% if open_text_answers %}
+  <section class="card">
+    <div class="section-heading">
+      <h2>Отворени отговори</h2>
+    </div>
+    <p class="muted">
+      Този преглед е само за четене. Автоматичните точки за отворени отговори са информативни и не са включени в крайния резултат. Учителска редакция и override ще бъдат добавени по-късно.
+    </p>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Ученик</th>
+          <th>Въпрос</th>
+          <th>Подаден отговор</th>
+          <th>Нормализиран</th>
+          <th>Автостатус</th>
+          <th>Инф. точки</th>
+          <th>Режим</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for answer in open_text_answers %}
+          <tr>
+            <td>
+              <strong>{{ answer.student_name }}</strong>
+              <div class="muted">MC резултат: {{ answer.attempt_score_correct }}/{{ answer.attempt_score_total }}</div>
+            </td>
+            <td>Q{{ answer.question_id }}.{{ answer.subquestion_number }}</td>
+            <td>{{ answer.raw_answer or "Няма въведен отговор." }}</td>
+            <td>{{ answer.normalized_answer or "—" }}</td>
+            <td>
+              {% if answer.is_correct %}
+                <span class="badge done">авто-съвпадение</span>
+              {% elif answer.is_correct is not none %}
+                <span class="badge open">няма съвпадение</span>
+              {% else %}
+                <span class="badge open">предстои проверка</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if answer.points_awarded is not none and answer.points_possible is not none %}
+                {{ answer.points_awarded|float|round(2) }}/{{ answer.points_possible|float|round(2) }}
+              {% else %}
+                —
+              {% endif %}
+            </td>
+            <td>{{ answer.grading_mode or "—" }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+{% endif %}
 {% endblock %}
