@@ -6,6 +6,7 @@ import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 
 _TMP = tempfile.TemporaryDirectory()
@@ -148,6 +149,36 @@ class MixedQuizPlanningControlsTest(unittest.TestCase):
         self.assertEqual(self._text_answer_count(), before_text_answers)
         assignment_id = self._assignment_id_from_location(response.headers["Location"])
         self.assertIsNone(self._assignment(assignment_id)["question_plan_json"])
+
+    def test_new_assignment_rejects_malformed_numeric_inputs(self):
+        self._login_tester()
+        before_assignments = self._assignment_count()
+
+        response = self.client.post("/teacher/new", data={
+            "section_id": "not-a-section",
+            "question_count": "many",
+            "time_limit_minutes": "soon",
+            "open_count": "some",
+        })
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("Провери числовите стойности".encode("utf-8"), response.data)
+        self.assertEqual(self._assignment_count(), before_assignments)
+
+    def test_new_assignment_rejects_out_of_range_time_limit(self):
+        self._login_tester()
+        before_assignments = self._assignment_count()
+
+        response = self.client.post("/teacher/new", data={
+            "section_id": str(self.section["id"]),
+            "question_count": "1",
+            "time_limit_minutes": str(web_app.QUIZ_TIME_LIMIT_MAX_MINUTES + 1),
+            "open_count": "0",
+        })
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("Времето трябва да е между".encode("utf-8"), response.data)
+        self.assertEqual(self._assignment_count(), before_assignments)
 
     def test_include_open_absent_with_open_count_keeps_mc_only_behavior(self):
         self._login_tester()
@@ -392,6 +423,37 @@ class MixedQuizPlanningControlsTest(unittest.TestCase):
 
         self.assertEqual(response.status_code, 302)
         self.assertIn("/admin/login", response.headers["Location"])
+
+    def test_quiz_start_integrity_error_redirects_to_existing_attempt(self):
+        self._login_tester()
+        create_response = self.client.post("/teacher/new", data={
+            "section_id": str(self.section["id"]),
+            "question_count": "1",
+            "time_limit_minutes": "",
+        })
+        assignment_id = self._assignment_id_from_location(create_response.headers["Location"])
+        student_name = "Concurrent Student"
+        inserted_attempt_id = None
+
+        def insert_competing_attempt(conn, assignment, name):
+            nonlocal inserted_attempt_id
+            cur = conn.execute("""
+                INSERT INTO quiz_attempts (
+                    assignment_id, student_name, seed, question_ids_json, score_total
+                )
+                VALUES (?, ?, ?, ?, ?)
+            """, (int(assignment["id"]), name, 12345, "[]", 0))
+            inserted_attempt_id = int(cur.lastrowid)
+            return 12345, []
+
+        with patch.object(web_app, "quiz_pick_questions", side_effect=insert_competing_attempt):
+            response = self.client.post(
+                f"/quiz/{assignment_id}",
+                data={"student_name": student_name},
+            )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.headers["Location"], f"/quiz/attempt/{inserted_attempt_id}")
 
 
 if __name__ == "__main__":
