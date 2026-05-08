@@ -2567,7 +2567,16 @@ def teacher_assignment_results(assignment_id):
         conn.close()
         return _quiz_redirect(_quiz_url_for("teacher_assignment_results", assignment_id=assignment_id))
 
-    attempts = conn.execute("""
+    raw_q = (_quiz_request.args.get("q") or "").strip()
+    q_lower = raw_q.lower()
+    raw_status = (_quiz_request.args.get("status") or "all").strip().lower()
+    if raw_status not in {"all", "submitted", "unsubmitted"}:
+        raw_status = "all"
+    raw_open = (_quiz_request.args.get("open") or "all").strip().lower()
+    if raw_open not in {"all", "has_open", "no_open"}:
+        raw_open = "all"
+
+    all_attempts = conn.execute("""
         SELECT
             id,
             student_name,
@@ -2590,6 +2599,44 @@ def teacher_assignment_results(assignment_id):
             student_name
     """, (assignment_id,)).fetchall()
 
+    attempt_answers_by_id: dict[int, list[dict]] = {}
+    open_subtotal_by_id: dict[int, dict] = {}
+    combined_score_by_id: dict[int, dict] = {}
+    for attempt in all_attempts:
+        if not attempt["submitted_at"]:
+            continue
+        attempt_id_int = int(attempt["id"])
+        ans = fetch_quiz_text_answers_for_attempt(conn, attempt_id_int)
+        attempt_answers_by_id[attempt_id_int] = ans
+        if ans:
+            sub = quiz_text_answer_informational_subtotal(ans)
+            open_subtotal_by_id[attempt_id_int] = sub
+            attempt_plan = quiz_parse_attempt_question_plan(attempt["question_ids_json"])
+            combined = quiz_combined_score_summary(
+                attempt,
+                sub,
+                enabled=bool(attempt_plan["include_open_answers_in_final_score"]),
+            )
+            if combined:
+                combined_score_by_id[attempt_id_int] = combined
+
+    def _attempt_matches_filters(attempt) -> bool:
+        if q_lower and q_lower not in (attempt["student_name"] or "").lower():
+            return False
+        if raw_status == "submitted" and not attempt["submitted_at"]:
+            return False
+        if raw_status == "unsubmitted" and attempt["submitted_at"]:
+            return False
+        if raw_open != "all":
+            has_open = bool(attempt_answers_by_id.get(int(attempt["id"])))
+            if raw_open == "has_open" and not has_open:
+                return False
+            if raw_open == "no_open" and has_open:
+                return False
+        return True
+
+    attempts = [a for a in all_attempts if _attempt_matches_filters(a)]
+
     open_text_answers = []
     open_subtotals_by_attempt: dict[int, dict] = {}
     combined_scores_by_attempt: dict[int, dict] = {}
@@ -2604,23 +2651,18 @@ def teacher_assignment_results(assignment_id):
     for attempt in attempts:
         if not attempt["submitted_at"]:
             continue
+        attempt_id_int = int(attempt["id"])
         submitted_attempt_count += 1
         if attempt["score_total"] is not None and int(attempt["score_total"]) > 0:
             mc_percentages.append(
                 100.0 * float(attempt["score_correct"] or 0) / float(attempt["score_total"])
             )
-        attempt_answers = fetch_quiz_text_answers_for_attempt(conn, int(attempt["id"]))
+        attempt_answers = attempt_answers_by_id.get(attempt_id_int, [])
         if attempt_answers:
-            open_subtotal = quiz_text_answer_informational_subtotal(attempt_answers)
-            open_subtotals_by_attempt[int(attempt["id"])] = open_subtotal
-            attempt_plan = quiz_parse_attempt_question_plan(attempt["question_ids_json"])
-            combined_score = quiz_combined_score_summary(
-                attempt,
-                open_subtotal,
-                enabled=bool(attempt_plan["include_open_answers_in_final_score"]),
-            )
-            if combined_score:
-                combined_scores_by_attempt[int(attempt["id"])] = combined_score
+            open_subtotal = open_subtotal_by_id[attempt_id_int]
+            open_subtotals_by_attempt[attempt_id_int] = open_subtotal
+            if attempt_id_int in combined_score_by_id:
+                combined_scores_by_attempt[attempt_id_int] = combined_score_by_id[attempt_id_int]
             open_answer_attempt_count += 1
             open_subtotal_awarded_total += float(open_subtotal.get("awarded") or 0)
             open_subtotal_possible_total += float(open_subtotal.get("possible") or 0)
@@ -2633,7 +2675,7 @@ def teacher_assignment_results(assignment_id):
             open_text_answers.append({
                 **answer,
                 "student_name": attempt["student_name"],
-                "attempt_id": int(attempt["id"]),
+                "attempt_id": attempt_id_int,
                 "attempt_score_correct": attempt["score_correct"],
                 "attempt_score_total": attempt["score_total"],
                 "submitted_at": attempt["submitted_at"],
@@ -2670,6 +2712,13 @@ def teacher_assignment_results(assignment_id):
         "open_subtotal_possible_total": round(open_subtotal_possible_total, 2),
     }
 
+    filters = {
+        "q": raw_q,
+        "status": raw_status,
+        "open": raw_open,
+    }
+    filter_active = bool(raw_q) or raw_status != "all" or raw_open != "all"
+
     return _quiz_render_template(
         "teacher_results.html",
         assignment=assignment,
@@ -2680,6 +2729,8 @@ def teacher_assignment_results(assignment_id):
         totals=totals,
         mixed_status=mixed_status,
         summary=summary,
+        filters=filters,
+        filter_active=filter_active,
     )
 
 
