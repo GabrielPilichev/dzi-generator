@@ -31,6 +31,17 @@ from web import app as web_app  # noqa: E402
 MIGRATION_SQL = (_ROOT / "web" / "migrations" / "006_assignment_question_plan.sql").read_text(encoding="utf-8")
 
 
+def _register_dzi_default_denied_test_route(app):
+    endpoint = "dzi_test_only_default_denied"
+    if endpoint in app.view_functions:
+        return
+
+    def view():
+        return "test-only DZI endpoint"
+
+    app.add_url_rule("/__test__/dzi-default-denied", endpoint=endpoint, view_func=view)
+
+
 class AssignmentQuestionPlanMigrationTest(unittest.TestCase):
     def make_temp_db(self):
         temp_dir = tempfile.TemporaryDirectory()
@@ -127,6 +138,86 @@ class AssignmentQuestionPlanMigrationTest(unittest.TestCase):
 
 
 class AssignmentQuestionPlanHelperTest(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.app = web_app.app
+        _register_dzi_default_denied_test_route(cls.app)
+        cls.app.config.update(TESTING=True)
+        conn = web_app.quiz_db()
+        try:
+            cls.section = cls._first_eligible_section(conn)
+            cls.mc_question_id = web_app.quiz_section_question_ids(conn, int(cls.section["id"]))[0]
+            cls.open_question_id = cls._insert_eligible_open_question(conn)
+            conn.commit()
+        finally:
+            conn.close()
+
+    @staticmethod
+    def _first_eligible_section(conn):
+        rows = conn.execute("""
+            SELECT id, title_bg
+            FROM curriculum_sections
+            ORDER BY id
+        """).fetchall()
+        for row in rows:
+            if web_app.quiz_section_question_ids(conn, int(row["id"])):
+                return row
+        raise AssertionError("No section with eligible MC questions found")
+
+    @staticmethod
+    def _insert_eligible_open_question(conn):
+        cur = conn.execute("""
+            INSERT INTO questions (
+                source_exam, source_number, question_type, topic, difficulty,
+                points, prompt, has_image, is_ai_generated, quality_score
+            )
+            VALUES (?, ?, 'fill_in', 'test', 'medium', 1, ?, 0, 0, NULL)
+        """, (
+            "temp-assignment-plan-open",
+            16,
+            "Попълнете липсващите стойности.",
+        ))
+        question_id = int(cur.lastrowid)
+        for number, answer in ((1, "клиент"), (2, '["jpeg", "jpg"]')):
+            conn.execute("""
+                INSERT INTO fill_in_subquestions (
+                    question_id, subquestion_number, correct_answer, answer_alternatives
+                )
+                VALUES (?, ?, ?, NULL)
+            """, (question_id, number, answer))
+        return question_id
+
+    def setUp(self):
+        self.client = self.app.test_client()
+
+    def _create_assignment(self, *, question_plan_json=None):
+        conn = web_app.quiz_db()
+        try:
+            cur = conn.execute("""
+                INSERT INTO quiz_assignments (
+                    section_id, title_bg, question_count, time_limit_minutes, question_plan_json
+                )
+                VALUES (?, ?, 1, NULL, ?)
+            """, (self.section["id"], self.section["title_bg"], question_plan_json))
+            assignment_id = int(cur.lastrowid)
+            conn.commit()
+            return assignment_id
+        finally:
+            conn.close()
+
+    def _attempt_for_assignment(self, assignment_id):
+        conn = web_app.quiz_db()
+        try:
+            return conn.execute("""
+                SELECT *
+                FROM quiz_attempts
+                WHERE assignment_id = ?
+                ORDER BY id DESC
+                LIMIT 1
+            """, (assignment_id,)).fetchone()
+        finally:
+            conn.close()
+
     def test_null_assignment_plan_is_mc_only(self):
         self.assertIsNone(web_app.quiz_parse_assignment_question_plan(None))
 
@@ -153,6 +244,80 @@ class AssignmentQuestionPlanHelperTest(unittest.TestCase):
             "question_ids": [1],
             "open_question_ids": [2],
         })))
+
+    def test_quiz_start_null_assignment_plan_keeps_plain_mc_attempt_format(self):
+        assignment_id = self._create_assignment()
+
+        response = self.client.post(f"/quiz/{assignment_id}", data={"student_name": "MC Plan Student"})
+
+        self.assertEqual(response.status_code, 302)
+        attempt = self._attempt_for_assignment(assignment_id)
+        stored = json.loads(attempt["question_ids_json"])
+        self.assertIsInstance(stored, list)
+        self.assertNotIn("mixed_open_enabled", attempt["question_ids_json"])
+
+    def test_quiz_start_copies_valid_mixed_assignment_plan_to_attempt(self):
+        plan = {
+            "mixed_open_enabled": True,
+            "question_ids": [self.mc_question_id, self.open_question_id],
+            "open_question_ids": [self.open_question_id],
+        }
+        assignment_id = self._create_assignment(question_plan_json=json.dumps(plan))
+
+        response = self.client.post(f"/quiz/{assignment_id}", data={"student_name": "Mixed Plan Student"})
+
+        self.assertEqual(response.status_code, 302)
+        attempt = self._attempt_for_assignment(assignment_id)
+        stored = json.loads(attempt["question_ids_json"])
+        self.assertTrue(stored["mixed_open_enabled"])
+        self.assertEqual(stored["question_ids"], [self.mc_question_id, self.open_question_id])
+        self.assertEqual(stored["open_question_ids"], [self.open_question_id])
+        self.assertFalse(stored["include_open_answers_in_final_score"])
+        self.assertEqual(attempt["score_total"], 1)
+
+    def test_copied_mixed_plan_renders_and_records_open_answers(self):
+        plan = {
+            "mixed_open_enabled": True,
+            "question_ids": [self.mc_question_id, self.open_question_id],
+            "open_question_ids": [self.open_question_id],
+        }
+        assignment_id = self._create_assignment(question_plan_json=json.dumps(plan))
+        self.client.post(f"/quiz/{assignment_id}", data={"student_name": "Mixed Open Submit"})
+        attempt = self._attempt_for_assignment(assignment_id)
+
+        response = self.client.get(f"/quiz/attempt/{attempt['id']}")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(f'name="open_q_{self.open_question_id}_1"'.encode("utf-8"), response.data)
+
+        response = self.client.post(f"/quiz/attempt/{attempt['id']}", data={
+            f"open_q_{self.open_question_id}_1": "клиент",
+            f"open_q_{self.open_question_id}_2": "jpg",
+        })
+        self.assertEqual(response.status_code, 302)
+
+        conn = web_app.quiz_db()
+        try:
+            count = conn.execute("""
+                SELECT COUNT(*)
+                FROM quiz_text_answers
+                WHERE attempt_id = ?
+                  AND question_id = ?
+            """, (attempt["id"], self.open_question_id)).fetchone()[0]
+        finally:
+            conn.close()
+        self.assertEqual(count, 2)
+
+    def test_quiz_start_rejects_malformed_assignment_plan_without_attempt(self):
+        assignment_id = self._create_assignment(question_plan_json=json.dumps({
+            "mixed_open_enabled": True,
+            "question_ids": [self.mc_question_id],
+            "open_question_ids": [self.open_question_id],
+        }))
+
+        response = self.client.post(f"/quiz/{assignment_id}", data={"student_name": "Bad Plan"})
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIsNone(self._attempt_for_assignment(assignment_id))
 
 
 if __name__ == "__main__":

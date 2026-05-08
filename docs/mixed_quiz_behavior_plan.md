@@ -75,6 +75,7 @@ No student attempt behavior changes in the first planning/control PR.
 
 Persisted mixed/open assignments use `quiz_assignments.question_plan_json`.
 The field stays `NULL` for MC-only assignments. When a mixed/open assignment is enabled later, it should store the assignment-level plan object that each student attempt copies into `quiz_attempts.question_ids_json`.
+At quiz start, `NULL` plans keep the existing MC-only picker. A valid mixed/open assignment plan is copied into `quiz_attempts.question_ids_json`; malformed non-empty plans fail closed and should not create attempts.
 The planned object shape is:
 
 ```json
