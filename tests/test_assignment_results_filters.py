@@ -229,8 +229,8 @@ class AssignmentResultsFiltersTest(unittest.TestCase):
             self.assertNotIn("Bob Brown", body)
             # Filter active label appears on summary heading
             self.assertIn("филтрирано", body)
-            # Clear filters link present
-            self.assertIn("Изчисти филтрите", body)
+            # Clear link present (now also resets sort; bare label "Изчисти")
+            self.assertIn("Изчисти", body)
         finally:
             self._delete_assignment(assignment_id)
 

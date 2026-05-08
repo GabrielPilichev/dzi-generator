@@ -84,9 +84,24 @@
       <label><input type="radio" name="open" value="no_open" {% if filters.open == 'no_open' %}checked{% endif %}> Без отворени</label>
     {% endif %}
 
-    <button type="submit" class="button secondary">Филтрирай</button>
-    {% if filter_active %}
-      <a href="{{ url_for('teacher_assignment_results', assignment_id=assignment.id) }}">Изчисти филтрите</a>
+    <label for="results-sort">Сортирай:</label>
+    <select id="results-sort" name="sort">
+      <option value="default" {% if filters.sort == 'default' %}selected{% endif %}>По подразбиране</option>
+      <option value="name_asc" {% if filters.sort == 'name_asc' %}selected{% endif %}>Име ↑</option>
+      <option value="name_desc" {% if filters.sort == 'name_desc' %}selected{% endif %}>Име ↓</option>
+      <option value="submitted_desc" {% if filters.sort == 'submitted_desc' %}selected{% endif %}>Предаден (нов→стар)</option>
+      <option value="submitted_asc" {% if filters.sort == 'submitted_asc' %}selected{% endif %}>Предаден (стар→нов)</option>
+      <option value="mc_desc" {% if filters.sort == 'mc_desc' %}selected{% endif %}>MC % ↓</option>
+      <option value="mc_asc" {% if filters.sort == 'mc_asc' %}selected{% endif %}>MC % ↑</option>
+      {% if mixed_status.is_mixed %}
+        <option value="open_desc" {% if filters.sort == 'open_desc' %}selected{% endif %}>Отворени точки ↓</option>
+        <option value="open_asc" {% if filters.sort == 'open_asc' %}selected{% endif %}>Отворени точки ↑</option>
+      {% endif %}
+    </select>
+
+    <button type="submit" class="button secondary">Приложи</button>
+    {% if filter_active or sort_active %}
+      <a href="{{ url_for('teacher_assignment_results', assignment_id=assignment.id) }}">Изчисти</a>
     {% endif %}
   </form>
 </section>
