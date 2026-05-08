@@ -132,6 +132,12 @@ When enabled later:
    - Show per-blank partial credit.
    - No manual grading UI.
 
+6. Teacher override V1 plan.
+   - Keep the first teacher/admin review UI read-only.
+   - Show disabled preview controls for override status, override points, and teacher note before enabling writes.
+   - When implemented later, override changes should update only the open-answer review fields and must not change MC score semantics.
+   - Open-answer points remain informational until a separate scoring design explicitly includes them in final totals.
+
 ## Testing Expectations
 
 - MC-only flow unchanged.

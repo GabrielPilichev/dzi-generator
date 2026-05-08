@@ -114,8 +114,30 @@
       <h2>Отворени отговори</h2>
     </div>
     <p class="muted">
-      Този преглед е само за четене. Автоматичните точки за отворени отговори са информативни и не са включени в крайния резултат. Учителска редакция и override ще бъдат добавени по-късно.
+      Този преглед е само за четене. Автоматичните точки за отворени отговори са информативни и не са включени в крайния резултат. Учителска редакция и override не са активни още.
     </p>
+    <fieldset disabled class="warning warning--spaced" aria-label="Планиран учителски override">
+      <legend>Teacher override coming soon</legend>
+      <p class="muted">
+        Тези контроли показват планираното V1 поведение, но не изпращат и не записват промени.
+      </p>
+      <label>
+        Override статус
+        <select name="teacher_override_status_preview">
+          <option>Без override</option>
+          <option>Приеми като верен</option>
+          <option>Маркирай като грешен</option>
+        </select>
+      </label>
+      <label>
+        Override точки
+        <input type="number" name="teacher_override_points_preview" min="0" step="0.25" placeholder="напр. 1">
+      </label>
+      <label>
+        Бележка от учител
+        <textarea name="teacher_note_preview" rows="2" placeholder="Кратка бележка за бъдеща проверка"></textarea>
+      </label>
+    </fieldset>
 
     <table>
       <thead>
