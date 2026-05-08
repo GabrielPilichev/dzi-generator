@@ -116,6 +116,17 @@
     <p class="muted">
       Автоматичните точки за отворени отговори са информативни и не са включени в крайния резултат. Учителският override и бележката се записват за преглед, но все още не променят финалния резултат.
     </p>
+    {% if open_subtotals_by_attempt %}
+      <div class="cards">
+        {% for attempt_id, subtotal in open_subtotals_by_attempt.items() %}
+          <div class="card">
+            <div class="label">Опит #{{ attempt_id }} · отворени отговори</div>
+            <div class="value">{{ subtotal.awarded|round(2) }}/{{ subtotal.possible|round(2) }}</div>
+            <div class="muted">Информационен сбор, не е включен в крайния резултат.</div>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
 
     <table>
       <thead>

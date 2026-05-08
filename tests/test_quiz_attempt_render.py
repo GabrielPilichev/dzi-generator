@@ -475,6 +475,7 @@ class QuizAttemptRenderTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertNotIn("Отворени отговори".encode("utf-8"), response.data)
         self.assertNotIn("не са включени в точния резултат".encode("utf-8"), response.data)
+        self.assertNotIn("Информационен сбор за отворени отговори".encode("utf-8"), response.data)
 
     def test_mc_only_post_does_not_write_quiz_text_answers_and_keeps_quiz_answers(self):
         _assignment_id, attempt_id = self._create_attempt(
@@ -593,6 +594,8 @@ class QuizAttemptRenderTest(unittest.TestCase):
         self.assertIn("не са включени в точния резултат".encode("utf-8"), response.data)
         self.assertIn("1.0/1.0 т.".encode("utf-8"), response.data)
         self.assertIn("0.0/1.0 т.".encode("utf-8"), response.data)
+        self.assertIn("Информационен сбор за отворени отговори".encode("utf-8"), response.data)
+        self.assertIn("1.0/2.0 т. · не е включен в точния резултат".encode("utf-8"), response.data)
         self.assertIn("режим: ordered".encode("utf-8"), response.data)
         self.assertIn("Прегледът и оценяването от учител ще бъдат добавени по-късно".encode("utf-8"), response.data)
         self.assertIn(b'<span class="result-score">0/1</span>', response.data)
@@ -635,6 +638,7 @@ class QuizAttemptRenderTest(unittest.TestCase):
         self.assertIn(b'name="teacher_note"', response.data)
         self.assertNotIn(b"teacher_override_points", response.data)
         self.assertIn("MC резултат: 0/1".encode("utf-8"), response.data)
+        self.assertIn("Информационен сбор, не е включен в крайния резултат.".encode("utf-8"), response.data)
         self.assertNotIn(b"accepted_answers_json", response.data)
         self.assertNotIn(b"[&#34;jpeg&#34;, &#34;jpg&#34;]", response.data)
 
@@ -671,6 +675,7 @@ class QuizAttemptRenderTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertNotIn("Отворени отговори".encode("utf-8"), response.data)
         self.assertNotIn("Инф. точки".encode("utf-8"), response.data)
+        self.assertNotIn("Информационен сбор".encode("utf-8"), response.data)
 
     def test_admin_can_save_teacher_open_answer_override_without_score_change(self):
         assignment_id, attempt_id, open_question_id = self._create_mixed_planned_attempt(
@@ -719,6 +724,8 @@ class QuizAttemptRenderTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"Reviewed manually", response.data)
         self.assertIn("Приет от учител".encode("utf-8"), response.data)
+        self.assertIn(b"2.0/2.0", response.data)
+        self.assertIn("Информационен сбор, не е включен в крайния резултат.".encode("utf-8"), response.data)
 
     def test_tester_cannot_save_teacher_open_answer_override(self):
         assignment_id, attempt_id, open_question_id = self._create_mixed_planned_attempt(
