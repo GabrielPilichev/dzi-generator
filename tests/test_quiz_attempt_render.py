@@ -627,7 +627,13 @@ class QuizAttemptRenderTest(unittest.TestCase):
         self.assertIn("ordered".encode("utf-8"), response.data)
         self.assertIn("само за четене".encode("utf-8"), response.data)
         self.assertIn("не са включени в крайния резултат".encode("utf-8"), response.data)
-        self.assertIn("override ще бъдат добавени по-късно".encode("utf-8"), response.data)
+        self.assertIn("override не са активни още".encode("utf-8"), response.data)
+        self.assertIn(b"<fieldset disabled", response.data)
+        self.assertIn(b"Teacher override coming soon", response.data)
+        self.assertIn(b'name="teacher_override_status_preview"', response.data)
+        self.assertIn(b'name="teacher_override_points_preview"', response.data)
+        self.assertIn(b'name="teacher_note_preview"', response.data)
+        self.assertNotIn(b"<form", response.data)
         self.assertIn("MC резултат: 0/1".encode("utf-8"), response.data)
         self.assertNotIn(b"accepted_answers_json", response.data)
         self.assertNotIn(b"[&#34;jpeg&#34;, &#34;jpg&#34;]", response.data)
@@ -667,15 +673,30 @@ class QuizAttemptRenderTest(unittest.TestCase):
         self.assertNotIn("Инф. точки".encode("utf-8"), response.data)
 
     def test_teacher_open_answer_review_has_no_post_edit_behavior(self):
-        assignment_id, _attempt_id, _open_question_id = self._create_mixed_planned_attempt(
+        assignment_id, attempt_id, _open_question_id = self._create_mixed_planned_attempt(
             student_name="No Edit Review",
         )
         self._login_admin()
 
         response = self.client.post(f"/teacher/assignment/{assignment_id}/results", data={
             "teacher_override": "1",
+            "teacher_override_status_preview": "Приеми като верен",
+            "teacher_override_points_preview": "1",
+            "teacher_note_preview": "manual note",
         })
         self.assertEqual(response.status_code, 405)
+
+        conn = web_app.quiz_db()
+        try:
+            count = conn.execute("""
+                SELECT COUNT(*)
+                FROM quiz_text_answers
+                WHERE attempt_id = ?
+                  AND (teacher_override != 0 OR teacher_note IS NOT NULL)
+            """, (attempt_id,)).fetchone()[0]
+        finally:
+            conn.close()
+        self.assertEqual(count, 0)
 
     def test_unexpected_open_text_for_unplanned_question_is_ignored(self):
         _assignment_id, attempt_id, planned_open_id = self._create_mixed_planned_attempt(
