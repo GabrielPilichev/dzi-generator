@@ -22,9 +22,12 @@ from __future__ import annotations
 import os
 import hmac
 import json
+import secrets
+import warnings
 
 import sqlite3
 from pathlib import Path
+from urllib.parse import urlparse
 
 from flask import Flask, abort, g, render_template, url_for, request, redirect, session
 
@@ -36,9 +39,24 @@ from flask import Flask, abort, g, render_template, url_for, request, redirect, 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DB_PATH = PROJECT_ROOT / "data" / "questions.db"
 
+
+def build_secret_key() -> str:
+    configured = os.environ.get("DZI_SECRET_KEY")
+    if configured:
+        return configured
+
+    warnings.warn(
+        "DZI_SECRET_KEY is not set; using a per-process development key. "
+        "Set DZI_SECRET_KEY for stable/deployed use.",
+        RuntimeWarning,
+        stacklevel=2,
+    )
+    return secrets.token_urlsafe(32)
+
+
 app = Flask(__name__)
 app.config["DB_PATH"] = str(DB_PATH)
-app.config["SECRET_KEY"] = os.environ.get("DZI_SECRET_KEY", "local-learnpilot-dev-key")
+app.config["SECRET_KEY"] = build_secret_key()
 
 
 
@@ -48,6 +66,19 @@ app.config["SECRET_KEY"] = os.environ.get("DZI_SECRET_KEY", "local-learnpilot-de
 
 VALID_UI_PROFILES = {"admin", "tester"}
 TESTER_TEACHER_ENDPOINTS = {"teacher_new", "teacher_assignment"}
+
+
+def safe_redirect_target(candidate: str | None, fallback: str) -> str:
+    fallback_url = fallback if fallback.startswith("/") else url_for(fallback)
+    if not isinstance(candidate, str) or not candidate:
+        return fallback_url
+    if not candidate.startswith("/") or candidate.startswith("//"):
+        return fallback_url
+
+    parsed = urlparse(candidate)
+    if parsed.scheme or parsed.netloc or not parsed.path.startswith("/"):
+        return fallback_url
+    return candidate
 
 @app.before_request
 def load_ui_profile():
@@ -97,9 +128,8 @@ def switch_profile(profile: str):
         abort(404)
 
     session["ui_profile"] = profile
-    next_url = request.args.get("next") or (url_for("tester_home") if profile == "tester" else url_for("index"))
-    if not next_url.startswith("/"):
-        next_url = url_for("index")
+    fallback = "tester_home" if profile == "tester" else "index"
+    next_url = safe_redirect_target(request.args.get("next"), fallback)
     return redirect(next_url)
 
 
@@ -133,10 +163,10 @@ def inject_tester_auth():
 @app.route("/tester/login", methods=["GET", "POST"])
 def tester_login():
     error = None
-    next_url = request.args.get("next") or request.form.get("next") or url_for("tester_home")
-
-    if not next_url.startswith("/"):
-        next_url = url_for("tester_home")
+    next_url = safe_redirect_target(
+        request.args.get("next") or request.form.get("next"),
+        "tester_home",
+    )
 
     if request.method == "POST":
         configured_password = os.environ.get("DZI_TESTER_PASSWORD", "")
@@ -199,7 +229,11 @@ def protect_admin_routes():
     if endpoint == "switch_profile":
         profile = (request.view_args or {}).get("profile")
         if profile == "admin" and not is_admin_authenticated():
-            return redirect(url_for("admin_login", next=request.args.get("next") or request.referrer or url_for("index")))
+            next_url = safe_redirect_target(
+                request.args.get("next") or request.referrer,
+                "index",
+            )
+            return redirect(url_for("admin_login", next=next_url))
         return
 
     if endpoint.startswith("admin") and endpoint != "admin_login" and not is_admin_authenticated():
@@ -221,10 +255,10 @@ def protect_admin_routes():
 @app.route("/admin/login", methods=["GET", "POST"])
 def admin_login():
     error = None
-    next_url = request.args.get("next") or request.form.get("next") or url_for("teacher_dashboard")
-
-    if not next_url.startswith("/"):
-        next_url = url_for("teacher_dashboard")
+    next_url = safe_redirect_target(
+        request.args.get("next") or request.form.get("next"),
+        "teacher_dashboard",
+    )
 
     if request.method == "POST":
         configured_password = os.environ.get("DZI_ADMIN_PASSWORD", "")

@@ -3,7 +3,9 @@ import os
 import shutil
 import tempfile
 import unittest
+import warnings
 from pathlib import Path
+from unittest.mock import patch
 
 
 _TMP = tempfile.TemporaryDirectory()
@@ -186,6 +188,69 @@ class AuthGuardTest(unittest.TestCase):
         response = self.client.get(path)
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.data, b"test-only DZI endpoint")
+
+    def test_admin_login_rejects_external_next_after_successful_login(self):
+        for next_url in ("//evil.example/login", "https://evil.example/login"):
+            with self.subTest(next_url=next_url):
+                client = self.app.test_client()
+                response = client.post(
+                    f"/admin/login?next={next_url}",
+                    data={"password": "admin-pass"},
+                )
+                self.assertEqual(response.status_code, 302)
+                self.assertEqual(response.headers["Location"], "/teacher")
+
+    def test_tester_login_rejects_external_next_after_successful_login(self):
+        for next_url in ("//evil.example/login", "https://evil.example/login"):
+            with self.subTest(next_url=next_url):
+                client = self.app.test_client()
+                response = client.post(
+                    f"/tester/login?next={next_url}",
+                    data={"password": "tester-pass"},
+                )
+                self.assertEqual(response.status_code, 302)
+                self.assertEqual(response.headers["Location"], "/tester")
+
+    def test_login_accepts_normal_local_next_after_successful_login(self):
+        admin_response = self.client.post(
+            "/admin/login?next=/teacher/assignments",
+            data={"password": "admin-pass"},
+        )
+        self.assertEqual(admin_response.status_code, 302)
+        self.assertEqual(admin_response.headers["Location"], "/teacher/assignments")
+
+        client = self.app.test_client()
+        tester_response = client.post(
+            "/tester/login?next=/teacher/new",
+            data={"password": "tester-pass"},
+        )
+        self.assertEqual(tester_response.status_code, 302)
+        self.assertEqual(tester_response.headers["Location"], "/teacher/new")
+
+    def test_switch_profile_rejects_external_next_and_referrer(self):
+        self._login_admin()
+        response = self.client.get("/profile/tester?next=//evil.example/login")
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.headers["Location"], "/tester")
+
+        self.client = self.app.test_client()
+        response = self.client.get(
+            "/profile/admin",
+            headers={"Referer": "https://evil.example/from-referrer"},
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertNotIn("evil.example", response.headers["Location"])
+        self.assertIn("/admin/login?next=/", response.headers["Location"])
+
+    def test_secret_key_without_env_is_not_static_fallback(self):
+        with patch.dict(os.environ, {}, clear=True):
+            with warnings.catch_warnings(record=True) as caught:
+                warnings.simplefilter("always")
+                secret_key = web_app.build_secret_key()
+
+        self.assertNotEqual(secret_key, "local-learnpilot-dev-key")
+        self.assertGreaterEqual(len(secret_key), 32)
+        self.assertTrue(any("DZI_SECRET_KEY is not set" in str(item.message) for item in caught))
 
 
 if __name__ == "__main__":
