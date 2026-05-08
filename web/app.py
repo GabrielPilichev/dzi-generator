@@ -1684,6 +1684,29 @@ def quiz_parse_assignment_question_plan(raw_value) -> dict | None:
     }
 
 
+def quiz_assignment_mixed_status(raw_value) -> dict:
+    plan = quiz_parse_assignment_question_plan(raw_value)
+    if plan is not None:
+        return {
+            "is_mixed": True,
+            "open_count": len(plan["open_question_ids"]),
+            "combined_score": bool(plan["include_open_answers_in_final_score"]),
+            "plan_invalid": False,
+        }
+    if raw_value is None:
+        raw_str = ""
+    elif isinstance(raw_value, str):
+        raw_str = raw_value.strip()
+    else:
+        raw_str = str(raw_value).strip()
+    return {
+        "is_mixed": False,
+        "open_count": 0,
+        "combined_score": False,
+        "plan_invalid": bool(raw_str),
+    }
+
+
 def filter_renderable_attempt_question_ids(
     conn,
     question_ids,
@@ -2086,12 +2109,13 @@ def teacher_dashboard():
             ) AS avg_percent
     """).fetchone()
 
-    recent_assignments = conn.execute("""
+    recent_assignment_rows = conn.execute("""
         SELECT
             qa.id,
             qa.title_bg,
             qa.question_count,
             qa.time_limit_minutes,
+            qa.question_plan_json,
             qa.created_at,
             cs.class,
             cs.section_slug,
@@ -2105,6 +2129,12 @@ def teacher_dashboard():
         ORDER BY qa.created_at DESC, qa.id DESC
         LIMIT 5
     """).fetchall()
+
+    recent_assignments = []
+    for row in recent_assignment_rows:
+        row_dict = dict(row)
+        row_dict["mixed_status"] = quiz_assignment_mixed_status(row_dict.pop("question_plan_json", None))
+        recent_assignments.append(row_dict)
 
     recent_attempts = conn.execute("""
         SELECT
@@ -2141,13 +2171,24 @@ def teacher_dashboard():
 def teacher_assignments():
     conn = quiz_db()
 
-    assignments = conn.execute("""
+    type_filter = (_quiz_request.args.get("type") or "all").strip().lower()
+    if type_filter not in {"all", "mc", "mixed"}:
+        type_filter = "all"
+
+    where_clause = ""
+    if type_filter == "mc":
+        where_clause = "WHERE (qa.question_plan_json IS NULL OR TRIM(qa.question_plan_json) = '')"
+    elif type_filter == "mixed":
+        where_clause = "WHERE qa.question_plan_json IS NOT NULL AND TRIM(qa.question_plan_json) <> ''"
+
+    assignment_rows = conn.execute(f"""
         SELECT
             qa.id,
             qa.section_id,
             qa.title_bg,
             qa.question_count,
             qa.time_limit_minutes,
+            qa.question_plan_json,
             qa.created_at,
             cs.class,
             cs.title_bg AS section_title,
@@ -2157,15 +2198,23 @@ def teacher_assignments():
         FROM quiz_assignments qa
         JOIN curriculum_sections cs ON cs.id = qa.section_id
         LEFT JOIN quiz_attempts qt ON qt.assignment_id = qa.id
+        {where_clause}
         GROUP BY qa.id
         ORDER BY qa.created_at DESC, qa.id DESC
     """).fetchall()
+
+    assignments = []
+    for row in assignment_rows:
+        row_dict = dict(row)
+        row_dict["mixed_status"] = quiz_assignment_mixed_status(row_dict.pop("question_plan_json", None))
+        assignments.append(row_dict)
 
     conn.close()
 
     return _quiz_render_template(
         "teacher_assignments.html",
         assignments=assignments,
+        type_filter=type_filter,
     )
 
 
@@ -2355,6 +2404,7 @@ def teacher_assignment(assignment_id):
     """, (assignment_id,)).fetchall()
 
     quiz_url = _quiz_request.host_url.rstrip("/") + _quiz_url_for("quiz_start", assignment_id=assignment_id)
+    mixed_status = quiz_assignment_mixed_status(assignment["question_plan_json"])
     conn.close()
 
     return _quiz_render_template(
@@ -2362,6 +2412,7 @@ def teacher_assignment(assignment_id):
         assignment=assignment,
         attempts=attempts,
         quiz_url=quiz_url,
+        mixed_status=mixed_status,
     )
 
 
@@ -2485,6 +2536,7 @@ def teacher_assignment_results(assignment_id):
         WHERE assignment_id = ?
     """, (assignment_id,)).fetchone()
 
+    mixed_status = quiz_assignment_mixed_status(assignment["question_plan_json"])
     conn.close()
 
     return _quiz_render_template(
@@ -2495,6 +2547,7 @@ def teacher_assignment_results(assignment_id):
         open_subtotals_by_attempt=open_subtotals_by_attempt,
         combined_scores_by_attempt=combined_scores_by_attempt,
         totals=totals,
+        mixed_status=mixed_status,
     )
 
 
@@ -2559,8 +2612,9 @@ def quiz_start(assignment_id):
 
         return _quiz_redirect(_quiz_url_for("quiz_attempt", attempt_id=attempt_id))
 
+    mixed_status = quiz_assignment_mixed_status(assignment["question_plan_json"])
     conn.close()
-    return _quiz_render_template("quiz_start.html", assignment=assignment)
+    return _quiz_render_template("quiz_start.html", assignment=assignment, mixed_status=mixed_status)
 
 
 @app.route("/quiz/attempt/<int:attempt_id>", methods=["GET", "POST"])

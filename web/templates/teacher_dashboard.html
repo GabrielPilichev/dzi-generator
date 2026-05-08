@@ -76,6 +76,14 @@
             <td>{{ a.id }}</td>
             <td>
               <strong>{{ a.title_bg }}</strong>
+              {% if a.mixed_status and a.mixed_status.is_mixed %}
+                <div class="badges">
+                  <span class="pill pill--mixed">Смесен · {{ a.mixed_status.open_count }} отворени</span>
+                  {% if a.mixed_status.combined_score %}
+                    <span class="pill pill--combined">Сборен резултат</span>
+                  {% endif %}
+                </div>
+              {% endif %}
               {% if a.time_limit_minutes %}
                 <div class="muted">Време: {{ a.time_limit_minutes }} мин.</div>
               {% endif %}

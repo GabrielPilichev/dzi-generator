@@ -25,6 +25,16 @@
         · време: {{ assignment.time_limit_minutes }} мин.
       {% endif %}
     </p>
+    {% if mixed_status and mixed_status.is_mixed %}
+      <div class="badges">
+        <span class="pill pill--mixed">Смесен тест · {{ mixed_status.open_count }} отворени</span>
+        {% if mixed_status.combined_score %}
+          <span class="pill pill--combined">Сборен резултат включен</span>
+        {% else %}
+          <span class="pill">Сборен резултат изключен</span>
+        {% endif %}
+      </div>
+    {% endif %}
   </div>
   <div class="header-actions">
     <a class="button secondary" href="{{ url_for('teacher_assignment', assignment_id=assignment.id) }}">Към заданието</a>
