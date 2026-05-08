@@ -204,6 +204,27 @@ def resolve_section_id(
     return int(row["id"])
 
 
+def validate_grade_for_section(
+    conn: sqlite3.Connection,
+    section_id: int | None,
+    grade: Any,
+) -> None:
+    if grade is None:
+        return
+    if not isinstance(grade, int) or not 8 <= grade <= 12:
+        raise ValueError("grade must be an integer in 8..12")
+    if section_id is None:
+        return
+    row = conn.execute(
+        "SELECT class FROM curriculum_sections WHERE id = ?",
+        (section_id,),
+    ).fetchone()
+    if row is not None and row["class"] is not None and int(row["class"]) != grade:
+        raise ValueError(
+            f"grade {grade} does not match section class {row['class']}"
+        )
+
+
 def answers_to_text(values: Any) -> str:
     if not isinstance(values, list) or not values:
         raise ValueError("answers must be a non-empty array")
@@ -351,6 +372,7 @@ def validate_task(
     validate_assets(task, allow_missing_assets)
     topic_id = resolve_topic_id(conn, task.get("topic_slug"), allow_unknown_topic, summary)
     section_id = resolve_section_id(conn, task.get("section_slug"), allow_unknown_section, summary)
+    validate_grade_for_section(conn, section_id, task.get("grade"))
     return exam_task, topic_id, section_id
 
 
@@ -765,6 +787,7 @@ def validate_sample_payload(payload: dict[str, Any], allow_missing_assets: bool)
             prompt = task.get("prompt")
             if not isinstance(prompt, str) or not prompt.strip():
                 raise ValueError("prompt must be a non-empty string")
+            validate_grade_for_section(None, None, task.get("grade"))
             if task_kind == "multiple_choice":
                 validate_options(task)
                 summary.options_inserted += len(task["options"])
