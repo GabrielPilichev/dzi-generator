@@ -21,6 +21,14 @@
   </div>
   <div class="header-actions">
     <a class="button secondary" href="{{ url_for('teacher_assignment_results', assignment_id=assignment.id) }}">Виж резултати</a>
+    {% if admin_authenticated %}
+      <form method="post"
+            action="{{ url_for('teacher_assignment_duplicate', assignment_id=assignment.id) }}"
+            class="inline-form"
+            onsubmit="return confirm('Това ще създаде копие на теста с ново ID. Опитите и отговорите няма да се копират. Продължи?');">
+        <button type="submit" class="button secondary">Дублирай теста</button>
+      </form>
+    {% endif %}
     <a class="button" href="{{ url_for('quiz_start', assignment_id=assignment.id) }}">Отвори теста</a>
   </div>
 </section>

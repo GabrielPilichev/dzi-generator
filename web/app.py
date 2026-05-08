@@ -2416,6 +2416,36 @@ def teacher_assignment(assignment_id):
     )
 
 
+QUIZ_DUPLICATE_TITLE_SUFFIX = " (копие)"
+
+
+@app.route("/teacher/assignment/<int:assignment_id>/duplicate", methods=["POST"])
+def teacher_assignment_duplicate(assignment_id):
+    conn = quiz_db()
+    source = quiz_fetch_assignment(conn, assignment_id)
+    if not source:
+        conn.close()
+        _quiz_abort(404)
+
+    cur = conn.execute("""
+        INSERT INTO quiz_assignments (
+            section_id, title_bg, question_count, time_limit_minutes, question_plan_json
+        )
+        VALUES (?, ?, ?, ?, ?)
+    """, (
+        source["section_id"],
+        (source["title_bg"] or "") + QUIZ_DUPLICATE_TITLE_SUFFIX,
+        source["question_count"],
+        source["time_limit_minutes"],
+        source["question_plan_json"],
+    ))
+    new_assignment_id = int(cur.lastrowid)
+    conn.commit()
+    conn.close()
+
+    quiz_write_assignment_note(new_assignment_id, _quiz_request.host_url)
+    return _quiz_redirect(_quiz_url_for("teacher_assignment", assignment_id=new_assignment_id))
+
 
 TEACHER_NOTE_MAX_LENGTH = 1000
 

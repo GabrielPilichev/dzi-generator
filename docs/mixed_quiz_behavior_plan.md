@@ -102,6 +102,10 @@ When enabled later:
 
 Mixed/open assignments are surfaced read-only on teacher and student pages: the teacher dashboard recent list, the teacher assignments list (with an optional `?type=mc|mixed|all` filter), the assignment detail page, the assignment results header, and the student `quiz_start` hero. Indicators show the open-question count and whether display-only combined scoring is enabled. MC-only assignments show no extra indicators. A non-empty malformed `question_plan_json` is treated as not mixed, with a small "невалиден план" note on teacher pages and no hint for students.
 
+## Duplicating Assignments
+
+Admin users can duplicate any assignment from the assignments list or its detail page via `POST /teacher/assignment/<id>/duplicate`. The action is admin-only — testers see no button on the detail page and the route redirects unauthenticated/tester requests to admin login. The duplicate copies `section_id`, `title_bg` (with a " (копие)" suffix), `question_count`, `time_limit_minutes`, and `question_plan_json` verbatim; `created_at` is fresh. `quiz_attempts`, `quiz_answers`, and `quiz_text_answers` are not copied. A malformed `question_plan_json` on the source is copied byte-for-byte to the duplicate, so the duplicate inherits the same "невалиден план" indicator and the same `quiz_start` rejection — the duplicate operation does not validate or rewrite the plan.
+
 ## Submit and Grading Behavior
 
 No submit/grading route changes in the first planning/control PR.
