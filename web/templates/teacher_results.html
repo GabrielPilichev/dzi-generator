@@ -114,8 +114,16 @@
       <h2>Отворени отговори</h2>
     </div>
     <p class="muted">
-      Автоматичните точки за отворени отговори са информативни и не са включени в крайния резултат. Учителският override и бележката се записват за преглед, но все още не променят финалния резултат.
+      Автоматичните точки за отворени отговори са информативни и не са включени в крайния резултат. Интеграцията на отворените отговори във финалния резултат още не е включена. Учителският override и бележката се записват за преглед, но все още не променят финалния резултат.
     </p>
+    <fieldset disabled class="warning warning--spaced" aria-label="Планирана интеграция на отворени отговори">
+      <legend>Include open answers in final score — coming soon</legend>
+      <label>
+        <input type="checkbox" name="include_open_answers_in_final_score_preview" value="1">
+        Включи информационния сбор от отворени отговори във финалния резултат
+      </label>
+      <p class="muted">Този контрол е планиран и изключен. Няма активен механизъм за промяна на крайния резултат.</p>
+    </fieldset>
     {% if open_subtotals_by_attempt %}
       <div class="cards">
         {% for attempt_id, subtotal in open_subtotals_by_attempt.items() %}
