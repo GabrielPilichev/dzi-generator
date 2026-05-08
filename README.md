@@ -23,6 +23,7 @@ rename is handled separately.
 - `AGENTS.md` - agent rules and project constraints
 - `docs/reviews/dzi_expansion_log.md` - DZI expansion history and notes
 - `docs/dzi_question_import_format.md` - reviewed JSON import format
+- `docs/question_batch_review.md` - dry-run-only question batch review pipeline
 
 ## Local Run
 

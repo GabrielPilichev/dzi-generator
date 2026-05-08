@@ -43,6 +43,7 @@ Task object fields:
   "task_number": 1,
   "task_kind": "multiple_choice",
   "points": 1,
+  "grade": 11,
   "topic_slug": "optional-topic-slug",
   "section_slug": "optional-section-slug",
   "prompt": "Task prompt text.",
@@ -62,6 +63,8 @@ Optional task fields:
 
 - `topic_slug`: String. Optional curriculum topic lookup key.
 - `section_slug`: String. Optional curriculum section lookup key.
+- `grade`: Integer. Optional class/grade value, 8-12. When present with
+  `section_slug`, it must match the section's `class` in the database.
 - `source_page`: Integer. Page number in the official source PDF.
 - `assets`: Array. Optional file references used by the task.
 

@@ -1,0 +1,57 @@
+{
+  "_comment": "SAMPLE ONLY. Dry-run review format for future question batches; do not import in this PR.",
+  "_sample_only": true,
+  "source_slug": "sample_2099_v0",
+  "source_title": "SAMPLE ONLY - fake DZI Part 1 review batch",
+  "tasks": [
+    {
+      "task_number": 1,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "grade": 11,
+      "topic_slug": "spreadsheets",
+      "section_slug": "grade11-m1-spreadsheets-big-data",
+      "prompt": "SAMPLE ONLY: Коя операция в електронна таблица би обобщила стойности по зададен критерий?",
+      "source_page": 2,
+      "options": [
+        {
+          "letter": "А",
+          "text": "Сортиране на всички редове по азбучен ред",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "Филтриране или формула с условие",
+          "is_correct": true
+        },
+        {
+          "letter": "В",
+          "text": "Преименуване на работния лист",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "Промяна само на цвета на клетките",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "task_number": 16,
+      "task_kind": "short_answer",
+      "points": 3,
+      "grade": 12,
+      "topic_slug": "html-forms",
+      "section_slug": "grade12-m3-build-test-publish-website",
+      "prompt": "SAMPLE ONLY: Запишете HTML елемента, който се използва за поле за въвеждане на текст.",
+      "source_page": 4,
+      "answers": [
+        "input"
+      ],
+      "answer_alternatives": [
+        "<input>",
+        "INPUT"
+      ]
+    }
+  ]
+}
