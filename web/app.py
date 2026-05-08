@@ -2189,6 +2189,7 @@ def teacher_new():
         time_limit = int(raw_limit) if raw_limit else None
         include_open_questions = bool(_quiz_request.form.get("include_open_questions"))
         create_mixed_assignment = bool(_quiz_request.form.get("create_mixed_assignment"))
+        include_open_answers_in_final_score = bool(_quiz_request.form.get("include_open_answers_in_final_score"))
         open_count = max(0, int(_quiz_request.form.get("open_count") or 0))
         source_slug = (_quiz_request.form.get("source_slug") or "").strip()
         form_values = {
@@ -2246,7 +2247,7 @@ def teacher_new():
                     "mixed_open_enabled": True,
                     "question_ids": closed_question_ids + open_question_ids,
                     "open_question_ids": open_question_ids,
-                    "include_open_answers_in_final_score": False,
+                    "include_open_answers_in_final_score": include_open_answers_in_final_score,
                 }
                 cur = conn.execute("""
                     INSERT INTO quiz_assignments (
