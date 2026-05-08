@@ -565,7 +565,7 @@ class QuizAttemptRenderTest(unittest.TestCase):
 
         post_response = self.client.post(f"/quiz/attempt/{attempt_id}", data={
             f"q_{self.valid_question_id}": wrong_letter,
-            f"open_q_{open_question_id}_1": "клиент",
+            f"open_q_{open_question_id}_1": "неверен",
             f"open_q_{open_question_id}_2": "jpg",
         })
         self.assertEqual(post_response.status_code, 302)
@@ -573,11 +573,19 @@ class QuizAttemptRenderTest(unittest.TestCase):
         response = self.client.get(f"/quiz/attempt/{attempt_id}/result")
         self.assertEqual(response.status_code, 200)
         self.assertIn("Отворени отговори".encode("utf-8"), response.data)
-        self.assertIn("клиент".encode("utf-8"), response.data)
+        self.assertIn("неверен".encode("utf-8"), response.data)
         self.assertIn("jpg".encode("utf-8"), response.data)
+        self.assertIn("Автоматично съвпадение".encode("utf-8"), response.data)
+        self.assertIn("Няма автоматично съвпадение".encode("utf-8"), response.data)
+        self.assertIn("Автоматичните точки са само информативни".encode("utf-8"), response.data)
         self.assertIn("не са включени в точния резултат".encode("utf-8"), response.data)
+        self.assertIn("1.0/1.0 т.".encode("utf-8"), response.data)
+        self.assertIn("0.0/1.0 т.".encode("utf-8"), response.data)
+        self.assertIn("режим: ordered".encode("utf-8"), response.data)
         self.assertIn("Прегледът и оценяването от учител ще бъдат добавени по-късно".encode("utf-8"), response.data)
         self.assertIn(b'<span class="result-score">0/1</span>', response.data)
+        self.assertNotIn(b"accepted_answers_json", response.data)
+        self.assertNotIn(b"[&#34;jpeg&#34;, &#34;jpg&#34;]", response.data)
 
     def test_unexpected_open_text_for_unplanned_question_is_ignored(self):
         _assignment_id, attempt_id, planned_open_id = self._create_mixed_planned_attempt(
