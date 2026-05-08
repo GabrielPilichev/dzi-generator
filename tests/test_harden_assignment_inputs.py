@@ -40,7 +40,6 @@ class HardenAssignmentInputsTest(unittest.TestCase):
 
     def setUp(self):
         self.client = self.app.test_client()
-        # Clean up assignments for each test if needed, but let's just use unique titles
     
     def _login_admin(self):
         with self.client.session_transaction() as sess:
@@ -56,7 +55,7 @@ class HardenAssignmentInputsTest(unittest.TestCase):
             "time_limit_minutes": "15"
         })
         self.assertEqual(resp.status_code, 400)
-        self.assertIn(b"\xd0\x9f\xd1\x80\xd0\xbe\xd0\xb2\xd0\xb5\xd1\x80\xd0\xb8 \xd1\x87\xd0\xb8\xd1\x81\xd0\xbb\xd0\xbe\xd0\xb2\xd0\xb8\xd1\x82\xd0\xb5 \xd1\x81\xd1\x82\xd0\xbe\xd0\xb9\xd0\xbd\xd0\xbe\xd1\x81\xd1\x82\xd0\xb8", resp.data) # "Провери числовите стойности"
+        self.assertIn("\u041f\u0440\u043e\u0432\u0435\u0440\u0438 \u0447\u0438\u0441\u043b\u043e\u0432\u0438\u0442\u0435 \u0441\u0442\u043e\u0439\u043d\u043e\u0441\u0442\u0438".encode("utf-8"), resp.data)
 
         # Case 2: non-numeric question_count
         resp = self.client.post("/teacher/new", data={
@@ -84,7 +83,7 @@ class HardenAssignmentInputsTest(unittest.TestCase):
             "time_limit_minutes": "0"
         })
         self.assertEqual(resp.status_code, 400)
-        self.assertIn(b"1 \xd0\xb8 600 \xd0\xbc\xd0\xb8\xd0\xbd\xd1\x83\xd1\x82\xd0\xb8", resp.data) # "1 и 600 минути"
+        self.assertIn("1 \u0438 600 \u043c\u0438\u043d\u0443\u0442\u0438".encode("utf-8"), resp.data)
 
         # Too high
         resp = self.client.post("/teacher/new", data={
@@ -131,9 +130,9 @@ class HardenAssignmentInputsTest(unittest.TestCase):
         conn.close()
         
         self.assertIsNotNone(new_row)
-        self.assertLessEqual(len(new_row["title_bg"]), 200)
-        self.assertTrue(new_row["title_bg"].endswith("\u00a0(\u00ba\u00be\u00bf\u00b8\u00b5)")) # Wait, QUIZ_DUPLICATE_TITLE_SUFFIX is " (копие)"
-        # Let's check what exactly it is.
+        title = new_row["title_bg"]
+        self.assertLessEqual(len(title), 200)
+        self.assertTrue(title.endswith(" (\u043a\u043e\u043f\u0438\u0435)"))
         
     def test_quiz_start_integrity_error_redirect(self):
         # Create an assignment
@@ -146,59 +145,31 @@ class HardenAssignmentInputsTest(unittest.TestCase):
         conn.commit()
         conn.close()
 
-        # First attempt creation
         student_name = "Concurrent Student"
-        resp = self.client.post(f"/quiz/start/{assignment_id}", data={"student_name": student_name}, follow_redirects=False)
-        self.assertEqual(resp.status_code, 302)
-        attempt_url = resp.location
 
-        # Now we want to simulate the IntegrityError in the INSERT.
-        # We can do this by mocking the INSERT to fail once with IntegrityError, 
-        # but the existing attempt IS there.
-        # Actually, the route already handles existing attempts by a SELECT before INSERT.
-        # To hit the 'except sqlite3.IntegrityError', the SELECT must NOT find it, but the INSERT must find it.
-        
-        # We can mock the connection's execute to raise IntegrityError on the INSERT query.
-        
         with patch("web.app.quiz_db") as mock_quiz_db:
-            # We need a real-ish connection but mock some calls
-            real_conn = sqlite3.connect(str(_TMP_DB))
-            real_conn.row_factory = sqlite3.Row
-            mock_quiz_db.return_value = real_conn
-            
-            original_execute = real_conn.execute
-            
-            def side_effect(sql, *args):
-                # If it's the SELECT check for existing attempt, return None (simulating it's not there yet)
-                if "SELECT *" in sql and "quiz_attempts" in sql and student_name in args:
-                    return original_execute(sql + " AND 1=0", args) # Force no results
-                
-                # If it's the INSERT, raise IntegrityError
-                if "INSERT INTO quiz_attempts" in sql:
-                    # But before raising, let's make sure it ACTUALLY exists in the DB so the re-fetch works
-                    # Wait, it already exists from our first successful POST above.
-                    raise sqlite3.IntegrityError("UNIQUE constraint failed: quiz_attempts.assignment_id, quiz_attempts.student_name")
-                
-                return original_execute(sql, *args)
-            
-            # This is tricky because real_conn.execute is a C method. We might need to mock the connection object entirely.
             mock_conn = unittest.mock.MagicMock()
             mock_quiz_db.return_value = mock_conn
             
-            # Mocking the sequence of events:
-            # 1. quiz_fetch_assignment
-            # 2. SELECT * FROM quiz_attempts (pre-check) -> return None
-            # 3. INSERT INTO quiz_attempts -> raise IntegrityError
-            # 4. SELECT * FROM quiz_attempts (re-fetch) -> return the existing attempt
+            mock_cursor = unittest.mock.MagicMock()
+            mock_conn.execute.return_value = mock_cursor
             
-            mock_conn.execute.side_effect = [
-                unittest.mock.MagicMock(fetchone=lambda: {"id": assignment_id, "question_plan_json": None}), # quiz_fetch_assignment
-                unittest.mock.MagicMock(fetchone=lambda: None), # pre-check
-                sqlite3.IntegrityError("race"), # INSERT
-                unittest.mock.MagicMock(fetchone=lambda: {"id": 12345, "submitted_at": None}), # re-fetch
+            # Sequence of fetchone() results
+            mock_cursor.fetchone.side_effect = [
+                {"id": assignment_id, "question_plan_json": None, "section_id": self.section["id"], "question_count": 5}, # quiz_fetch_assignment
+                None, # pre-check SELECT
+                {"id": 12345, "submitted_at": None} # re-fetch SELECT
             ]
             
-            resp = self.client.post(f"/quiz/start/{assignment_id}", data={"student_name": student_name}, follow_redirects=False)
+            def execute_side_effect(sql, *args):
+                if "INSERT INTO quiz_attempts" in sql:
+                    raise sqlite3.IntegrityError("race condition")
+                return mock_cursor
+            
+            mock_conn.execute.side_effect = execute_side_effect
+            
+            # Use the correct URL: /quiz/<id>
+            resp = self.client.post(f"/quiz/{assignment_id}", data={"student_name": student_name}, follow_redirects=False)
             self.assertEqual(resp.status_code, 302)
             self.assertIn("/quiz/attempt/12345", resp.location)
 

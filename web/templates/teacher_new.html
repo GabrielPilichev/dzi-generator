@@ -20,6 +20,16 @@
     </p>
 </section>
 
+{% if teacher_new_error %}
+    <div class="error">
+        {% if teacher_new_error == "time_out_of_range" %}
+            Времето трябва да е между 1 и {{ quiz_time_limit_max_minutes }} минути.
+        {% else %}
+            Провери числовите стойности във формата.
+        {% endif %}
+    </div>
+{% endif %}
+
 <form method="post" class="card form-card" id="new-assignment-form">
     <div class="section-heading">
         <h2>1. Избери раздел</h2>
