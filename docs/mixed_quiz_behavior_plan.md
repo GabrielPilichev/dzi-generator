@@ -98,6 +98,10 @@ When enabled later:
 - Open inputs appear only for eligible planned questions.
 - No answer-key data appears before submission.
 
+## Mixed/Open Visibility
+
+Mixed/open assignments are surfaced read-only on teacher and student pages: the teacher dashboard recent list, the teacher assignments list (with an optional `?type=mc|mixed|all` filter), the assignment detail page, the assignment results header, and the student `quiz_start` hero. Indicators show the open-question count and whether display-only combined scoring is enabled. MC-only assignments show no extra indicators. A non-empty malformed `question_plan_json` is treated as not mixed, with a small "невалиден план" note on teacher pages and no hint for students.
+
 ## Submit and Grading Behavior
 
 No submit/grading route changes in the first planning/control PR.

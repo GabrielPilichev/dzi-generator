@@ -49,6 +49,35 @@
         {% endif %}
       </div>
     </div>
+    <div>
+      <div class="label">Тип тест</div>
+      <div class="value-small">
+        {% if mixed_status.is_mixed %}
+          Смесен/отворен
+        {% else %}
+          Само МСИ
+          {% if mixed_status.plan_invalid %}
+            <div class="muted">Невалиден план — третиран като МСИ.</div>
+          {% endif %}
+        {% endif %}
+      </div>
+    </div>
+    {% if mixed_status.is_mixed %}
+      <div>
+        <div class="label">Отворени въпроси</div>
+        <div class="value-small">{{ mixed_status.open_count }}</div>
+      </div>
+      <div>
+        <div class="label">Сборен резултат (показване)</div>
+        <div class="value-small">
+          {% if mixed_status.combined_score %}
+            включен
+          {% else %}
+            изключен
+          {% endif %}
+        </div>
+      </div>
+    {% endif %}
   </div>
 
   <div class="share-box">

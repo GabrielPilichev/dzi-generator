@@ -23,6 +23,14 @@
 </section>
 
 <section class="card">
+  <form method="get" class="filter-bar">
+    <span class="label">Тип:</span>
+    <label><input type="radio" name="type" value="all" {% if type_filter == 'all' %}checked{% endif %} onchange="this.form.submit()"> Всички</label>
+    <label><input type="radio" name="type" value="mc" {% if type_filter == 'mc' %}checked{% endif %} onchange="this.form.submit()"> Само МСИ</label>
+    <label><input type="radio" name="type" value="mixed" {% if type_filter == 'mixed' %}checked{% endif %} onchange="this.form.submit()"> Смесен/отворен</label>
+    <noscript><button type="submit" class="button secondary">Филтрирай</button></noscript>
+  </form>
+
   {% if assignments %}
     <table>
       <thead>
@@ -42,6 +50,16 @@
             <td>{{ a.id }}</td>
             <td>
               <strong>{{ a.title_bg }}</strong>
+              {% if a.mixed_status.is_mixed %}
+                <div class="badges">
+                  <span class="pill pill--mixed">Смесен тест · {{ a.mixed_status.open_count }} отворени</span>
+                  {% if a.mixed_status.combined_score %}
+                    <span class="pill pill--combined">Сборен резултат включен</span>
+                  {% endif %}
+                </div>
+              {% elif a.mixed_status.plan_invalid %}
+                <div class="muted">Невалиден план — третиран като МСИ.</div>
+              {% endif %}
               {% if a.time_limit_minutes %}
                 <div class="muted">Време: {{ a.time_limit_minutes }} мин.</div>
               {% endif %}
@@ -68,8 +86,13 @@
       </tbody>
     </table>
   {% else %}
-    <p class="empty-state">Все още няма създадени тестове.</p>
-    <p><a class="button" href="{{ url_for('teacher_new') }}">Създай първи тест</a></p>
+    {% if type_filter and type_filter != 'all' %}
+      <p class="empty-state">Няма тестове за избрания филтър.</p>
+      <p><a class="button secondary" href="{{ url_for('teacher_assignments') }}">Покажи всички</a></p>
+    {% else %}
+      <p class="empty-state">Все още няма създадени тестове.</p>
+      <p><a class="button" href="{{ url_for('teacher_new') }}">Създай първи тест</a></p>
+    {% endif %}
   {% endif %}
 </section>
 {% endblock %}
