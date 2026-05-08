@@ -339,9 +339,10 @@ class MixedAssignmentIndicatorTest(unittest.TestCase):
             response = self.client.get(f"/quiz/{mixed_id}")
             self.assertEqual(response.status_code, 200)
             body = response.data.decode("utf-8")
-            self.assertIn("Този тест съдържа отворени въпроси.", body)
+            # Hint now includes the open question count.
+            self.assertIn("Този тест съдържа 1 отворени въпроса.", body)
             self.assertIn("отделно", body)
-            self.assertNotIn("Ще виждаш и сборен резултат.", body)
+            self.assertNotIn("Ще виждаш и сборен резултат", body)
         finally:
             self._delete_assignment(mixed_id)
 
@@ -354,8 +355,8 @@ class MixedAssignmentIndicatorTest(unittest.TestCase):
             response = self.client.get(f"/quiz/{mixed_id}")
             self.assertEqual(response.status_code, 200)
             body = response.data.decode("utf-8")
-            self.assertIn("Този тест съдържа отворени въпроси.", body)
-            self.assertIn("Ще виждаш и сборен резултат.", body)
+            self.assertIn("Този тест съдържа 1 отворени въпроса.", body)
+            self.assertIn("Ще виждаш и сборен резултат заедно с MC точките", body)
         finally:
             self._delete_assignment(mixed_id)
 

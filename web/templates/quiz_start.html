@@ -22,15 +22,19 @@
       <span class="pill">без ограничение</span>
     {% endif %}
     {% if mixed_status and mixed_status.is_mixed %}
-      <span class="pill pill--mixed">с отворени въпроси</span>
+      <span class="pill pill--mixed">{{ mixed_status.open_count }} отворени въпроса</span>
+      {% if mixed_status.combined_score %}
+        <span class="pill pill--combined">сборен резултат</span>
+      {% endif %}
     {% endif %}
   </div>
 
   {% if mixed_status and mixed_status.is_mixed %}
     <p class="quiz-mixed-hint">
-      Този тест съдържа отворени въпроси.
+      Този тест съдържа {{ mixed_status.open_count }} отворени въпроса.
+      Стандартният MC резултат се записва отделно.
       {% if mixed_status.combined_score %}
-        Ще виждаш и сборен резултат.
+        Ще виждаш и сборен резултат заедно с MC точките (само за визуализация).
       {% else %}
         Отворените отговори се записват и преглеждат отделно.
       {% endif %}

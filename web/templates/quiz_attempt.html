@@ -24,6 +24,26 @@
   {% endif %}
 </section>
 
+{% if mixed_status and mixed_status.is_mixed %}
+  <section class="card quiz-mixed-banner">
+    <div class="badges">
+      <span class="pill pill--mixed">{{ mixed_status.open_count }} отворени въпроса</span>
+      {% if mixed_status.combined_score %}
+        <span class="pill pill--combined">сборен резултат</span>
+      {% endif %}
+    </div>
+    <p class="muted">
+      Този тест съдържа {{ mixed_status.open_count }} отворени въпроса.
+      {% if mixed_status.combined_score %}
+        Отворените отговори се записват; ще видиш и сборен резултат заедно с MC точките (само за визуализация).
+        Съхраненият MC резултат остава отделен.
+      {% else %}
+        Отворените отговори се записват и преглеждат отделно. Съхраненият MC резултат не се променя.
+      {% endif %}
+    </p>
+  </section>
+{% endif %}
+
 {% if stale_attempt_message %}
   <section class="card warning warning--spaced">
     {{ stale_attempt_message }}
@@ -47,7 +67,11 @@
           </div>
         {% elif q.question_type in ["fill_in", "short_answer"] %}
           <div class="warning warning--spaced">
-            Отворените отговори ще бъдат записани, но няма да бъдат включени в точния резултат.
+            {% if mixed_status and mixed_status.combined_score %}
+              Отворените отговори се записват; ще видиш сборен резултат, но съхраненият MC резултат остава отделен.
+            {% else %}
+              Отворените отговори се записват и се преглеждат отделно. Съхраненият MC резултат не се променя.
+            {% endif %}
           </div>
           <div class="quiz-open-answers">
             {% for subquestion in q.subquestions %}

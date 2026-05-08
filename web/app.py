@@ -3158,6 +3158,18 @@ def quiz_attempt(attempt_id):
     )
     seed = attempt["seed"]
 
+    attempt_mixed_status = {
+        "is_mixed": bool(attempt_question_plan["mixed_open_enabled"]),
+        "open_count": (
+            len(attempt_question_plan["open_question_ids"])
+            if attempt_question_plan["mixed_open_enabled"]
+            else 0
+        ),
+        "combined_score": bool(
+            attempt_question_plan["include_open_answers_in_final_score"]
+        ),
+    }
+
     if _quiz_request.method == "POST":
         if not question_ids:
             conn.close()
@@ -3169,6 +3181,7 @@ def quiz_attempt(attempt_id):
                 remaining_seconds=None,
                 stale_attempt_message=STALE_ATTEMPT_MESSAGE,
                 skipped_question_count=skipped_count,
+                mixed_status=attempt_mixed_status,
             )
 
         correct_by_qid = {}
@@ -3248,6 +3261,7 @@ def quiz_attempt(attempt_id):
         remaining_seconds=remaining,
         stale_attempt_message=STALE_ATTEMPT_MESSAGE if not questions else None,
         skipped_question_count=skipped_count,
+        mixed_status=attempt_mixed_status,
     )
 
 
