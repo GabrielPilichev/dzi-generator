@@ -47,7 +47,7 @@
           </div>
         {% elif q.question_type in ["fill_in", "short_answer"] %}
           <div class="warning warning--spaced">
-            Отворените отговори са включени само за предварителен преглед. В тази версия текстът няма да бъде оценен или записан.
+            Отворените отговори ще бъдат записани, но в тази версия няма да се показват в резултата.
           </div>
           <div class="quiz-open-answers">
             {% for subquestion in q.subquestions %}

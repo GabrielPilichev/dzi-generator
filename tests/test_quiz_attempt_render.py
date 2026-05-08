@@ -347,6 +347,19 @@ class QuizAttemptRenderTest(unittest.TestCase):
             conn.close()
 
     @staticmethod
+    def _quiz_text_answer_rows(attempt_id):
+        conn = web_app.quiz_db()
+        try:
+            return conn.execute("""
+                SELECT question_id, subquestion_number, raw_answer, normalized_answer, is_correct
+                FROM quiz_text_answers
+                WHERE attempt_id = ?
+                ORDER BY question_id, subquestion_number
+            """, (attempt_id,)).fetchall()
+        finally:
+            conn.close()
+
+    @staticmethod
     def _wrong_letter(conn, question_id):
         row = conn.execute("""
             SELECT option_letter
@@ -438,13 +451,57 @@ class QuizAttemptRenderTest(unittest.TestCase):
         self.assertIn("Попълнете липсващите стойности.".encode("utf-8"), response.data)
         self.assertIn(f'name="open_q_{open_question_id}_1"'.encode("utf-8"), response.data)
         self.assertIn(f'name="open_q_{open_question_id}_2"'.encode("utf-8"), response.data)
-        self.assertIn("няма да бъде оценен или записан".encode("utf-8"), response.data)
+        self.assertIn("няма да се показват в резултата".encode("utf-8"), response.data)
 
-    def test_submitting_mixed_open_text_does_not_write_quiz_text_answers(self):
+    def test_mc_only_post_does_not_write_quiz_text_answers_and_keeps_quiz_answers(self):
+        _assignment_id, attempt_id = self._create_attempt(
+            [self.valid_question_id],
+            submitted=False,
+            student_name="MC Only Submit",
+        )
+        unplanned_open_id = None
+        conn = web_app.quiz_db()
+        try:
+            wrong_letter = self._wrong_letter(conn, self.valid_question_id)
+            unplanned_open_id = self._insert_eligible_open_question(conn)
+            conn.commit()
+        finally:
+            conn.close()
+
+        response = self.client.post(f"/quiz/attempt/{attempt_id}", data={
+            f"q_{self.valid_question_id}": wrong_letter,
+            f"open_q_{unplanned_open_id}_1": "клиент",
+        })
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(self._quiz_text_answer_rows(attempt_id), [])
+
+        conn = web_app.quiz_db()
+        try:
+            answer = conn.execute("""
+                SELECT chosen_letter, is_correct
+                FROM quiz_answers
+                WHERE attempt_id = ?
+                  AND question_id = ?
+            """, (attempt_id, self.valid_question_id)).fetchone()
+            attempt = conn.execute("""
+                SELECT score_correct, score_total
+                FROM quiz_attempts
+                WHERE id = ?
+            """, (attempt_id,)).fetchone()
+        finally:
+            conn.close()
+
+        self.assertIsNotNone(answer)
+        self.assertEqual(answer["chosen_letter"], wrong_letter)
+        self.assertEqual(answer["is_correct"], 0)
+        self.assertEqual(attempt["score_correct"], 0)
+        self.assertEqual(attempt["score_total"], 1)
+
+    def test_submitting_mixed_open_text_writes_planned_quiz_text_answers(self):
         _assignment_id, attempt_id, open_question_id = self._create_mixed_planned_attempt(
             student_name="Mixed Submit",
         )
-        before_text_answers = self._quiz_text_answer_count()
         conn = web_app.quiz_db()
         try:
             wrong_letter = self._wrong_letter(conn, self.valid_question_id)
@@ -459,7 +516,12 @@ class QuizAttemptRenderTest(unittest.TestCase):
 
         self.assertEqual(response.status_code, 302)
         self.assertIn(f"/quiz/attempt/{attempt_id}/result", response.headers["Location"])
-        self.assertEqual(self._quiz_text_answer_count(), before_text_answers)
+        text_answer_rows = self._quiz_text_answer_rows(attempt_id)
+        self.assertEqual(len(text_answer_rows), 2)
+        self.assertEqual([row["question_id"] for row in text_answer_rows], [open_question_id, open_question_id])
+        self.assertEqual([row["subquestion_number"] for row in text_answer_rows], [1, 2])
+        self.assertEqual([row["raw_answer"] for row in text_answer_rows], ["клиент", "jpg"])
+        self.assertEqual([row["is_correct"] for row in text_answer_rows], [1, 1])
 
         conn = web_app.quiz_db()
         try:
@@ -479,6 +541,30 @@ class QuizAttemptRenderTest(unittest.TestCase):
 
         self.assertEqual(text_answer_rows, 0)
         self.assertEqual(attempt["score_total"], 1)
+
+    def test_unexpected_open_text_for_unplanned_question_is_ignored(self):
+        _assignment_id, attempt_id, planned_open_id = self._create_mixed_planned_attempt(
+            student_name="Mixed Ignore Unexpected",
+        )
+        conn = web_app.quiz_db()
+        try:
+            wrong_letter = self._wrong_letter(conn, self.valid_question_id)
+            unplanned_open_id = self._insert_eligible_open_question(conn)
+            conn.commit()
+        finally:
+            conn.close()
+
+        response = self.client.post(f"/quiz/attempt/{attempt_id}", data={
+            f"q_{self.valid_question_id}": wrong_letter,
+            f"open_q_{planned_open_id}_1": "клиент",
+            f"open_q_{unplanned_open_id}_1": "unexpected",
+        })
+
+        self.assertEqual(response.status_code, 302)
+        rows = self._quiz_text_answer_rows(attempt_id)
+        self.assertEqual({row["question_id"] for row in rows}, {planned_open_id})
+        self.assertEqual([row["subquestion_number"] for row in rows], [1, 2])
+        self.assertEqual([row["raw_answer"] for row in rows], ["клиент", ""])
 
     def test_all_invalid_active_attempt_shows_stale_message(self):
         _assignment_id, attempt_id = self._create_attempt(
