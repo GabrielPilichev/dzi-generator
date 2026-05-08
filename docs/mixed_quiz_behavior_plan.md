@@ -106,6 +106,10 @@ Mixed/open assignments are surfaced read-only on teacher and student pages: the 
 
 Admin users can duplicate any assignment from the assignments list or its detail page via `POST /teacher/assignment/<id>/duplicate`. The action is admin-only — testers see no button on the detail page and the route redirects unauthenticated/tester requests to admin login. The duplicate copies `section_id`, `title_bg` (with a " (копие)" suffix), `question_count`, `time_limit_minutes`, and `question_plan_json` verbatim; `created_at` is fresh. `quiz_attempts`, `quiz_answers`, and `quiz_text_answers` are not copied. A malformed `question_plan_json` on the source is copied byte-for-byte to the duplicate, so the duplicate inherits the same "невалиден план" indicator and the same `quiz_start` rejection — the duplicate operation does not validate or rewrite the plan.
 
+## Editing Assignment Metadata
+
+Admin users can edit an assignment's `title_bg` and `time_limit_minutes` from the detail page via `POST /teacher/assignment/<id>/edit`. The action is admin-only and surfaced only when `admin_authenticated` is true. `question_count` and `question_plan_json` are deliberately not editable: changing `question_count` after creation would either leave existing attempts inconsistent or, for mixed/open assignments, diverge from the persisted plan's `question_ids` length and confuse the indicator and renderer; changing `question_plan_json` would invalidate already-running attempts that copied the plan. Validation rejects empty titles, titles longer than 200 characters, non-integer time, time below 1 minute, and time above 600 minutes — on rejection the original row is preserved and the detail page re-renders with an error. `quiz_attempts`, `quiz_answers`, and `quiz_text_answers` are never touched by the edit. After a successful edit `quiz_write_assignment_note` runs to keep the vault note in sync, mirroring the create and duplicate flows.
+
 ## Submit and Grading Behavior
 
 No submit/grading route changes in the first planning/control PR.

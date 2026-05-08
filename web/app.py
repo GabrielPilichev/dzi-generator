@@ -2413,10 +2413,73 @@ def teacher_assignment(assignment_id):
         attempts=attempts,
         quiz_url=quiz_url,
         mixed_status=mixed_status,
+        edit_error=None,
+        edit_form_values=None,
     )
 
 
 QUIZ_DUPLICATE_TITLE_SUFFIX = " (копие)"
+QUIZ_TITLE_MAX_LENGTH = 200
+QUIZ_TIME_LIMIT_MAX_MINUTES = 600
+
+
+@app.route("/teacher/assignment/<int:assignment_id>/edit", methods=["POST"])
+def teacher_assignment_edit(assignment_id):
+    conn = quiz_db()
+    assignment = quiz_fetch_assignment(conn, assignment_id)
+    if not assignment:
+        conn.close()
+        _quiz_abort(404)
+
+    raw_title = (_quiz_request.form.get("title_bg") or "").replace("\x00", "").strip()
+    raw_time = (_quiz_request.form.get("time_limit_minutes") or "").strip()
+
+    error = None
+    new_time_limit = None
+    if not raw_title:
+        error = "title_required"
+    elif len(raw_title) > QUIZ_TITLE_MAX_LENGTH:
+        error = "title_too_long"
+    elif raw_time:
+        try:
+            new_time_limit = int(raw_time)
+        except ValueError:
+            error = "time_invalid"
+        else:
+            if new_time_limit < 1 or new_time_limit > QUIZ_TIME_LIMIT_MAX_MINUTES:
+                error = "time_out_of_range"
+
+    if error is not None:
+        attempts = conn.execute("""
+            SELECT *
+            FROM quiz_attempts
+            WHERE assignment_id = ?
+            ORDER BY started_at
+        """, (assignment_id,)).fetchall()
+        quiz_url = _quiz_request.host_url.rstrip("/") + _quiz_url_for("quiz_start", assignment_id=assignment_id)
+        mixed_status = quiz_assignment_mixed_status(assignment["question_plan_json"])
+        conn.close()
+        rendered = _quiz_render_template(
+            "teacher_assignment.html",
+            assignment=assignment,
+            attempts=attempts,
+            quiz_url=quiz_url,
+            mixed_status=mixed_status,
+            edit_error=error,
+            edit_form_values={"title_bg": raw_title, "time_limit_minutes": raw_time},
+        )
+        return rendered, 400
+
+    conn.execute("""
+        UPDATE quiz_assignments
+        SET title_bg = ?, time_limit_minutes = ?
+        WHERE id = ?
+    """, (raw_title, new_time_limit, assignment_id))
+    conn.commit()
+    conn.close()
+
+    quiz_write_assignment_note(assignment_id, _quiz_request.host_url)
+    return _quiz_redirect(_quiz_url_for("teacher_assignment", assignment_id=assignment_id))
 
 
 @app.route("/teacher/assignment/<int:assignment_id>/duplicate", methods=["POST"])
