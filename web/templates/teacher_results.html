@@ -67,6 +67,74 @@
   </div>
 </div>
 
+<section class="card" id="results-summary">
+  <div class="section-heading">
+    <h2>Аналитика на резултатите</h2>
+  </div>
+  {% if summary.submitted_attempt_count == 0 %}
+    <p class="muted">Все още няма предадени опити за анализ.</p>
+  {% else %}
+    <div class="cards">
+      <div class="card">
+        <div class="label">MC: най-висок %</div>
+        <div class="value">
+          {% if summary.highest_mc_percent is not none %}
+            {{ "%.1f"|format(summary.highest_mc_percent) }}%
+          {% else %}
+            —
+          {% endif %}
+        </div>
+      </div>
+      <div class="card">
+        <div class="label">MC: най-нисък %</div>
+        <div class="value">
+          {% if summary.lowest_mc_percent is not none %}
+            {{ "%.1f"|format(summary.lowest_mc_percent) }}%
+          {% else %}
+            —
+          {% endif %}
+        </div>
+      </div>
+      {% if summary.mixed_open_enabled %}
+        <div class="card">
+          <div class="label">Опити с отворени отговори</div>
+          <div class="value">{{ summary.open_answer_attempt_count }}</div>
+          <div class="muted">от {{ summary.submitted_attempt_count }} предадени</div>
+        </div>
+        <div class="card">
+          <div class="label">Записани отворени редове</div>
+          <div class="value">{{ summary.open_answer_total }}</div>
+        </div>
+        <div class="card">
+          <div class="label">Авто-съвпадения</div>
+          <div class="value">{{ summary.open_answer_auto_matched_count }}</div>
+        </div>
+        <div class="card">
+          <div class="label">Учителски override</div>
+          <div class="value">{{ summary.open_answer_teacher_override_count }}</div>
+        </div>
+        <div class="card">
+          <div class="label">Сбор отворени (информативно)</div>
+          <div class="value">
+            {{ "%.2f"|format(summary.open_subtotal_awarded_total) }}/{{ "%.2f"|format(summary.open_subtotal_possible_total) }}
+          </div>
+        </div>
+      {% endif %}
+    </div>
+    <p class="muted">
+      MC показателите са изчислени от съхранените MC резултати.
+      {% if summary.mixed_open_enabled %}
+        Статистиките за отворени отговори са преглед/сборни данни и не променят съхранения MC резултат.
+        {% if summary.combined_score_display_enabled %}
+          Сборният резултат е активен само за визуализация.
+        {% else %}
+          Сборният резултат не е активиран за това задание.
+        {% endif %}
+      {% endif %}
+    </p>
+  {% endif %}
+</section>
+
 <section class="card">
   {% if attempts %}
     <table>

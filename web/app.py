@@ -2593,9 +2593,22 @@ def teacher_assignment_results(assignment_id):
     open_text_answers = []
     open_subtotals_by_attempt: dict[int, dict] = {}
     combined_scores_by_attempt: dict[int, dict] = {}
+    mc_percentages: list[float] = []
+    submitted_attempt_count = 0
+    open_answer_attempt_count = 0
+    open_answer_total = 0
+    open_answer_auto_matched_count = 0
+    open_answer_teacher_override_count = 0
+    open_subtotal_awarded_total = 0.0
+    open_subtotal_possible_total = 0.0
     for attempt in attempts:
         if not attempt["submitted_at"]:
             continue
+        submitted_attempt_count += 1
+        if attempt["score_total"] is not None and int(attempt["score_total"]) > 0:
+            mc_percentages.append(
+                100.0 * float(attempt["score_correct"] or 0) / float(attempt["score_total"])
+            )
         attempt_answers = fetch_quiz_text_answers_for_attempt(conn, int(attempt["id"]))
         if attempt_answers:
             open_subtotal = quiz_text_answer_informational_subtotal(attempt_answers)
@@ -2608,7 +2621,15 @@ def teacher_assignment_results(assignment_id):
             )
             if combined_score:
                 combined_scores_by_attempt[int(attempt["id"])] = combined_score
+            open_answer_attempt_count += 1
+            open_subtotal_awarded_total += float(open_subtotal.get("awarded") or 0)
+            open_subtotal_possible_total += float(open_subtotal.get("possible") or 0)
         for answer in attempt_answers:
+            open_answer_total += 1
+            if answer.get("is_correct") == 1:
+                open_answer_auto_matched_count += 1
+            if answer.get("teacher_override") == 1:
+                open_answer_teacher_override_count += 1
             open_text_answers.append({
                 **answer,
                 "student_name": attempt["student_name"],
@@ -2635,6 +2656,20 @@ def teacher_assignment_results(assignment_id):
     mixed_status = quiz_assignment_mixed_status(assignment["question_plan_json"])
     conn.close()
 
+    summary = {
+        "submitted_attempt_count": submitted_attempt_count,
+        "highest_mc_percent": round(max(mc_percentages), 1) if mc_percentages else None,
+        "lowest_mc_percent": round(min(mc_percentages), 1) if mc_percentages else None,
+        "mixed_open_enabled": bool(mixed_status["is_mixed"]),
+        "combined_score_display_enabled": bool(mixed_status["combined_score"]),
+        "open_answer_attempt_count": open_answer_attempt_count,
+        "open_answer_total": open_answer_total,
+        "open_answer_auto_matched_count": open_answer_auto_matched_count,
+        "open_answer_teacher_override_count": open_answer_teacher_override_count,
+        "open_subtotal_awarded_total": round(open_subtotal_awarded_total, 2),
+        "open_subtotal_possible_total": round(open_subtotal_possible_total, 2),
+    }
+
     return _quiz_render_template(
         "teacher_results.html",
         assignment=assignment,
@@ -2644,6 +2679,7 @@ def teacher_assignment_results(assignment_id):
         combined_scores_by_attempt=combined_scores_by_attempt,
         totals=totals,
         mixed_status=mixed_status,
+        summary=summary,
     )
 
 

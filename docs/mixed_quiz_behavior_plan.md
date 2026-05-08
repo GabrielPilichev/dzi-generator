@@ -114,6 +114,10 @@ Admin users can edit an assignment's `title_bg` and `time_limit_minutes` from th
 
 Admin users can download a CSV of submitted attempts and recorded open answers from the assignment results page via `GET /teacher/assignment/<id>/results.csv`. The endpoint is admin-only — testers and unauthenticated users are redirected to admin login. The export is read-only: no `quiz_attempts`, `quiz_answers`, or `quiz_text_answers` rows are modified. Unfinished attempts (`submitted_at IS NULL`) are skipped. The CSV uses a single union schema with a leading `row_type` column distinguishing `attempt` rows (one per submitted attempt with MC scores, mixed/open flags, open subtotal, and combined score where enabled) from `open_answer` rows (one per recorded text answer with `question_id`, `subquestion_number`, `raw_answer`, `normalized_answer`, `matched_answer`, `points_awarded`, `points_possible`, `grading_mode`, `teacher_override`, `teacher_note`, and `is_correct`). `accepted_answers_json` is intentionally excluded. The response uses `Content-Type: text/csv; charset=utf-8` and `Content-Disposition: attachment; filename="assignment_<id>_results.csv"`.
 
+## Results Page Analytics Summary
+
+The assignment results page renders a compact "Аналитика на резултатите" card derived from the same submitted-attempt and open-answer data that already drives the page. Metrics: `submitted_attempt_count`, `highest_mc_percent`, `lowest_mc_percent`, plus — for mixed/open assignments only — `open_answer_attempt_count`, `open_answer_total`, `open_answer_auto_matched_count`, `open_answer_teacher_override_count`, and the informational open subtotal awarded/possible. Wording is honest: MC numbers come from the stored MC score, open-answer stats are review/visibility data and don't change the stored MC score, and the combined score (when active) is display-only. Unfinished attempts are excluded from all metrics, mirroring the existing per-row results behavior. The card is read-only and the page does not write to the database during rendering.
+
 ## Submit and Grading Behavior
 
 No submit/grading route changes in the first planning/control PR.
