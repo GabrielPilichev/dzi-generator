@@ -40,3 +40,11 @@ from web.app import app
 app.run(host="127.0.0.1", port=5001, debug=True, use_reloader=False)
 PY
 ```
+
+## Architecture & Security Assumptions
+
+### Tester visibility / multi-tenancy assumptions
+- The tester role is currently a shared role, not an isolated per-teacher account.
+- Tester-visible assignment pages may show assignments/attempts across the local instance.
+- This is intentional for the current deployment/testing model (local/single-school/manual-testing).
+- If per-teacher isolation becomes a goal later, it needs an explicit schema/auth design PR, not a small route guard patch.
