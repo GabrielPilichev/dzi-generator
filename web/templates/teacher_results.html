@@ -38,7 +38,7 @@
   </div>
   <div class="header-actions">
     <a class="button secondary" href="{{ url_for('teacher_assignment', assignment_id=assignment.id) }}">Към заданието</a>
-    <a class="button secondary" href="{{ url_for('teacher_assignment_results_export', assignment_id=assignment.id) }}">Експортирай CSV</a>
+    <a class="button secondary" href="{{ url_for('teacher_assignment_results_export', assignment_id=assignment.id) }}">Експортирай CSV (всички предадени)</a>
   </div>
 </section>
 
@@ -67,12 +67,43 @@
   </div>
 </div>
 
+<section class="card" id="results-filters">
+  <form method="get" class="filter-bar">
+    <label for="results-q">Търсене по име</label>
+    <input id="results-q" name="q" type="search" value="{{ filters.q }}" placeholder="напр. Иван">
+
+    <span class="label">Статус:</span>
+    <label><input type="radio" name="status" value="all" {% if filters.status == 'all' %}checked{% endif %}> Всички</label>
+    <label><input type="radio" name="status" value="submitted" {% if filters.status == 'submitted' %}checked{% endif %}> Предадени</label>
+    <label><input type="radio" name="status" value="unsubmitted" {% if filters.status == 'unsubmitted' %}checked{% endif %}> Незавършени</label>
+
+    {% if mixed_status.is_mixed %}
+      <span class="label">Отворени:</span>
+      <label><input type="radio" name="open" value="all" {% if filters.open == 'all' %}checked{% endif %}> Всички</label>
+      <label><input type="radio" name="open" value="has_open" {% if filters.open == 'has_open' %}checked{% endif %}> С отворени</label>
+      <label><input type="radio" name="open" value="no_open" {% if filters.open == 'no_open' %}checked{% endif %}> Без отворени</label>
+    {% endif %}
+
+    <button type="submit" class="button secondary">Филтрирай</button>
+    {% if filter_active %}
+      <a href="{{ url_for('teacher_assignment_results', assignment_id=assignment.id) }}">Изчисти филтрите</a>
+    {% endif %}
+  </form>
+</section>
+
 <section class="card" id="results-summary">
   <div class="section-heading">
     <h2>Аналитика на резултатите</h2>
+    {% if filter_active %}
+      <span class="pill">филтрирано</span>
+    {% endif %}
   </div>
   {% if summary.submitted_attempt_count == 0 %}
-    <p class="muted">Все още няма предадени опити за анализ.</p>
+    {% if filter_active %}
+      <p class="muted">Няма предадени опити за избраните филтри.</p>
+    {% else %}
+      <p class="muted">Все още няма предадени опити за анализ.</p>
+    {% endif %}
   {% else %}
     <div class="cards">
       <div class="card">
@@ -183,7 +214,12 @@
       </tbody>
     </table>
   {% else %}
-    <p class="empty-state">Още няма опити за този тест.</p>
+    {% if filter_active %}
+      <p class="empty-state">Няма опити за избраните филтри.</p>
+      <p><a href="{{ url_for('teacher_assignment_results', assignment_id=assignment.id) }}">Изчисти филтрите</a></p>
+    {% else %}
+      <p class="empty-state">Още няма опити за този тест.</p>
+    {% endif %}
   {% endif %}
 </section>
 

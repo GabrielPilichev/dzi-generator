@@ -118,6 +118,10 @@ Admin users can download a CSV of submitted attempts and recorded open answers f
 
 The assignment results page renders a compact "Аналитика на резултатите" card derived from the same submitted-attempt and open-answer data that already drives the page. Metrics: `submitted_attempt_count`, `highest_mc_percent`, `lowest_mc_percent`, plus — for mixed/open assignments only — `open_answer_attempt_count`, `open_answer_total`, `open_answer_auto_matched_count`, `open_answer_teacher_override_count`, and the informational open subtotal awarded/possible. Wording is honest: MC numbers come from the stored MC score, open-answer stats are review/visibility data and don't change the stored MC score, and the combined score (when active) is display-only. Unfinished attempts are excluded from all metrics, mirroring the existing per-row results behavior. The card is read-only and the page does not write to the database during rendering.
 
+## Results Page Filters
+
+The assignment results page accepts three optional GET filters: `q` (case-insensitive substring search on `student_name`), `status` in `{all, submitted, unsubmitted}`, and — only when the assignment is mixed/open — `open` in `{all, has_open, no_open}` (matched against whether `quiz_text_answers` exist for each submitted attempt). Unknown values fall back to `all`, and a request with no params renders the same default view as before. The attempts table and the analytics summary both reflect the filtered set; the analytics card heading shows a "филтрирано" pill when any filter is active. The header tiles ("Всички опити", "Предадени", "Незавършени", "Среден резултат") remain overall and unchanged. The CSV export ignores the filters and exports all submitted attempts; the button label is "Експортирай CSV (всички предадени)" to make this explicit. Filtering is performed in Python after the existing SQL query and never writes to the database. The auth contract is unchanged — the page remains admin-only.
+
 ## Submit and Grading Behavior
 
 No submit/grading route changes in the first planning/control PR.
