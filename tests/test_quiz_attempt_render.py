@@ -194,6 +194,16 @@ class QuizAttemptRenderTest(unittest.TestCase):
     def setUp(self):
         self.client = self.app.test_client()
 
+    def _login_admin(self):
+        with self.client.session_transaction() as sess:
+            sess["admin_authenticated"] = True
+            sess["ui_profile"] = "admin"
+
+    def _login_tester(self):
+        with self.client.session_transaction() as sess:
+            sess["tester_authenticated"] = True
+            sess["ui_profile"] = "tester"
+
     def test_dzi_pool_health_counts_may_2025_v2(self):
         with self.app.app_context():
             health = web_app.fetch_dzi_pool_health("may_2025_v2")
@@ -586,6 +596,86 @@ class QuizAttemptRenderTest(unittest.TestCase):
         self.assertIn(b'<span class="result-score">0/1</span>', response.data)
         self.assertNotIn(b"accepted_answers_json", response.data)
         self.assertNotIn(b"[&#34;jpeg&#34;, &#34;jpg&#34;]", response.data)
+
+    def test_admin_teacher_results_show_recorded_open_answers_read_only(self):
+        assignment_id, attempt_id, open_question_id = self._create_mixed_planned_attempt(
+            student_name="Admin Review",
+        )
+        conn = web_app.quiz_db()
+        try:
+            wrong_letter = self._wrong_letter(conn, self.valid_question_id)
+        finally:
+            conn.close()
+
+        post_response = self.client.post(f"/quiz/attempt/{attempt_id}", data={
+            f"q_{self.valid_question_id}": wrong_letter,
+            f"open_q_{open_question_id}_1": "неверен",
+            f"open_q_{open_question_id}_2": "jpg",
+        })
+        self.assertEqual(post_response.status_code, 302)
+
+        self._login_admin()
+        response = self.client.get(f"/teacher/assignment/{assignment_id}/results")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Отворени отговори".encode("utf-8"), response.data)
+        self.assertIn("Admin Review".encode("utf-8"), response.data)
+        self.assertIn("неверен".encode("utf-8"), response.data)
+        self.assertIn("jpg".encode("utf-8"), response.data)
+        self.assertIn("авто-съвпадение".encode("utf-8"), response.data)
+        self.assertIn("няма съвпадение".encode("utf-8"), response.data)
+        self.assertIn("Инф. точки".encode("utf-8"), response.data)
+        self.assertIn("ordered".encode("utf-8"), response.data)
+        self.assertIn("само за четене".encode("utf-8"), response.data)
+        self.assertIn("не са включени в крайния резултат".encode("utf-8"), response.data)
+        self.assertIn("override ще бъдат добавени по-късно".encode("utf-8"), response.data)
+        self.assertIn("MC резултат: 0/1".encode("utf-8"), response.data)
+        self.assertNotIn(b"accepted_answers_json", response.data)
+        self.assertNotIn(b"[&#34;jpeg&#34;, &#34;jpg&#34;]", response.data)
+
+        conn = web_app.quiz_db()
+        try:
+            attempt = conn.execute("""
+                SELECT score_correct, score_total
+                FROM quiz_attempts
+                WHERE id = ?
+            """, (attempt_id,)).fetchone()
+        finally:
+            conn.close()
+        self.assertEqual(attempt["score_correct"], 0)
+        self.assertEqual(attempt["score_total"], 1)
+
+    def test_tester_cannot_access_teacher_open_answer_review(self):
+        assignment_id, _attempt_id, _open_question_id = self._create_mixed_planned_attempt(
+            student_name="Tester Blocked Review",
+        )
+        self._login_tester()
+
+        response = self.client.get(f"/teacher/assignment/{assignment_id}/results")
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/admin/login", response.headers["Location"])
+
+    def test_admin_teacher_results_hides_open_answer_section_for_mc_only_attempts(self):
+        assignment_id, _attempt_id = self._create_attempt(
+            [self.valid_question_id],
+            student_name="Admin MC Only",
+        )
+        self._login_admin()
+
+        response = self.client.get(f"/teacher/assignment/{assignment_id}/results")
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn("Отворени отговори".encode("utf-8"), response.data)
+        self.assertNotIn("Инф. точки".encode("utf-8"), response.data)
+
+    def test_teacher_open_answer_review_has_no_post_edit_behavior(self):
+        assignment_id, _attempt_id, _open_question_id = self._create_mixed_planned_attempt(
+            student_name="No Edit Review",
+        )
+        self._login_admin()
+
+        response = self.client.post(f"/teacher/assignment/{assignment_id}/results", data={
+            "teacher_override": "1",
+        })
+        self.assertEqual(response.status_code, 405)
 
     def test_unexpected_open_text_for_unplanned_question_is_ignored(self):
         _assignment_id, attempt_id, planned_open_id = self._create_mixed_planned_attempt(
