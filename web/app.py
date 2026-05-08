@@ -2188,6 +2188,7 @@ def teacher_new():
         raw_limit = (_quiz_request.form.get("time_limit_minutes") or "").strip()
         time_limit = int(raw_limit) if raw_limit else None
         include_open_questions = bool(_quiz_request.form.get("include_open_questions"))
+        create_mixed_assignment = bool(_quiz_request.form.get("create_mixed_assignment"))
         open_count = max(0, int(_quiz_request.form.get("open_count") or 0))
         source_slug = (_quiz_request.form.get("source_slug") or "").strip()
         form_values = {
@@ -2216,12 +2217,18 @@ def teacher_new():
         question_count = max(1, min(requested_count, available))
 
         if include_open_questions and open_count > 0:
+            if create_mixed_assignment and not is_admin_authenticated():
+                conn.close()
+                return _quiz_redirect(_quiz_url_for("admin_login", next=_quiz_request.path))
+
             plan = build_mixed_quiz_plan(
                 conn,
                 closed_count=question_count,
                 open_count=open_count,
                 source_slug=source_slug or None,
             )
+            closed_question_ids = [int(question["question_id"]) for question in plan["closed_questions"]]
+            open_question_ids = [int(question["question_id"]) for question in plan["open_questions"]]
             mixed_planning_result = {
                 "planning_only": True,
                 "source_slug": source_slug or "всички",
@@ -2234,6 +2241,31 @@ def teacher_new():
                 "closed_shortfall": max(0, plan["requested_closed_count"] - plan["available_closed_count"]),
                 "open_shortfall": max(0, plan["requested_open_count"] - plan["available_open_count"]),
             }
+            if create_mixed_assignment and not mixed_planning_result["closed_shortfall"] and not mixed_planning_result["open_shortfall"]:
+                question_plan = {
+                    "mixed_open_enabled": True,
+                    "question_ids": closed_question_ids + open_question_ids,
+                    "open_question_ids": open_question_ids,
+                    "include_open_answers_in_final_score": False,
+                }
+                cur = conn.execute("""
+                    INSERT INTO quiz_assignments (
+                        section_id, title_bg, question_count, time_limit_minutes, question_plan_json
+                    )
+                    VALUES (?, ?, ?, ?, ?)
+                """, (
+                    section_id,
+                    section["title_bg"],
+                    len(question_plan["question_ids"]),
+                    time_limit,
+                    _quiz_json.dumps(question_plan, ensure_ascii=False),
+                ))
+                assignment_id = cur.lastrowid
+                conn.commit()
+                conn.close()
+
+                quiz_write_assignment_note(assignment_id, _quiz_request.host_url)
+                return _quiz_redirect(_quiz_url_for("teacher_assignment", assignment_id=assignment_id))
             preselected_section_id = section_id
         else:
             cur = conn.execute("""
