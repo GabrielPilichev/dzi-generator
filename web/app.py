@@ -2245,13 +2245,59 @@ def teacher_assignment(assignment_id):
 
 
 
-@app.route("/teacher/assignment/<int:assignment_id>/results")
+TEACHER_NOTE_MAX_LENGTH = 1000
+
+
+@app.route("/teacher/assignment/<int:assignment_id>/results", methods=["GET", "POST"])
 def teacher_assignment_results(assignment_id):
     conn = quiz_db()
     assignment = quiz_fetch_assignment(conn, assignment_id)
     if not assignment:
         conn.close()
         _quiz_abort(404)
+
+    if _quiz_request.method == "POST":
+        try:
+            answer_id = int(_quiz_request.form.get("text_answer_id", ""))
+        except (TypeError, ValueError):
+            conn.close()
+            _quiz_abort(400)
+
+        override_raw = (_quiz_request.form.get("teacher_override") or "").strip()
+        if override_raw == "":
+            override_value = 0
+        elif override_raw in {"0", "1"}:
+            override_value = int(override_raw)
+        else:
+            conn.close()
+            _quiz_abort(400)
+
+        teacher_note = (_quiz_request.form.get("teacher_note") or "").replace("\x00", "").strip()
+        if len(teacher_note) > TEACHER_NOTE_MAX_LENGTH:
+            conn.close()
+            _quiz_abort(400)
+        teacher_note_value = teacher_note or None
+
+        row = conn.execute("""
+            SELECT qta.id
+            FROM quiz_text_answers qta
+            JOIN quiz_attempts qa ON qa.id = qta.attempt_id
+            WHERE qta.id = ?
+              AND qa.assignment_id = ?
+        """, (answer_id, assignment_id)).fetchone()
+        if not row:
+            conn.close()
+            _quiz_abort(404)
+
+        conn.execute("""
+            UPDATE quiz_text_answers
+            SET teacher_override = ?,
+                teacher_note = ?
+            WHERE id = ?
+        """, (override_value, teacher_note_value, answer_id))
+        conn.commit()
+        conn.close()
+        return _quiz_redirect(_quiz_url_for("teacher_assignment_results", assignment_id=assignment_id))
 
     attempts = conn.execute("""
         SELECT

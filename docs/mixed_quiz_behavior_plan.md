@@ -133,9 +133,9 @@ When enabled later:
    - No manual grading UI.
 
 6. Teacher override V1 plan.
-   - Keep the first teacher/admin review UI read-only.
-   - Show disabled preview controls for override status, override points, and teacher note before enabling writes.
-   - When implemented later, override changes should update only the open-answer review fields and must not change MC score semantics.
+   - Store teacher/admin `teacher_override` and `teacher_note` on recorded `quiz_text_answers`.
+   - Override changes update only open-answer review fields and must not change MC score semantics.
+   - Reject updates for text-answer rows outside the current assignment.
    - Open-answer points remain informational until a separate scoring design explicitly includes them in final totals.
 
 ## Testing Expectations

@@ -361,7 +361,9 @@ class QuizAttemptRenderTest(unittest.TestCase):
         conn = web_app.quiz_db()
         try:
             return conn.execute("""
-                SELECT question_id, subquestion_number, raw_answer, normalized_answer, is_correct
+                SELECT
+                    id, question_id, subquestion_number, raw_answer, normalized_answer,
+                    is_correct, teacher_override, teacher_note
                 FROM quiz_text_answers
                 WHERE attempt_id = ?
                 ORDER BY question_id, subquestion_number
@@ -625,15 +627,13 @@ class QuizAttemptRenderTest(unittest.TestCase):
         self.assertIn("няма съвпадение".encode("utf-8"), response.data)
         self.assertIn("Инф. точки".encode("utf-8"), response.data)
         self.assertIn("ordered".encode("utf-8"), response.data)
-        self.assertIn("само за четене".encode("utf-8"), response.data)
         self.assertIn("не са включени в крайния резултат".encode("utf-8"), response.data)
-        self.assertIn("override не са активни още".encode("utf-8"), response.data)
-        self.assertIn(b"<fieldset disabled", response.data)
-        self.assertIn(b"Teacher override coming soon", response.data)
-        self.assertIn(b'name="teacher_override_status_preview"', response.data)
-        self.assertIn(b'name="teacher_override_points_preview"', response.data)
-        self.assertIn(b'name="teacher_note_preview"', response.data)
-        self.assertNotIn(b"<form", response.data)
+        self.assertIn("Учителският override".encode("utf-8"), response.data)
+        self.assertIn(b"<form", response.data)
+        self.assertIn(b'name="text_answer_id"', response.data)
+        self.assertIn(b'name="teacher_override"', response.data)
+        self.assertIn(b'name="teacher_note"', response.data)
+        self.assertNotIn(b"teacher_override_points", response.data)
         self.assertIn("MC резултат: 0/1".encode("utf-8"), response.data)
         self.assertNotIn(b"accepted_answers_json", response.data)
         self.assertNotIn(b"[&#34;jpeg&#34;, &#34;jpg&#34;]", response.data)
@@ -672,31 +672,116 @@ class QuizAttemptRenderTest(unittest.TestCase):
         self.assertNotIn("Отворени отговори".encode("utf-8"), response.data)
         self.assertNotIn("Инф. точки".encode("utf-8"), response.data)
 
-    def test_teacher_open_answer_review_has_no_post_edit_behavior(self):
-        assignment_id, attempt_id, _open_question_id = self._create_mixed_planned_attempt(
-            student_name="No Edit Review",
+    def test_admin_can_save_teacher_open_answer_override_without_score_change(self):
+        assignment_id, attempt_id, open_question_id = self._create_mixed_planned_attempt(
+            student_name="Save Override",
         )
+        conn = web_app.quiz_db()
+        try:
+            wrong_letter = self._wrong_letter(conn, self.valid_question_id)
+        finally:
+            conn.close()
+        self.client.post(f"/quiz/attempt/{attempt_id}", data={
+            f"q_{self.valid_question_id}": wrong_letter,
+            f"open_q_{open_question_id}_1": "неверен",
+            f"open_q_{open_question_id}_2": "jpg",
+        })
+        text_answer_id = self._quiz_text_answer_rows(attempt_id)[0]["id"]
         self._login_admin()
 
         response = self.client.post(f"/teacher/assignment/{assignment_id}/results", data={
+            "text_answer_id": str(text_answer_id),
             "teacher_override": "1",
-            "teacher_override_status_preview": "Приеми като верен",
-            "teacher_override_points_preview": "1",
-            "teacher_note_preview": "manual note",
+            "teacher_note": "Reviewed manually",
         })
-        self.assertEqual(response.status_code, 405)
+        self.assertEqual(response.status_code, 302)
 
         conn = web_app.quiz_db()
         try:
-            count = conn.execute("""
-                SELECT COUNT(*)
+            row = conn.execute("""
+                SELECT teacher_override, teacher_note
                 FROM quiz_text_answers
-                WHERE attempt_id = ?
-                  AND (teacher_override != 0 OR teacher_note IS NOT NULL)
-            """, (attempt_id,)).fetchone()[0]
+                WHERE id = ?
+            """, (text_answer_id,)).fetchone()
+            attempt = conn.execute("""
+                SELECT score_correct, score_total
+                FROM quiz_attempts
+                WHERE id = ?
+            """, (attempt_id,)).fetchone()
         finally:
             conn.close()
-        self.assertEqual(count, 0)
+        self.assertEqual(row["teacher_override"], 1)
+        self.assertEqual(row["teacher_note"], "Reviewed manually")
+        self.assertEqual(attempt["score_correct"], 0)
+        self.assertEqual(attempt["score_total"], 1)
+
+        response = self.client.get(f"/teacher/assignment/{assignment_id}/results")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b"Reviewed manually", response.data)
+        self.assertIn("Приет от учител".encode("utf-8"), response.data)
+
+    def test_tester_cannot_save_teacher_open_answer_override(self):
+        assignment_id, attempt_id, open_question_id = self._create_mixed_planned_attempt(
+            student_name="Tester Save Blocked",
+        )
+        conn = web_app.quiz_db()
+        try:
+            wrong_letter = self._wrong_letter(conn, self.valid_question_id)
+        finally:
+            conn.close()
+        self.client.post(f"/quiz/attempt/{attempt_id}", data={
+            f"q_{self.valid_question_id}": wrong_letter,
+            f"open_q_{open_question_id}_1": "неверен",
+        })
+        text_answer_id = self._quiz_text_answer_rows(attempt_id)[0]["id"]
+        self._login_tester()
+
+        response = self.client.post(f"/teacher/assignment/{assignment_id}/results", data={
+            "text_answer_id": str(text_answer_id),
+            "teacher_override": "1",
+            "teacher_note": "should not save",
+        })
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/admin/login", response.headers["Location"])
+        row = self._quiz_text_answer_rows(attempt_id)[0]
+        self.assertEqual(row["teacher_override"], 0)
+        self.assertIsNone(row["teacher_note"])
+
+    def test_teacher_open_answer_override_rejects_row_outside_assignment(self):
+        assignment_id, _attempt_id, _open_question_id = self._create_mixed_planned_attempt(
+            student_name="Reject Other Assignment",
+        )
+        other_assignment_id, other_attempt_id, other_open_question_id = self._create_mixed_planned_attempt(
+            student_name="Other Assignment Row",
+        )
+        conn = web_app.quiz_db()
+        try:
+            wrong_letter = self._wrong_letter(conn, self.valid_question_id)
+        finally:
+            conn.close()
+        self.client.post(f"/quiz/attempt/{other_attempt_id}", data={
+            f"q_{self.valid_question_id}": wrong_letter,
+            f"open_q_{other_open_question_id}_1": "неверен",
+        })
+        other_text_answer_id = self._quiz_text_answer_rows(other_attempt_id)[0]["id"]
+        self._login_admin()
+
+        response = self.client.post(f"/teacher/assignment/{assignment_id}/results", data={
+            "text_answer_id": str(other_text_answer_id),
+            "teacher_override": "1",
+            "teacher_note": "wrong assignment",
+        })
+        self.assertEqual(response.status_code, 404)
+        row = self._quiz_text_answer_rows(other_attempt_id)[0]
+        self.assertEqual(row["teacher_override"], 0)
+        self.assertIsNone(row["teacher_note"])
+
+        response = self.client.post(f"/teacher/assignment/{other_assignment_id}/results", data={
+            "text_answer_id": str(other_text_answer_id),
+            "teacher_override": "maybe",
+            "teacher_note": "invalid override",
+        })
+        self.assertEqual(response.status_code, 400)
 
     def test_unexpected_open_text_for_unplanned_question_is_ignored(self):
         _assignment_id, attempt_id, planned_open_id = self._create_mixed_planned_attempt(
