@@ -1643,7 +1643,7 @@ def quiz_parse_attempt_question_plan(raw_value) -> dict:
 
 
 def quiz_parse_assignment_question_plan(raw_value) -> dict | None:
-    if raw_value is None:
+    if raw_value is None or str(raw_value).strip() == "":
         return None
 
     plan = quiz_parse_attempt_question_plan(raw_value)
@@ -1653,14 +1653,18 @@ def quiz_parse_assignment_question_plan(raw_value) -> dict | None:
         return None
 
     planned_ids = set()
+    question_ids = []
     for qid in plan["question_ids"]:
         try:
             if isinstance(qid, bool):
                 raise ValueError
-            planned_ids.add(int(qid))
+            parsed_qid = int(qid)
+            planned_ids.add(parsed_qid)
+            question_ids.append(parsed_qid)
         except (TypeError, ValueError):
             return None
 
+    open_question_ids = []
     for qid in plan["open_question_ids"]:
         try:
             if isinstance(qid, bool):
@@ -1670,8 +1674,14 @@ def quiz_parse_assignment_question_plan(raw_value) -> dict | None:
             return None
         if open_qid not in planned_ids:
             return None
+        open_question_ids.append(open_qid)
 
-    return plan
+    return {
+        "mixed_open_enabled": True,
+        "question_ids": question_ids,
+        "open_question_ids": open_question_ids,
+        "include_open_answers_in_final_score": bool(plan["include_open_answers_in_final_score"]),
+    }
 
 
 def filter_renderable_attempt_question_ids(
@@ -2482,7 +2492,23 @@ def quiz_start(assignment_id):
                 return _quiz_redirect(_quiz_url_for("quiz_result", attempt_id=existing["id"]))
             return _quiz_redirect(_quiz_url_for("quiz_attempt", attempt_id=existing["id"]))
 
-        seed, question_ids = quiz_pick_questions(conn, assignment, student_name)
+        assignment_question_plan = quiz_parse_assignment_question_plan(assignment["question_plan_json"])
+        if (assignment["question_plan_json"] or "").strip() and assignment_question_plan is None:
+            conn.close()
+            _quiz_abort(400)
+
+        if assignment_question_plan:
+            seed = quiz_seed(assignment_id, student_name)
+            question_ids_json = _quiz_json.dumps(assignment_question_plan, ensure_ascii=False)
+            score_total = len([
+                qid
+                for qid in assignment_question_plan["question_ids"]
+                if qid not in set(assignment_question_plan["open_question_ids"])
+            ])
+        else:
+            seed, question_ids = quiz_pick_questions(conn, assignment, student_name)
+            question_ids_json = _quiz_json.dumps(question_ids)
+            score_total = len(question_ids)
 
         cur = conn.execute("""
             INSERT INTO quiz_attempts (assignment_id, student_name, seed, question_ids_json, score_total)
@@ -2491,8 +2517,8 @@ def quiz_start(assignment_id):
             assignment_id,
             student_name,
             seed,
-            _quiz_json.dumps(question_ids),
-            len(question_ids),
+            question_ids_json,
+            score_total,
         ))
         attempt_id = cur.lastrowid
         conn.commit()
