@@ -2516,6 +2516,111 @@ def teacher_assignment_duplicate(assignment_id):
 TEACHER_NOTE_MAX_LENGTH = 1000
 
 
+QUIZ_RESULTS_ALLOWED_STATUS = {"all", "submitted", "unsubmitted"}
+QUIZ_RESULTS_ALLOWED_OPEN = {"all", "has_open", "no_open"}
+QUIZ_RESULTS_ALLOWED_SORTS = {
+    "default",
+    "name_asc",
+    "name_desc",
+    "submitted_desc",
+    "submitted_asc",
+    "mc_desc",
+    "mc_asc",
+    "open_desc",
+    "open_asc",
+}
+QUIZ_RESULTS_MIXED_ONLY_SORTS = {"open_desc", "open_asc"}
+
+
+def quiz_parse_results_filter_args(args, *, is_mixed: bool) -> dict:
+    q = (args.get("q") or "").strip()
+    status = (args.get("status") or "all").strip().lower()
+    if status not in QUIZ_RESULTS_ALLOWED_STATUS:
+        status = "all"
+    open_filter = (args.get("open") or "all").strip().lower()
+    if open_filter not in QUIZ_RESULTS_ALLOWED_OPEN:
+        open_filter = "all"
+    sort = (args.get("sort") or "default").strip().lower()
+    if sort not in QUIZ_RESULTS_ALLOWED_SORTS:
+        sort = "default"
+    if sort in QUIZ_RESULTS_MIXED_ONLY_SORTS and not is_mixed:
+        sort = "default"
+    return {"q": q, "status": status, "open": open_filter, "sort": sort}
+
+
+def quiz_filter_results_attempts(attempts, *, filters, attempt_answers_by_id):
+    q_lower = (filters["q"] or "").lower()
+    status = filters["status"]
+    open_filter = filters["open"]
+
+    def keep(attempt):
+        if q_lower and q_lower not in (attempt["student_name"] or "").lower():
+            return False
+        if status == "submitted" and not attempt["submitted_at"]:
+            return False
+        if status == "unsubmitted" and attempt["submitted_at"]:
+            return False
+        if open_filter != "all":
+            has_open = bool(attempt_answers_by_id.get(int(attempt["id"])))
+            if open_filter == "has_open" and not has_open:
+                return False
+            if open_filter == "no_open" and has_open:
+                return False
+        return True
+
+    return [a for a in attempts if keep(a)]
+
+
+def quiz_sort_results_attempts(attempts, *, sort, open_subtotal_by_id):
+    if sort == "default":
+        return list(attempts)
+    submitted = [a for a in attempts if a["submitted_at"]]
+    unsubmitted = [a for a in attempts if not a["submitted_at"]]
+    if sort == "name_asc":
+        return sorted(attempts, key=lambda a: (a["student_name"] or "").casefold())
+    if sort == "name_desc":
+        return sorted(
+            attempts,
+            key=lambda a: (a["student_name"] or "").casefold(),
+            reverse=True,
+        )
+    if sort == "submitted_desc":
+        submitted.sort(key=lambda a: a["submitted_at"] or "", reverse=True)
+        unsubmitted.sort(key=lambda a: a["started_at"] or "", reverse=True)
+        return submitted + unsubmitted
+    if sort == "submitted_asc":
+        submitted.sort(key=lambda a: a["submitted_at"] or "")
+        unsubmitted.sort(key=lambda a: a["started_at"] or "")
+        return submitted + unsubmitted
+    if sort == "mc_desc":
+        submitted.sort(
+            key=lambda a: float(a["percent"]) if a["percent"] is not None else float("-inf"),
+            reverse=True,
+        )
+        return submitted + unsubmitted
+    if sort == "mc_asc":
+        submitted.sort(
+            key=lambda a: float(a["percent"]) if a["percent"] is not None else float("inf"),
+        )
+        return submitted + unsubmitted
+    if sort == "open_desc":
+        submitted.sort(
+            key=lambda a: float(
+                (open_subtotal_by_id.get(int(a["id"])) or {}).get("awarded") or 0
+            ),
+            reverse=True,
+        )
+        return submitted + unsubmitted
+    if sort == "open_asc":
+        submitted.sort(
+            key=lambda a: float(
+                (open_subtotal_by_id.get(int(a["id"])) or {}).get("awarded") or 0
+            ),
+        )
+        return submitted + unsubmitted
+    return list(attempts)
+
+
 @app.route("/teacher/assignment/<int:assignment_id>/results", methods=["GET", "POST"])
 def teacher_assignment_results(assignment_id):
     conn = quiz_db()
@@ -2567,32 +2672,10 @@ def teacher_assignment_results(assignment_id):
         conn.close()
         return _quiz_redirect(_quiz_url_for("teacher_assignment_results", assignment_id=assignment_id))
 
-    raw_q = (_quiz_request.args.get("q") or "").strip()
-    q_lower = raw_q.lower()
-    raw_status = (_quiz_request.args.get("status") or "all").strip().lower()
-    if raw_status not in {"all", "submitted", "unsubmitted"}:
-        raw_status = "all"
-    raw_open = (_quiz_request.args.get("open") or "all").strip().lower()
-    if raw_open not in {"all", "has_open", "no_open"}:
-        raw_open = "all"
-    raw_sort = (_quiz_request.args.get("sort") or "default").strip().lower()
-    allowed_sorts = {
-        "default",
-        "name_asc",
-        "name_desc",
-        "submitted_desc",
-        "submitted_asc",
-        "mc_desc",
-        "mc_asc",
-        "open_desc",
-        "open_asc",
-    }
-    mixed_only_sorts = {"open_desc", "open_asc"}
-    if raw_sort not in allowed_sorts:
-        raw_sort = "default"
     mixed_status = quiz_assignment_mixed_status(assignment["question_plan_json"])
-    if raw_sort in mixed_only_sorts and not bool(mixed_status["is_mixed"]):
-        raw_sort = "default"
+    filters = quiz_parse_results_filter_args(
+        _quiz_request.args, is_mixed=bool(mixed_status["is_mixed"])
+    )
 
     all_attempts = conn.execute("""
         SELECT
@@ -2638,75 +2721,14 @@ def teacher_assignment_results(assignment_id):
             if combined:
                 combined_score_by_id[attempt_id_int] = combined
 
-    def _attempt_matches_filters(attempt) -> bool:
-        if q_lower and q_lower not in (attempt["student_name"] or "").lower():
-            return False
-        if raw_status == "submitted" and not attempt["submitted_at"]:
-            return False
-        if raw_status == "unsubmitted" and attempt["submitted_at"]:
-            return False
-        if raw_open != "all":
-            has_open = bool(attempt_answers_by_id.get(int(attempt["id"])))
-            if raw_open == "has_open" and not has_open:
-                return False
-            if raw_open == "no_open" and has_open:
-                return False
-        return True
-
-    filtered_attempts = [a for a in all_attempts if _attempt_matches_filters(a)]
-
-    if raw_sort == "default":
-        attempts = filtered_attempts
-    else:
-        submitted = [a for a in filtered_attempts if a["submitted_at"]]
-        unsubmitted = [a for a in filtered_attempts if not a["submitted_at"]]
-        if raw_sort == "name_asc":
-            attempts = sorted(
-                filtered_attempts,
-                key=lambda a: (a["student_name"] or "").casefold(),
-            )
-        elif raw_sort == "name_desc":
-            attempts = sorted(
-                filtered_attempts,
-                key=lambda a: (a["student_name"] or "").casefold(),
-                reverse=True,
-            )
-        elif raw_sort == "submitted_desc":
-            submitted.sort(key=lambda a: a["submitted_at"] or "", reverse=True)
-            unsubmitted.sort(key=lambda a: a["started_at"] or "", reverse=True)
-            attempts = submitted + unsubmitted
-        elif raw_sort == "submitted_asc":
-            submitted.sort(key=lambda a: a["submitted_at"] or "")
-            unsubmitted.sort(key=lambda a: a["started_at"] or "")
-            attempts = submitted + unsubmitted
-        elif raw_sort == "mc_desc":
-            submitted.sort(
-                key=lambda a: float(a["percent"]) if a["percent"] is not None else float("-inf"),
-                reverse=True,
-            )
-            attempts = submitted + unsubmitted
-        elif raw_sort == "mc_asc":
-            submitted.sort(
-                key=lambda a: float(a["percent"]) if a["percent"] is not None else float("inf"),
-            )
-            attempts = submitted + unsubmitted
-        elif raw_sort == "open_desc":
-            submitted.sort(
-                key=lambda a: float(
-                    (open_subtotal_by_id.get(int(a["id"])) or {}).get("awarded") or 0
-                ),
-                reverse=True,
-            )
-            attempts = submitted + unsubmitted
-        elif raw_sort == "open_asc":
-            submitted.sort(
-                key=lambda a: float(
-                    (open_subtotal_by_id.get(int(a["id"])) or {}).get("awarded") or 0
-                ),
-            )
-            attempts = submitted + unsubmitted
-        else:
-            attempts = filtered_attempts
+    filtered_attempts = quiz_filter_results_attempts(
+        all_attempts, filters=filters, attempt_answers_by_id=attempt_answers_by_id
+    )
+    attempts = quiz_sort_results_attempts(
+        filtered_attempts,
+        sort=filters["sort"],
+        open_subtotal_by_id=open_subtotal_by_id,
+    )
 
     open_text_answers = []
     open_subtotals_by_attempt: dict[int, dict] = {}
@@ -2782,14 +2804,10 @@ def teacher_assignment_results(assignment_id):
         "open_subtotal_possible_total": round(open_subtotal_possible_total, 2),
     }
 
-    filters = {
-        "q": raw_q,
-        "status": raw_status,
-        "open": raw_open,
-        "sort": raw_sort,
-    }
-    filter_active = bool(raw_q) or raw_status != "all" or raw_open != "all"
-    sort_active = raw_sort != "default"
+    filter_active = (
+        bool(filters["q"]) or filters["status"] != "all" or filters["open"] != "all"
+    )
+    sort_active = filters["sort"] != "default"
 
     return _quiz_render_template(
         "teacher_results.html",
@@ -2859,28 +2877,112 @@ def teacher_assignment_results_export(assignment_id):
         conn.close()
         _quiz_abort(404)
 
-    attempts = conn.execute("""
-        SELECT
-            id,
-            student_name,
-            question_ids_json,
-            started_at,
-            submitted_at,
-            score_correct,
-            score_total
-        FROM quiz_attempts
-        WHERE assignment_id = ?
-          AND submitted_at IS NOT NULL
-        ORDER BY submitted_at DESC, started_at DESC, student_name
-    """, (assignment_id,)).fetchall()
+    apply_filters = (_quiz_request.args.get("filtered") or "").strip().lower() in {
+        "1",
+        "true",
+        "yes",
+    }
+
+    attempt_answers_by_id: dict[int, list[dict]] = {}
+
+    if apply_filters:
+        all_attempts = conn.execute("""
+            SELECT
+                id,
+                student_name,
+                question_ids_json,
+                started_at,
+                submitted_at,
+                score_correct,
+                score_total,
+                CASE
+                  WHEN score_total IS NOT NULL AND score_total > 0
+                  THEN ROUND(100.0 * score_correct / score_total, 1)
+                  ELSE NULL
+                END AS percent
+            FROM quiz_attempts
+            WHERE assignment_id = ?
+            ORDER BY
+                submitted_at IS NULL,
+                submitted_at DESC,
+                started_at DESC,
+                student_name
+        """, (assignment_id,)).fetchall()
+
+        open_subtotal_by_id: dict[int, dict] = {}
+        for attempt in all_attempts:
+            if not attempt["submitted_at"]:
+                continue
+            ans = fetch_quiz_text_answers_for_attempt(conn, int(attempt["id"]))
+            attempt_answers_by_id[int(attempt["id"])] = ans
+            if ans:
+                open_subtotal_by_id[int(attempt["id"])] = (
+                    quiz_text_answer_informational_subtotal(ans)
+                )
+
+        mixed_status = quiz_assignment_mixed_status(assignment["question_plan_json"])
+        filters = quiz_parse_results_filter_args(
+            _quiz_request.args, is_mixed=bool(mixed_status["is_mixed"])
+        )
+        filtered = quiz_filter_results_attempts(
+            all_attempts, filters=filters, attempt_answers_by_id=attempt_answers_by_id
+        )
+        attempts = quiz_sort_results_attempts(
+            filtered,
+            sort=filters["sort"],
+            open_subtotal_by_id=open_subtotal_by_id,
+        )
+        filename = f"assignment_{assignment_id}_results_filtered.csv"
+    else:
+        attempts = conn.execute("""
+            SELECT
+                id,
+                student_name,
+                question_ids_json,
+                started_at,
+                submitted_at,
+                score_correct,
+                score_total
+            FROM quiz_attempts
+            WHERE assignment_id = ?
+              AND submitted_at IS NOT NULL
+            ORDER BY submitted_at DESC, started_at DESC, student_name
+        """, (assignment_id,)).fetchall()
+        filename = f"assignment_{assignment_id}_results.csv"
 
     buf = _quiz_io.StringIO()
     writer = _quiz_csv.writer(buf)
     writer.writerow(QUIZ_RESULTS_EXPORT_COLUMNS)
 
     for attempt in attempts:
-        attempt_id = int(attempt["id"])
-        attempt_answers = fetch_quiz_text_answers_for_attempt(conn, attempt_id)
+        attempt_id_int = int(attempt["id"])
+
+        if not attempt["submitted_at"]:
+            writer.writerow([
+                "attempt",
+                assignment_id,
+                assignment["title_bg"],
+                attempt_id_int,
+                attempt["student_name"],
+                "",
+                "",
+                "",
+                "",
+                "",
+                "",
+                0,
+                "",
+                "",
+                "",
+                "",
+                "", "", "", "", "", "", "", "", "", "", "",
+            ])
+            continue
+
+        if attempt_id_int in attempt_answers_by_id:
+            attempt_answers = attempt_answers_by_id[attempt_id_int]
+        else:
+            attempt_answers = fetch_quiz_text_answers_for_attempt(conn, attempt_id_int)
         attempt_plan = quiz_parse_attempt_question_plan(attempt["question_ids_json"])
         mixed_open_enabled = bool(attempt_plan["mixed_open_enabled"])
         combined_enabled = bool(attempt_plan["include_open_answers_in_final_score"])
@@ -2904,7 +3006,7 @@ def teacher_assignment_results_export(assignment_id):
             "attempt",
             assignment_id,
             assignment["title_bg"],
-            attempt_id,
+            attempt_id_int,
             attempt["student_name"],
             attempt["submitted_at"],
             _quiz_csv_value(mc_correct),
@@ -2925,7 +3027,7 @@ def teacher_assignment_results_export(assignment_id):
                 "open_answer",
                 assignment_id,
                 assignment["title_bg"],
-                attempt_id,
+                attempt_id_int,
                 attempt["student_name"],
                 attempt["submitted_at"],
                 "",
@@ -2953,7 +3055,6 @@ def teacher_assignment_results_export(assignment_id):
 
     conn.close()
 
-    filename = f"assignment_{assignment_id}_results.csv"
     return _quiz_response(
         buf.getvalue(),
         mimetype="text/csv; charset=utf-8",
