@@ -2575,6 +2575,24 @@ def teacher_assignment_results(assignment_id):
     raw_open = (_quiz_request.args.get("open") or "all").strip().lower()
     if raw_open not in {"all", "has_open", "no_open"}:
         raw_open = "all"
+    raw_sort = (_quiz_request.args.get("sort") or "default").strip().lower()
+    allowed_sorts = {
+        "default",
+        "name_asc",
+        "name_desc",
+        "submitted_desc",
+        "submitted_asc",
+        "mc_desc",
+        "mc_asc",
+        "open_desc",
+        "open_asc",
+    }
+    mixed_only_sorts = {"open_desc", "open_asc"}
+    if raw_sort not in allowed_sorts:
+        raw_sort = "default"
+    mixed_status = quiz_assignment_mixed_status(assignment["question_plan_json"])
+    if raw_sort in mixed_only_sorts and not bool(mixed_status["is_mixed"]):
+        raw_sort = "default"
 
     all_attempts = conn.execute("""
         SELECT
@@ -2635,7 +2653,60 @@ def teacher_assignment_results(assignment_id):
                 return False
         return True
 
-    attempts = [a for a in all_attempts if _attempt_matches_filters(a)]
+    filtered_attempts = [a for a in all_attempts if _attempt_matches_filters(a)]
+
+    if raw_sort == "default":
+        attempts = filtered_attempts
+    else:
+        submitted = [a for a in filtered_attempts if a["submitted_at"]]
+        unsubmitted = [a for a in filtered_attempts if not a["submitted_at"]]
+        if raw_sort == "name_asc":
+            attempts = sorted(
+                filtered_attempts,
+                key=lambda a: (a["student_name"] or "").casefold(),
+            )
+        elif raw_sort == "name_desc":
+            attempts = sorted(
+                filtered_attempts,
+                key=lambda a: (a["student_name"] or "").casefold(),
+                reverse=True,
+            )
+        elif raw_sort == "submitted_desc":
+            submitted.sort(key=lambda a: a["submitted_at"] or "", reverse=True)
+            unsubmitted.sort(key=lambda a: a["started_at"] or "", reverse=True)
+            attempts = submitted + unsubmitted
+        elif raw_sort == "submitted_asc":
+            submitted.sort(key=lambda a: a["submitted_at"] or "")
+            unsubmitted.sort(key=lambda a: a["started_at"] or "")
+            attempts = submitted + unsubmitted
+        elif raw_sort == "mc_desc":
+            submitted.sort(
+                key=lambda a: float(a["percent"]) if a["percent"] is not None else float("-inf"),
+                reverse=True,
+            )
+            attempts = submitted + unsubmitted
+        elif raw_sort == "mc_asc":
+            submitted.sort(
+                key=lambda a: float(a["percent"]) if a["percent"] is not None else float("inf"),
+            )
+            attempts = submitted + unsubmitted
+        elif raw_sort == "open_desc":
+            submitted.sort(
+                key=lambda a: float(
+                    (open_subtotal_by_id.get(int(a["id"])) or {}).get("awarded") or 0
+                ),
+                reverse=True,
+            )
+            attempts = submitted + unsubmitted
+        elif raw_sort == "open_asc":
+            submitted.sort(
+                key=lambda a: float(
+                    (open_subtotal_by_id.get(int(a["id"])) or {}).get("awarded") or 0
+                ),
+            )
+            attempts = submitted + unsubmitted
+        else:
+            attempts = filtered_attempts
 
     open_text_answers = []
     open_subtotals_by_attempt: dict[int, dict] = {}
@@ -2695,7 +2766,6 @@ def teacher_assignment_results(assignment_id):
         WHERE assignment_id = ?
     """, (assignment_id,)).fetchone()
 
-    mixed_status = quiz_assignment_mixed_status(assignment["question_plan_json"])
     conn.close()
 
     summary = {
@@ -2716,8 +2786,10 @@ def teacher_assignment_results(assignment_id):
         "q": raw_q,
         "status": raw_status,
         "open": raw_open,
+        "sort": raw_sort,
     }
     filter_active = bool(raw_q) or raw_status != "all" or raw_open != "all"
+    sort_active = raw_sort != "default"
 
     return _quiz_render_template(
         "teacher_results.html",
@@ -2731,6 +2803,7 @@ def teacher_assignment_results(assignment_id):
         summary=summary,
         filters=filters,
         filter_active=filter_active,
+        sort_active=sort_active,
     )
 
 
