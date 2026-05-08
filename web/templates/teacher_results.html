@@ -38,6 +38,7 @@
   </div>
   <div class="header-actions">
     <a class="button secondary" href="{{ url_for('teacher_assignment', assignment_id=assignment.id) }}">Към заданието</a>
+    <a class="button secondary" href="{{ url_for('teacher_assignment_results_export', assignment_id=assignment.id) }}">Експортирай CSV</a>
   </div>
 </section>
 
