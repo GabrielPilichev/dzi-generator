@@ -125,6 +125,13 @@
                     {% if mixed_planning_result.open_shortfall %}отворени: {{ mixed_planning_result.open_shortfall }}{% endif %}
                 </p>
             {% elif admin_authenticated %}
+                <label>
+                    <input type="checkbox" name="include_open_answers_in_final_score" value="1">
+                    Show combined score including open answers
+                </label>
+                <div class="help">
+                    Комбинираният резултат е само за показване. Съхраненият MC резултат остава непроменен, а учителските override-и влияят само върху показания комбиниран резултат.
+                </div>
                 <button type="submit" name="create_mixed_assignment" value="1">
                     Създай експериментален смесен тест
                 </button>
