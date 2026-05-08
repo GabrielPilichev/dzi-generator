@@ -2490,12 +2490,13 @@ def quiz_result(attempt_id):
 
     attempt_question_plan = quiz_parse_attempt_question_plan(attempt["question_ids_json"])
     stored_qids = attempt_question_plan["question_ids"]
-    # Result rendering is still MC-only; planned open answers are not graded or displayed yet.
+    # MC questions remain the only scored result items; open answers render as read-only review.
     qids, skipped_count = filter_renderable_attempt_question_ids(conn, stored_qids)
     original_question_count = len(stored_qids or [])
     renderable_question_count = len(qids)
     skipped_question_count = max(0, original_question_count - renderable_question_count)
     questions = quiz_load_result_questions(conn, attempt, qids, attempt["seed"])
+    open_text_answers = fetch_quiz_text_answers_for_attempt(conn, attempt_id)
     seconds = quiz_time_taken_seconds(attempt)
     conn.close()
 
@@ -2505,6 +2506,7 @@ def quiz_result(attempt_id):
         attempt=attempt,
         questions=questions,
         time_taken=quiz_format_duration(seconds),
+        open_text_answers=open_text_answers,
         stale_attempt_message=STALE_ATTEMPT_MESSAGE if not questions else None,
         original_question_count=original_question_count,
         renderable_question_count=renderable_question_count,

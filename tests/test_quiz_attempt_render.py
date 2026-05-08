@@ -451,7 +451,18 @@ class QuizAttemptRenderTest(unittest.TestCase):
         self.assertIn("Попълнете липсващите стойности.".encode("utf-8"), response.data)
         self.assertIn(f'name="open_q_{open_question_id}_1"'.encode("utf-8"), response.data)
         self.assertIn(f'name="open_q_{open_question_id}_2"'.encode("utf-8"), response.data)
-        self.assertIn("няма да се показват в резултата".encode("utf-8"), response.data)
+        self.assertIn("няма да бъдат включени в точния резултат".encode("utf-8"), response.data)
+
+    def test_mc_only_result_does_not_show_open_answer_section(self):
+        _assignment_id, attempt_id = self._create_attempt(
+            [self.valid_question_id],
+            student_name="MC Only Result",
+        )
+
+        response = self.client.get(f"/quiz/attempt/{attempt_id}/result")
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn("Отворени отговори".encode("utf-8"), response.data)
+        self.assertNotIn("не са включени в точния резултат".encode("utf-8"), response.data)
 
     def test_mc_only_post_does_not_write_quiz_text_answers_and_keeps_quiz_answers(self):
         _assignment_id, attempt_id = self._create_attempt(
@@ -541,6 +552,32 @@ class QuizAttemptRenderTest(unittest.TestCase):
 
         self.assertEqual(text_answer_rows, 0)
         self.assertEqual(attempt["score_total"], 1)
+
+    def test_mixed_open_result_shows_recorded_answers_outside_score(self):
+        _assignment_id, attempt_id, open_question_id = self._create_mixed_planned_attempt(
+            student_name="Mixed Result Review",
+        )
+        conn = web_app.quiz_db()
+        try:
+            wrong_letter = self._wrong_letter(conn, self.valid_question_id)
+        finally:
+            conn.close()
+
+        post_response = self.client.post(f"/quiz/attempt/{attempt_id}", data={
+            f"q_{self.valid_question_id}": wrong_letter,
+            f"open_q_{open_question_id}_1": "клиент",
+            f"open_q_{open_question_id}_2": "jpg",
+        })
+        self.assertEqual(post_response.status_code, 302)
+
+        response = self.client.get(f"/quiz/attempt/{attempt_id}/result")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Отворени отговори".encode("utf-8"), response.data)
+        self.assertIn("клиент".encode("utf-8"), response.data)
+        self.assertIn("jpg".encode("utf-8"), response.data)
+        self.assertIn("не са включени в точния резултат".encode("utf-8"), response.data)
+        self.assertIn("Прегледът и оценяването от учител ще бъдат добавени по-късно".encode("utf-8"), response.data)
+        self.assertIn(b'<span class="result-score">0/1</span>', response.data)
 
     def test_unexpected_open_text_for_unplanned_question_is_ignored(self):
         _assignment_id, attempt_id, planned_open_id = self._create_mixed_planned_attempt(
