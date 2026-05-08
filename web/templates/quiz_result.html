@@ -105,14 +105,29 @@
       </div>
 
       <p class="prompt">
-        Отворените отговори са записани, но не са включени в точния резултат. Прегледът и оценяването от учител ще бъдат добавени по-късно.
+        Отворените отговори са записани. Автоматичните точки са само информативни и не са включени в точния резултат. Прегледът и оценяването от учител ще бъдат добавени по-късно.
       </p>
 
       <div class="answer-summary-grid">
         {% for answer in open_text_answers %}
-          <div class="answer-note answer-note--unanswered">
+          <div class="answer-note {% if answer.is_correct %}answer-note--correct{% else %}answer-note--wrong{% endif %}">
             <span class="answer-note-label">Въпрос {{ answer.question_id }}, отговор {{ answer.subquestion_number }}</span>
             <span>{{ answer.raw_answer or 'Няма въведен отговор.' }}</span>
+            <span class="answer-note-label">
+              {% if answer.is_correct %}
+                Автоматично съвпадение
+              {% elif answer.is_correct is not none %}
+                Няма автоматично съвпадение
+              {% else %}
+                Предстои проверка
+              {% endif %}
+              {% if answer.points_awarded is not none and answer.points_possible is not none %}
+                · {{ answer.points_awarded|float|round(2) }}/{{ answer.points_possible|float|round(2) }} т.
+              {% endif %}
+              {% if answer.grading_mode %}
+                · режим: {{ answer.grading_mode }}
+              {% endif %}
+            </span>
           </div>
         {% endfor %}
       </div>
