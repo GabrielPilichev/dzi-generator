@@ -39,6 +39,14 @@
   <div class="header-actions">
     <a class="button secondary" href="{{ url_for('teacher_assignment', assignment_id=assignment.id) }}">Към заданието</a>
     <a class="button secondary" href="{{ url_for('teacher_assignment_results_export', assignment_id=assignment.id) }}">Експортирай CSV (всички предадени)</a>
+    {% if filter_active or sort_active %}
+      <a class="button secondary"
+         href="{{ url_for('teacher_assignment_results_export', assignment_id=assignment.id,
+                          filtered=1, q=filters.q, status=filters.status,
+                          open=filters.open, sort=filters.sort) }}">
+        Експортирай CSV (филтрирано)
+      </a>
+    {% endif %}
   </div>
 </section>
 
