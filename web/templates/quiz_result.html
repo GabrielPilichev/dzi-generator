@@ -15,7 +15,7 @@
   <p class="subtitle">{{ attempt.student_name }}</p>
 
   <div class="result-score-card {{ 'is-complete' if attempt.score_correct == attempt.score_total else 'needs-review' }}">
-    <span class="result-score-label">Точен резултат</span>
+    <span class="result-score-label">MC резултат</span>
     <span class="result-score">{{ attempt.score_correct }}/{{ attempt.score_total }}</span>
     <span class="result-score-note">
       {% if attempt.score_correct == attempt.score_total %}
@@ -27,6 +27,16 @@
       {% endif %}
     </span>
   </div>
+  {% if combined_score %}
+    <div class="answer-note answer-note--correct">
+      <span class="answer-note-label">Комбиниран резултат</span>
+      <span>{{ combined_score.combined_awarded|round(2) }}/{{ combined_score.combined_possible|round(2) }} т.</span>
+      <span class="answer-note-label">
+        MC: {{ combined_score.mc_awarded|round(2) }}/{{ combined_score.mc_possible|round(2) }} ·
+        отворени: {{ combined_score.open_awarded|round(2) }}/{{ combined_score.open_possible|round(2) }}
+      </span>
+    </div>
+  {% endif %}
 
   <div class="quiz-meta quiz-meta--center result-meta">
     <span class="pill">Време: {{ time_taken }}</span>
@@ -105,12 +115,25 @@
       </div>
 
       <p class="prompt">
-        Отворените отговори са записани. Автоматичните точки са само информативни и не са включени в точния резултат. Интеграцията на отворените отговори във финалния резултат още не е включена. Прегледът и оценяването от учител ще бъдат добавени по-късно.
+        Отворените отговори са записани.
+        {% if combined_score %}
+          Отворените точки са включени в комбинирания резултат за този смесен опит, а MC резултатът остава показан отделно.
+        {% else %}
+          Автоматичните точки са само информативни и не са включени в точния резултат. Интеграцията на отворените отговори във финалния резултат още не е включена.
+        {% endif %}
+        Прегледът и оценяването от учител ще бъдат добавени по-късно.
       </p>
       {% if open_text_subtotal %}
         <div class="answer-note answer-note--unanswered">
           <span class="answer-note-label">Информационен сбор за отворени отговори</span>
-          <span>{{ open_text_subtotal.awarded|round(2) }}/{{ open_text_subtotal.possible|round(2) }} т. · не е включен в точния резултат</span>
+          <span>
+            {{ open_text_subtotal.awarded|round(2) }}/{{ open_text_subtotal.possible|round(2) }} т.
+            {% if combined_score %}
+              · включен е в комбинирания резултат
+            {% else %}
+              · не е включен в точния резултат
+            {% endif %}
+          </span>
         </div>
       {% endif %}
 
