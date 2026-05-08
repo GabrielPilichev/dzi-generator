@@ -100,6 +100,47 @@
   </div>
 </div>
 
+{% if admin_authenticated %}
+<section class="card" id="edit-metadata">
+  <div class="section-heading">
+    <h2>Редакция на метаданни</h2>
+  </div>
+  <p class="muted">
+    Промяната засяга само заглавието и времевото ограничение. Броят въпроси, планът на теста, опитите и отговорите остават непроменени.
+  </p>
+  {% if edit_error %}
+    <div class="warning warning--spaced">
+      {% if edit_error == 'title_required' %}
+        Заглавието е задължително.
+      {% elif edit_error == 'title_too_long' %}
+        Заглавието е твърде дълго (макс. 200 символа).
+      {% elif edit_error == 'time_invalid' %}
+        Невалидно време. Въведете цяло число минути или оставете полето празно.
+      {% elif edit_error == 'time_out_of_range' %}
+        Времето трябва да е между 1 и 600 минути.
+      {% else %}
+        Невалидни стойности.
+      {% endif %}
+    </div>
+  {% endif %}
+  <form method="post" action="{{ url_for('teacher_assignment_edit', assignment_id=assignment.id) }}" class="form-card">
+    <label for="edit-title">Заглавие</label>
+    <input id="edit-title" name="title_bg" type="text" required maxlength="200"
+           value="{{ (edit_form_values.title_bg if edit_form_values else assignment.title_bg) }}">
+
+    <label for="edit-time">Време (минути, празно = без ограничение)</label>
+    <input id="edit-time" name="time_limit_minutes" type="number" min="1" max="600"
+           value="{{ (edit_form_values.time_limit_minutes if edit_form_values else (assignment.time_limit_minutes or '')) }}">
+
+    <div class="muted">
+      Брой въпроси: <strong>{{ assignment.question_count }}</strong> — фиксиран при създаване и не може да се редактира.
+    </div>
+
+    <button type="submit" class="button">Запази промените</button>
+  </form>
+</section>
+{% endif %}
+
 <script>
 (function () {
   const btn = document.getElementById("share-copy");
