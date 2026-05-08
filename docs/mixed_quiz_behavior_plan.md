@@ -45,7 +45,7 @@ Initial controls should be simple and explicit:
 - `open_count`: open/fill-in question count, active only when the toggle is on.
 - `source_slug`: DZI source selector if the flow already supports source selection.
 
-Teacher/admin UI must state that the auto-gradable open-answer pool is currently small and varies by source.
+The teacher/admin UI must state that the auto-gradable open-answer pool is currently limited and varies by source.
 
 ## Open Question Eligibility
 
