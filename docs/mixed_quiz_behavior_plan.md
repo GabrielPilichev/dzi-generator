@@ -77,7 +77,7 @@ Persisted mixed/open assignments use `quiz_assignments.question_plan_json`.
 The field stays `NULL` for MC-only assignments. When a mixed/open assignment is enabled later, it should store the assignment-level plan object that each student attempt copies into `quiz_attempts.question_ids_json`.
 At quiz start, `NULL` plans keep the existing MC-only picker. A valid mixed/open assignment plan is copied into `quiz_attempts.question_ids_json`; malformed non-empty plans fail closed and should not create attempts.
 Teacher/admin mixed planning can create an experimental persisted mixed/open assignment only through an explicit create action. Previewing a mixed plan still does not create anything, and MC-only assignment creation continues to store `question_plan_json = NULL`.
-Admins can optionally enable display-only combined score while creating that mixed/open assignment. The option defaults off, stores `include_open_answers_in_final_score: true` only when checked, and does not change stored MC score semantics.
+Admins can optionally enable a display-only combined score while creating that mixed/open assignment. The option defaults off, stores `include_open_answers_in_final_score: true` only when checked, and does not change stored MC score semantics.
 The planned object shape is:
 
 ```json
