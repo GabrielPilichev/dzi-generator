@@ -471,7 +471,12 @@ class QuizAttemptRenderTest(unittest.TestCase):
         self.assertIn("Попълнете липсващите стойности.".encode("utf-8"), response.data)
         self.assertIn(f'name="open_q_{open_question_id}_1"'.encode("utf-8"), response.data)
         self.assertIn(f'name="open_q_{open_question_id}_2"'.encode("utf-8"), response.data)
-        self.assertIn("няма да бъдат включени в точния резултат".encode("utf-8"), response.data)
+        # Per-question warning now reflects combined-score state honestly.
+        # Default (combined off) wording.
+        self.assertIn(
+            "Съхраненият MC резултат не се променя.".encode("utf-8"),
+            response.data,
+        )
 
     def test_mc_only_result_does_not_show_open_answer_section(self):
         _assignment_id, attempt_id = self._create_attempt(

@@ -100,7 +100,7 @@ When enabled later:
 
 ## Mixed/Open Visibility
 
-Mixed/open assignments are surfaced read-only on teacher and student pages: the teacher dashboard recent list, the teacher assignments list (with an optional `?type=mc|mixed|all` filter), the assignment detail page, the assignment results header, and the student `quiz_start` hero. Indicators show the open-question count and whether display-only combined scoring is enabled. MC-only assignments show no extra indicators. A non-empty malformed `question_plan_json` is treated as not mixed, with a small "невалиден план" note on teacher pages and no hint for students.
+Mixed/open assignments are surfaced read-only on teacher and student pages: the teacher dashboard recent list, the teacher assignments list (with an optional `?type=mc|mixed|all` filter), the assignment detail page, the assignment results header, the student `quiz_start` hero (open-question count pill, optional combined-score pill, short honest hint), and a top "quiz-mixed-banner" card on `quiz_attempt` while a mixed/open quiz is in progress. The mid-attempt per-question fill-in warning text adapts to the assignment's combined-score state so the message stays honest. There is no separate student-facing assignment list page — students reach assignments via shared `/quiz/<id>` links. MC-only assignments show no extra indicators on either student surface. A non-empty malformed `question_plan_json` is treated as not mixed, with a small "невалиден план" note on teacher pages and no hint for students.
 
 ## Duplicating Assignments
 
