@@ -79,6 +79,12 @@
                 <a href="{{ url_for('teacher_assignment', assignment_id=a.id) }}">Учителски изглед</a>
                 <a href="{{ url_for('teacher_assignment_results', assignment_id=a.id) }}">Резултати</a>
                 <a href="{{ url_for('quiz_start', assignment_id=a.id) }}">Линк за ученици</a>
+                <form method="post"
+                      action="{{ url_for('teacher_assignment_duplicate', assignment_id=a.id) }}"
+                      class="inline-form"
+                      onsubmit="return confirm('Това ще създаде копие на теста „{{ a.title_bg|e }}“ с ново ID. Опитите и отговорите няма да се копират. Продължи?');">
+                  <button type="submit" class="link-button">Дублирай</button>
+                </form>
               </div>
             </td>
           </tr>
