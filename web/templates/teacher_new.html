@@ -65,7 +65,7 @@
     </div>
 
     <div class="warning warning--spaced">
-        Смесените тестове с отворени въпроси са в режим планиране. По подразбиране се създава само MC тест.
+        Смесените тестове с отворени въпроси са експериментални. По подразбиране се създава само MC тест.
     </div>
 
     <div class="detail-grid">
@@ -106,8 +106,9 @@
     {% if mixed_planning_result %}
         <div class="warning warning--spaced" id="mixed-planning-result">
             <strong>Планиране само за учител/админ.</strong>
-            Смесеният ученически тест още не е включен.
+            Смесеният ученически тест може да бъде създаден само с изрично админ действие.
             MC-only създаването остава непроменено, докато броят отворени въпроси е 0.
+            Отворените отговори ще се записват и ще са видими за преглед. Комбинираният резултат остава display-only и е изключен по подразбиране.
 
             <ul>
                 <li>Източник: {{ mixed_planning_result.source_slug }}</li>
@@ -123,6 +124,12 @@
                     {% if mixed_planning_result.closed_shortfall %}MC: {{ mixed_planning_result.closed_shortfall }}{% endif %}
                     {% if mixed_planning_result.open_shortfall %}отворени: {{ mixed_planning_result.open_shortfall }}{% endif %}
                 </p>
+            {% elif admin_authenticated %}
+                <button type="submit" name="create_mixed_assignment" value="1">
+                    Създай експериментален смесен тест
+                </button>
+            {% else %}
+                <p class="muted">Само админ може да създаде експериментален смесен тест от този план.</p>
             {% endif %}
         </div>
     {% endif %}
