@@ -307,7 +307,13 @@ class QuizAttemptRenderTest(unittest.TestCase):
         finally:
             conn.close()
 
-    def _create_mixed_planned_attempt(self, *, submitted=False, student_name="Mixed Open Render"):
+    def _create_mixed_planned_attempt(
+        self,
+        *,
+        submitted=False,
+        student_name="Mixed Open Render",
+        include_open_answers_in_final_score=False,
+    ):
         assignment_id = self._create_assignment()
         conn = web_app.quiz_db()
         try:
@@ -317,6 +323,8 @@ class QuizAttemptRenderTest(unittest.TestCase):
                 "question_ids": [self.valid_question_id, open_question_id],
                 "open_question_ids": [open_question_id],
             }
+            if include_open_answers_in_final_score:
+                question_plan["include_open_answers_in_final_score"] = True
             cur = conn.execute("""
                 INSERT INTO quiz_attempts (
                     assignment_id, student_name, seed, question_ids_json,
@@ -597,12 +605,44 @@ class QuizAttemptRenderTest(unittest.TestCase):
         self.assertIn("1.0/1.0 т.".encode("utf-8"), response.data)
         self.assertIn("0.0/1.0 т.".encode("utf-8"), response.data)
         self.assertIn("Информационен сбор за отворени отговори".encode("utf-8"), response.data)
-        self.assertIn("1.0/2.0 т. · не е включен в точния резултат".encode("utf-8"), response.data)
+        self.assertIn("1.0/2.0 т.".encode("utf-8"), response.data)
+        self.assertIn("не е включен в точния резултат".encode("utf-8"), response.data)
         self.assertIn("режим: ordered".encode("utf-8"), response.data)
         self.assertIn("Прегледът и оценяването от учител ще бъдат добавени по-късно".encode("utf-8"), response.data)
+        self.assertNotIn("Комбиниран резултат".encode("utf-8"), response.data)
         self.assertIn(b'<span class="result-score">0/1</span>', response.data)
         self.assertNotIn(b"accepted_answers_json", response.data)
         self.assertNotIn(b"[&#34;jpeg&#34;, &#34;jpg&#34;]", response.data)
+
+    def test_mixed_open_with_score_integration_flag_shows_combined_score(self):
+        _assignment_id, attempt_id, open_question_id = self._create_mixed_planned_attempt(
+            student_name="Mixed Combined",
+            include_open_answers_in_final_score=True,
+        )
+        conn = web_app.quiz_db()
+        try:
+            wrong_letter = self._wrong_letter(conn, self.valid_question_id)
+        finally:
+            conn.close()
+
+        post_response = self.client.post(f"/quiz/attempt/{attempt_id}", data={
+            f"q_{self.valid_question_id}": wrong_letter,
+            f"open_q_{open_question_id}_1": "неверен",
+            f"open_q_{open_question_id}_2": "jpg",
+        })
+        self.assertEqual(post_response.status_code, 302)
+
+        response = self.client.get(f"/quiz/attempt/{attempt_id}/result")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("MC резултат".encode("utf-8"), response.data)
+        self.assertIn(b'<span class="result-score">0/1</span>', response.data)
+        self.assertIn("Комбиниран резултат".encode("utf-8"), response.data)
+        self.assertIn("1.0/3.0 т.".encode("utf-8"), response.data)
+        self.assertIn("MC: 0.0/1.0 ·".encode("utf-8"), response.data)
+        self.assertIn("отворени: 1.0/2.0".encode("utf-8"), response.data)
+        self.assertIn("1.0/2.0 т.".encode("utf-8"), response.data)
+        self.assertIn("включен е в комбинирания резултат".encode("utf-8"), response.data)
+        self.assertNotIn(b"accepted_answers_json", response.data)
 
     def test_admin_teacher_results_show_recorded_open_answers_read_only(self):
         assignment_id, attempt_id, open_question_id = self._create_mixed_planned_attempt(
@@ -689,6 +729,7 @@ class QuizAttemptRenderTest(unittest.TestCase):
     def test_admin_can_save_teacher_open_answer_override_without_score_change(self):
         assignment_id, attempt_id, open_question_id = self._create_mixed_planned_attempt(
             student_name="Save Override",
+            include_open_answers_in_final_score=True,
         )
         conn = web_app.quiz_db()
         try:
@@ -734,7 +775,9 @@ class QuizAttemptRenderTest(unittest.TestCase):
         self.assertIn(b"Reviewed manually", response.data)
         self.assertIn("Приет от учител".encode("utf-8"), response.data)
         self.assertIn(b"2.0/2.0", response.data)
-        self.assertIn("Информационен сбор, не е включен в крайния резултат.".encode("utf-8"), response.data)
+        self.assertIn("комбиниран резултат".encode("utf-8"), response.data)
+        self.assertIn(b"2.0/3.0", response.data)
+        self.assertIn("Включен е в комбинирания резултат".encode("utf-8"), response.data)
 
     def test_tester_cannot_save_teacher_open_answer_override(self):
         assignment_id, attempt_id, open_question_id = self._create_mixed_planned_attempt(

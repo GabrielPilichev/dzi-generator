@@ -114,7 +114,12 @@
       <h2>Отворени отговори</h2>
     </div>
     <p class="muted">
-      Автоматичните точки за отворени отговори са информативни и не са включени в крайния резултат. Интеграцията на отворените отговори във финалния резултат още не е включена. Учителският override и бележката се записват за преглед, но все още не променят финалния резултат.
+      {% if combined_scores_by_attempt %}
+        За изрично включените смесени опити отворените точки се показват в отделен комбиниран резултат. Съхраненият MC резултат остава отделен.
+      {% else %}
+        Автоматичните точки за отворени отговори са информативни и не са включени в крайния резултат. Интеграцията на отворените отговори във финалния резултат още не е включена.
+      {% endif %}
+      Учителският override и бележката се записват за преглед, но все още не променят съхранения MC резултат.
     </p>
     <fieldset disabled class="warning warning--spaced" aria-label="Планирана интеграция на отворени отговори">
       <legend>Include open answers in final score — coming soon</legend>
@@ -130,8 +135,22 @@
           <div class="card">
             <div class="label">Опит #{{ attempt_id }} · отворени отговори</div>
             <div class="value">{{ subtotal.awarded|round(2) }}/{{ subtotal.possible|round(2) }}</div>
-            <div class="muted">Информационен сбор, не е включен в крайния резултат.</div>
+            <div class="muted">
+              {% if combined_scores_by_attempt.get(attempt_id) %}
+                Включен е в комбинирания резултат за този опит.
+              {% else %}
+                Информационен сбор, не е включен в крайния резултат.
+              {% endif %}
+            </div>
           </div>
+          {% if combined_scores_by_attempt.get(attempt_id) %}
+            {% set combined = combined_scores_by_attempt.get(attempt_id) %}
+            <div class="card">
+              <div class="label">Опит #{{ attempt_id }} · комбиниран резултат</div>
+              <div class="value">{{ combined.combined_awarded|round(2) }}/{{ combined.combined_possible|round(2) }}</div>
+              <div class="muted">MC: {{ combined.mc_awarded|round(2) }}/{{ combined.mc_possible|round(2) }} · отворени: {{ combined.open_awarded|round(2) }}/{{ combined.open_possible|round(2) }}</div>
+            </div>
+          {% endif %}
         {% endfor %}
       </div>
     {% endif %}

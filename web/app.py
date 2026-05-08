@@ -1309,6 +1309,19 @@ def quiz_text_answer_informational_subtotal(rows) -> dict:
     }
 
 
+def quiz_combined_score_summary(attempt, open_subtotal: dict | None, *, enabled: bool) -> dict | None:
+    if not enabled or not open_subtotal:
+        return None
+    return {
+        "mc_awarded": float(attempt["score_correct"] or 0),
+        "mc_possible": float(attempt["score_total"] or 0),
+        "open_awarded": float(open_subtotal.get("awarded") or 0),
+        "open_possible": float(open_subtotal.get("possible") or 0),
+        "combined_awarded": float(attempt["score_correct"] or 0) + float(open_subtotal.get("awarded") or 0),
+        "combined_possible": float(attempt["score_total"] or 0) + float(open_subtotal.get("possible") or 0),
+    }
+
+
 def quiz_record_planned_open_text_answers(
     conn,
     *,
@@ -1614,15 +1627,18 @@ def quiz_parse_attempt_question_plan(raw_value) -> dict:
         raw_question_ids = parsed.get("question_ids", [])
         raw_open_ids = parsed.get("open_question_ids", [])
         mixed_open_enabled = bool(parsed.get("mixed_open_enabled"))
+        include_open_answers_in_final_score = bool(parsed.get("include_open_answers_in_final_score"))
     else:
         raw_question_ids = parsed
         raw_open_ids = []
         mixed_open_enabled = False
+        include_open_answers_in_final_score = False
 
     return {
         "question_ids": raw_question_ids if isinstance(raw_question_ids, list) else [],
         "open_question_ids": raw_open_ids if isinstance(raw_open_ids, list) else [],
         "mixed_open_enabled": mixed_open_enabled,
+        "include_open_answers_in_final_score": include_open_answers_in_final_score,
     }
 
 
@@ -2333,6 +2349,7 @@ def teacher_assignment_results(assignment_id):
         SELECT
             id,
             student_name,
+            question_ids_json,
             started_at,
             submitted_at,
             score_correct,
@@ -2353,12 +2370,22 @@ def teacher_assignment_results(assignment_id):
 
     open_text_answers = []
     open_subtotals_by_attempt: dict[int, dict] = {}
+    combined_scores_by_attempt: dict[int, dict] = {}
     for attempt in attempts:
         if not attempt["submitted_at"]:
             continue
         attempt_answers = fetch_quiz_text_answers_for_attempt(conn, int(attempt["id"]))
         if attempt_answers:
-            open_subtotals_by_attempt[int(attempt["id"])] = quiz_text_answer_informational_subtotal(attempt_answers)
+            open_subtotal = quiz_text_answer_informational_subtotal(attempt_answers)
+            open_subtotals_by_attempt[int(attempt["id"])] = open_subtotal
+            attempt_plan = quiz_parse_attempt_question_plan(attempt["question_ids_json"])
+            combined_score = quiz_combined_score_summary(
+                attempt,
+                open_subtotal,
+                enabled=bool(attempt_plan["include_open_answers_in_final_score"]),
+            )
+            if combined_score:
+                combined_scores_by_attempt[int(attempt["id"])] = combined_score
         for answer in attempt_answers:
             open_text_answers.append({
                 **answer,
@@ -2391,6 +2418,7 @@ def teacher_assignment_results(assignment_id):
         attempts=attempts,
         open_text_answers=open_text_answers,
         open_subtotals_by_attempt=open_subtotals_by_attempt,
+        combined_scores_by_attempt=combined_scores_by_attempt,
         totals=totals,
     )
 
@@ -2594,6 +2622,11 @@ def quiz_result(attempt_id):
     questions = quiz_load_result_questions(conn, attempt, qids, attempt["seed"])
     open_text_answers = fetch_quiz_text_answers_for_attempt(conn, attempt_id)
     open_text_subtotal = quiz_text_answer_informational_subtotal(open_text_answers) if open_text_answers else None
+    combined_score = quiz_combined_score_summary(
+        attempt,
+        open_text_subtotal,
+        enabled=bool(attempt_question_plan["include_open_answers_in_final_score"]),
+    )
     seconds = quiz_time_taken_seconds(attempt)
     conn.close()
 
@@ -2605,6 +2638,7 @@ def quiz_result(attempt_id):
         time_taken=quiz_format_duration(seconds),
         open_text_answers=open_text_answers,
         open_text_subtotal=open_text_subtotal,
+        combined_score=combined_score,
         stale_attempt_message=STALE_ATTEMPT_MESSAGE if not questions else None,
         original_question_count=original_question_count,
         renderable_question_count=renderable_question_count,

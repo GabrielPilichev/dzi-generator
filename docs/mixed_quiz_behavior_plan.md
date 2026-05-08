@@ -140,10 +140,10 @@ When enabled later:
    - Open-answer subtotals remain informational until a separate scoring design explicitly includes them in final totals.
 
 7. Final score integration plan.
-   - MC score remains canonical until explicit opt-in is implemented.
+   - MC score remains canonical unless `include_open_answers_in_final_score` is explicitly true on a mixed/open attempt plan.
    - Open-answer subtotal may later be included only for explicitly planned mixed/open attempts.
    - Teacher overrides must take precedence over auto-grading for included open rows.
-   - Final score integration must be a separate PR with its own tests and rollback notes.
+   - Combined score rendering is display-only; stored `quiz_attempts.score_correct` and `score_total` remain the MC score.
 
 ## Testing Expectations
 
