@@ -720,7 +720,9 @@ def not_found(e):
 
 # === QUIZ PHASE 2 START ===
 
+import csv as _quiz_csv
 import hashlib as _quiz_hashlib
+import io as _quiz_io
 import json as _quiz_json
 import os as _quiz_os
 import random as _quiz_random
@@ -731,6 +733,7 @@ import unicodedata as _quiz_unicodedata
 from datetime import datetime as _quiz_datetime
 from pathlib import Path as _QuizPath
 
+from flask import Response as _quiz_response
 from flask import abort as _quiz_abort
 from flask import redirect as _quiz_redirect
 from flask import request as _quiz_request
@@ -2641,6 +2644,160 @@ def teacher_assignment_results(assignment_id):
         combined_scores_by_attempt=combined_scores_by_attempt,
         totals=totals,
         mixed_status=mixed_status,
+    )
+
+
+QUIZ_RESULTS_EXPORT_COLUMNS = [
+    "row_type",
+    "assignment_id",
+    "assignment_title",
+    "attempt_id",
+    "student_name",
+    "submitted_at",
+    "mc_score_correct",
+    "mc_score_total",
+    "mc_percent",
+    "mixed_open_enabled",
+    "include_open_answers_in_final_score",
+    "open_answer_count",
+    "open_subtotal_awarded",
+    "open_subtotal_possible",
+    "combined_awarded",
+    "combined_possible",
+    "question_id",
+    "subquestion_number",
+    "raw_answer",
+    "normalized_answer",
+    "matched_answer",
+    "points_awarded",
+    "points_possible",
+    "grading_mode",
+    "teacher_override",
+    "teacher_note",
+    "is_correct",
+]
+
+
+def _quiz_csv_value(value):
+    if value is None:
+        return ""
+    return value
+
+
+def _quiz_format_points(value) -> str:
+    try:
+        return f"{float(value):.4f}"
+    except (TypeError, ValueError):
+        return ""
+
+
+@app.route("/teacher/assignment/<int:assignment_id>/results.csv")
+def teacher_assignment_results_export(assignment_id):
+    conn = quiz_db()
+    assignment = quiz_fetch_assignment(conn, assignment_id)
+    if not assignment:
+        conn.close()
+        _quiz_abort(404)
+
+    attempts = conn.execute("""
+        SELECT
+            id,
+            student_name,
+            question_ids_json,
+            started_at,
+            submitted_at,
+            score_correct,
+            score_total
+        FROM quiz_attempts
+        WHERE assignment_id = ?
+          AND submitted_at IS NOT NULL
+        ORDER BY submitted_at DESC, started_at DESC, student_name
+    """, (assignment_id,)).fetchall()
+
+    buf = _quiz_io.StringIO()
+    writer = _quiz_csv.writer(buf)
+    writer.writerow(QUIZ_RESULTS_EXPORT_COLUMNS)
+
+    for attempt in attempts:
+        attempt_id = int(attempt["id"])
+        attempt_answers = fetch_quiz_text_answers_for_attempt(conn, attempt_id)
+        attempt_plan = quiz_parse_attempt_question_plan(attempt["question_ids_json"])
+        mixed_open_enabled = bool(attempt_plan["mixed_open_enabled"])
+        combined_enabled = bool(attempt_plan["include_open_answers_in_final_score"])
+
+        open_subtotal = (
+            quiz_text_answer_informational_subtotal(attempt_answers)
+            if attempt_answers
+            else None
+        )
+        combined_score = quiz_combined_score_summary(
+            attempt, open_subtotal, enabled=combined_enabled
+        )
+
+        mc_correct = attempt["score_correct"]
+        mc_total = attempt["score_total"]
+        mc_percent = ""
+        if mc_total is not None and int(mc_total) > 0 and mc_correct is not None:
+            mc_percent = f"{round(100.0 * float(mc_correct) / float(mc_total), 1)}"
+
+        writer.writerow([
+            "attempt",
+            assignment_id,
+            assignment["title_bg"],
+            attempt_id,
+            attempt["student_name"],
+            attempt["submitted_at"],
+            _quiz_csv_value(mc_correct),
+            _quiz_csv_value(mc_total),
+            mc_percent,
+            "1" if mixed_open_enabled else "0",
+            "1" if combined_enabled else "0",
+            len(attempt_answers),
+            _quiz_format_points(open_subtotal["awarded"]) if open_subtotal else "",
+            _quiz_format_points(open_subtotal["possible"]) if open_subtotal else "",
+            _quiz_format_points(combined_score["combined_awarded"]) if combined_score else "",
+            _quiz_format_points(combined_score["combined_possible"]) if combined_score else "",
+            "", "", "", "", "", "", "", "", "", "", "",
+        ])
+
+        for ans in attempt_answers:
+            writer.writerow([
+                "open_answer",
+                assignment_id,
+                assignment["title_bg"],
+                attempt_id,
+                attempt["student_name"],
+                attempt["submitted_at"],
+                "",
+                "",
+                "",
+                "1" if mixed_open_enabled else "0",
+                "1" if combined_enabled else "0",
+                "",
+                "",
+                "",
+                "",
+                "",
+                _quiz_csv_value(ans.get("question_id")),
+                _quiz_csv_value(ans.get("subquestion_number")),
+                _quiz_csv_value(ans.get("raw_answer")),
+                _quiz_csv_value(ans.get("normalized_answer")),
+                _quiz_csv_value(ans.get("matched_answer")),
+                _quiz_csv_value(ans.get("points_awarded")),
+                _quiz_csv_value(ans.get("points_possible")),
+                _quiz_csv_value(ans.get("grading_mode")),
+                _quiz_csv_value(ans.get("teacher_override")),
+                _quiz_csv_value(ans.get("teacher_note")),
+                _quiz_csv_value(ans.get("is_correct")),
+            ])
+
+    conn.close()
+
+    filename = f"assignment_{assignment_id}_results.csv"
+    return _quiz_response(
+        buf.getvalue(),
+        mimetype="text/csv; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 
