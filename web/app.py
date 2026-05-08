@@ -1642,6 +1642,38 @@ def quiz_parse_attempt_question_plan(raw_value) -> dict:
     }
 
 
+def quiz_parse_assignment_question_plan(raw_value) -> dict | None:
+    if raw_value is None:
+        return None
+
+    plan = quiz_parse_attempt_question_plan(raw_value)
+    if not plan["mixed_open_enabled"]:
+        return None
+    if not plan["question_ids"] or not plan["open_question_ids"]:
+        return None
+
+    planned_ids = set()
+    for qid in plan["question_ids"]:
+        try:
+            if isinstance(qid, bool):
+                raise ValueError
+            planned_ids.add(int(qid))
+        except (TypeError, ValueError):
+            return None
+
+    for qid in plan["open_question_ids"]:
+        try:
+            if isinstance(qid, bool):
+                raise ValueError
+            open_qid = int(qid)
+        except (TypeError, ValueError):
+            return None
+        if open_qid not in planned_ids:
+            return None
+
+    return plan
+
+
 def filter_renderable_attempt_question_ids(
     conn,
     question_ids,

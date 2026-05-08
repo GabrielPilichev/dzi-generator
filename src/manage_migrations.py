@@ -177,6 +177,11 @@ def baseline_status(conn: sqlite3.Connection, filename: str) -> tuple[str, str]:
             return "baselineable", "quiz_text_answers exists"
         return "not baselineable", "quiz_text_answers absent; leave pending"
 
+    if filename == "006_assignment_question_plan.sql":
+        if columns_exist(conn, "quiz_assignments", ["question_plan_json"]):
+            return "baselineable", "quiz_assignments.question_plan_json exists"
+        return "not baselineable", "quiz_assignments.question_plan_json absent; leave pending"
+
     return "manual review required", "no baseline rule defined"
 
 
