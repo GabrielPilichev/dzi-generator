@@ -185,6 +185,23 @@ class AssignmentDuplicateTest(unittest.TestCase):
                 self._delete_assignment(new_id)
             self._delete_assignment(source_id)
 
+    def test_duplicate_caps_title_length_and_preserves_suffix(self):
+        self._login_admin()
+        source_title = "Д" * web_app.QUIZ_TITLE_MAX_LENGTH
+        source_id = self._create_assignment(title=source_title)
+        new_id = None
+        try:
+            response = self.client.post(f"/teacher/assignment/{source_id}/duplicate")
+            new_id = self._new_id_from_redirect(response)
+
+            copy = self._fetch_assignment(new_id)
+            self.assertLessEqual(len(copy["title_bg"]), web_app.QUIZ_TITLE_MAX_LENGTH)
+            self.assertTrue(copy["title_bg"].endswith(web_app.QUIZ_DUPLICATE_TITLE_SUFFIX))
+        finally:
+            if new_id is not None:
+                self._delete_assignment(new_id)
+            self._delete_assignment(source_id)
+
     def test_duplicate_mixed_preserves_question_plan_exactly(self):
         self._login_admin()
         plan = self._mixed_plan(combined_score=True)
