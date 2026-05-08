@@ -73,6 +73,21 @@ Eligibility rules:
 
 No student attempt behavior changes in the first planning/control PR.
 
+Persisted mixed/open assignments use `quiz_assignments.question_plan_json`.
+The field stays `NULL` for MC-only assignments. When a mixed/open assignment is enabled later, it should store the assignment-level plan object that each student attempt copies into `quiz_attempts.question_ids_json`.
+The planned object shape is:
+
+```json
+{
+  "mixed_open_enabled": true,
+  "question_ids": [123, 456],
+  "open_question_ids": [456],
+  "include_open_answers_in_final_score": false
+}
+```
+
+`include_open_answers_in_final_score` defaults to `false`; combined score display must remain explicit opt-in.
+
 When enabled later:
 
 - MC questions render as they do today.
