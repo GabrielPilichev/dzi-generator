@@ -26,22 +26,10 @@ os.environ["DZI_TESTER_PASSWORD"] = "tester-pass"
 from web import app as web_app  # noqa: E402
 
 
-def _register_dzi_default_denied_test_route(app):
-    endpoint = "dzi_test_only_default_denied"
-    if endpoint in app.view_functions:
-        return
-
-    def view():
-        return "test-only DZI endpoint"
-
-    app.add_url_rule("/__test__/dzi-default-denied", endpoint=endpoint, view_func=view)
-
-
 class MixedQuizPlanningControlsTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.app = web_app.app
-        _register_dzi_default_denied_test_route(cls.app)
         cls.app.config.update(TESTING=True)
         conn = web_app.quiz_db()
         try:
