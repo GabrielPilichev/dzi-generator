@@ -1279,6 +1279,36 @@ def fetch_quiz_text_answers_for_attempt(conn, attempt_id: int, *, question_id: i
     return [dict(row) for row in rows]
 
 
+def quiz_text_answer_informational_subtotal(rows) -> dict:
+    awarded = 0.0
+    possible = 0.0
+    count = 0
+    for row in rows or []:
+        count += 1
+        try:
+            row_possible = float(row.get("points_possible") or 0)
+        except (TypeError, ValueError):
+            row_possible = 0.0
+        possible += row_possible
+
+        override = row.get("teacher_override")
+        if override == 1:
+            awarded += row_possible
+        elif override == 0 and row.get("teacher_note"):
+            awarded += 0.0
+        else:
+            try:
+                awarded += float(row.get("points_awarded") or 0)
+            except (TypeError, ValueError):
+                pass
+
+    return {
+        "awarded": awarded,
+        "possible": possible,
+        "count": count,
+    }
+
+
 def quiz_record_planned_open_text_answers(
     conn,
     *,
@@ -2322,13 +2352,18 @@ def teacher_assignment_results(assignment_id):
     """, (assignment_id,)).fetchall()
 
     open_text_answers = []
+    open_subtotals_by_attempt: dict[int, dict] = {}
     for attempt in attempts:
         if not attempt["submitted_at"]:
             continue
-        for answer in fetch_quiz_text_answers_for_attempt(conn, int(attempt["id"])):
+        attempt_answers = fetch_quiz_text_answers_for_attempt(conn, int(attempt["id"]))
+        if attempt_answers:
+            open_subtotals_by_attempt[int(attempt["id"])] = quiz_text_answer_informational_subtotal(attempt_answers)
+        for answer in attempt_answers:
             open_text_answers.append({
                 **answer,
                 "student_name": attempt["student_name"],
+                "attempt_id": int(attempt["id"]),
                 "attempt_score_correct": attempt["score_correct"],
                 "attempt_score_total": attempt["score_total"],
                 "submitted_at": attempt["submitted_at"],
@@ -2355,6 +2390,7 @@ def teacher_assignment_results(assignment_id):
         assignment=assignment,
         attempts=attempts,
         open_text_answers=open_text_answers,
+        open_subtotals_by_attempt=open_subtotals_by_attempt,
         totals=totals,
     )
 
@@ -2557,6 +2593,7 @@ def quiz_result(attempt_id):
     skipped_question_count = max(0, original_question_count - renderable_question_count)
     questions = quiz_load_result_questions(conn, attempt, qids, attempt["seed"])
     open_text_answers = fetch_quiz_text_answers_for_attempt(conn, attempt_id)
+    open_text_subtotal = quiz_text_answer_informational_subtotal(open_text_answers) if open_text_answers else None
     seconds = quiz_time_taken_seconds(attempt)
     conn.close()
 
@@ -2567,6 +2604,7 @@ def quiz_result(attempt_id):
         questions=questions,
         time_taken=quiz_format_duration(seconds),
         open_text_answers=open_text_answers,
+        open_text_subtotal=open_text_subtotal,
         stale_attempt_message=STALE_ATTEMPT_MESSAGE if not questions else None,
         original_question_count=original_question_count,
         renderable_question_count=renderable_question_count,

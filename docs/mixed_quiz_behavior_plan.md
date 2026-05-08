@@ -136,7 +136,8 @@ When enabled later:
    - Store teacher/admin `teacher_override` and `teacher_note` on recorded `quiz_text_answers`.
    - Override changes update only open-answer review fields and must not change MC score semantics.
    - Reject updates for text-answer rows outside the current assignment.
-   - Open-answer points remain informational until a separate scoring design explicitly includes them in final totals.
+   - Display an open-answer subtotal separately on student and teacher/admin review pages.
+   - Open-answer subtotals remain informational until a separate scoring design explicitly includes them in final totals.
 
 ## Testing Expectations
 
