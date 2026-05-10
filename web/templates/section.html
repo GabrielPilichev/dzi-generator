@@ -29,7 +29,7 @@
     <section class="review-banner">
         <div>
             <p class="eyebrow">Преговорен режим</p>
-            <p class="subtitle">Преглеждаш въпроси с показани отговори. За решаване създай тест от този раздел.</p>
+            <p class="subtitle">Преглеждаш въпроси със скрити отговори. За решаване създай тест от този раздел.</p>
         </div>
         <a class="button" href="{{ url_for('teacher_new', section=section.section_slug) }}">Реши като тест</a>
     </section>
@@ -61,7 +61,7 @@
                 <span class="toolbar-divider" aria-hidden="true"></span>
 
                 <button class="segmented-button" type="button" id="toggle-correct" aria-pressed="false">
-                    <span class="button-label">Скрий отговорите</span>
+                    <span class="button-label">Покажи отговорите</span>
                 </button>
 
                 <button class="segmented-button" type="button" id="bookmarks-only" aria-pressed="false">
@@ -79,7 +79,7 @@
                     <div class="shortcuts-popover" id="shortcuts-popover" hidden>
                         <div><kbd>/</kbd> търсене</div>
                         <div><kbd>s</kbd> разбъркай</div>
-                        <div><kbd>h</kbd> скрий отговорите</div>
+                        <div><kbd>h</kbd> покажи/скрий отговорите</div>
                         <div><kbd>Esc</kbd> изчисти</div>
                     </div>
                 </div>
@@ -117,17 +117,20 @@
                 <div class="prompt">{{ q.prompt }}</div>
 
                 {% if q.options %}
-                    <ol class="options-list">
-                        {% for opt in q.options %}
-                            <li class="option-row {% if opt.is_correct %}correct{% endif %}">
-                                <span class="option-letter">{{ opt.option_letter }}</span>
-                                <span class="option-text">{{ opt.option_text }}</span>
-                                {% if opt.is_correct %}
-                                    <span class="option-status">верен</span>
-                                {% endif %}
-                            </li>
-                        {% endfor %}
-                    </ol>
+                    <details class="answer-details">
+                        <summary>Покажи отговорите</summary>
+                        <ol class="options-list">
+                            {% for opt in q.options %}
+                                <li class="option-row {% if opt.is_correct %}correct{% endif %}">
+                                    <span class="option-letter">{{ opt.option_letter }}</span>
+                                    <span class="option-text">{{ opt.option_text }}</span>
+                                    {% if opt.is_correct %}
+                                        <span class="option-status">верен</span>
+                                    {% endif %}
+                                </li>
+                            {% endfor %}
+                        </ol>
+                    </details>
                 {% else %}
                     <div class="open-question-note">отворен въпрос</div>
                 {% endif %}

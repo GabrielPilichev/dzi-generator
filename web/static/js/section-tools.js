@@ -21,7 +21,7 @@
 
   const originalQuestions = Array.from(document.querySelectorAll("#questions-list .question"));
   let questions = [...originalQuestions];
-  let correctHidden = false;
+  let answersShown = false;
   let bookmarksOnly = false;
 
   function readBookmarks() {
@@ -99,11 +99,17 @@
     updateBookmarkUI();
   }
 
-  function setCorrectVisibility(hidden) {
-    correctHidden = hidden;
-    questions.forEach((q) => q.classList.toggle("hide-correct", correctHidden));
-    toggleCorrect.classList.toggle("active", correctHidden);
-    toggleCorrect.setAttribute("aria-pressed", correctHidden ? "true" : "false");
+  function setAnswerVisibility(shown) {
+    answersShown = shown;
+    questions.forEach((q) => {
+      q.querySelectorAll(".answer-details").forEach((details) => {
+        details.open = answersShown;
+      });
+    });
+    toggleCorrect.classList.toggle("active", answersShown);
+    toggleCorrect.setAttribute("aria-pressed", answersShown ? "true" : "false");
+    const label = toggleCorrect.querySelector(".button-label");
+    if (label) label.textContent = answersShown ? "Скрий отговорите" : "Покажи отговорите";
   }
 
   function shuffleQuestions() {
@@ -121,7 +127,7 @@
     questions = [...originalQuestions];
     questions.forEach((q) => list.appendChild(q));
     shuffleButton.classList.remove("active");
-    setCorrectVisibility(false);
+    setAnswerVisibility(false);
     applyFilters();
   }
 
@@ -140,7 +146,7 @@
   searchInput.addEventListener("input", applyFilters);
   typeFilter.addEventListener("change", applyFilters);
   difficultyFilter.addEventListener("change", applyFilters);
-  toggleCorrect.addEventListener("click", () => setCorrectVisibility(!correctHidden));
+  toggleCorrect.addEventListener("click", () => setAnswerVisibility(!answersShown));
   shuffleButton.addEventListener("click", shuffleQuestions);
   resetButton.addEventListener("click", resetView);
   bookmarksOnlyButton.addEventListener("click", () => {
@@ -185,10 +191,10 @@
 
     if (event.key.toLowerCase() === "h") {
       event.preventDefault();
-      setCorrectVisibility(!correctHidden);
+      setAnswerVisibility(!answersShown);
     }
   });
 
-  setCorrectVisibility(false);
+  setAnswerVisibility(false);
   applyFilters();
 })();
