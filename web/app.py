@@ -57,6 +57,8 @@ def build_secret_key() -> str:
 app = Flask(__name__)
 app.config["DB_PATH"] = str(DB_PATH)
 app.config["SECRET_KEY"] = build_secret_key()
+app.config["SESSION_COOKIE_SAMESITE"] = "Strict"
+app.config["SESSION_COOKIE_HTTPONLY"] = True
 
 
 
@@ -79,6 +81,42 @@ def safe_redirect_target(candidate: str | None, fallback: str) -> str:
     if parsed.scheme or parsed.netloc or not parsed.path.startswith("/"):
         return fallback_url
     return candidate
+
+
+UNSAFE_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
+
+
+def _same_origin_url(candidate_url: str | None) -> bool:
+    if not isinstance(candidate_url, str) or not candidate_url.strip():
+        return False
+
+    candidate = urlparse(candidate_url)
+    current = urlparse(request.host_url)
+    return (
+        candidate.scheme.lower() == current.scheme.lower()
+        and candidate.netloc.lower() == current.netloc.lower()
+    )
+
+
+def _request_has_same_origin() -> bool:
+    origin = request.headers.get("Origin")
+    if origin:
+        return _same_origin_url(origin)
+
+    referer = request.headers.get("Referer")
+    if referer:
+        return _same_origin_url(referer)
+
+    return bool(app.config.get("TESTING"))
+
+
+@app.before_request
+def protect_same_origin_unsafe_methods():
+    if request.method not in UNSAFE_METHODS:
+        return
+    if not _request_has_same_origin():
+        abort(403)
+
 
 @app.before_request
 def load_ui_profile():
