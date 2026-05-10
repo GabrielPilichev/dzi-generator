@@ -1630,7 +1630,7 @@ def quiz_load_questions(conn, question_ids: list[int], seed: str, include_correc
 
     placeholders = ",".join("?" for _ in question_ids)
     q_rows = conn.execute(f"""
-        SELECT id, prompt, question_type
+        SELECT id, prompt, question_type, difficulty
         FROM questions
         WHERE id IN ({placeholders})
     """, question_ids).fetchall()
