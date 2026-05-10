@@ -53,6 +53,9 @@
     {% for q in questions %}
       <article class="card question-card quiz-card">
         <h2>Въпрос {{ loop.index }} от {{ questions|length }}</h2>
+        {% if q.difficulty %}
+          <p class="muted">Трудност: {{ q.difficulty }}</p>
+        {% endif %}
         <p>{{ q.prompt }}</p>
 
         {% if q.question_type == "multiple_choice" %}

@@ -85,18 +85,19 @@ class QuizAttemptRenderTest(unittest.TestCase):
         return int(cur.lastrowid)
 
     @staticmethod
-    def _insert_eligible_mc_question(conn, *, source_number, topic_id, prompt):
+    def _insert_eligible_mc_question(conn, *, source_number, topic_id=None, prompt, difficulty="medium"):
         cur = conn.execute("""
             INSERT INTO questions (
                 source_exam, source_number, question_type, topic, topic_id,
                 difficulty, points, prompt, has_image, image_path,
                 is_ai_generated, quality_score
             )
-            VALUES (?, ?, 'multiple_choice', 'visual-filter-test', ?, 'medium', 1, ?, 0, NULL, 0, NULL)
+            VALUES (?, ?, 'multiple_choice', 'visual-filter-test', ?, ?, 1, ?, 0, NULL, 0, NULL)
         """, (
             "temp-visual-filter-test",
             source_number,
             topic_id,
+            difficulty,
             prompt,
         ))
         question_id = int(cur.lastrowid)
@@ -113,7 +114,7 @@ class QuizAttemptRenderTest(unittest.TestCase):
         return question_id
 
     @staticmethod
-    def _insert_eligible_open_question(conn, *, source_exam=None, source_number=16):
+    def _insert_eligible_open_question(conn, *, source_exam=None, source_number=16, difficulty="medium"):
         if source_exam is None:
             count = conn.execute("""
                 SELECT COUNT(*)
@@ -127,10 +128,11 @@ class QuizAttemptRenderTest(unittest.TestCase):
                 source_exam, source_number, question_type, topic, difficulty,
                 points, prompt, has_image, is_ai_generated, quality_score
             )
-            VALUES (?, ?, 'fill_in', 'test', 'medium', 1, ?, 0, 0, NULL)
+            VALUES (?, ?, 'fill_in', 'test', ?, 1, ?, 0, 0, NULL)
         """, (
             source_exam,
             source_number,
+            difficulty,
             "Попълнете липсващите стойности.",
         ))
         question_id = int(cur.lastrowid)
@@ -462,6 +464,52 @@ class QuizAttemptRenderTest(unittest.TestCase):
         self.assertNotIn(b'name="open_q_', response.data)
         self.assertNotIn("Отворените отговори".encode("utf-8"), response.data)
 
+    def test_active_attempt_shows_question_difficulty_when_available(self):
+        conn = web_app.quiz_db()
+        try:
+            question_id = self._insert_eligible_mc_question(
+                conn,
+                source_number=901,
+                prompt="Въпрос с показана трудност.",
+                difficulty="hard",
+            )
+            conn.commit()
+        finally:
+            conn.close()
+        _assignment_id, attempt_id = self._create_attempt(
+            [question_id],
+            submitted=False,
+            student_name="Difficulty Active",
+        )
+
+        response = self.client.get(f"/quiz/attempt/{attempt_id}")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Въпрос с показана трудност.".encode("utf-8"), response.data)
+        self.assertIn("Трудност: hard".encode("utf-8"), response.data)
+
+    def test_active_attempt_omits_difficulty_when_missing(self):
+        conn = web_app.quiz_db()
+        try:
+            question_id = self._insert_eligible_mc_question(
+                conn,
+                source_number=902,
+                prompt="Въпрос без трудност.",
+                difficulty=None,
+            )
+            conn.commit()
+        finally:
+            conn.close()
+        _assignment_id, attempt_id = self._create_attempt(
+            [question_id],
+            submitted=False,
+            student_name="No Difficulty Active",
+        )
+
+        response = self.client.get(f"/quiz/attempt/{attempt_id}")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Въпрос без трудност.".encode("utf-8"), response.data)
+        self.assertNotIn("Трудност:".encode("utf-8"), response.data)
+
     def test_mixed_planned_attempt_renders_open_text_inputs(self):
         _assignment_id, attempt_id, open_question_id = self._create_mixed_planned_attempt()
 
@@ -469,6 +517,7 @@ class QuizAttemptRenderTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(self.valid_prompt.encode("utf-8"), response.data)
         self.assertIn("Попълнете липсващите стойности.".encode("utf-8"), response.data)
+        self.assertIn("Трудност: medium".encode("utf-8"), response.data)
         self.assertIn(f'name="open_q_{open_question_id}_1"'.encode("utf-8"), response.data)
         self.assertIn(f'name="open_q_{open_question_id}_2"'.encode("utf-8"), response.data)
         # Per-question warning now reflects combined-score state honestly.

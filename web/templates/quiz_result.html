@@ -64,6 +64,9 @@
       </div>
 
       <p class="prompt">{{ q.prompt }}</p>
+      {% if q.difficulty %}
+        <p class="muted">Трудност: {{ q.difficulty }}</p>
+      {% endif %}
 
       <div class="answer-summary-grid">
         {% if q.chosen_letter %}
