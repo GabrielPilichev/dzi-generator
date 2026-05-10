@@ -111,6 +111,13 @@ class AuthGuardTest(unittest.TestCase):
         self.assertIn("/teacher/assignment/", location)
         return location
 
+    def _assignment_count(self):
+        conn = web_app.quiz_db()
+        try:
+            return conn.execute("SELECT COUNT(*) FROM quiz_assignments").fetchone()[0]
+        finally:
+            conn.close()
+
     def test_sessionless_access_is_redirected_to_login(self):
         response = self.client.get("/teacher/new")
         self.assertEqual(response.status_code, 302)
@@ -226,6 +233,124 @@ class AuthGuardTest(unittest.TestCase):
         )
         self.assertEqual(tester_response.status_code, 302)
         self.assertEqual(tester_response.headers["Location"], "/teacher/new")
+
+    def test_cross_origin_post_to_admin_login_is_rejected(self):
+        response = self.client.post(
+            "/admin/login",
+            data={"password": "admin-pass"},
+            headers={"Origin": "http://evil.example"},
+        )
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_scheme_mismatch_post_to_admin_login_is_rejected(self):
+        response = self.client.post(
+            "/admin/login",
+            data={"password": "admin-pass"},
+            headers={"Origin": "https://localhost"},
+        )
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_same_origin_post_to_admin_login_still_works(self):
+        response = self.client.post(
+            "/admin/login?next=/teacher/assignments",
+            data={"password": "admin-pass"},
+            headers={"Origin": "http://localhost"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.headers["Location"], "/teacher/assignments")
+
+    def test_cross_origin_post_to_teacher_mutation_is_rejected_after_login(self):
+        self._login_tester()
+        before_assignments = self._assignment_count()
+
+        response = self.client.post(
+            "/teacher/new",
+            data={
+                "section_id": str(self.section["id"]),
+                "question_count": "1",
+                "time_limit_minutes": "",
+            },
+            headers={"Origin": "http://evil.example"},
+        )
+
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(self._assignment_count(), before_assignments)
+
+    def test_same_origin_post_to_teacher_new_still_works(self):
+        self._login_tester()
+        before_assignments = self._assignment_count()
+
+        response = self.client.post(
+            "/teacher/new",
+            data={
+                "section_id": str(self.section["id"]),
+                "question_count": "1",
+                "time_limit_minutes": "",
+            },
+            headers={"Origin": "http://localhost"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/teacher/assignment/", response.headers["Location"])
+        self.assertEqual(self._assignment_count(), before_assignments + 1)
+
+    def test_get_routes_are_not_blocked_by_cross_origin_headers(self):
+        response = self.client.get(
+            "/admin/login",
+            headers={"Origin": "http://evil.example"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+    def test_missing_origin_and_referer_is_allowed_in_testing_mode(self):
+        self.assertTrue(self.app.config["TESTING"])
+        response = self.client.post(
+            "/admin/login?next=/teacher/assignments",
+            data={"password": "admin-pass"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.headers["Location"], "/teacher/assignments")
+
+    def test_missing_origin_and_referer_is_rejected_outside_testing_mode(self):
+        previous_testing = self.app.config["TESTING"]
+        self.app.config["TESTING"] = False
+        try:
+            response = self.client.post(
+                "/admin/login",
+                data={"password": "admin-pass"},
+            )
+        finally:
+            self.app.config["TESTING"] = previous_testing
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_same_origin_referer_is_allowed_when_origin_is_missing(self):
+        response = self.client.post(
+            "/admin/login?next=/teacher/assignments",
+            data={"password": "admin-pass"},
+            headers={"Referer": "http://localhost/admin/login"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.headers["Location"], "/teacher/assignments")
+
+    def test_cross_origin_referer_is_rejected_when_origin_is_missing(self):
+        response = self.client.post(
+            "/admin/login",
+            data={"password": "admin-pass"},
+            headers={"Referer": "http://evil.example/admin/login"},
+        )
+
+        self.assertEqual(response.status_code, 403)
+
+    def test_session_cookie_security_defaults_are_set(self):
+        self.assertEqual(self.app.config["SESSION_COOKIE_SAMESITE"], "Strict")
+        self.assertTrue(self.app.config["SESSION_COOKIE_HTTPONLY"])
+        self.assertFalse(self.app.config.get("SESSION_COOKIE_SECURE", False))
 
     def test_switch_profile_rejects_external_next_and_referrer(self):
         self._login_admin()
