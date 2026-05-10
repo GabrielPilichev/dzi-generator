@@ -781,6 +781,27 @@ button.secondary {
   padding: 0;
   margin: 0;
 }
+.answer-details {
+  margin-top: var(--space-4);
+}
+.answer-details summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-weight: 850;
+  cursor: pointer;
+}
+.answer-details summary:hover {
+  border-color: var(--color-border-strong);
+}
+.answer-details[open] summary {
+  margin-bottom: var(--space-3);
+}
 .option-row {
   display: grid;
   grid-template-columns: 30px minmax(0, 1fr) auto;
