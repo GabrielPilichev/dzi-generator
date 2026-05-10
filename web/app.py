@@ -995,15 +995,27 @@ def _quiz_candidate_grading_mode(subquestions: list[dict]) -> str:
     return "ordered"
 
 
-def fetch_open_question_candidates(conn, *, source_slug: str | None = None, limit: int | None = None) -> list[dict]:
+def fetch_open_question_candidates(
+    conn,
+    *,
+    source_slug: str | None = None,
+    section_id: int | None = None,
+    limit: int | None = None,
+) -> list[dict]:
     params = []
     source_filter = ""
     if source_slug is not None:
         source_filter = "AND q.source_exam = ?"
         params.append(source_slug)
+    section_join = ""
+    section_filter = ""
+    if section_id is not None:
+        section_join = "JOIN topic_section_assignments tsa ON tsa.topic_id = q.topic_id"
+        section_filter = "AND tsa.section_id = ?"
+        params.append(section_id)
 
     question_rows = conn.execute(f"""
-        SELECT
+        SELECT DISTINCT
             q.id,
             q.source_exam,
             q.source_number,
@@ -1012,8 +1024,10 @@ def fetch_open_question_candidates(conn, *, source_slug: str | None = None, limi
             q.has_image,
             q.image_path
         FROM questions q
+        {section_join}
         WHERE q.question_type IN ('fill_in', 'short_answer')
           {source_filter}
+          {section_filter}
         ORDER BY q.source_exam, q.source_number, q.id
     """, params).fetchall()
 
@@ -1050,6 +1064,8 @@ def build_mixed_quiz_plan(
     closed_count: int,
     open_count: int,
     source_slug: str | None = None,
+    open_source_slug: str | None = None,
+    section_id: int | None = None,
 ) -> dict:
     if closed_count < 0 or open_count < 0:
         raise ValueError("closed_count and open_count must be non-negative")
@@ -1059,9 +1075,15 @@ def build_mixed_quiz_plan(
     if source_slug is not None:
         source_filter = "AND q.source_exam = ?"
         params.append(source_slug)
+    section_join = ""
+    section_filter = ""
+    if section_id is not None:
+        section_join = "JOIN topic_section_assignments tsa ON tsa.topic_id = q.topic_id"
+        section_filter = "AND tsa.section_id = ?"
+        params.append(section_id)
 
     closed_rows = conn.execute(f"""
-        SELECT
+        SELECT DISTINCT
             q.id,
             q.source_exam,
             q.source_number,
@@ -1070,9 +1092,11 @@ def build_mixed_quiz_plan(
             q.has_image,
             q.image_path
         FROM questions q
+        {section_join}
         WHERE q.question_type = 'multiple_choice'
           AND {QUIZ_APPROVED_FILTER}
           {source_filter}
+          {section_filter}
         ORDER BY q.source_exam, q.source_number, q.id
     """, params).fetchall()
 
@@ -1087,7 +1111,11 @@ def build_mixed_quiz_plan(
             "question_type": "multiple_choice",
         })
 
-    open_candidates = fetch_open_question_candidates(conn, source_slug=source_slug)
+    open_candidates = fetch_open_question_candidates(
+        conn,
+        source_slug=open_source_slug if open_source_slug is not None else source_slug,
+        section_id=section_id,
+    )
 
     return {
         "closed_questions": closed_candidates[:closed_count],
@@ -2274,8 +2302,10 @@ def teacher_new():
         raw_question_count = (_quiz_request.form.get("question_count") or "").strip()
         raw_limit = (_quiz_request.form.get("time_limit_minutes") or "").strip()
         include_open_questions = bool(_quiz_request.form.get("include_open_questions"))
-        create_mixed_assignment = bool(_quiz_request.form.get("create_mixed_assignment"))
-        include_open_answers_in_final_score = bool(_quiz_request.form.get("include_open_answers_in_final_score"))
+        include_open_answers_in_final_score = (
+            bool(_quiz_request.form.get("include_open_answers_in_final_score"))
+            and is_admin_authenticated()
+        )
         raw_open_count = (_quiz_request.form.get("open_count") or "").strip()
         source_slug = (_quiz_request.form.get("source_slug") or "").strip()
         section_id = None
@@ -2293,18 +2323,20 @@ def teacher_new():
         try:
             section_id = int(raw_section_id)
             requested_count = int(raw_question_count or 10)
-            open_count = max(0, int(raw_open_count or 0))
+            open_count = int(raw_open_count or 0)
             if raw_limit:
                 time_limit = int(raw_limit)
         except ValueError:
             teacher_new_error = "invalid_number"
         else:
-            if section_id <= 0 or requested_count < 1:
+            if section_id <= 0 or requested_count < 1 or open_count < 0:
                 teacher_new_error = "invalid_number"
             elif time_limit is not None and (
                 time_limit < 1 or time_limit > QUIZ_TIME_LIMIT_MAX_MINUTES
             ):
                 teacher_new_error = "time_out_of_range"
+            elif open_count > requested_count:
+                teacher_new_error = "open_count_exceeds_total"
 
         if teacher_new_error is None:
             form_values = {
@@ -2332,16 +2364,14 @@ def teacher_new():
 
             question_count = max(1, min(requested_count, available))
 
-            if include_open_questions and open_count > 0:
-                if create_mixed_assignment and not is_admin_authenticated():
-                    conn.close()
-                    return _quiz_redirect(_quiz_url_for("admin_login", next=_quiz_request.path))
-
+            if open_count > 0:
+                closed_count = requested_count - open_count
                 plan = build_mixed_quiz_plan(
                     conn,
-                    closed_count=question_count,
+                    closed_count=closed_count,
                     open_count=open_count,
-                    source_slug=source_slug or None,
+                    open_source_slug=source_slug or None,
+                    section_id=section_id,
                 )
                 closed_question_ids = [int(question["question_id"]) for question in plan["closed_questions"]]
                 open_question_ids = [int(question["question_id"]) for question in plan["open_questions"]]
@@ -2357,7 +2387,13 @@ def teacher_new():
                     "closed_shortfall": max(0, plan["requested_closed_count"] - plan["available_closed_count"]),
                     "open_shortfall": max(0, plan["requested_open_count"] - plan["available_open_count"]),
                 }
-                if create_mixed_assignment and not mixed_planning_result["closed_shortfall"] and not mixed_planning_result["open_shortfall"]:
+                if mixed_planning_result["open_shortfall"]:
+                    teacher_new_error = "insufficient_open_questions"
+                    preselected_section_id = section_id
+                elif mixed_planning_result["closed_shortfall"]:
+                    teacher_new_error = "insufficient_closed_questions"
+                    preselected_section_id = section_id
+                else:
                     question_plan = {
                         "mixed_open_enabled": True,
                         "question_ids": closed_question_ids + open_question_ids,
@@ -2382,7 +2418,6 @@ def teacher_new():
 
                     quiz_write_assignment_note(assignment_id, _quiz_request.host_url)
                     return _quiz_redirect(_quiz_url_for("teacher_assignment", assignment_id=assignment_id))
-                preselected_section_id = section_id
             else:
                 cur = conn.execute("""
                     INSERT INTO quiz_assignments (section_id, title_bg, question_count, time_limit_minutes)

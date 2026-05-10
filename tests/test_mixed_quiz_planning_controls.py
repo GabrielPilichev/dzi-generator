@@ -33,8 +33,7 @@ class MixedQuizPlanningControlsTest(unittest.TestCase):
         cls.app.config.update(TESTING=True)
         conn = web_app.quiz_db()
         try:
-            cls.section = cls._first_eligible_section(conn)
-            cls.open_source_slug = cls._first_open_source_slug(conn)
+            cls.section, cls.open_source_slug = cls._first_mixed_eligible_section(conn)
         finally:
             conn.close()
 
@@ -56,6 +55,21 @@ class MixedQuizPlanningControlsTest(unittest.TestCase):
         if not candidates:
             raise AssertionError("No open question candidates found")
         return candidates[0]["source_slug"]
+
+    @classmethod
+    def _first_mixed_eligible_section(cls, conn):
+        rows = conn.execute("""
+            SELECT id, section_slug
+            FROM curriculum_sections
+            ORDER BY id
+        """).fetchall()
+        for row in rows:
+            if not web_app.quiz_section_question_ids(conn, int(row["id"])):
+                continue
+            candidates = web_app.fetch_open_question_candidates(conn, section_id=int(row["id"]))
+            if candidates:
+                return row, candidates[0]["source_slug"]
+        return cls._first_eligible_section(conn), cls._first_open_source_slug(conn)
 
     def setUp(self):
         self.client = self.app.test_client()
@@ -138,6 +152,23 @@ class MixedQuizPlanningControlsTest(unittest.TestCase):
         assignment_id = self._assignment_id_from_location(response.headers["Location"])
         self.assertIsNone(self._assignment(assignment_id)["question_plan_json"])
 
+    def test_open_count_zero_creates_mc_only_assignment(self):
+        self._login_tester()
+        before_assignments = self._assignment_count()
+
+        response = self.client.post("/teacher/new", data={
+            "section_id": str(self.section["id"]),
+            "question_count": "2",
+            "open_count": "0",
+            "time_limit_minutes": "",
+        })
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/teacher/assignment/", response.headers["Location"])
+        self.assertEqual(self._assignment_count(), before_assignments + 1)
+        assignment_id = self._assignment_id_from_location(response.headers["Location"])
+        self.assertIsNone(self._assignment(assignment_id)["question_plan_json"])
+
     def test_new_assignment_rejects_malformed_numeric_inputs(self):
         self._login_tester()
         before_assignments = self._assignment_count()
@@ -168,22 +199,28 @@ class MixedQuizPlanningControlsTest(unittest.TestCase):
         self.assertIn("Времето трябва да е между".encode("utf-8"), response.data)
         self.assertEqual(self._assignment_count(), before_assignments)
 
-    def test_include_open_absent_with_open_count_keeps_mc_only_behavior(self):
+    def test_open_count_positive_without_checkbox_creates_mixed_assignment(self):
         self._login_tester()
         before_assignments = self._assignment_count()
 
         response = self.client.post("/teacher/new", data={
             "section_id": str(self.section["id"]),
-            "question_count": "1",
-            "open_count": "2",
+            "question_count": "2",
+            "open_count": "1",
+            "source_slug": self.open_source_slug,
             "time_limit_minutes": "",
         })
 
         self.assertEqual(response.status_code, 302)
         self.assertIn("/teacher/assignment/", response.headers["Location"])
         self.assertEqual(self._assignment_count(), before_assignments + 1)
+        assignment_id = self._assignment_id_from_location(response.headers["Location"])
+        stored = json.loads(self._assignment(assignment_id)["question_plan_json"])
+        self.assertTrue(stored["mixed_open_enabled"])
+        self.assertEqual(len(stored["open_question_ids"]), 1)
+        self.assertEqual(len(stored["question_ids"]), 2)
 
-    def test_include_open_with_positive_count_reports_plan_without_creating_assignment(self):
+    def test_include_open_with_positive_count_creates_mixed_assignment(self):
         self._login_tester()
         before_assignments = self._assignment_count()
         before_attempts = self._attempt_count()
@@ -191,20 +228,23 @@ class MixedQuizPlanningControlsTest(unittest.TestCase):
 
         response = self.client.post("/teacher/new", data={
             "section_id": str(self.section["id"]),
-            "question_count": "1",
+            "question_count": "2",
             "time_limit_minutes": "",
             "include_open_questions": "1",
             "open_count": "1",
             "source_slug": self.open_source_slug,
         })
 
-        self.assertEqual(response.status_code, 200)
-        self.assertIn("Планиране само за учител/админ".encode("utf-8"), response.data)
-        self.assertIn("Само админ може да създаде експериментален смесен тест".encode("utf-8"), response.data)
-        self.assertNotIn(b'name="include_open_answers_in_final_score"', response.data)
-        self.assertEqual(self._assignment_count(), before_assignments)
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/teacher/assignment/", response.headers["Location"])
+        self.assertEqual(self._assignment_count(), before_assignments + 1)
         self.assertEqual(self._attempt_count(), before_attempts)
         self.assertEqual(self._text_answer_count(), before_text_answers)
+        assignment_id = self._assignment_id_from_location(response.headers["Location"])
+        stored = json.loads(self._assignment(assignment_id)["question_plan_json"])
+        self.assertTrue(stored["mixed_open_enabled"])
+        self.assertEqual(len(stored["open_question_ids"]), 1)
+        self.assertEqual(len(stored["question_ids"]), 2)
 
     def test_admin_mixed_open_assignment_stores_question_plan_json(self):
         self._login_admin()
@@ -212,7 +252,7 @@ class MixedQuizPlanningControlsTest(unittest.TestCase):
 
         response = self.client.post("/teacher/new", data={
             "section_id": str(self.section["id"]),
-            "question_count": "1",
+            "question_count": "2",
             "time_limit_minutes": "",
             "include_open_questions": "1",
             "open_count": "1",
@@ -235,7 +275,7 @@ class MixedQuizPlanningControlsTest(unittest.TestCase):
 
         response = self.client.post("/teacher/new", data={
             "section_id": str(self.section["id"]),
-            "question_count": "1",
+            "question_count": "2",
             "time_limit_minutes": "",
             "include_open_questions": "1",
             "open_count": "1",
@@ -249,13 +289,13 @@ class MixedQuizPlanningControlsTest(unittest.TestCase):
         stored = json.loads(self._assignment(assignment_id)["question_plan_json"])
         self.assertTrue(stored["include_open_answers_in_final_score"])
 
-    def test_tester_cannot_create_mixed_open_assignment(self):
+    def test_tester_can_create_mixed_open_assignment(self):
         self._login_tester()
         before_assignments = self._assignment_count()
 
         response = self.client.post("/teacher/new", data={
             "section_id": str(self.section["id"]),
-            "question_count": "1",
+            "question_count": "2",
             "time_limit_minutes": "",
             "include_open_questions": "1",
             "open_count": "1",
@@ -264,8 +304,11 @@ class MixedQuizPlanningControlsTest(unittest.TestCase):
         })
 
         self.assertEqual(response.status_code, 302)
-        self.assertIn("/admin/login", response.headers["Location"])
-        self.assertEqual(self._assignment_count(), before_assignments)
+        self.assertIn("/teacher/assignment/", response.headers["Location"])
+        self.assertEqual(self._assignment_count(), before_assignments + 1)
+        assignment_id = self._assignment_id_from_location(response.headers["Location"])
+        stored = json.loads(self._assignment(assignment_id)["question_plan_json"])
+        self.assertTrue(stored["mixed_open_enabled"])
 
     def test_tester_cannot_enable_display_only_combined_score(self):
         self._login_tester()
@@ -273,7 +316,7 @@ class MixedQuizPlanningControlsTest(unittest.TestCase):
 
         response = self.client.post("/teacher/new", data={
             "section_id": str(self.section["id"]),
-            "question_count": "1",
+            "question_count": "2",
             "time_limit_minutes": "",
             "include_open_questions": "1",
             "open_count": "1",
@@ -283,14 +326,17 @@ class MixedQuizPlanningControlsTest(unittest.TestCase):
         })
 
         self.assertEqual(response.status_code, 302)
-        self.assertIn("/admin/login", response.headers["Location"])
-        self.assertEqual(self._assignment_count(), before_assignments)
+        self.assertIn("/teacher/assignment/", response.headers["Location"])
+        self.assertEqual(self._assignment_count(), before_assignments + 1)
+        assignment_id = self._assignment_id_from_location(response.headers["Location"])
+        stored = json.loads(self._assignment(assignment_id)["question_plan_json"])
+        self.assertFalse(stored["include_open_answers_in_final_score"])
 
     def test_mixed_open_assignment_starts_attempt_renders_and_records_open_answer(self):
         self._login_admin()
         create_response = self.client.post("/teacher/new", data={
             "section_id": str(self.section["id"]),
-            "question_count": "1",
+            "question_count": "2",
             "time_limit_minutes": "",
             "include_open_questions": "1",
             "open_count": "1",
@@ -327,7 +373,9 @@ class MixedQuizPlanningControlsTest(unittest.TestCase):
             """, (attempt_id, open_question_id)).fetchone()[0]
         finally:
             conn.close()
-        self.assertFalse(json.loads(stored_attempt["question_ids_json"])["include_open_answers_in_final_score"])
+        copied_plan = json.loads(stored_attempt["question_ids_json"])
+        self.assertFalse(copied_plan["include_open_answers_in_final_score"])
+        self.assertIn(open_question_id, copied_plan["open_question_ids"])
         self.assertEqual(stored_attempt["score_total"], 1)
         self.assertGreaterEqual(text_count, 1)
 
@@ -339,7 +387,7 @@ class MixedQuizPlanningControlsTest(unittest.TestCase):
         self._login_admin()
         create_response = self.client.post("/teacher/new", data={
             "section_id": str(self.section["id"]),
-            "question_count": "1",
+            "question_count": "2",
             "time_limit_minutes": "",
             "include_open_questions": "1",
             "open_count": "1",
@@ -377,20 +425,38 @@ class MixedQuizPlanningControlsTest(unittest.TestCase):
         self.assertIn("Комбиниран резултат".encode("utf-8"), result_response.data)
         self.assertIn(b'<span class="result-score">0/1</span>', result_response.data)
 
-    def test_mixed_plan_reports_shortfall_when_open_count_exceeds_available(self):
+    def test_open_count_with_no_available_candidates_does_not_create_assignment(self):
         self._login_tester()
+        before_assignments = self._assignment_count()
+
         response = self.client.post("/teacher/new", data={
             "section_id": str(self.section["id"]),
             "question_count": "1",
             "time_limit_minutes": "",
             "include_open_questions": "1",
-            "open_count": "999",
+            "open_count": "1",
+            "source_slug": "__no_open_candidates__",
+        })
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("Няма достатъчно отворени въпроси".encode("utf-8"), response.data)
+        self.assertEqual(self._assignment_count(), before_assignments)
+
+    def test_open_count_greater_than_question_count_is_rejected(self):
+        self._login_tester()
+        before_assignments = self._assignment_count()
+
+        response = self.client.post("/teacher/new", data={
+            "section_id": str(self.section["id"]),
+            "question_count": "1",
+            "time_limit_minutes": "",
+            "open_count": "2",
             "source_slug": self.open_source_slug,
         })
 
-        self.assertEqual(response.status_code, 200)
-        self.assertIn("Има недостиг".encode("utf-8"), response.data)
-        self.assertIn("отворени".encode("utf-8"), response.data)
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("Броят отворени въпроси не може да надвишава".encode("utf-8"), response.data)
+        self.assertEqual(self._assignment_count(), before_assignments)
 
     def test_admin_can_use_planning_controls(self):
         self._login_admin()
