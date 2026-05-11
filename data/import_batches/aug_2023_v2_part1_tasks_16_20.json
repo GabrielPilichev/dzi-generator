@@ -1,0 +1,181 @@
+{
+  "source_slug": "aug_2023_v2",
+  "source_title": "ДЗИ ИТ ПП - август 2023, вариант 2",
+  "tasks": [
+    {
+      "task_number": 16,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "grade": 8,
+      "topic_slug": "hardware-motherboard",
+      "section_slug": "grade8-computer-systems",
+      "prompt": "Кое от изброените е характеристика на дънната платка?",
+      "source_page": 4,
+      "options": [
+        {
+          "letter": "А",
+          "text": "тактова честота",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "разрядност",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "форм фактор",
+          "is_correct": true
+        },
+        {
+          "letter": "Г",
+          "text": "капацитет",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "task_number": 17,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "grade": 12,
+      "topic_slug": "windows-firewall",
+      "section_slug": "grade12-m3-web-security",
+      "prompt": "Как включването на Windows Defender Firewall предпазва компютърната система?",
+      "source_page": 4,
+      "options": [
+        {
+          "letter": "А",
+          "text": "Спира неволното изтриване на файлове.",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "Спира смяната на локалните потребители.",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "Спира поставянето на файлове на работния плот.",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "Спира автоматичното изпълнение на приложенията.",
+          "is_correct": true
+        }
+      ]
+    },
+    {
+      "task_number": 18,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "grade": 12,
+      "topic_slug": "software-types-freeware",
+      "section_slug": "grade12-m4-computer-systems-and-application-software-management",
+      "prompt": "За кой от следните видове софтуер потребителят не заплаща за ползването на софтуера, който най-често е програма, даваща достъп до платена услуга?",
+      "source_page": 4,
+      "options": [
+        {
+          "letter": "А",
+          "text": "шеъруер",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "адуер",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "безплатен софтуер",
+          "is_correct": true
+        },
+        {
+          "letter": "Г",
+          "text": "свободен софтуер",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "task_number": 19,
+      "task_kind": "short_answer",
+      "points": 3,
+      "grade": 11,
+      "topic_slug": "raster-vs-vector",
+      "section_slug": "grade11-m2-vector-images",
+      "prompt": "Запишете термините, допълващи правилно следните изречения:\n(В листа за отговори напишете (1), (2) и (3) и срещу тях запишете съответните думи или изрази.)\n1. Процес, при който пикселите на растерно изображение се преобразуват в криви и възлови точки на векторната графика, се нарича ...............................\n2. При ........................ графика изображенията са изградени с помощта на геометрични примитиви като полигони, кръгове, линии, криви, изградени на базата на математически формули.\n3. ......................... изображения могат да се мащабират, без това да се отразява на качеството на изображението.",
+      "source_page": 4,
+      "subquestions": [
+        {
+          "label": "1",
+          "prompt": "(1) Процес на преобразуване към векторна графика",
+          "points": 1,
+          "answers": [
+            "векторизиране"
+          ],
+          "answer_alternatives": [
+            "векторизация"
+          ]
+        },
+        {
+          "label": "2",
+          "prompt": "(2) Вид графика",
+          "points": 1,
+          "answers": [
+            "векторна"
+          ]
+        },
+        {
+          "label": "3",
+          "prompt": "(3) Изображения, които се мащабират без загуба на качество",
+          "points": 1,
+          "answers": [
+            "векторните"
+          ]
+        }
+      ]
+    },
+    {
+      "task_number": 20,
+      "task_kind": "short_answer",
+      "points": 3,
+      "grade": 11,
+      "topic_slug": "primary-key",
+      "section_slug": "grade11-m1-databases-and-information-systems",
+      "prompt": "Следните таблици са част от база данни за прегледи на пациенти от лекари.\nВ листа за отговори напишете (1), (2), и (3) и срещу тях пропуснатите думи в текста:\nНай-подходящото поле за ключово поле в таблицата пациент е (1) ......, а в таблицата прегледи - (2) ...... Между таблиците пациент и прегледи трябва да се създаде връзка от типа (3) ......",
+      "source_page": 5,
+      "subquestions": [
+        {
+          "label": "1",
+          "prompt": "(1) Ключово поле в таблицата пациент",
+          "points": 1,
+          "answers": [
+            "ЕГН"
+          ]
+        },
+        {
+          "label": "2",
+          "prompt": "(2) Ключово поле в таблицата прегледи",
+          "points": 1,
+          "answers": [
+            "ID преглед"
+          ]
+        },
+        {
+          "label": "3",
+          "prompt": "(3) Вид връзка",
+          "points": 1,
+          "answers": [
+            "едно към много"
+          ],
+          "answer_alternatives": [
+            "1:М",
+            "one to many"
+          ]
+        }
+      ]
+    }
+  ]
+}
