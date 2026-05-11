@@ -98,7 +98,9 @@ def make_conn():
     return conn
 
 
-def make_aug_2023_conn():
+def make_source_layout_conn(source_slug):
+    year = 2023
+    session = "august" if source_slug.startswith("aug_") else "may"
     conn = sqlite3.connect(":memory:")
     conn.row_factory = sqlite3.Row
     conn.executescript("""
@@ -175,8 +177,8 @@ def make_aug_2023_conn():
         INSERT INTO exams (
             id, subject, level, year, session, variant, format_version
         )
-        VALUES (1, 'informatika_it', 'DZI', 2023, 'august', 2, 'dzi_it_pp_2025_format')
-    """)
+        VALUES (1, 'informatika_it', 'DZI', ?, ?, 2, 'dzi_it_pp_2025_format')
+    """, (year, session))
     conn.execute("""
         INSERT INTO exam_tasks (id, exam_id, task_number, task_kind, points)
         VALUES
@@ -187,6 +189,10 @@ def make_aug_2023_conn():
     conn.execute("INSERT INTO curriculum_sections (id, section_slug, class) VALUES (1, 'grade11-m1-databases-and-information-systems', 11)")
     conn.commit()
     return conn
+
+
+def make_aug_2023_conn():
+    return make_source_layout_conn("aug_2023_v2")
 
 
 def valid_payload():
@@ -224,8 +230,15 @@ def valid_payload():
 
 
 def aug_2023_layout_payload():
+    payload = source_layout_payload("aug_2023_v2")
+    payload["tasks"][0]["prompt"] = "Запишете HTML кода за хипервръзка."
+    payload["tasks"][0]["answers"] = ['<a href="contacts.html">Контакти</a>']
+    return payload
+
+
+def source_layout_payload(source_slug):
     return {
-        "source_slug": "aug_2023_v2",
+        "source_slug": source_slug,
         "tasks": [
             {
                 "task_number": 11,
@@ -234,8 +247,8 @@ def aug_2023_layout_payload():
                 "grade": 11,
                 "topic_slug": "sql-select",
                 "section_slug": "grade11-m1-databases-and-information-systems",
-                "prompt": "Запишете HTML кода за хипервръзка.",
-                "answers": ['<a href="contacts.html">Контакти</a>'],
+                "prompt": "Запишете кратък отговор.",
+                "answers": ["отговор"],
             },
             {
                 "task_number": 16,
@@ -348,6 +361,21 @@ class ValidateQuestionBatchTest(unittest.TestCase):
             before = conn.total_changes
             with contextlib.redirect_stdout(io.StringIO()):
                 summary = validate_batch(conn, aug_2023_layout_payload())
+
+            self.assertEqual(summary.tasks_read, 2)
+            self.assertEqual(summary.questions_inserted, 2)
+            self.assertEqual(summary.options_inserted, 4)
+            self.assertEqual(summary.fill_in_subquestions_inserted, 1)
+            self.assertEqual(conn.total_changes, before)
+        finally:
+            conn.close()
+
+    def test_may_2023_v2_layout_override_allows_official_task_kinds(self):
+        conn = make_source_layout_conn("may_2023_v2")
+        try:
+            before = conn.total_changes
+            with contextlib.redirect_stdout(io.StringIO()):
+                summary = validate_batch(conn, source_layout_payload("may_2023_v2"))
 
             self.assertEqual(summary.tasks_read, 2)
             self.assertEqual(summary.questions_inserted, 2)
