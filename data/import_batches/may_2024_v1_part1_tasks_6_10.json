@@ -1,0 +1,161 @@
+{
+  "source_slug": "may_2024_v1",
+  "source_title": "ДЗИ ИТ ПП - май 2024, вариант 1",
+  "tasks": [
+    {
+      "task_number": 6,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "raster-vs-vector",
+      "section_slug": "grade11-m2-vector-images",
+      "prompt": "При трасиране на растерно изображение във векторно, то се записва:",
+      "source_page": 2,
+      "options": [
+        {
+          "letter": "А",
+          "text": "във векторен формат",
+          "is_correct": true
+        },
+        {
+          "letter": "Б",
+          "text": "във видео формат",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "в растерен формат",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "в текстов формат",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "task_number": 7,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "audio-discretization",
+      "section_slug": "grade11-m2-digitizing-audiovisual-information",
+      "prompt": "Как се нарича процесът на преобразуване на непрекъснат аналогов сигнал в импулси?",
+      "source_page": 2,
+      "options": [
+        {
+          "letter": "А",
+          "text": "Квантуване",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "Дискретизация",
+          "is_correct": true
+        },
+        {
+          "letter": "В",
+          "text": "Дигитализация",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "Експонация",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "task_number": 8,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "video-codec",
+      "section_slug": "grade11-m2-video-creation",
+      "prompt": "Как се нарича видеопродукцията, която използва колекция от снимки, за да предаде информация за конкретно събитие, което се случва на определено място?",
+      "source_page": 2,
+      "options": [
+        {
+          "letter": "А",
+          "text": "Видеорепортаж",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "Фоторазказ",
+          "is_correct": true
+        },
+        {
+          "letter": "В",
+          "text": "Видеоинтервю",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "Образователен видеоклип",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "task_number": 9,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "standards-organizations",
+      "section_slug": "grade12-m3-build-test-publish-website",
+      "prompt": "Коя организация се занимава със стандартизиране на потребителски интерфейси?",
+      "source_page": 2,
+      "options": [
+        {
+          "letter": "А",
+          "text": "World Wide Web Consortium(W3C)",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "International Organization for Standardization (ISO)",
+          "is_correct": true
+        },
+        {
+          "letter": "В",
+          "text": "Unicode Consortium",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "Internet Assigned Numbers Authority (IANA)",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "task_number": 10,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "cms",
+      "section_slug": "grade12-m3-cms",
+      "prompt": "Коя от абревиатурите e съкращение на система за управление на уеб съдържание:",
+      "source_page": 2,
+      "options": [
+        {
+          "letter": "А",
+          "text": "CSS",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "CMS",
+          "is_correct": true
+        },
+        {
+          "letter": "В",
+          "text": "CSA",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "CMM",
+          "is_correct": false
+        }
+      ]
+    }
+  ]
+}

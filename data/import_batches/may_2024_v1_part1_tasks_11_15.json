@@ -1,0 +1,161 @@
+{
+  "source_slug": "may_2024_v1",
+  "source_title": "ДЗИ ИТ ПП - май 2024, вариант 1",
+  "tasks": [
+    {
+      "task_number": 11,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "cookies",
+      "section_slug": "grade12-m3-web-security",
+      "prompt": "Кое от определенията е валидно за \"бисквитка\"?",
+      "source_page": 2,
+      "options": [
+        {
+          "letter": "А",
+          "text": "Текстов файл, който се изпраща на устройството на потребителя при посещаване на сайт",
+          "is_correct": true
+        },
+        {
+          "letter": "Б",
+          "text": "Малко графично изображение, което изследва активността на потребителя",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "Технология за криптиране на данни",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "Програма, която обхожда уеб пространството",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "task_number": 12,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "sdlc",
+      "section_slug": "grade12-m4-project-management",
+      "prompt": "На екип от софтуерна компания е възложено да създаде архитектурата на софтуерен продукт. На кой основен етап се намира изпълнението на проекта?",
+      "source_page": 3,
+      "options": [
+        {
+          "letter": "А",
+          "text": "Изследване и планиране",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "Проектиране",
+          "is_correct": true
+        },
+        {
+          "letter": "В",
+          "text": "Изпълнение",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "Оценка",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "task_number": 13,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "hardware-cpu",
+      "section_slug": "grade8-computer-systems",
+      "prompt": "Какво определя разрядността на централния процесор/CPU?",
+      "source_page": 3,
+      "options": [
+        {
+          "letter": "А",
+          "text": "Брой тактове в секунда",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "Брой ядра",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "Брой битове, обработвани едновременно",
+          "is_correct": true
+        },
+        {
+          "letter": "Г",
+          "text": "Брой нишки",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "task_number": 14,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "windows-firewall",
+      "section_slug": "grade12-m3-web-security",
+      "prompt": "Един от принципите, които трябва да се спазват, за да се гарантира сигурността на компютърната система е ограничаване на достъпа до определени сайтове (limit access). Как се постига той?",
+      "source_page": 3,
+      "options": [
+        {
+          "letter": "А",
+          "text": "Чрез използване на защитна стена",
+          "is_correct": true
+        },
+        {
+          "letter": "Б",
+          "text": "Чрез потребителско име и парола",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "Чрез използване на сертификати",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "Чрез криптиране на данни",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "task_number": 15,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "copyright-law",
+      "section_slug": "grade12-m4-computer-systems-and-application-software-management",
+      "prompt": "Според закона за авторското право и сродните му права от закрила на авторското право върху даден софтуер НЕ може да се ползва:",
+      "source_page": 3,
+      "options": [
+        {
+          "letter": "А",
+          "text": "изходния код",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "обектния код",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "подготвителната проектна дейност, която може да доведе до създаването на програма",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "функционалността или идеите, стоящи в основата на софтуера",
+          "is_correct": true
+        }
+      ]
+    }
+  ]
+}

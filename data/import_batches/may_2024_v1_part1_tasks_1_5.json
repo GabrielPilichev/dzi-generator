@@ -1,0 +1,161 @@
+{
+  "source_slug": "may_2024_v1",
+  "source_title": "ДЗИ ИТ ПП - май 2024, вариант 1",
+  "tasks": [
+    {
+      "task_number": 1,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "spreadsheet-function-basics",
+      "section_slug": "grade11-m1-spreadsheets-big-data",
+      "prompt": "В електронна таблица са записани резултатите от проведено писмено изпитване по информационни технологии. На резултатите на кой клас съответства диаграмата?",
+      "source_page": 1,
+      "options": [
+        {
+          "letter": "А",
+          "text": "9. клас",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "10. клас",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "11. клас",
+          "is_correct": true
+        },
+        {
+          "letter": "Г",
+          "text": "12. клас",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "task_number": 2,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "data-validation",
+      "section_slug": "grade9-application-programs",
+      "prompt": "Във файл на Excel, състоящ се от три работни листа, можете да променяте данните само в колона А на втория лист. Kаква защита е приложена?",
+      "source_page": 1,
+      "options": [
+        {
+          "letter": "А",
+          "text": "Целият файл е защитен",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "Работната книга е защитена",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "Защитени са работните листове",
+          "is_correct": true
+        },
+        {
+          "letter": "Г",
+          "text": "Защитени са лист 1 и лист 3",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "task_number": 3,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "information-system-development-stages",
+      "section_slug": "grade11-m1-information-systems-intro",
+      "prompt": "Коя от следните дейности е характерна за етапа на разработване на информационна система?",
+      "source_page": 1,
+      "options": [
+        {
+          "letter": "А",
+          "text": "Анализиране на проблемите, които трябва да се решат посредством информационната система",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "Внасяне на промени в готовата информационна система",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "Инсталиране на софтуерния продукт и първоначално зареждане на базата данни",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "Тестване на софтуерните компоненти поотделно и след интеграция, като се проверява дали се реализират правилно заложените функционалности",
+          "is_correct": true
+        }
+      ]
+    },
+    {
+      "task_number": 4,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "system-architecture",
+      "section_slug": "grade11-m1-information-systems-intro",
+      "prompt": "Изискванията какви данни да се съхраняват, какви операции да са възможни и какви ограничения да има за данните в една информационна система се наричат:",
+      "source_page": 2,
+      "options": [
+        {
+          "letter": "А",
+          "text": "Нефункционални изисквания",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "Необходими роли в информационната система",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "Функционални изисквания",
+          "is_correct": true
+        },
+        {
+          "letter": "Г",
+          "text": "Изисквания за защита на данните",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "task_number": 5,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "camera-optics",
+      "section_slug": "grade11-m2-digitizing-audiovisual-information",
+      "prompt": "Част от цифрова камера, съставена от една или няколко лещи, които фокусират образа върху матрица, се нарича:",
+      "source_page": 2,
+      "options": [
+        {
+          "letter": "А",
+          "text": "обектив",
+          "is_correct": true
+        },
+        {
+          "letter": "Б",
+          "text": "визьор",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "фокус",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "лента",
+          "is_correct": false
+        }
+      ]
+    }
+  ]
+}

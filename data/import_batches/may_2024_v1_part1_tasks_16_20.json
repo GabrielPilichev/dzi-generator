@@ -1,0 +1,170 @@
+{
+  "source_slug": "may_2024_v1",
+  "source_title": "ДЗИ ИТ ПП - май 2024, вариант 1",
+  "tasks": [
+    {
+      "task_number": 16,
+      "task_kind": "short_answer",
+      "points": 3,
+      "topic_slug": "spreadsheet-function-basics",
+      "section_slug": "grade11-m1-spreadsheets-big-data",
+      "prompt": "В диаграмата са представени данни от Евростат за потреблението на интернет в домакинствата в балкански държави за последните три години. В полето за отговори срещу (1), (2) и (3) запишете:\n(1) За коя година е най-високата стойност?\n(2) За коя държава е най-високата стойност?\n(3) Нарастваща или намаляваща е тенденцията за 2023 г.?",
+      "source_page": 3,
+      "subquestions": [
+        {
+          "label": "1",
+          "prompt": "(1) Година с най-висока стойност",
+          "points": 1,
+          "answers": [
+            "2022"
+          ]
+        },
+        {
+          "label": "2",
+          "prompt": "(2) Държава с най-висока стойност",
+          "points": 1,
+          "answers": [
+            "Словения"
+          ]
+        },
+        {
+          "label": "3",
+          "prompt": "(3) Тенденция за 2023 г.",
+          "points": 1,
+          "answers": [
+            "Нарастваща"
+          ],
+          "answer_alternatives": [
+            "нарастваща"
+          ]
+        }
+      ]
+    },
+    {
+      "task_number": 17,
+      "task_kind": "short_answer",
+      "points": 3,
+      "topic_slug": "switch-function",
+      "section_slug": "grade11-m1-spreadsheets-big-data",
+      "prompt": "Създадена е електронна таблица за пресмятане стойността на функцията. В клетки A2, C2 и D2 са въведени стойности съответно за х, а и b. В полето за отговори запишете условна функция за изчисляване стойността на у в клетка В2.",
+      "source_page": 4,
+      "answers": [
+        "=IF(A2<0;A2+C2;A2+D2)"
+      ]
+    },
+    {
+      "task_number": 18,
+      "task_kind": "short_answer",
+      "points": 3,
+      "topic_slug": "pivot-table",
+      "section_slug": "grade11-m1-spreadsheets-big-data",
+      "prompt": "Дадена е таблица с данни за класовете от 8 до 12 клас и техните извинени и неизвинени отсъствия. В полетата за отговори срещу Rows, Columns и Values напишете имената на колоните, които ще използвате, за да обобщите данните, както е показано в таблицата по-долу.",
+      "source_page": 4,
+      "subquestions": [
+        {
+          "label": "Rows",
+          "prompt": "Rows",
+          "points": 1,
+          "answers": [
+            "клас"
+          ]
+        },
+        {
+          "label": "Columns",
+          "prompt": "Columns",
+          "points": 1,
+          "answers": [
+            "випуск"
+          ]
+        },
+        {
+          "label": "Values",
+          "prompt": "Values",
+          "points": 1,
+          "answers": [
+            "неизвинени отсъствия"
+          ]
+        }
+      ]
+    },
+    {
+      "task_number": 19,
+      "task_kind": "short_answer",
+      "points": 3,
+      "topic_slug": "relational-model",
+      "section_slug": "grade11-m1-databases-and-information-systems",
+      "prompt": "В полето за отговори запишете основните типове връзки между таблиците в една релационна БД?",
+      "source_page": 4,
+      "subquestions": [
+        {
+          "label": "1",
+          "prompt": "(1) Тип връзка",
+          "points": 1,
+          "answers": [
+            "едно към едно"
+          ],
+          "answer_alternatives": [
+            "1:1"
+          ]
+        },
+        {
+          "label": "2",
+          "prompt": "(2) Тип връзка",
+          "points": 1,
+          "answers": [
+            "едно към много"
+          ],
+          "answer_alternatives": [
+            "1:N"
+          ]
+        },
+        {
+          "label": "3",
+          "prompt": "(3) Тип връзка",
+          "points": 1,
+          "answers": [
+            "много към много"
+          ],
+          "answer_alternatives": [
+            "N:M"
+          ]
+        }
+      ]
+    },
+    {
+      "task_number": 20,
+      "task_kind": "short_answer",
+      "points": 3,
+      "topic_slug": "sql-select",
+      "section_slug": "grade11-m1-databases-and-information-systems",
+      "prompt": "Разполагате с данните в следните свързани таблици за отчитане на разходите на вода в кубици на абонати от инкасатори. Какви ще са критериите за полета \"адрес\", \"кубици\" и \"ID инкасатор\" в следната заявка, ако трябва да се изведат адресите на абонатите от Младост с потребление над 10 кубика, отчетени от инкасатор 1? В полето за отговори запишете имената на трите полета и срещу тях запишете отговорите.",
+      "source_page": 5,
+      "subquestions": [
+        {
+          "label": "адрес",
+          "prompt": "адрес",
+          "points": 1,
+          "answers": [
+            "Младост"
+          ]
+        },
+        {
+          "label": "кубици",
+          "prompt": "кубици",
+          "points": 1,
+          "answers": [
+            ">10"
+          ]
+        },
+        {
+          "label": "ID инкасатор",
+          "prompt": "ID инкасатор",
+          "points": 1,
+          "answers": [
+            "1"
+          ]
+        }
+      ]
+    }
+  ]
+}
