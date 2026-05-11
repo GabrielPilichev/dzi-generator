@@ -1,0 +1,191 @@
+{
+  "source_slug": "aug_2023_v2",
+  "source_title": "ДЗИ ИТ ПП - август 2023, вариант 2",
+  "tasks": [
+    {
+      "task_number": 11,
+      "task_kind": "short_answer",
+      "points": 3,
+      "grade": 12,
+      "topic_slug": "hypertext-hyperlinks",
+      "section_slug": "grade12-m3-build-test-publish-website",
+      "prompt": "Дадени са две уеб страници Начало - файл index.html и Контакти - файл contacts.html. В листа за отговори напишете какъв код трябва да се напише в страницата Начало, за да се създаде текстова хипервръзка \"Контакти\" към страницата Контакти.",
+      "source_page": 3,
+      "answers": [
+        "<a href=\"contacts.html\">Контакти</a>"
+      ]
+    },
+    {
+      "task_number": 12,
+      "task_kind": "short_answer",
+      "points": 3,
+      "grade": 12,
+      "topic_slug": "seo",
+      "section_slug": "grade12-m3-build-test-publish-website",
+      "prompt": "Създавате уеб сайт с учебни материали за провеждане на STEM занятия. Напишете три ключови фрази за по-добро рангово подреждане на сайта при търсене.\n(В листа за отговори напишете (1), (2) и (3) и срещу тях запишете съответните думи или изрази.)",
+      "source_page": 3,
+      "subquestions": [
+        {
+          "label": "1",
+          "prompt": "(1) Ключова фраза",
+          "points": 1,
+          "answers": [
+            "STEM",
+            "STEAM",
+            "STE(A)M",
+            "СТЕМ",
+            "СТЕМ ресурси",
+            "STEM ресурси",
+            "STEAM ресурси",
+            "STE(A)M ресурси",
+            "Материали за STEM занятия",
+            "Учебни материали за СТЕМ/STEM"
+          ]
+        },
+        {
+          "label": "2",
+          "prompt": "(2) Ключова фраза",
+          "points": 1,
+          "answers": [
+            "STEM",
+            "STEAM",
+            "STE(A)M",
+            "СТЕМ",
+            "СТЕМ ресурси",
+            "STEM ресурси",
+            "STEAM ресурси",
+            "STE(A)M ресурси",
+            "Материали за STEM занятия",
+            "Учебни материали за СТЕМ/STEM"
+          ]
+        },
+        {
+          "label": "3",
+          "prompt": "(3) Ключова фраза",
+          "points": 1,
+          "answers": [
+            "STEM",
+            "STEAM",
+            "STE(A)M",
+            "СТЕМ",
+            "СТЕМ ресурси",
+            "STEM ресурси",
+            "STEAM ресурси",
+            "STE(A)M ресурси",
+            "Материали за STEM занятия",
+            "Учебни материали за СТЕМ/STEM"
+          ]
+        }
+      ]
+    },
+    {
+      "task_number": 13,
+      "task_kind": "short_answer",
+      "points": 3,
+      "grade": 12,
+      "topic_slug": "web-standards",
+      "section_slug": "grade12-m3-build-test-publish-website",
+      "prompt": "Запишете правилните абревиатури и/или текстове така, че да довършите следните изречения:\n(В листа за отговори напишете (1), (2) и (3) и срещу тях запишете съответните думи или изрази.)\n1. Организацията, която разработва и осъвременява уеб стандартите, се нарича ............\n2. Езикът за описание на стилове, който се използва основно за визуалното оформление на уеббазиран документ, написан на език за маркиране, се нарича .................\n3. Протоколът за защитена комуникация в компютърна мрежа се нарича ................",
+      "source_page": 3,
+      "subquestions": [
+        {
+          "label": "1",
+          "prompt": "(1) Организация за уеб стандарти",
+          "points": 1,
+          "answers": [
+            "W3C"
+          ],
+          "answer_alternatives": [
+            "World Wide Web Consortium"
+          ]
+        },
+        {
+          "label": "2",
+          "prompt": "(2) Език за описание на стилове",
+          "points": 1,
+          "answers": [
+            "CSS"
+          ],
+          "answer_alternatives": [
+            "Cascading Style Sheets"
+          ]
+        },
+        {
+          "label": "3",
+          "prompt": "(3) Протокол за защитена комуникация",
+          "points": 1,
+          "answers": [
+            "HTTPS"
+          ],
+          "answer_alternatives": [
+            "Hypertext Transfer Protocol Secure"
+          ]
+        }
+      ]
+    },
+    {
+      "task_number": 14,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "grade": 12,
+      "topic_slug": "cms",
+      "section_slug": "grade12-m3-cms",
+      "prompt": "За добавяне на информация за предстоящо събитие в уеб сайт, създаден със система за управление на съдържание, ще създадете нова:",
+      "source_page": 3,
+      "options": [
+        {
+          "letter": "А",
+          "text": "публикация",
+          "is_correct": true
+        },
+        {
+          "letter": "Б",
+          "text": "джаджа",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "тема",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "категория",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "task_number": 15,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "grade": 12,
+      "topic_slug": "sdlc",
+      "section_slug": "grade12-m4-project-management",
+      "prompt": "Кое от изброените е фаза от жизнения цикъл на софтуерен продукт?",
+      "source_page": 4,
+      "options": [
+        {
+          "letter": "А",
+          "text": "архивиране",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "импортиране",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "лицензиране",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "внедряване",
+          "is_correct": true
+        }
+      ]
+    }
+  ]
+}
