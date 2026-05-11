@@ -26,6 +26,16 @@ QUESTION_TYPE_BY_TASK_KIND = {
     "multiple_choice": "multiple_choice",
     "short_answer": "fill_in",
 }
+SOURCE_TASK_LAYOUT_OVERRIDES = {
+    "aug_2023_v2": {
+        11: ("short_answer", 3),
+        12: ("short_answer", 3),
+        13: ("short_answer", 3),
+        16: ("multiple_choice", 1),
+        17: ("multiple_choice", 1),
+        18: ("multiple_choice", 1),
+    },
+}
 VALID_ASSET_TYPES = {"image", "pdf_crop", "spreadsheet", "archive", "other"}
 
 
@@ -319,6 +329,7 @@ def validate_assets(task: dict[str, Any], allow_missing_assets: bool) -> None:
 
 def validate_task(
     conn: sqlite3.Connection,
+    source_slug: str,
     exam_id: int,
     task: Any,
     allow_missing_assets: bool,
@@ -355,13 +366,18 @@ def validate_task(
     ).fetchone()
     if exam_task is None:
         raise ValueError(f"task_number {task_number} does not exist in exam_tasks")
-    if exam_task["task_kind"] != task_kind:
+
+    expected_task_kind, expected_points = SOURCE_TASK_LAYOUT_OVERRIDES.get(
+        source_slug,
+        {},
+    ).get(task_number, (exam_task["task_kind"], exam_task["points"]))
+    if expected_task_kind != task_kind:
         raise ValueError(
-            f"task_number {task_number} task_kind '{task_kind}' does not match exam_tasks.task_kind '{exam_task['task_kind']}'"
+            f"task_number {task_number} task_kind '{task_kind}' does not match expected task_kind '{expected_task_kind}'"
         )
-    if exam_task["points"] != points:
+    if expected_points != points:
         raise ValueError(
-            f"task_number {task_number} points {points} do not match exam_tasks.points {exam_task['points']}"
+            f"task_number {task_number} points {points} do not match expected points {expected_points}"
         )
 
     if task_kind == "multiple_choice":
@@ -746,6 +762,7 @@ def validate_payload(
         try:
             exam_task, topic_id, section_id = validate_task(
                 conn,
+                source_slug,
                 int(exam["id"]),
                 task,
                 allow_missing_assets,
