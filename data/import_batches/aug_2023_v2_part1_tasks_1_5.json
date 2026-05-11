@@ -1,0 +1,166 @@
+{
+  "source_slug": "aug_2023_v2",
+  "source_title": "ДЗИ ИТ ПП - август 2023, вариант 2",
+  "tasks": [
+    {
+      "task_number": 1,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "grade": 9,
+      "topic_slug": "data-validation",
+      "section_slug": "grade9-application-programs",
+      "prompt": "За да се забрани изтриването на колони в електронна таблица, се използва:",
+      "source_page": 1,
+      "options": [
+        {
+          "letter": "А",
+          "text": "File/Locked",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "View/Workbook",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "Review/Protect Sheet",
+          "is_correct": true
+        },
+        {
+          "letter": "Г",
+          "text": "File/ShareWorkbook",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "task_number": 2,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "grade": 11,
+      "topic_slug": "system-architecture",
+      "section_slug": "grade11-m1-information-systems-intro",
+      "prompt": "Спецификацията за една информационна система е:",
+      "source_page": 1,
+      "options": [
+        {
+          "letter": "А",
+          "text": "изисквания към функционалността ѝ",
+          "is_correct": true
+        },
+        {
+          "letter": "Б",
+          "text": "анализ на риска",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "финансовите параметри",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "ръководство за потребителя",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "task_number": 3,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "grade": 11,
+      "topic_slug": "system-architecture",
+      "section_slug": "grade11-m1-information-systems-intro",
+      "prompt": "Тестването на информационна система е процес на:",
+      "source_page": 1,
+      "options": [
+        {
+          "letter": "А",
+          "text": "разработване на концепция за изграждане на информационната система",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "определяне какви данни да се въведат в системата",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "проверка дали информационната система отговаря на предварително зададените изисквания",
+          "is_correct": true
+        },
+        {
+          "letter": "Г",
+          "text": "документиране и подготовка на прототип на информационната система",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "task_number": 4,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "grade": 11,
+      "topic_slug": "file-formats-audio",
+      "section_slug": "grade11-m2-digital-audio-processing",
+      "prompt": "Кой от изброените файлови формати е предназначен за цифров звук?",
+      "source_page": 1,
+      "options": [
+        {
+          "letter": "А",
+          "text": "wma",
+          "is_correct": true
+        },
+        {
+          "letter": "Б",
+          "text": "gif",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "wmf",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "mp4",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "task_number": 5,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "grade": 11,
+      "topic_slug": "file-formats-image",
+      "section_slug": "grade11-m2-raster-images",
+      "prompt": "Кой от изброените файлови формати е растерен?",
+      "source_page": 2,
+      "options": [
+        {
+          "letter": "А",
+          "text": "SVG",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "CDR",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "EPS",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "PSD",
+          "is_correct": true
+        }
+      ]
+    }
+  ]
+}

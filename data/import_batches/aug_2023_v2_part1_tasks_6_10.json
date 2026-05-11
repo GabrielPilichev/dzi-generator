@@ -1,0 +1,166 @@
+{
+  "source_slug": "aug_2023_v2",
+  "source_title": "ДЗИ ИТ ПП - август 2023, вариант 2",
+  "tasks": [
+    {
+      "task_number": 6,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "grade": 11,
+      "topic_slug": "file-formats-image",
+      "section_slug": "grade11-m2-raster-images",
+      "prompt": "Възможността на програма за векторна графика да преобразува собствения си файлов формат в друг се нарича:",
+      "source_page": 2,
+      "options": [
+        {
+          "letter": "А",
+          "text": "форматиране",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "експортиране",
+          "is_correct": true
+        },
+        {
+          "letter": "В",
+          "text": "анимиране",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "импортиране",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "task_number": 7,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "grade": 11,
+      "topic_slug": "image-filters",
+      "section_slug": "grade11-m2-raster-images",
+      "prompt": "Кое от изброените е филтър (ефект) в програма за обработка на видео?",
+      "source_page": 2,
+      "options": [
+        {
+          "letter": "А",
+          "text": "Trim video",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "Fade in",
+          "is_correct": true
+        },
+        {
+          "letter": "В",
+          "text": "Loop Play",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "Mix and Render",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "task_number": 8,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "grade": 12,
+      "topic_slug": "sdlc",
+      "section_slug": "grade12-m4-project-management",
+      "prompt": "В кой ред етапите при проектиране на мултимедийно приложение са подредени хронологично?",
+      "source_page": 2,
+      "options": [
+        {
+          "letter": "А",
+          "text": "Тестване и отстраняване на грешки, разработване на концепция, подготовка на сценарий.",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "Разработване на основна версия, подготовка на сценарий, събиране и структуриране работни материали.",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "Разработване на концепция, подготовка на сценарий, събиране и структуриране на работни материали.",
+          "is_correct": true
+        },
+        {
+          "letter": "Г",
+          "text": "Събиране и структуриране на работни материали, подготовка на сценарий, разработване на основна версия.",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "task_number": 9,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "grade": 12,
+      "topic_slug": "web-hosting",
+      "section_slug": "grade12-m3-website-planning",
+      "prompt": "Услуга, при която се закупуват системни ресурси на уеб сървър за определен срок, се нарича:",
+      "source_page": 2,
+      "options": [
+        {
+          "letter": "А",
+          "text": "контролен хостинг панел",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "уеб хостинг",
+          "is_correct": true
+        },
+        {
+          "letter": "В",
+          "text": "системата за имена на домейните",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "виртуална частна мрежа",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "task_number": 10,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "grade": 12,
+      "topic_slug": "cms-security",
+      "section_slug": "grade12-m3-web-security",
+      "prompt": "Кое от изброените е основен начин за защита на уеб сайт, създаден със система за управление на съдържание?",
+      "source_page": 3,
+      "options": [
+        {
+          "letter": "А",
+          "text": "спазване на уеб стандартите за създаване на уеб сайта",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "тестване за пропуски и допуснати грешки в уеб сайта",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "разрешаване на сесийните бисквитки на уеб сайта",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "преименуване на потребителското име на администратора на уеб сайта",
+          "is_correct": true
+        }
+      ]
+    }
+  ]
+}
