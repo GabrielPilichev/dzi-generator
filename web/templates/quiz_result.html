@@ -64,8 +64,9 @@
       </div>
 
       <p class="prompt">{{ q.prompt }}</p>
-      {% if q.difficulty %}
-        <p class="muted">Трудност: {{ q.difficulty }}</p>
+      {% set difficulty_label = question_difficulty_label(q.difficulty) %}
+      {% if difficulty_label %}
+        <p class="muted">Трудност: {{ difficulty_label }}</p>
       {% endif %}
 
       <div class="answer-summary-grid">
