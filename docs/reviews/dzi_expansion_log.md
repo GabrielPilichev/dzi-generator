@@ -60,3 +60,26 @@ Importer sample dry-run output was clarified so sample-only fixtures report stru
 Product/app branding was changed to LearnPilot in visible UI text, docs, source comments, and vault notes. DZI remains the exam preparation module/feature name. The repo and local folder are still named `dzi-generator` for now, so path and watcher references that point to the existing folder were left unchanged.
 
 Added the root `README.md` with the LearnPilot product description, current DZI preparation focus, stack, key docs, and local run command. Updated the visible `src/install_watcher.sh` help branding to "LearnPilot DZI watcher manager." The repo/folder rename remains deferred.
+
+## Post-Feedback Checkpoint
+
+After PRs #65-#71, the tester-facing feedback fixes are in place:
+
+- `open_count` now creates mixed/open assignments.
+- Question difficulty is visible and localized in Bulgarian.
+- Section review answers are hidden behind reveal controls.
+- Same-origin protection for unsafe requests is merged.
+
+DZI import state at this checkpoint:
+
+- `may_2025_v2` already has accepted open-answer data.
+- `aug_2024_v2` already has accepted open-answer data.
+- `aug_2023_v2` still needs reviewed JSON batches before any DB import.
+- `docs/reviews/aug_2023_v2_open_answer_extraction_plan.md` documents the extraction plan.
+- `tests/test_aug_2023_v2_batch_scaffold.py` guards the expected future batch shape.
+
+Recommended next work:
+
+1. Prepare reviewed `aug_2023_v2` JSON batches.
+2. Validate them with `src/validate_question_batch.py`.
+3. Import into `data/questions.db` only in a later separate planned DB PR.
