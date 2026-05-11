@@ -1,0 +1,161 @@
+{
+  "source_slug": "may_2023_v2",
+  "source_title": "ДЗИ ИТ ПП - май 2023, вариант 2",
+  "tasks": [
+    {
+      "task_number": 6,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "sample-rate",
+      "section_slug": "grade11-m2-digital-audio-processing",
+      "prompt": "Кое от изброените е важен параметър за качеството на цифровия звук?",
+      "source_page": 2,
+      "options": [
+        {
+          "letter": "А",
+          "text": "звукова вълна",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "скорост",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "амплитуда",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "честота на дискретизация",
+          "is_correct": true
+        }
+      ]
+    },
+    {
+      "task_number": 7,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "video-codec",
+      "section_slug": "grade11-m2-video-creation",
+      "prompt": "Областта във видеоредакторите, в която се разполагат всички файлове за видеомонтаж, се нарича:",
+      "source_page": 2,
+      "options": [
+        {
+          "letter": "А",
+          "text": "писта",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "монтажна лента",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "видеопътека",
+          "is_correct": true
+        },
+        {
+          "letter": "Г",
+          "text": "работен плот",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "task_number": 8,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "sdlc",
+      "section_slug": "grade12-m4-project-management",
+      "prompt": "На кой етап от реализиране на мултимедиен продукт се използва предварително подбрана група потребители, които проверяват функционалностите, съдържанието и връзките, а авторският екип наблюдава и при нужда коригира установените нередности?",
+      "source_page": 2,
+      "options": [
+        {
+          "letter": "А",
+          "text": "планиране/определяне на целева група и създаване на сценарий",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "проектиране/дизайн на потребителски интерфейс",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "тестване/отстраняване на грешки",
+          "is_correct": true
+        },
+        {
+          "letter": "Г",
+          "text": "разработка/създаване на прототип",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "task_number": 9,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "web-standards",
+      "section_slug": "grade12-m3-build-test-publish-website",
+      "prompt": "Уеб стандартите осигуряват:",
+      "source_page": 2,
+      "options": [
+        {
+          "letter": "А",
+          "text": "оригиналност на предоставеното съдържание в уеб сайта",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "съответствието между името на уеб сайта и неговия IP адрес",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "минимално време за зареждане и визуализация на уеб сайта",
+          "is_correct": true
+        },
+        {
+          "letter": "Г",
+          "text": "архитектура клиент - сървър за създаване на динамичен уеб сайт",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "task_number": 10,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "website-information-architecture",
+      "section_slug": "grade12-m3-website-planning",
+      "prompt": "Коя структурна част от графичния интерфейс на уеб сайт съдържа връзки към вътрешните страници на сайта?",
+      "source_page": 3,
+      "options": [
+        {
+          "letter": "А",
+          "text": "заглавна част (header)",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "главна навигационна част (main navigation)",
+          "is_correct": true
+        },
+        {
+          "letter": "В",
+          "text": "част за съдържанието (content)",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "долна част (footer)",
+          "is_correct": false
+        }
+      ]
+    }
+  ]
+}

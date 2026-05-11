@@ -1,0 +1,194 @@
+{
+  "source_slug": "may_2023_v2",
+  "source_title": "ДЗИ ИТ ПП - май 2023, вариант 2",
+  "tasks": [
+    {
+      "task_number": 21,
+      "task_kind": "short_answer",
+      "points": 3,
+      "topic_slug": "web-domain",
+      "section_slug": "grade12-m3-website-planning",
+      "prompt": "В листа за отговори напишете (1), (2) и (3) и срещу тях напишете основните части от URL адреса https://mon.bg/DZI/2023/DZI_IT_PP.pdf\n(1) Протокол - .................\n(2) Име на домейна - .................\n(3) Име на файла - .................",
+      "source_page": 7,
+      "subquestions": [
+        {
+          "label": "1",
+          "prompt": "(1) Протокол",
+          "points": 1,
+          "answers": [
+            "https"
+          ]
+        },
+        {
+          "label": "2",
+          "prompt": "(2) Име на домейна",
+          "points": 1,
+          "answers": [
+            "mon.bg"
+          ]
+        },
+        {
+          "label": "3",
+          "prompt": "(3) Име на файла",
+          "points": 1,
+          "answers": [
+            "DZI_IT_PP.pdf"
+          ]
+        }
+      ]
+    },
+    {
+      "task_number": 22,
+      "task_kind": "short_answer",
+      "points": 3,
+      "topic_slug": "seo",
+      "section_slug": "grade12-m3-build-test-publish-website",
+      "prompt": "Напишете в листа за отговори как се нарича мястото, на което се появява уеб сайтът като резултат от търсене в търсеща машина.",
+      "source_page": 7,
+      "answers": [
+        "Рангово подреждане"
+      ],
+      "answer_alternatives": [
+        "ранг",
+        "ранжиране",
+        "ranking"
+      ]
+    },
+    {
+      "task_number": 23,
+      "task_kind": "short_answer",
+      "points": 3,
+      "topic_slug": "web-security",
+      "section_slug": "grade12-m3-web-security",
+      "prompt": "В листа за отговори напишете (1), (2), и (3) и срещу тях запишете видовете уеб атаки:\n(1) .................. е вид атака, която причинява блокиране на услуга или невъзможност на мрежата да функционира.\n(2) ................. е атака, която използва уязвимост на приложението и \"вмъква\" нежелан код, който се изпълнява в браузъра на крайния потребител.\n(3) ................ е техника, с която атакуващите използват уязвимости посредством невалидирани входни данни.",
+      "source_page": 7,
+      "subquestions": [
+        {
+          "label": "1",
+          "prompt": "(1) Вид уеб атака",
+          "points": 1,
+          "answers": [
+            "Denial of Service"
+          ],
+          "answer_alternatives": [
+            "DoS",
+            "Distributed Denial of Service",
+            "DDoS"
+          ]
+        },
+        {
+          "label": "2",
+          "prompt": "(2) Вид уеб атака",
+          "points": 1,
+          "answers": [
+            "Cross Site Scripting"
+          ],
+          "answer_alternatives": [
+            "XSS"
+          ]
+        },
+        {
+          "label": "3",
+          "prompt": "(3) Вид уеб атака",
+          "points": 1,
+          "answers": [
+            "SQL Injection"
+          ]
+        }
+      ]
+    },
+    {
+      "task_number": 24,
+      "task_kind": "short_answer",
+      "points": 3,
+      "topic_slug": "relational-model",
+      "section_slug": "grade11-m1-databases-and-information-systems",
+      "prompt": "В листа за отговори напишете (1), (2), и (3) и срещу тях запишете вида на връзката между данните.\n(1) поръчки - продукти\n(2) автомобил - регистрационен №\n(3) ученик - оценки",
+      "source_page": 7,
+      "subquestions": [
+        {
+          "label": "1",
+          "prompt": "(1) поръчки - продукти",
+          "points": 1,
+          "answers": [
+            "много към много"
+          ],
+          "answer_alternatives": [
+            "М:N",
+            "N:M",
+            "many to many"
+          ]
+        },
+        {
+          "label": "2",
+          "prompt": "(2) автомобил - регистрационен №",
+          "points": 1,
+          "answers": [
+            "едно към едно"
+          ],
+          "answer_alternatives": [
+            "1:1",
+            "one to one"
+          ]
+        },
+        {
+          "label": "3",
+          "prompt": "(3) ученик - оценки",
+          "points": 1,
+          "answers": [
+            "едно към много"
+          ],
+          "answer_alternatives": [
+            "1:N",
+            "1:M",
+            "one to many"
+          ]
+        }
+      ]
+    },
+    {
+      "task_number": 25,
+      "task_kind": "short_answer",
+      "points": 3,
+      "topic_slug": "data-validation",
+      "section_slug": "grade9-application-programs",
+      "prompt": "Запишете върху кои елементи от електронната таблица можете да приложите защита на данните, за да защитите въведената информацията от волно или неволно редактиране/изтриване?\n(В листа за отговори напишете (1), (2) и (3) и срещу тях запишете съответните думи или изрази.)",
+      "source_page": 8,
+      "subquestions": [
+        {
+          "label": "1",
+          "prompt": "(1) Елемент от електронната таблица",
+          "points": 1,
+          "answers": [
+            "Работна книга"
+          ],
+          "answer_alternatives": [
+            "Workbook"
+          ]
+        },
+        {
+          "label": "2",
+          "prompt": "(2) Елемент от електронната таблица",
+          "points": 1,
+          "answers": [
+            "Работен лист"
+          ],
+          "answer_alternatives": [
+            "Sheet"
+          ]
+        },
+        {
+          "label": "3",
+          "prompt": "(3) Елемент от електронната таблица",
+          "points": 1,
+          "answers": [
+            "Област от клетки"
+          ],
+          "answer_alternatives": [
+            "Cells"
+          ]
+        }
+      ]
+    }
+  ]
+}
