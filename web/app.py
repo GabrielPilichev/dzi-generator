@@ -68,6 +68,25 @@ app.config["SESSION_COOKIE_HTTPONLY"] = True
 
 VALID_UI_PROFILES = {"admin", "tester"}
 TESTER_TEACHER_ENDPOINTS = {"teacher_new", "teacher_assignment"}
+QUESTION_DIFFICULTY_LABELS = {
+    "1": "много лесен",
+    "2": "лесен",
+    "3": "среден",
+    "4": "труден",
+    "5": "много труден",
+    "easy": "лесен",
+    "medium": "среден",
+    "hard": "труден",
+}
+
+
+def question_difficulty_label(value) -> str | None:
+    if value is None:
+        return None
+    key = str(value).strip().lower()
+    if not key:
+        return None
+    return QUESTION_DIFFICULTY_LABELS.get(key)
 
 
 def safe_redirect_target(candidate: str | None, fallback: str) -> str:
@@ -157,6 +176,7 @@ def inject_ui_profile():
     return {
         "ui_profile": profile,
         "ui_profile_label": "Админ" if profile == "admin" else "Тестер",
+        "question_difficulty_label": question_difficulty_label,
     }
 
 

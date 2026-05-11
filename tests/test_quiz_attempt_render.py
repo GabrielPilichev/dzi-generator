@@ -485,7 +485,54 @@ class QuizAttemptRenderTest(unittest.TestCase):
         response = self.client.get(f"/quiz/attempt/{attempt_id}")
         self.assertEqual(response.status_code, 200)
         self.assertIn("Въпрос с показана трудност.".encode("utf-8"), response.data)
-        self.assertIn("Трудност: hard".encode("utf-8"), response.data)
+        self.assertIn("Трудност: труден".encode("utf-8"), response.data)
+        self.assertNotIn("Трудност: hard".encode("utf-8"), response.data)
+
+    def test_active_attempt_shows_numeric_question_difficulty_label(self):
+        conn = web_app.quiz_db()
+        try:
+            question_id = self._insert_eligible_mc_question(
+                conn,
+                source_number=903,
+                prompt="Въпрос с числова трудност.",
+                difficulty=1,
+            )
+            conn.commit()
+        finally:
+            conn.close()
+        _assignment_id, attempt_id = self._create_attempt(
+            [question_id],
+            submitted=False,
+            student_name="Numeric Difficulty Active",
+        )
+
+        response = self.client.get(f"/quiz/attempt/{attempt_id}")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Въпрос с числова трудност.".encode("utf-8"), response.data)
+        self.assertIn("Трудност: много лесен".encode("utf-8"), response.data)
+
+    def test_result_shows_question_difficulty_label_when_available(self):
+        conn = web_app.quiz_db()
+        try:
+            question_id = self._insert_eligible_mc_question(
+                conn,
+                source_number=904,
+                prompt="Въпрос с трудност в резултата.",
+                difficulty="hard",
+            )
+            conn.commit()
+        finally:
+            conn.close()
+        _assignment_id, attempt_id = self._create_attempt(
+            [question_id],
+            student_name="Difficulty Result",
+        )
+
+        response = self.client.get(f"/quiz/attempt/{attempt_id}/result")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Въпрос с трудност в резултата.".encode("utf-8"), response.data)
+        self.assertIn("Трудност: труден".encode("utf-8"), response.data)
+        self.assertNotIn("Трудност: hard".encode("utf-8"), response.data)
 
     def test_active_attempt_omits_difficulty_when_missing(self):
         conn = web_app.quiz_db()
@@ -517,7 +564,8 @@ class QuizAttemptRenderTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn(self.valid_prompt.encode("utf-8"), response.data)
         self.assertIn("Попълнете липсващите стойности.".encode("utf-8"), response.data)
-        self.assertIn("Трудност: medium".encode("utf-8"), response.data)
+        self.assertIn("Трудност: среден".encode("utf-8"), response.data)
+        self.assertNotIn("Трудност: medium".encode("utf-8"), response.data)
         self.assertIn(f'name="open_q_{open_question_id}_1"'.encode("utf-8"), response.data)
         self.assertIn(f'name="open_q_{open_question_id}_2"'.encode("utf-8"), response.data)
         # Per-question warning now reflects combined-score state honestly.
