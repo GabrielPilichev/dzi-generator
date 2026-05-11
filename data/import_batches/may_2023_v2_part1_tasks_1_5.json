@@ -1,0 +1,161 @@
+{
+  "source_slug": "may_2023_v2",
+  "source_title": "ДЗИ ИТ ПП - май 2023, вариант 2",
+  "tasks": [
+    {
+      "task_number": 1,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "spreadsheet-function-basics",
+      "section_slug": "grade11-m1-spreadsheets-big-data",
+      "prompt": "С помощта на програма за обработка на таблични данни Excel едноличен търговец планира да организира ежемесечна справка за дейностите разход, приход и реализирана печалба. С цел по-лесна обработка на данните е най-подходящо да се:",
+      "source_page": 1,
+      "options": [
+        {
+          "letter": "А",
+          "text": "използва една таблица в рамките на един работен лист за цялата постъпваща информация",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "използват много таблици в рамките на един работен лист за цялата постъпваща информация",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "използват отделни работни книги за всяка дейност",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "използват отделни работни листове в рамките на една работна книга",
+          "is_correct": true
+        }
+      ]
+    },
+    {
+      "task_number": 2,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "information-system-development-stages",
+      "section_slug": "grade11-m1-information-systems-intro",
+      "prompt": "Посочете дейността, която е част от етапа на функциониране и поддръжка на информационните системи:",
+      "source_page": 1,
+      "options": [
+        {
+          "letter": "А",
+          "text": "проектиране на документите за въвеждане на данни и извеждане на резултати",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "тестване на системата и реализиране на заложените в нея функции правилно",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "инсталиране на софтуерния продукт и първоначалното зареждане на базата данни",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "внасяне на промени в готовата информационна система",
+          "is_correct": true
+        }
+      ]
+    },
+    {
+      "task_number": 3,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "system-architecture",
+      "section_slug": "grade11-m1-information-systems-intro",
+      "prompt": "Функционални изисквания за една информационна система са:",
+      "source_page": 1,
+      "options": [
+        {
+          "letter": "А",
+          "text": "изисквания за максимален брой потребители в информационната система",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "изисквания за бързодействие на информационната система",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "ограничителни условия за данните в информационната система",
+          "is_correct": true
+        },
+        {
+          "letter": "Г",
+          "text": "минимални изисквания за хардуерна конфигурация за нормално функциониране на информационната система",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "task_number": 4,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "raster-vs-vector",
+      "section_slug": "grade11-m2-vector-images",
+      "prompt": "Преобразуването на растерно графично изображение във векторно се нарича:",
+      "source_page": 2,
+      "options": [
+        {
+          "letter": "А",
+          "text": "векторизация",
+          "is_correct": true
+        },
+        {
+          "letter": "Б",
+          "text": "конфигуриране",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "експортиране",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "моделиране",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "task_number": 5,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "audio-playback-devices",
+      "section_slug": "grade11-m2-digital-audio-processing",
+      "prompt": "Микрофонът е устройство, което:",
+      "source_page": 2,
+      "options": [
+        {
+          "letter": "А",
+          "text": "съхранява звуков сигнал в карта памет",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "усилва звуковия сигнал чрез мембрана",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "модулира звуковия сигнал в аналогов",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "преобразува звуков сигнал в електрически",
+          "is_correct": true
+        }
+      ]
+    }
+  ]
+}
