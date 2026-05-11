@@ -1,0 +1,170 @@
+{
+  "source_slug": "aug_2023_v2",
+  "source_title": "ДЗИ ИТ ПП - август 2023, вариант 2",
+  "tasks": [
+    {
+      "task_number": 21,
+      "task_kind": "short_answer",
+      "points": 3,
+      "grade": 11,
+      "topic_slug": "pivot-table",
+      "section_slug": "grade11-m1-spreadsheets-big-data",
+      "prompt": "Разполагате с таблица със STEM професии по области със следния заглавен ред и примерен първи ред.\nПолучили сте обобщаваща таблица със следния вид:\nВ листа за отговори напишете (1), (2) и (3) и срещу тях съответно запишете коя от колоните е използвана за (1) и (2) и коя е обобщаващата функция (3).\n(1) Rows: ....\n(2) Values: ....\n(3) Value Field Settings: ....",
+      "source_page": 5,
+      "subquestions": [
+        {
+          "label": "1",
+          "prompt": "(1) Rows",
+          "points": 1,
+          "answers": [
+            "Област на образование"
+          ]
+        },
+        {
+          "label": "2",
+          "prompt": "(2) Values",
+          "points": 1,
+          "answers": [
+            "код на професията"
+          ]
+        },
+        {
+          "label": "3",
+          "prompt": "(3) Value Field Settings",
+          "points": 1,
+          "answers": [
+            "count"
+          ],
+          "answer_alternatives": [
+            "брой",
+            "Count"
+          ]
+        }
+      ]
+    },
+    {
+      "task_number": 22,
+      "task_kind": "short_answer",
+      "points": 3,
+      "grade": 11,
+      "topic_slug": "sql-select",
+      "section_slug": "grade11-m1-databases-and-information-systems",
+      "prompt": "Информационна система за недвижими имоти съхранява информация за всеки имот с различни характеристики. В листа за отговори запишете името на полето и срещу него критерия, който ще му зададете, за да изведе заявката всички имоти с цена под 180000 лв. и вид на имота – къща.",
+      "source_page": 6,
+      "subquestions": [
+        {
+          "label": "1",
+          "prompt": "Поле и критерий за вид на имота",
+          "points": 1,
+          "answers": [
+            "вид къща"
+          ]
+        },
+        {
+          "label": "2",
+          "prompt": "Поле и критерий за цена",
+          "points": 2,
+          "answers": [
+            "цена <180000"
+          ]
+        }
+      ]
+    },
+    {
+      "task_number": 23,
+      "task_kind": "short_answer",
+      "points": 3,
+      "grade": 11,
+      "topic_slug": "pivot-table",
+      "section_slug": "grade11-m1-spreadsheets-big-data",
+      "prompt": "В листа за отговори напишете (1), (2) и (3) и срещу тях съответно наименованието на диаграмата.\n(1) (2) (3)",
+      "source_page": 6,
+      "subquestions": [
+        {
+          "label": "1",
+          "prompt": "(1) Наименование на диаграма",
+          "points": 1,
+          "answers": [
+            "линейна"
+          ],
+          "answer_alternatives": [
+            "Line"
+          ]
+        },
+        {
+          "label": "2",
+          "prompt": "(2) Наименование на диаграма",
+          "points": 1,
+          "answers": [
+            "колонна"
+          ],
+          "answer_alternatives": [
+            "стълбовидна",
+            "Column",
+            "Bar"
+          ]
+        },
+        {
+          "label": "3",
+          "prompt": "(3) Наименование на диаграма",
+          "points": 1,
+          "answers": [
+            "радарна"
+          ],
+          "answer_alternatives": [
+            "Radar"
+          ]
+        }
+      ]
+    },
+    {
+      "task_number": 24,
+      "task_kind": "short_answer",
+      "points": 3,
+      "grade": 11,
+      "topic_slug": "countif",
+      "section_slug": "grade11-m1-spreadsheets-big-data",
+      "prompt": "Разгледайте графиката на получените резултати от проведено анкетно проучване. Като знаете броя на анкетираните, които са отговорили с „Не“, в листа за отговори запишете броя на отговорите съответно за клетки C2, C4 и С5.\n(В листа за отговори напишете (С2), (С4) и (С5) и срещу тях запишете съответните думи или изрази.)",
+      "source_page": 6,
+      "subquestions": [
+        {
+          "label": "C2",
+          "prompt": "C2",
+          "points": 1,
+          "answers": [
+            "5"
+          ]
+        },
+        {
+          "label": "C4",
+          "prompt": "C4",
+          "points": 1,
+          "answers": [
+            "25"
+          ]
+        },
+        {
+          "label": "C5",
+          "prompt": "C5",
+          "points": 1,
+          "answers": [
+            "5"
+          ]
+        }
+      ]
+    },
+    {
+      "task_number": 25,
+      "task_kind": "short_answer",
+      "points": 3,
+      "grade": 11,
+      "topic_slug": "switch-function",
+      "section_slug": "grade11-m1-spreadsheets-big-data",
+      "prompt": "В листа за отговори запишете условна функция, която проверява дали стойността в клетка B7 е по-малка от 6. Ако условието е изпълнено, да се изписва числото от клетка B7, а ако условието не е изпълнено - да се изписва \"Отличен резултат\".",
+      "source_page": 7,
+      "answers": [
+        "=IF(B7<6;B7;\"Отличен резултат\")"
+      ]
+    }
+  ]
+}
