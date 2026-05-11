@@ -14,6 +14,16 @@ EXPECTED_BATCHES = (
 )
 
 
+def expected_task_kind(task_number):
+    if 1 <= task_number <= 10:
+        return "multiple_choice"
+    if 11 <= task_number <= 13:
+        return "short_answer"
+    if 14 <= task_number <= 18:
+        return "multiple_choice"
+    return "short_answer"
+
+
 class Aug2023V2BatchScaffoldTest(unittest.TestCase):
     def test_future_aug_2023_v2_batch_file_shapes(self):
         any_present = False
@@ -33,10 +43,11 @@ class Aug2023V2BatchScaffoldTest(unittest.TestCase):
             self.assertEqual(task_numbers, list(range(start, end + 1)), filename)
 
             for task in payload["tasks"]:
-                if task["task_number"] <= 15:
-                    self.assertEqual(task["task_kind"], "multiple_choice", filename)
-                else:
-                    self.assertEqual(task["task_kind"], "short_answer", filename)
+                self.assertEqual(
+                    task["task_kind"],
+                    expected_task_kind(task["task_number"]),
+                    filename,
+                )
 
         if not any_present:
             self.skipTest(
