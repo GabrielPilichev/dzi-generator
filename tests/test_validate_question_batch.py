@@ -99,8 +99,10 @@ def make_conn():
 
 
 def make_source_layout_conn(source_slug):
-    year = 2023
-    session = "august" if source_slug.startswith("aug_") else "may"
+    parts = source_slug.split("_")
+    session = "august" if parts[0] == "aug" else "may"
+    year = int(parts[1])
+    variant = int(parts[2][1:])
     conn = sqlite3.connect(":memory:")
     conn.row_factory = sqlite3.Row
     conn.executescript("""
@@ -177,8 +179,8 @@ def make_source_layout_conn(source_slug):
         INSERT INTO exams (
             id, subject, level, year, session, variant, format_version
         )
-        VALUES (1, 'informatika_it', 'DZI', ?, ?, 2, 'dzi_it_pp_2025_format')
-    """, (year, session))
+        VALUES (1, 'informatika_it', 'DZI', ?, ?, ?, 'dzi_it_pp_2025_format')
+    """, (year, session, variant))
     conn.execute("""
         INSERT INTO exam_tasks (id, exam_id, task_number, task_kind, points)
         VALUES
@@ -382,6 +384,50 @@ class ValidateQuestionBatchTest(unittest.TestCase):
             self.assertEqual(summary.options_inserted, 4)
             self.assertEqual(summary.fill_in_subquestions_inserted, 1)
             self.assertEqual(conn.total_changes, before)
+        finally:
+            conn.close()
+
+    def test_may_2022_v1_layout_override_allows_official_task_kinds(self):
+        conn = make_source_layout_conn("may_2022_v1")
+        try:
+            before = conn.total_changes
+            with contextlib.redirect_stdout(io.StringIO()):
+                summary = validate_batch(conn, source_layout_payload("may_2022_v1"))
+
+            self.assertEqual(summary.tasks_read, 2)
+            self.assertEqual(summary.questions_inserted, 2)
+            self.assertEqual(summary.options_inserted, 4)
+            self.assertEqual(summary.fill_in_subquestions_inserted, 1)
+            self.assertEqual(conn.total_changes, before)
+        finally:
+            conn.close()
+
+    def test_may_2022_v1_layout_override_rejects_default_skeleton_kinds(self):
+        conn = make_source_layout_conn("may_2022_v1")
+        try:
+            payload = {
+                "source_slug": "may_2022_v1",
+                "tasks": [
+                    {
+                        "task_number": 11,
+                        "task_kind": "multiple_choice",
+                        "points": 1,
+                        "grade": 11,
+                        "topic_slug": "sql-select",
+                        "section_slug": "grade11-m1-databases-and-information-systems",
+                        "prompt": "Кое от изброените е вярно?",
+                        "options": [
+                            {"letter": "А", "text": "Първи отговор", "is_correct": True},
+                            {"letter": "Б", "text": "Втори отговор", "is_correct": False},
+                            {"letter": "В", "text": "Трети отговор", "is_correct": False},
+                            {"letter": "Г", "text": "Четвърти отговор", "is_correct": False},
+                        ],
+                    }
+                ],
+            }
+
+            with self.assertRaisesRegex(ValueError, "does not match expected task_kind 'short_answer'"):
+                validate_batch(conn, payload)
         finally:
             conn.close()
 
