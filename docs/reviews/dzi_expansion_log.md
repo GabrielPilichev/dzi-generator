@@ -83,3 +83,34 @@ Recommended next work:
 1. Prepare reviewed `aug_2023_v2` JSON batches.
 2. Validate them with `src/validate_question_batch.py`.
 3. Import into `data/questions.db` only in a later separate planned DB PR.
+
+## DZI Import Progress Checkpoint
+
+After the Aug 2023 v2, May 2024 v1, and May 2023 v2 reviewed batch imports, the current DZI audit reports five `PART1_IMPORTED` sources:
+
+- `aug_2023_v2`
+- `aug_2024_v2`
+- `may_2023_v2`
+- `may_2024_v1`
+- `may_2025_v2`
+
+Two sources remain `READY_FOR_PART1_IMPORT`:
+
+- `aug_2022_v2`
+- `may_2022_v1`
+
+Current open-question readiness:
+
+- total fill-in/open questions inspected: 100
+- auto-gradable open candidates: 41
+- excluded visual-dependent: 16
+- excluded missing accepted answers: 43
+- candidates by source: `aug_2023_v2` 7, `aug_2024_v2` 9, `may_2023_v2` 9, `may_2024_v1` 7, `may_2025_v2` 9
+
+Recommended next source target: `may_2022_v1`, followed by `aug_2022_v2`, using the same staged workflow:
+
+1. Prepare reviewed JSON batch files under `data/import_batches/`.
+2. Validate each batch with `src/validate_question_batch.py`.
+3. Import into `data/questions.db` only in a separate planned DB/data PR.
+
+This checkpoint is documentation only. It does not include schema, app, UI, route, scoring, or import changes.
