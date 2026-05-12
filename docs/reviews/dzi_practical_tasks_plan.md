@@ -153,12 +153,14 @@ A future practical-task batch format must accommodate these naming differences �
 
 ## 4. Data/import plan
 
-Practical tasks must NOT reuse the Part 1 JSON import format (`docs/dzi_question_import_format.md`). That format is intentionally narrow (MC + short-answer + optional asset references) and the importer's `task_number` range is hard-capped at 1..25. Practical tasks need a separate workflow:
+Practical tasks must NOT reuse the Part 1 JSON import format (`docs/dzi_question_import_format.md`). That format is intentionally narrow (MC + short-answer + optional asset references) and the importer's `task_number` range is hard-capped at 1..25. Practical tasks need a separate workflow.
 
-- **PR A — Resource inventory and file-presence verification.** Read-only sweep of every resource ZIP, confirming each task has the expected files. Output is a docs update or a small read-only audit script. No DB writes. Inner-ZIP extraction needed for `aug_2024_v2`.
-- **PR B — Define practical-task import format / representation.** Design a new JSON schema (e.g. `dzi_practical_task_import_format.md`) covering work environment, instructions, expected output files, grading rubric, resource asset list, and optional manual-grading metadata. Discuss whether/how it maps onto existing `practical_tasks`, `assets`, and `asset_links` tables, and whether new fields/tables are required.
-- **PR C — Reviewed practical-task batch files.** Author per-source reviewed JSON batches for tasks 26–28 mirroring the Part 1 review process. No DB writes.
-- **PR D — Planned DB import.** Run the new validator and importer, with the same dry-run-first discipline used for Part 1. May modify `data/questions.db` intentionally. No app changes.
+> The data/import staging below covers data preparation only. The end-to-end student/teacher workflow (download → local work → upload → teacher review) is documented in sections 7–13 below, and the consolidated implementation PR sequence lives in section 13. Treat section 13 as the canonical roadmap; section 4 below describes the data-layer prerequisites.
+
+- **Data-layer staging A — Resource inventory and file-presence verification.** Read-only sweep of every resource ZIP, confirming each task has the expected files. Output is a docs update or a small read-only audit script. No DB writes. Inner-ZIP extraction needed for `aug_2024_v2`.
+- **Data-layer staging B — Define practical-task import format / representation.** Design a new JSON schema (e.g. `dzi_practical_task_import_format.md`) covering work environment, instructions, expected output files, grading rubric, resource asset list, and optional manual-grading metadata. Discuss whether/how it maps onto existing `practical_tasks`, `assets`, and `asset_links` tables, and whether new fields/tables are required.
+- **Data-layer staging C — Reviewed practical-task batch files.** Author per-source reviewed JSON batches for tasks 26–28 mirroring the Part 1 review process. No DB writes.
+- **Data-layer staging D — Planned DB import.** Run the new validator and importer, with the same dry-run-first discipline used for Part 1. May modify `data/questions.db` intentionally. No app changes.
 
 Practical tasks likely do **not** fit the current MC/open auto-gradable model and may require:
 
@@ -198,13 +200,99 @@ Statuses for `resources present?` reflect *outer ZIP presence and basic listing*
 | may_2024_v1 | `data/reference/dzi/official_pdfs/may_2024_v1_exam.pdf` | `data/reference/Май 24/dzi-it-may-2024.zip` | yes | 0 / 3 | `task_26_resources/Choices.xlsx` | `task_27_resources/Images_flyer/*.jpg` (16 files) | `task_28_resources/PZ_3_Resources/28-text.docx`, 4 `*.png`, 1 `bee*.png` set | PR A: file-presence check; note alternate `task_NN_resources/` naming |
 | may_2025_v2 | `data/reference/dzi/official_pdfs/may_2025_v2_exam.pdf` | `data/reference/Май 25/May_2025 (1).zip` (already extracted to `data/reference/Май 25/May_2025/`) | yes (ZIP + extracted) | 0 / 3 | `zad_26/Shipments.xlsx` | `zad_27/Background_1.png`, `Background_2.jpg`, `flower_1..7.jpg` | `zad_28/info.txt`, `logo.png`, `Ornament.png`, `salad1..2.png`, `soup1..2.png` | PR A: decide whether to leave extracted tree under `data/reference/` or copy to `data/assets/exams/may_2025_v2/`; do not move yet |
 
+## 7. Student flow
+
+Practical tasks are not auto-gradable quizzes. The student-facing flow is closer to a take-home assignment with file deliverables. The site must support:
+
+1. **Open practical assignment/task page.** Student navigates from their dashboard / open assignment list to the practical task. Task 26/27/28 each render as their own page or sub-route, scoped to the assignment + attempt + student identity.
+2. **Read task instructions on the site.** The full official task text (Bulgarian) is shown inline with any embedded screenshots/figures preserved. Sub-bullets, code blocks, and example tables should remain readable. Time-allowance reminder (Part 2 = 150 minutes) shown on the page.
+3. **Download required official resource files.** The page lists every resource file linked to the task with its original (Bulgarian/Cyrillic-safe) filename, file size, and a download button. Files are streamed from a server route, never from a raw filesystem URL.
+4. **Work locally.** The student opens the downloaded resources in the appropriate software (e.g. LibreOffice Calc / MS Excel for task 26, raster/vector graphics editor for task 27, browser + plain-text editor for task 28). Local work is outside the site's scope.
+5. **Upload created output files.** The page accepts one or more file uploads, with a clear hint about expected output (e.g. `*.xlsx`, `*.png`, `.zip` archive of the website folder). The student can replace or add files before final submission.
+6. **Submit for teacher/admin review.** A clearly labelled "Submit" action freezes the current upload set, records a submission timestamp, and marks the practical attempt as awaiting review. Subsequent edits, if allowed at all, should create a new submission revision rather than silently overwrite the prior one.
+
+The student should never have to upload to a shared drive, email, or external service. The site is the source of truth for both the resources they download and the deliverables they upload.
+
+## 8. Teacher/admin flow
+
+Teachers/admins need a per-student review surface analogous to the existing assignment-results pages, but with file-aware fields:
+
+1. **List practical submissions per student.** From the assignment results page, the teacher sees which students have submitted practical tasks 26/27/28 and which are pending.
+2. **Download uploaded files.** Each submission shows the uploaded file set with original filenames, sizes, and download links. The teacher can pull the bundle (or individual files) to review locally.
+3. **Review manually.** The grading is judgmental — visual inspection of the produced spreadsheet/graphic/website, comparing to the rubric in the official source key. No automatic correctness checking.
+4. **Enter score/note.** The teacher records a numeric score (bounded by official maximum: 15 for task 26, 20 for task 27, 20 for task 28) and an optional Bulgarian note explaining the score. The score is **manual**, never auto-derived.
+5. **Practical score is manual, not auto-graded.** Existing scoring code paths that auto-score MC and open answers must not touch practical-task rows. Until a combined practical-score design is approved, the manual practical score is displayed and stored separately from the Part 1 auto-score.
+
+Admin-only operations (e.g. re-opening a frozen submission, deleting a faulty upload) should reuse existing admin auth and be auditable.
+
+## 9. Resource/download requirements
+
+Download links must be safe, deterministic, and traceable to the imported task:
+
+- Resource files must be linked from **repo-managed/imported paths only** (e.g. files under `data/assets/exams/<source_slug>/practical/...` after PR B's import). The student-facing download route must look up the file via an internal asset id, not via a path passed from the client.
+- Download URLs must not expose arbitrary filesystem paths — no `?path=` style parameters that accept user input. Use an asset-id route like `/dzi/practical/asset/<asset_id>` that the server resolves to `assets.local_path`.
+- Preserve official filenames where possible. The `Content-Disposition: attachment; filename*=UTF-8''…` header should carry the original (Cyrillic-safe) name. Internal storage names can differ; user-visible names should not.
+- Validate that referenced files exist before showing download links. If a referenced asset is missing on disk, render the link as disabled with a clear "файлът липсва" message — never 500. The Part 1 importer already records `sha256`, `mime_type`, and `file_size`; the practical-task importer should do the same.
+- Downloads should require the same auth as the rest of the assignment flow (logged-in student tied to that attempt, or teacher/admin with explicit access). No public download routes for official exam resources.
+- Set conservative cache headers (`Cache-Control: private, no-store`) to discourage offline mirroring and accidental leakage.
+
+## 10. Upload requirements
+
+Student uploads are user-generated content and must be handled with stricter discipline than the official resource files:
+
+- **Storage location.** Uploads live **outside source-controlled folders** (e.g. `data/uploads/practical/<assignment_id>/<attempt_id>/<task_number>/`) and **must not be committed**. Add the upload root to `.gitignore` as part of the future implementation PR.
+- **Validate file size.** Per-file and per-submission size caps must be enforced server-side (e.g. 25 MB per file, 100 MB per submission as a starting point — tune from observed practical-task deliverable sizes).
+- **Validate allowed extensions.** Per task kind: task 26 → `xlsx`, `xls`, `ods`, `csv`; task 27 → `png`, `jpg`, `jpeg`, `tif`, `psd`, `svg`, `pdf`, `zip`; task 28 → `html`, `htm`, `css`, `js`, `zip`. Check both extension and MIME (best-effort) — reject mismatches.
+- **Prevent path traversal.** Never use the client-provided filename in any filesystem path. Generate the internal name (e.g. UUID + extension) and store the original filename only in DB metadata.
+- **Preserve original filename as metadata.** Keep `upload_original_filename` for display in teacher review and in `Content-Disposition` when the teacher re-downloads.
+- **Associate uploads with the full context.** Each upload row carries `assignment_id`, `attempt_id`, `student_id`, `exam_task_id` (or `practical_task_id`), `submission_id`, plus storage path and integrity fields (sha256, file size, MIME, uploaded_at).
+- **Allow multiple files if the official task expects more than one output.** Tasks 27 (graphics flyer + ZIP archive) and 28 (full website archive) frequently expect multiple deliverables. The model must not assume 1-file-per-task.
+- **Reject suspicious inputs.** Disallow zero-byte uploads. Strip/ignore executable extensions outright. Do not trust the `Content-Type` header alone.
+- **Auditability.** Record uploader user_id and source IP/user-agent on each upload row. Soft-delete rather than hard-delete to preserve teacher review history.
+
+## 11. Data/model implications
+
+The current schema has `practical_tasks` (a per-task metadata row), `assets`, and `asset_links` tables (see `docs/dzi_question_import_format.md` and `audit_dzi_state.py`). Practical-task support will likely require additional tables — design only, **do not implement here**:
+
+- `practical_task_resources` — links a practical task to one or more resource files. Columns plausibly: `id`, `task_id` (FK to `exam_tasks`), `asset_id` (FK to `assets`), `display_order`, `display_name_bg`, `is_required`. Could reuse `asset_links` with a new `owner_type='practical_task'` and a `role='resource'` instead of a new table — pick one in PR B.
+- `practical_submissions` — one row per student submission per task. Columns plausibly: `id`, `attempt_id` (FK to `quiz_attempts`), `student_id`, `task_id`, `submission_number`, `submitted_at`, `status` (`draft` / `submitted` / `under_review` / `graded`), `manual_score`, `manual_score_max`, `teacher_note_bg`, `graded_by`, `graded_at`.
+- `practical_submission_files` — one row per uploaded file. Columns plausibly: `id`, `submission_id`, `original_filename`, `stored_path`, `mime_type`, `file_size`, `sha256`, `uploaded_at`, `uploader_user_id`, `soft_deleted_at`.
+- **Relation to existing tables.** `quiz_assignments` and `quiz_attempts` already model the assignment + attempt grain. Practical submissions hang off `quiz_attempts.id`, similar to how MC answers do, but with a separate auto/manual scoring path. `exam_tasks.id` already exists for tasks 26–28 with `task_kind` values `practical_spreadsheet`, `practical_graphics`, `practical_web`, so per-task identity is already encoded — no new task identity table is required.
+- **Optional: teacher score history.** If grading revisions are expected (e.g. a teacher re-grades after a student dispute), add `practical_submission_grades` keyed by `submission_id` to keep an append-only history rather than overwriting `manual_score`.
+
+These are sketches for PR B/C discussion, not commitments. The minimum viable design (one submission row + one files table) is enough for a first end-to-end pass.
+
+## 12. Scoring implications
+
+- **No auto-scoring for practical tasks.** Practical tasks must not enter the MC/open auto-score path. The auto-scorer should explicitly skip rows whose `exam_tasks.task_kind` starts with `practical_`.
+- **Display manual score separately.** Until a combined-score design is approved, the practical manual score is shown as a separate line on the result page (e.g. "Част 1: 25 / 25 точки" and "Част 2 (ръчно): 38 / 55 точки"), not summed into the Part 1 total.
+- **Do not mix practical tasks into existing mixed/open quiz flow.** The current `open_count`-driven mixed assignment creation produces auto-gradable Part 1 quizzes. Adding practical tasks to that mix would break the auto-grade contract and the inline `quiz/<id>` UI. Practical tasks need their own assignment type, route, and UI before they can be combined with Part 1 in a single student view.
+- **Score ceilings come from the official key.** Task 26 = 15, task 27 = 20, task 28 = 20. The grading UI must clamp inputs to the per-task max. Optional partial-credit sub-rubrics can be modelled in `grading_criteria_json` on `practical_tasks` if PR B decides to record rubrics.
+- **Final grade composition (out of scope for this PR).** Whether to expose a combined "100 точки" final view or keep Part 1 / Part 2 separate is a teacher/UX decision; design it explicitly in the implementation PRs (likely PR F).
+
+## 13. Recommended implementation PR sequence
+
+This sequence supersedes the older A–D plan in section 4. Each PR must remain narrow and reversible; each ends with a clear validation step.
+
+- **PR A — Validator support for practical-task JSON / resource references.** Add a `src/validate_practical_task_batch.py` (or extend the existing validator) that loads the new practical-task JSON, verifies referenced resource files exist on disk, checks asset path safety, and rejects practical task numbers outside 26–28. Read-only DB usage with `mode=ro`. Dry-run only.
+- **PR B — Reviewed practical-task JSON for one source.** Author the first reviewed practical-task batch (start with `may_2025_v2`, since its resources are already extracted on disk). One file per task: e.g. `data/import_batches/practical/may_2025_v2_task_26.json`, `..._task_27.json`, `..._task_28.json`. No DB writes. Validate against PR A.
+- **PR C — DB/schema support for resources/submissions.** Add additive migration(s) for `practical_task_resources` (or new `asset_links` role), `practical_submissions`, and `practical_submission_files`. Strictly additive: no dropping, no rename. Includes any necessary indexes and FK constraints. No app code change beyond what the migration requires.
+- **PR D — Render practical task + download resources.** New route(s) under `/dzi/practical/...` (or `/quiz/<id>/practical/<task>`) that render the task text and list its resources with safe asset-id-based download links. Read-only — no uploads yet. Reuses existing student auth.
+- **PR E — Upload completed files.** Add the upload endpoint, size/extension/MIME validation, server-side rename + storage outside source-controlled folders, and submission-state transitions (`draft` → `submitted`). Include CSRF protection and same-origin checks consistent with existing auth.
+- **PR F — Teacher review / manual grading.** Add the teacher-facing list and detail pages for practical submissions, the manual score + note form, score-ceiling clamping, and the separate practical-score display on the student result page. No auto-grading of practical tasks.
+
+Soft prerequisites: each PR's tests must cover the new behaviour without weakening existing Part 1 quiz tests. CI run, FK check, and the standard `audit_dzi_state.py` / `audit_open_question_readiness.py` audits must remain clean throughout.
+
 ## Out of scope for this PR
 
 - Editing `data/questions.db`.
 - Running migrations.
 - Extracting, unzipping, copying, moving, or renaming any resource file.
 - Creating `data/assets/exams/<source_slug>/` directories.
-- Defining the practical-task JSON schema (deferred to PR B).
-- Authoring practical-task batch files (deferred to PR C).
-- Importing practical tasks (deferred to PR D).
-- Any change to Python, templates, tests, CSS, JS, scoring, or routes.
+- Defining the practical-task JSON schema (deferred to implementation PR A / data-layer staging B).
+- Authoring practical-task batch files (deferred to implementation PR B / data-layer staging C).
+- Implementing the student download UI (deferred to implementation PR D).
+- Implementing student uploads (deferred to implementation PR E).
+- Implementing teacher manual grading (deferred to implementation PR F).
+- Importing practical tasks (deferred to data-layer staging D, after the workflow PRs land).
+- Any change to Python, templates, tests, CSS, JS, scoring, routes, or schema.
