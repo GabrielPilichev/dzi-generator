@@ -1,0 +1,117 @@
+{
+  "source_slug": "aug_2022_v2",
+  "source_title": "ДЗИ ИТ ПП - август 2022, вариант 2",
+  "tasks": [
+    {
+      "task_number": 11,
+      "task_kind": "short_answer",
+      "points": 3,
+      "topic_slug": "relational-model",
+      "section_slug": "grade11-m1-databases-and-information-systems",
+      "prompt": "В кой модел за описание на база от данни записите могат да се представят в таблици?",
+      "source_page": 3,
+      "answers": [
+        "Релационен"
+      ],
+      "answer_alternatives": [
+        "релационен"
+      ]
+    },
+    {
+      "task_number": 12,
+      "task_kind": "short_answer",
+      "points": 3,
+      "topic_slug": "sumif",
+      "section_slug": "grade11-m1-spreadsheets-big-data",
+      "prompt": "Дадена е таблица с описани стоки, подредени по категории и цена за всяка от тях. Предоставена е формула за изчисление според направеното в таблицата описание и резултат от извършената операция. Коя е функцията, която трябва да се използва на мястото на многоточието във всяка от формулите, за да се получи резултатът в редове 9, 10, 11 и 12?",
+      "source_page": 3,
+      "answers": [
+        "SUMIF()"
+      ],
+      "answer_alternatives": [
+        "sumif()",
+        "SUMIF",
+        "sumif"
+      ]
+    },
+    {
+      "task_number": 13,
+      "task_kind": "short_answer",
+      "points": 3,
+      "topic_slug": "switch-function",
+      "section_slug": "grade11-m1-spreadsheets-big-data",
+      "prompt": "Напишете в листа за отговори коя функция е необходимо да се използва, за да се изчисли бонусът на служителя, като годишната заплата се умножава по процента, съответстващ на рейтинга с наличните данни от дадената електронна таблица?",
+      "source_page": 3,
+      "answers": [
+        "CHOOSE()"
+      ],
+      "answer_alternatives": [
+        "choose",
+        "choose()",
+        "CHOOSE"
+      ]
+    },
+    {
+      "task_number": 14,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "css",
+      "section_slug": "grade12-m3-build-test-publish-website",
+      "prompt": "CSS (Cascading Style Sheets) е:",
+      "source_page": 4,
+      "options": [
+        {
+          "letter": "А",
+          "text": "Език за създаване на динамични уеб сайтове",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "Език за описание на оформлението на документ, написан с HTML",
+          "is_correct": true
+        },
+        {
+          "letter": "В",
+          "text": "Език за уеб програмиране",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "Хибриден език, който изглежда като HTML",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "task_number": 15,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "copyright-law",
+      "section_slug": "grade12-m4-computer-systems-and-application-software-management",
+      "prompt": "Според кой от посочените закони носител на авторско право върху даден софтуер има правомощията да разрешава или забранява използването, разпространяването и възпроизвеждането на софтуера от други потребители?",
+      "source_page": 4,
+      "options": [
+        {
+          "letter": "А",
+          "text": "Закон за марките и географските означения (ЗМГО)",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "Закон за авторското право и сродните му права (ЗАПСП)",
+          "is_correct": true
+        },
+        {
+          "letter": "В",
+          "text": "Закон за защита на конкуренцията (ЗЗК)",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "Закон за защита на личните данни (ЗЗЛД)",
+          "is_correct": false
+        }
+      ]
+    }
+  ]
+}

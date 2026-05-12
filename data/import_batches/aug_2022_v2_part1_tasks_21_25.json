@@ -1,0 +1,90 @@
+{
+  "source_slug": "aug_2022_v2",
+  "source_title": "ДЗИ ИТ ПП - август 2022, вариант 2",
+  "tasks": [
+    {
+      "task_number": 21,
+      "task_kind": "short_answer",
+      "points": 3,
+      "topic_slug": "html",
+      "section_slug": "grade12-m3-build-test-publish-website",
+      "prompt": "Напишете в листа за отговори чрез кой таг може да се създаде неномериран списък в HTML?",
+      "source_page": 5,
+      "answers": [
+        "<ul>"
+      ],
+      "answer_alternatives": [
+        "ul",
+        "<ul></ul>"
+      ]
+    },
+    {
+      "task_number": 22,
+      "task_kind": "short_answer",
+      "points": 3,
+      "topic_slug": "cms-systems",
+      "section_slug": "grade12-m3-cms",
+      "prompt": "Системите за управление на уеб съдържание (CMS) имат архитектура, която е изградена от (1)......... слоя.\n(В листа за отговори срещу (1) запишете съответните думи или изрази.)",
+      "source_page": 5,
+      "answers": [
+        "Три"
+      ],
+      "answer_alternatives": [
+        "3",
+        "три",
+        "презентационен слой, слой за данни, слой за бизнес логика",
+        "презентационен слой, междинен слой, слой за обработка на данни"
+      ]
+    },
+    {
+      "task_number": 23,
+      "task_kind": "short_answer",
+      "points": 3,
+      "topic_slug": "relational-model",
+      "section_slug": "grade11-m1-databases-and-information-systems",
+      "prompt": "База от данни съдържа две таблици - едната с информация за автомобилни части в магазин за авточасти, а другата - с данни за клиентите. /Разгледайте изображението по-долу/ Всяка част може да бъде закупена от няколко клиенти, а всеки клиент може да закупи няколко части. Напишете в листа за отговори с какъв тип връзка първата таблица е необходимо да бъде свързана с втората.",
+      "source_page": 5,
+      "answers": [
+        "едно към много"
+      ],
+      "answer_alternatives": [
+        "One-To-Many",
+        "one to many",
+        "1:M"
+      ]
+    },
+    {
+      "task_number": 24,
+      "task_kind": "short_answer",
+      "points": 3,
+      "topic_slug": "raster-vs-vector",
+      "section_slug": "grade11-m2-vector-images",
+      "prompt": "Разгледайте изображението по-долу. Напишете в листа за отговори как се нарича полиномна параметрична крива (набор от дискретни „контролни точки“, които дефинират гладка, непрекъсната крива с помощта на формула), която се използва в компютърната графика.",
+      "source_page": 6,
+      "answers": [
+        "Крива на Безие"
+      ],
+      "answer_alternatives": [
+        "Безие",
+        "безие",
+        "Bezier curve",
+        "крива на Безие"
+      ]
+    },
+    {
+      "task_number": 25,
+      "task_kind": "short_answer",
+      "points": 3,
+      "topic_slug": "html",
+      "section_slug": "grade12-m3-build-test-publish-website",
+      "prompt": "Предоставеният по-долу код е непълен. Напишете код, който да замени многоточията, като се добави заглавен ред на таблица със следния текст във всяка колона:\n• Номер\n• Ученик\n• Училище\n• Точки",
+      "source_page": 7,
+      "answers": [
+        "<tr><th>Номер</th><th>Ученик</th><th>Училище</th><th>Точки</th></tr>"
+      ],
+      "answer_alternatives": [
+        "<tr>\n<th>Номер</th>\n<th>Ученик</th>\n<th>Училище</th>\n<th>Точки</th>\n</tr>"
+      ]
+    }
+  ]
+}
