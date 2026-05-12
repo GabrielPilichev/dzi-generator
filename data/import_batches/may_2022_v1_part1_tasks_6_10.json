@@ -1,0 +1,160 @@
+{
+  "source_slug": "may_2022_v1",
+  "source_title": "ДЗИ ИТ ПП - май 2022, вариант 1",
+  "tasks": [
+    {
+      "task_number": 6,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "file-formats-audio",
+      "section_slug": "grade11-m2-digital-audio-processing",
+      "prompt": "Направен е аудио запис на китара, който е записан във формат, запазващ максимално информацията за музикалното изпълнение. Отбележете кой от форматите изпълнява в най-голяма степен тези изисквания?",
+      "source_page": 2,
+      "options": [
+        {
+          "letter": "А",
+          "text": "mp3",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "wav",
+          "is_correct": true
+        },
+        {
+          "letter": "В",
+          "text": "aac",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "mp4",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "task_number": 7,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "video-codec",
+      "section_slug": "grade11-m2-video-creation",
+      "prompt": "Отбележете вярното твърдение:",
+      "source_page": 3,
+      "options": [
+        {
+          "letter": "А",
+          "text": "Работният файл при видеообработка съдържа списък с всички медийни файлове, използвани при монтажа.",
+          "is_correct": true
+        },
+        {
+          "letter": "Б",
+          "text": "Видеозаснемането се извършва през етап постпродукция",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "Продължителността на преходите не може да се променя",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "Към един клип може да се добавя само един ефект.",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "task_number": 8,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "section_slug": "grade11-m2-multimedia-product",
+      "prompt": "Посочете за кой от етапите при проектиране на мултимедийно приложение се отнася текстът: \"Сценарият (Storyboard) обвързва отделните части ( аудио, видео, изображения) на мултимедийния проект. В него се скицират визуалните елементи, определят се потребителските действия, добавят се бележки за продукцията.\"?",
+      "source_page": 3,
+      "options": [
+        {
+          "letter": "А",
+          "text": "Създаване на прототип",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "Изготвяне на сценарии",
+          "is_correct": true
+        },
+        {
+          "letter": "В",
+          "text": "Тестване",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "Събиране на материали",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "task_number": 9,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "standards-organizations",
+      "section_slug": "grade12-m3-build-test-publish-website",
+      "prompt": "Коя от организациите е отговорна за стандарта за поддръжка на символите в уеб страниците?",
+      "source_page": 3,
+      "options": [
+        {
+          "letter": "А",
+          "text": "World Wide Web Consortium",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "International Organization for Standardization",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "Unicode Consortium",
+          "is_correct": true
+        },
+        {
+          "letter": "Г",
+          "text": "ECMA International",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "task_number": 10,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "cms",
+      "section_slug": "grade12-m3-cms",
+      "prompt": "В дизайна на сайтове темата (theme) се отнася за външния вид на:",
+      "source_page": 3,
+      "options": [
+        {
+          "letter": "А",
+          "text": "единична страница",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "целия сайт",
+          "is_correct": true
+        },
+        {
+          "letter": "В",
+          "text": "публикация",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "отделен обект",
+          "is_correct": false
+        }
+      ]
+    }
+  ]
+}
