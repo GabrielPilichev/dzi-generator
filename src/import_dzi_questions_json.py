@@ -51,6 +51,14 @@ SOURCE_TASK_LAYOUT_OVERRIDES = {
         17: ("multiple_choice", 1),
         18: ("multiple_choice", 1),
     },
+    "aug_2022_v2": {
+        11: ("short_answer", 3),
+        12: ("short_answer", 3),
+        13: ("short_answer", 3),
+        16: ("multiple_choice", 1),
+        17: ("multiple_choice", 1),
+        18: ("multiple_choice", 1),
+    },
 }
 VALID_ASSET_TYPES = {"image", "pdf_crop", "spreadsheet", "archive", "other"}
 

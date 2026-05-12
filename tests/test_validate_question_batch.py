@@ -431,6 +431,50 @@ class ValidateQuestionBatchTest(unittest.TestCase):
         finally:
             conn.close()
 
+    def test_aug_2022_v2_layout_override_allows_official_task_kinds(self):
+        conn = make_source_layout_conn("aug_2022_v2")
+        try:
+            before = conn.total_changes
+            with contextlib.redirect_stdout(io.StringIO()):
+                summary = validate_batch(conn, source_layout_payload("aug_2022_v2"))
+
+            self.assertEqual(summary.tasks_read, 2)
+            self.assertEqual(summary.questions_inserted, 2)
+            self.assertEqual(summary.options_inserted, 4)
+            self.assertEqual(summary.fill_in_subquestions_inserted, 1)
+            self.assertEqual(conn.total_changes, before)
+        finally:
+            conn.close()
+
+    def test_aug_2022_v2_layout_override_rejects_default_skeleton_kinds(self):
+        conn = make_source_layout_conn("aug_2022_v2")
+        try:
+            payload = {
+                "source_slug": "aug_2022_v2",
+                "tasks": [
+                    {
+                        "task_number": 11,
+                        "task_kind": "multiple_choice",
+                        "points": 1,
+                        "grade": 11,
+                        "topic_slug": "sql-select",
+                        "section_slug": "grade11-m1-databases-and-information-systems",
+                        "prompt": "Кое от изброените е вярно?",
+                        "options": [
+                            {"letter": "А", "text": "Първи отговор", "is_correct": True},
+                            {"letter": "Б", "text": "Втори отговор", "is_correct": False},
+                            {"letter": "В", "text": "Трети отговор", "is_correct": False},
+                            {"letter": "Г", "text": "Четвърти отговор", "is_correct": False},
+                        ],
+                    }
+                ],
+            }
+
+            with self.assertRaisesRegex(ValueError, "does not match expected task_kind 'short_answer'"):
+                validate_batch(conn, payload)
+        finally:
+            conn.close()
+
     def test_non_aug_2023_source_still_rejects_skeleton_task_kind_mismatch(self):
         conn = make_conn()
         try:
