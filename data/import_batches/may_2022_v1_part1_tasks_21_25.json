@@ -1,0 +1,107 @@
+{
+  "source_slug": "may_2022_v1",
+  "source_title": "ДЗИ ИТ ПП - май 2022, вариант 1",
+  "tasks": [
+    {
+      "task_number": 21,
+      "task_kind": "short_answer",
+      "points": 3,
+      "topic_slug": "audio-effects",
+      "section_slug": "grade11-m2-digital-audio-processing",
+      "prompt": "Напишете в листа за отговори как се нарича графичната визуализация на звукова вълна в програмите за обработка на звук.",
+      "source_page": 7,
+      "answers": [
+        "диаграма"
+      ]
+    },
+    {
+      "task_number": 22,
+      "task_kind": "short_answer",
+      "points": 3,
+      "topic_slug": "web-domain",
+      "section_slug": "grade12-m3-website-planning",
+      "prompt": "Искате да посетите новосъздадена платформа към МОН. Какъв ще бъде URL адреса, ако знаете, че:\n• сайтът е защитен със SSL сертификат;\n• домейнът е поддомейн „neispuo“ на основния домейн на МОН (mon.bg);\n• страницата за вход е с име portal?",
+      "source_page": 7,
+      "answers": [
+        "https://neispuo.mon.bg/portal"
+      ]
+    },
+    {
+      "task_number": 23,
+      "task_kind": "short_answer",
+      "points": 3,
+      "topic_slug": "information-system-development-stages",
+      "section_slug": "grade11-m1-information-systems-intro",
+      "prompt": "Избройте основните функции на информационна система:\n(В листа за отговори срещу (1), (2), (3) и (4) запишете съответните думи или изрази.)",
+      "source_page": 7,
+      "subquestions": [
+        {
+          "label": "1",
+          "prompt": "(1) Функция на информационна система",
+          "points": 1,
+          "answers": [
+            "събиране",
+            "събиране на информация"
+          ]
+        },
+        {
+          "label": "2",
+          "prompt": "(2) Функция на информационна система",
+          "points": 1,
+          "answers": [
+            "съхранение",
+            "съхранение на информация"
+          ]
+        },
+        {
+          "label": "3",
+          "prompt": "(3) Функция на информационна система",
+          "points": 1,
+          "answers": [
+            "обработка",
+            "обработка на информация"
+          ]
+        },
+        {
+          "label": "4",
+          "prompt": "(4) Функция на информационна система",
+          "points": 1,
+          "answers": [
+            "разпространение",
+            "разпространение на информация"
+          ]
+        }
+      ]
+    },
+    {
+      "task_number": 24,
+      "task_kind": "short_answer",
+      "points": 3,
+      "topic_slug": "css-selectors",
+      "section_slug": "grade12-m3-build-test-publish-website",
+      "prompt": "Съдържанието и стилизацията на уеб страница се определя от следния HTML и CSS код. Напишете в листа за отговори правилния селектор във файла за CSS стилизиране, така че текстът „Мента“ да бъде със зелен цвят.",
+      "source_page": 7,
+      "answers": [
+        "#menta"
+      ]
+    },
+    {
+      "task_number": 25,
+      "task_kind": "short_answer",
+      "points": 3,
+      "topic_slug": "captcha",
+      "section_slug": "grade12-m3-web-security",
+      "prompt": "За защита от спам и неоторизиран достъп на създадени чрез CMS сайтове, се прилага тест с показване на трудно различими символи, които трябва да бъдат въведени от потребителите. Как се нарича този тест?",
+      "source_page": 8,
+      "answers": [
+        "CAPTCHA"
+      ],
+      "answer_alternatives": [
+        "КАПЧА",
+        "Публичен ключ за сигурност",
+        "captcha",
+        "Captcha"
+      ]
+    }
+  ]
+}

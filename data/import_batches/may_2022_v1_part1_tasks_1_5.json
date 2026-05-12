@@ -1,0 +1,161 @@
+{
+  "source_slug": "may_2022_v1",
+  "source_title": "ДЗИ ИТ ПП - май 2022, вариант 1",
+  "tasks": [
+    {
+      "task_number": 1,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "spreadsheet-function-basics",
+      "section_slug": "grade11-m1-spreadsheets-big-data",
+      "prompt": "Какъв ще бъде резултатът от изпълнение на формулата в клетка B11?",
+      "source_page": 1,
+      "options": [
+        {
+          "letter": "А",
+          "text": "27",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "313",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "100",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "18",
+          "is_correct": true
+        }
+      ]
+    },
+    {
+      "task_number": 2,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "relational-model",
+      "section_slug": "grade11-m1-databases-and-information-systems",
+      "prompt": "При кой модел на данни даден запис наследник може да има повече от един запис родител?",
+      "source_page": 1,
+      "options": [
+        {
+          "letter": "А",
+          "text": "Йерархичен",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "Мрежови",
+          "is_correct": true
+        },
+        {
+          "letter": "В",
+          "text": "Релационен",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "Обектно-ориентиран",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "task_number": 3,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "information-system-development-stages",
+      "section_slug": "grade11-m1-information-systems-intro",
+      "prompt": "Коя от изброените дейности НЕ е етап при разработването и използването на информационни системи?",
+      "source_page": 2,
+      "options": [
+        {
+          "letter": "А",
+          "text": "Проектиране",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "Разработване",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "Внедряване",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "Публикуване",
+          "is_correct": true
+        }
+      ]
+    },
+    {
+      "task_number": 4,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "raster-vs-vector",
+      "section_slug": "grade11-m2-vector-images",
+      "prompt": "За кой тип векторна операция се отнася твърдението: \"Общата част се премахва. Двете пътечки се обединяват в една.\"?",
+      "source_page": 2,
+      "options": [
+        {
+          "letter": "А",
+          "text": "Разлика (Differense)",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "Изключващо или (Exclusion)",
+          "is_correct": true
+        },
+        {
+          "letter": "В",
+          "text": "Обединение (Union)",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "Сечение (Intersection)",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "task_number": 5,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "raster-vs-vector",
+      "section_slug": "grade11-m2-vector-images",
+      "prompt": "Как се нарича процесът на превръщане на векторно изображение в растерно?",
+      "source_page": 2,
+      "options": [
+        {
+          "letter": "А",
+          "text": "Растеризиране",
+          "is_correct": true
+        },
+        {
+          "letter": "Б",
+          "text": "Импортиране",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "Трасиране",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "Векторизиране",
+          "is_correct": false
+        }
+      ]
+    }
+  ]
+}

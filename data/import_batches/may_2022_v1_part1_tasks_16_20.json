@@ -1,0 +1,130 @@
+{
+  "source_slug": "may_2022_v1",
+  "source_title": "ДЗИ ИТ ПП - май 2022, вариант 1",
+  "tasks": [
+    {
+      "task_number": 16,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "hardware-graphics-card",
+      "section_slug": "grade8-computer-systems",
+      "prompt": "В кой ред са посочени основни характеристики на видеокарти?",
+      "source_page": 6,
+      "options": [
+        {
+          "letter": "А",
+          "text": "централен процесор, тактова честота, разрядност",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "скорост на запис, време за реакция, честота на опресняване",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "графичен процесор, оперативна памет, слот за дънна платка",
+          "is_correct": true
+        },
+        {
+          "letter": "Г",
+          "text": "скорост на четене, оперативна памет, ъгъл на видимост",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "task_number": 17,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "information-security",
+      "section_slug": "grade12-m3-web-security",
+      "prompt": "Политика за сигурност, свързана с човешките ресурси, може да бъде:",
+      "source_page": 6,
+      "options": [
+        {
+          "letter": "А",
+          "text": "изграждане на мрежа за отдалечен достъп",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "контролиране на работното време",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "използване на силна парола на достъп",
+          "is_correct": true
+        },
+        {
+          "letter": "Г",
+          "text": "инсталиране на маршрутизатори",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "task_number": 18,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "plagiarism",
+      "section_slug": "grade10-problem-solving-and-safety",
+      "prompt": "Плагиатството е:",
+      "source_page": 6,
+      "options": [
+        {
+          "letter": "А",
+          "text": "представянето на чужд труд като свой",
+          "is_correct": true
+        },
+        {
+          "letter": "Б",
+          "text": "използване на чужд труд със съгласието на автора",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "цитиране на чужд труд",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "перифразиране на информацията с нови идеи и гледни точки",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "task_number": 19,
+      "task_kind": "short_answer",
+      "points": 3,
+      "topic_slug": "spreadsheet-function-basics",
+      "section_slug": "grade11-m1-spreadsheets-big-data",
+      "prompt": "Даден е фрагмент от електронна таблица и диаграма. Стойностите, по които е построена диаграмата, са пропорционални на диапазона от клетки B1:B3. Ако стойността на клетка B3 e 25, то каква е стойността на клетка B2? Запишете отговора като цяло число.",
+      "source_page": 6,
+      "answers": [
+        "5"
+      ]
+    },
+    {
+      "task_number": 20,
+      "task_kind": "short_answer",
+      "points": 3,
+      "topic_slug": "access-tables",
+      "section_slug": "grade11-m1-databases-and-information-systems",
+      "prompt": "В поле на таблица в база от данни трябва да се въведе информация за телефонен номер на дадена личност. Запишете какъв е типът на полето, който трябва да се избере.",
+      "source_page": 7,
+      "answers": [
+        "Text",
+        "Number"
+      ],
+      "answer_alternatives": [
+        "Текст",
+        "Число",
+        "Кратък текст",
+        "Short Text"
+      ]
+    }
+  ]
+}
