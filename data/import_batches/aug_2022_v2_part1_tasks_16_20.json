@@ -1,0 +1,131 @@
+{
+  "source_slug": "aug_2022_v2",
+  "source_title": "ДЗИ ИТ ПП - август 2022, вариант 2",
+  "tasks": [
+    {
+      "task_number": 16,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "sdlc",
+      "section_slug": "grade12-m4-project-management",
+      "prompt": "Посочете кои са основните етапи при изпълнение на проект?",
+      "source_page": 4,
+      "options": [
+        {
+          "letter": "А",
+          "text": "Анализ, проектиране, синтезиране, изследване, изпълнение",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "Проектиране, оценка, изследване, изпълнение, внедряване",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "Изследване, анализ, проектиране, оценка, изпълнение, внедряване",
+          "is_correct": true
+        },
+        {
+          "letter": "Г",
+          "text": "Изследване, оценка, изпълнение, внедряване, анализ",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "task_number": 17,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "information-security",
+      "section_slug": "grade12-m3-web-security",
+      "prompt": "Софтуерна система съдържа лични данни за потребителите. Кое от посочените е право на физическите лица, чиито данни се събират?",
+      "source_page": 4,
+      "options": [
+        {
+          "letter": "А",
+          "text": "Правото на изтриване на личните данни („правото да бъдеш забравен“)",
+          "is_correct": true
+        },
+        {
+          "letter": "Б",
+          "text": "Правото на достъп на ниво четене на данни на други потребители, участващи в същите групи или услуги",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "Правото на достъп на ниво редактиране на данни на други потребители, участващи в същите групи или услуги",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "Правото на обработка и анализ на данни на други потребители, участващи в същите групи или услуги",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "task_number": 18,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "color-wheel",
+      "section_slug": "grade11-m2-raster-images",
+      "prompt": "Кои са основните цветове при модела CMYK?",
+      "source_page": 4,
+      "options": [
+        {
+          "letter": "А",
+          "text": "циан (син), бял, червен, черен",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "магента (цикламен, пурпурночервен), жълт, зелен, черен",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "циан (син), магента (цикламен, пурпурночервен), бял, зелен",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "циан (син), магента (цикламен, пурпурночервен), жълт, черен",
+          "is_correct": true
+        }
+      ]
+    },
+    {
+      "task_number": 19,
+      "task_kind": "short_answer",
+      "points": 3,
+      "section_slug": "grade11-m2-multimedia-product",
+      "prompt": "Напишете в листа за отговори как се нарича процесът на обединяване на различни видове информация (текст, звук, изображения, видео, анимация), които са използвани в мултимедиен проект с цел създаване на цялостно висококачествено решение.",
+      "source_page": 5,
+      "answers": [
+        "Пакетиране"
+      ],
+      "answer_alternatives": [
+        "package",
+        "packing",
+        "пакетиране"
+      ]
+    },
+    {
+      "task_number": 20,
+      "task_kind": "short_answer",
+      "points": 3,
+      "topic_slug": "captcha",
+      "section_slug": "grade12-m3-web-security",
+      "prompt": "Напишете в листа за отговори как се нарича тест за сигурност, използван в уеб дизайна и уеб програмирането, при който се генерира прост въпрос, чийто отговор е очевиден за човек, но не и за компютър.",
+      "source_page": 5,
+      "answers": [
+        "CAPTCHA"
+      ],
+      "answer_alternatives": [
+        "captcha",
+        "капча"
+      ]
+    }
+  ]
+}

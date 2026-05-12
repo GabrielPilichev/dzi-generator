@@ -1,0 +1,160 @@
+{
+  "source_slug": "aug_2022_v2",
+  "source_title": "ДЗИ ИТ ПП - август 2022, вариант 2",
+  "tasks": [
+    {
+      "task_number": 6,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "camera-optics",
+      "section_slug": "grade11-m2-digitizing-audiovisual-information",
+      "prompt": "Как се нарича движението на камерата, при което по време на запис тя сменя мястото си в различни посоки и с различна скорост?",
+      "source_page": 2,
+      "options": [
+        {
+          "letter": "А",
+          "text": "Варио",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "Панорама",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "Швенк",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "Фарт",
+          "is_correct": true
+        }
+      ]
+    },
+    {
+      "task_number": 7,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "audio-effects",
+      "section_slug": "grade11-m2-digital-audio-processing",
+      "prompt": "Какво е предназначението на ефекта Fade in в аудио обработката?",
+      "source_page": 2,
+      "options": [
+        {
+          "letter": "А",
+          "text": "Променя звука в друга тоналност",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "Променя звуковата област към постепенно засилване",
+          "is_correct": true
+        },
+        {
+          "letter": "В",
+          "text": "Променя звуковата област към постепенно затихване",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "Променя звуковата област с ехо",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "task_number": 8,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "section_slug": "grade11-m2-video-creation",
+      "prompt": "Процесът, при който даден видеоматериал се монтира, добавят му се преходи, ефекти, звуково оформление, субтитри, надписи и изображения, се нарича:",
+      "source_page": 3,
+      "options": [
+        {
+          "letter": "А",
+          "text": "Предпродукция",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "Продукция",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "Постпродукция",
+          "is_correct": true
+        },
+        {
+          "letter": "Г",
+          "text": "Репродукция",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "task_number": 9,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "web-domain",
+      "section_slug": "grade12-m3-website-planning",
+      "prompt": "Посочете кое от изброените е домейн?",
+      "source_page": 3,
+      "options": [
+        {
+          "letter": "А",
+          "text": "help.superhosting.bg/domain_name.html",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "alexbrest@sap.bg",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "moodle.nmpg.org/resourse/content/12klasDZI.pdf",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "3dcreativity.online",
+          "is_correct": true
+        }
+      ]
+    },
+    {
+      "task_number": 10,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "information-security",
+      "section_slug": "grade12-m3-web-security",
+      "prompt": "Атака, която причинява блокиране на услуга или невъзможност на мрежата да функционира, се нарича:",
+      "source_page": 3,
+      "options": [
+        {
+          "letter": "А",
+          "text": "XSS атака",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "DDoS атака",
+          "is_correct": true
+        },
+        {
+          "letter": "В",
+          "text": "Injection",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "Shiffing атака",
+          "is_correct": false
+        }
+      ]
+    }
+  ]
+}

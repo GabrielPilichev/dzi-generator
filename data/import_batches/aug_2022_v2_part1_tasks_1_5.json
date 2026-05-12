@@ -1,0 +1,161 @@
+{
+  "source_slug": "aug_2022_v2",
+  "source_title": "ДЗИ ИТ ПП - август 2022, вариант 2",
+  "tasks": [
+    {
+      "task_number": 1,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "information-system-development-stages",
+      "section_slug": "grade11-m1-information-systems-intro",
+      "prompt": "Посочете двойката етапи, обозначаващи началото и края при разработването на информационни системи?",
+      "source_page": 1,
+      "options": [
+        {
+          "letter": "А",
+          "text": "проучване - споделяне",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "синтез - тест",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "проучване – внедряване",
+          "is_correct": true
+        },
+        {
+          "letter": "Г",
+          "text": "дизайн – разработване",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "task_number": 2,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "access-select-queries",
+      "section_slug": "grade11-m1-databases-and-information-systems",
+      "prompt": "На изображението по-долу е показана заявка. Отбележете типа на заявката:",
+      "source_page": 1,
+      "options": [
+        {
+          "letter": "А",
+          "text": "Кръстосана заявка",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": "Заявка за обобщение",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "Заявка за изтриване",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "Параметрична заявка",
+          "is_correct": true
+        }
+      ]
+    },
+    {
+      "task_number": 3,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "system-architecture",
+      "section_slug": "grade11-m1-information-systems-intro",
+      "prompt": "Информационна система \"Седмично разписание на часовете\" съхранява различни типове данни. Кои от посочените НЕ са основни за системата?",
+      "source_page": 2,
+      "options": [
+        {
+          "letter": "А",
+          "text": "Данни за учениците",
+          "is_correct": true
+        },
+        {
+          "letter": "Б",
+          "text": "Данни за класните стаи",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "Данни за учебните предмети",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "График за контролните работи",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "task_number": 4,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "pivot-table",
+      "section_slug": "grade11-m1-spreadsheets-big-data",
+      "prompt": "Посочете последователните команди, с които ще се обнови обобщаваща таблица след добавяне на нов запис в таблицата-източник, въз основа на която е създадена обобщаващата таблица.",
+      "source_page": 2,
+      "options": [
+        {
+          "letter": "А",
+          "text": "Analyze → Data → Refresh",
+          "is_correct": true
+        },
+        {
+          "letter": "Б",
+          "text": "Design → Actions → Move PivotTable",
+          "is_correct": false
+        },
+        {
+          "letter": "В",
+          "text": "Analyze → Data → Change Data Source",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": "Design → Actions → Select",
+          "is_correct": false
+        }
+      ]
+    },
+    {
+      "task_number": 5,
+      "task_kind": "multiple_choice",
+      "points": 1,
+      "topic_slug": "file-formats-audio",
+      "section_slug": "grade11-m2-digital-audio-processing",
+      "prompt": "Коя от изброените групи съдържа аудио файлови формати?",
+      "source_page": 2,
+      "options": [
+        {
+          "letter": "А",
+          "text": ".pdf, .dot, .htm",
+          "is_correct": false
+        },
+        {
+          "letter": "Б",
+          "text": ".ogg, .aac, .midi",
+          "is_correct": true
+        },
+        {
+          "letter": "В",
+          "text": ".avi, .wmv, .asf",
+          "is_correct": false
+        },
+        {
+          "letter": "Г",
+          "text": ".mpeg4, .mpeg2, .mpeg1",
+          "is_correct": false
+        }
+      ]
+    }
+  ]
+}
