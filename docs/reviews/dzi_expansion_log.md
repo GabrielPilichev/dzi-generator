@@ -114,3 +114,42 @@ Recommended next source target: `may_2022_v1`, followed by `aug_2022_v2`, using 
 3. Import into `data/questions.db` only in a separate planned DB/data PR.
 
 This checkpoint is documentation only. It does not include schema, app, UI, route, scoring, or import changes.
+
+## DZI Part 1 Import Complete Checkpoint
+
+After the May 2022 v1 and Aug 2022 v2 reviewed batch imports, all tracked DZI Part 1 sources now have tasks 1–25 imported. The current DZI audit reports:
+
+- DZI exams: 7
+- `PART1_IMPORTED`: 7
+- `READY_FOR_PART1_IMPORT`: 0
+- `NEEDS_ATTENTION`: 0
+- foreign key check rows: 0
+
+All seven `dzi_it_pp_2025_format` official sources are `PART1_IMPORTED`:
+
+- `aug_2022_v2`
+- `aug_2023_v2`
+- `aug_2024_v2`
+- `may_2022_v1`
+- `may_2023_v2`
+- `may_2024_v1`
+- `may_2025_v2`
+
+This covers reviewed Part 1 imports only. Practical tasks 26–28 remain out of scope for the Part 1 JSON workflow and are tracked separately.
+
+Current open-question readiness reflects candidates from all imported sources, subject to existing visual-dependent and missing-accepted-answer exclusions:
+
+- total fill-in/open questions inspected: 100
+- auto-gradable open candidates: 58
+- excluded visual-dependent: 16
+- excluded missing accepted answers: 26
+- candidates by source: `aug_2022_v2` 8, `aug_2023_v2` 7, `aug_2024_v2` 9, `may_2022_v1` 9, `may_2023_v2` 9, `may_2024_v1` 7, `may_2025_v2` 9
+
+Recommended next work, in no fixed order:
+
+1. Review the open-answer exclusions (visual-dependent and missing accepted answers) for candidates that the official keys actually support.
+2. Improve accepted answers where official keys support broader alternative wording, including case/accent variants and Bulgarian/English equivalents.
+3. Consider practical tasks 26–28 as a separate plan, using a distinct format that captures resource archives, expected output files, and grading rubrics without expanding the Part 1 import format.
+4. Run manual localhost smoke tests for mixed and open assignment creation across all seven imported sources to confirm the teacher and tester flows render correctly.
+
+This checkpoint is documentation only. It does not include schema, app, UI, route, scoring, test, or import changes.
