@@ -103,6 +103,40 @@
                 {% endif %}
 
                 {% if attempt %}
+                    <h3>Статус</h3>
+                    {% if task.submission %}
+                        {% if task.review %}
+                            <div class="open-question-note">
+                                <p>
+                                    Статус:
+                                    {% if task.submission.status == "reviewed" %}
+                                        прегледано
+                                    {% else %}
+                                        очаква преглед
+                                    {% endif %}
+                                    {% if task.review.reviewed_at %}
+                                        · {{ task.review.reviewed_at }}
+                                    {% endif %}
+                                </p>
+                                {% if task.review.score is not none %}
+                                    <p>
+                                        Ръчна оценка:
+                                        {{ task.review.score }}{% if task.review.max_score is not none %}/{{ task.review.max_score }}{% else %}/{{ task.points }}{% endif %} т.
+                                    </p>
+                                {% endif %}
+                                {% if task.review.teacher_note %}
+                                    <p>Бележка от проверяващ: {{ task.review.teacher_note }}</p>
+                                {% endif %}
+                            </div>
+                        {% elif task.uploaded_files %}
+                            <p class="open-question-note">Статус: качено, очаква преглед.</p>
+                        {% else %}
+                            <p class="empty-state">Статус: няма качени файлове.</p>
+                        {% endif %}
+                    {% else %}
+                        <p class="empty-state">Статус: няма качени файлове.</p>
+                    {% endif %}
+
                     <h3>Качени решения</h3>
                     {% if task.uploaded_files %}
                         <ul class="options-list">

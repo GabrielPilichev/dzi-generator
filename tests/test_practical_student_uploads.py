@@ -97,6 +97,10 @@ class PracticalStudentUploadsTest(unittest.TestCase):
                     quiz_attempt_id INTEGER NOT NULL,
                     exam_task_id INTEGER NOT NULL,
                     status TEXT NOT NULL DEFAULT 'draft',
+                    manual_score REAL,
+                    manual_score_max REAL,
+                    teacher_note TEXT,
+                    reviewed_at TEXT,
                     submitted_at TEXT,
                     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                     updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -192,6 +196,13 @@ class PracticalStudentUploadsTest(unittest.TestCase):
         self.assertIn('enctype="multipart/form-data"', html)
         self.assertIn("/quiz/attempt/101/practical/may_2025_v2/task/260/upload", html)
 
+    def test_page_shows_not_submitted_status_before_upload(self):
+        response = self.client.get("/quiz/attempt/101/practical/may_2025_v2")
+
+        self.assertEqual(response.status_code, 200)
+        html = response.get_data(as_text=True)
+        self.assertIn("Статус: няма качени файлове.", html)
+
     def test_valid_upload_creates_submission_and_file_rows(self):
         response = self._upload()
 
@@ -228,6 +239,79 @@ class PracticalStudentUploadsTest(unittest.TestCase):
         self.assertIn("solution.xlsx", html)
         self.assertNotIn(stored_path, html)
         self.assertNotIn(str(self.upload_root), html)
+
+    def test_page_shows_pending_review_status_after_upload(self):
+        self._upload()
+
+        response = self.client.get("/quiz/attempt/101/practical/may_2025_v2")
+        html = response.get_data(as_text=True)
+        self.assertIn("Статус: качено, очаква преглед.", html)
+
+    def test_page_shows_saved_teacher_score_and_note(self):
+        self._upload()
+        conn = sqlite3.connect(self.db_path)
+        try:
+            conn.execute("""
+                UPDATE practical_submissions
+                SET
+                    status = 'reviewed',
+                    manual_score = 12.5,
+                    manual_score_max = 15,
+                    teacher_note = 'Добре структуриран файл.',
+                    reviewed_at = '2026-05-13 10:00:00'
+                WHERE quiz_attempt_id = 101
+                  AND exam_task_id = 260
+            """)
+            conn.commit()
+        finally:
+            conn.close()
+
+        response = self.client.get("/quiz/attempt/101/practical/may_2025_v2")
+        html = response.get_data(as_text=True)
+        self.assertIn("прегледано", html)
+        self.assertIn("12.5/15", html)
+        self.assertIn("Добре структуриран файл.", html)
+        self.assertNotIn('name="manual_score"', html)
+        self.assertNotIn('name="teacher_note"', html)
+
+    def test_page_does_not_show_another_students_submission(self):
+        conn = sqlite3.connect(self.db_path)
+        try:
+            conn.execute("""
+                INSERT INTO quiz_attempts (
+                    id, assignment_id, student_name, seed, question_ids_json
+                )
+                VALUES (202, 1, 'Student Two', 'seed-2', '[]')
+            """)
+            conn.execute("""
+                INSERT INTO practical_submissions (
+                    id, quiz_attempt_id, exam_task_id, status
+                )
+                VALUES (2020, 202, 260, 'draft')
+            """)
+            conn.execute("""
+                INSERT INTO practical_submission_files (
+                    practical_submission_id,
+                    stored_path,
+                    original_filename,
+                    size_bytes
+                )
+                VALUES (
+                    2020,
+                    'data/uploads/practical/202/260/private.xlsx',
+                    'private.xlsx',
+                    9
+                )
+            """)
+            conn.commit()
+        finally:
+            conn.close()
+
+        response = self.client.get("/quiz/attempt/101/practical/may_2025_v2")
+        html = response.get_data(as_text=True)
+        self.assertNotIn("Student Two", html)
+        self.assertNotIn("private.xlsx", html)
+        self.assertNotIn("data/uploads/practical/202/260/private.xlsx", html)
 
     def test_disallowed_extension_rejected(self):
         response = self._upload(filename="payload.exe", content=b"exe")
