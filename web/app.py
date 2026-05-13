@@ -926,6 +926,127 @@ def upload_error_redirect(attempt_id: int, source_slug: str, error_code: str):
     ))
 
 
+def practical_uploaded_file_safe_path(stored_path: str | None) -> Path | None:
+    if not isinstance(stored_path, str) or not stored_path.strip():
+        return None
+    raw_path = Path(stored_path)
+    if raw_path.is_absolute() or ".." in raw_path.parts:
+        return None
+    try:
+        relative_path = raw_path.relative_to(Path("data/uploads/practical"))
+    except ValueError:
+        return None
+    upload_root = Path(app.config["PRACTICAL_UPLOAD_ROOT"])
+    candidate = (upload_root / relative_path).resolve(strict=False)
+    root = upload_root.resolve(strict=False)
+    try:
+        candidate.relative_to(root)
+    except ValueError:
+        return None
+    return candidate
+
+
+def fetch_practical_submission_file(file_id: int) -> dict | None:
+    db = get_db()
+    row = db.execute("""
+        SELECT
+            psf.id,
+            psf.practical_submission_id,
+            psf.stored_path,
+            psf.original_filename,
+            psf.size_bytes,
+            psf.mime_type,
+            psf.uploaded_at,
+            psf.is_deleted,
+            ps.quiz_attempt_id,
+            ps.exam_task_id,
+            qt.student_name,
+            et.task_number,
+            et.task_kind
+        FROM practical_submission_files psf
+        JOIN practical_submissions ps ON ps.id = psf.practical_submission_id
+        JOIN quiz_attempts qt ON qt.id = ps.quiz_attempt_id
+        JOIN exam_tasks et ON et.id = ps.exam_task_id
+        WHERE psf.id = ?
+    """, (file_id,)).fetchone()
+    return dict(row) if row else None
+
+
+def fetch_practical_submission_review_rows() -> list[dict]:
+    db = get_db()
+    rows = db.execute("""
+        SELECT
+            ps.id AS submission_id,
+            ps.status,
+            ps.submitted_at,
+            ps.created_at,
+            ps.updated_at,
+            qt.id AS attempt_id,
+            qt.student_name,
+            qt.assignment_id,
+            qa.title_bg AS assignment_title,
+            et.id AS exam_task_id,
+            et.task_number,
+            et.task_kind,
+            e.year,
+            e.session,
+            e.variant,
+            psf.id AS file_id,
+            psf.original_filename,
+            psf.size_bytes,
+            psf.mime_type,
+            psf.uploaded_at,
+            psf.is_deleted,
+            psf.stored_path
+        FROM practical_submissions ps
+        JOIN quiz_attempts qt ON qt.id = ps.quiz_attempt_id
+        LEFT JOIN quiz_assignments qa ON qa.id = qt.assignment_id
+        JOIN exam_tasks et ON et.id = ps.exam_task_id
+        JOIN exams e ON e.id = et.exam_id
+        LEFT JOIN practical_submission_files psf
+            ON psf.practical_submission_id = ps.id
+        ORDER BY ps.updated_at DESC, ps.id DESC, psf.uploaded_at DESC, psf.id DESC
+    """).fetchall()
+
+    submissions_by_id: dict[int, dict] = {}
+    for row in rows:
+        submission_id = int(row["submission_id"])
+        if submission_id not in submissions_by_id:
+            exam = {
+                "year": row["year"],
+                "session": row["session"],
+                "variant": row["variant"],
+            }
+            submissions_by_id[submission_id] = {
+                "id": submission_id,
+                "status": row["status"],
+                "submitted_at": row["submitted_at"],
+                "created_at": row["created_at"],
+                "updated_at": row["updated_at"],
+                "attempt_id": row["attempt_id"],
+                "student_name": row["student_name"],
+                "assignment_id": row["assignment_id"],
+                "assignment_title": row["assignment_title"],
+                "exam_task_id": row["exam_task_id"],
+                "task_number": row["task_number"],
+                "task_kind": row["task_kind"],
+                "source_slug": dzi_source_slug(exam),
+                "files": [],
+            }
+        if row["file_id"] is not None:
+            safe_path = practical_uploaded_file_safe_path(row["stored_path"])
+            submissions_by_id[submission_id]["files"].append({
+                "id": row["file_id"],
+                "original_filename": row["original_filename"],
+                "size_bytes": row["size_bytes"],
+                "mime_type": row["mime_type"],
+                "uploaded_at": row["uploaded_at"],
+                "is_deleted": bool(row["is_deleted"]),
+                "is_available": bool(safe_path and safe_path.is_file() and not row["is_deleted"]),
+            })
+    return list(submissions_by_id.values())
+
+
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
@@ -2662,6 +2783,33 @@ def teacher_dashboard():
         stats=stats,
         recent_assignments=recent_assignments,
         recent_attempts=recent_attempts,
+    )
+
+
+@app.route("/teacher/practical-submissions")
+def teacher_practical_submissions():
+    submissions = fetch_practical_submission_review_rows()
+    return render_template(
+        "teacher_practical_submissions.html",
+        submissions=submissions,
+    )
+
+
+@app.route("/teacher/practical/submission-file/<int:file_id>/download")
+def teacher_practical_submission_file_download(file_id: int):
+    file_row = fetch_practical_submission_file(file_id)
+    if file_row is None or file_row["is_deleted"]:
+        abort(404)
+
+    safe_path = practical_uploaded_file_safe_path(file_row.get("stored_path"))
+    if safe_path is None or not safe_path.is_file():
+        abort(404)
+
+    return send_file(
+        safe_path,
+        as_attachment=True,
+        download_name=file_row["original_filename"] or safe_path.name,
+        max_age=0,
     )
 
 

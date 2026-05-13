@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block title %}Практически файлове{% endblock %}
+
+{% block breadcrumb %}
+    <a href="{{ url_for('index') }}">Начало</a>
+    <span>›</span>
+    <a href="{{ url_for('teacher_dashboard') }}">Учител</a>
+    <span>›</span>
+    Практически файлове
+{% endblock %}
+
+{% block content %}
+<section class="page-header">
+  <div>
+    <p class="eyebrow">Учител</p>
+    <h1>Практически файлове</h1>
+    <p class="subtitle">Качени решения за практическите задачи 26–28.</p>
+  </div>
+  <div class="header-actions">
+    <a class="button secondary" href="{{ url_for('teacher_dashboard') }}">← Учителско табло</a>
+  </div>
+</section>
+
+<section class="card">
+  {% if submissions %}
+    <table>
+      <thead>
+        <tr>
+          <th>Ученик</th>
+          <th>Задача</th>
+          <th>Статус</th>
+          <th>Файлове</th>
+          <th>Обновено</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for submission in submissions %}
+          <tr>
+            <td>
+              <strong>{{ submission.student_name }}</strong>
+              <div class="muted">Опит #{{ submission.attempt_id }}</div>
+              {% if submission.assignment_title %}
+                <div class="muted">{{ submission.assignment_title }}</div>
+              {% endif %}
+            </td>
+            <td>
+              Задача {{ submission.task_number }}
+              <div class="muted">{{ submission.source_slug }} · {{ submission.task_kind }}</div>
+            </td>
+            <td>
+              <span class="badge">{{ submission.status }}</span>
+            </td>
+            <td>
+              {% if submission.files %}
+                <ul class="options-list">
+                  {% for file in submission.files %}
+                    <li class="option-row">
+                      <span>
+                        {{ file.original_filename }}
+                        {% if file.size_bytes %}
+                          <span class="subtitle"> · {{ file.size_bytes }} байта</span>
+                        {% endif %}
+                        {% if file.uploaded_at %}
+                          <span class="subtitle"> · {{ file.uploaded_at }}</span>
+                        {% endif %}
+                      </span>
+                      {% if file.is_deleted %}
+                        <span class="badge diff-hard">изтрит</span>
+                      {% elif file.is_available %}
+                        <a class="button secondary" href="{{ url_for('teacher_practical_submission_file_download', file_id=file.id) }}">Изтегли</a>
+                      {% else %}
+                        <span class="badge diff-hard">файлът липсва</span>
+                      {% endif %}
+                    </li>
+                  {% endfor %}
+                </ul>
+              {% else %}
+                <span class="muted">Няма файлове.</span>
+              {% endif %}
+            </td>
+            <td>{{ submission.updated_at }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% else %}
+    <p class="empty-state">Все още няма качени практически файлове.</p>
+  {% endif %}
+</section>
+{% endblock %}
