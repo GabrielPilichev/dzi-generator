@@ -1,9 +1,13 @@
+import inspect
 import tempfile
 import unittest
 from pathlib import Path
 
+import src.practical_uploads as practical_uploads_module
 from src.practical_uploads import (
     ALLOWED_EXTENSIONS,
+    DANGEROUS_EXTENSIONS,
+    MAX_FILENAME_LENGTH,
     MAX_UPLOAD_BYTES,
     PracticalUploadError,
     build_practical_upload_path,
@@ -118,6 +122,49 @@ class PracticalUploadSafetyTest(unittest.TestCase):
                     size_bytes=10,
                     token="abc",
                 )
+
+    # ------------------------------------------------------------------
+    # Tester-reported scenarios: double extensions, ZIPs, ZIP bombs
+    # ------------------------------------------------------------------
+
+    def test_virus_pdf_dot_exe_double_extension_rejected(self):
+        with self.assertRaises(PracticalUploadError):
+            validate_upload_extension("virus.pdf.exe")
+
+    def test_archive_zip_dot_exe_double_extension_rejected(self):
+        with self.assertRaises(PracticalUploadError):
+            validate_upload_extension("archive.zip.exe")
+
+    def test_normal_zip_extension_accepted(self):
+        self.assertEqual(validate_upload_extension("normal.zip"), ".zip")
+        self.assertEqual(sanitize_original_filename("normal.zip"), "normal.zip")
+
+    def test_uppercase_double_extension_rejected(self):
+        # Defense-in-depth: case must not bypass the dangerous-suffix check.
+        with self.assertRaises(PracticalUploadError):
+            validate_upload_extension("Resume.PDF.EXE")
+
+    def test_dangerous_and_allowed_extension_sets_are_disjoint(self):
+        # Protects against future edits accidentally allowing an executable.
+        self.assertFalse(ALLOWED_EXTENSIONS & DANGEROUS_EXTENSIONS)
+
+    def test_oversized_zip_rejected(self):
+        with self.assertRaises(PracticalUploadError):
+            validate_upload_size(MAX_UPLOAD_BYTES + 1)
+
+    def test_filename_length_limit_enforced(self):
+        too_long = ("a" * (MAX_FILENAME_LENGTH + 1)) + ".xlsx"
+        with self.assertRaises(PracticalUploadError):
+            sanitize_original_filename(too_long)
+
+    def test_helper_source_never_extracts_zip_archives(self):
+        # The practical upload pipeline must store ZIPs as opaque blobs.
+        # Importing zipfile or invoking extract* in this module would be
+        # a regression that opens zip-bomb / zip-slip risks.
+        source = inspect.getsource(practical_uploads_module)
+        self.assertNotIn("zipfile", source)
+        self.assertNotIn("extractall", source)
+        self.assertNotIn("ZipFile", source)
 
 
 if __name__ == "__main__":
