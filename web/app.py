@@ -2443,6 +2443,48 @@ STALE_ATTEMPT_MESSAGE = (
     "Този тест съдържа стари или непълни въпроси и не може да бъде показан коректно. "
     "Моля, създайте нов тест."
 )
+QUIZ_STUDENT_NAME_TOO_SHORT_MESSAGE = "Името трябва да съдържа поне 2 символа."
+QUIZ_EMPTY_SUBMISSION_MESSAGE = "Попълни поне един отговор, преди да предадеш теста."
+
+
+def quiz_student_name_error(student_name: str) -> str | None:
+    if len(student_name) < 2:
+        return QUIZ_STUDENT_NAME_TOO_SHORT_MESSAGE
+    return None
+
+
+def quiz_has_any_submitted_answer(form, *, mc_question_ids: list[int], question_ids: list[int], open_question_ids: list[int]) -> bool:
+    for qid in mc_question_ids:
+        if form.get(f"q_{qid}"):
+            return True
+
+    renderable_ids = set()
+    for qid in question_ids:
+        try:
+            renderable_ids.add(int(qid))
+        except (TypeError, ValueError):
+            continue
+    planned_open_ids = set()
+    for qid in open_question_ids or []:
+        try:
+            parsed = int(qid)
+        except (TypeError, ValueError):
+            continue
+        if parsed in renderable_ids:
+            planned_open_ids.add(parsed)
+    for key in form.keys():
+        if not key.startswith("open_q_"):
+            continue
+        parts = key.split("_")
+        if len(parts) < 4:
+            continue
+        try:
+            qid = int(parts[2])
+        except (TypeError, ValueError):
+            continue
+        if qid in planned_open_ids and str(form.get(key) or "").strip():
+            return True
+    return False
 
 
 def quiz_parse_attempt_question_plan(raw_value) -> dict:
@@ -3980,9 +4022,17 @@ def quiz_start(assignment_id):
 
     if _quiz_request.method == "POST":
         student_name = " ".join((_quiz_request.form.get("student_name") or "").strip().split())
-        if not student_name:
+        name_error = quiz_student_name_error(student_name)
+        if name_error:
+            mixed_status = quiz_assignment_mixed_status(assignment["question_plan_json"])
             conn.close()
-            return _quiz_redirect(_quiz_url_for("quiz_start", assignment_id=assignment_id))
+            return _quiz_render_template(
+                "quiz_start.html",
+                assignment=assignment,
+                mixed_status=mixed_status,
+                name_error=name_error,
+                student_name_value=student_name,
+            ), 400
 
         existing = conn.execute("""
             SELECT *
@@ -4047,7 +4097,13 @@ def quiz_start(assignment_id):
 
     mixed_status = quiz_assignment_mixed_status(assignment["question_plan_json"])
     conn.close()
-    return _quiz_render_template("quiz_start.html", assignment=assignment, mixed_status=mixed_status)
+    return _quiz_render_template(
+        "quiz_start.html",
+        assignment=assignment,
+        mixed_status=mixed_status,
+        name_error=None,
+        student_name_value="",
+    )
 
 
 @app.route("/quiz/attempt/<int:attempt_id>", methods=["GET", "POST"])
@@ -4101,12 +4157,13 @@ def quiz_attempt(attempt_id):
                 attempt=attempt,
                 questions=[],
                 remaining_seconds=None,
+                timer_expired=False,
                 stale_attempt_message=STALE_ATTEMPT_MESSAGE,
+                submit_error=None,
                 skipped_question_count=skipped_count,
                 mixed_status=attempt_mixed_status,
             )
 
-        correct_by_qid = {}
         mc_question_ids = []
         for qid in question_ids:
             row = conn.execute("""
@@ -4117,6 +4174,36 @@ def quiz_attempt(attempt_id):
             if row and row["question_type"] == "multiple_choice":
                 mc_question_ids.append(qid)
 
+        remaining = quiz_remaining_seconds(assignment, attempt)
+        server_timer_expired = remaining is not None and remaining <= 0
+        is_timer_submit = _quiz_request.form.get("submission_reason") == "timer_expired"
+        if not (
+            is_timer_submit
+            and server_timer_expired
+        ) and not quiz_has_any_submitted_answer(
+            _quiz_request.form,
+            mc_question_ids=mc_question_ids,
+            question_ids=question_ids,
+            open_question_ids=open_question_ids,
+        ):
+            questions = quiz_load_questions(conn, question_ids, seed, include_correct=False)
+            if not questions:
+                remaining = None
+            conn.close()
+            return _quiz_render_template(
+                "quiz_attempt.html",
+                assignment=assignment,
+                attempt=attempt,
+                questions=questions,
+                remaining_seconds=remaining,
+                timer_expired=server_timer_expired,
+                stale_attempt_message=STALE_ATTEMPT_MESSAGE if not questions else None,
+                submit_error=QUIZ_EMPTY_SUBMISSION_MESSAGE,
+                skipped_question_count=skipped_count,
+                mixed_status=attempt_mixed_status,
+            ), 400
+
+        correct_by_qid = {}
         for qid in mc_question_ids:
             row = conn.execute("""
                 SELECT option_letter
@@ -4184,6 +4271,7 @@ def quiz_attempt(attempt_id):
         remaining_seconds=remaining,
         timer_expired=timer_expired,
         stale_attempt_message=STALE_ATTEMPT_MESSAGE if not questions else None,
+        submit_error=None,
         skipped_question_count=skipped_count,
         mixed_status=attempt_mixed_status,
     )
