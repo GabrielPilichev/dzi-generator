@@ -11,9 +11,12 @@ atexit.register(_TMP.cleanup)
 
 _ROOT = Path(__file__).resolve().parents[1]
 _TMP_DB = Path(_TMP.name) / "questions.db"
+_TMP_VAULT = Path(_TMP.name) / "vault"
 shutil.copy2(_ROOT / "data" / "questions.db", _TMP_DB)
+_TMP_VAULT.mkdir()
 
 os.environ["DZI_DB"] = str(_TMP_DB)
+os.environ["DZI_VAULT"] = str(_TMP_VAULT)
 os.environ["DZI_ADMIN_PASSWORD"] = "admin-pass"
 
 from web import app as web_app
@@ -21,6 +24,8 @@ from web import app as web_app
 class HardenAssignmentInputsTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        web_app.QUIZ_DB_PATH = _TMP_DB
+        web_app.QUIZ_VAULT_PATH = _TMP_VAULT
         cls.app = web_app.app
         cls.app.config.update(TESTING=True)
         conn = web_app.quiz_db()
@@ -103,6 +108,30 @@ class HardenAssignmentInputsTest(unittest.TestCase):
         }, follow_redirects=False)
         self.assertEqual(resp.status_code, 302)
         self.assertTrue(resp.location.startswith("/teacher/assignment/"))
+
+    def test_teacher_new_preserves_large_valid_time_limits(self):
+        self._login_admin()
+        for minutes in (400, 600):
+            with self.subTest(minutes=minutes):
+                resp = self.client.post("/teacher/new", data={
+                    "section_id": str(self.section["id"]),
+                    "question_count": "5",
+                    "time_limit_minutes": str(minutes),
+                }, follow_redirects=False)
+                self.assertEqual(resp.status_code, 302)
+                assignment_id = int(resp.location.rstrip("/").rsplit("/", 1)[-1])
+
+                conn = web_app.quiz_db()
+                try:
+                    row = conn.execute(
+                        "SELECT time_limit_minutes FROM quiz_assignments WHERE id = ?",
+                        (assignment_id,),
+                    ).fetchone()
+                finally:
+                    conn.close()
+
+                self.assertIsNotNone(row)
+                self.assertEqual(row["time_limit_minutes"], minutes)
 
     def test_duplicate_title_capped(self):
         self._login_admin()
