@@ -213,6 +213,15 @@ def tester_password_configured() -> bool:
     return bool(os.environ.get("DZI_TESTER_PASSWORD"))
 
 
+def password_matches(submitted_password: str | None, configured_password: str | None) -> bool:
+    if not isinstance(submitted_password, str) or not isinstance(configured_password, str):
+        return False
+    return hmac.compare_digest(
+        submitted_password.encode("utf-8", errors="surrogatepass"),
+        configured_password.encode("utf-8", errors="surrogatepass"),
+    )
+
+
 def is_tester_authenticated() -> bool:
     return bool(session.get("tester_authenticated")) or is_admin_authenticated()
 
@@ -244,7 +253,7 @@ def tester_login():
 
         if not configured_password:
             error = "Тестерската парола не е зададена. Стартирай сървъра с DZI_TESTER_PASSWORD."
-        elif hmac.compare_digest(submitted_password, configured_password):
+        elif password_matches(submitted_password, configured_password):
             session["tester_authenticated"] = True
             session["ui_profile"] = "tester"
             return redirect(next_url)
@@ -336,7 +345,7 @@ def admin_login():
 
         if not configured_password:
             error = "Админ паролата не е зададена. Стартирай сървъра с DZI_ADMIN_PASSWORD."
-        elif hmac.compare_digest(submitted_password, configured_password):
+        elif password_matches(submitted_password, configured_password):
             session["admin_authenticated"] = True
             session["ui_profile"] = "admin"
             return redirect(next_url)
@@ -773,6 +782,13 @@ def practical_resource_status(resource: dict) -> dict:
     resource["is_path_safe"] = safe_path is not None
     resource["is_available"] = bool(safe_path and safe_path.is_file())
     return resource
+
+
+def safe_download_name(candidate: str | None, fallback: str) -> str:
+    name = candidate if isinstance(candidate, str) else ""
+    name = name.replace("\x00", "").replace("\r", "").replace("\n", "").strip()
+    name = name.replace("/", "_").replace("\\", "_")
+    return name or fallback
 
 
 def fetch_practical_resource(resource_id: int) -> dict | None:
@@ -1237,13 +1253,16 @@ def dzi_practical_resource_download(resource_id: int):
     if safe_path is None or not safe_path.is_file():
         abort(404)
 
-    download_name = resource.get("original_filename") or safe_path.name
-    return send_file(
-        safe_path,
-        as_attachment=True,
-        download_name=download_name,
-        max_age=0,
-    )
+    download_name = safe_download_name(resource.get("original_filename"), safe_path.name)
+    try:
+        return send_file(
+            safe_path,
+            as_attachment=True,
+            download_name=download_name,
+            max_age=0,
+        )
+    except (OSError, ValueError):
+        abort(404)
 
 
 @app.route("/quiz/attempt/<int:attempt_id>/practical/<source_slug>")
