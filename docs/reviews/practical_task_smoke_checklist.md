@@ -33,6 +33,9 @@ define new schema, routes, imports, scoring, or deployment behavior.
 - Upload one valid file for a practical task.
 - Upload multiple valid files for a practical task if the current UI supports
   multiple file selection.
+- Upload a valid `.zip` archive for a task that produces multiple files or a
+  project folder. Confirm the ZIP is accepted as a submitted file and is not
+  extracted/unzipped server-side.
 - Verify uploaded original filenames display on the practical task page.
 - Verify raw `stored_path` values and absolute filesystem paths are not exposed.
 - Try an invalid extension, such as `.exe`, and confirm it is rejected safely.
@@ -46,6 +49,8 @@ define new schema, routes, imports, scoring, or deployment behavior.
 - Confirm submitted practical files appear with student/attempt context.
 - Confirm task number and source/task context are visible.
 - Download uploaded files from the review page.
+- Download any submitted `.zip` archive and review it manually; the server
+  should store and return the archive as uploaded, not inspect its contents.
 - Verify raw `stored_path` values and absolute filesystem paths are not exposed.
 - Enter a valid manual score and teacher note.
 - Confirm the saved score and note appear on the review page.
