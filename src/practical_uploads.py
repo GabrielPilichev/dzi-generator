@@ -1,4 +1,15 @@
-"""Safety helpers for future practical-task student uploads."""
+"""Safety helpers for practical-task student uploads.
+
+Policy notes (referenced by tests):
+- ZIP uploads are accepted as opaque blobs and are NEVER extracted or
+  inspected server-side; this avoids zip-bomb and zip-slip risks.
+- Allowed extensions are matched against the FINAL filename suffix only,
+  with a dangerous-extension blocklist applied as defense-in-depth. This
+  rejects double-extension tricks like "virus.pdf.exe" or "archive.zip.exe".
+- Stored filenames are always token-based, never the user-provided name.
+- File contents are streamed straight to disk under the configured upload
+  root; the route enforces ``ensure_under_upload_root`` before writing.
+"""
 
 from __future__ import annotations
 
@@ -10,6 +21,7 @@ from pathlib import Path
 
 DEFAULT_UPLOAD_ROOT = Path("data/uploads/practical")
 MAX_UPLOAD_BYTES = 25 * 1024 * 1024
+MAX_FILENAME_LENGTH = 200
 ALLOWED_EXTENSIONS = frozenset({
     ".xlsx",
     ".ods",
@@ -65,6 +77,8 @@ def sanitize_original_filename(filename: str) -> str:
         raise PracticalUploadError("filename must not be empty")
     if cleaned in {".", ".."} or ".." in Path(cleaned).parts:
         raise PracticalUploadError("filename must not traverse directories")
+    if len(cleaned) > MAX_FILENAME_LENGTH:
+        raise PracticalUploadError("filename is too long")
     return cleaned
 
 

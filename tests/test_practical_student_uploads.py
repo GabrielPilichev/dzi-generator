@@ -360,6 +360,96 @@ class PracticalStudentUploadsTest(unittest.TestCase):
 
         self.assertEqual(response.status_code, 404)
 
+    # ------------------------------------------------------------------
+    # Tester-reported scenarios at the route level
+    # ------------------------------------------------------------------
+
+    def test_double_extension_virus_pdf_dot_exe_rejected_by_route(self):
+        response = self._upload(filename="virus.pdf.exe", content=b"malware")
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("upload_error=invalid", response.headers["Location"])
+        self.assertEqual(self._rows("practical_submission_files"), [])
+        self.assertEqual(self._rows("practical_submissions"), [])
+        self.assertFalse(self.upload_root.exists())
+
+    def test_double_extension_archive_zip_dot_exe_rejected_by_route(self):
+        response = self._upload(filename="archive.zip.exe", content=b"PK\x03\x04junk")
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("upload_error=invalid", response.headers["Location"])
+        self.assertEqual(self._rows("practical_submission_files"), [])
+
+    def test_normal_zip_upload_accepted_by_route(self):
+        response = self._upload(
+            exam_task_id=270,
+            filename="graphics.zip",
+            content=b"PK\x03\x04normal-zip-bytes",
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("uploaded=1", response.headers["Location"])
+        files = self._rows("practical_submission_files")
+        self.assertEqual(len(files), 1)
+        self.assertEqual(files[0]["original_filename"], "graphics.zip")
+        self.assertTrue(files[0]["stored_path"].endswith(".zip"))
+
+    def test_oversized_zip_upload_rejected_by_route(self):
+        # PRACTICAL_MAX_UPLOAD_BYTES is set to 1024 in setUp.
+        response = self._upload(
+            exam_task_id=270,
+            filename="huge.zip",
+            content=b"x" * 1025,
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("upload_error=invalid", response.headers["Location"])
+        self.assertEqual(self._rows("practical_submission_files"), [])
+
+    def test_duplicate_uploads_produce_distinct_stored_paths_without_overwrite(self):
+        first = self._upload(filename="solution.xlsx", content=b"first version")
+        second = self._upload(filename="solution.xlsx", content=b"second version!")
+
+        self.assertEqual(first.status_code, 302)
+        self.assertEqual(second.status_code, 302)
+        self.assertIn("uploaded=1", second.headers["Location"])
+
+        files = self._rows("practical_submission_files")
+        self.assertEqual(len(files), 2)
+
+        stored_paths = {row["stored_path"] for row in files}
+        self.assertEqual(len(stored_paths), 2, "stored_paths must be unique per upload")
+        self.assertEqual(
+            {row["original_filename"] for row in files},
+            {"solution.xlsx"},
+            "the original filename is preserved across duplicates",
+        )
+
+        # Both physical files must exist and retain their respective payloads —
+        # i.e. the second upload did not overwrite the first.
+        stored_regular_files = sorted(
+            (path for path in self.upload_root.rglob("*") if path.is_file()),
+            key=lambda p: p.stat().st_mtime,
+        )
+        self.assertEqual(len(stored_regular_files), 2)
+        payloads = {p.read_bytes() for p in stored_regular_files}
+        self.assertEqual(payloads, {b"first version", b"second version!"})
+
+        # The submission row is reused (single (attempt, task) submission),
+        # but the file rows are appended without violating UNIQUE(stored_path).
+        submissions = self._rows("practical_submissions")
+        self.assertEqual(len(submissions), 1)
+
+    def test_stored_filename_differs_from_original_at_route_level(self):
+        self._upload(filename="solution.xlsx", content=b"xlsx bytes")
+        files = self._rows("practical_submission_files")
+        self.assertEqual(len(files), 1)
+        stored_path = files[0]["stored_path"]
+        stored_basename = Path(stored_path).name
+        self.assertNotEqual(stored_basename, "solution.xlsx")
+        # Stored filename keeps the original extension but uses a token name.
+        self.assertTrue(stored_basename.endswith(".xlsx"))
+
 
 if __name__ == "__main__":
     unittest.main()
