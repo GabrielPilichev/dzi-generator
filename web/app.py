@@ -1190,7 +1190,21 @@ def tester_home():
 @app.route("/")
 def index():
     grades = fetch_grades_with_counts()
-    return render_template("index.html", grades=grades)
+    searchable_sections: list[dict] = []
+    for g in grades:
+        for s in fetch_sections_for_grade(int(g["grade"])):
+            searchable_sections.append({
+                "grade": int(g["grade"]),
+                "section_slug": s["section_slug"],
+                "section_title": s["section_title"],
+                "module_title": s.get("module_title"),
+                "question_count": s.get("question_count") or 0,
+            })
+    return render_template(
+        "index.html",
+        grades=grades,
+        searchable_sections=searchable_sections,
+    )
 
 
 @app.route("/grade/<int:grade>")
