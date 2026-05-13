@@ -31,6 +31,15 @@ from urllib.parse import urlparse
 
 from flask import Flask, abort, g, render_template, url_for, request, redirect, send_file, session
 
+from src.practical_uploads import (
+    MAX_UPLOAD_BYTES,
+    PracticalUploadError,
+    build_practical_upload_path,
+    sanitize_original_filename,
+    validate_upload_extension,
+    validate_upload_size,
+)
+
 
 # ---------------------------------------------------------------------------
 # Config
@@ -60,6 +69,8 @@ app.config["SECRET_KEY"] = build_secret_key()
 app.config["SESSION_COOKIE_SAMESITE"] = "Strict"
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["PRACTICAL_TASK_BATCH_DIR"] = str(PROJECT_ROOT / "data" / "import_batches")
+app.config["PRACTICAL_UPLOAD_ROOT"] = str(PROJECT_ROOT / "data" / "uploads" / "practical")
+app.config["PRACTICAL_MAX_UPLOAD_BYTES"] = MAX_UPLOAD_BYTES
 
 
 
@@ -835,6 +846,86 @@ def fetch_practical_tasks(source_slug: str) -> tuple[dict, list[dict]] | None:
     return exam, tasks
 
 
+def fetch_practical_attempt_page(attempt_id: int, source_slug: str) -> tuple[dict, dict, list[dict]] | None:
+    db = get_db()
+    attempt_row = db.execute("""
+        SELECT *
+        FROM quiz_attempts
+        WHERE id = ?
+    """, (attempt_id,)).fetchone()
+    if attempt_row is None:
+        return None
+
+    resolved = fetch_practical_tasks(source_slug)
+    if resolved is None:
+        return None
+    exam, tasks = resolved
+
+    for task in tasks:
+        submission = db.execute("""
+            SELECT id, status, submitted_at, created_at, updated_at
+            FROM practical_submissions
+            WHERE quiz_attempt_id = ? AND exam_task_id = ?
+        """, (attempt_id, task["task_id"])).fetchone()
+        task["submission"] = dict(submission) if submission else None
+        if submission:
+            file_rows = db.execute("""
+                SELECT id, original_filename, size_bytes, mime_type, uploaded_at, is_deleted
+                FROM practical_submission_files
+                WHERE practical_submission_id = ?
+                  AND is_deleted = 0
+                ORDER BY uploaded_at, id
+            """, (submission["id"],)).fetchall()
+            task["uploaded_files"] = [dict(row) for row in file_rows]
+        else:
+            task["uploaded_files"] = []
+    return dict(attempt_row), exam, tasks
+
+
+def fetch_practical_upload_task(conn: sqlite3.Connection, *, attempt_id: int, source_slug: str, exam_task_id: int):
+    attempt = conn.execute("""
+        SELECT *
+        FROM quiz_attempts
+        WHERE id = ?
+    """, (attempt_id,)).fetchone()
+    if attempt is None:
+        return None, None, None
+
+    exam = dzi_find_exam(source_slug)
+    if exam is None:
+        return attempt, None, None
+
+    task = conn.execute("""
+        SELECT id, task_number, task_kind
+        FROM exam_tasks
+        WHERE id = ?
+          AND exam_id = ?
+          AND task_number BETWEEN 26 AND 28
+          AND task_kind LIKE 'practical_%'
+    """, (exam_task_id, exam["id"])).fetchone()
+    if task is None:
+        return attempt, exam, None
+    return attempt, exam, task
+
+
+def uploaded_file_size(file_storage) -> int:
+    stream = file_storage.stream
+    current_position = stream.tell()
+    stream.seek(0, os.SEEK_END)
+    size = stream.tell()
+    stream.seek(current_position)
+    return int(size)
+
+
+def upload_error_redirect(attempt_id: int, source_slug: str, error_code: str):
+    return redirect(url_for(
+        "quiz_practical_attempt",
+        attempt_id=attempt_id,
+        source_slug=source_slug,
+        upload_error=error_code,
+    ))
+
+
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
@@ -941,6 +1032,116 @@ def dzi_practical_resource_download(resource_id: int):
         download_name=download_name,
         max_age=0,
     )
+
+
+@app.route("/quiz/attempt/<int:attempt_id>/practical/<source_slug>")
+def quiz_practical_attempt(attempt_id: int, source_slug: str):
+    resolved = fetch_practical_attempt_page(attempt_id, source_slug)
+    if resolved is None:
+        abort(404)
+    attempt, exam, tasks = resolved
+    return render_template(
+        "practical_tasks.html",
+        exam=exam,
+        tasks=tasks,
+        attempt=attempt,
+        upload_success=request.args.get("uploaded") == "1",
+        upload_error=request.args.get("upload_error"),
+    )
+
+
+@app.route("/quiz/attempt/<int:attempt_id>/practical/<source_slug>/task/<int:exam_task_id>/upload", methods=["POST"])
+def quiz_practical_upload(attempt_id: int, source_slug: str, exam_task_id: int):
+    conn = get_db()
+    attempt, exam, task = fetch_practical_upload_task(
+        conn,
+        attempt_id=attempt_id,
+        source_slug=source_slug,
+        exam_task_id=exam_task_id,
+    )
+    if attempt is None or exam is None or task is None:
+        abort(404)
+
+    uploaded_files = [
+        file_storage
+        for file_storage in request.files.getlist("files")
+        if file_storage and (file_storage.filename or "").strip()
+    ]
+    if not uploaded_files:
+        return upload_error_redirect(attempt_id, source_slug, "empty")
+
+    prepared_files = []
+    try:
+        for file_storage in uploaded_files:
+            original_filename = sanitize_original_filename(file_storage.filename or "")
+            validate_upload_extension(original_filename)
+            size_bytes = validate_upload_size(
+                uploaded_file_size(file_storage),
+                max_bytes=int(app.config["PRACTICAL_MAX_UPLOAD_BYTES"]),
+            )
+            file_storage.stream.seek(0)
+            prepared_files.append((file_storage, original_filename, size_bytes))
+    except PracticalUploadError:
+        return upload_error_redirect(attempt_id, source_slug, "invalid")
+
+    try:
+        submission = conn.execute("""
+            SELECT id
+            FROM practical_submissions
+            WHERE quiz_attempt_id = ? AND exam_task_id = ?
+        """, (attempt_id, exam_task_id)).fetchone()
+        if submission is None:
+            cur = conn.execute("""
+                INSERT INTO practical_submissions (
+                    quiz_attempt_id, exam_task_id, status, updated_at
+                )
+                VALUES (?, ?, 'draft', CURRENT_TIMESTAMP)
+            """, (attempt_id, exam_task_id))
+            submission_id = int(cur.lastrowid)
+        else:
+            submission_id = int(submission["id"])
+            conn.execute("""
+                UPDATE practical_submissions
+                SET updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            """, (submission_id,))
+
+        for file_storage, original_filename, size_bytes in prepared_files:
+            stored = build_practical_upload_path(
+                upload_root=Path(app.config["PRACTICAL_UPLOAD_ROOT"]),
+                attempt_id=attempt_id,
+                exam_task_id=exam_task_id,
+                submission_id=submission_id,
+                original_filename=original_filename,
+                size_bytes=size_bytes,
+            )
+            stored.absolute_path.parent.mkdir(parents=True, exist_ok=True)
+            file_storage.save(stored.absolute_path)
+            conn.execute("""
+                INSERT INTO practical_submission_files (
+                    practical_submission_id, stored_path, original_filename,
+                    size_bytes, mime_type
+                )
+                VALUES (?, ?, ?, ?, ?)
+            """, (
+                submission_id,
+                stored.stored_path,
+                stored.original_filename,
+                size_bytes,
+                file_storage.mimetype,
+            ))
+
+        conn.commit()
+    except (OSError, sqlite3.Error, PracticalUploadError):
+        conn.rollback()
+        return upload_error_redirect(attempt_id, source_slug, "invalid")
+
+    return redirect(url_for(
+        "quiz_practical_attempt",
+        attempt_id=attempt_id,
+        source_slug=source_slug,
+        uploaded="1",
+    ))
 
 
 @app.route("/admin/open-question-candidates")

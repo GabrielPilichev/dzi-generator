@@ -47,6 +47,7 @@ src/data/
 data/audits/
 data/dzi_training/
 data/reference/
+data/uploads/
 data/worksheets/
 data/*_log.jsonl
 data/*.log

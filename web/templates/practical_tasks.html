@@ -16,13 +16,30 @@
 <section class="hero">
     <p class="eyebrow">{{ exam.source_slug }}</p>
     <h1>Практически задачи</h1>
-    <p class="subtitle">{{ exam.title }} · задачи 26–28</p>
+    <p class="subtitle">
+        {{ exam.title }} · задачи 26–28
+        {% if attempt %} · ученик: {{ attempt.student_name }}{% endif %}
+    </p>
 </section>
 
 <div class="question-toolbar">
-    <a class="button secondary" href="{{ url_for('dzi_source_view', source_slug=exam.source_slug) }}">← Към източника</a>
+    {% if attempt %}
+        <a class="button secondary" href="{{ url_for('quiz_attempt', attempt_id=attempt.id) }}">← Към теста</a>
+    {% else %}
+        <a class="button secondary" href="{{ url_for('dzi_source_view', source_slug=exam.source_slug) }}">← Към източника</a>
+    {% endif %}
     <span class="pill">{{ tasks|length }} задачи</span>
 </div>
+
+{% if upload_success %}
+    <section class="success">Файловете са качени успешно.</section>
+{% endif %}
+
+{% if upload_error %}
+    <section class="warning warning--spaced">
+        Файлът не беше приет. Проверете името, разширението и размера.
+    </section>
+{% endif %}
 
 <section>
     <div class="questions-list">
@@ -83,6 +100,38 @@
                     </ul>
                 {% else %}
                     <p class="empty-state">Няма записани ресурси за тази задача.</p>
+                {% endif %}
+
+                {% if attempt %}
+                    <h3>Качени решения</h3>
+                    {% if task.uploaded_files %}
+                        <ul class="options-list">
+                            {% for uploaded_file in task.uploaded_files %}
+                                <li class="option-row">
+                                    <span>
+                                        {{ uploaded_file.original_filename }}
+                                        {% if uploaded_file.size_bytes %}
+                                            <span class="subtitle"> · {{ uploaded_file.size_bytes }} байта</span>
+                                        {% endif %}
+                                    </span>
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="empty-state">Все още няма качени файлове.</p>
+                    {% endif %}
+
+                    <form
+                        method="post"
+                        enctype="multipart/form-data"
+                        action="{{ url_for('quiz_practical_upload', attempt_id=attempt.id, source_slug=exam.source_slug, exam_task_id=task.task_id) }}"
+                    >
+                        <label>
+                            <span>Файлове за задача {{ task.task_number }}</span>
+                            <input type="file" name="files" multiple required>
+                        </label>
+                        <button type="submit">Качи файлове</button>
+                    </form>
                 {% endif %}
             </article>
         {% else %}
