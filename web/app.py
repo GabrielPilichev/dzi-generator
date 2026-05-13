@@ -2029,7 +2029,82 @@ def fetch_quiz_text_answers_for_attempt(conn, attempt_id: int, *, question_id: i
           {question_filter}
         ORDER BY question_id, subquestion_number
     """, params).fetchall()
-    return [dict(row) for row in rows]
+    answers = []
+    for row in rows:
+        answer = dict(row)
+        answer["accepted_answers"] = quiz_display_answer_list(answer.get("accepted_answers_json"))
+        answer["feedback_explanation"] = QUIZ_NO_EXPLANATION_MESSAGE
+        answers.append(answer)
+    return answers
+
+
+QUIZ_NO_EXPLANATION_MESSAGE = "Няма въведено обяснение за този въпрос."
+QUIZ_NO_ACCEPTED_ANSWER_MESSAGE = "Няма въведен приет отговор."
+QUESTION_EXPLANATION_COLUMNS = (
+    "explanation",
+    "explanation_bg",
+    "answer_explanation",
+    "answer_explanation_bg",
+    "rationale",
+    "rationale_bg",
+    "feedback",
+    "feedback_bg",
+)
+OPTION_EXPLANATION_COLUMNS = (
+    "explanation",
+    "explanation_bg",
+    "rationale",
+    "rationale_bg",
+    "feedback",
+    "feedback_bg",
+)
+
+
+def quiz_display_answer_list(raw_value: object) -> list[str]:
+    return unique_text_values(_quiz_answer_values(raw_value))
+
+
+def fetch_question_explanations(conn, question_ids: list[int]) -> dict[int, str]:
+    if not question_ids:
+        return {}
+    column = first_existing_column(sqlite_table_columns(conn, "questions"), QUESTION_EXPLANATION_COLUMNS)
+    if column is None:
+        return {}
+
+    placeholders = ",".join("?" for _ in question_ids)
+    rows = conn.execute(f"""
+        SELECT id, {column} AS explanation
+        FROM questions
+        WHERE id IN ({placeholders})
+    """, question_ids).fetchall()
+    return {
+        int(row["id"]): str(row["explanation"]).strip()
+        for row in rows
+        if row["explanation"] is not None and str(row["explanation"]).strip()
+    }
+
+
+def fetch_option_explanations(conn, question_ids: list[int]) -> dict[tuple[int, str], str]:
+    if not question_ids:
+        return {}
+    column = first_existing_column(
+        sqlite_table_columns(conn, "multiple_choice_options"),
+        OPTION_EXPLANATION_COLUMNS,
+    )
+    if column is None:
+        return {}
+
+    placeholders = ",".join("?" for _ in question_ids)
+    rows = conn.execute(f"""
+        SELECT question_id, option_letter, {column} AS explanation
+        FROM multiple_choice_options
+        WHERE question_id IN ({placeholders})
+    """, question_ids).fetchall()
+    return {
+        (int(row["question_id"]), row["option_letter"]): str(row["explanation"]).strip()
+        for row in rows
+        if row["explanation"] is not None and str(row["explanation"]).strip()
+    }
 
 
 def quiz_text_answer_informational_subtotal(rows) -> dict:
@@ -2695,6 +2770,9 @@ def quiz_write_attempt_note(attempt_id: int) -> None:
 
 def quiz_load_result_questions(conn, attempt, question_ids: list[int], seed: str) -> list[dict]:
     questions = quiz_load_questions(conn, question_ids, seed, include_correct=True)
+    result_question_ids = [int(q["id"]) for q in questions]
+    question_explanations = fetch_question_explanations(conn, result_question_ids)
+    option_explanations = fetch_option_explanations(conn, result_question_ids)
     answer_rows = conn.execute("""
         SELECT question_id, chosen_letter, is_correct
         FROM quiz_answers
@@ -2719,6 +2797,11 @@ def quiz_load_result_questions(conn, attempt, question_ids: list[int], seed: str
         q["chosen_text"] = chosen_text
         q["correct_text"] = correct_text or "—"
         q["is_correct"] = bool(ans and ans["is_correct"])
+        q["feedback_explanation"] = (
+            option_explanations.get((int(q["id"]), chosen_letter))
+            or question_explanations.get(int(q["id"]))
+            or QUIZ_NO_EXPLANATION_MESSAGE
+        )
 
     return questions
 

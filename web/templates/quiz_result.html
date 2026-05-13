@@ -87,6 +87,10 @@
             <span class="answer-note-label">Правилен отговор</span>
             <span>{{ q.correct_text }}</span>
           </div>
+          <div class="answer-note answer-note--unanswered">
+            <span class="answer-note-label">Обяснение</span>
+            <span>{{ q.feedback_explanation }}</span>
+          </div>
         {% endif %}
       </div>
 
@@ -161,6 +165,18 @@
                 · режим: {{ answer.grading_mode }}
               {% endif %}
             </span>
+            {% if not answer.is_correct %}
+              <span class="answer-note-label">Приет отговор</span>
+              <span>
+                {% if answer.accepted_answers %}
+                  {{ answer.accepted_answers | join(", ") }}
+                {% else %}
+                  Няма въведен приет отговор.
+                {% endif %}
+              </span>
+              <span class="answer-note-label">Обяснение</span>
+              <span>{{ answer.feedback_explanation }}</span>
+            {% endif %}
           </div>
         {% endfor %}
       </div>
