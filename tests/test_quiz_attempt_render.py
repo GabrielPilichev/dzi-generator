@@ -1440,6 +1440,85 @@ class QuizAttemptRenderTest(unittest.TestCase):
             conn.close()
         self.assertEqual(json.loads(stored), original_ids)
 
+    # ------------------------------------------------------------------
+    # XSS regression: open-answer raw_answer + teacher_note must be escaped
+    # wherever they're rendered. Stored verbatim, escaped at render time.
+    # ------------------------------------------------------------------
+
+    _OPEN_SCRIPT_PAYLOAD = '<script>alert("open")</script>'
+    _OPEN_SCRIPT_ESCAPED = "&lt;script&gt;alert(&#34;open&#34;)&lt;/script&gt;"
+    _TEACHER_NOTE_PAYLOAD = '<script>alert("note")</script>'
+    _TEACHER_NOTE_ESCAPED = "&lt;script&gt;alert(&#34;note&#34;)&lt;/script&gt;"
+
+    def _submit_open_answer(self, attempt_id, open_question_id, raw_text):
+        conn = web_app.quiz_db()
+        try:
+            wrong_letter = self._wrong_letter(conn, self.valid_question_id)
+        finally:
+            conn.close()
+        response = self.client.post(f"/quiz/attempt/{attempt_id}", data={
+            f"q_{self.valid_question_id}": wrong_letter,
+            f"open_q_{open_question_id}_1": raw_text,
+            f"open_q_{open_question_id}_2": "jpg",
+        })
+        self.assertEqual(response.status_code, 302)
+
+    def test_open_answer_raw_text_with_script_is_escaped_on_quiz_result(self):
+        _assignment_id, attempt_id, open_question_id = self._create_mixed_planned_attempt(
+            student_name="Result Page XSS",
+        )
+        self._submit_open_answer(attempt_id, open_question_id, self._OPEN_SCRIPT_PAYLOAD)
+
+        response = self.client.get(f"/quiz/attempt/{attempt_id}/result")
+        self.assertEqual(response.status_code, 200)
+        body = response.data.decode("utf-8")
+        # Stored verbatim in DB...
+        rows = self._quiz_text_answer_rows(attempt_id)
+        self.assertEqual(rows[0]["raw_answer"], self._OPEN_SCRIPT_PAYLOAD)
+        # ...but escaped at render time.
+        self.assertIn(self._OPEN_SCRIPT_ESCAPED, body)
+        self.assertNotIn(self._OPEN_SCRIPT_PAYLOAD, body)
+
+    def test_open_answer_raw_text_with_script_is_escaped_on_teacher_results(self):
+        assignment_id, attempt_id, open_question_id = self._create_mixed_planned_attempt(
+            student_name="Teacher Page XSS",
+        )
+        self._submit_open_answer(attempt_id, open_question_id, self._OPEN_SCRIPT_PAYLOAD)
+        self._login_admin()
+
+        response = self.client.get(f"/teacher/assignment/{assignment_id}/results")
+        self.assertEqual(response.status_code, 200)
+        body = response.data.decode("utf-8")
+        self.assertIn(self._OPEN_SCRIPT_ESCAPED, body)
+        self.assertNotIn(self._OPEN_SCRIPT_PAYLOAD, body)
+
+    def test_teacher_note_with_script_is_escaped_on_teacher_results(self):
+        assignment_id, attempt_id, open_question_id = self._create_mixed_planned_attempt(
+            student_name="Note XSS",
+        )
+        self._submit_open_answer(attempt_id, open_question_id, "клиент")
+        text_answer_id = self._quiz_text_answer_rows(attempt_id)[0]["id"]
+        self._login_admin()
+
+        save = self.client.post(f"/teacher/assignment/{assignment_id}/results", data={
+            "text_answer_id": str(text_answer_id),
+            "teacher_override": "1",
+            "teacher_note": self._TEACHER_NOTE_PAYLOAD,
+        })
+        self.assertEqual(save.status_code, 302)
+
+        # Stored verbatim in DB...
+        stored_note = self._quiz_text_answer_rows(attempt_id)[0]["teacher_note"]
+        self.assertEqual(stored_note, self._TEACHER_NOTE_PAYLOAD)
+
+        # ...but escaped at render time. Note rendering happens inside a
+        # <textarea> so the escaped form is what must appear.
+        response = self.client.get(f"/teacher/assignment/{assignment_id}/results")
+        self.assertEqual(response.status_code, 200)
+        body = response.data.decode("utf-8")
+        self.assertIn(self._TEACHER_NOTE_ESCAPED, body)
+        self.assertNotIn(self._TEACHER_NOTE_PAYLOAD, body)
+
 
 if __name__ == "__main__":
     unittest.main()
