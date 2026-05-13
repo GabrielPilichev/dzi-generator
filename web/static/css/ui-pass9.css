@@ -1329,6 +1329,19 @@ footer {
   .topic-list {
     grid-template-columns: 1fr;
   }
+  .section-toolbar {
+    position: static;
+    top: auto;
+    backdrop-filter: none;
+  }
+  .nav-links {
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap;
+  }
+  .mode-actions .button {
+    min-height: 40px;
+    flex: 1 1 auto;
+  }
 }
 
 .home-search {
