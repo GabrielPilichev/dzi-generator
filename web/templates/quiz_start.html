@@ -44,7 +44,10 @@
 
 <form method="post" class="card form-card">
   <label for="student_name">Име на ученик</label>
-  <input id="student_name" name="student_name" autocomplete="name" required placeholder="Например: Иван Петров">
+  <input id="student_name" name="student_name" autocomplete="name" required minlength="2" placeholder="Например: Иван Петров" value="{{ student_name_value or '' }}">
+  {% if name_error %}
+    <div class="warning warning--spaced">{{ name_error }}</div>
+  {% endif %}
 
   <div class="help">
     Ако вече си започнал тест със същото име, ще продължиш съществуващия опит.

@@ -392,6 +392,27 @@ class QuizAttemptRenderTest(unittest.TestCase):
             conn.close()
 
     @staticmethod
+    def _attempt_row(attempt_id):
+        conn = web_app.quiz_db()
+        try:
+            return conn.execute(
+                "SELECT * FROM quiz_attempts WHERE id = ?",
+                (attempt_id,),
+            ).fetchone()
+        finally:
+            conn.close()
+
+    @staticmethod
+    def _clear_attempt_answers(attempt_id):
+        conn = web_app.quiz_db()
+        try:
+            conn.execute("DELETE FROM quiz_answers WHERE attempt_id = ?", (attempt_id,))
+            conn.execute("DELETE FROM quiz_text_answers WHERE attempt_id = ?", (attempt_id,))
+            conn.commit()
+        finally:
+            conn.close()
+
+    @staticmethod
     def _quiz_text_answer_rows(attempt_id):
         conn = web_app.quiz_db()
         try:
@@ -438,6 +459,48 @@ class QuizAttemptRenderTest(unittest.TestCase):
         self.assertNotIn(STALE_MESSAGE.encode("utf-8"), response.data)
         self.assertIn("Първоначално зададени: 2".encode("utf-8"), response.data)
         self.assertIn("Пропуснати: 1 невалидни въпроса".encode("utf-8"), response.data)
+
+    def test_student_name_one_character_is_rejected(self):
+        assignment_id = self._create_assignment()
+
+        response = self.client.post(f"/quiz/{assignment_id}", data={"student_name": "А"})
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("Името трябва да съдържа поне 2 символа.".encode("utf-8"), response.data)
+        conn = web_app.quiz_db()
+        try:
+            count = conn.execute(
+                "SELECT COUNT(*) FROM quiz_attempts WHERE assignment_id = ?",
+                (assignment_id,),
+            ).fetchone()[0]
+        finally:
+            conn.close()
+        self.assertEqual(count, 0)
+
+    def test_student_name_whitespace_only_is_rejected(self):
+        assignment_id = self._create_assignment()
+
+        response = self.client.post(f"/quiz/{assignment_id}", data={"student_name": "   \n\t  "})
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("Името трябва да съдържа поне 2 символа.".encode("utf-8"), response.data)
+
+    def test_normal_bulgarian_student_name_is_accepted(self):
+        assignment_id = self._create_assignment()
+
+        response = self.client.post(f"/quiz/{assignment_id}", data={"student_name": "Иван"})
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/quiz/attempt/", response.headers["Location"])
+        conn = web_app.quiz_db()
+        try:
+            row = conn.execute(
+                "SELECT student_name FROM quiz_attempts WHERE assignment_id = ?",
+                (assignment_id,),
+            ).fetchone()
+        finally:
+            conn.close()
+        self.assertEqual(row["student_name"], "Иван")
 
     def test_all_invalid_result_shows_stale_message(self):
         _assignment_id, attempt_id = self._create_attempt(
@@ -863,6 +926,52 @@ class QuizAttemptRenderTest(unittest.TestCase):
         self.assertEqual(attempt["score_correct"], 0)
         self.assertEqual(attempt["score_total"], 1)
 
+    def test_empty_mc_only_submission_is_rejected_without_completing_attempt(self):
+        _assignment_id, attempt_id = self._create_attempt(
+            [self.valid_question_id],
+            submitted=False,
+            student_name="Empty MC Submit",
+        )
+        self._clear_attempt_answers(attempt_id)
+
+        response = self.client.post(f"/quiz/attempt/{attempt_id}", data={})
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("Попълни поне един отговор, преди да предадеш теста.".encode("utf-8"), response.data)
+        attempt = self._attempt_row(attempt_id)
+        self.assertIsNone(attempt["submitted_at"])
+        conn = web_app.quiz_db()
+        try:
+            answer_count = conn.execute(
+                "SELECT COUNT(*) FROM quiz_answers WHERE attempt_id = ?",
+                (attempt_id,),
+            ).fetchone()[0]
+        finally:
+            conn.close()
+        self.assertEqual(answer_count, 0)
+
+    def test_partial_mc_submission_is_still_allowed(self):
+        _assignment_id, attempt_id = self._create_attempt(
+            [self.valid_question_id],
+            submitted=False,
+            student_name="Partial MC Submit",
+        )
+        self._clear_attempt_answers(attempt_id)
+        conn = web_app.quiz_db()
+        try:
+            wrong_letter = self._wrong_letter(conn, self.valid_question_id)
+        finally:
+            conn.close()
+
+        response = self.client.post(f"/quiz/attempt/{attempt_id}", data={
+            f"q_{self.valid_question_id}": wrong_letter,
+        })
+
+        self.assertEqual(response.status_code, 302)
+        attempt = self._attempt_row(attempt_id)
+        self.assertIsNotNone(attempt["submitted_at"])
+        self.assertEqual(attempt["score_total"], 1)
+
     def test_submitting_mixed_open_text_writes_planned_quiz_text_answers(self):
         _assignment_id, attempt_id, open_question_id = self._create_mixed_planned_attempt(
             student_name="Mixed Submit",
@@ -905,6 +1014,54 @@ class QuizAttemptRenderTest(unittest.TestCase):
             conn.close()
 
         self.assertEqual(text_answer_rows, 0)
+        self.assertEqual(attempt["score_total"], 1)
+
+    def test_empty_mixed_open_submission_is_rejected(self):
+        _assignment_id, attempt_id, _open_question_id = self._create_mixed_planned_attempt(
+            student_name="Empty Mixed Submit",
+        )
+
+        response = self.client.post(f"/quiz/attempt/{attempt_id}", data={})
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("Попълни поне един отговор, преди да предадеш теста.".encode("utf-8"), response.data)
+        attempt = self._attempt_row(attempt_id)
+        self.assertIsNone(attempt["submitted_at"])
+        self.assertEqual(self._quiz_text_answer_rows(attempt_id), [])
+
+    def test_mixed_open_submission_with_only_open_text_is_allowed(self):
+        _assignment_id, attempt_id, open_question_id = self._create_mixed_planned_attempt(
+            student_name="Open Only Submit",
+        )
+
+        response = self.client.post(f"/quiz/attempt/{attempt_id}", data={
+            f"open_q_{open_question_id}_1": "клиент",
+        })
+
+        self.assertEqual(response.status_code, 302)
+        attempt = self._attempt_row(attempt_id)
+        self.assertIsNotNone(attempt["submitted_at"])
+        rows = self._quiz_text_answer_rows(attempt_id)
+        self.assertEqual([row["raw_answer"] for row in rows], ["клиент", ""])
+
+    def test_timer_expired_blank_submission_is_preserved(self):
+        _assignment_id, attempt_id = self._create_attempt(
+            [self.valid_question_id],
+            submitted=False,
+            student_name="Expired Timer Blank Submit",
+            time_limit_minutes=1,
+            started_at="2020-01-01 00:00:00",
+        )
+        self._clear_attempt_answers(attempt_id)
+
+        response = self.client.post(f"/quiz/attempt/{attempt_id}", data={
+            "submission_reason": "timer_expired",
+        })
+
+        self.assertEqual(response.status_code, 302)
+        attempt = self._attempt_row(attempt_id)
+        self.assertIsNotNone(attempt["submitted_at"])
+        self.assertEqual(attempt["score_correct"], 0)
         self.assertEqual(attempt["score_total"], 1)
 
     def test_mixed_open_result_shows_recorded_answers_outside_score(self):

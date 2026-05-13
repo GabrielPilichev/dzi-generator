@@ -54,6 +54,12 @@
   </section>
 {% else %}
   <form method="post" id="quiz-form">
+    <input type="hidden" name="submission_reason" id="submission-reason" value="manual">
+    {% if submit_error %}
+      <section class="warning warning--spaced">
+        {{ submit_error }}
+      </section>
+    {% endif %}
     {% for q in questions %}
       <article class="card question-card quiz-card">
         <h2>Въпрос {{ loop.index }} от {{ questions|length }}</h2>
@@ -130,6 +136,7 @@
 (function () {
   const el = document.getElementById("countdown");
   const form = document.getElementById("quiz-form");
+  const submissionReason = document.getElementById("submission-reason");
   if (!el || !form) return;
 
   let remaining = parseInt(el.dataset.remaining, 10);
@@ -150,6 +157,7 @@
     if (remaining <= 0) {
       if (!submittedByTimer && (serverExpired || initialRemaining > 0)) {
         submittedByTimer = true;
+        if (submissionReason) submissionReason.value = "timer_expired";
         form.submit();
       }
       return;
