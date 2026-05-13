@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block title %}Практически задачи · {{ exam.title }}{% endblock %}
+
+{% block breadcrumb %}
+    <a href="{{ url_for('index') }}">Начало</a>
+    <span>›</span>
+    <a href="{{ url_for('dzi_index') }}">Официални ДЗИ</a>
+    <span>›</span>
+    <a href="{{ url_for('dzi_source_view', source_slug=exam.source_slug) }}">{{ exam.source_slug }}</a>
+    <span>›</span>
+    Практически задачи
+{% endblock %}
+
+{% block content %}
+<section class="hero">
+    <p class="eyebrow">{{ exam.source_slug }}</p>
+    <h1>Практически задачи</h1>
+    <p class="subtitle">{{ exam.title }} · задачи 26–28</p>
+</section>
+
+<div class="question-toolbar">
+    <a class="button secondary" href="{{ url_for('dzi_source_view', source_slug=exam.source_slug) }}">← Към източника</a>
+    <span class="pill">{{ tasks|length }} задачи</span>
+</div>
+
+<section>
+    <div class="questions-list">
+        {% for task in tasks %}
+            <article class="question">
+                <div class="question-header">
+                    <div class="question-meta">
+                        <span class="question-number">Задача {{ task.task_number }}</span>
+                        <span class="badge type-badge type-{{ task.task_kind }}">{{ task.task_kind }}</span>
+                        <span class="badge">{{ task.points }} т.</span>
+                        {% if task.work_environment %}
+                            <span class="badge">{{ task.work_environment }}</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                {% if task.prompt_bg %}
+                    <p class="prompt">{{ task.prompt_bg }}</p>
+                {% endif %}
+
+                {% if task.instructions_bg %}
+                    <div class="open-question-note">
+                        {% for line in task.instructions_bg.splitlines() %}
+                            {% if line.strip() %}
+                                <p>{{ line }}</p>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                {% endif %}
+
+                {% if task.expected_outputs %}
+                    <h3>Очаквани файлове</h3>
+                    <ul class="options-list">
+                        {% for output in task.expected_outputs %}
+                            <li class="option-row">{{ output }}</li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+
+                <h3>Ресурси</h3>
+                {% if task.resources %}
+                    <ul class="options-list">
+                        {% for resource in task.resources %}
+                            <li class="option-row">
+                                <span>
+                                    {{ resource.label_bg or resource.original_filename or "resource" }}
+                                    {% if resource.file_size_bytes %}
+                                        <span class="subtitle"> · {{ resource.file_size_bytes }} байта</span>
+                                    {% endif %}
+                                </span>
+                                {% if resource.is_available %}
+                                    <a class="button secondary" href="{{ url_for('dzi_practical_resource_download', resource_id=resource.id) }}">Изтегли</a>
+                                {% else %}
+                                    <span class="badge diff-hard">файлът липсва</span>
+                                {% endif %}
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% else %}
+                    <p class="empty-state">Няма записани ресурси за тази задача.</p>
+                {% endif %}
+            </article>
+        {% else %}
+            <p class="empty-state">Няма практически задачи за този източник.</p>
+        {% endfor %}
+    </div>
+</section>
+{% endblock %}
