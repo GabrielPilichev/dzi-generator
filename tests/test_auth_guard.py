@@ -234,6 +234,26 @@ class AuthGuardTest(unittest.TestCase):
         self.assertEqual(tester_response.status_code, 302)
         self.assertEqual(tester_response.headers["Location"], "/teacher/new")
 
+    def test_admin_login_with_cyrillic_wrong_password_returns_normal_error(self):
+        response = self.client.post(
+            "/admin/login",
+            data={"password": "грешна-парола"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Грешна парола.".encode("utf-8"), response.data)
+        self.assertNotIn("грешна-парола".encode("utf-8"), response.data)
+
+    def test_tester_login_with_cyrillic_wrong_password_returns_normal_error(self):
+        response = self.client.post(
+            "/tester/login",
+            data={"password": "грешна-парола"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Грешна парола.".encode("utf-8"), response.data)
+        self.assertNotIn("грешна-парола".encode("utf-8"), response.data)
+
     def test_cross_origin_post_to_admin_login_is_rejected(self):
         response = self.client.post(
             "/admin/login",

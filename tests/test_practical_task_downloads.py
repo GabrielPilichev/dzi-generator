@@ -24,6 +24,8 @@ class PracticalTaskDownloadsTest(unittest.TestCase):
         self.resource_path = Path("data/reference/may_2025_v2/Shipments.xlsx")
         (self.project_root / self.resource_path).write_bytes(b"fake practical resource")
         self.missing_resource_path = Path("data/reference/may_2025_v2/missing.xlsx")
+        self.unicode_resource_path = Path("data/reference/may_2025_v2/данни.xlsx")
+        (self.project_root / self.unicode_resource_path).write_bytes(b"unicode resource")
 
         self._create_db()
         self._write_batch()
@@ -155,6 +157,7 @@ class PracticalTaskDownloadsTest(unittest.TestCase):
                 [
                     (1, 260, str(self.resource_path), "Shipments.xlsx", None, 23, "a" * 64),
                     (2, 270, str(self.missing_resource_path), "missing.xlsx", None, 10, "b" * 64),
+                    (3, 280, str(self.unicode_resource_path), "данни.xlsx", "Данни", 16, "d" * 64),
                 ],
             )
             conn.commit()
@@ -227,7 +230,7 @@ class PracticalTaskDownloadsTest(unittest.TestCase):
         html = response.get_data(as_text=True)
         self.assertIn("Практически задачи 26–28", html)
         self.assertIn("/dzi/source/may_2025_v2/practical", html)
-        self.assertIn("2 файла за изтегляне", html)
+        self.assertIn("3 файла за изтегляне", html)
 
     def test_dzi_source_page_does_not_expose_raw_resource_paths(self):
         response = self.client.get("/dzi/source/may_2025_v2")
@@ -245,6 +248,19 @@ class PracticalTaskDownloadsTest(unittest.TestCase):
             self.assertEqual(response.data, b"fake practical resource")
             self.assertIn("attachment", response.headers["Content-Disposition"])
             self.assertIn("Shipments.xlsx", response.headers["Content-Disposition"])
+        finally:
+            response.close()
+
+    def test_download_route_handles_unicode_original_filename(self):
+        response = self.client.get("/dzi/practical/resource/3/download")
+
+        try:
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.data, b"unicode resource")
+            disposition = response.headers["Content-Disposition"]
+            self.assertIn("attachment", disposition)
+            self.assertIn("filename", disposition)
+            self.assertNotIn(str(self.project_root), disposition)
         finally:
             response.close()
 
