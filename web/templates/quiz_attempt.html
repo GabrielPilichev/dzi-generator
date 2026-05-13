@@ -19,7 +19,11 @@
   {% if remaining_seconds is not none %}
     <div class="timer">
       Оставащо време:
-      <span id="countdown" data-remaining="{{ remaining_seconds }}">{{ remaining_seconds }}</span>
+      <span
+        id="countdown"
+        data-remaining="{{ remaining_seconds }}"
+        data-timer-expired="{{ 1 if timer_expired else 0 }}"
+      >{{ remaining_seconds }}</span>
     </div>
   {% endif %}
 </section>
@@ -126,7 +130,14 @@
 (function () {
   const el = document.getElementById("countdown");
   const form = document.getElementById("quiz-form");
+  if (!el || !form) return;
+
   let remaining = parseInt(el.dataset.remaining, 10);
+  if (!Number.isFinite(remaining)) return;
+
+  const serverExpired = el.dataset.timerExpired === "1";
+  const initialRemaining = remaining;
+  let submittedByTimer = false;
 
   function fmt(seconds) {
     const m = Math.floor(seconds / 60);
@@ -137,7 +148,10 @@
   function tick() {
     el.textContent = fmt(Math.max(0, remaining));
     if (remaining <= 0) {
-      form.submit();
+      if (!submittedByTimer && (serverExpired || initialRemaining > 0)) {
+        submittedByTimer = true;
+        form.submit();
+      }
       return;
     }
     remaining -= 1;

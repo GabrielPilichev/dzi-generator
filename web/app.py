@@ -2501,6 +2501,10 @@ def quiz_format_duration(seconds: int) -> str:
     return f"{rest} сек."
 
 
+def quiz_current_timestamp() -> _quiz_datetime:
+    return _quiz_datetime.utcnow()
+
+
 def quiz_remaining_seconds(assignment, attempt) -> int | None:
     limit = assignment["time_limit_minutes"]
     if not limit:
@@ -2508,7 +2512,7 @@ def quiz_remaining_seconds(assignment, attempt) -> int | None:
 
     try:
         started = _quiz_datetime.fromisoformat(attempt["started_at"])
-        elapsed = int((_quiz_datetime.now() - started).total_seconds())
+        elapsed = int((quiz_current_timestamp() - started).total_seconds())
         return max(0, int(limit) * 60 - elapsed)
     except Exception:
         return int(limit) * 60
@@ -4043,6 +4047,7 @@ def quiz_attempt(attempt_id):
     remaining = quiz_remaining_seconds(assignment, attempt)
     if not questions:
         remaining = None
+    timer_expired = remaining is not None and remaining <= 0
     conn.close()
 
     return _quiz_render_template(
@@ -4051,6 +4056,7 @@ def quiz_attempt(attempt_id):
         attempt=attempt,
         questions=questions,
         remaining_seconds=remaining,
+        timer_expired=timer_expired,
         stale_attempt_message=STALE_ATTEMPT_MESSAGE if not questions else None,
         skipped_question_count=skipped_count,
         mixed_status=attempt_mixed_status,

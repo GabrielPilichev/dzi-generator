@@ -1,9 +1,11 @@
 import atexit
+from datetime import datetime
 import json
 import os
 import shutil
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 
@@ -258,21 +260,29 @@ class QuizAttemptRenderTest(unittest.TestCase):
         self.assertTrue(web_app.quiz_prompt_needs_visual("Използвайте показаната таблица."))
         self.assertFalse(web_app.quiz_prompt_needs_visual("Кое твърдение за електронна таблица е вярно?"))
 
-    def _create_assignment(self):
+    def _create_assignment(self, *, time_limit_minutes=None):
         conn = web_app.quiz_db()
         try:
             cur = conn.execute("""
                 INSERT INTO quiz_assignments (section_id, title_bg, question_count, time_limit_minutes)
-                VALUES (?, ?, 2, NULL)
-            """, (self.section["id"], self.section["title_bg"]))
+                VALUES (?, ?, 2, ?)
+            """, (self.section["id"], self.section["title_bg"], time_limit_minutes))
             assignment_id = int(cur.lastrowid)
             conn.commit()
             return assignment_id
         finally:
             conn.close()
 
-    def _create_attempt(self, question_ids, *, submitted=True, student_name="Stale Student"):
-        assignment_id = self._create_assignment()
+    def _create_attempt(
+        self,
+        question_ids,
+        *,
+        submitted=True,
+        student_name="Stale Student",
+        time_limit_minutes=None,
+        started_at=None,
+    ):
+        assignment_id = self._create_assignment(time_limit_minutes=time_limit_minutes)
         conn = web_app.quiz_db()
         try:
             renderable_question_ids, _skipped_count = web_app.filter_renderable_attempt_question_ids(conn, question_ids)
@@ -297,6 +307,12 @@ class QuizAttemptRenderTest(unittest.TestCase):
                     SET submitted_at = NULL, score_correct = NULL, score_total = ?
                     WHERE id = ?
                 """, (len(renderable_question_ids), attempt_id))
+            if started_at is not None:
+                conn.execute("""
+                    UPDATE quiz_attempts
+                    SET started_at = ?
+                    WHERE id = ?
+                """, (started_at, attempt_id))
             elif self.valid_question_id in question_ids:
                 wrong_letter = self._wrong_letter(conn, self.valid_question_id)
                 conn.execute("""
@@ -463,6 +479,113 @@ class QuizAttemptRenderTest(unittest.TestCase):
         self.assertIn(self.valid_prompt.encode("utf-8"), response.data)
         self.assertNotIn(b'name="open_q_', response.data)
         self.assertNotIn("Отворените отговори".encode("utf-8"), response.data)
+
+    def test_30_minute_assignment_renders_non_expired_timer(self):
+        fixed_now = datetime(2026, 5, 13, 12, 0, 0)
+        _assignment_id, attempt_id = self._create_attempt(
+            [self.valid_question_id],
+            submitted=False,
+            student_name="Timer 30",
+            time_limit_minutes=30,
+            started_at="2026-05-13 12:00:00",
+        )
+
+        with patch.object(web_app, "quiz_current_timestamp", return_value=fixed_now):
+            response = self.client.get(f"/quiz/attempt/{attempt_id}")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'data-remaining="1800"', response.data)
+        self.assertIn(b'data-timer-expired="0"', response.data)
+
+    def test_60_minute_assignment_renders_non_expired_timer(self):
+        fixed_now = datetime(2026, 5, 13, 12, 0, 0)
+        _assignment_id, attempt_id = self._create_attempt(
+            [self.valid_question_id],
+            submitted=False,
+            student_name="Timer 60",
+            time_limit_minutes=60,
+            started_at="2026-05-13 12:00:00",
+        )
+
+        with patch.object(web_app, "quiz_current_timestamp", return_value=fixed_now):
+            response = self.client.get(f"/quiz/attempt/{attempt_id}")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'data-remaining="3600"', response.data)
+        self.assertIn(b'data-timer-expired="0"', response.data)
+
+    def test_400_minute_assignment_preserves_full_duration(self):
+        fixed_now = datetime(2026, 5, 13, 12, 0, 0)
+        _assignment_id, attempt_id = self._create_attempt(
+            [self.valid_question_id],
+            submitted=False,
+            student_name="Timer 400",
+            time_limit_minutes=400,
+            started_at="2026-05-13 12:00:00",
+        )
+
+        with patch.object(web_app, "quiz_current_timestamp", return_value=fixed_now):
+            response = self.client.get(f"/quiz/attempt/{attempt_id}")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'data-remaining="24000"', response.data)
+        self.assertIn(b'data-timer-expired="0"', response.data)
+
+    def test_600_minute_assignment_preserves_full_duration(self):
+        fixed_now = datetime(2026, 5, 13, 12, 0, 0)
+        _assignment_id, attempt_id = self._create_attempt(
+            [self.valid_question_id],
+            submitted=False,
+            student_name="Timer 600",
+            time_limit_minutes=600,
+            started_at="2026-05-13 12:00:00",
+        )
+
+        with patch.object(web_app, "quiz_current_timestamp", return_value=fixed_now):
+            response = self.client.get(f"/quiz/attempt/{attempt_id}")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'data-remaining="36000"', response.data)
+        self.assertIn(b'data-timer-expired="0"', response.data)
+
+    def test_quiz_attempt_initial_render_does_not_submit_non_expired_timer(self):
+        fixed_now = datetime(2026, 5, 13, 12, 0, 0)
+        _assignment_id, attempt_id = self._create_attempt(
+            [self.valid_question_id],
+            submitted=False,
+            student_name="Timer No Auto Submit",
+            time_limit_minutes=30,
+            started_at="2026-05-13 12:00:00",
+        )
+
+        with patch.object(web_app, "quiz_current_timestamp", return_value=fixed_now):
+            response = self.client.get(f"/quiz/attempt/{attempt_id}")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'data-timer-expired="0"', response.data)
+        conn = web_app.quiz_db()
+        try:
+            attempt = conn.execute(
+                "SELECT submitted_at FROM quiz_attempts WHERE id = ?",
+                (attempt_id,),
+            ).fetchone()
+        finally:
+            conn.close()
+        self.assertIsNone(attempt["submitted_at"])
+
+    def test_no_timer_assignment_omits_countdown(self):
+        _assignment_id, attempt_id = self._create_attempt(
+            [self.valid_question_id],
+            submitted=False,
+            student_name="No Timer",
+            time_limit_minutes=None,
+        )
+
+        response = self.client.get(f"/quiz/attempt/{attempt_id}")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn(b'id="countdown"', response.data)
+        self.assertNotIn(b"data-remaining", response.data)
 
     def test_active_attempt_shows_question_difficulty_when_available(self):
         conn = web_app.quiz_db()
