@@ -16,6 +16,18 @@
         <span>{{ total_questions.value }} въпроса</span>
         <span>{{ grades|length }} класа</span>
     </div>
+    <form class="home-search" role="search" aria-label="Търсене по теми" onsubmit="return false;">
+        <label class="home-search-label" for="home-search-input">Търсене по теми</label>
+        <input
+            id="home-search-input"
+            type="search"
+            class="home-search-input"
+            placeholder="Търси тема, раздел или клас…"
+            autocomplete="off"
+            aria-controls="home-search-results"
+        >
+        <p id="home-search-empty" class="home-search-empty" hidden>Няма съвпадения. Опитайте с друга дума.</p>
+    </form>
 </section>
 
 <section class="mode-grid" aria-label="Основни режими">
@@ -81,9 +93,12 @@
         <span class="pill">{{ total_questions.value }} въпроса общо</span>
     </div>
 
-    <div class="grade-grid">
+    <div class="grade-grid" id="home-search-results" data-home-search-group="grades">
         {% for g in grades|sort(attribute='grade') %}
-            <a href="{{ url_for('grade_view', grade=g.grade) }}" class="grade-card {% if g.question_count == 0 %}disabled{% endif %}">
+            <a href="{{ url_for('grade_view', grade=g.grade) }}"
+               class="grade-card {% if g.question_count == 0 %}disabled{% endif %}"
+               data-search-item
+               data-search-text="{{ g.grade }}. клас {{ g.grade }} клас grade{{ g.grade }}">
                 <span class="grade-card-ghost">{{ g.grade }}</span>
                 <div class="label">{{ g.grade }}. клас</div>
                 <div class="stat-row">
@@ -102,4 +117,34 @@
         {% endfor %}
     </div>
 </section>
+
+{% if searchable_sections %}
+<section class="home-section home-section--topics" data-home-search-group="topics">
+    <div class="section-heading">
+        <div>
+            <p class="eyebrow">Теми и раздели</p>
+            <h2>Намери тема</h2>
+        </div>
+        <span class="pill">{{ searchable_sections|length }} раздела</span>
+    </div>
+
+    <ul class="topic-list">
+        {% for item in searchable_sections %}
+            <li class="topic-list-item"
+                data-search-item
+                data-search-text="{{ item.section_title }} {{ item.module_title or '' }} {{ item.grade }}. клас grade{{ item.grade }}">
+                <a class="topic-list-link" href="{{ url_for('section_view', slug=item.section_slug) }}">
+                    <span class="topic-list-grade">{{ item.grade }}. клас</span>
+                    <span class="topic-list-title">{{ item.section_title }}</span>
+                    {% if item.module_title %}
+                        <span class="topic-list-module">{{ item.module_title }}</span>
+                    {% endif %}
+                </a>
+            </li>
+        {% endfor %}
+    </ul>
+</section>
+{% endif %}
+
+<script src="{{ url_for('static', filename='js/home-search.js') }}" defer></script>
 {% endblock %}
