@@ -483,6 +483,10 @@ def fetch_questions_in_section(section_id: int) -> list[dict]:
             q["options"] = [dict(o) for o in opts]
         else:
             q["options"] = []
+        if q["question_type"] in {"fill_in", "short_answer"}:
+            q["subquestions"] = fetch_fill_in_answer_rows(db, int(q["question_id"]))
+        else:
+            q["subquestions"] = []
         questions.append(q)
     return questions
 
@@ -669,8 +673,19 @@ def dzi_json_text_list(value: str | None) -> list[str]:
     return [str(parsed)]
 
 
-def fetch_dzi_fill_subquestions(question_id: int) -> list[dict]:
-    db = get_db()
+def unique_text_values(values: list[str]) -> list[str]:
+    unique = []
+    seen = set()
+    for value in values:
+        text = str(value).strip()
+        if not text or text in seen:
+            continue
+        unique.append(text)
+        seen.add(text)
+    return unique
+
+
+def fetch_fill_in_answer_rows(db: sqlite3.Connection, question_id: int) -> list[dict]:
     rows = db.execute("""
         SELECT subquestion_number, subquestion_text, correct_answer, answer_alternatives, points
         FROM fill_in_subquestions
@@ -679,11 +694,20 @@ def fetch_dzi_fill_subquestions(question_id: int) -> list[dict]:
     """, (question_id,)).fetchall()
     subquestions = []
     for row in rows:
+        correct_answers = dzi_json_text_list(row["correct_answer"])
+        alternatives = dzi_json_text_list(row["answer_alternatives"])
+        accepted_answers = unique_text_values(correct_answers + alternatives)
         subquestion = dict(row)
-        subquestion["correct_answers"] = dzi_json_text_list(row["correct_answer"])
-        subquestion["answer_alternatives_list"] = dzi_json_text_list(row["answer_alternatives"])
+        subquestion["correct_answers"] = correct_answers
+        subquestion["answer_alternatives_list"] = alternatives
+        subquestion["accepted_answers"] = accepted_answers
         subquestions.append(subquestion)
     return subquestions
+
+
+def fetch_dzi_fill_subquestions(question_id: int) -> list[dict]:
+    db = get_db()
+    return fetch_fill_in_answer_rows(db, question_id)
 
 
 def fetch_dzi_tasks(exam_id: int) -> dict[str, list[dict]]:

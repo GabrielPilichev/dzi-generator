@@ -101,7 +101,7 @@
                 data-question-id="{{ q.question_id }}"
                 data-question-type="{{ q.question_type }}"
                 data-difficulty="{{ difficulty }}"
-                data-search-text="{{ (q.prompt ~ ' ' ~ q.topic_title ~ ' ' ~ q.question_type ~ ' ' ~ difficulty ~ ' ' ~ (q.options | map(attribute='option_text') | join(' '))) | lower | e }}"
+                data-search-text="{{ (q.prompt ~ ' ' ~ q.topic_title ~ ' ' ~ q.question_type ~ ' ' ~ difficulty ~ ' ' ~ (q.options | map(attribute='option_text') | join(' ')) ~ ' ' ~ (q.subquestions | map(attribute='accepted_answers') | join(' '))) | lower | e }}"
             >
                 <div class="question-header">
                     <div class="question-meta">
@@ -130,6 +130,32 @@
                                 </li>
                             {% endfor %}
                         </ol>
+                    </details>
+                {% elif q.question_type in ["fill_in", "short_answer"] %}
+                    <details class="answer-details">
+                        <summary>Покажи отговорите</summary>
+                        {% if q.subquestions %}
+                            <ol class="options-list">
+                                {% for sub in q.subquestions %}
+                                    <li class="option-row correct">
+                                        <span class="option-letter">{{ sub.subquestion_number }}</span>
+                                        <span class="option-text">
+                                            {% if sub.subquestion_text %}{{ sub.subquestion_text }} · {% endif %}
+                                            {% if sub.accepted_answers %}
+                                                {{ sub.accepted_answers | join(", ") }}
+                                            {% else %}
+                                                Няма въведен приет отговор
+                                            {% endif %}
+                                        </span>
+                                        {% if sub.answer_alternatives_list %}
+                                            <span class="option-status">алтернативи</span>
+                                        {% endif %}
+                                    </li>
+                                {% endfor %}
+                            </ol>
+                        {% else %}
+                            <p class="open-question-note">Няма въведен приет отговор</p>
+                        {% endif %}
                     </details>
                 {% else %}
                     <div class="open-question-note">отворен въпрос</div>
