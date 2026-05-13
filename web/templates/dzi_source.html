@@ -82,6 +82,12 @@
 
 <div class="question-toolbar">
     <a class="button secondary" href="{{ url_for('dzi_index') }}">← Към всички ДЗИ източници</a>
+    {% if practical_resource_count %}
+        <a class="button" href="{{ url_for('dzi_practical_source', source_slug=exam.source_slug) }}">
+            Практически задачи 26–28
+        </a>
+        <span class="pill">{{ practical_resource_count }} файла за изтегляне</span>
+    {% endif %}
     <span class="pill">{{ tasks.part1|length + tasks.part2|length }} задачи</span>
 </div>
 
