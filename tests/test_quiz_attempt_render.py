@@ -367,6 +367,15 @@ class QuizAttemptRenderTest(unittest.TestCase):
         finally:
             conn.close()
 
+    @staticmethod
+    def _ensure_question_explanation_column(conn):
+        columns = {
+            row["name"]
+            for row in conn.execute("PRAGMA table_info(questions)").fetchall()
+        }
+        if "explanation" not in columns:
+            conn.execute("ALTER TABLE questions ADD COLUMN explanation TEXT")
+
     def _quiz_text_answer_count(self):
         conn = web_app.quiz_db()
         try:
@@ -711,6 +720,104 @@ class QuizAttemptRenderTest(unittest.TestCase):
         self.assertNotIn("Информационен сбор за отворени отговори".encode("utf-8"), response.data)
         self.assertNotIn("Интеграцията на отворените отговори".encode("utf-8"), response.data)
 
+    def test_wrong_mc_result_shows_correct_answer_and_explanation_fallback(self):
+        _assignment_id, attempt_id = self._create_attempt(
+            [self.valid_question_id],
+            student_name="MC Wrong Feedback",
+        )
+
+        response = self.client.get(f"/quiz/attempt/{attempt_id}/result")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Правилен отговор".encode("utf-8"), response.data)
+        self.assertIn("Обяснение".encode("utf-8"), response.data)
+        self.assertIn("Няма въведено обяснение за този въпрос.".encode("utf-8"), response.data)
+
+    def test_wrong_mc_result_shows_existing_question_explanation(self):
+        conn = web_app.quiz_db()
+        try:
+            self._ensure_question_explanation_column(conn)
+            question_id = self._insert_eligible_mc_question(
+                conn,
+                source_number=905,
+                prompt="Въпрос с готово обяснение.",
+            )
+            conn.execute(
+                "UPDATE questions SET explanation = ? WHERE id = ?",
+                ("Това е налично обяснение от базата.", question_id),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        _assignment_id, attempt_id = self._create_attempt(
+            [question_id],
+            student_name="MC Existing Explanation",
+        )
+        conn = web_app.quiz_db()
+        try:
+            wrong_letter = self._wrong_letter(conn, question_id)
+            conn.execute("""
+                INSERT INTO quiz_answers (attempt_id, question_id, chosen_letter, is_correct)
+                VALUES (?, ?, ?, 0)
+            """, (attempt_id, question_id, wrong_letter))
+            conn.commit()
+        finally:
+            conn.close()
+
+        response = self.client.get(f"/quiz/attempt/{attempt_id}/result")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Това е налично обяснение от базата.".encode("utf-8"), response.data)
+        self.assertNotIn("Няма въведено обяснение за този въпрос.".encode("utf-8"), response.data)
+
+    def test_wrong_mc_result_escapes_explanation_and_answer_text(self):
+        conn = web_app.quiz_db()
+        try:
+            self._ensure_question_explanation_column(conn)
+            question_id = self._insert_eligible_mc_question(
+                conn,
+                source_number=906,
+                prompt="Въпрос с HTML в обратната връзка.",
+            )
+            conn.execute(
+                "UPDATE questions SET explanation = ? WHERE id = ?",
+                ('<script>alert("feedback")</script>', question_id),
+            )
+            conn.execute(
+                """
+                UPDATE multiple_choice_options
+                SET option_text = ?
+                WHERE question_id = ?
+                  AND is_correct = 1
+                """,
+                ('<script>alert("answer")</script>', question_id),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        _assignment_id, attempt_id = self._create_attempt(
+            [question_id],
+            student_name="MC Escaped Feedback",
+        )
+        conn = web_app.quiz_db()
+        try:
+            wrong_letter = self._wrong_letter(conn, question_id)
+            conn.execute("""
+                INSERT INTO quiz_answers (attempt_id, question_id, chosen_letter, is_correct)
+                VALUES (?, ?, ?, 0)
+            """, (attempt_id, question_id, wrong_letter))
+            conn.commit()
+        finally:
+            conn.close()
+
+        response = self.client.get(f"/quiz/attempt/{attempt_id}/result")
+        self.assertEqual(response.status_code, 200)
+        body = response.data.decode("utf-8")
+        self.assertIn("&lt;script&gt;alert(&#34;feedback&#34;)&lt;/script&gt;", body)
+        self.assertIn("&lt;script&gt;alert(&#34;answer&#34;)&lt;/script&gt;", body)
+        self.assertNotIn('<script>alert("feedback")</script>', body)
+        self.assertNotIn('<script>alert("answer")</script>', body)
+
     def test_mc_only_post_does_not_write_quiz_text_answers_and_keeps_quiz_answers(self):
         _assignment_id, attempt_id = self._create_attempt(
             [self.valid_question_id],
@@ -838,6 +945,63 @@ class QuizAttemptRenderTest(unittest.TestCase):
         self.assertIn(b'<span class="result-score">0/1</span>', response.data)
         self.assertNotIn(b"accepted_answers_json", response.data)
         self.assertNotIn(b"[&#34;jpeg&#34;, &#34;jpg&#34;]", response.data)
+        self.assertIn("Приет отговор".encode("utf-8"), response.data)
+        self.assertIn("клиент".encode("utf-8"), response.data)
+        self.assertIn("Обяснение".encode("utf-8"), response.data)
+        self.assertIn("Няма въведено обяснение за този въпрос.".encode("utf-8"), response.data)
+
+    def test_wrong_open_result_shows_accepted_alternatives(self):
+        _assignment_id, attempt_id, open_question_id = self._create_mixed_planned_attempt(
+            student_name="Mixed Wrong Alternatives",
+        )
+        conn = web_app.quiz_db()
+        try:
+            wrong_letter = self._wrong_letter(conn, self.valid_question_id)
+        finally:
+            conn.close()
+
+        post_response = self.client.post(f"/quiz/attempt/{attempt_id}", data={
+            f"q_{self.valid_question_id}": wrong_letter,
+            f"open_q_{open_question_id}_1": "грешно",
+            f"open_q_{open_question_id}_2": "png",
+        })
+        self.assertEqual(post_response.status_code, 302)
+
+        response = self.client.get(f"/quiz/attempt/{attempt_id}/result")
+        self.assertEqual(response.status_code, 200)
+        body = response.data.decode("utf-8")
+        self.assertIn("Приет отговор", body)
+        self.assertIn("клиент", body)
+        self.assertIn("jpeg, jpg", body)
+        self.assertIn("Няма въведено обяснение за този въпрос.", body)
+        self.assertNotIn("accepted_answers_json", body)
+
+    def test_wrong_open_result_without_accepted_answer_shows_fallback(self):
+        _assignment_id, attempt_id, open_question_id = self._create_mixed_planned_attempt(
+            submitted=True,
+            student_name="Mixed Missing Accepted",
+        )
+        conn = web_app.quiz_db()
+        try:
+            web_app.insert_quiz_text_answer(
+                conn,
+                attempt_id=attempt_id,
+                question_id=open_question_id,
+                subquestion_number=9,
+                raw_answer="няма съвпадение",
+                normalized_answer="няма съвпадение",
+                accepted_answers_json="[]",
+                is_correct=False,
+                points_awarded=0,
+                points_possible=1,
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+        response = self.client.get(f"/quiz/attempt/{attempt_id}/result")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Няма въведен приет отговор.".encode("utf-8"), response.data)
 
     def test_mixed_open_with_score_integration_flag_shows_combined_score(self):
         _assignment_id, attempt_id, open_question_id = self._create_mixed_planned_attempt(
