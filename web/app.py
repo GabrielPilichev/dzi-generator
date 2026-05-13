@@ -29,7 +29,7 @@ import sqlite3
 from pathlib import Path
 from urllib.parse import urlparse
 
-from flask import Flask, abort, g, render_template, url_for, request, redirect, session
+from flask import Flask, abort, g, render_template, url_for, request, redirect, send_file, session
 
 
 # ---------------------------------------------------------------------------
@@ -59,6 +59,7 @@ app.config["DB_PATH"] = str(DB_PATH)
 app.config["SECRET_KEY"] = build_secret_key()
 app.config["SESSION_COOKIE_SAMESITE"] = "Strict"
 app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["PRACTICAL_TASK_BATCH_DIR"] = str(PROJECT_ROOT / "data" / "import_batches")
 
 
 
@@ -479,6 +480,10 @@ DZI_SESSION_LABELS = {
     "may": "май",
     "august": "август",
 }
+PRACTICAL_RESOURCE_ROOTS = (
+    PROJECT_ROOT / "data" / "reference",
+    PROJECT_ROOT / "data" / "assets",
+)
 
 
 def dzi_source_slug(row: sqlite3.Row | dict) -> str:
@@ -695,6 +700,129 @@ def fetch_dzi_tasks(exam_id: int) -> dict[str, list[dict]]:
     return grouped
 
 
+def practical_task_batch_path(source_slug: str) -> Path:
+    return Path(app.config["PRACTICAL_TASK_BATCH_DIR"]) / f"{source_slug}_practical_tasks_26_28.json"
+
+
+def load_practical_task_batch(source_slug: str) -> dict[int, dict]:
+    path = practical_task_batch_path(source_slug)
+    if not path.exists():
+        return {}
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    if payload.get("source_slug") != source_slug:
+        return {}
+    tasks = payload.get("tasks")
+    if not isinstance(tasks, list):
+        return {}
+    by_number = {}
+    for task in tasks:
+        if not isinstance(task, dict):
+            continue
+        number = task.get("task_number")
+        if isinstance(number, int):
+            by_number[number] = task
+    return by_number
+
+
+def practical_resource_safe_path(resource_path: str | None) -> Path | None:
+    if not isinstance(resource_path, str) or not resource_path.strip():
+        return None
+    raw_path = Path(resource_path)
+    if raw_path.is_absolute() or ".." in raw_path.parts:
+        return None
+    candidate = (PROJECT_ROOT / raw_path).resolve(strict=False)
+    allowed_roots = [root.resolve(strict=False) for root in PRACTICAL_RESOURCE_ROOTS]
+    for root in allowed_roots:
+        try:
+            candidate.relative_to(root)
+            return candidate
+        except ValueError:
+            continue
+    return None
+
+
+def practical_resource_status(resource: dict) -> dict:
+    safe_path = practical_resource_safe_path(resource.get("resource_path"))
+    resource = dict(resource)
+    resource["is_path_safe"] = safe_path is not None
+    resource["is_available"] = bool(safe_path and safe_path.is_file())
+    return resource
+
+
+def fetch_practical_resource(resource_id: int) -> dict | None:
+    db = get_db()
+    row = db.execute("""
+        SELECT
+            ptr.id,
+            ptr.exam_task_id,
+            ptr.resource_path,
+            ptr.original_filename,
+            ptr.label_bg,
+            ptr.file_size_bytes,
+            ptr.sha256,
+            et.task_number,
+            et.exam_id,
+            e.year,
+            e.session,
+            e.variant
+        FROM practical_task_resources ptr
+        JOIN exam_tasks et ON et.id = ptr.exam_task_id
+        JOIN exams e ON e.id = et.exam_id
+        WHERE ptr.id = ?
+    """, (resource_id,)).fetchone()
+    return dict(row) if row else None
+
+
+def fetch_practical_tasks(source_slug: str) -> tuple[dict, list[dict]] | None:
+    exam = dzi_find_exam(source_slug)
+    if exam is None:
+        return None
+
+    batch_tasks = load_practical_task_batch(source_slug)
+    db = get_db()
+    task_rows = db.execute("""
+        SELECT
+            et.id AS task_id,
+            et.task_number,
+            et.task_kind,
+            et.points,
+            et.prompt,
+            et.rubric,
+            pt.work_environment,
+            pt.expected_outputs_json,
+            pt.notes
+        FROM exam_tasks et
+        LEFT JOIN practical_tasks pt ON pt.task_id = et.id
+        WHERE et.exam_id = ?
+          AND et.task_number BETWEEN 26 AND 28
+          AND et.task_kind LIKE 'practical_%'
+        ORDER BY et.task_number
+    """, (exam["id"],)).fetchall()
+
+    tasks = []
+    for row in task_rows:
+        task = dict(row)
+        batch_task = batch_tasks.get(int(task["task_number"]), {})
+        task["prompt_bg"] = batch_task.get("prompt_bg") or task.get("prompt")
+        task["instructions_bg"] = batch_task.get("instructions_bg") or task.get("rubric")
+        task["expected_outputs"] = batch_task.get("expected_outputs") or dzi_json_text_list(task.get("expected_outputs_json"))
+        resource_rows = db.execute("""
+            SELECT id, resource_path, original_filename, label_bg, file_size_bytes, sha256
+            FROM practical_task_resources
+            WHERE exam_task_id = ?
+            ORDER BY id
+        """, (task["task_id"],)).fetchall()
+        task["resources"] = [
+            practical_resource_status(dict(resource))
+            for resource in resource_rows
+        ]
+        tasks.append(task)
+    return exam, tasks
+
+
 # ---------------------------------------------------------------------------
 # Routes
 # ---------------------------------------------------------------------------
@@ -767,6 +895,34 @@ def dzi_source_view(source_slug: str):
         abort(404)
     tasks = fetch_dzi_tasks(int(exam["id"]))
     return render_template("dzi_source.html", exam=exam, tasks=tasks)
+
+
+@app.route("/dzi/source/<source_slug>/practical")
+def dzi_practical_source(source_slug: str):
+    resolved = fetch_practical_tasks(source_slug)
+    if resolved is None:
+        abort(404)
+    exam, tasks = resolved
+    return render_template("practical_tasks.html", exam=exam, tasks=tasks)
+
+
+@app.route("/dzi/practical/resource/<int:resource_id>/download")
+def dzi_practical_resource_download(resource_id: int):
+    resource = fetch_practical_resource(resource_id)
+    if resource is None:
+        abort(404)
+
+    safe_path = practical_resource_safe_path(resource.get("resource_path"))
+    if safe_path is None or not safe_path.is_file():
+        abort(404)
+
+    download_name = resource.get("original_filename") or safe_path.name
+    return send_file(
+        safe_path,
+        as_attachment=True,
+        download_name=download_name,
+        max_age=0,
+    )
 
 
 @app.route("/admin/open-question-candidates")
