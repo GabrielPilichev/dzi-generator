@@ -40,6 +40,11 @@ class SectionReviewAnswersTest(unittest.TestCase):
             cls.question_id = int(row["question_id"])
             cls.correct_text = row["correct_text"]
             cls.any_option_text = row["any_option_text"]
+            cls.open_answer_question_id = cls._insert_open_answer_fixture(conn)
+            cls.empty_answer_question_id = cls._insert_empty_open_answer_fixture(conn)
+            cls.xss_answer_question_id = cls._insert_xss_open_answer_fixture(conn)
+            cls.dzi_q23 = cls._fetch_dzi_task_23_answer_fixture(conn)
+            conn.commit()
         finally:
             conn.close()
 
@@ -68,6 +73,106 @@ class SectionReviewAnswersTest(unittest.TestCase):
         if row is None:
             raise AssertionError("No section question with a correct option found")
         return row
+
+    @classmethod
+    def _insert_section_question(cls, conn, *, prompt, correct_answer, alternatives=None):
+        cur = conn.execute("""
+            INSERT INTO questions (
+                source_exam, source_number, question_type, topic, topic_id,
+                difficulty, points, prompt, has_image, is_ai_generated, quality_score
+            )
+            VALUES (?, ?, 'fill_in', 'section-review-open-test', ?, 'medium', 1, ?, 0, 0, NULL)
+        """, (
+            "temp-section-review-open-test",
+            9000 + conn.execute("""
+                SELECT COUNT(*)
+                FROM questions
+                WHERE source_exam = 'temp-section-review-open-test'
+            """).fetchone()[0],
+            cls._section_topic_id(conn),
+            prompt,
+        ))
+        question_id = int(cur.lastrowid)
+        conn.execute("""
+            INSERT INTO fill_in_subquestions (
+                question_id, subquestion_number, subquestion_text, correct_answer, answer_alternatives
+            )
+            VALUES (?, 1, ?, ?, ?)
+        """, (
+            question_id,
+            "Попълнете стойността",
+            correct_answer,
+            alternatives,
+        ))
+        return question_id
+
+    @classmethod
+    def _section_topic_id(cls, conn):
+        row = conn.execute("""
+            SELECT topic_id
+            FROM topic_section_assignments
+            WHERE section_id = ?
+            ORDER BY is_primary DESC, topic_id
+            LIMIT 1
+        """, (cls.section_id,)).fetchone()
+        if row is None:
+            raise AssertionError("Section has no assigned topic")
+        return int(row["topic_id"])
+
+    @classmethod
+    def _insert_open_answer_fixture(cls, conn):
+        return cls._insert_section_question(
+            conn,
+            prompt="Отворен въпрос с алтернативи за преглед.",
+            correct_answer='["клиент", "потребител"]',
+            alternatives='["user", "client"]',
+        )
+
+    @classmethod
+    def _insert_empty_open_answer_fixture(cls, conn):
+        return cls._insert_section_question(
+            conn,
+            prompt="Отворен въпрос без въведен приет отговор.",
+            correct_answer="",
+            alternatives=None,
+        )
+
+    @classmethod
+    def _insert_xss_open_answer_fixture(cls, conn):
+        return cls._insert_section_question(
+            conn,
+            prompt="Отворен въпрос с HTML в отговора.",
+            correct_answer='<script>alert("x")</script>',
+            alternatives=None,
+        )
+
+    @staticmethod
+    def _fetch_dzi_task_23_answer_fixture(conn):
+        row = conn.execute("""
+            SELECT
+                e.year,
+                e.session,
+                e.variant,
+                q.id AS question_id,
+                fis.correct_answer,
+                fis.answer_alternatives
+            FROM exams e
+            JOIN exam_tasks et ON et.exam_id = e.id
+            JOIN exam_task_questions etq
+              ON etq.task_id = et.id
+             AND etq.role = 'primary'
+            JOIN questions q ON q.id = etq.question_id
+            JOIN fill_in_subquestions fis ON fis.question_id = q.id
+            WHERE e.format_version = ?
+              AND et.task_number = 23
+              AND q.question_type IN ('fill_in', 'short_answer')
+              AND TRIM(COALESCE(fis.correct_answer, '')) <> ''
+            ORDER BY e.year DESC, e.session, e.variant, fis.subquestion_number
+            LIMIT 1
+        """, (web_app.DZI_FORMAT_VERSION,)).fetchone()
+        if row is None:
+            raise AssertionError("No DZI task 23 accepted answer found in DB")
+        return dict(row)
 
     def setUp(self):
         self.client = self.app.test_client()
@@ -113,6 +218,66 @@ class SectionReviewAnswersTest(unittest.TestCase):
         self.assertIn(html.escape(self.any_option_text, quote=True), body)
         self.assertIn('class="quiz-option-card"', body)
         self.assertNotIn("answer-details", body)
+
+    def test_section_review_open_question_reveals_accepted_answers_and_alternatives(self):
+        response = self.client.get(f"/section/{self.section_slug}")
+        self.assertEqual(response.status_code, 200)
+        body = response.data.decode("utf-8")
+
+        prompt = "Отворен въпрос с алтернативи за преглед."
+        details_start = body.find(prompt)
+        self.assertNotEqual(details_start, -1)
+        details_start = body.find('<details class="answer-details">', details_start)
+        self.assertNotEqual(details_start, -1)
+        details_end = body.find("</details>", details_start)
+        self.assertNotEqual(details_end, -1)
+        details = body[details_start:details_end]
+
+        self.assertIn("<summary>Покажи отговорите</summary>", details)
+        self.assertIn("клиент", details)
+        self.assertIn("потребител", details)
+        self.assertIn("user", details)
+        self.assertIn("client", details)
+
+    def test_section_review_open_question_without_answer_shows_fallback(self):
+        response = self.client.get(f"/section/{self.section_slug}")
+        self.assertEqual(response.status_code, 200)
+        body = response.data.decode("utf-8")
+
+        prompt = "Отворен въпрос без въведен приет отговор."
+        details_start = body.find(prompt)
+        self.assertNotEqual(details_start, -1)
+        details_start = body.find('<details class="answer-details">', details_start)
+        details_end = body.find("</details>", details_start)
+        details = body[details_start:details_end]
+
+        self.assertIn("Няма въведен приет отговор", details)
+
+    def test_section_review_open_answers_are_escaped(self):
+        response = self.client.get(f"/section/{self.section_slug}")
+        self.assertEqual(response.status_code, 200)
+        body = response.data.decode("utf-8")
+
+        self.assertIn("&lt;script&gt;alert(&#34;x&#34;)&lt;/script&gt;", body)
+        self.assertNotIn('<script>alert("x")</script>', body)
+
+    def test_dzi_preparation_task_23_displays_correct_answer_when_present(self):
+        slug = web_app.dzi_source_slug(self.dzi_q23)
+        expected_answers = web_app.dzi_json_text_list(self.dzi_q23["correct_answer"])
+        self.assertTrue(expected_answers)
+
+        with self.client.session_transaction() as sess:
+            sess["admin_authenticated"] = True
+            sess["ui_profile"] = "admin"
+        response = self.client.get(f"/dzi/source/{slug}")
+        self.assertEqual(response.status_code, 200)
+        body = response.data.decode("utf-8")
+
+        task_start = body.find("Задача 23")
+        self.assertNotEqual(task_start, -1)
+        next_task = body.find("Задача 24", task_start)
+        task_html = body[task_start:next_task if next_task != -1 else len(body)]
+        self.assertIn(html.escape(expected_answers[0], quote=True), task_html)
 
 
 if __name__ == "__main__":
