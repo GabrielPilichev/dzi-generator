@@ -63,3 +63,7 @@ vault/_backup_initial_mocs/
 
 # Large/reference PDFs unless intentionally added later
 *.pdf
+
+# Generated local quiz/test artifacts
+vault/Generated/Quizzes/
+vault/Generated/DZI-Training/sets/
