@@ -607,6 +607,18 @@ def fetch_dzi_task_asset_counts(exam_id: int) -> dict[int, int]:
     return {int(row["task_number"]): int(row["asset_count"] or 0) for row in rows}
 
 
+def fetch_practical_resource_count(exam_id: int) -> int:
+    db = get_db()
+    row = db.execute("""
+        SELECT COUNT(*)
+        FROM practical_task_resources ptr
+        JOIN exam_tasks et ON et.id = ptr.exam_task_id
+        WHERE et.exam_id = ?
+          AND et.task_number BETWEEN 26 AND 28
+    """, (exam_id,)).fetchone()
+    return int(row[0] or 0)
+
+
 def fetch_dzi_question_options(question_id: int) -> list[dict]:
     db = get_db()
     rows = db.execute("""
@@ -894,7 +906,13 @@ def dzi_source_view(source_slug: str):
     if exam is None:
         abort(404)
     tasks = fetch_dzi_tasks(int(exam["id"]))
-    return render_template("dzi_source.html", exam=exam, tasks=tasks)
+    practical_resource_count = fetch_practical_resource_count(int(exam["id"]))
+    return render_template(
+        "dzi_source.html",
+        exam=exam,
+        tasks=tasks,
+        practical_resource_count=practical_resource_count,
+    )
 
 
 @app.route("/dzi/source/<source_slug>/practical")

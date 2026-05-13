@@ -74,8 +74,34 @@ class PracticalTaskDownloadsTest(unittest.TestCase):
                     task_number INTEGER NOT NULL,
                     task_kind TEXT NOT NULL,
                     points INTEGER NOT NULL,
+                    has_assets INTEGER DEFAULT 0,
                     prompt TEXT,
-                    rubric TEXT
+                    rubric TEXT,
+                    topic_id INTEGER
+                );
+                CREATE TABLE exam_task_questions (
+                    task_id INTEGER NOT NULL,
+                    question_id INTEGER NOT NULL,
+                    role TEXT NOT NULL
+                );
+                CREATE TABLE questions (
+                    id INTEGER PRIMARY KEY,
+                    prompt TEXT,
+                    question_type TEXT,
+                    topic_id INTEGER,
+                    is_ai_generated INTEGER DEFAULT 0,
+                    quality_score REAL
+                );
+                CREATE TABLE curriculum_topics (
+                    id INTEGER PRIMARY KEY,
+                    title_bg TEXT
+                );
+                CREATE TABLE asset_links (
+                    id INTEGER PRIMARY KEY,
+                    asset_id INTEGER,
+                    owner_type TEXT,
+                    owner_id INTEGER,
+                    role TEXT
                 );
                 CREATE TABLE practical_tasks (
                     task_id INTEGER PRIMARY KEY,
@@ -193,6 +219,23 @@ class PracticalTaskDownloadsTest(unittest.TestCase):
         self.assertIn("Instruction line one", html)
         self.assertIn("Shipments.xlsx", html)
         self.assertIn("/dzi/practical/resource/1/download", html)
+
+    def test_dzi_source_page_links_to_practical_tasks_when_resources_exist(self):
+        response = self.client.get("/dzi/source/may_2025_v2")
+
+        self.assertEqual(response.status_code, 200)
+        html = response.get_data(as_text=True)
+        self.assertIn("Практически задачи 26–28", html)
+        self.assertIn("/dzi/source/may_2025_v2/practical", html)
+        self.assertIn("2 файла за изтегляне", html)
+
+    def test_dzi_source_page_does_not_expose_raw_resource_paths(self):
+        response = self.client.get("/dzi/source/may_2025_v2")
+
+        self.assertEqual(response.status_code, 200)
+        html = response.get_data(as_text=True)
+        self.assertNotIn("data/reference/", html)
+        self.assertNotIn(str(self.project_root), html)
 
     def test_download_route_returns_valid_resource_file(self):
         response = self.client.get("/dzi/practical/resource/1/download")
