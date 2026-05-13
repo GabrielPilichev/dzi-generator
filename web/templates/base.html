@@ -6,6 +6,16 @@
     <title>{% block title %}LearnPilot{% endblock %}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/tokens.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/ui-pass9.css') }}">
+    <script>
+        if ("scrollRestoration" in history) {
+            history.scrollRestoration = "manual";
+        }
+        window.addEventListener("pageshow", function () {
+            if (!window.location.hash) {
+                window.scrollTo(0, 0);
+            }
+        });
+    </script>
 </head>
 <body>
     <div class="app-shell">
