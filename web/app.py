@@ -846,6 +846,96 @@ def fetch_practical_tasks(source_slug: str) -> tuple[dict, list[dict]] | None:
     return exam, tasks
 
 
+def sqlite_table_exists(conn: sqlite3.Connection, table_name: str) -> bool:
+    row = conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?",
+        (table_name,),
+    ).fetchone()
+    return row is not None
+
+
+def sqlite_table_columns(conn: sqlite3.Connection, table_name: str) -> set[str]:
+    return {
+        row["name"]
+        for row in conn.execute(f"PRAGMA table_info({table_name})").fetchall()
+    }
+
+
+def first_existing_column(columns: set[str], candidates: tuple[str, ...]) -> str | None:
+    for candidate in candidates:
+        if candidate in columns:
+            return candidate
+    return None
+
+
+def fetch_practical_submission_review(conn: sqlite3.Connection, submission_id: int) -> dict | None:
+    if sqlite_table_exists(conn, "practical_submission_grades"):
+        columns = sqlite_table_columns(conn, "practical_submission_grades")
+        if "practical_submission_id" in columns:
+            score_col = first_existing_column(columns, ("score", "manual_score"))
+            max_score_col = first_existing_column(columns, ("max_score", "manual_score_max"))
+            note_col = first_existing_column(columns, ("teacher_note", "teacher_note_bg", "note"))
+            reviewed_at_col = first_existing_column(columns, ("reviewed_at", "created_at", "updated_at"))
+            if score_col or note_col:
+                selected = []
+                aliases = {
+                    "score": score_col,
+                    "max_score": max_score_col,
+                    "teacher_note": note_col,
+                    "reviewed_at": reviewed_at_col,
+                }
+                for alias, column in aliases.items():
+                    if column:
+                        selected.append(f"{column} AS {alias}")
+                    else:
+                        selected.append(f"NULL AS {alias}")
+                order_by = first_existing_column(columns, ("id", "reviewed_at", "updated_at", "created_at"))
+                order_clause = f"ORDER BY {order_by} DESC" if order_by else ""
+                row = conn.execute(f"""
+                    SELECT {", ".join(selected)}
+                    FROM practical_submission_grades
+                    WHERE practical_submission_id = ?
+                    {order_clause}
+                    LIMIT 1
+                """, (submission_id,)).fetchone()
+                if row is not None:
+                    review = dict(row)
+                    if any(review.get(key) is not None for key in ("score", "max_score", "teacher_note", "reviewed_at")):
+                        return review
+
+    columns = sqlite_table_columns(conn, "practical_submissions")
+    score_col = first_existing_column(columns, ("manual_score", "score"))
+    max_score_col = first_existing_column(columns, ("manual_score_max", "max_score"))
+    note_col = first_existing_column(columns, ("teacher_note", "teacher_note_bg", "note"))
+    reviewed_at_col = first_existing_column(columns, ("reviewed_at",))
+    if not (score_col or note_col or reviewed_at_col):
+        return None
+
+    aliases = {
+        "score": score_col,
+        "max_score": max_score_col,
+        "teacher_note": note_col,
+        "reviewed_at": reviewed_at_col,
+    }
+    selected = []
+    for alias, column in aliases.items():
+        if column:
+            selected.append(f"{column} AS {alias}")
+        else:
+            selected.append(f"NULL AS {alias}")
+    row = conn.execute(f"""
+        SELECT {", ".join(selected)}
+        FROM practical_submissions
+        WHERE id = ?
+    """, (submission_id,)).fetchone()
+    if row is None:
+        return None
+    review = dict(row)
+    if any(review.get(key) is not None for key in ("score", "max_score", "teacher_note", "reviewed_at")):
+        return review
+    return None
+
+
 def fetch_practical_attempt_page(attempt_id: int, source_slug: str) -> tuple[dict, dict, list[dict]] | None:
     db = get_db()
     attempt_row = db.execute("""
@@ -868,6 +958,7 @@ def fetch_practical_attempt_page(attempt_id: int, source_slug: str) -> tuple[dic
             WHERE quiz_attempt_id = ? AND exam_task_id = ?
         """, (attempt_id, task["task_id"])).fetchone()
         task["submission"] = dict(submission) if submission else None
+        task["review"] = fetch_practical_submission_review(db, int(submission["id"])) if submission else None
         if submission:
             file_rows = db.execute("""
                 SELECT id, original_filename, size_bytes, mime_type, uploaded_at, is_deleted
