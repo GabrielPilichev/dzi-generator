@@ -1,5 +1,6 @@
 import atexit
 import os
+import random
 import shutil
 import sqlite3
 import tempfile
@@ -107,8 +108,17 @@ class MixedQuizPlanHelperTest(unittest.TestCase):
             source_slug="source_a",
         )
 
-        self.assertEqual([q["question_id"] for q in plan["closed_questions"]], [1, 2])
-        self.assertEqual([q["question_id"] for q in plan["open_questions"]], [3, 4])
+        # When the pool size equals the requested count, the full pool must
+        # be returned. The internal order is randomized (see fix for
+        # repeated-test bug), so compare as sets.
+        self.assertEqual(
+            {q["question_id"] for q in plan["closed_questions"]},
+            {1, 2},
+        )
+        self.assertEqual(
+            {q["question_id"] for q in plan["open_questions"]},
+            {3, 4},
+        )
         self.assertEqual(plan["requested_closed_count"], 2)
         self.assertEqual(plan["requested_open_count"], 2)
         self.assertEqual(plan["available_closed_count"], 2)
