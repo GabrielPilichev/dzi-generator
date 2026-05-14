@@ -56,13 +56,36 @@
   <form method="post" id="quiz-form" data-attempt-id="{{ attempt.id }}">
     <input type="hidden" name="submission_reason" id="submission-reason" value="manual">
     <p id="draft-status" class="muted draft-status" hidden></p>
+    {% if questions %}
+      <section
+        id="quiz-progress"
+        class="quiz-progress"
+        aria-label="Прогрес"
+        data-total="{{ questions|length }}"
+      >
+        <p class="quiz-progress-text">
+          Отговорени: <span id="quiz-progress-count">0</span>
+          от <span id="quiz-progress-total">{{ questions|length }}</span>
+        </p>
+        <progress
+          id="quiz-progress-bar"
+          class="quiz-progress-bar"
+          max="{{ questions|length }}"
+          value="0"
+        ></progress>
+      </section>
+    {% endif %}
     {% if submit_error %}
       <section class="warning warning--spaced">
         {{ submit_error }}
       </section>
     {% endif %}
     {% for q in questions %}
-      <article class="card question-card quiz-card">
+      <article
+        class="card question-card quiz-card"
+        data-question-id="{{ q.id }}"
+        data-question-type="{{ q.question_type }}"
+      >
         <h2>Въпрос {{ loop.index }} от {{ questions|length }}</h2>
         {% set difficulty_label = question_difficulty_label(q.difficulty) %}
         {% if difficulty_label %}
@@ -108,6 +131,7 @@
   </form>
 
   <script src="{{ url_for('static', filename='js/quiz-draft-autosave.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='js/quiz-progress-indicator.js') }}" defer></script>
 {% endif %}
 
 <script>
