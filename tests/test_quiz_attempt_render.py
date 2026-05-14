@@ -1519,6 +1519,87 @@ class QuizAttemptRenderTest(unittest.TestCase):
         self.assertIn(self._TEACHER_NOTE_ESCAPED, body)
         self.assertNotIn(self._TEACHER_NOTE_PAYLOAD, body)
 
+    # ------------------------------------------------------------------
+    # Client-side draft autosave / restore (template-level coverage)
+    # ------------------------------------------------------------------
+
+    def test_active_attempt_page_includes_autosave_script(self):
+        _assignment_id, attempt_id = self._create_attempt(
+            [self.valid_question_id],
+            submitted=False,
+            student_name="Autosave Active",
+        )
+        response = self.client.get(f"/quiz/attempt/{attempt_id}")
+        self.assertEqual(response.status_code, 200)
+        body = response.data.decode("utf-8")
+        self.assertIn('src="/static/js/quiz-draft-autosave.js"', body)
+        # Form has the attempt-specific marker that drives the storage key.
+        self.assertIn(f'data-attempt-id="{attempt_id}"', body)
+        # Hidden status target for the "Черновата е запазена" message.
+        self.assertIn('id="draft-status"', body)
+
+    def test_active_attempt_inputs_have_stable_names_for_autosave(self):
+        _assignment_id, attempt_id, open_question_id = self._create_mixed_planned_attempt(
+            student_name="Autosave Names",
+        )
+        response = self.client.get(f"/quiz/attempt/{attempt_id}")
+        self.assertEqual(response.status_code, 200)
+        body = response.data.decode("utf-8")
+        # MC inputs are named q_<question_id>; open inputs are
+        # open_q_<question_id>_<subquestion_number>. The autosave JS keys on
+        # these exact prefixes — locking them in protects the contract.
+        self.assertRegex(body, r'name="q_\d+"')
+        self.assertIn(f'name="open_q_{open_question_id}_1"', body)
+        self.assertIn(f'name="open_q_{open_question_id}_2"', body)
+
+    def test_active_autosave_script_is_not_served_on_result_page(self):
+        _assignment_id, attempt_id = self._create_attempt(
+            [self.valid_question_id],
+            student_name="Autosave Result",
+        )
+        response = self.client.get(f"/quiz/attempt/{attempt_id}/result")
+        self.assertEqual(response.status_code, 200)
+        body = response.data.decode("utf-8")
+        self.assertNotIn("quiz-draft-autosave.js", body)
+
+    def test_result_page_clears_draft_storage_for_this_attempt(self):
+        _assignment_id, attempt_id = self._create_attempt(
+            [self.valid_question_id],
+            student_name="Autosave Clear",
+        )
+        response = self.client.get(f"/quiz/attempt/{attempt_id}/result")
+        self.assertEqual(response.status_code, 200)
+        body = response.data.decode("utf-8")
+        self.assertIn('id="quiz-draft-clear"', body)
+        self.assertIn(f'data-attempt-id="{attempt_id}"', body)
+        self.assertIn(f'"learnpilot:quiz-draft:" + attemptId', body)
+        self.assertIn("localStorage.removeItem", body)
+
+    def test_stale_attempt_page_does_not_include_autosave_script(self):
+        _assignment_id, attempt_id = self._create_attempt(
+            [self.invalid_question_id],
+            submitted=False,
+            student_name="Autosave Stale",
+        )
+        response = self.client.get(f"/quiz/attempt/{attempt_id}")
+        self.assertEqual(response.status_code, 200)
+        body = response.data.decode("utf-8")
+        # Stale-attempt branch renders only the warning, no form / no script.
+        self.assertIn(STALE_MESSAGE, body)
+        self.assertNotIn("quiz-draft-autosave.js", body)
+        self.assertNotIn('id="quiz-form"', body)
+
+    def test_autosave_static_asset_is_served_and_uses_attempt_key(self):
+        asset = self.client.get("/static/js/quiz-draft-autosave.js")
+        self.assertEqual(asset.status_code, 200)
+        body = asset.get_data(as_text=True)
+        # The key is attempt-scoped: drafts cannot leak across attempts.
+        self.assertIn('"learnpilot:quiz-draft:" + attemptId', body)
+        # Restore looks for q_/open_q_ names; malformed JSON is guarded.
+        self.assertIn('JSON.parse', body)
+        self.assertIn('open_q_', body)
+        self.assertIn('q_', body)
+
 
 if __name__ == "__main__":
     unittest.main()
