@@ -1562,18 +1562,20 @@ class QuizAttemptRenderTest(unittest.TestCase):
         body = response.data.decode("utf-8")
         self.assertNotIn("quiz-draft-autosave.js", body)
 
-    def test_result_page_clears_draft_storage_for_this_attempt(self):
+    def test_result_page_does_not_include_active_autosave_wiring(self):
+        # The active-page autosave script restores drafts; the result page
+        # must not run it, so an answered/submitted attempt does not get
+        # answers re-populated from localStorage.
         _assignment_id, attempt_id = self._create_attempt(
             [self.valid_question_id],
-            student_name="Autosave Clear",
+            student_name="Autosave Result Clean",
         )
         response = self.client.get(f"/quiz/attempt/{attempt_id}/result")
         self.assertEqual(response.status_code, 200)
         body = response.data.decode("utf-8")
-        self.assertIn('id="quiz-draft-clear"', body)
-        self.assertIn(f'data-attempt-id="{attempt_id}"', body)
-        self.assertIn(f'"learnpilot:quiz-draft:" + attemptId', body)
-        self.assertIn("localStorage.removeItem", body)
+        self.assertNotIn("quiz-draft-autosave.js", body)
+        self.assertNotIn('data-attempt-id=', body)
+        self.assertNotIn('id="quiz-form"', body)
 
     def test_stale_attempt_page_does_not_include_autosave_script(self):
         _assignment_id, attempt_id = self._create_attempt(
@@ -1599,6 +1601,96 @@ class QuizAttemptRenderTest(unittest.TestCase):
         self.assertIn('JSON.parse', body)
         self.assertIn('open_q_', body)
         self.assertIn('q_', body)
+
+    # ------------------------------------------------------------------
+    # Live progress indicator (template-level coverage)
+    # ------------------------------------------------------------------
+
+    def test_active_attempt_page_renders_progress_container(self):
+        _assignment_id, attempt_id = self._create_attempt(
+            [self.valid_question_id],
+            submitted=False,
+            student_name="Progress Active",
+        )
+        response = self.client.get(f"/quiz/attempt/{attempt_id}")
+        self.assertEqual(response.status_code, 200)
+        body = response.data.decode("utf-8")
+        self.assertIn('id="quiz-progress"', body)
+        self.assertIn('data-total="1"', body)
+        self.assertIn("Отговорени:", body)
+        self.assertIn('id="quiz-progress-count">0</span>', body)
+        self.assertIn('id="quiz-progress-total">1</span>', body)
+        self.assertIn('id="quiz-progress-bar"', body)
+        self.assertIn('max="1"', body)
+        self.assertIn('value="0"', body)
+        self.assertIn('src="/static/js/quiz-progress-indicator.js"', body)
+
+    def test_active_question_cards_carry_progress_data_attributes(self):
+        _assignment_id, attempt_id = self._create_attempt(
+            [self.valid_question_id],
+            submitted=False,
+            student_name="Progress Attributes",
+        )
+        response = self.client.get(f"/quiz/attempt/{attempt_id}")
+        self.assertEqual(response.status_code, 200)
+        body = response.data.decode("utf-8")
+        # The progress JS counts answered cards by these attributes.
+        self.assertRegex(body, r'data-question-id="\d+"')
+        self.assertIn('data-question-type="multiple_choice"', body)
+
+    def test_mixed_attempt_progress_total_includes_open_questions(self):
+        _assignment_id, attempt_id, open_question_id = self._create_mixed_planned_attempt(
+            student_name="Progress Mixed",
+        )
+        response = self.client.get(f"/quiz/attempt/{attempt_id}")
+        self.assertEqual(response.status_code, 200)
+        body = response.data.decode("utf-8")
+        # Mixed attempt has 1 MC + 1 open question → total = 2.
+        self.assertIn('data-total="2"', body)
+        self.assertIn('id="quiz-progress-total">2</span>', body)
+        self.assertIn('max="2"', body)
+        # Both question types are marked so the script can count both kinds.
+        self.assertIn('data-question-type="multiple_choice"', body)
+        self.assertIn('data-question-type="fill_in"', body)
+        self.assertIn(f'data-question-id="{open_question_id}"', body)
+
+    def test_result_page_does_not_include_progress_indicator(self):
+        _assignment_id, attempt_id = self._create_attempt(
+            [self.valid_question_id],
+            student_name="Progress Result",
+        )
+        response = self.client.get(f"/quiz/attempt/{attempt_id}/result")
+        self.assertEqual(response.status_code, 200)
+        body = response.data.decode("utf-8")
+        self.assertNotIn("quiz-progress-indicator.js", body)
+        self.assertNotIn('id="quiz-progress"', body)
+        self.assertNotIn('id="quiz-progress-bar"', body)
+
+    def test_stale_attempt_page_does_not_include_progress_indicator(self):
+        _assignment_id, attempt_id = self._create_attempt(
+            [self.invalid_question_id],
+            submitted=False,
+            student_name="Progress Stale",
+        )
+        response = self.client.get(f"/quiz/attempt/{attempt_id}")
+        self.assertEqual(response.status_code, 200)
+        body = response.data.decode("utf-8")
+        self.assertIn(STALE_MESSAGE, body)
+        self.assertNotIn("quiz-progress-indicator.js", body)
+        self.assertNotIn('id="quiz-progress"', body)
+
+    def test_progress_static_asset_is_served_and_counts_both_types(self):
+        asset = self.client.get("/static/js/quiz-progress-indicator.js")
+        self.assertEqual(asset.status_code, 200)
+        body = asset.get_data(as_text=True)
+        # The progress script reads cards via data-question-id and decides
+        # answered-ness using the data-question-type marker.
+        self.assertIn("data-question-id", body)
+        self.assertIn("data-question-type", body)
+        self.assertIn("multiple_choice", body)
+        self.assertIn('input[type="radio"]:checked', body)
+        # Open-answer detection: any non-blank open_q_ field counts.
+        self.assertIn('open_q_', body)
 
 
 if __name__ == "__main__":

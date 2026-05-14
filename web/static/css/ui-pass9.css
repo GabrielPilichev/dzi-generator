@@ -1437,3 +1437,46 @@ footer {
   font-size: 0.84rem;
   color: var(--color-text-muted);
 }
+
+.quiz-progress {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  margin-bottom: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-subtle);
+}
+.quiz-progress-text {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--color-text-muted);
+}
+.quiz-progress-text #quiz-progress-count {
+  color: var(--color-text);
+}
+.quiz-progress-bar {
+  width: 100%;
+  height: 8px;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--color-bg);
+  overflow: hidden;
+  appearance: none;
+  -webkit-appearance: none;
+}
+.quiz-progress-bar::-webkit-progress-bar {
+  background: var(--color-bg);
+  border-radius: var(--radius-pill);
+}
+.quiz-progress-bar::-webkit-progress-value {
+  background: var(--color-primary);
+  border-radius: var(--radius-pill);
+  transition: width var(--t-base);
+}
+.quiz-progress-bar::-moz-progress-bar {
+  background: var(--color-primary);
+  border-radius: var(--radius-pill);
+}
