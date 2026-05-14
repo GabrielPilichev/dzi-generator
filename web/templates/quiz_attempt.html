@@ -53,8 +53,9 @@
     {{ stale_attempt_message }}
   </section>
 {% else %}
-  <form method="post" id="quiz-form">
+  <form method="post" id="quiz-form" data-attempt-id="{{ attempt.id }}">
     <input type="hidden" name="submission_reason" id="submission-reason" value="manual">
+    <p id="draft-status" class="muted draft-status" hidden></p>
     {% if submit_error %}
       <section class="warning warning--spaced">
         {{ submit_error }}
@@ -105,6 +106,8 @@
 
     <button type="submit">Предай теста</button>
   </form>
+
+  <script src="{{ url_for('static', filename='js/quiz-draft-autosave.js') }}" defer></script>
 {% endif %}
 
 <script>
