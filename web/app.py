@@ -1768,9 +1768,17 @@ def build_mixed_quiz_plan(
     source_slug: str | None = None,
     open_source_slug: str | None = None,
     section_id: int | None = None,
+    rng: "_quiz_random.Random | None" = None,
 ) -> dict:
     if closed_count < 0 or open_count < 0:
         raise ValueError("closed_count and open_count must be non-negative")
+    # Randomization happens at plan-creation time so that two new assignments
+    # for the same section/count pick different question sets when the pool
+    # is large enough. Callers can pass a seeded ``rng`` for deterministic
+    # tests; the persisted ``question_plan_json`` keeps a *single* fixed
+    # selection per assignment, so already-started attempts never reshuffle.
+    if rng is None:
+        rng = _quiz_random.Random()
 
     params = []
     source_filter = ""
@@ -1820,13 +1828,30 @@ def build_mixed_quiz_plan(
     )
 
     return {
-        "closed_questions": closed_candidates[:closed_count],
-        "open_questions": open_candidates[:open_count],
+        "closed_questions": _quiz_random_sample(rng, closed_candidates, closed_count),
+        "open_questions": _quiz_random_sample(rng, open_candidates, open_count),
         "requested_closed_count": closed_count,
         "requested_open_count": open_count,
         "available_closed_count": len(closed_candidates),
         "available_open_count": len(open_candidates),
     }
+
+
+def _quiz_random_sample(rng, population, k):
+    """Sample up to k items from population without replacement.
+
+    Returns the full population (in random order) when k >= len(population).
+    Returns [] for empty input or non-positive k. The order of the returned
+    items is randomized so that the persisted question_plan_json varies
+    across new assignments even when the pool is small.
+    """
+    if k <= 0 or not population:
+        return []
+    pool = list(population)
+    if k >= len(pool):
+        rng.shuffle(pool)
+        return pool
+    return rng.sample(pool, k)
 
 
 def insert_quiz_text_answer(
