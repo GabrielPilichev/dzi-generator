@@ -58,57 +58,47 @@
     <a href="{{ url_for('teacher_assignments') }}">виж всички</a>
   </div>
 
-  {% if recent_assignments %}
-    <table>
-      <thead>
-        <tr>
-          <th>ID</th>
-          <th>Тест</th>
-          <th>Раздел</th>
-          <th>Въпроси</th>
-          <th>Опити</th>
-          <th>Създаден</th>
-          <th>Връзки</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for a in recent_assignments %}
-          <tr>
-            <td>{{ a.id }}</td>
-            <td>
-              <strong>{{ a.title_bg }}</strong>
-              {% if a.mixed_status and a.mixed_status.is_mixed %}
-                <div class="badges">
-                  <span class="pill pill--mixed">Смесен · {{ a.mixed_status.open_count }} отворени</span>
-                  {% if a.mixed_status.combined_score %}
-                    <span class="pill pill--combined">Сборен резултат</span>
+  {% if recent_assignments_by_class %}
+    <div class="assignment-groups">
+      {% for group in recent_assignments_by_class %}
+        <section class="assignment-group">
+          <h3>{{ group.class }}. клас</h3>
+          <div class="assignment-group-list">
+            {% for a in group.assignments %}
+              <article class="assignment-mini-card">
+                <div>
+                  <strong>{{ a.title_bg }}</strong>
+                  <div class="badges">
+                    <span class="pill">{{ a.class }}. клас</span>
+                    {% if a.mixed_status and a.mixed_status.is_mixed %}
+                      <span class="pill pill--mixed">Смесен · {{ a.mixed_status.open_count }} отворени</span>
+                      {% if a.mixed_status.combined_score %}
+                        <span class="pill pill--combined">Сборен резултат</span>
+                      {% endif %}
+                    {% endif %}
+                  </div>
+                  <div class="muted">{{ a.section_title }} · {{ a.section_slug }}</div>
+                  <div class="muted">Учител: {{ a.teacher_label }}</div>
+                  {% if a.time_limit_minutes %}
+                    <div class="muted">Време: {{ a.time_limit_minutes }} мин.</div>
                   {% endif %}
                 </div>
-              {% endif %}
-              {% if a.time_limit_minutes %}
-                <div class="muted">Време: {{ a.time_limit_minutes }} мин.</div>
-              {% endif %}
-            </td>
-            <td>
-              {{ a.section_title }}
-              <div class="muted">{{ a.class }}. клас · {{ a.section_slug }}</div>
-            </td>
-            <td>{{ a.question_count }}</td>
-            <td>
-              {{ a.attempts_count or 0 }}
-              <div class="muted">предадени: {{ a.submitted_count or 0 }}</div>
-            </td>
-            <td>{{ a.created_at }}</td>
-            <td>
-              <div class="links">
-                <a href="{{ url_for('teacher_assignment', assignment_id=a.id) }}">детайли</a>
-                <a href="{{ url_for('teacher_assignment_results', assignment_id=a.id) }}">резултати</a>
-              </div>
-            </td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+                <div class="assignment-mini-meta">
+                  <span>{{ a.question_count }} въпроса</span>
+                  <span>{{ a.attempts_count or 0 }} опита</span>
+                  <span>предадени: {{ a.submitted_count or 0 }}</span>
+                  <span>{{ a.created_at }}</span>
+                  <div class="links">
+                    <a href="{{ url_for('teacher_assignment', assignment_id=a.id) }}">детайли</a>
+                    <a href="{{ url_for('teacher_assignment_results', assignment_id=a.id) }}">резултати</a>
+                  </div>
+                </div>
+              </article>
+            {% endfor %}
+          </div>
+        </section>
+      {% endfor %}
+    </div>
   {% else %}
     <p class="empty-state">Все още няма създадени тестове.</p>
   {% endif %}
