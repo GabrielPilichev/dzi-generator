@@ -2683,6 +2683,7 @@ def filter_renderable_attempt_question_ids(
 
 
 QUIZ_DURATION_FALLBACK_BG = "Няма данни за време"
+QUIZ_SUCCESS_RATE_FALLBACK_BG = "Няма данни за успеваемост"
 
 
 def quiz_parse_timestamp_utc(raw_value) -> _quiz_datetime | None:
@@ -2730,6 +2731,32 @@ def quiz_format_duration(seconds: int) -> str:
 
 def quiz_attempt_duration_display(attempt) -> str:
     return quiz_format_duration(quiz_time_taken_seconds(attempt))
+
+
+def quiz_success_rate_percent(score_correct, score_total) -> float | None:
+    try:
+        total = float(score_total)
+        correct = float(score_correct or 0)
+    except (TypeError, ValueError):
+        return None
+    if total <= 0:
+        return None
+    percent = (correct / total) * 100.0
+    return max(0.0, min(100.0, percent))
+
+
+def quiz_success_rate_display(score_correct, score_total) -> str:
+    percent = quiz_success_rate_percent(score_correct, score_total)
+    if percent is None:
+        return QUIZ_SUCCESS_RATE_FALLBACK_BG
+    rounded = round(percent, 1)
+    if rounded.is_integer():
+        return f"{int(rounded)}%"
+    return f"{rounded:.1f}%"
+
+
+def quiz_attempt_success_rate_display(attempt) -> str:
+    return quiz_success_rate_display(attempt["score_correct"], attempt["score_total"])
 
 
 def quiz_current_timestamp() -> _quiz_datetime:
@@ -3829,6 +3856,7 @@ def teacher_assignment_results(assignment_id):
         {
             **dict(attempt),
             "duration_display": quiz_attempt_duration_display(attempt) if attempt["submitted_at"] else QUIZ_DURATION_FALLBACK_BG,
+            "success_rate_display": quiz_attempt_success_rate_display(attempt) if attempt["submitted_at"] else QUIZ_SUCCESS_RATE_FALLBACK_BG,
         }
         for attempt in attempts
     ]
@@ -4389,6 +4417,7 @@ def quiz_result(attempt_id):
         enabled=bool(attempt_question_plan["include_open_answers_in_final_score"]),
     )
     time_taken = quiz_attempt_duration_display(attempt)
+    success_rate = quiz_attempt_success_rate_display(attempt)
     conn.close()
 
     return _quiz_render_template(
@@ -4397,6 +4426,7 @@ def quiz_result(attempt_id):
         attempt=attempt,
         questions=questions,
         time_taken=time_taken,
+        success_rate=success_rate,
         open_text_answers=open_text_answers,
         open_text_subtotal=open_text_subtotal,
         combined_score=combined_score,
