@@ -7,8 +7,9 @@ import argparse
 import hashlib
 import sqlite3
 import sys
+import zipfile
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT) not in sys.path:
@@ -17,9 +18,11 @@ if str(PROJECT_ROOT) not in sys.path:
 from src.validate_practical_task_batch import (
     ALLOWED_RESOURCE_ROOTS,
     DEFAULT_DB_PATH,
+    ZIP_RESOURCE_SEPARATOR,
     load_json,
     resolve_exam,
     resolve_exam_task,
+    validate_zip_resource_path,
     validate_batch,
 )
 
@@ -56,7 +59,23 @@ def ensure_target_schema(conn: sqlite3.Connection) -> None:
         )
 
 
-def resource_metadata(raw_path: str) -> dict[str, object]:
+def resource_metadata(
+    raw_path: str,
+    *,
+    allowed_roots: tuple[Path, ...] = ALLOWED_RESOURCE_ROOTS,
+) -> dict[str, object]:
+    if ZIP_RESOURCE_SEPARATOR in raw_path:
+        zip_path, member_path = validate_zip_resource_path(raw_path, allowed_roots)
+        with zipfile.ZipFile(zip_path) as archive:
+            info = archive.getinfo(member_path)
+        return {
+            "resource_path": raw_path,
+            "original_filename": PurePosixPath(member_path).name,
+            "label_bg": None,
+            "file_size_bytes": int(info.file_size),
+            "sha256": None,
+        }
+
     path = Path(raw_path)
     stat = path.stat()
     return {
@@ -165,7 +184,7 @@ def import_practical_task_resources(
             result = upsert_resource(
                 conn,
                 exam_task_id=exam_task_id,
-                metadata=resource_metadata(raw_path),
+                metadata=resource_metadata(raw_path, allowed_roots=allowed_roots),
             )
             if result == "inserted":
                 summary.inserted += 1

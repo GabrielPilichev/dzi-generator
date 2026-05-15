@@ -19,8 +19,9 @@ import json
 import os
 import sqlite3
 import sys
+import zipfile
 from dataclasses import dataclass, field
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from urllib.parse import quote
 
 
@@ -37,6 +38,7 @@ SUBJECT = "informatika_it"
 LEVEL = "DZI"
 FORMAT_VERSION = "dzi_it_pp_2025_format"
 SESSION_BY_PREFIX = {"may": "may", "aug": "august"}
+ZIP_RESOURCE_SEPARATOR = "::"
 
 
 @dataclass
@@ -161,6 +163,8 @@ def validate_resource_path(
     path = Path(raw_path)
     if path.is_absolute():
         raise ValueError(f"resource path must be relative, got absolute: {raw_path}")
+    if ".." in path.parts:
+        raise ValueError(f"resource path must not contain '..': {raw_path}")
     normalised = os.path.normpath(raw_path)
     if normalised.startswith("..") or os.sep + ".." + os.sep in os.sep + normalised + os.sep:
         raise ValueError(f"resource path must not traverse upward: {raw_path}")
@@ -176,6 +180,56 @@ def validate_resource_path(
     if not path.is_file():
         raise ValueError(f"resource path is not a regular file: {raw_path}")
     return path
+
+
+def validate_zip_member_path(member_path: str) -> str:
+    if not isinstance(member_path, str) or not member_path.strip():
+        raise ValueError("ZIP member path must be a non-empty string")
+    if member_path.startswith(("/", "\\")):
+        raise ValueError(f"ZIP member path must be relative: {member_path}")
+    normalised = member_path.replace("\\", "/")
+    path = PurePosixPath(normalised)
+    if path.is_absolute():
+        raise ValueError(f"ZIP member path must be relative: {member_path}")
+    if any(part in ("", ".", "..") for part in path.parts):
+        raise ValueError(f"ZIP member path must not contain traversal: {member_path}")
+    if path.parts and path.parts[0] == "__MACOSX":
+        raise ValueError(f"__MACOSX ZIP metadata entries are not valid resources: {member_path}")
+    return path.as_posix()
+
+
+def validate_zip_resource_path(
+    raw_path: str,
+    allowed_roots: tuple[Path, ...],
+) -> tuple[Path, str]:
+    zip_path_raw, member_path_raw = raw_path.split(ZIP_RESOURCE_SEPARATOR, 1)
+    if not zip_path_raw.strip():
+        raise ValueError("ZIP resource path is missing the ZIP file path")
+
+    zip_path = validate_resource_path(zip_path_raw, allowed_roots)
+    member_path = validate_zip_member_path(member_path_raw)
+
+    try:
+        with zipfile.ZipFile(zip_path) as archive:
+            names = set(archive.namelist())
+    except zipfile.BadZipFile as exc:
+        raise ValueError(f"resource ZIP is not a valid ZIP file: {zip_path_raw}") from exc
+
+    if member_path not in names:
+        raise ValueError(f"ZIP member does not exist: {member_path}")
+    return zip_path, member_path
+
+
+def validate_resource_reference(
+    raw_path: str,
+    allowed_roots: tuple[Path, ...],
+) -> None:
+    if not isinstance(raw_path, str) or not raw_path.strip():
+        raise ValueError("resource_files entries must be non-empty strings")
+    if ZIP_RESOURCE_SEPARATOR in raw_path:
+        validate_zip_resource_path(raw_path, allowed_roots)
+        return
+    validate_resource_path(raw_path, allowed_roots)
 
 
 def validate_task(
@@ -247,7 +301,7 @@ def validate_task(
                 f"task_number {task_number}: resource_files must be a list"
             )
         for raw_path in resource_files:
-            validate_resource_path(raw_path, allowed_roots)
+            validate_resource_reference(raw_path, allowed_roots)
             summary.resource_files_checked += 1
 
     expected_outputs = task.get("expected_outputs")

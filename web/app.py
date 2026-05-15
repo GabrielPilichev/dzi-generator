@@ -813,6 +813,8 @@ def load_practical_task_batch(source_slug: str) -> dict[int, dict]:
 def practical_resource_safe_path(resource_path: str | None) -> Path | None:
     if not isinstance(resource_path, str) or not resource_path.strip():
         return None
+    if "::" in resource_path:
+        return None
     raw_path = Path(resource_path)
     if raw_path.is_absolute() or ".." in raw_path.parts:
         return None

@@ -3,6 +3,7 @@ import os
 import sqlite3
 import tempfile
 import unittest
+import zipfile
 from pathlib import Path
 
 from src.validate_practical_task_batch import (
@@ -81,6 +82,12 @@ class ValidatePracticalTaskBatchTest(unittest.TestCase):
         self.resource_file = self.reference_root / "Shipments.xlsx"
         self.resource_file.write_bytes(b"PK fake xlsx")
         self.resource_relpath = str(self.resource_file)
+        self.zip_file = self.reference_root / "resources.zip"
+        with zipfile.ZipFile(self.zip_file, "w") as archive:
+            archive.writestr("task_26/Zoomag.xlsx", b"fake xlsx")
+            archive.writestr("task_27/image.jpg", b"fake jpg")
+            archive.writestr("__MACOSX/task_26/Zoomag.xlsx", b"metadata")
+        self.zip_resource_ref = f"{self.zip_file}::task_26/Zoomag.xlsx"
 
     def test_minimal_valid_practical_batch_passes(self):
         conn = make_conn()
@@ -92,6 +99,78 @@ class ValidatePracticalTaskBatchTest(unittest.TestCase):
             self.assertEqual(summary.source_slug, "may_2025_v2")
             self.assertEqual(summary.exam_id, 1)
             self.assertEqual(conn.total_changes, before)
+        finally:
+            conn.close()
+
+    def test_zip_internal_resource_reference_passes(self):
+        conn = make_conn()
+        try:
+            summary = validate_batch(conn, base_payload(self.zip_resource_ref))
+            self.assertEqual(summary.tasks_read, 1)
+            self.assertEqual(summary.resource_files_checked, 1)
+        finally:
+            conn.close()
+
+    def test_missing_zip_file_is_rejected(self):
+        conn = make_conn()
+        try:
+            ref = "data/reference/may_2025_v2/practical/missing.zip::task_26/Zoomag.xlsx"
+            with self.assertRaisesRegex(ValueError, "resource file does not exist"):
+                validate_batch(conn, base_payload(ref))
+        finally:
+            conn.close()
+
+    def test_missing_zip_member_is_rejected(self):
+        conn = make_conn()
+        try:
+            ref = f"{self.zip_file}::task_26/missing.xlsx"
+            with self.assertRaisesRegex(ValueError, "ZIP member does not exist"):
+                validate_batch(conn, base_payload(ref))
+        finally:
+            conn.close()
+
+    def test_path_traversal_in_zip_path_is_rejected(self):
+        conn = make_conn()
+        try:
+            ref = f"{self.reference_root}/../resources.zip::task_26/Zoomag.xlsx"
+            with self.assertRaisesRegex(ValueError, "must not contain '\\.\\.'"):
+                validate_batch(conn, base_payload(ref))
+        finally:
+            conn.close()
+
+    def test_path_traversal_in_zip_member_is_rejected(self):
+        conn = make_conn()
+        try:
+            ref = f"{self.zip_file}::task_26/../secret.xlsx"
+            with self.assertRaisesRegex(ValueError, "ZIP member path must not contain traversal"):
+                validate_batch(conn, base_payload(ref))
+        finally:
+            conn.close()
+
+    def test_absolute_zip_path_is_rejected(self):
+        conn = make_conn()
+        try:
+            ref = f"{Path(self.zip_file).resolve()}::task_26/Zoomag.xlsx"
+            with self.assertRaisesRegex(ValueError, "resource path must be relative"):
+                validate_batch(conn, base_payload(ref))
+        finally:
+            conn.close()
+
+    def test_absolute_zip_member_path_is_rejected(self):
+        conn = make_conn()
+        try:
+            ref = f"{self.zip_file}::/task_26/Zoomag.xlsx"
+            with self.assertRaisesRegex(ValueError, "ZIP member path must be relative"):
+                validate_batch(conn, base_payload(ref))
+        finally:
+            conn.close()
+
+    def test_macosx_zip_member_is_rejected(self):
+        conn = make_conn()
+        try:
+            ref = f"{self.zip_file}::__MACOSX/task_26/Zoomag.xlsx"
+            with self.assertRaisesRegex(ValueError, "__MACOSX ZIP metadata"):
+                validate_batch(conn, base_payload(ref))
         finally:
             conn.close()
 

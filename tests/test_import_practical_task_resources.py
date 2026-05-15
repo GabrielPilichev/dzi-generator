@@ -2,6 +2,7 @@ import os
 import sqlite3
 import tempfile
 import unittest
+import zipfile
 from pathlib import Path
 
 from src.import_practical_task_resources import import_practical_task_resources
@@ -93,6 +94,10 @@ class ImportPracticalTaskResourcesTest(unittest.TestCase):
         self.resource = self.reference_root / "Shipments.xlsx"
         self.resource.write_bytes(b"fake xlsx")
         self.resource_path = str(self.resource)
+        self.zip_file = self.reference_root / "resources.zip"
+        with zipfile.ZipFile(self.zip_file, "w") as archive:
+            archive.writestr("task_26/Zoomag.xlsx", b"zip xlsx")
+        self.zip_resource_path = f"{self.zip_file}::task_26/Zoomag.xlsx"
 
     def test_valid_import_inserts_resource_rows(self):
         conn = make_conn()
@@ -113,6 +118,35 @@ class ImportPracticalTaskResourcesTest(unittest.TestCase):
             self.assertIsNone(row["label_bg"])
             self.assertEqual(row["file_size_bytes"], len(b"fake xlsx"))
             self.assertEqual(len(row["sha256"]), 64)
+        finally:
+            conn.close()
+
+    def test_zip_internal_resource_import_is_idempotent(self):
+        conn = make_conn()
+        try:
+            first = import_practical_task_resources(conn, payload(self.zip_resource_path))
+            self.assertEqual(first.inserted, 1)
+            self.assertEqual(first.updated, 0)
+            self.assertEqual(first.unchanged, 0)
+
+            second = import_practical_task_resources(conn, payload(self.zip_resource_path))
+            self.assertEqual(second.inserted, 0)
+            self.assertEqual(second.updated, 0)
+            self.assertEqual(second.unchanged, 1)
+
+            rows = conn.execute("""
+                SELECT exam_task_id, resource_path, original_filename,
+                       label_bg, file_size_bytes, sha256
+                FROM practical_task_resources
+            """).fetchall()
+            self.assertEqual(len(rows), 1)
+            row = rows[0]
+            self.assertEqual(row["exam_task_id"], 126)
+            self.assertEqual(row["resource_path"], self.zip_resource_path)
+            self.assertEqual(row["original_filename"], "Zoomag.xlsx")
+            self.assertIsNone(row["label_bg"])
+            self.assertEqual(row["file_size_bytes"], len(b"zip xlsx"))
+            self.assertIsNone(row["sha256"])
         finally:
             conn.close()
 
