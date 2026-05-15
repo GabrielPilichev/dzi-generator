@@ -234,6 +234,27 @@ class AuthGuardTest(unittest.TestCase):
         self.assertEqual(tester_response.status_code, 302)
         self.assertEqual(tester_response.headers["Location"], "/teacher/new")
 
+    def test_mobile_profile_menu_reflects_tester_session(self):
+        self._login_tester()
+        response = self.client.get("/")
+        self.assertEqual(response.status_code, 200)
+        body = response.data.decode("utf-8")
+        self.assertIn('class="mobile-profile-menu"', body)
+        self.assertIn("<summary>Профил</summary>", body)
+        self.assertIn("Тестер", body)
+        self.assertIn('href="/tester/logout"', body)
+        self.assertIn("Вход за админ", body)
+
+    def test_mobile_profile_menu_reflects_admin_session(self):
+        self._login_admin()
+        response = self.client.get("/")
+        self.assertEqual(response.status_code, 200)
+        body = response.data.decode("utf-8")
+        self.assertIn('class="mobile-profile-menu"', body)
+        self.assertIn("<summary>Профил</summary>", body)
+        self.assertIn("Админ", body)
+        self.assertIn('href="/admin/logout"', body)
+
     def test_admin_login_with_cyrillic_wrong_password_returns_normal_error(self):
         response = self.client.post(
             "/admin/login",
