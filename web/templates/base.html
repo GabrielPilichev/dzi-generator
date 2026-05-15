@@ -70,6 +70,23 @@
                         <a class="profile-link" href="{{ url_for('tester_login', next=request.path) }}">Тестер вход</a>
                     {% endif %}
                 </div>
+
+                <details class="mobile-profile-menu">
+                    <summary>{{ "Профил" if tester_authenticated or admin_authenticated else "Вход" }}</summary>
+                    <div class="mobile-profile-panel">
+                        {% if admin_authenticated %}
+                            <span class="profile-link active">Админ</span>
+                            <a class="profile-link" href="{{ url_for('admin_logout') }}">Изход</a>
+                        {% elif tester_authenticated %}
+                            <span class="profile-link active">Тестер</span>
+                            <a class="profile-link" href="{{ url_for('tester_logout') }}">Изход</a>
+                            <a class="profile-link" href="{{ url_for('admin_login', next=request.path) }}">Вход за админ</a>
+                        {% else %}
+                            <a class="profile-link" href="{{ url_for('tester_login', next=request.path) }}">Вход за тестер</a>
+                            <a class="profile-link" href="{{ url_for('admin_login', next=request.path) }}">Вход за админ</a>
+                        {% endif %}
+                    </div>
+                </details>
             </div>
         </header>
 

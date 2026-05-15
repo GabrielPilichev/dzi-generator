@@ -44,6 +44,23 @@ class HomepageSearchTest(unittest.TestCase):
         # Bulgarian placeholder/label copy
         self.assertIn("Търсене по теми", html)
 
+    def test_mobile_profile_login_entry_is_rendered(self):
+        html = self._get_home_html()
+        self.assertIn('class="mobile-profile-menu"', html)
+        self.assertIn("<summary>Вход</summary>", html)
+        self.assertIn("Вход за тестер", html)
+        self.assertIn('href="/tester/login?next=/"', html)
+        self.assertIn("Вход за админ", html)
+        self.assertIn('href="/admin/login?next=/"', html)
+
+    def test_mobile_profile_css_is_present(self):
+        css_path = _ROOT / "web" / "static" / "css" / "ui-pass9.css"
+        css = css_path.read_text(encoding="utf-8")
+        self.assertIn(".mobile-profile-menu", css)
+        self.assertIn(".mobile-profile-panel", css)
+        self.assertIn(".profile-switch", css)
+        self.assertIn("display: none", css)
+
     def test_search_script_is_included(self):
         html = self._get_home_html()
         self.assertIn("js/home-search.js", html)
