@@ -49,6 +49,28 @@
   </div>
 </section>
 
+{% if difficulty_breakdown %}
+  <section class="card difficulty-breakdown">
+    <div class="section-heading">
+      <h2>Разбивка по трудност</h2>
+    </div>
+    <div class="difficulty-breakdown-grid">
+      {% for item in difficulty_breakdown %}
+        <div class="difficulty-breakdown-row">
+          <div class="difficulty-breakdown-label">
+            <span class="badge {{ item.class }}">{{ item.label }}</span>
+            <strong>{{ item.correct }}/{{ item.total }} верни</strong>
+          </div>
+          <div class="difficulty-breakdown-bar" aria-hidden="true">
+            <span style="width: {{ item.percent or 0 }}%"></span>
+          </div>
+          <span class="muted">{{ item.percent_display }}</span>
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+{% endif %}
+
 {% if stale_attempt_message %}
   <section class="card warning warning--spaced">
     {{ stale_attempt_message }}

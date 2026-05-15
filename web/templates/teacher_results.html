@@ -175,6 +175,25 @@
         </div>
       {% endif %}
     </div>
+    {% if summary.difficulty_breakdown %}
+      <div class="difficulty-breakdown difficulty-breakdown--compact">
+        <h3>Разбивка по трудност</h3>
+        <div class="difficulty-breakdown-grid">
+          {% for item in summary.difficulty_breakdown %}
+            <div class="difficulty-breakdown-row">
+              <div class="difficulty-breakdown-label">
+                <span class="badge {{ item.class }}">{{ item.label }}</span>
+                <strong>{{ item.correct }}/{{ item.total }} верни</strong>
+              </div>
+              <div class="difficulty-breakdown-bar" aria-hidden="true">
+                <span style="width: {{ item.percent or 0 }}%"></span>
+              </div>
+              <span class="muted">{{ item.percent_display }}</span>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    {% endif %}
     <p class="muted">
       MC показателите са изчислени от съхранените MC резултати.
       {% if summary.mixed_open_enabled %}
