@@ -23,6 +23,7 @@
   let questions = [...originalQuestions];
   let answersShown = false;
   let bookmarksOnly = false;
+  let syncingAnswers = false;
 
   function readBookmarks() {
     try {
@@ -101,15 +102,31 @@
 
   function setAnswerVisibility(shown) {
     answersShown = shown;
+    syncingAnswers = true;
     questions.forEach((q) => {
       q.querySelectorAll(".answer-details").forEach((details) => {
         details.open = answersShown;
       });
     });
+    syncingAnswers = false;
     toggleCorrect.classList.toggle("active", answersShown);
     toggleCorrect.setAttribute("aria-pressed", answersShown ? "true" : "false");
+    toggleCorrect.title = answersShown ? "Скрий всички отговори (h)" : "Покажи всички отговори (h)";
     const label = toggleCorrect.querySelector(".button-label");
-    if (label) label.textContent = answersShown ? "Скрий отговорите" : "Покажи отговорите";
+    if (label) label.textContent = answersShown ? "Скрий всички отговори" : "Покажи всички отговори";
+  }
+
+  function syncAnswerToggleFromDetails() {
+    const answerDetails = questions.flatMap((q) => Array.from(q.querySelectorAll(".answer-details")));
+    const openCount = answerDetails.filter((details) => details.open).length;
+    const mostlyOpen = answerDetails.length > 0 && openCount >= Math.ceil(answerDetails.length / 2);
+
+    answersShown = mostlyOpen;
+    toggleCorrect.classList.toggle("active", mostlyOpen);
+    toggleCorrect.setAttribute("aria-pressed", mostlyOpen ? "true" : "false");
+    toggleCorrect.title = mostlyOpen ? "Скрий всички отговори (h)" : "Покажи всички отговори (h)";
+    const label = toggleCorrect.querySelector(".button-label");
+    if (label) label.textContent = mostlyOpen ? "Скрий всички отговори" : "Покажи всички отговори";
   }
 
   function shuffleQuestions() {
@@ -133,13 +150,20 @@
 
   originalQuestions.forEach((q) => {
     const button = q.querySelector(".bookmark-button");
-    if (!button) return;
-    button.addEventListener("click", () => {
-      const id = String(q.dataset.questionId);
-      if (bookmarks.has(id)) bookmarks.delete(id);
-      else bookmarks.add(id);
-      writeBookmarks(bookmarks);
-      applyFilters();
+    if (button) {
+      button.addEventListener("click", () => {
+        const id = String(q.dataset.questionId);
+        if (bookmarks.has(id)) bookmarks.delete(id);
+        else bookmarks.add(id);
+        writeBookmarks(bookmarks);
+        applyFilters();
+      });
+    }
+
+    q.querySelectorAll(".answer-details").forEach((details) => {
+      details.addEventListener("toggle", () => {
+        if (!syncingAnswers) syncAnswerToggleFromDetails();
+      });
     });
   });
 

@@ -191,6 +191,46 @@ class SectionReviewAnswersTest(unittest.TestCase):
         self.assertNotIn("open", body[details_start:body.find(">", details_start)])
         self.assertIn(escaped_correct, body[details_start:details_end])
 
+    def test_section_review_renders_visible_show_all_control(self):
+        response = self.client.get(f"/section/{self.section_slug}")
+        self.assertEqual(response.status_code, 200)
+
+        body = response.data.decode("utf-8")
+        self.assertIn('id="toggle-correct"', body)
+        self.assertIn('class="segmented-button reveal-all-button"', body)
+        self.assertIn('aria-pressed="false"', body)
+        self.assertIn('aria-keyshortcuts="h"', body)
+        self.assertIn("Покажи всички отговори", body)
+
+    def test_section_tools_script_is_included_and_keeps_answer_shortcut(self):
+        response = self.client.get(f"/section/{self.section_slug}")
+        self.assertEqual(response.status_code, 200)
+        body = response.data.decode("utf-8")
+        self.assertIn('src="/static/js/section-tools.js"', body)
+
+        asset = self.client.get("/static/js/section-tools.js")
+        self.assertEqual(asset.status_code, 200)
+        script = asset.get_data(as_text=True)
+        self.assertIn('event.key.toLowerCase() === "h"', script)
+        self.assertIn("Покажи всички отговори", script)
+        self.assertIn("Скрий всички отговори", script)
+        self.assertIn("syncAnswerToggleFromDetails", script)
+
+    def test_section_review_mc_correct_answer_stays_inside_reveal_block(self):
+        response = self.client.get(f"/section/{self.section_slug}")
+        self.assertEqual(response.status_code, 200)
+
+        body = response.data.decode("utf-8")
+        escaped_correct = html.escape(self.correct_text, quote=True)
+        details_start = body.rfind('<details class="answer-details">', 0, body.find(escaped_correct))
+        self.assertNotEqual(details_start, -1)
+        details_end = body.find("</details>", details_start)
+        self.assertNotEqual(details_end, -1)
+        details = body[details_start:details_end]
+
+        self.assertIn(escaped_correct, details)
+        self.assertIn("верен", details)
+
     def test_active_quiz_attempt_still_shows_answer_options_normally(self):
         conn = web_app.quiz_db()
         try:

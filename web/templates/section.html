@@ -37,6 +37,16 @@
     <section class="section-toolbar" data-section-tools data-section-slug="{{ section.section_slug }}">
         <div class="toolbar-row toolbar-row--search">
             <input id="question-search" class="toolbar-search" type="search" placeholder="Търсене по въпрос, тема или отговор...">
+            <button
+                class="segmented-button reveal-all-button"
+                type="button"
+                id="toggle-correct"
+                aria-pressed="false"
+                aria-keyshortcuts="h"
+                title="Покажи всички отговори (h)"
+            >
+                <span class="button-label">Покажи всички отговори</span>
+            </button>
         </div>
 
         <details class="toolbar-details">
@@ -57,12 +67,6 @@
                     <option value="hard">hard</option>
                     <option value="unknown">unknown</option>
                 </select>
-
-                <span class="toolbar-divider" aria-hidden="true"></span>
-
-                <button class="segmented-button" type="button" id="toggle-correct" aria-pressed="false">
-                    <span class="button-label">Покажи отговорите</span>
-                </button>
 
                 <button class="segmented-button" type="button" id="bookmarks-only" aria-pressed="false">
                     <span class="button-label">Само маркирани</span>
