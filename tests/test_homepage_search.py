@@ -44,6 +44,25 @@ class HomepageSearchTest(unittest.TestCase):
         # Bulgarian placeholder/label copy
         self.assertIn("Търсене по теми", html)
 
+    def test_homepage_renders_distinct_dzi_preparation_section(self):
+        html = self._get_home_html()
+        self.assertIn('class="home-section home-dzi-section"', html)
+        self.assertIn("Подготовка за ДЗИ", html)
+        self.assertIn("Матура по информационни технологии", html)
+        self.assertIn("отделен режим", html)
+
+    def test_homepage_dzi_preparation_link_points_to_existing_route(self):
+        html = self._get_home_html()
+        self.assertIn('href="/section/grade12-dzi-preparation"', html)
+        response = self.client.get("/section/grade12-dzi-preparation")
+        self.assertEqual(response.status_code, 200)
+
+    def test_homepage_search_includes_dzi_searchable_text(self):
+        html = self._get_home_html()
+        self.assertIn('data-home-search-group="dzi"', html)
+        self.assertIn("data-search-text=\"ДЗИ подготовка матура по информационни технологии", html)
+        self.assertIn("Практически задачи 26–28", html)
+
     def test_mobile_profile_login_entry_is_rendered(self):
         html = self._get_home_html()
         self.assertIn('class="mobile-profile-menu"', html)
@@ -75,6 +94,7 @@ class HomepageSearchTest(unittest.TestCase):
         self.assertIn("data-search-item", html)
         # Items expose search text so filtering can run client-side
         self.assertIn("data-search-text", html)
+        self.assertNotIn('class="topic-list-title">Подготовка за матура</span>', html)
 
     def test_grade_links_still_render(self):
         html = self._get_home_html()

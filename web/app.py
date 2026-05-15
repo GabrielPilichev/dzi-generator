@@ -1218,19 +1218,25 @@ def tester_home():
 def index():
     grades = fetch_grades_with_counts()
     searchable_sections: list[dict] = []
+    dzi_section = None
     for g in grades:
         for s in fetch_sections_for_grade(int(g["grade"])):
-            searchable_sections.append({
+            item = {
                 "grade": int(g["grade"]),
                 "section_slug": s["section_slug"],
                 "section_title": s["section_title"],
                 "module_title": s.get("module_title"),
                 "question_count": s.get("question_count") or 0,
-            })
+            }
+            if s["section_slug"] == "grade12-dzi-preparation":
+                dzi_section = item
+                continue
+            searchable_sections.append(item)
     return render_template(
         "index.html",
         grades=grades,
         searchable_sections=searchable_sections,
+        dzi_section=dzi_section,
     )
 
 
