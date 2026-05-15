@@ -17,13 +17,26 @@
   </div>
 
   {% if remaining_seconds is not none %}
-    <div class="timer">
-      Оставащо време:
-      <span
-        id="countdown"
-        data-remaining="{{ remaining_seconds }}"
-        data-timer-expired="{{ 1 if timer_expired else 0 }}"
-      >{{ remaining_seconds }}</span>
+    <div class="timer-panel">
+      <div class="timer">
+        Оставащо време:
+        <span
+          id="countdown"
+          data-remaining="{{ remaining_seconds }}"
+          data-timer-expired="{{ 1 if timer_expired else 0 }}"
+          data-warning-threshold="300"
+          data-urgent-threshold="60"
+        >{{ remaining_seconds }}</span>
+      </div>
+      {% if not stale_attempt_message %}
+        <p
+          id="timer-warning"
+          class="timer-warning"
+          role="status"
+          aria-live="polite"
+          hidden
+        ></p>
+      {% endif %}
     </div>
   {% endif %}
 </section>
@@ -164,11 +177,14 @@
   const el = document.getElementById("countdown");
   const form = document.getElementById("quiz-form");
   const submissionReason = document.getElementById("submission-reason");
+  const warning = document.getElementById("timer-warning");
   if (!el || !form) return;
 
   let remaining = parseInt(el.dataset.remaining, 10);
   if (!Number.isFinite(remaining)) return;
 
+  const warningThreshold = parseInt(el.dataset.warningThreshold, 10);
+  const urgentThreshold = parseInt(el.dataset.urgentThreshold, 10);
   const serverExpired = el.dataset.timerExpired === "1";
   const initialRemaining = remaining;
   let submittedByTimer = false;
@@ -179,8 +195,30 @@
     return String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
   }
 
+  function syncWarning(seconds) {
+    if (!warning) return;
+
+    const canWarn = Number.isFinite(warningThreshold) && seconds <= warningThreshold;
+    const isUrgent = Number.isFinite(urgentThreshold) && seconds <= urgentThreshold;
+
+    warning.classList.toggle("is-warning", canWarn && !isUrgent);
+    warning.classList.toggle("is-urgent", isUrgent);
+
+    if (isUrgent) {
+      warning.textContent = "Остава по-малко от 1 минута. Проверете отговорите си.";
+      warning.hidden = false;
+    } else if (canWarn) {
+      warning.textContent = "Остават по-малко от 5 минути.";
+      warning.hidden = false;
+    } else {
+      warning.textContent = "";
+      warning.hidden = true;
+    }
+  }
+
   function tick() {
     el.textContent = fmt(Math.max(0, remaining));
+    syncWarning(remaining);
     if (remaining <= 0) {
       if (!submittedByTimer && (serverExpired || initialRemaining > 0)) {
         submittedByTimer = true;
