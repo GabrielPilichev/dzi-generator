@@ -94,7 +94,10 @@
                     <li class="section-item">
                         <div>
                             <div class="section-title-row">
-                                <a href="{{ url_for('section_view', slug=s.section_slug) }}">{{ s.section_title }}</a>
+                                <a
+                                    class="stretched-link"
+                                    href="{{ url_for('section_view', slug=s.section_slug) }}"
+                                >{{ s.section_title }}</a>
 
                                 {% if s.section_type and s.section_type != 'content' %}
                                     <span class="section-type-badge">{{ section_type_labels.get(s.section_type, s.section_type) }}</span>
