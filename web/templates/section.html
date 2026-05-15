@@ -115,10 +115,17 @@
                         <span class="badge diff-{{ difficulty }}">трудност: {{ difficulty }}</span>
                     </div>
 
-                    <button class="bookmark-button" type="button" aria-label="Маркирай въпроса">★</button>
+                    <div class="question-actions">
+                        <button
+                            class="copy-question-button"
+                            type="button"
+                            aria-label="Копирай въпроса"
+                        >Копирай</button>
+                        <button class="bookmark-button" type="button" aria-label="Маркирай въпроса">★</button>
+                    </div>
                 </div>
 
-                <div class="prompt">{{ q.prompt }}</div>
+                <div class="prompt" data-copy-prompt>{{ q.prompt }}</div>
 
                 {% if q.options %}
                     <details class="answer-details">
