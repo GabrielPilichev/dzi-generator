@@ -163,3 +163,19 @@ Canonical planning note: `docs/reviews/tester_feedback_plan.md`.
 
 Run a localhost or tunnel smoke test with testers. Capture screenshots and
 exact routes for remaining bugs, then fix only confirmed issues.
+
+## Automated smoke coverage checkpoint — 2026-05-15
+
+Planning note: `docs/reviews/tester_smoke_coverage_checkpoint.md`.
+
+- Automated smoke tests now cover homepage/DZI/profile markers, Bulgarian wrong
+  password handling, review reveal/show-all/copy markers, active quiz
+  timer/autosave/progress/warning markers, result duration/success/difficulty
+  and wrong-answer feedback markers, and practical page/download safety markers.
+- Manual phone/tunnel testing is still needed for real mobile scroll behavior,
+  DZI review controls on phone, tunnel login/download behavior, ZIP upload,
+  teacher review/download/score/note, live autosave/progress/timer updates,
+  clipboard copy, and touch feel for clickable cards.
+- Recommended next step remains a tester smoke session through localhost or
+  tunnel when available, with screenshots, exact routes, browser/device, and
+  reproduction steps for any remaining issue.
