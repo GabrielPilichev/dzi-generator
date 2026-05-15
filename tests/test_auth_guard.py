@@ -195,6 +195,28 @@ class AuthGuardTest(unittest.TestCase):
         self.assertIn("клас", body)
         self.assertIn("Учител: не е посочен", body)
 
+    def test_recent_test_cards_have_primary_clickable_link_and_result_link(self):
+        assignment_url = self._create_assignment_as_tester()
+        assignment_id = assignment_url.rstrip("/").split("/")[-1]
+        self.client = self.app.test_client()
+        self._login_admin()
+
+        response = self.client.get("/teacher")
+
+        self.assertEqual(response.status_code, 200)
+        body = response.get_data(as_text=True)
+        self.assertIn('class="assignment-mini-card"', body)
+        self.assertIn('class="assignment-mini-title stretched-link"', body)
+        self.assertIn(f'href="/teacher/assignment/{assignment_id}"', body)
+        self.assertIn(f'href="/teacher/assignment/{assignment_id}/results"', body)
+
+    def test_grade_section_rows_have_whole_row_click_target(self):
+        response = self.client.get(f"/grade/{self.section['class'] if 'class' in self.section.keys() else 8}")
+        self.assertEqual(response.status_code, 200)
+        body = response.get_data(as_text=True)
+        self.assertIn('class="section-item"', body)
+        self.assertIn('class="stretched-link"', body)
+
     def test_teacher_assignments_list_shows_class_and_teacher_fallback(self):
         assignment_url = self._create_assignment_as_tester()
         assignment_id = assignment_url.rstrip("/").split("/")[-1]

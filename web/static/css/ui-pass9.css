@@ -166,6 +166,13 @@ h2 {
 .breadcrumb a { color: var(--color-text-muted); }
 .breadcrumb span { margin: 0 var(--space-1); color: var(--color-border-strong); }
 
+.stretched-link::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
 .hero,
 .card,
 .panel,
@@ -518,6 +525,7 @@ button.secondary {
 }
 .section-list { list-style: none; padding: var(--space-4); margin: 0; }
 .section-item {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -613,6 +621,7 @@ button.secondary {
   gap: var(--space-3);
 }
 .assignment-mini-card {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: var(--space-4);
@@ -620,6 +629,18 @@ button.secondary {
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--color-bg-subtle);
+  transition: border-color var(--t-fast), background var(--t-fast);
+}
+.assignment-mini-card:hover,
+.assignment-mini-card:focus-within {
+  border-color: var(--color-border-strong);
+  background: color-mix(in srgb, var(--color-bg-subtle) 72%, var(--color-primary-soft));
+}
+.assignment-mini-title {
+  display: inline-flex;
+  margin-bottom: var(--space-2);
+  color: var(--color-text);
+  font-weight: 900;
 }
 .assignment-mini-meta {
   display: grid;
@@ -627,6 +648,10 @@ button.secondary {
   gap: var(--space-1);
   color: var(--color-text-muted);
   font-size: 0.86rem;
+}
+.assignment-mini-card .links {
+  position: relative;
+  z-index: 2;
 }
 .card,
 .panel {

@@ -67,7 +67,10 @@
             {% for a in group.assignments %}
               <article class="assignment-mini-card">
                 <div>
-                  <strong>{{ a.title_bg }}</strong>
+                  <a
+                    class="assignment-mini-title stretched-link"
+                    href="{{ url_for('teacher_assignment', assignment_id=a.id) }}"
+                  >{{ a.title_bg }}</a>
                   <div class="badges">
                     <span class="pill">{{ a.class }}. клас</span>
                     {% if a.mixed_status and a.mixed_status.is_mixed %}
@@ -89,7 +92,6 @@
                   <span>предадени: {{ a.submitted_count or 0 }}</span>
                   <span>{{ a.created_at }}</span>
                   <div class="links">
-                    <a href="{{ url_for('teacher_assignment', assignment_id=a.id) }}">детайли</a>
                     <a href="{{ url_for('teacher_assignment_results', assignment_id=a.id) }}">резултати</a>
                   </div>
                 </div>
