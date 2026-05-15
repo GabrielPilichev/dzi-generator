@@ -740,6 +740,46 @@ class QuizAttemptRenderTest(unittest.TestCase):
         self.assertEqual(web_app.quiz_format_duration(754), "12 мин. 34 сек.")
         self.assertEqual(web_app.quiz_format_duration(3723), "1 ч. 2 мин. 3 сек.")
 
+    def test_quiz_success_rate_format_handles_common_and_missing_values(self):
+        self.assertEqual(web_app.quiz_success_rate_display(3, 4), "75%")
+        self.assertEqual(web_app.quiz_success_rate_display(1, 3), "33.3%")
+        self.assertEqual(web_app.quiz_success_rate_display(0, 0), "Няма данни за успеваемост")
+        self.assertEqual(web_app.quiz_success_rate_display(None, None), "Няма данни за успеваемост")
+
+    def test_completed_result_page_shows_success_rate(self):
+        _assignment_id, attempt_id = self._create_attempt(
+            [self.valid_question_id],
+            submitted=True,
+            student_name="Success Result",
+        )
+
+        response = self.client.get(f"/quiz/attempt/{attempt_id}/result")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Успеваемост: 0%".encode("utf-8"), response.data)
+
+    def test_completed_result_page_shows_success_rate_fallback_for_zero_total(self):
+        _assignment_id, attempt_id = self._create_attempt(
+            [self.valid_question_id],
+            submitted=True,
+            student_name="Success Missing Total",
+        )
+        conn = web_app.quiz_db()
+        try:
+            conn.execute("""
+                UPDATE quiz_attempts
+                SET score_correct = 0, score_total = 0
+                WHERE id = ?
+            """, (attempt_id,))
+            conn.commit()
+        finally:
+            conn.close()
+
+        response = self.client.get(f"/quiz/attempt/{attempt_id}/result")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Успеваемост: Няма данни за успеваемост".encode("utf-8"), response.data)
+
     def test_completed_result_page_shows_attempt_duration(self):
         _assignment_id, attempt_id = self._create_attempt(
             [self.valid_question_id],
@@ -773,6 +813,20 @@ class QuizAttemptRenderTest(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertIn("Време за решаване: Няма данни за време".encode("utf-8"), response.data)
+
+    def test_teacher_results_show_success_rate(self):
+        assignment_id, _attempt_id = self._create_attempt(
+            [self.valid_question_id],
+            submitted=True,
+            student_name="Success Teacher",
+        )
+        self._login_admin()
+
+        response = self.client.get(f"/teacher/assignment/{assignment_id}/results")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Успеваемост".encode("utf-8"), response.data)
+        self.assertIn(">0%</td>".encode("utf-8"), response.data)
 
     def test_teacher_results_show_attempt_duration(self):
         assignment_id, attempt_id = self._create_attempt(
@@ -1330,6 +1384,7 @@ class QuizAttemptRenderTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn("MC резултат".encode("utf-8"), response.data)
         self.assertIn(b'<span class="result-score">0/1</span>', response.data)
+        self.assertIn("Успеваемост: 0%".encode("utf-8"), response.data)
         self.assertIn("Комбиниран резултат".encode("utf-8"), response.data)
         self.assertIn("1.0/3.0 т.".encode("utf-8"), response.data)
         self.assertIn("MC: 0.0/1.0 ·".encode("utf-8"), response.data)
@@ -1368,6 +1423,8 @@ class QuizAttemptRenderTest(unittest.TestCase):
         self.assertIn("ordered".encode("utf-8"), response.data)
         self.assertIn("не са включени в крайния резултат".encode("utf-8"), response.data)
         self.assertIn("Интеграцията на отворените отговори във финалния резултат още не е включена".encode("utf-8"), response.data)
+        self.assertIn("Успеваемост".encode("utf-8"), response.data)
+        self.assertIn(">0%</td>".encode("utf-8"), response.data)
         self.assertIn(b"<fieldset disabled", response.data)
         self.assertIn(b"Include open answers in final score", response.data)
         self.assertIn(b'name="include_open_answers_in_final_score_preview"', response.data)
