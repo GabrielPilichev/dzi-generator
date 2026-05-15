@@ -148,7 +148,61 @@
     applyFilters();
   }
 
+  function cleanText(value) {
+    return (value || "").replace(/\s+/g, " ").trim();
+  }
+
+  function buildQuestionCopyText(question) {
+    const lines = [];
+    const prompt = cleanText((question.querySelector("[data-copy-prompt]") || {}).textContent);
+    if (prompt) {
+      lines.push("Въпрос:");
+      lines.push(prompt);
+    }
+
+    if (question.dataset.questionType === "multiple_choice") {
+      const options = Array.from(question.querySelectorAll(".option-row")).map((row) => {
+        const letter = cleanText((row.querySelector(".option-letter") || {}).textContent);
+        const text = cleanText((row.querySelector(".option-text") || {}).textContent);
+        if (!letter && !text) return "";
+        return `${letter}) ${text}`.trim();
+      }).filter(Boolean);
+
+      if (options.length) {
+        lines.push("");
+        lines.push("Варианти:");
+        lines.push(...options);
+      }
+    }
+
+    return lines.join("\n");
+  }
+
+  function setCopyButtonState(button, text) {
+    button.textContent = text;
+    window.setTimeout(() => {
+      button.textContent = "Копирай";
+    }, 1600);
+  }
+
+  function copyQuestion(question, button) {
+    const text = buildQuestionCopyText(question);
+    if (!text || !navigator.clipboard || !navigator.clipboard.writeText) {
+      setCopyButtonState(button, "Неуспешно");
+      return;
+    }
+
+    navigator.clipboard.writeText(text)
+      .then(() => setCopyButtonState(button, "Копирано"))
+      .catch(() => setCopyButtonState(button, "Неуспешно"));
+  }
+
   originalQuestions.forEach((q) => {
+    const copyButton = q.querySelector(".copy-question-button");
+    if (copyButton) {
+      copyButton.addEventListener("click", () => copyQuestion(q, copyButton));
+    }
+
     const button = q.querySelector(".bookmark-button");
     if (button) {
       button.addEventListener("click", () => {

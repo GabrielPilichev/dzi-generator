@@ -202,6 +202,44 @@ class SectionReviewAnswersTest(unittest.TestCase):
         self.assertIn('aria-keyshortcuts="h"', body)
         self.assertIn("Покажи всички отговори", body)
 
+    def test_section_review_renders_copy_button_for_question_cards(self):
+        response = self.client.get(f"/section/{self.section_slug}")
+        self.assertEqual(response.status_code, 200)
+
+        body = response.data.decode("utf-8")
+        self.assertIn('class="copy-question-button"', body)
+        self.assertIn('aria-label="Копирай въпроса"', body)
+        self.assertIn(">Копирай</button>", body)
+        self.assertIn("data-copy-prompt", body)
+
+    def test_section_review_mc_card_has_copy_button(self):
+        response = self.client.get(f"/section/{self.section_slug}")
+        self.assertEqual(response.status_code, 200)
+
+        body = response.data.decode("utf-8")
+        article_start = body.find(f'data-question-id="{self.question_id}"')
+        self.assertNotEqual(article_start, -1)
+        article_end = body.find("</article>", article_start)
+        self.assertNotEqual(article_end, -1)
+        article = body[article_start:article_end]
+
+        self.assertIn('class="copy-question-button"', article)
+        self.assertIn('data-question-type="multiple_choice"', article)
+
+    def test_section_review_open_card_has_copy_button(self):
+        response = self.client.get(f"/section/{self.section_slug}")
+        self.assertEqual(response.status_code, 200)
+
+        body = response.data.decode("utf-8")
+        article_start = body.find(f'data-question-id="{self.open_answer_question_id}"')
+        self.assertNotEqual(article_start, -1)
+        article_end = body.find("</article>", article_start)
+        self.assertNotEqual(article_end, -1)
+        article = body[article_start:article_end]
+
+        self.assertIn('class="copy-question-button"', article)
+        self.assertIn('data-copy-prompt', article)
+
     def test_section_tools_script_is_included_and_keeps_answer_shortcut(self):
         response = self.client.get(f"/section/{self.section_slug}")
         self.assertEqual(response.status_code, 200)
@@ -215,6 +253,17 @@ class SectionReviewAnswersTest(unittest.TestCase):
         self.assertIn("Покажи всички отговори", script)
         self.assertIn("Скрий всички отговори", script)
         self.assertIn("syncAnswerToggleFromDetails", script)
+
+    def test_section_tools_script_copies_plain_text_without_html(self):
+        asset = self.client.get("/static/js/section-tools.js")
+        self.assertEqual(asset.status_code, 200)
+        script = asset.get_data(as_text=True)
+
+        self.assertIn("navigator.clipboard.writeText", script)
+        self.assertIn("textContent", script)
+        self.assertIn("buildQuestionCopyText", script)
+        self.assertIn("Копирано", script)
+        self.assertNotIn("innerHTML", script)
 
     def test_section_review_mc_correct_answer_stays_inside_reveal_block(self):
         response = self.client.get(f"/section/{self.section_slug}")

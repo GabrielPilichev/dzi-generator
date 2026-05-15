@@ -739,6 +739,12 @@ button.secondary {
   gap: var(--space-2);
   flex-wrap: wrap;
 }
+.question-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
 .question-number {
   padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-pill);
@@ -763,14 +769,29 @@ button.secondary {
 .diff-hard { background: var(--color-danger-soft); color: var(--color-danger); }
 .diff-unknown { background: var(--color-bg-subtle); color: var(--color-text-muted); }
 
-.bookmark-button {
-  min-width: 34px;
+.bookmark-button,
+.copy-question-button {
   min-height: 34px;
-  padding: 0;
   border-radius: var(--radius-pill);
   border: 1px solid var(--color-border);
   background: var(--color-bg-subtle);
   color: var(--color-text-subtle);
+  font: inherit;
+  font-weight: 850;
+  cursor: pointer;
+}
+.bookmark-button {
+  min-width: 34px;
+  padding: 0;
+}
+.copy-question-button {
+  min-width: 86px;
+  padding: 0 var(--space-3);
+  color: var(--color-text);
+}
+.copy-question-button:hover,
+.bookmark-button:hover {
+  border-color: var(--color-border-strong);
 }
 .bookmark-button.active {
   background: var(--color-warning-soft);
@@ -1382,6 +1403,13 @@ footer {
   .card,
   .panel {
     padding: var(--space-5);
+  }
+  .question-header {
+    flex-direction: column;
+  }
+  .question-actions {
+    width: 100%;
+    justify-content: space-between;
   }
   .grade-grid,
   .cards,
