@@ -6,6 +6,9 @@ assets, `data/questions.db`, practical scoring, or generated quiz notes.
 
 ## Checkpoint - 2026-05-15
 
+Automated smoke coverage checkpoint:
+`docs/reviews/tester_smoke_coverage_checkpoint.md`.
+
 ### Fixed / merged
 
 #### Critical quiz flow
