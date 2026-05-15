@@ -90,6 +90,24 @@ QUESTION_DIFFICULTY_LABELS = {
     "medium": "среден",
     "hard": "труден",
 }
+QUESTION_DIFFICULTY_BUCKETS = {
+    "1": ("very_easy", "Много лесни", "diff-easy"),
+    "2": ("easy", "Лесни", "diff-easy"),
+    "3": ("medium", "Средни", "diff-medium"),
+    "4": ("hard", "Трудни", "diff-hard"),
+    "5": ("very_hard", "Много трудни", "diff-hard"),
+    "easy": ("easy", "Лесни", "diff-easy"),
+    "medium": ("medium", "Средни", "diff-medium"),
+    "hard": ("hard", "Трудни", "diff-hard"),
+}
+QUESTION_DIFFICULTY_BUCKET_ORDER = [
+    "very_easy",
+    "easy",
+    "medium",
+    "hard",
+    "very_hard",
+    "unknown",
+]
 
 
 def question_difficulty_label(value) -> str | None:
@@ -99,6 +117,15 @@ def question_difficulty_label(value) -> str | None:
     if not key:
         return None
     return QUESTION_DIFFICULTY_LABELS.get(key)
+
+
+def question_difficulty_bucket(value) -> dict:
+    key = str(value or "").strip().lower()
+    bucket_key, label, css_class = QUESTION_DIFFICULTY_BUCKETS.get(
+        key,
+        ("unknown", "Без трудност", "diff-unknown"),
+    )
+    return {"key": bucket_key, "label": label, "class": css_class}
 
 
 def safe_redirect_target(candidate: str | None, fallback: str) -> str:
@@ -2759,6 +2786,68 @@ def quiz_attempt_success_rate_display(attempt) -> str:
     return quiz_success_rate_display(attempt["score_correct"], attempt["score_total"])
 
 
+def quiz_difficulty_breakdown_from_rows(rows) -> list[dict]:
+    buckets: dict[str, dict] = {}
+    for row in rows:
+        bucket = question_difficulty_bucket(row.get("difficulty"))
+        key = bucket["key"]
+        if key not in buckets:
+            buckets[key] = {
+                "key": key,
+                "label": bucket["label"],
+                "class": bucket["class"],
+                "correct": 0,
+                "total": 0,
+                "percent": None,
+                "percent_display": QUIZ_SUCCESS_RATE_FALLBACK_BG,
+            }
+        buckets[key]["total"] += 1
+        if row.get("is_correct"):
+            buckets[key]["correct"] += 1
+
+    for bucket in buckets.values():
+        bucket["percent"] = quiz_success_rate_percent(bucket["correct"], bucket["total"])
+        bucket["percent_display"] = quiz_success_rate_display(bucket["correct"], bucket["total"])
+
+    return sorted(
+        buckets.values(),
+        key=lambda item: QUESTION_DIFFICULTY_BUCKET_ORDER.index(item["key"])
+        if item["key"] in QUESTION_DIFFICULTY_BUCKET_ORDER
+        else len(QUESTION_DIFFICULTY_BUCKET_ORDER),
+    )
+
+
+def quiz_difficulty_breakdown_from_questions(questions: list[dict]) -> list[dict]:
+    return quiz_difficulty_breakdown_from_rows([
+        {
+            "difficulty": q.get("difficulty"),
+            "is_correct": bool(q.get("is_correct")),
+        }
+        for q in questions
+    ])
+
+
+def quiz_teacher_difficulty_breakdown(conn, attempt_ids: list[int]) -> list[dict]:
+    if not attempt_ids:
+        return []
+
+    placeholders = ",".join("?" for _ in attempt_ids)
+    rows = conn.execute(f"""
+        SELECT q.difficulty, qa.is_correct
+        FROM quiz_answers qa
+        JOIN questions q ON q.id = qa.question_id
+        WHERE qa.attempt_id IN ({placeholders})
+        ORDER BY q.difficulty
+    """, attempt_ids).fetchall()
+    return quiz_difficulty_breakdown_from_rows([
+        {
+            "difficulty": row["difficulty"],
+            "is_correct": bool(row["is_correct"]),
+        }
+        for row in rows
+    ])
+
+
 def quiz_current_timestamp() -> _quiz_datetime:
     return _quiz_datetime.utcnow()
 
@@ -3782,6 +3871,7 @@ def teacher_assignment_results(assignment_id):
     open_subtotals_by_attempt: dict[int, dict] = {}
     combined_scores_by_attempt: dict[int, dict] = {}
     mc_percentages: list[float] = []
+    submitted_attempt_ids: list[int] = []
     submitted_attempt_count = 0
     open_answer_attempt_count = 0
     open_answer_total = 0
@@ -3793,6 +3883,7 @@ def teacher_assignment_results(assignment_id):
         if not attempt["submitted_at"]:
             continue
         attempt_id_int = int(attempt["id"])
+        submitted_attempt_ids.append(attempt_id_int)
         submitted_attempt_count += 1
         if attempt["score_total"] is not None and int(attempt["score_total"]) > 0:
             mc_percentages.append(
@@ -3835,6 +3926,7 @@ def teacher_assignment_results(assignment_id):
         FROM quiz_attempts
         WHERE assignment_id = ?
     """, (assignment_id,)).fetchone()
+    difficulty_breakdown = quiz_teacher_difficulty_breakdown(conn, submitted_attempt_ids)
 
     conn.close()
 
@@ -3850,6 +3942,7 @@ def teacher_assignment_results(assignment_id):
         "open_answer_teacher_override_count": open_answer_teacher_override_count,
         "open_subtotal_awarded_total": round(open_subtotal_awarded_total, 2),
         "open_subtotal_possible_total": round(open_subtotal_possible_total, 2),
+        "difficulty_breakdown": difficulty_breakdown,
     }
 
     attempts = [
@@ -4409,6 +4502,7 @@ def quiz_result(attempt_id):
     renderable_question_count = len(qids)
     skipped_question_count = max(0, original_question_count - renderable_question_count)
     questions = quiz_load_result_questions(conn, attempt, qids, attempt["seed"])
+    difficulty_breakdown = quiz_difficulty_breakdown_from_questions(questions)
     open_text_answers = fetch_quiz_text_answers_for_attempt(conn, attempt_id)
     open_text_subtotal = quiz_text_answer_informational_subtotal(open_text_answers) if open_text_answers else None
     combined_score = quiz_combined_score_summary(
@@ -4427,6 +4521,7 @@ def quiz_result(attempt_id):
         questions=questions,
         time_taken=time_taken,
         success_rate=success_rate,
+        difficulty_breakdown=difficulty_breakdown,
         open_text_answers=open_text_answers,
         open_text_subtotal=open_text_subtotal,
         combined_score=combined_score,

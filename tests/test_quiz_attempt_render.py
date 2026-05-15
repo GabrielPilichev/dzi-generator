@@ -455,6 +455,46 @@ class QuizAttemptRenderTest(unittest.TestCase):
             raise AssertionError("Valid test question has no wrong option")
         return row["option_letter"]
 
+    @staticmethod
+    def _correct_letter(conn, question_id):
+        row = conn.execute("""
+            SELECT option_letter
+            FROM multiple_choice_options
+            WHERE question_id = ?
+              AND is_correct = 1
+            ORDER BY option_letter
+            LIMIT 1
+        """, (question_id,)).fetchone()
+        if row is None:
+            raise AssertionError("Valid test question has no correct option")
+        return row["option_letter"]
+
+    def _replace_mc_answers(self, attempt_id, answer_map):
+        conn = web_app.quiz_db()
+        try:
+            conn.execute("DELETE FROM quiz_answers WHERE attempt_id = ?", (attempt_id,))
+            correct_count = 0
+            for question_id, is_correct in answer_map.items():
+                letter = (
+                    self._correct_letter(conn, question_id)
+                    if is_correct
+                    else self._wrong_letter(conn, question_id)
+                )
+                conn.execute("""
+                    INSERT INTO quiz_answers (attempt_id, question_id, chosen_letter, is_correct)
+                    VALUES (?, ?, ?, ?)
+                """, (attempt_id, question_id, letter, 1 if is_correct else 0))
+                if is_correct:
+                    correct_count += 1
+            conn.execute("""
+                UPDATE quiz_attempts
+                SET score_correct = ?, score_total = ?
+                WHERE id = ?
+            """, (correct_count, len(answer_map), attempt_id))
+            conn.commit()
+        finally:
+            conn.close()
+
     def test_mixed_stale_result_filters_invalid_question(self):
         assignment_id, attempt_id = self._create_attempt(
             [self.valid_question_id, self.invalid_question_id],
@@ -930,6 +970,116 @@ class QuizAttemptRenderTest(unittest.TestCase):
         self.assertIn("Въпрос с трудност в резултата.".encode("utf-8"), response.data)
         self.assertIn("Трудност: труден".encode("utf-8"), response.data)
         self.assertNotIn("Трудност: hard".encode("utf-8"), response.data)
+
+    def test_result_shows_difficulty_breakdown(self):
+        conn = web_app.quiz_db()
+        try:
+            easy_id = self._insert_eligible_mc_question(
+                conn,
+                source_number=930,
+                prompt="Лесен въпрос за разбивка.",
+                difficulty="easy",
+            )
+            medium_id = self._insert_eligible_mc_question(
+                conn,
+                source_number=931,
+                prompt="Среден въпрос за разбивка.",
+                difficulty="medium",
+            )
+            hard_id = self._insert_eligible_mc_question(
+                conn,
+                source_number=932,
+                prompt="Труден въпрос за разбивка.",
+                difficulty="hard",
+            )
+            conn.commit()
+        finally:
+            conn.close()
+        _assignment_id, attempt_id = self._create_attempt(
+            [easy_id, medium_id, hard_id],
+            submitted=True,
+            student_name="Difficulty Breakdown",
+        )
+        self._replace_mc_answers(attempt_id, {
+            easy_id: True,
+            medium_id: False,
+            hard_id: True,
+        })
+
+        response = self.client.get(f"/quiz/attempt/{attempt_id}/result")
+
+        self.assertEqual(response.status_code, 200)
+        body = response.data.decode("utf-8")
+        self.assertIn("Разбивка по трудност", body)
+        self.assertIn("Лесни", body)
+        self.assertIn("Средни", body)
+        self.assertIn("Трудни", body)
+        self.assertIn("1/1 верни", body)
+        self.assertIn("0/1 верни", body)
+
+    def test_result_difficulty_breakdown_handles_missing_difficulty(self):
+        conn = web_app.quiz_db()
+        try:
+            question_id = self._insert_eligible_mc_question(
+                conn,
+                source_number=933,
+                prompt="Въпрос без трудност за разбивка.",
+                difficulty=None,
+            )
+            conn.commit()
+        finally:
+            conn.close()
+        _assignment_id, attempt_id = self._create_attempt(
+            [question_id],
+            submitted=True,
+            student_name="Difficulty Missing",
+        )
+        self._replace_mc_answers(attempt_id, {question_id: False})
+
+        response = self.client.get(f"/quiz/attempt/{attempt_id}/result")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Без трудност".encode("utf-8"), response.data)
+        self.assertIn("0/1 верни".encode("utf-8"), response.data)
+
+    def test_teacher_results_show_difficulty_breakdown(self):
+        conn = web_app.quiz_db()
+        try:
+            easy_id = self._insert_eligible_mc_question(
+                conn,
+                source_number=934,
+                prompt="Лесен учителски въпрос.",
+                difficulty="easy",
+            )
+            hard_id = self._insert_eligible_mc_question(
+                conn,
+                source_number=935,
+                prompt="Труден учителски въпрос.",
+                difficulty="hard",
+            )
+            conn.commit()
+        finally:
+            conn.close()
+        assignment_id, attempt_id = self._create_attempt(
+            [easy_id, hard_id],
+            submitted=True,
+            student_name="Difficulty Teacher",
+        )
+        self._replace_mc_answers(attempt_id, {
+            easy_id: True,
+            hard_id: False,
+        })
+        self._login_admin()
+
+        response = self.client.get(f"/teacher/assignment/{assignment_id}/results")
+
+        self.assertEqual(response.status_code, 200)
+        body = response.data.decode("utf-8")
+        self.assertIn("Разбивка по трудност", body)
+        self.assertIn("Лесни", body)
+        self.assertIn("Трудни", body)
+        self.assertIn("1/1 верни", body)
+        self.assertIn("0/1 верни", body)
 
     def test_active_attempt_omits_difficulty_when_missing(self):
         conn = web_app.quiz_db()

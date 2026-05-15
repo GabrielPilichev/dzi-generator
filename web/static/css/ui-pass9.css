@@ -1062,6 +1062,46 @@ th {
 .result-meta {
   justify-content: center;
 }
+.difficulty-breakdown {
+  display: grid;
+  gap: var(--space-3);
+}
+.difficulty-breakdown--compact {
+  margin-top: var(--space-4);
+}
+.difficulty-breakdown--compact h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+.difficulty-breakdown-grid {
+  display: grid;
+  gap: var(--space-3);
+}
+.difficulty-breakdown-row {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) minmax(120px, 2fr) auto;
+  align-items: center;
+  gap: var(--space-3);
+}
+.difficulty-breakdown-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+.difficulty-breakdown-bar {
+  height: 10px;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border);
+}
+.difficulty-breakdown-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--color-danger), var(--color-warning), var(--color-success));
+}
 .answer-line {
   padding: var(--space-3);
   border-radius: var(--radius-md);
@@ -1410,6 +1450,10 @@ footer {
   .question-actions {
     width: 100%;
     justify-content: space-between;
+  }
+  .difficulty-breakdown-row {
+    grid-template-columns: 1fr;
+    gap: var(--space-2);
   }
   .grade-grid,
   .cards,
