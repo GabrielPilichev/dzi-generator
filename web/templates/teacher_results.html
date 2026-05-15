@@ -197,6 +197,7 @@
           <th>Ученик</th>
           <th>Статус</th>
           <th>Резултат</th>
+          <th>Време за решаване</th>
           <th>Започнат</th>
           <th>Предаден</th>
           <th>Връзка</th>
@@ -223,6 +224,7 @@
                 —
               {% endif %}
             </td>
+            <td>{{ a.duration_display }}</td>
             <td>{{ a.started_at }}</td>
             <td>{{ a.submitted_at or "—" }}</td>
             <td>

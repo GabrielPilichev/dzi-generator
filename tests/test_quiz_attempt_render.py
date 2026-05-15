@@ -325,6 +325,20 @@ class QuizAttemptRenderTest(unittest.TestCase):
         finally:
             conn.close()
 
+    @staticmethod
+    def _set_attempt_timestamps(attempt_id, *, started_at=None, submitted_at=None):
+        conn = web_app.quiz_db()
+        try:
+            conn.execute("""
+                UPDATE quiz_attempts
+                SET started_at = COALESCE(?, started_at),
+                    submitted_at = ?
+                WHERE id = ?
+            """, (started_at, submitted_at, attempt_id))
+            conn.commit()
+        finally:
+            conn.close()
+
     def _create_mixed_planned_attempt(
         self,
         *,
@@ -720,6 +734,78 @@ class QuizAttemptRenderTest(unittest.TestCase):
         self.assertNotIn("data-warning-threshold", body)
         self.assertNotIn("data-urgent-threshold", body)
         self.assertNotIn("syncWarning(remaining)", body)
+
+    def test_quiz_duration_format_handles_seconds_minutes_and_hours(self):
+        self.assertEqual(web_app.quiz_format_duration(34), "34 сек.")
+        self.assertEqual(web_app.quiz_format_duration(754), "12 мин. 34 сек.")
+        self.assertEqual(web_app.quiz_format_duration(3723), "1 ч. 2 мин. 3 сек.")
+
+    def test_completed_result_page_shows_attempt_duration(self):
+        _assignment_id, attempt_id = self._create_attempt(
+            [self.valid_question_id],
+            submitted=True,
+            student_name="Duration Result",
+        )
+        self._set_attempt_timestamps(
+            attempt_id,
+            started_at="2026-05-13 12:00:00",
+            submitted_at="2026-05-13 12:12:34",
+        )
+
+        response = self.client.get(f"/quiz/attempt/{attempt_id}/result")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Време за решаване: 12 мин. 34 сек.".encode("utf-8"), response.data)
+
+    def test_completed_result_page_shows_duration_fallback_for_bad_timestamps(self):
+        _assignment_id, attempt_id = self._create_attempt(
+            [self.valid_question_id],
+            submitted=True,
+            student_name="Duration Bad",
+        )
+        self._set_attempt_timestamps(
+            attempt_id,
+            started_at="2026-05-13 12:10:00",
+            submitted_at="2026-05-13 12:00:00",
+        )
+
+        response = self.client.get(f"/quiz/attempt/{attempt_id}/result")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Време за решаване: Няма данни за време".encode("utf-8"), response.data)
+
+    def test_teacher_results_show_attempt_duration(self):
+        assignment_id, attempt_id = self._create_attempt(
+            [self.valid_question_id],
+            submitted=True,
+            student_name="Duration Teacher",
+        )
+        self._set_attempt_timestamps(
+            attempt_id,
+            started_at="2026-05-13 12:00:00",
+            submitted_at="2026-05-13 13:02:03",
+        )
+        self._login_admin()
+
+        response = self.client.get(f"/teacher/assignment/{assignment_id}/results")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Време за решаване".encode("utf-8"), response.data)
+        self.assertIn("1 ч. 2 мин. 3 сек.".encode("utf-8"), response.data)
+
+    def test_teacher_results_show_duration_fallback_for_missing_end_timestamp(self):
+        assignment_id, _attempt_id = self._create_attempt(
+            [self.valid_question_id],
+            submitted=False,
+            student_name="Duration Missing End",
+            started_at="2026-05-13 12:00:00",
+        )
+        self._login_admin()
+
+        response = self.client.get(f"/teacher/assignment/{assignment_id}/results")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Няма данни за време".encode("utf-8"), response.data)
 
     def test_active_attempt_shows_question_difficulty_when_available(self):
         conn = web_app.quiz_db()
