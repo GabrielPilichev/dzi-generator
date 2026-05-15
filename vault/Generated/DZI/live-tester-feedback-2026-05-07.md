@@ -89,3 +89,77 @@ Planning source: `docs/reviews/tester_feedback_plan.md`.
 - Do not run migrations.
 - Do not import questions/assets.
 - Do not touch `vault/Generated/Quizzes/`.
+
+## Checkpoint — 2026-05-15
+
+Canonical planning note: `docs/reviews/tester_feedback_plan.md`.
+
+### Fixed / merged
+
+#### Critical quiz flow
+
+- [x] Timer remaining time and accidental early auto-submit fixes.
+- [x] Student validation for blank/too-short names and empty submissions.
+- [x] Question randomization, draft autosave, progress indicator, and timer
+  warning.
+
+#### Login/download 500s
+
+- [x] Bulgarian password input no longer causes HTTP 500.
+- [x] Practical file download HTTP 500 fixed.
+
+#### Review answers/explanations
+
+- [x] Open/fill-in review answers are visible where reveal is intended.
+- [x] Question 23 answer visibility fixed.
+- [x] Wrong-answer feedback for MC/open answers.
+- [x] Escaping/XSS coverage for answer displays.
+
+#### Practical uploads/security
+
+- [x] Practical upload hardening.
+- [x] Practical review/download flow kept separate from quiz scoring changes.
+
+#### Mobile/navigation UX
+
+- [x] Homepage topic search.
+- [x] Mobile DZI review scroll/filter polish.
+- [x] Mobile profile/login entry.
+- [x] Separate DZI preparation navigation.
+- [x] Recent tests grouped/labeled by context.
+- [x] Content/test cards clickable as whole cards where safe.
+
+#### Results/analytics
+
+- [x] Attempt duration display.
+- [x] Success-rate display.
+- [x] Difficulty breakdown / heatmap-lite display.
+
+#### Review page polish
+
+- [x] Show-all/hide-all reveal controls.
+- [x] Review copy buttons.
+
+### Needs manual smoke test
+
+- Timer durations: 30, 60, 400, and 600 minutes.
+- Mobile class page opens at top.
+- DZI review button on phone.
+- Practical file download.
+- ZIP upload.
+- Teacher review/download/score/note.
+- Wrong-answer explanations.
+- Homepage search.
+
+### Remaining / not yet done
+
+- Bigger username + password auth redesign, if still desired.
+- More advanced analytics/heatmaps, if desired.
+- Server-side autosave, if local browser autosave is not enough.
+- Practical tasks/resources for sources beyond `may_2025_v2`, if still needed.
+- Broader teacher dashboard improvements, if still needed.
+
+### Next recommendation
+
+Run a localhost or tunnel smoke test with testers. Capture screenshots and
+exact routes for remaining bugs, then fix only confirmed issues.
