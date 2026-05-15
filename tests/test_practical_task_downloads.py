@@ -291,6 +291,16 @@ class PracticalTaskDownloadsTest(unittest.TestCase):
         self.assertIn("файлът липсва", page.get_data(as_text=True))
         self.assertEqual(download.status_code, 404)
 
+    def test_zip_internal_resource_row_does_not_crash_download_route(self):
+        resource_id = self._insert_resource(
+            "data/reference/may_2025_v2/resources.zip::task_26/Shipments.xlsx",
+            "Shipments.xlsx",
+        )
+
+        response = self.client.get(f"/dzi/practical/resource/{resource_id}/download")
+
+        self.assertEqual(response.status_code, 404)
+
     def test_page_does_not_expose_raw_filesystem_paths(self):
         response = self.client.get("/dzi/source/may_2025_v2/practical")
 
