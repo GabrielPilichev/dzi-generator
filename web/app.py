@@ -1466,7 +1466,7 @@ import re as _quiz_re
 import sqlite3 as _quiz_sqlite3
 import sys as _quiz_sys
 import unicodedata as _quiz_unicodedata
-from datetime import datetime as _quiz_datetime
+from datetime import datetime as _quiz_datetime, timezone as _quiz_timezone
 from pathlib import Path as _QuizPath
 
 from flask import Response as _quiz_response
@@ -2682,22 +2682,54 @@ def filter_renderable_attempt_question_ids(
     return valid_ids, skipped
 
 
-def quiz_time_taken_seconds(attempt) -> int:
+QUIZ_DURATION_FALLBACK_BG = "Няма данни за време"
+
+
+def quiz_parse_timestamp_utc(raw_value) -> _quiz_datetime | None:
+    if not raw_value:
+        return None
     try:
-        started = _quiz_datetime.fromisoformat(attempt["started_at"])
-        ended_raw = attempt["submitted_at"] or _quiz_datetime.now().isoformat(timespec="seconds")
-        ended = _quiz_datetime.fromisoformat(ended_raw)
-        return max(0, int((ended - started).total_seconds()))
-    except Exception:
-        return 0
+        parsed = _quiz_datetime.fromisoformat(str(raw_value).replace("Z", "+00:00"))
+    except (TypeError, ValueError):
+        return None
+    if parsed.tzinfo is not None:
+        return parsed.astimezone(_quiz_timezone.utc).replace(tzinfo=None)
+    return parsed
+
+
+def quiz_time_taken_seconds(attempt) -> int | None:
+    started = quiz_parse_timestamp_utc(attempt["started_at"])
+    ended = quiz_parse_timestamp_utc(attempt["submitted_at"])
+    if started is None or ended is None:
+        return None
+
+    seconds = int((ended - started).total_seconds())
+    if seconds < 0:
+        return None
+    return seconds
 
 
 def quiz_format_duration(seconds: int) -> str:
-    minutes = seconds // 60
-    rest = seconds % 60
+    if seconds is None:
+        return QUIZ_DURATION_FALLBACK_BG
+    try:
+        total_seconds = max(0, int(seconds))
+    except (TypeError, ValueError):
+        return QUIZ_DURATION_FALLBACK_BG
+
+    hours = total_seconds // 3600
+    minutes = (total_seconds % 3600) // 60
+    rest = total_seconds % 60
+
+    if hours:
+        return f"{hours} ч. {minutes} мин. {rest} сек."
     if minutes:
         return f"{minutes} мин. {rest} сек."
     return f"{rest} сек."
+
+
+def quiz_attempt_duration_display(attempt) -> str:
+    return quiz_format_duration(quiz_time_taken_seconds(attempt))
 
 
 def quiz_current_timestamp() -> _quiz_datetime:
@@ -3793,6 +3825,14 @@ def teacher_assignment_results(assignment_id):
         "open_subtotal_possible_total": round(open_subtotal_possible_total, 2),
     }
 
+    attempts = [
+        {
+            **dict(attempt),
+            "duration_display": quiz_attempt_duration_display(attempt) if attempt["submitted_at"] else QUIZ_DURATION_FALLBACK_BG,
+        }
+        for attempt in attempts
+    ]
+
     filter_active = (
         bool(filters["q"]) or filters["status"] != "all" or filters["open"] != "all"
     )
@@ -4348,7 +4388,7 @@ def quiz_result(attempt_id):
         open_text_subtotal,
         enabled=bool(attempt_question_plan["include_open_answers_in_final_score"]),
     )
-    seconds = quiz_time_taken_seconds(attempt)
+    time_taken = quiz_attempt_duration_display(attempt)
     conn.close()
 
     return _quiz_render_template(
@@ -4356,7 +4396,7 @@ def quiz_result(attempt_id):
         assignment=assignment,
         attempt=attempt,
         questions=questions,
-        time_taken=quiz_format_duration(seconds),
+        time_taken=time_taken,
         open_text_answers=open_text_answers,
         open_text_subtotal=open_text_subtotal,
         combined_score=combined_score,
