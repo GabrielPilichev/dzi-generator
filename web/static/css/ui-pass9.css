@@ -337,6 +337,13 @@ button.secondary {
 .home-section {
   margin-top: var(--space-2);
 }
+.home-dzi-section {
+  margin: 0 0 var(--space-8);
+  padding: var(--space-5);
+  border: 1px solid color-mix(in srgb, var(--color-accent-dzi) 40%, var(--color-border));
+  border-radius: var(--radius-xl);
+  background: color-mix(in srgb, var(--color-accent-dzi-soft) 55%, var(--color-bg));
+}
 
 .home-dzi-card {
   display: grid;
@@ -345,7 +352,7 @@ button.secondary {
   align-items: center;
   min-height: 136px;
   padding: var(--space-6);
-  margin-bottom: var(--space-6);
+  margin-bottom: 0;
   border: 1px solid var(--color-border);
   border-left: 4px solid var(--color-accent-dzi);
   border-radius: var(--radius-xl);
@@ -1433,6 +1440,10 @@ footer {
     grid-template-columns: 1fr;
     min-height: 132px;
     padding: var(--space-5);
+  }
+  .home-dzi-section {
+    padding: var(--space-4);
+    margin-bottom: var(--space-6);
   }
   .home-dzi-icon { display: none; }
   .toolbar-row {

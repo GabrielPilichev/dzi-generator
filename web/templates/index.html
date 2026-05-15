@@ -38,16 +38,6 @@
         <span class="mode-action">Към класовете</span>
     </a>
 
-    <a class="mode-card mode-card--dzi" href="{{ url_for('section_view', slug='grade12-dzi-preparation') }}">
-        <p class="eyebrow">ДЗИ подготовка</p>
-        <h2>Матура по ИТ</h2>
-        <p class="subtitle">Тренировъчен раздел за подготовка по структурата на ДЗИ.</p>
-        <span class="mode-action">Към прегледа</span>
-        {% if admin_authenticated %}
-            <span class="mode-admin-link">админ преглед: /dzi</span>
-        {% endif %}
-    </a>
-
     {% if can_generate_tests %}
         <a href="{{ url_for('teacher_new') }}" class="mode-card">
             <p class="eyebrow">Тестове</p>
@@ -79,6 +69,41 @@
             <span class="mode-action">Учителски вход</span>
         </a>
     {% endif %}
+</section>
+
+<section class="home-section home-dzi-section" data-home-search-group="dzi">
+    <div class="section-heading">
+        <div>
+            <p class="eyebrow">Подготовка за ДЗИ</p>
+            <h2>Матура по информационни технологии</h2>
+        </div>
+        <span class="pill">отделен режим</span>
+    </div>
+    <a
+        class="mode-card mode-card--dzi home-dzi-card"
+        href="{{ url_for('section_view', slug='grade12-dzi-preparation') }}"
+        data-search-item
+        data-search-text="ДЗИ подготовка матура по информационни технологии 12. клас grade12 практически задачи 26 27 28 {{ dzi_section.section_title if dzi_section else '' }}"
+    >
+        <div>
+            <p class="eyebrow">ДЗИ подготовка</p>
+            <h2 class="home-dzi-title">Матура по ИТ</h2>
+            <p class="subtitle">
+                Самостоятелен преглед за матурата, отделен от учебните раздели по класове.
+            </p>
+            <div class="home-dzi-stats">
+                {% if dzi_section %}
+                    <span>{{ dzi_section.question_count }} въпроса</span>
+                {% endif %}
+                <span>Практически задачи 26–28</span>
+            </div>
+            <span class="mode-action">Към прегледа</span>
+            {% if admin_authenticated %}
+                <span class="mode-admin-link">админ преглед: /dzi</span>
+            {% endif %}
+        </div>
+        <span class="home-dzi-icon" aria-hidden="true">ДЗИ</span>
+    </a>
 </section>
 
 <section id="grades" class="home-section">
