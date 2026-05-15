@@ -4,6 +4,87 @@ Docs-only planning checkpoint for the latest LearnPilot tester feedback. This
 does not change app code, templates, tests, CSS/JS, data imports, migrations,
 assets, `data/questions.db`, practical scoring, or generated quiz notes.
 
+## Checkpoint - 2026-05-15
+
+### Fixed / merged
+
+#### Critical quiz flow
+
+- [x] Timer remaining-time calculation fixed for normal and long durations.
+- [x] Accidental early auto-submit fixed; submit-on-expiry remains tied to
+  countdown reaching zero.
+- [x] Student submission validation added for blank/one-character names and
+  empty submissions.
+- [x] Quiz question randomization added.
+- [x] Browser-side quiz draft autosave added.
+- [x] Quiz progress indicator added.
+- [x] Low-time timer warning added.
+
+#### Login/download 500s
+
+- [x] Bulgarian keyboard/password input now follows the normal login rejection
+  path instead of HTTP 500.
+- [x] Practical file download crash fixed.
+
+#### Review answers/explanations
+
+- [x] Open/fill-in review answer visibility fixed.
+- [x] Question 23 answer visibility fixed.
+- [x] Wrong multiple-choice/open-answer feedback added.
+- [x] XSS/escaping coverage added for answer displays.
+
+#### Practical uploads/security
+
+- [x] Practical upload hardening added.
+- [x] Practical task uploads/review flow preserved.
+
+#### Mobile/navigation UX
+
+- [x] Homepage topic search added.
+- [x] Mobile DZI review scroll/filter UX improved.
+- [x] Mobile profile/login entry added for tester/admin access.
+- [x] DZI preparation separated visually from normal class sections.
+- [x] Recent tests grouped/labeled by available context.
+- [x] Content/test cards made clickable beyond only the title/name.
+
+#### Results/analytics
+
+- [x] Attempt duration display added to result/review surfaces.
+- [x] Success-rate display added.
+- [x] Difficulty breakdown / heatmap-lite display added.
+
+#### Review page polish
+
+- [x] Review show-all/hide-all answer controls added.
+- [x] Review copy buttons added.
+
+### Needs manual smoke test
+
+- Timer durations: 30, 60, 400, and 600 minutes.
+- Mobile class page opens at the top instead of retaining an awkward scroll
+  position.
+- DZI review button and filter controls on a phone viewport.
+- Practical file download.
+- ZIP upload for practical work.
+- Teacher review/download/score/note flow.
+- Wrong-answer explanations for multiple-choice and open/fill-in answers.
+- Homepage topic search.
+
+### Remaining / not yet done
+
+- Bigger auth redesign with username + password, if still desired.
+- More advanced analytics/heatmaps, if desired after the current
+  heatmap-lite display is tested.
+- Server-side autosave, if browser local autosave is not enough.
+- Importing practical tasks/resources for sources beyond `may_2025_v2`, if
+  still needed.
+- Broader teacher dashboard improvements, if still needed.
+
+### Next recommendation
+
+Run a localhost or tunnel smoke test with testers, collect screenshots and
+exact routes for any remaining bugs, then fix only confirmed remaining issues.
+
 ## Latest feedback
 
 ### P0 - Timer / auto-submit bugs
