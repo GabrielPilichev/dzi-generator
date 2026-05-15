@@ -83,6 +83,41 @@
 - `audit_dzi_state.py` reports structural DZI readiness; unittest/tests pin quiz pool-health numbers.
 - Current DZI pool health expectation for `may_2025_v2`: 25 total imported Part 1 questions, 15 MC quiz-ready, 10 short-answer/not-yet-supported, 0 broken/invalid MC.
 
+## Localhost / Cloudflare tunnel guardrails
+- Treat localhost and Cloudflare quick tunnels as manual smoke testing only.
+- Do not start, stop, restart, or kill Flask/local app/cloudflared unless the user explicitly asks.
+- If a tunnel is already working, leave it alone.
+- For Cloudflare quick tunnel smoke testing, Flask should be run with `ProxyFix` at runtime so same-origin login checks see the `trycloudflare.com` scheme/host.
+- Tunneled Flask runs should use `debug=False` and `use_reloader=False`.
+- Do not commit tunnel URLs, secrets, local passwords, logs, `.env` files, uploads, or generated quiz artifacts.
+
+### Safe read-only/status commands
+Agents may run these without asking when relevant:
+- `git status --short`
+- `git branch --show-current`
+- `lsof -nP -iTCP:5001 -sTCP:LISTEN`
+- `curl -I http://127.0.0.1:5001`
+- `python3 -m unittest discover -s tests`
+- `sqlite3 "file:data/questions.db?mode=ro" "SELECT * FROM pragma_foreign_key_check;"`
+- `python3 src/audit_dzi_state.py`
+- `python3 src/audit_open_question_readiness.py`
+- `git restore data/questions.db 2>/dev/null || true` only when cleaning unintended runtime/test DB dirtiness.
+
+### Forbidden unless explicitly requested
+Do not run these unless the user explicitly asks to start/stop/restart local testing:
+- `pkill -f cloudflared`
+- `pkill -f web.app`
+- `pkill -f flask`
+- `lsof ... | xargs kill`
+- `kill <PID>`
+- `cloudflared tunnel --url ...`
+- `app.run`, `flask run`, or `python web/app.py`
+
+### Generated artifact hygiene
+- Do not commit `vault/Generated/Quizzes/`.
+- Do not commit local uploads.
+- If tests/runtime dirty `data/questions.db` unintentionally, restore it unless the DB change is explicitly planned.
+
 ## Before finishing
 Run relevant checks:
 - python3 -m py_compile <changed Python files>
