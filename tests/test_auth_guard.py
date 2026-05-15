@@ -178,6 +178,38 @@ class AuthGuardTest(unittest.TestCase):
             response = self.client.get(path)
             self.assertEqual(response.status_code, 200, path)
 
+    def test_teacher_dashboard_groups_recent_tests_by_class_with_teacher_fallback(self):
+        assignment_url = self._create_assignment_as_tester()
+        assignment_id = assignment_url.rstrip("/").split("/")[-1]
+        self.client = self.app.test_client()
+        self._login_admin()
+
+        response = self.client.get("/teacher")
+
+        self.assertEqual(response.status_code, 200)
+        body = response.get_data(as_text=True)
+        self.assertIn("Последни тестове", body)
+        self.assertIn("assignment-groups", body)
+        self.assertIn(f'href="/teacher/assignment/{assignment_id}"', body)
+        self.assertIn(f'href="/teacher/assignment/{assignment_id}/results"', body)
+        self.assertIn("клас", body)
+        self.assertIn("Учител: не е посочен", body)
+
+    def test_teacher_assignments_list_shows_class_and_teacher_fallback(self):
+        assignment_url = self._create_assignment_as_tester()
+        assignment_id = assignment_url.rstrip("/").split("/")[-1]
+        self.client = self.app.test_client()
+        self._login_admin()
+
+        response = self.client.get("/teacher/assignments")
+
+        self.assertEqual(response.status_code, 200)
+        body = response.get_data(as_text=True)
+        self.assertIn(f'href="/teacher/assignment/{assignment_id}"', body)
+        self.assertIn(f'href="/teacher/assignment/{assignment_id}/results"', body)
+        self.assertIn("клас", body)
+        self.assertIn("Учител: не е посочен", body)
+
     def test_future_dzi_named_endpoint_is_admin_only_by_default(self):
         path = "/__test__/dzi-default-denied"
 

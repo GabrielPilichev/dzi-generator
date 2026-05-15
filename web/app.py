@@ -3209,7 +3209,15 @@ def teacher_dashboard():
     for row in recent_assignment_rows:
         row_dict = dict(row)
         row_dict["mixed_status"] = quiz_assignment_mixed_status(row_dict.pop("question_plan_json", None))
+        row_dict["teacher_label"] = "не е посочен"
         recent_assignments.append(row_dict)
+
+    recent_assignments_by_class = []
+    for class_value in sorted({int(row["class"]) for row in recent_assignments}):
+        recent_assignments_by_class.append({
+            "class": class_value,
+            "assignments": [row for row in recent_assignments if int(row["class"]) == class_value],
+        })
 
     recent_attempts = conn.execute("""
         SELECT
@@ -3238,6 +3246,7 @@ def teacher_dashboard():
         "teacher_dashboard.html",
         stats=stats,
         recent_assignments=recent_assignments,
+        recent_assignments_by_class=recent_assignments_by_class,
         recent_attempts=recent_attempts,
     )
 
@@ -3309,6 +3318,7 @@ def teacher_assignments():
     for row in assignment_rows:
         row_dict = dict(row)
         row_dict["mixed_status"] = quiz_assignment_mixed_status(row_dict.pop("question_plan_json", None))
+        row_dict["teacher_label"] = "не е посочен"
         assignments.append(row_dict)
 
     conn.close()
