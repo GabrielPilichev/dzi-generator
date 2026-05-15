@@ -569,6 +569,49 @@ class QuizAttemptRenderTest(unittest.TestCase):
         self.assertIn(b'data-remaining="1800"', response.data)
         self.assertIn(b'data-timer-expired="0"', response.data)
 
+    def test_active_attempt_renders_timer_warning_markup(self):
+        fixed_now = datetime(2026, 5, 13, 12, 0, 0)
+        _assignment_id, attempt_id = self._create_attempt(
+            [self.valid_question_id],
+            submitted=False,
+            student_name="Timer Warning Markup",
+            time_limit_minutes=30,
+            started_at="2026-05-13 12:00:00",
+        )
+
+        with patch.object(web_app, "quiz_current_timestamp", return_value=fixed_now):
+            response = self.client.get(f"/quiz/attempt/{attempt_id}")
+
+        self.assertEqual(response.status_code, 200)
+        body = response.data.decode("utf-8")
+        self.assertIn('id="timer-warning"', body)
+        self.assertIn('class="timer-warning"', body)
+        self.assertIn('role="status"', body)
+        self.assertIn('aria-live="polite"', body)
+        self.assertIn("hidden", body)
+
+    def test_timer_warning_thresholds_are_rendered_for_js(self):
+        fixed_now = datetime(2026, 5, 13, 12, 29, 30)
+        _assignment_id, attempt_id = self._create_attempt(
+            [self.valid_question_id],
+            submitted=False,
+            student_name="Timer Warning Thresholds",
+            time_limit_minutes=30,
+            started_at="2026-05-13 12:00:00",
+        )
+
+        with patch.object(web_app, "quiz_current_timestamp", return_value=fixed_now):
+            response = self.client.get(f"/quiz/attempt/{attempt_id}")
+
+        self.assertEqual(response.status_code, 200)
+        body = response.data.decode("utf-8")
+        self.assertIn('data-remaining="30"', body)
+        self.assertIn('data-warning-threshold="300"', body)
+        self.assertIn('data-urgent-threshold="60"', body)
+        self.assertIn("Остават по-малко от 5 минути.", body)
+        self.assertIn("Остава по-малко от 1 минута. Проверете отговорите си.", body)
+        self.assertIn("syncWarning(remaining)", body)
+
     def test_60_minute_assignment_renders_non_expired_timer(self):
         fixed_now = datetime(2026, 5, 13, 12, 0, 0)
         _assignment_id, attempt_id = self._create_attempt(
@@ -658,6 +701,25 @@ class QuizAttemptRenderTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertNotIn(b'id="countdown"', response.data)
         self.assertNotIn(b"data-remaining", response.data)
+        self.assertNotIn(b'id="timer-warning"', response.data)
+
+    def test_result_page_does_not_include_timer_warning_controls(self):
+        _assignment_id, attempt_id = self._create_attempt(
+            [self.valid_question_id],
+            submitted=True,
+            student_name="Timer Warning Result",
+            time_limit_minutes=30,
+            started_at="2026-05-13 12:00:00",
+        )
+
+        response = self.client.get(f"/quiz/attempt/{attempt_id}/result")
+
+        self.assertEqual(response.status_code, 200)
+        body = response.data.decode("utf-8")
+        self.assertNotIn('id="timer-warning"', body)
+        self.assertNotIn("data-warning-threshold", body)
+        self.assertNotIn("data-urgent-threshold", body)
+        self.assertNotIn("syncWarning(remaining)", body)
 
     def test_active_attempt_shows_question_difficulty_when_available(self):
         conn = web_app.quiz_db()
