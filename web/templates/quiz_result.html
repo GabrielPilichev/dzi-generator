@@ -153,7 +153,7 @@
         {% else %}
           Автоматичните точки са само информативни и не са включени в точния резултат. Интеграцията на отворените отговори във финалния резултат още не е включена.
         {% endif %}
-        Прегледът и оценяването от учител ще бъдат добавени по-късно.
+        Ако има учителски преглед, той се показва отделно като информационен статус.
       </p>
       {% if open_text_subtotal %}
         <div class="answer-note answer-note--unanswered">
@@ -171,7 +171,7 @@
 
       <div class="answer-summary-grid">
         {% for answer in open_text_answers %}
-          <div class="answer-note {% if answer.is_correct %}answer-note--correct{% else %}answer-note--wrong{% endif %}">
+          <div class="answer-note {% if answer.teacher_reviewed and answer.teacher_override_status == 'correct' %}answer-note--correct{% elif answer.teacher_reviewed and answer.teacher_override_status == 'partially_correct' %}answer-note--unanswered{% elif answer.is_correct %}answer-note--correct{% else %}answer-note--wrong{% endif %}">
             <span class="answer-note-label">Въпрос {{ answer.question_id }}, отговор {{ answer.subquestion_number }}</span>
             <span>{{ answer.raw_answer or 'Няма въведен отговор.' }}</span>
             <span class="answer-note-label">
@@ -189,6 +189,16 @@
                 · режим: {{ answer.grading_mode }}
               {% endif %}
             </span>
+            {% if answer.teacher_reviewed %}
+              <span class="answer-note-label">Учителски преглед</span>
+              <span>
+                {{ answer.teacher_override_status_label }}
+                · {{ answer.points_awarded|float|round(2) }}/{{ answer.points_possible|float|round(2) }} т.
+              </span>
+              {% if answer.teacher_note %}
+                <span>{{ answer.teacher_note }}</span>
+              {% endif %}
+            {% endif %}
             {% if not answer.is_correct %}
               <span class="answer-note-label">Приет отговор</span>
               <span>

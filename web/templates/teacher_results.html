@@ -324,7 +324,9 @@
           <th>Подаден отговор</th>
           <th>Нормализиран</th>
           <th>Автостатус</th>
+          <th>Учителски резултат</th>
           <th>Инф. точки</th>
+          <th>Приети отговори</th>
           <th>Режим</th>
           <th>Учителски override</th>
         </tr>
@@ -337,8 +339,8 @@
               <div class="muted">MC резултат: {{ answer.attempt_score_correct }}/{{ answer.attempt_score_total }}</div>
             </td>
             <td>Q{{ answer.question_id }}.{{ answer.subquestion_number }}</td>
-            <td>{{ answer.raw_answer or "Няма въведен отговор." }}</td>
-            <td>{{ answer.normalized_answer or "—" }}</td>
+            <td class="wrap-cell">{{ answer.raw_answer or "Няма въведен отговор." }}</td>
+            <td class="wrap-cell">{{ answer.normalized_answer or "—" }}</td>
             <td>
               {% if answer.is_correct %}
                 <span class="badge done">авто-съвпадение</span>
@@ -346,6 +348,14 @@
                 <span class="badge open">няма съвпадение</span>
               {% else %}
                 <span class="badge open">предстои проверка</span>
+              {% endif %}
+              <div class="muted">{{ answer.auto_points_awarded|round(2) }}/{{ answer.points_possible|float|round(2) }} авто</div>
+            </td>
+            <td>
+              {% if answer.teacher_reviewed %}
+                <span class="badge done">{{ answer.teacher_override_status_label }}</span>
+              {% else %}
+                <span class="badge open">без override</span>
               {% endif %}
             </td>
             <td>
@@ -355,16 +365,35 @@
                 —
               {% endif %}
             </td>
+            <td class="wrap-cell">
+              {% if answer.accepted_answers %}
+                {{ answer.accepted_answers | join(", ") }}
+              {% else %}
+                Няма въведен приет отговор.
+              {% endif %}
+            </td>
             <td>{{ answer.grading_mode or "—" }}</td>
             <td>
-              <form method="post" action="{{ url_for('teacher_assignment_results', assignment_id=assignment.id) }}">
+              <form class="open-answer-review-form" method="post" action="{{ url_for('teacher_assignment_results', assignment_id=assignment.id) }}">
                 <input type="hidden" name="text_answer_id" value="{{ answer.id }}">
                 <label>
                   Статус
                   <select name="teacher_override">
-                    <option value="0" {% if not answer.teacher_override %}selected{% endif %}>Без override</option>
-                    <option value="1" {% if answer.teacher_override %}selected{% endif %}>Приет от учител</option>
+                    <option value="none" {% if not answer.teacher_override_status %}selected{% endif %}>Без override</option>
+                    <option value="correct" {% if answer.teacher_override_status == "correct" %}selected{% endif %}>correct — вярно</option>
+                    <option value="partially_correct" {% if answer.teacher_override_status == "partially_correct" %}selected{% endif %}>partially_correct — частично</option>
+                    <option value="incorrect" {% if answer.teacher_override_status == "incorrect" %}selected{% endif %}>incorrect — грешно</option>
                   </select>
+                </label>
+                <label>
+                  Информационни точки
+                  <input
+                    type="number"
+                    name="points_awarded"
+                    min="0"
+                    max="{{ answer.points_possible|float }}"
+                    step="0.01"
+                    value="{{ answer.points_awarded|float|round(2) if answer.teacher_reviewed else answer.auto_points_awarded|round(2) }}">
                 </label>
                 <label>
                   Бележка

@@ -1449,7 +1449,7 @@ class QuizAttemptRenderTest(unittest.TestCase):
         self.assertIn("1.0/2.0 т.".encode("utf-8"), response.data)
         self.assertIn("не е включен в точния резултат".encode("utf-8"), response.data)
         self.assertIn("режим: ordered".encode("utf-8"), response.data)
-        self.assertIn("Прегледът и оценяването от учител ще бъдат добавени по-късно".encode("utf-8"), response.data)
+        self.assertIn("Ако има учителски преглед, той се показва отделно".encode("utf-8"), response.data)
         self.assertNotIn("Комбиниран резултат".encode("utf-8"), response.data)
         self.assertIn(b'<span class="result-score">0/1</span>', response.data)
         self.assertNotIn(b"accepted_answers_json", response.data)
@@ -1674,11 +1674,73 @@ class QuizAttemptRenderTest(unittest.TestCase):
         response = self.client.get(f"/teacher/assignment/{assignment_id}/results")
         self.assertEqual(response.status_code, 200)
         self.assertIn(b"Reviewed manually", response.data)
-        self.assertIn("Приет от учител".encode("utf-8"), response.data)
+        self.assertIn("Вярно".encode("utf-8"), response.data)
         self.assertIn(b"2.0/2.0", response.data)
         self.assertIn("комбиниран резултат".encode("utf-8"), response.data)
         self.assertIn(b"2.0/3.0", response.data)
         self.assertIn("Включен е в комбинирания резултат".encode("utf-8"), response.data)
+
+    def test_admin_can_save_structured_open_answer_review_and_reload(self):
+        assignment_id, attempt_id, open_question_id = self._create_mixed_planned_attempt(
+            student_name="Structured Override",
+        )
+        conn = web_app.quiz_db()
+        try:
+            wrong_letter = self._wrong_letter(conn, self.valid_question_id)
+        finally:
+            conn.close()
+        self.client.post(f"/quiz/attempt/{attempt_id}", data={
+            f"q_{self.valid_question_id}": wrong_letter,
+            f"open_q_{open_question_id}_1": "неверен",
+            f"open_q_{open_question_id}_2": "jpg",
+        })
+        text_answer_id = self._quiz_text_answer_rows(attempt_id)[0]["id"]
+        self._login_admin()
+
+        response = self.client.post(f"/teacher/assignment/{assignment_id}/results", data={
+            "text_answer_id": str(text_answer_id),
+            "teacher_override": "partially_correct",
+            "points_awarded": "0.5",
+            "teacher_note": "Half credit after review",
+        })
+        self.assertEqual(response.status_code, 302)
+
+        conn = web_app.quiz_db()
+        try:
+            row = conn.execute("""
+                SELECT teacher_override, teacher_override_status, points_awarded, teacher_note
+                FROM quiz_text_answers
+                WHERE id = ?
+            """, (text_answer_id,)).fetchone()
+            attempt = conn.execute("""
+                SELECT score_correct, score_total
+                FROM quiz_attempts
+                WHERE id = ?
+            """, (attempt_id,)).fetchone()
+        finally:
+            conn.close()
+        self.assertEqual(row["teacher_override"], 1)
+        self.assertEqual(row["teacher_override_status"], "partially_correct")
+        self.assertEqual(float(row["points_awarded"]), 0.5)
+        self.assertEqual(row["teacher_note"], "Half credit after review")
+        self.assertEqual(attempt["score_correct"], 0)
+        self.assertEqual(attempt["score_total"], 1)
+
+        response = self.client.get(f"/teacher/assignment/{assignment_id}/results")
+        self.assertEqual(response.status_code, 200)
+        body = response.data.decode("utf-8")
+        self.assertIn("partially_correct", body)
+        self.assertIn("Частично вярно", body)
+        self.assertIn("0.5/1.0", body)
+        self.assertIn("Half credit after review", body)
+        self.assertIn('value="0.5"', body)
+
+        response = self.client.get(f"/quiz/attempt/{attempt_id}/result")
+        self.assertEqual(response.status_code, 200)
+        student_body = response.data.decode("utf-8")
+        self.assertIn("Учителски преглед", student_body)
+        self.assertIn("Частично вярно", student_body)
+        self.assertIn("MC резултат", student_body)
 
     def test_tester_cannot_save_teacher_open_answer_override(self):
         assignment_id, attempt_id, open_question_id = self._create_mixed_planned_attempt(

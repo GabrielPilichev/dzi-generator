@@ -22,6 +22,7 @@ from __future__ import annotations
 import os
 import hmac
 import json
+import math
 import secrets
 import warnings
 
@@ -2079,6 +2080,12 @@ def fetch_quiz_text_answers_for_attempt(conn, attempt_id: int, *, question_id: i
     if question_id is not None:
         question_filter = "AND question_id = ?"
         params.append(question_id)
+    columns = sqlite_table_columns(conn, "quiz_text_answers")
+    teacher_status_expr = (
+        "teacher_override_status"
+        if "teacher_override_status" in columns
+        else "NULL AS teacher_override_status"
+    )
 
     rows = conn.execute(f"""
         SELECT
@@ -2097,6 +2104,7 @@ def fetch_quiz_text_answers_for_attempt(conn, attempt_id: int, *, question_id: i
             points_possible,
             grader_version,
             teacher_override,
+            {teacher_status_expr},
             teacher_note
         FROM quiz_text_answers
         WHERE attempt_id = ?
@@ -2108,6 +2116,7 @@ def fetch_quiz_text_answers_for_attempt(conn, attempt_id: int, *, question_id: i
         answer = dict(row)
         answer["accepted_answers"] = quiz_display_answer_list(answer.get("accepted_answers_json"))
         answer["feedback_explanation"] = QUIZ_NO_EXPLANATION_MESSAGE
+        prepare_quiz_text_answer_review(answer)
         answers.append(answer)
     return answers
 
@@ -2193,16 +2202,10 @@ def quiz_text_answer_informational_subtotal(rows) -> dict:
             row_possible = 0.0
         possible += row_possible
 
-        override = row.get("teacher_override")
-        if override == 1:
-            awarded += row_possible
-        elif override == 0 and row.get("teacher_note"):
-            awarded += 0.0
-        else:
-            try:
-                awarded += float(row.get("points_awarded") or 0)
-            except (TypeError, ValueError):
-                pass
+        try:
+            awarded += float(row.get("points_awarded") or 0)
+        except (TypeError, ValueError):
+            pass
 
     return {
         "awarded": awarded,
@@ -3669,6 +3672,80 @@ def teacher_assignment_duplicate(assignment_id):
 
 
 TEACHER_NOTE_MAX_LENGTH = 1000
+TEACHER_OPEN_ANSWER_STATUSES = {"correct", "partially_correct", "incorrect"}
+TEACHER_OPEN_ANSWER_STATUS_LABELS = {
+    "correct": "Вярно",
+    "partially_correct": "Частично вярно",
+    "incorrect": "Грешно",
+}
+QUIZ_TEXT_AUTO_STATUS_LABELS = {
+    "correct": "Автоматично съвпадение",
+    "incorrect": "Няма автоматично съвпадение",
+    "pending": "Предстои проверка",
+}
+
+
+def quiz_text_auto_points(row) -> float:
+    try:
+        possible = float(_quiz_mapping_get(row, "points_possible") or 0)
+    except (TypeError, ValueError):
+        possible = 0.0
+    return possible if _quiz_mapping_get(row, "is_correct") == 1 else 0.0
+
+
+def quiz_parse_review_points(value: object, *, points_possible: float) -> float:
+    raw = "" if value is None else str(value).strip().replace(",", ".")
+    if raw == "":
+        raise ValueError("points value is required")
+    points = float(raw)
+    if not math.isfinite(points):
+        raise ValueError("points value must be finite")
+    if points < 0 or points > points_possible:
+        raise ValueError("points value out of range")
+    return points
+
+
+def quiz_ensure_text_answer_teacher_status_column(conn) -> None:
+    if "teacher_override_status" in sqlite_table_columns(conn, "quiz_text_answers"):
+        return
+    conn.execute("""
+        ALTER TABLE quiz_text_answers
+        ADD COLUMN teacher_override_status TEXT
+            CHECK (
+                teacher_override_status IS NULL
+                OR teacher_override_status IN ('correct', 'partially_correct', 'incorrect')
+            )
+    """)
+
+
+def prepare_quiz_text_answer_review(answer: dict) -> dict:
+    auto_status = "pending"
+    if answer.get("is_correct") == 1:
+        auto_status = "correct"
+    elif answer.get("is_correct") is not None:
+        auto_status = "incorrect"
+
+    teacher_status = answer.get("teacher_override_status")
+    if teacher_status not in TEACHER_OPEN_ANSWER_STATUSES:
+        teacher_status = None
+    if answer.get("teacher_override") == 1 and teacher_status is None:
+        teacher_status = "correct"
+        try:
+            answer["points_awarded"] = float(answer.get("points_possible") or 0)
+        except (TypeError, ValueError):
+            answer["points_awarded"] = 0.0
+
+    answer["auto_status"] = auto_status
+    answer["auto_status_label"] = QUIZ_TEXT_AUTO_STATUS_LABELS[auto_status]
+    answer["auto_points_awarded"] = quiz_text_auto_points(answer)
+    answer["teacher_override_status"] = teacher_status
+    answer["teacher_override_status_label"] = (
+        TEACHER_OPEN_ANSWER_STATUS_LABELS.get(teacher_status)
+        if teacher_status
+        else "Няма учителски override"
+    )
+    answer["teacher_reviewed"] = bool(answer.get("teacher_override") and teacher_status)
+    return answer
 
 
 QUIZ_RESULTS_ALLOWED_STATUS = {"all", "submitted", "unsubmitted"}
@@ -3792,13 +3869,16 @@ def teacher_assignment_results(assignment_id):
             _quiz_abort(400)
 
         override_raw = (_quiz_request.form.get("teacher_override") or "").strip()
-        if override_raw == "":
-            override_value = 0
-        elif override_raw in {"0", "1"}:
-            override_value = int(override_raw)
+        if override_raw in {"", "0", "none"}:
+            teacher_status = None
+        elif override_raw == "1":
+            teacher_status = "correct"
+        elif override_raw in TEACHER_OPEN_ANSWER_STATUSES:
+            teacher_status = override_raw
         else:
             conn.close()
             _quiz_abort(400)
+        override_value = 1 if teacher_status else 0
 
         teacher_note = (_quiz_request.form.get("teacher_note") or "").replace("\x00", "").strip()
         if len(teacher_note) > TEACHER_NOTE_MAX_LENGTH:
@@ -3806,8 +3886,9 @@ def teacher_assignment_results(assignment_id):
             _quiz_abort(400)
         teacher_note_value = teacher_note or None
 
+        quiz_ensure_text_answer_teacher_status_column(conn)
         row = conn.execute("""
-            SELECT qta.id
+            SELECT qta.id, qta.is_correct, qta.points_possible
             FROM quiz_text_answers qta
             JOIN quiz_attempts qa ON qa.id = qta.attempt_id
             WHERE qta.id = ?
@@ -3817,12 +3898,31 @@ def teacher_assignment_results(assignment_id):
             conn.close()
             _quiz_abort(404)
 
+        try:
+            points_possible = float(row["points_possible"] or 0)
+        except (TypeError, ValueError):
+            points_possible = 0.0
+        if teacher_status:
+            points_raw = _quiz_request.form.get("points_awarded")
+            if points_raw is None or str(points_raw).strip() == "":
+                points_awarded = points_possible if teacher_status == "correct" else 0.0
+            else:
+                try:
+                    points_awarded = quiz_parse_review_points(points_raw, points_possible=points_possible)
+                except (TypeError, ValueError):
+                    conn.close()
+                    _quiz_abort(400)
+        else:
+            points_awarded = quiz_text_auto_points(row)
+
         conn.execute("""
             UPDATE quiz_text_answers
             SET teacher_override = ?,
+                teacher_override_status = ?,
+                points_awarded = ?,
                 teacher_note = ?
             WHERE id = ?
-        """, (override_value, teacher_note_value, answer_id))
+        """, (override_value, teacher_status, points_awarded, teacher_note_value, answer_id))
         conn.commit()
         conn.close()
         return _quiz_redirect(_quiz_url_for("teacher_assignment_results", assignment_id=assignment_id))
