@@ -1641,24 +1641,53 @@ footer {
   .pinned-grid { grid-template-columns: 1fr; }
   .mode-grid {
     grid-template-columns: 1fr;
-    gap: var(--space-4);
+    gap: var(--space-3);
     margin-bottom: var(--space-6);
   }
   .mode-card {
     min-height: 0;
-    padding: var(--space-5);
+    padding: var(--space-4);
   }
   .mode-action {
-    padding-top: var(--space-4);
+    padding-top: var(--space-3);
+  }
+  .home-hero {
+    padding: var(--space-5) var(--space-4);
+  }
+  .home-hero h1 {
+    font-size: 2rem;
+    line-height: 1.08;
+  }
+  .home-hero .subtitle {
+    font-size: 0.98rem;
+  }
+  .home-hero-stats {
+    gap: var(--space-2);
+    margin-top: var(--space-4);
+  }
+  .home-search {
+    margin-top: var(--space-4);
+  }
+  .home-search-input {
+    min-height: 46px;
+    border-radius: var(--radius-lg);
   }
   .home-dzi-card {
     grid-template-columns: 1fr;
-    min-height: 132px;
-    padding: var(--space-5);
+    min-height: 0;
+    padding: var(--space-4);
+    border-left-width: 5px;
   }
   .home-dzi-section {
     padding: var(--space-4);
     margin-bottom: var(--space-6);
+  }
+  .home-dzi-title {
+    font-size: 1.55rem;
+  }
+  .home-dzi-stats {
+    flex-direction: column;
+    gap: var(--space-1);
   }
   .home-dzi-icon { display: none; }
   .open-question-panel {
@@ -1727,6 +1756,9 @@ footer {
   .panel {
     padding: var(--space-5);
   }
+  .grade-card {
+    min-height: 164px;
+  }
   .question-header {
     flex-direction: column;
   }
@@ -1749,8 +1781,14 @@ footer {
   .questions-list {
     gap: var(--space-4);
   }
-  .home-search-input {
-    font-size: 1rem;
+  .stat-row {
+    gap: var(--space-2);
+  }
+  .stat-box {
+    padding: var(--space-2);
+  }
+  .stat-number {
+    font-size: 1.55rem;
   }
   .topic-list {
     grid-template-columns: 1fr;
@@ -1812,6 +1850,17 @@ footer {
 
 .is-search-hidden {
   display: none !important;
+}
+
+@media (max-width: 768px) {
+  .home-search {
+    margin-top: var(--space-4);
+  }
+  .home-search-input {
+    min-height: 46px;
+    border-radius: var(--radius-lg);
+    font-size: 1rem;
+  }
 }
 
 .home-section--topics {
