@@ -133,33 +133,5 @@
     </div>
 </section>
 
-{% if searchable_sections %}
-<section class="home-section home-section--topics" data-home-search-group="topics">
-    <div class="section-heading">
-        <div>
-            <p class="eyebrow">Теми и раздели</p>
-            <h2>Намери тема</h2>
-        </div>
-        <span class="pill">{{ searchable_sections|length }} раздела</span>
-    </div>
-
-    <ul class="topic-list">
-        {% for item in searchable_sections %}
-            <li class="topic-list-item"
-                data-search-item
-                data-search-text="{{ item.section_title }} {{ item.module_title or '' }} {{ item.grade }}. клас grade{{ item.grade }}">
-                <a class="topic-list-link" href="{{ url_for('section_view', slug=item.section_slug) }}">
-                    <span class="topic-list-grade">{{ item.grade }}. клас</span>
-                    <span class="topic-list-title">{{ item.section_title }}</span>
-                    {% if item.module_title %}
-                        <span class="topic-list-module">{{ item.module_title }}</span>
-                    {% endif %}
-                </a>
-            </li>
-        {% endfor %}
-    </ul>
-</section>
-{% endif %}
-
 <script src="{{ url_for('static', filename='js/home-search.js') }}" defer></script>
 {% endblock %}
