@@ -765,12 +765,28 @@ button.secondary {
   min-width: 180px;
 }
 .table-wrap {
+  position: relative;
+  max-width: 100%;
   overflow-x: auto;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
+  background:
+    linear-gradient(90deg, var(--color-bg) 30%, transparent),
+    linear-gradient(270deg, var(--color-bg) 30%, transparent) 100% 0,
+    linear-gradient(90deg, color-mix(in srgb, var(--color-text) 12%, transparent), transparent),
+    linear-gradient(270deg, color-mix(in srgb, var(--color-text) 12%, transparent), transparent) 100% 0;
+  background-attachment: local, local, scroll, scroll;
+  background-color: var(--color-bg);
+  background-repeat: no-repeat;
+  background-size: 32px 100%, 32px 100%, 12px 100%, 12px 100%;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
 }
 .table-wrap table {
   margin: 0;
+}
+.teacher-table {
+  min-width: 760px;
 }
 .table-wrap--wide table {
   min-width: 1120px;
@@ -788,6 +804,18 @@ button.secondary {
 }
 .teacher-table td {
   line-height: 1.5;
+}
+.teacher-table th,
+.teacher-table td {
+  min-width: 88px;
+}
+.teacher-table th:first-child,
+.teacher-table td:first-child {
+  min-width: 140px;
+}
+.teacher-table th:last-child,
+.teacher-table td:last-child {
+  min-width: 140px;
 }
 .teacher-table .links {
   gap: var(--space-1);
@@ -820,6 +848,17 @@ button.secondary {
 .teacher-table--dense th,
 .teacher-table--dense td {
   padding: var(--space-2);
+}
+.teacher-table--dense {
+  min-width: 1180px;
+}
+.teacher-table--dense th,
+.teacher-table--dense td {
+  min-width: 96px;
+}
+.teacher-table--dense th:last-child,
+.teacher-table--dense td:last-child {
+  min-width: 260px;
 }
 .teacher-open-answers-card {
   display: grid;
@@ -2229,6 +2268,41 @@ footer {
   .difficulty-breakdown-row {
     grid-template-columns: 1fr;
     gap: var(--space-2);
+  }
+  .teacher-list-card,
+  .teacher-table-card,
+  .teacher-open-answers-card {
+    padding-left: var(--space-3);
+    padding-right: var(--space-3);
+  }
+  .table-wrap {
+    margin-inline: calc(-1 * var(--space-1));
+    border-radius: var(--radius-sm);
+  }
+  .teacher-table {
+    min-width: 720px;
+  }
+  .table-wrap--wide table,
+  .teacher-table--dense {
+    min-width: 1080px;
+  }
+  .teacher-table th,
+  .teacher-table td {
+    padding: var(--space-2);
+    font-size: 0.88rem;
+  }
+  .teacher-table th {
+    font-size: 0.7rem;
+  }
+  .teacher-table .links {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .teacher-table .links a,
+  .teacher-table .link-button {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
   }
   .grade-grid,
   .cards,
