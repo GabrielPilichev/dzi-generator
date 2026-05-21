@@ -50,7 +50,7 @@
   </div>
 </section>
 
-<div class="cards">
+<div class="cards teacher-stat-grid">
   <div class="card">
     <div class="label">Всички опити</div>
     <div class="value">{{ totals.attempts_count or 0 }}</div>
@@ -75,7 +75,7 @@
   </div>
 </div>
 
-<section class="card" id="results-filters">
+<section class="card teacher-filter-card" id="results-filters">
   <form method="get" class="filter-bar">
     <label for="results-q">Търсене по име</label>
     <input id="results-q" name="q" type="search" value="{{ filters.q }}" placeholder="напр. Иван">
@@ -114,7 +114,7 @@
   </form>
 </section>
 
-<section class="card" id="results-summary">
+<section class="card teacher-summary-card" id="results-summary">
   <div class="section-heading">
     <h2>Аналитика на резултатите</h2>
     {% if filter_active %}
@@ -128,7 +128,7 @@
       <p class="muted">Все още няма предадени опити за анализ.</p>
     {% endif %}
   {% else %}
-    <div class="cards">
+    <div class="cards teacher-stat-grid">
       <div class="card">
         <div class="label">MC: най-висок %</div>
         <div class="value">
@@ -208,9 +208,10 @@
   {% endif %}
 </section>
 
-<section class="card">
+<section class="card teacher-table-card">
   {% if attempts %}
-    <table>
+    <div class="table-wrap">
+    <table class="teacher-table">
       <thead>
         <tr>
           <th>Ученик</th>
@@ -259,6 +260,7 @@
         {% endfor %}
       </tbody>
     </table>
+    </div>
   {% else %}
     {% if filter_active %}
       <p class="empty-state">Няма опити за избраните филтри.</p>
@@ -270,7 +272,7 @@
 </section>
 
 {% if open_text_answers %}
-  <section class="card">
+  <section class="card teacher-open-answers-card">
     <div class="section-heading">
       <h2>Отворени отговори</h2>
     </div>
@@ -291,7 +293,7 @@
       <p class="muted">Този контрол е планиран и изключен. Няма активен механизъм за промяна на крайния резултат.</p>
     </fieldset>
     {% if open_subtotals_by_attempt %}
-      <div class="cards">
+      <div class="cards teacher-stat-grid">
         {% for attempt_id, subtotal in open_subtotals_by_attempt.items() %}
           <div class="card">
             <div class="label">Опит #{{ attempt_id }} · отворени отговори</div>
@@ -316,7 +318,8 @@
       </div>
     {% endif %}
 
-    <table>
+    <div class="table-wrap table-wrap--wide">
+    <table class="teacher-table teacher-table--dense">
       <thead>
         <tr>
           <th>Ученик</th>
@@ -407,6 +410,7 @@
         {% endfor %}
       </tbody>
     </table>
+    </div>
   </section>
 {% endif %}
 {% endblock %}
