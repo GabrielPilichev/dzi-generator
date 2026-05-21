@@ -48,7 +48,7 @@
                 <div class="question-header">
                     <div class="question-meta">
                         <span class="question-number">Задача {{ task.task_number }}</span>
-                        <span class="badge type-badge type-{{ task.task_kind }}">{{ task.task_kind }}</span>
+                        <span class="badge type-badge type-{{ task.task_kind }}">{{ question_kind_label(task.task_kind) }}</span>
                         <span class="badge">{{ task.points }} т.</span>
                         {% if task.work_environment %}
                             <span class="badge">{{ task.work_environment }}</span>

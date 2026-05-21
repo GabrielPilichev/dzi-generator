@@ -90,6 +90,19 @@ QUESTION_DIFFICULTY_LABELS = {
     "easy": "лесен",
     "medium": "среден",
     "hard": "труден",
+    "unknown": "не е посочена",
+}
+QUESTION_KIND_LABELS = {
+    "multiple_choice": "затворен въпрос",
+    "true_false": "вярно/невярно",
+    "short_answer": "отворен въпрос",
+    "fill_in": "отворен въпрос",
+    "open": "отворен въпрос",
+    "free_response": "отворен въпрос",
+    "practical_spreadsheet": "практическа задача: електронна таблица",
+    "practical_graphics": "практическа задача: графика",
+    "practical_web": "практическа задача: уеб",
+    "practical": "практическа задача",
 }
 QUESTION_DIFFICULTY_BUCKETS = {
     "1": ("very_easy", "Много лесни", "diff-easy"),
@@ -109,6 +122,11 @@ QUESTION_DIFFICULTY_BUCKET_ORDER = [
     "very_hard",
     "unknown",
 ]
+
+
+def question_kind_label(value) -> str:
+    key = str(value or "").strip().lower()
+    return QUESTION_KIND_LABELS.get(key, key or "неизвестен тип")
 
 
 def question_difficulty_label(value) -> str | None:
@@ -217,6 +235,7 @@ def inject_ui_profile():
         "ui_profile": profile,
         "ui_profile_label": "Админ" if profile == "admin" else "Тестер",
         "question_difficulty_label": question_difficulty_label,
+        "question_kind_label": question_kind_label,
     }
 
 
