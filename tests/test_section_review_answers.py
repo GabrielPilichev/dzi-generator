@@ -43,6 +43,8 @@ class SectionReviewAnswersTest(unittest.TestCase):
             cls.open_answer_question_id = cls._insert_open_answer_fixture(conn)
             cls.empty_answer_question_id = cls._insert_empty_open_answer_fixture(conn)
             cls.xss_answer_question_id = cls._insert_xss_open_answer_fixture(conn)
+            cls.true_false_question_id = cls._insert_true_false_fixture(conn)
+            cls.unknown_difficulty_question_id = cls._insert_unknown_difficulty_fixture(conn)
             cls.dzi_q23 = cls._fetch_dzi_task_23_answer_fixture(conn)
             conn.commit()
         finally:
@@ -103,6 +105,54 @@ class SectionReviewAnswersTest(unittest.TestCase):
             "Попълнете стойността",
             correct_answer,
             alternatives,
+        ))
+        return question_id
+
+    @classmethod
+    def _insert_true_false_fixture(cls, conn):
+        cur = conn.execute("""
+            INSERT INTO questions (
+                source_exam, source_number, question_type, topic, topic_id,
+                difficulty, points, prompt, has_image, is_ai_generated, quality_score
+            )
+            VALUES (?, ?, 'true_false', 'section-review-true-false-test', ?, 'easy', 1, ?, 0, 0, NULL)
+        """, (
+            "temp-section-review-true-false-test",
+            9100,
+            cls._section_topic_id(conn),
+            "Вярно/невярно въпрос за етикет.",
+        ))
+        question_id = int(cur.lastrowid)
+        conn.executemany("""
+            INSERT INTO multiple_choice_options (question_id, option_letter, option_text, is_correct)
+            VALUES (?, ?, ?, ?)
+        """, (
+            (question_id, "А", "Вярно", 1),
+            (question_id, "Б", "Невярно", 0),
+        ))
+        return question_id
+
+    @classmethod
+    def _insert_unknown_difficulty_fixture(cls, conn):
+        cur = conn.execute("""
+            INSERT INTO questions (
+                source_exam, source_number, question_type, topic, topic_id,
+                difficulty, points, prompt, has_image, is_ai_generated, quality_score
+            )
+            VALUES (?, ?, 'multiple_choice', 'section-review-unknown-difficulty-test', ?, 'unknown', 1, ?, 0, 0, NULL)
+        """, (
+            "temp-section-review-unknown-difficulty-test",
+            9101,
+            cls._section_topic_id(conn),
+            "Въпрос с неизвестна трудност за етикет.",
+        ))
+        question_id = int(cur.lastrowid)
+        conn.executemany("""
+            INSERT INTO multiple_choice_options (question_id, option_letter, option_text, is_correct)
+            VALUES (?, ?, ?, ?)
+        """, (
+            (question_id, "А", "Първи отговор", 1),
+            (question_id, "Б", "Втори отговор", 0),
         ))
         return question_id
 
@@ -225,6 +275,42 @@ class SectionReviewAnswersTest(unittest.TestCase):
 
         self.assertIn('class="copy-question-button"', article)
         self.assertIn('data-question-type="multiple_choice"', article)
+
+    def test_section_review_question_kind_badges_are_bulgarian(self):
+        response = self.client.get(f"/section/{self.section_slug}")
+        self.assertEqual(response.status_code, 200)
+        body = response.data.decode("utf-8")
+
+        mc_start = body.find(f'data-question-id="{self.question_id}"')
+        mc_end = body.find("</article>", mc_start)
+        mc_article = body[mc_start:mc_end]
+        self.assertIn("затворен въпрос", mc_article)
+        self.assertNotIn(">multiple_choice<", mc_article)
+
+        open_start = body.find(f'data-question-id="{self.open_answer_question_id}"')
+        open_end = body.find("</article>", open_start)
+        open_article = body[open_start:open_end]
+        self.assertIn("отворен въпрос", open_article)
+        self.assertNotIn(">fill_in<", open_article)
+
+        true_false_start = body.find(f'data-question-id="{self.true_false_question_id}"')
+        true_false_end = body.find("</article>", true_false_start)
+        true_false_article = body[true_false_start:true_false_end]
+        self.assertIn("вярно/невярно", true_false_article)
+        self.assertNotIn(">true_false<", true_false_article)
+
+    def test_section_review_unknown_difficulty_is_bulgarian(self):
+        response = self.client.get(f"/section/{self.section_slug}")
+        self.assertEqual(response.status_code, 200)
+        body = response.data.decode("utf-8")
+
+        article_start = body.find(f'data-question-id="{self.unknown_difficulty_question_id}"')
+        article_end = body.find("</article>", article_start)
+        article = body[article_start:article_end]
+
+        self.assertIn("трудност: не е посочена", article)
+        self.assertNotIn("трудност: unknown", article)
+        self.assertIn('<option value="unknown">не е посочена</option>', body)
 
     def test_section_review_open_card_has_copy_button(self):
         response = self.client.get(f"/section/{self.section_slug}")

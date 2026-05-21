@@ -46,7 +46,7 @@
             </td>
             <td>
               Задача {{ submission.task_number }}
-              <div class="muted">{{ submission.source_slug }} · {{ submission.task_kind }}</div>
+              <div class="muted">{{ submission.source_slug }} · {{ question_kind_label(submission.task_kind) }}</div>
             </td>
             <td>
               <span class="badge">{{ submission.status }}</span>

@@ -54,18 +54,18 @@
             <div class="toolbar-row toolbar-row--advanced">
                 <select id="question-type-filter" class="toolbar-select" aria-label="Тип въпрос">
                     <option value="">Тип</option>
-                    <option value="multiple_choice">Избираем</option>
-                    <option value="true_false">Вярно/невярно</option>
-                    <option value="fill_in">Попълване</option>
-                    <option value="open">Отворени</option>
+                    <option value="multiple_choice">{{ question_kind_label("multiple_choice") }}</option>
+                    <option value="true_false">{{ question_kind_label("true_false") }}</option>
+                    <option value="fill_in">{{ question_kind_label("fill_in") }}</option>
+                    <option value="open">{{ question_kind_label("open") }}</option>
                 </select>
 
                 <select id="question-difficulty-filter" class="toolbar-select" aria-label="Трудност">
                     <option value="">Трудност</option>
-                    <option value="easy">easy</option>
-                    <option value="medium">medium</option>
-                    <option value="hard">hard</option>
-                    <option value="unknown">unknown</option>
+                    <option value="easy">{{ question_difficulty_label("easy") }}</option>
+                    <option value="medium">{{ question_difficulty_label("medium") }}</option>
+                    <option value="hard">{{ question_difficulty_label("hard") }}</option>
+                    <option value="unknown">{{ question_difficulty_label("unknown") }}</option>
                 </select>
 
                 <button class="segmented-button" type="button" id="bookmarks-only" aria-pressed="false">
@@ -100,6 +100,7 @@
         {% for q in questions %}
             {% set difficulty = q.difficulty or 'unknown' %}
             {% set type_class = q.question_type|replace(' ', '_') %}
+            {% set difficulty_label = question_difficulty_label(difficulty) or question_difficulty_label("unknown") %}
             <article
                 class="question"
                 data-question-id="{{ q.question_id }}"
@@ -111,8 +112,8 @@
                     <div class="question-meta">
                         <span class="question-number">[{{ "%02d"|format(loop.index) }}]</span>
                         <span class="question-topic">{{ q.topic_title }}</span>
-                        <span class="badge type-badge type-{{ type_class }}">{{ q.question_type }}</span>
-                        <span class="badge diff-{{ difficulty }}">трудност: {{ difficulty }}</span>
+                        <span class="badge type-badge type-{{ type_class }}">{{ question_kind_label(q.question_type) }}</span>
+                        <span class="badge diff-{{ difficulty }}">трудност: {{ difficulty_label }}</span>
                     </div>
 
                     <div class="question-actions">
