@@ -42,7 +42,7 @@
   {% endif %}
 </section>
 
-<form method="post" class="card form-card">
+<form method="post" class="card form-card quiz-start-card">
   <label for="student_name">Име на ученик</label>
   <input id="student_name" name="student_name" autocomplete="name" required minlength="2" placeholder="Например: Иван Петров" value="{{ student_name_value or '' }}">
   {% if name_error %}
