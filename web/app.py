@@ -690,6 +690,38 @@ def fetch_practical_resource_count(exam_id: int) -> int:
     return int(row[0] or 0)
 
 
+def fetch_practical_assignment_options(conn: sqlite3.Connection) -> list[dict]:
+    required_tables = ("exams", "exam_tasks", "practical_task_resources")
+    if not all(sqlite_table_exists(conn, table) for table in required_tables):
+        return []
+
+    rows = conn.execute("""
+        SELECT
+            e.*,
+            COUNT(DISTINCT et.id) AS practical_task_count,
+            COUNT(ptr.id) AS resource_count
+        FROM exams e
+        JOIN exam_tasks et
+          ON et.exam_id = e.id
+         AND et.task_number BETWEEN 26 AND 28
+         AND et.task_kind LIKE 'practical_%'
+        JOIN practical_task_resources ptr
+          ON ptr.exam_task_id = et.id
+        WHERE e.format_version = ?
+        GROUP BY e.id
+        HAVING resource_count > 0
+        ORDER BY e.year DESC, e.session, e.variant
+    """, (DZI_FORMAT_VERSION,)).fetchall()
+
+    options = []
+    for row in rows:
+        option = dict(row)
+        option["source_slug"] = dzi_source_slug(row)
+        option["title"] = dzi_source_title(row)
+        options.append(option)
+    return options
+
+
 def fetch_dzi_question_options(question_id: int) -> list[dict]:
     db = get_db()
     rows = db.execute("""
@@ -3546,6 +3578,7 @@ def teacher_new():
         {"source_slug": source_slug, "count": count}
         for source_slug, count in sorted(open_source_counts.items())
     ]
+    practical_source_options = fetch_practical_assignment_options(conn)
 
     conn.close()
 
@@ -3559,6 +3592,7 @@ def teacher_new():
         mixed_planning_result=mixed_planning_result,
         open_source_options=open_source_options,
         total_open_candidates=len(open_candidates),
+        practical_source_options=practical_source_options,
     ), 400 if teacher_new_error else 200
 
 

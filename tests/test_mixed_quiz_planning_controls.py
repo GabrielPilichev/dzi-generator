@@ -137,6 +137,17 @@ class MixedQuizPlanningControlsTest(unittest.TestCase):
         self.assertIn(b'value="0"', response.data)
         self.assertIn("MC-only".encode("utf-8"), response.data)
 
+    def test_get_shows_practical_task_links_as_manual_review_option(self):
+        self._login_tester()
+        response = self.client.get("/teacher/new")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Практически задачи 26–28".encode("utf-8"), response.data)
+        self.assertIn("Практическите задачи се проверяват ръчно от учител.".encode("utf-8"), response.data)
+        self.assertIn("практическите точки не се включват".encode("utf-8"), response.data)
+        self.assertIn(b"/dzi/source/", response.data)
+        self.assertIn(b"/practical", response.data)
+
     def test_existing_mc_only_creation_path_still_works_without_new_params(self):
         self._login_tester()
         before_assignments = self._assignment_count()

@@ -737,6 +737,48 @@ button.secondary {
   font-size: 1.45rem;
   line-height: 1;
 }
+.practical-assignment-panel {
+  display: grid;
+  gap: var(--space-4);
+  margin-top: var(--space-5);
+  padding: var(--space-4);
+  border: 1px solid color-mix(in srgb, var(--color-accent-dzi) 46%, var(--color-border));
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-accent-dzi-soft) 36%, var(--color-bg-subtle));
+}
+.practical-assignment-panel h3 {
+  margin: 0;
+  font-size: 1.08rem;
+}
+.practical-assignment-panel .eyebrow {
+  margin-bottom: var(--space-1);
+}
+.practical-source-list {
+  display: grid;
+  gap: var(--space-3);
+}
+.practical-source-option {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-3);
+  align-items: center;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--color-bg) 70%, var(--color-accent-dzi-soft));
+}
+.practical-source-option div {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+.practical-source-option strong {
+  color: var(--color-text);
+}
+.practical-source-option span {
+  color: var(--color-text-muted);
+  overflow-wrap: anywhere;
+}
 .label {
   color: var(--color-text-muted);
   font-size: 0.76rem;
@@ -1594,6 +1636,15 @@ footer {
   .open-question-availability {
     border-left: 0;
     border-top: 3px solid var(--color-warning);
+  }
+  .practical-assignment-panel {
+    padding: var(--space-3);
+  }
+  .practical-source-option {
+    grid-template-columns: 1fr;
+  }
+  .practical-source-option .button {
+    width: 100%;
   }
   .toolbar-row {
     grid-template-columns: 1fr auto auto;
