@@ -4,8 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}LearnPilot{% endblock %}</title>
-    <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/brand/logo1.png') }}">
-    <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/brand/logo1.png') }}">
+    <link rel="icon" href="{{ url_for('static', filename='img/brand/favicon.ico') }}" sizes="any">
+    <link rel="icon" type="image/png" sizes="32x32" href="{{ url_for('static', filename='img/brand/favicon-32x32.png') }}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{{ url_for('static', filename='img/brand/favicon-16x16.png') }}">
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='img/brand/apple-touch-icon.png') }}">
+    <link rel="manifest" href="{{ url_for('static', filename='img/brand/site.webmanifest') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/tokens.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/ui-pass9.css') }}">
     <script>
@@ -40,67 +43,66 @@
                     >
                 </a>
 
-                <nav class="nav-links" aria-label="Съдържание">
-                    {% set current_grade = request.view_args.grade if request.endpoint == 'grade_view' else none %}
+                {% if tester_authenticated or admin_authenticated %}
+                    <nav class="nav-links" aria-label="Съдържание">
+                        {% set current_grade = request.view_args.grade if request.endpoint == 'grade_view' else none %}
 
-                    <a class="{% if request.endpoint == 'index' %}nav-current{% else %}nav-link{% endif %}"
-                       {% if request.endpoint != 'index' %}href="{{ url_for('index') }}"{% endif %}>Класове</a>
+                        <a class="{% if request.endpoint == 'index' %}nav-current{% else %}nav-link{% endif %}"
+                           {% if request.endpoint != 'index' %}href="{{ url_for('index') }}"{% endif %}>Класове</a>
 
-                    {% for grade_num in [8, 9, 10, 11, 12] %}
-                        {% if current_grade == grade_num %}
-                            <span class="nav-current">{{ grade_num }}. клас</span>
-                        {% else %}
-                            <a class="nav-link" href="{{ url_for('grade_view', grade=grade_num) }}">{{ grade_num }}. клас</a>
+                        {% for grade_num in [8, 9, 10, 11, 12] %}
+                            {% if current_grade == grade_num %}
+                                <span class="nav-current">{{ grade_num }}. клас</span>
+                            {% else %}
+                                <a class="nav-link" href="{{ url_for('grade_view', grade=grade_num) }}">{{ grade_num }}. клас</a>
+                            {% endif %}
+                        {% endfor %}
+
+                        <a class="{% if request.path == '/section/grade12-dzi-preparation' %}nav-current{% else %}nav-link{% endif %}"
+                           {% if request.path != '/section/grade12-dzi-preparation' %}href="{{ url_for('section_view', slug='grade12-dzi-preparation') }}"{% endif %}>ДЗИ</a>
+
+                        {% if ui_profile == "admin" %}
+                            <a class="nav-link" href="{{ url_for('teacher_dashboard') }}">Учител</a>
+                            <a class="nav-link" href="{{ url_for('teacher_assignments') }}">Тестове</a>
                         {% endif %}
-                    {% endfor %}
 
-                    <a class="{% if request.path == '/section/grade12-dzi-preparation' %}nav-current{% else %}nav-link{% endif %}"
-                       {% if request.path != '/section/grade12-dzi-preparation' %}href="{{ url_for('section_view', slug='grade12-dzi-preparation') }}"{% endif %}>ДЗИ</a>
+                        {% if can_generate_tests %}
+                            <a class="nav-link" href="{{ url_for('teacher_new') }}">+ Нов тест</a>
+                        {% endif %}
+                    </nav>
+                {% endif %}
 
-                    {% if ui_profile == "admin" %}
-                        <a class="nav-link" href="{{ url_for('teacher_dashboard') }}">Учител</a>
-                        <a class="nav-link" href="{{ url_for('teacher_assignments') }}">Тестове</a>
-                    {% endif %}
-
-                    {% if can_generate_tests %}
-                        <a class="nav-link" href="{{ url_for('teacher_new') }}">+ Нов тест</a>
-                    {% endif %}
-                </nav>
-
-                <div class="profile-switch" aria-label="Профил">
-                    <span class="profile-label">Профил</span>
-
+                <div class="profile-switch" aria-label="{{ 'Профил' if tester_authenticated or admin_authenticated else 'Вход' }}">
                     {% if admin_authenticated %}
+                        <span class="profile-label">Профил</span>
                         <span class="profile-link active">Админ</span>
                         <a class="profile-link" href="{{ url_for('admin_logout') }}">Изход</a>
-                    {% else %}
-                        <a class="profile-link" href="{{ url_for('admin_login', next=request.path) }}">Админ вход</a>
-                    {% endif %}
-
-                    {% if tester_authenticated and not admin_authenticated %}
+                    {% elif tester_authenticated %}
+                        <span class="profile-label">Профил</span>
                         <span class="profile-link active">Тестер</span>
                         <a class="profile-link" href="{{ url_for('tester_logout') }}">Изход</a>
-                    {% elif not tester_authenticated and not admin_authenticated %}
-                        <a class="profile-link" href="{{ url_for('tester_login', next=request.path) }}">Тестер вход</a>
+                    {% else %}
+                        <a class="profile-link" href="{{ url_for('tester_login', next=request.path) }}">Вход</a>
                     {% endif %}
                 </div>
 
-                <details class="mobile-profile-menu">
-                    <summary>{{ "Профил" if tester_authenticated or admin_authenticated else "Вход" }}</summary>
-                    <div class="mobile-profile-panel">
-                        {% if admin_authenticated %}
-                            <span class="profile-link active">Админ</span>
-                            <a class="profile-link" href="{{ url_for('admin_logout') }}">Изход</a>
-                        {% elif tester_authenticated %}
-                            <span class="profile-link active">Тестер</span>
-                            <a class="profile-link" href="{{ url_for('tester_logout') }}">Изход</a>
-                            <a class="profile-link" href="{{ url_for('admin_login', next=request.path) }}">Вход за админ</a>
-                        {% else %}
-                            <a class="profile-link" href="{{ url_for('tester_login', next=request.path) }}">Вход за тестер</a>
-                            <a class="profile-link" href="{{ url_for('admin_login', next=request.path) }}">Вход за админ</a>
-                        {% endif %}
-                    </div>
-                </details>
+                {% if tester_authenticated or admin_authenticated %}
+                    <details class="mobile-profile-menu">
+                        <summary>Профил</summary>
+                        <div class="mobile-profile-panel">
+                            {% if admin_authenticated %}
+                                <span class="profile-link active">Админ</span>
+                                <a class="profile-link" href="{{ url_for('admin_logout') }}">Изход</a>
+                            {% elif tester_authenticated %}
+                                <span class="profile-link active">Тестер</span>
+                                <a class="profile-link" href="{{ url_for('tester_logout') }}">Изход</a>
+                                <a class="profile-link" href="{{ url_for('admin_login', next=request.path) }}">Вход за админ</a>
+                            {% endif %}
+                        </div>
+                    </details>
+                {% else %}
+                    <a class="profile-link mobile-login-link" href="{{ url_for('tester_login', next=request.path) }}">Вход</a>
+                {% endif %}
             </div>
         </header>
 
