@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}LearnPilot{% endblock %}</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/brand/logo1.png') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/brand/logo1.png') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/tokens.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/ui-pass9.css') }}">
     <script>
@@ -21,9 +23,21 @@
     <div class="app-shell">
         <header class="top-nav">
             <div class="top-nav-row">
-                <a class="brand" href="{{ url_for('index') }}">
-                    <span class="brand-title">LearnPilot</span>
-                    <span class="brand-subtitle">въпроси · тестове · матура</span>
+                <a class="brand" href="{{ url_for('index') }}" aria-label="LearnPilot начало">
+                    <img
+                        class="brand-logo brand-logo-full"
+                        src="{{ url_for('static', filename='img/brand/logo2.png') }}"
+                        alt="LearnPilot"
+                        decoding="async"
+                        fetchpriority="high"
+                    >
+                    <img
+                        class="brand-logo brand-logo-icon"
+                        src="{{ url_for('static', filename='img/brand/logo1.png') }}"
+                        alt=""
+                        aria-hidden="true"
+                        decoding="async"
+                    >
                 </a>
 
                 <nav class="nav-links" aria-label="Съдържание">
