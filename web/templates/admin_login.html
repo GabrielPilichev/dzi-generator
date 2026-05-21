@@ -9,22 +9,22 @@
 {% endblock %}
 
 {% block content %}
-<section class="hero">
+<section class="hero login-hero">
     <p class="eyebrow">Админ</p>
     <h1>Вход за администратор</h1>
-    <p class="subtitle">Тестерите могат да разглеждат публичните страници. Учителските инструменти изискват парола.</p>
+    <p class="subtitle">Влез, за да управляваш задания, резултати и учителски инструменти.</p>
 </section>
 
 {% if error %}
-    <div class="error">{{ error }}</div>
+    <div class="error login-message">{{ error }}</div>
 {% endif %}
 
-<form method="post" class="card form-card">
+<form method="post" class="card form-card login-card">
     <input type="hidden" name="next" value="{{ next_url }}">
 
-    <label for="password">Админ парола</label>
+    <label for="password">Парола</label>
     <input id="password" name="password" type="password" autocomplete="current-password" required autofocus>
 
-    <button type="submit">Вход</button>
+    <button type="submit">Влез като админ</button>
 </form>
 {% endblock %}
