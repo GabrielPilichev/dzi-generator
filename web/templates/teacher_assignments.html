@@ -22,7 +22,7 @@
   </div>
 </section>
 
-<section class="card">
+<section class="card teacher-list-card">
   <form method="get" class="filter-bar">
     <span class="label">Тип:</span>
     <label><input type="radio" name="type" value="all" {% if type_filter == 'all' %}checked{% endif %} onchange="this.form.submit()"> Всички</label>
@@ -32,7 +32,8 @@
   </form>
 
   {% if assignments %}
-    <table>
+    <div class="table-wrap">
+    <table class="teacher-table">
       <thead>
         <tr>
           <th>ID</th>
@@ -92,6 +93,7 @@
         {% endfor %}
       </tbody>
     </table>
+    </div>
   {% else %}
     {% if type_filter and type_filter != 'all' %}
       <p class="empty-state">Няма тестове за избрания филтър.</p>
