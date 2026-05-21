@@ -222,27 +222,81 @@ button {
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
-  min-height: 38px;
+  min-height: 40px;
   padding: 0 var(--space-4);
   border: 1px solid var(--color-primary);
   border-radius: var(--radius-md);
   background: var(--color-primary);
   color: #1a1410;
   font: inherit;
-  font-weight: 600;
+  font-weight: 750;
+  line-height: 1.1;
+  text-align: center;
   cursor: pointer;
-  transition: transform var(--t-base), background var(--t-base), border-color var(--t-base);
+  transition: transform var(--t-base), background var(--t-base), border-color var(--t-base), color var(--t-base), box-shadow var(--t-base);
 }
 .button:hover,
 button:hover {
   text-decoration: none;
+  background: color-mix(in srgb, var(--color-primary) 84%, var(--color-bg));
+  border-color: color-mix(in srgb, var(--color-primary) 88%, var(--color-border-strong));
   transform: translateY(-1px);
+}
+.button:focus-visible,
+button:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--color-primary) 34%, transparent);
+  outline-offset: 2px;
+}
+.button:active,
+button:active {
+  transform: translateY(0);
 }
 .button.secondary,
 button.secondary {
   background: var(--color-bg-subtle);
   border-color: var(--color-border);
   color: var(--color-text);
+}
+.button.secondary:hover,
+button.secondary:hover {
+  background: var(--color-primary-soft);
+  border-color: var(--color-border-strong);
+  color: var(--color-text);
+}
+.button.ghost,
+button.ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--color-text-muted);
+}
+.button.ghost:hover,
+button.ghost:hover {
+  background: var(--color-bg-subtle);
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
+.button.danger,
+.button.destructive,
+button.danger,
+button.destructive {
+  background: var(--color-danger-soft);
+  border-color: color-mix(in srgb, var(--color-danger) 76%, var(--color-border));
+  color: var(--color-danger);
+}
+.button.danger:hover,
+.button.destructive:hover,
+button.danger:hover,
+button.destructive:hover {
+  background: color-mix(in srgb, var(--color-danger-soft) 72%, var(--color-bg));
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+.button:disabled,
+button:disabled,
+.button[aria-disabled="true"] {
+  opacity: 0.58;
+  cursor: not-allowed;
+  transform: none;
 }
 .button.small { min-height: 32px; padding: 0 var(--space-3); font-size: 0.84rem; }
 
@@ -842,8 +896,23 @@ button.secondary {
   margin: 0;
 }
 .link-button {
+  min-height: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-primary);
   font: inherit;
+  font-weight: 750;
   cursor: pointer;
+}
+.link-button:hover {
+  background: transparent;
+  text-decoration: underline;
+  transform: none;
+}
+.link-button:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--color-primary) 30%, transparent);
+  outline-offset: 2px;
 }
 .teacher-table--dense th,
 .teacher-table--dense td {
