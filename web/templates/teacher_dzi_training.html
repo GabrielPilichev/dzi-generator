@@ -11,7 +11,7 @@
 {% endblock %}
 
 {% block content %}
-<section class="page-header">
+<section class="page-header dzi-page-header">
   <div>
     <p class="eyebrow">ДЗИ</p>
     <h1>ДЗИ подготовка</h1>
@@ -19,18 +19,18 @@
   </div>
 </section>
 
-<div class="warning">
+<div class="warning dzi-warning">
   Това е тренировъчен генератор. Официалната ДЗИ релевантност още не е потвърдена срещу програма на МОН.
 </div>
 
 {% if dzi_pool_health %}
-<section class="panel">
+<section class="panel dzi-panel">
   <div class="section-heading">
     <h2>Състояние на ДЗИ въпросите</h2>
     <span class="pill">{{ dzi_pool_health.source_slug }}</span>
   </div>
 
-  <div class="stat-row">
+  <div class="stat-row dzi-stat-row">
     <div class="stat-box">
       <span class="stat-number">{{ dzi_pool_health.imported_count }}</span>
       <span class="stat-label">Общо импортирани</span>
@@ -60,7 +60,7 @@
 </section>
 {% endif %}
 
-<section class="panel">
+<section class="panel dzi-panel">
   <div class="section-heading">
     <h2>Текущо разпределение</h2>
     <span class="pill">{{ config.status }}</span>
@@ -70,7 +70,7 @@
     <div class="error">{{ config.error }}</div>
   {% endif %}
 
-  <div class="cards">
+  <div class="cards dzi-mix-grid">
     {% for cls, pct in config.classes.items() %}
       <div class="mix-card">
         <div class="label">{{ cls }}. клас</div>
@@ -82,10 +82,10 @@
   <p class="muted">Пулът може да включва всички налични въпроси; процентите се използват само при генериране на тренировъчен тест.</p>
 </section>
 
-<section class="panel">
+<section class="panel dzi-panel dzi-generator-panel">
   <h2>Създай тренировъчен комплект</h2>
 
-  <form method="post">
+  <form method="post" class="dzi-training-form">
     <label for="name">Заглавие</label>
     <input id="name" name="name" value="ДЗИ тренировъчен комплект" autocomplete="off">
 
@@ -118,14 +118,15 @@
   {% endif %}
 {% endif %}
 
-<section class="card">
+<section class="card dzi-panel">
   <div class="section-heading">
     <h2>Последни генерирани комплекти</h2>
     <span class="pill">{{ recent_sets|length }} файла</span>
   </div>
 
   {% if recent_sets %}
-    <table>
+    <div class="table-wrap">
+    <table class="teacher-table">
       <thead>
         <tr>
           <th>Файл</th>
@@ -143,8 +144,9 @@
         {% endfor %}
       </tbody>
     </table>
+    </div>
   {% else %}
-    <p class="empty-state">Все още няма генерирани комплекти.</p>
+    <p class="empty-state">Все още няма генерирани комплекти. След успешно генериране последните файлове ще се появят тук.</p>
   {% endif %}
 </section>
 {% endblock %}

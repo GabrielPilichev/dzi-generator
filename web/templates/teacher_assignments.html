@@ -97,10 +97,10 @@
   {% else %}
     {% if type_filter and type_filter != 'all' %}
       <p class="empty-state">Няма тестове за избрания филтър.</p>
-      <p><a class="button secondary" href="{{ url_for('teacher_assignments') }}">Покажи всички</a></p>
+      <p class="empty-actions"><a class="button secondary" href="{{ url_for('teacher_assignments') }}">Покажи всички</a></p>
     {% else %}
-      <p class="empty-state">Все още няма създадени тестове.</p>
-      <p><a class="button" href="{{ url_for('teacher_new') }}">Създай първи тест</a></p>
+      <p class="empty-state">Все още няма създадени тестове. Създай първо задание, за да получиш линк за учениците.</p>
+      <p class="empty-actions"><a class="button" href="{{ url_for('teacher_new') }}">Създай първи тест</a></p>
     {% endif %}
   {% endif %}
 </section>

@@ -946,6 +946,103 @@ button.secondary {
   color: var(--color-text-muted);
   overflow-wrap: anywhere;
 }
+.dzi-hero {
+  border-top: 3px solid var(--color-accent-dzi);
+  background: linear-gradient(135deg, var(--color-bg), color-mix(in srgb, var(--color-accent-dzi-soft) 68%, var(--color-bg)));
+}
+.dzi-page-header {
+  padding-bottom: var(--space-2);
+}
+.dzi-warning {
+  border-color: color-mix(in srgb, var(--color-accent-dzi) 42%, var(--color-border));
+  background: color-mix(in srgb, var(--color-accent-dzi-soft) 45%, var(--color-warning-soft));
+}
+.dzi-panel,
+.practical-submissions-card {
+  border-radius: var(--radius-lg);
+}
+.dzi-stat-row {
+  gap: var(--space-3);
+}
+.dzi-stat-row .stat-box {
+  background: color-mix(in srgb, var(--color-bg) 72%, var(--color-accent-dzi-soft));
+}
+.dzi-mix-grid {
+  gap: var(--space-3);
+}
+.dzi-generator-panel {
+  display: grid;
+  gap: var(--space-3);
+}
+.dzi-training-form {
+  display: grid;
+  gap: var(--space-3);
+  max-width: 620px;
+}
+.dzi-training-form label {
+  margin: 0;
+}
+.dzi-training-form button {
+  justify-self: start;
+  min-height: 44px;
+  padding-inline: var(--space-5);
+}
+.dzi-source-grid {
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+.dzi-source-card {
+  display: grid;
+  gap: var(--space-4);
+}
+.dzi-source-card .question-header,
+.dzi-task-card .question-header,
+.practical-task-card .question-header {
+  margin-bottom: var(--space-3);
+}
+.dzi-source-card .button {
+  justify-self: start;
+}
+.dzi-toolbar {
+  align-items: center;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-bg) 86%, var(--color-accent-dzi-soft));
+  box-shadow: var(--shadow-sm);
+}
+.dzi-task-section {
+  margin-top: var(--space-6);
+}
+.dzi-task-section > h2 {
+  margin-bottom: var(--space-4);
+}
+.dzi-task-card,
+.practical-task-card {
+  border-top: 3px solid color-mix(in srgb, var(--color-accent-dzi) 65%, var(--color-border));
+}
+.dzi-task-card .prompt,
+.practical-task-card .prompt {
+  line-height: 1.7;
+}
+.practical-task-card h3 {
+  margin: var(--space-5) 0 var(--space-2);
+  font-size: 1rem;
+}
+.practical-upload-form {
+  display: grid;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-subtle);
+}
+.practical-upload-form label {
+  margin: 0;
+}
+.practical-upload-form button {
+  justify-self: start;
+}
 .label {
   color: var(--color-text-muted);
   font-size: 0.76rem;
@@ -1851,8 +1948,20 @@ code {
 
 .empty-state {
   color: var(--color-text-muted);
-  font-style: italic;
-  padding: var(--space-4) 0;
+  padding: var(--space-4);
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-subtle);
+  line-height: 1.6;
+}
+.empty-actions {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+  margin-top: calc(-1 * var(--space-2));
+}
+.empty-actions .button {
+  min-height: 36px;
 }
 
 footer {
@@ -1969,6 +2078,25 @@ footer {
   }
   .practical-source-option .button {
     width: 100%;
+  }
+  .dzi-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .dzi-toolbar .button,
+  .dzi-training-form button,
+  .practical-upload-form button {
+    width: 100%;
+  }
+  .dzi-source-grid {
+    grid-template-columns: 1fr;
+  }
+  .dzi-task-card,
+  .practical-task-card {
+    padding: var(--space-4);
+  }
+  .practical-upload-form {
+    padding: var(--space-3);
   }
   .toolbar-row {
     grid-template-columns: 1fr auto auto;

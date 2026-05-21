@@ -102,7 +102,8 @@
       {% endfor %}
     </div>
   {% else %}
-    <p class="empty-state">Все още няма създадени тестове.</p>
+    <p class="empty-state">Все още няма създадени тестове. Започни с ново задание и сподели линка с учениците.</p>
+    <p class="empty-actions"><a class="button" href="{{ url_for('teacher_new') }}">Създай тест</a></p>
   {% endif %}
 </section>
 
@@ -161,7 +162,7 @@
       </tbody>
     </table>
   {% else %}
-    <p class="empty-state">Все още няма започнати опити.</p>
+    <p class="empty-state">Все още няма започнати опити. Когато ученик отвори тест, опитът ще се появи тук.</p>
   {% endif %}
 </section>
 {% endblock %}
