@@ -80,31 +80,35 @@
         </div>
     </div>
 
-    <div class="warning warning--spaced">
-        Смесените тестове с отворени въпроси са експериментални. По подразбиране се създава само MC тест.
-    </div>
+    <div class="open-question-panel">
+        <label class="open-question-toggle" for="include_open_questions">
+            <input
+                id="include_open_questions"
+                type="checkbox"
+                name="include_open_questions"
+                value="1"
+                {% if form_values.include_open_questions %}checked{% endif %}
+            >
+            <span class="open-question-toggle-copy">
+                <span class="open-question-toggle-title">Включи отворени въпроси</span>
+                <span class="open-question-toggle-help">
+                    Отговорите се записват за ръчен/учителски преглед. Автоматичната проверка е само ориентир и не променя MC резултата.
+                </span>
+            </span>
+        </label>
 
-    <div class="detail-grid">
-        <div>
-            <label>
-                <input
-                    type="checkbox"
-                    name="include_open_questions"
-                    value="1"
-                    {% if form_values.include_open_questions %}checked{% endif %}
-                >
-                Включи отворени въпроси
-            </label>
-            <div class="help">
-                Налични автоматично оценими отворени въпроси: {{ total_open_candidates }}.
-                Ако броят отворени въпроси е над 0, ще се създаде смесен тест.
+        <div class="open-question-controls">
+            <div class="open-question-count">
+                <label for="open_count">Брой отворени въпроси</label>
+                <input id="open_count" name="open_count" type="number" min="0" value="{{ form_values.open_count }}">
+                <div class="help">0 запазва текущия MC-only поток.</div>
             </div>
-        </div>
 
-        <div>
-            <label for="open_count">Брой отворени въпроси</label>
-            <input id="open_count" name="open_count" type="number" min="0" value="{{ form_values.open_count }}">
-            <div class="help">0 запазва текущия MC-only поток.</div>
+            <div class="open-question-availability" aria-label="Налични отворени въпроси">
+                <span class="label">Налични кандидати</span>
+                <strong>{{ total_open_candidates }}</strong>
+                <span>отворени въпроси с примерни/приети отговори</span>
+            </div>
         </div>
     </div>
 
@@ -117,13 +121,13 @@
             </option>
         {% endfor %}
     </select>
-    <div class="help">Използват се само кандидати, които минават автоматичната проверка за отворени въпроси.</div>
+    <div class="help">Използват се само кандидати с примерни/приети отговори; автоматичната проверка е ориентир, не финална оценка.</div>
 
     {% if mixed_planning_result %}
         <div class="warning warning--spaced" id="mixed-planning-result">
             <strong>План за смесен тест.</strong>
             MC-only създаването остава непроменено, докато броят отворени въпроси е 0.
-            Отворените отговори ще се записват и ще са видими за преглед. Комбинираният резултат остава display-only и е изключен по подразбиране.
+            Отворените отговори ще се записват и ще са видими за ръчен/учителски преглед. Комбинираният резултат остава display-only и е изключен по подразбиране.
 
             <ul>
                 <li>Източник: {{ mixed_planning_result.source_slug }}</li>

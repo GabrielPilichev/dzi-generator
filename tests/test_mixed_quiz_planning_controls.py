@@ -130,6 +130,9 @@ class MixedQuizPlanningControlsTest(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertIn(b'name="include_open_questions"', response.data)
+        self.assertIn(b'class="open-question-panel"', response.data)
+        self.assertIn("ръчен/учителски преглед".encode("utf-8"), response.data)
+        self.assertIn("Автоматичната проверка е само ориентир".encode("utf-8"), response.data)
         self.assertIn(b'name="open_count"', response.data)
         self.assertIn(b'value="0"', response.data)
         self.assertIn("MC-only".encode("utf-8"), response.data)
@@ -464,6 +467,8 @@ class MixedQuizPlanningControlsTest(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertIn(b'name="include_open_questions"', response.data)
+        self.assertIn("Включи отворени въпроси".encode("utf-8"), response.data)
+        self.assertIn("автоматичната проверка е ориентир".encode("utf-8"), response.data)
 
     def test_sessionless_user_still_needs_tester_login_for_teacher_new(self):
         response = self.client.get("/teacher/new")
