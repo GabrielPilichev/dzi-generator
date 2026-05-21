@@ -32,12 +32,12 @@
 </div>
 
 {% if upload_success %}
-    <section class="success">Файловете са качени успешно.</section>
+    <section class="success form-message" role="status">Файловете са качени успешно.</section>
 {% endif %}
 
 {% if upload_error %}
-    <section class="warning warning--spaced">
-        Файлът не беше приет. Проверете името, разширението и размера.
+    <section class="warning warning--spaced form-message" role="alert">
+        Файлът не беше приет. Провери името, разширението и размера, след което опитай отново.
     </section>
 {% endif %}
 

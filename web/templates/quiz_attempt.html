@@ -62,7 +62,7 @@
 {% endif %}
 
 {% if stale_attempt_message %}
-  <section class="card warning warning--spaced">
+  <section class="card warning warning--spaced form-message" role="alert">
     {{ stale_attempt_message }}
   </section>
 {% else %}
@@ -89,7 +89,7 @@
       </section>
     {% endif %}
     {% if submit_error %}
-      <section class="warning warning--spaced">
+      <section class="warning warning--spaced form-message" role="alert">
         {{ submit_error }}
       </section>
     {% endif %}
@@ -117,7 +117,7 @@
             {% endfor %}
           </div>
         {% elif q.question_type in ["fill_in", "short_answer"] %}
-          <div class="warning warning--spaced">
+          <div class="warning warning--spaced form-message">
             {% if mixed_status and mixed_status.combined_score %}
               Отворените отговори се записват; ще видиш сборен резултат, но съхраненият MC резултат остава отделен.
             {% else %}

@@ -94,7 +94,7 @@
       <input type="text" id="share-link" class="share-input" value="{{ quiz_url }}" readonly>
       <button type="button" class="button" id="share-copy" data-target="share-link">Копирай</button>
     </div>
-    <div class="warning warning--spaced">
+    <div class="warning warning--spaced form-message">
       Внимание: това е реален линк за ученици. Всеки с този линк може да реши теста. След предаване ученикът вижда резултата и правилните отговори. Не споделяй страницата с резултатите, ако искаш отговорите да останат скрити.
     </div>
   </div>
@@ -109,17 +109,17 @@
     Промяната засяга само заглавието и времевото ограничение. Броят въпроси, планът на теста, опитите и отговорите остават непроменени.
   </p>
   {% if edit_error %}
-    <div class="warning warning--spaced">
+    <div class="warning warning--spaced form-message" role="alert">
       {% if edit_error == 'title_required' %}
         Заглавието е задължително.
       {% elif edit_error == 'title_too_long' %}
         Заглавието е твърде дълго (макс. 200 символа).
       {% elif edit_error == 'time_invalid' %}
-        Невалидно време. Въведете цяло число минути или оставете полето празно.
+        Невалидно време. Въведи цяло число минути или остави полето празно.
       {% elif edit_error == 'time_out_of_range' %}
         Времето трябва да е между 1 и 600 минути.
       {% else %}
-        Невалидни стойности.
+        Невалидни стойности. Провери полетата и опитай отново.
       {% endif %}
     </div>
   {% endif %}
