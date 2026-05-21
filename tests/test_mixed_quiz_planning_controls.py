@@ -130,6 +130,9 @@ class MixedQuizPlanningControlsTest(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertIn(b'name="include_open_questions"', response.data)
+        self.assertIn("Включи отворени въпроси за учителски преглед".encode("utf-8"), response.data)
+        self.assertIn("ръчен/учителски преглед".encode("utf-8"), response.data)
+        self.assertIn("автоматичното съвпадение е ориентир, не финално оценяване".encode("utf-8"), response.data)
         self.assertIn(b'name="open_count"', response.data)
         self.assertIn(b'value="0"', response.data)
         self.assertIn("MC-only".encode("utf-8"), response.data)

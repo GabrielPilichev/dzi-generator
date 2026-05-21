@@ -276,17 +276,17 @@
     </div>
     <p class="muted">
       {% if combined_scores_by_attempt %}
-        За изрично включените смесени опити отворените точки се показват в отделен комбиниран резултат. Съхраненият MC резултат остава отделен.
+        За изрично включените смесени опити отворените точки се показват само в отделен display-only комбиниран резултат. Съхраненият MC резултат остава отделен.
       {% else %}
-        Автоматичните точки за отворени отговори са информативни и не са включени в крайния резултат. Интеграцията на отворените отговори във финалния резултат още не е включена.
+        Автоматичната проверка за отворени отговори е само информативен ориентир и не е финална оценка. Отворените точки не са включени в крайния резултат.
       {% endif %}
-      Учителският override и бележката се записват за преглед, но все още не променят съхранения MC резултат.
+      Примерните/приети отговори са ориентир по подточка; учителският override е авторитетното действие за преглед и не променя съхранения MC резултат.
     </p>
     <fieldset disabled class="warning warning--spaced" aria-label="Планирана интеграция на отворени отговори">
-      <legend>Include open answers in final score — coming soon</legend>
+      <legend>Include open answers in final score — display-only preview, coming soon</legend>
       <label>
         <input type="checkbox" name="include_open_answers_in_final_score_preview" value="1">
-        Включи информационния сбор от отворени отговори във финалния резултат
+        Показвай информационния сбор от отворени отговори само като display-only комбиниран резултат
       </label>
       <p class="muted">Този контрол е планиран и изключен. Няма активен механизъм за промяна на крайния резултат.</p>
     </fieldset>
@@ -298,7 +298,7 @@
             <div class="value">{{ subtotal.awarded|round(2) }}/{{ subtotal.possible|round(2) }}</div>
             <div class="muted">
               {% if combined_scores_by_attempt.get(attempt_id) %}
-                Включен е в комбинирания резултат за този опит.
+                Показан е само в display-only комбинирания резултат за този опит.
               {% else %}
                 Информационен сбор, не е включен в крайния резултат.
               {% endif %}
@@ -323,10 +323,10 @@
           <th>Въпрос</th>
           <th>Подаден отговор</th>
           <th>Нормализиран</th>
-          <th>Автостатус</th>
+          <th>Авто сигнал</th>
           <th>Учителски резултат</th>
           <th>Инф. точки</th>
-          <th>Приети отговори</th>
+          <th>Примерни/приети отговори</th>
           <th>Режим</th>
           <th>Учителски override</th>
         </tr>
@@ -343,13 +343,13 @@
             <td class="wrap-cell">{{ answer.normalized_answer or "—" }}</td>
             <td>
               {% if answer.is_correct %}
-                <span class="badge done">авто-съвпадение</span>
+                <span class="badge done">съвпадение</span>
               {% elif answer.is_correct is not none %}
                 <span class="badge open">няма съвпадение</span>
               {% else %}
                 <span class="badge open">предстои проверка</span>
               {% endif %}
-              <div class="muted">{{ answer.auto_points_awarded|round(2) }}/{{ answer.points_possible|float|round(2) }} авто</div>
+              <div class="muted">Автоматичен ориентир, не финална оценка · {{ answer.auto_points_awarded|round(2) }}/{{ answer.points_possible|float|round(2) }}</div>
             </td>
             <td>
               {% if answer.teacher_reviewed %}

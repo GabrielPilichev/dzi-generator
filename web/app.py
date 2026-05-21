@@ -3679,9 +3679,9 @@ TEACHER_OPEN_ANSWER_STATUS_LABELS = {
     "incorrect": "Грешно",
 }
 QUIZ_TEXT_AUTO_STATUS_LABELS = {
-    "correct": "Автоматично съвпадение",
-    "incorrect": "Няма автоматично съвпадение",
-    "pending": "Предстои проверка",
+    "correct": "Автоматичен сигнал: съвпадение",
+    "incorrect": "Автоматичен сигнал: няма съвпадение",
+    "pending": "Автоматичен сигнал: предстои проверка",
 }
 
 

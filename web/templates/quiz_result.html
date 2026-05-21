@@ -149,11 +149,11 @@
       <p class="prompt">
         Отворените отговори са записани.
         {% if combined_score %}
-          Отворените точки са включени в комбинирания резултат за този смесен опит, а MC резултатът остава показан отделно.
+          Отворените точки се показват само в отделен display-only комбиниран резултат за този смесен опит; MC резултатът остава финалният съхранен резултат.
         {% else %}
-          Автоматичните точки са само информативни и не са включени в точния резултат. Интеграцията на отворените отговори във финалния резултат още не е включена.
+          Автоматичната проверка е само информативен ориентир и не е финална оценка. Отворените точки не са включени в точния резултат.
         {% endif %}
-        Ако има учителски преглед, той се показва отделно като информационен статус.
+        Примерните/приети отговори помагат за сравнение, но крайният преглед е от учител.
       </p>
       {% if open_text_subtotal %}
         <div class="answer-note answer-note--unanswered">
@@ -161,7 +161,7 @@
           <span>
             {{ open_text_subtotal.awarded|round(2) }}/{{ open_text_subtotal.possible|round(2) }} т.
             {% if combined_score %}
-              · включен е в комбинирания резултат
+              · показан е само в display-only комбинирания резултат
             {% else %}
               · не е включен в точния резултат
             {% endif %}
@@ -176,11 +176,11 @@
             <span>{{ answer.raw_answer or 'Няма въведен отговор.' }}</span>
             <span class="answer-note-label">
               {% if answer.is_correct %}
-                Автоматично съвпадение
+                Автоматичен сигнал: съвпадение
               {% elif answer.is_correct is not none %}
-                Няма автоматично съвпадение
+                Автоматичен сигнал: няма съвпадение
               {% else %}
-                Предстои проверка
+                Автоматичен сигнал: предстои проверка
               {% endif %}
               {% if answer.points_awarded is not none and answer.points_possible is not none %}
                 · {{ answer.points_awarded|float|round(2) }}/{{ answer.points_possible|float|round(2) }} т.
@@ -199,15 +199,15 @@
                 <span>{{ answer.teacher_note }}</span>
               {% endif %}
             {% endif %}
+            <span class="answer-note-label">Примерни/приети отговори</span>
+            <span>
+              {% if answer.accepted_answers %}
+                {{ answer.accepted_answers | join(", ") }}
+              {% else %}
+                Няма въведен приет отговор.
+              {% endif %}
+            </span>
             {% if not answer.is_correct %}
-              <span class="answer-note-label">Приет отговор</span>
-              <span>
-                {% if answer.accepted_answers %}
-                  {{ answer.accepted_answers | join(", ") }}
-                {% else %}
-                  Няма въведен приет отговор.
-                {% endif %}
-              </span>
               <span class="answer-note-label">Обяснение</span>
               <span>{{ answer.feedback_explanation }}</span>
             {% endif %}
