@@ -11,7 +11,7 @@
 <section class="hero home-hero">
     <p class="eyebrow">LearnPilot</p>
     <h1>Учи по-умно. Подготвяй се уверено.</h1>
-    <p class="subtitle">Локална платформа за информационни технологии, подготовка за ДЗИ и тренировъчни тестове с подредено съдържание по класове.</p>
+    <p class="subtitle">Локална платформа за информационни технологии с подредено съдържание по класове, ДЗИ подготовка и тренировъчни тестове.</p>
     <div class="home-hero-stats">
         <span>{{ total_questions.value }} въпроса</span>
         <span>{{ grades|length }} класа</span>
@@ -35,7 +35,7 @@
         <p class="eyebrow">Преглед</p>
         <h2>Класове и раздели</h2>
         <p class="subtitle">Бърз достъп до учебните теми, въпроси и обобщения.</p>
-        <span class="mode-action">Към класовете</span>
+        <span class="mode-action">Разгледай класовете</span>
     </a>
 
     {% if can_generate_tests %}
@@ -52,14 +52,14 @@
             <p class="eyebrow">Учител</p>
             <h2>Управление</h2>
             <p class="subtitle">Преглед на задания, резултати и учителски инструменти.</p>
-            <span class="mode-action">Към панела</span>
+            <span class="mode-action">Отвори панела</span>
         </a>
     {% else %}
         <a href="{{ url_for('teacher_new') }}" class="mode-card">
             <p class="eyebrow">Учител</p>
             <h2>Създаване на тест</h2>
-            <p class="subtitle">Входът отключва учителските инструменти и нови задания.</p>
-            <span class="mode-action">Учителски вход</span>
+            <p class="subtitle">Влез, за да използваш учителските инструменти и заданията.</p>
+            <span class="mode-action">Вход за учител</span>
         </a>
     {% endif %}
 </section>
@@ -92,7 +92,7 @@
             </div>
             <span class="mode-action">Към прегледа</span>
             {% if admin_authenticated %}
-                <span class="mode-admin-link">админ преглед: /dzi</span>
+                <span class="mode-admin-link">админ изглед: /dzi</span>
             {% endif %}
         </div>
         <span class="home-dzi-icon" aria-hidden="true">ДЗИ</span>
