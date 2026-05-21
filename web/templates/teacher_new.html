@@ -123,6 +123,36 @@
     </select>
     <div class="help">Използват се само кандидати с примерни/приети отговори; автоматичната проверка е ориентир, не финална оценка.</div>
 
+    <section class="practical-assignment-panel" aria-labelledby="practical-assignment-title">
+        <div>
+            <p class="eyebrow">Практически задачи 26–28</p>
+            <h3 id="practical-assignment-title">Практически задачи</h3>
+            <p class="help">
+                Практическите задачи се проверяват ръчно от учител.
+                Тази секция води към наличните ДЗИ практически задачи и ресурси; практическите точки не се включват във финалния MC/open резултат.
+            </p>
+        </div>
+
+        {% if practical_source_options %}
+            <div class="practical-source-list">
+                {% for source in practical_source_options %}
+                    <article class="practical-source-option">
+                        <div>
+                            <strong>{{ source.source_slug }}</strong>
+                            <span>{{ source.title }}</span>
+                            <span>{{ source.practical_task_count }} задачи · {{ source.resource_count }} ресурса</span>
+                        </div>
+                        <a class="button secondary" href="{{ url_for('dzi_practical_source', source_slug=source.source_slug) }}">
+                            Отвори
+                        </a>
+                    </article>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="empty-state">Няма налични практически ресурси за показване.</p>
+        {% endif %}
+    </section>
+
     {% if mixed_planning_result %}
         <div class="warning warning--spaced" id="mixed-planning-result">
             <strong>План за смесен тест.</strong>
