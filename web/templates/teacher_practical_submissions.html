@@ -22,9 +22,10 @@
   </div>
 </section>
 
-<section class="card">
+<section class="card practical-submissions-card">
   {% if submissions %}
-    <table>
+    <div class="table-wrap table-wrap--wide">
+    <table class="teacher-table">
       <thead>
         <tr>
           <th>Ученик</th>
@@ -84,8 +85,9 @@
         {% endfor %}
       </tbody>
     </table>
+    </div>
   {% else %}
-    <p class="empty-state">Все още няма качени практически файлове.</p>
+    <p class="empty-state">Все още няма качени практически файлове. Когато учениците предадат решения, те ще се появят тук.</p>
   {% endif %}
 </section>
 {% endblock %}

@@ -11,7 +11,7 @@
 {% endblock %}
 
 {% macro render_task(task) %}
-    <article class="question">
+    <article class="question dzi-task-card">
         <div class="question-header">
             <div class="question-meta">
                 <span class="question-number">Задача {{ task.task_number }}</span>
@@ -74,13 +74,13 @@
 {% endmacro %}
 
 {% block content %}
-<section class="hero">
+<section class="hero dzi-hero">
     <p class="eyebrow">{{ exam.source_slug }}</p>
     <h1>{{ exam.title }}</h1>
     <p class="subtitle">Преглед само за четене на задачите, въпросите, отговорите и практическата част.</p>
 </section>
 
-<div class="question-toolbar">
+<div class="question-toolbar dzi-toolbar">
     <a class="button secondary" href="{{ url_for('dzi_index') }}">← Към всички ДЗИ източници</a>
     {% if practical_resource_count %}
         <a class="button" href="{{ url_for('dzi_practical_source', source_slug=exam.source_slug) }}">
@@ -91,24 +91,24 @@
     <span class="pill">{{ tasks.part1|length + tasks.part2|length }} задачи</span>
 </div>
 
-<section>
+<section class="dzi-task-section">
     <h2>Част 1: задачи 1–25</h2>
     <div class="questions-list">
         {% for task in tasks.part1 %}
             {{ render_task(task) }}
         {% else %}
-            <p class="empty-state">Няма задачи в част 1.</p>
+            <p class="empty-state">Няма въведени задачи в част 1 за този източник.</p>
         {% endfor %}
     </div>
 </section>
 
-<section>
+<section class="dzi-task-section">
     <h2>Част 2: задачи 26–28</h2>
     <div class="questions-list">
         {% for task in tasks.part2 %}
             {{ render_task(task) }}
         {% else %}
-            <p class="empty-state">Няма задачи в част 2.</p>
+            <p class="empty-state">Няма въведени задачи в част 2 за този източник.</p>
         {% endfor %}
     </div>
 </section>

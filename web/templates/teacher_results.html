@@ -264,9 +264,9 @@
   {% else %}
     {% if filter_active %}
       <p class="empty-state">Няма опити за избраните филтри.</p>
-      <p><a href="{{ url_for('teacher_assignment_results', assignment_id=assignment.id) }}">Изчисти филтрите</a></p>
+      <p class="empty-actions"><a class="button secondary" href="{{ url_for('teacher_assignment_results', assignment_id=assignment.id) }}">Изчисти филтрите</a></p>
     {% else %}
-      <p class="empty-state">Още няма опити за този тест.</p>
+      <p class="empty-state">Още няма опити за този тест. Сподели линка към заданието, за да започнат учениците.</p>
     {% endif %}
   {% endif %}
 </section>
