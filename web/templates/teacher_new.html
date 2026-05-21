@@ -21,17 +21,17 @@
 </section>
 
 {% if teacher_new_error %}
-    <div class="error">
+    <div class="error form-message" role="alert">
         {% if teacher_new_error == "time_out_of_range" %}
-            Времето трябва да е между 1 и {{ quiz_time_limit_max_minutes }} минути.
+            Времето трябва да е между 1 и {{ quiz_time_limit_max_minutes }} минути. Коригирай стойността и опитай отново.
         {% elif teacher_new_error == "open_count_exceeds_total" %}
-            Броят отворени въпроси не може да надвишава общия брой въпроси.
+            Броят отворени въпроси не може да надвишава общия брой въпроси. Намали броя на отворените въпроси.
         {% elif teacher_new_error == "insufficient_open_questions" %}
-            Няма достатъчно отворени въпроси за избрания раздел.
+            Няма достатъчно отворени въпроси за избрания раздел. Избери друг източник или намали броя.
         {% elif teacher_new_error == "insufficient_closed_questions" %}
-            Няма достатъчно въпроси с избираем отговор за избрания раздел.
+            Няма достатъчно въпроси с избираем отговор за избрания раздел. Намали общия брой въпроси.
         {% else %}
-            Провери числовите стойности във формата.
+            Провери числовите стойности във формата и опитай отново.
         {% endif %}
     </div>
 {% endif %}
@@ -154,12 +154,12 @@
     </section>
 
     {% if mixed_planning_result %}
-        <div class="warning warning--spaced" id="mixed-planning-result">
+        <div class="warning warning--spaced form-message" id="mixed-planning-result">
             <strong>План за смесен тест.</strong>
             MC-only създаването остава непроменено, докато броят отворени въпроси е 0.
             Отворените отговори ще се записват и ще са видими за ръчен/учителски преглед. Комбинираният резултат остава display-only и е изключен по подразбиране.
 
-            <ul>
+            <ul class="notice-list">
                 <li>Източник: {{ mixed_planning_result.source_slug }}</li>
                 <li>MC въпроси: {{ mixed_planning_result.closed_count }}/{{ mixed_planning_result.requested_closed_count }} налични за плана</li>
                 <li>Отворени въпроси: {{ mixed_planning_result.open_count }}/{{ mixed_planning_result.requested_open_count }} налични за плана</li>
@@ -187,7 +187,7 @@
         </div>
     {% endif %}
 
-    <div class="warning warning--spaced">
+    <div class="warning warning--spaced form-message">
         Тестът избира въпросите автоматично. Всеки ученик получава стабилен ред според името си, а отговорите се разбъркват.
     </div>
 

@@ -67,7 +67,7 @@
   </div>
 
   {% if config.error %}
-    <div class="error">{{ config.error }}</div>
+    <div class="error form-message" role="alert">{{ config.error }}</div>
   {% endif %}
 
   <div class="cards dzi-mix-grid">
@@ -102,16 +102,16 @@
 </section>
 
 {% if dzi_generation_error %}
-  <div class="error">
+  <div class="error form-message" role="alert">
     {{ dzi_generation_error }}
   </div>
 {% endif %}
 
 {% if generated_output is not none %}
   {% if generated_ok %}
-    <div class="success">Комплектът е генериран успешно.</div>
+    <div class="success form-message" role="status">Комплектът е генериран успешно.</div>
   {% elif not dzi_generation_error %}
-    <div class="error">Генерирането не успя.</div>
+    <div class="error form-message" role="alert">Генерирането не успя. Провери настройките и опитай отново.</div>
   {% endif %}
   {% if generated_output %}
     <pre>{{ generated_output }}</pre>
