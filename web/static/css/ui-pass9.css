@@ -1072,6 +1072,7 @@ th, td {
   border-bottom: 1px solid var(--color-border);
   text-align: left;
   vertical-align: top;
+  overflow-wrap: anywhere;
 }
 th {
   background: var(--color-bg-subtle);
@@ -1079,6 +1080,20 @@ th {
   font-size: 0.76rem;
   letter-spacing: 0.06em;
   text-transform: uppercase;
+}
+.wrap-cell { overflow-wrap: anywhere; word-break: break-word; }
+.open-answer-review-form {
+  min-width: 220px;
+}
+.open-answer-review-form textarea {
+  width: 100%;
+  min-height: 4.5rem;
+  resize: vertical;
+}
+.open-answer-review-form input,
+.open-answer-review-form select,
+.open-answer-review-form textarea {
+  max-width: 100%;
 }
 
 .quiz-hero {
