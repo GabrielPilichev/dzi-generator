@@ -21,7 +21,7 @@
 </section>
 
 <div class="question-toolbar">
-    <a class="button secondary" href="{{ url_for('grade_view', grade=section.grade) }}">← Обратно към {{ section.grade }}. клас</a>
+    <a class="button secondary" href="{{ url_for('grade_view', grade=section.grade) }}">← Към {{ section.grade }}. клас</a>
     <span class="pill">{{ questions|length }} въпрос{{ '' if questions|length == 1 else 'а' }}</span>
 </div>
 
@@ -31,7 +31,7 @@
             <p class="eyebrow">Преговорен режим</p>
             <p class="subtitle">Преглеждаш въпроси със скрити отговори. За решаване създай тест от този раздел.</p>
         </div>
-        <a class="button" href="{{ url_for('teacher_new', section=section.section_slug) }}">Реши като тест</a>
+        <a class="button" href="{{ url_for('teacher_new', section=section.section_slug) }}">Създай тест от раздела</a>
     </section>
 
     <section class="section-toolbar" data-section-tools data-section-slug="{{ section.section_slug }}">
