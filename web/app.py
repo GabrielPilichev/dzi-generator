@@ -1294,6 +1294,11 @@ def index():
     )
 
 
+@app.route("/favicon.ico")
+def favicon():
+    return send_file(PROJECT_ROOT / "web" / "static" / "img" / "brand" / "favicon.ico", mimetype="image/x-icon")
+
+
 @app.route("/grade/<int:grade>")
 def grade_view(grade: int):
     if not 8 <= grade <= 12:

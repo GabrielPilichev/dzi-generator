@@ -101,7 +101,13 @@
                         </div>
                     </details>
                 {% else %}
-                    <a class="profile-link mobile-login-link" href="{{ url_for('tester_login', next=request.path) }}">Вход</a>
+                    <details class="mobile-profile-menu">
+                        <summary>Вход</summary>
+                        <div class="mobile-profile-panel">
+                            <a class="profile-link" href="{{ url_for('tester_login', next=request.path) }}">Вход за тестер</a>
+                            <a class="profile-link" href="{{ url_for('admin_login', next=request.path) }}">Вход за админ</a>
+                        </div>
+                    </details>
                 {% endif %}
             </div>
         </header>

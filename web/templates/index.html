@@ -133,5 +133,35 @@
     </div>
 </section>
 
+{% if searchable_sections %}
+<section class="home-section home-section--topics">
+    <div class="section-heading">
+        <div>
+            <p class="eyebrow">Учебно съдържание</p>
+            <h2>Теми и раздели</h2>
+        </div>
+        <span class="pill">{{ searchable_sections|length }} раздела</span>
+    </div>
+
+    <ul class="topic-list" data-home-search-group="topics">
+        {% for s in searchable_sections %}
+            <li class="topic-list-item" data-search-item>
+                <a
+                    class="topic-list-link"
+                    href="{{ url_for('section_view', slug=s.section_slug) }}"
+                    data-search-text="{{ s.grade }}. клас {{ s.section_title }} {{ s.module_title or '' }} {{ s.section_slug }}"
+                >
+                    <span class="topic-list-grade">{{ s.grade }}. клас</span>
+                    <span class="topic-list-title">{{ s.section_title }}</span>
+                    {% if s.module_title %}
+                        <span class="topic-list-module">{{ s.module_title }}</span>
+                    {% endif %}
+                </a>
+            </li>
+        {% endfor %}
+    </ul>
+</section>
+{% endif %}
+
 <script src="{{ url_for('static', filename='js/home-search.js') }}" defer></script>
 {% endblock %}
