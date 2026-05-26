@@ -12,6 +12,11 @@ body {
 
 a { color: var(--color-primary); text-decoration: none; }
 a:hover { text-decoration: underline; }
+a:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--color-primary) 34%, transparent);
+  outline-offset: 3px;
+  border-radius: 0.3rem;
+}
 
 h1, h2, h3 { color: var(--color-text); }
 h1 {
@@ -62,6 +67,9 @@ h2 {
   min-height: 44px;
 }
 .brand:hover { text-decoration: none; }
+.brand:focus-visible {
+  outline-offset: 4px;
+}
 .brand-logo {
   display: block;
   object-fit: contain;
@@ -112,6 +120,13 @@ h2 {
   background: var(--color-primary-soft);
   border-color: var(--color-border-strong);
   color: var(--color-text);
+}
+.nav-link:focus-visible,
+.profile-link:focus-visible,
+.mobile-profile-menu summary:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--color-primary) 36%, transparent);
+  outline-offset: 2px;
+  border-color: var(--color-primary);
 }
 
 .nav-current,
@@ -354,6 +369,13 @@ button:disabled,
   border-color: var(--color-border-strong);
   box-shadow: var(--shadow-md);
 }
+.mode-card:focus-visible,
+.pinned-card:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--color-primary) 34%, transparent);
+  outline-offset: 4px;
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-md);
+}
 .mode-card h2 {
   margin-bottom: var(--space-2);
   font-size: 1.25rem;
@@ -430,6 +452,10 @@ button:disabled,
 .home-dzi-card:hover {
   text-decoration: none;
   transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+.home-dzi-card:focus-visible {
+  border-color: color-mix(in srgb, var(--color-accent-dzi) 72%, var(--color-primary));
   box-shadow: var(--shadow-lg);
 }
 .home-dzi-title {
@@ -1215,6 +1241,12 @@ button:disabled,
 .toolbar-details summary:hover {
   color: var(--color-text);
 }
+.toolbar-details summary:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--color-primary) 32%, transparent);
+  outline-offset: 3px;
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+}
 .toolbar-search,
 .toolbar-select,
 .segmented-button,
@@ -1225,6 +1257,14 @@ button:disabled,
   background: var(--color-bg);
   color: var(--color-text);
   font: inherit;
+}
+.toolbar-search:focus-visible,
+.toolbar-select:focus-visible,
+.segmented-button:focus-visible,
+.icon-button:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 26%, transparent);
 }
 .toolbar-search {
   min-width: 0;
@@ -1371,6 +1411,12 @@ button:disabled,
 .copy-question-button:hover,
 .bookmark-button:hover {
   border-color: var(--color-border-strong);
+}
+.copy-question-button:focus-visible,
+.bookmark-button:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 26%, transparent);
 }
 .bookmark-button.active {
   background: var(--color-warning-soft);
@@ -1588,6 +1634,20 @@ select {
   background: var(--color-bg);
   color: var(--color-text);
   font: inherit;
+  transition: border-color var(--t-base), box-shadow var(--t-base);
+}
+input:not([type="radio"]):not([type="checkbox"]):focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 26%, transparent);
+}
+input[type="radio"]:focus-visible,
+input[type="checkbox"]:focus-visible,
+input[type="file"]:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--color-primary) 34%, transparent);
+  outline-offset: 3px;
 }
 
 .login-hero,
