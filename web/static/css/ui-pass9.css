@@ -668,7 +668,7 @@ button:disabled:hover,
   color: var(--color-text-muted);
   font-size: 0.72rem;
   font-weight: 900;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 
@@ -782,13 +782,26 @@ button:disabled:hover,
 .pill,
 .badge,
 .section-type-badge,
-.topic-chip {
+.topic-chip,
+.question-number,
+.type-badge,
+.diff-easy,
+.diff-medium,
+.diff-hard,
+.diff-unknown,
+.status-pill,
+.option-status,
+.timer {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  min-height: 24px;
   border-radius: var(--radius-pill);
+  border: 1px solid transparent;
   font-size: 0.75rem;
   font-weight: 850;
+  line-height: 1;
+  text-align: center;
   white-space: nowrap;
 }
 .count-pill,
@@ -813,6 +826,7 @@ button:disabled:hover,
 .topic-chip {
   padding: var(--space-1) var(--space-2);
   background: var(--color-primary-soft);
+  border-color: color-mix(in srgb, var(--color-primary) 30%, var(--color-border));
   color: var(--color-primary);
 }
 
@@ -1568,8 +1582,8 @@ button:disabled:hover,
 }
 .question-number {
   padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-pill);
   background: var(--color-bg-subtle);
+  border-color: var(--color-border);
   color: var(--color-text-muted);
   font-family: var(--font-mono);
   font-size: 0.78rem;
@@ -1579,16 +1593,44 @@ button:disabled:hover,
   color: var(--color-text-muted);
   font-size: 0.68rem;
   font-weight: 950;
-  letter-spacing: 0.07em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
 }
-.type-badge.type-multiple_choice { background: var(--color-primary-soft); color: var(--color-primary); }
-.type-badge.type-fill_in { background: var(--color-module-4-soft); color: var(--color-module-4); }
-.type-badge.type-true_false { background: var(--color-success-soft); color: var(--color-success); }
-.diff-easy { background: var(--color-success-soft); color: var(--color-success); }
-.diff-medium { background: var(--color-warning-soft); color: var(--color-warning); }
-.diff-hard { background: var(--color-danger-soft); color: var(--color-danger); }
-.diff-unknown { background: var(--color-bg-subtle); color: var(--color-text-muted); }
+.type-badge.type-multiple_choice {
+  background: var(--color-primary-soft);
+  border-color: color-mix(in srgb, var(--color-primary) 30%, var(--color-border));
+  color: var(--color-primary);
+}
+.type-badge.type-fill_in {
+  background: var(--color-module-4-soft);
+  border-color: color-mix(in srgb, var(--color-module-4) 30%, var(--color-border));
+  color: var(--color-module-4);
+}
+.type-badge.type-true_false {
+  background: var(--color-success-soft);
+  border-color: color-mix(in srgb, var(--color-success) 34%, var(--color-border));
+  color: var(--color-success);
+}
+.diff-easy {
+  background: var(--color-success-soft);
+  border-color: color-mix(in srgb, var(--color-success) 34%, var(--color-border));
+  color: var(--color-success);
+}
+.diff-medium {
+  background: var(--color-warning-soft);
+  border-color: color-mix(in srgb, var(--color-warning) 40%, var(--color-border));
+  color: var(--color-warning);
+}
+.diff-hard {
+  background: var(--color-danger-soft);
+  border-color: color-mix(in srgb, var(--color-danger) 38%, var(--color-border));
+  color: var(--color-danger);
+}
+.diff-unknown {
+  background: var(--color-bg-subtle);
+  border-color: var(--color-border);
+  color: var(--color-text-muted);
+}
 
 .bookmark-button,
 .copy-question-button {
@@ -2063,7 +2105,7 @@ th {
   color: var(--color-text-muted);
   font-size: 0.76rem;
   font-weight: 900;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 .result-score { font-size: clamp(2.5rem, 8vw, 3.25rem); font-weight: 850; line-height: 1; }
@@ -2321,7 +2363,7 @@ form .quiz-option-card {
 .answer-note-label {
   font-size: 0.72rem;
   font-weight: 900;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 .answer-note--correct {
@@ -2353,22 +2395,19 @@ form .quiz-option-card {
   margin-top: var(--space-5);
 }
 .status-pill {
-  display: inline-flex;
-  align-items: center;
   padding: var(--space-1) var(--space-3);
-  border-radius: var(--radius-pill);
   border: 1px solid var(--color-border);
   font-size: 0.78rem;
-  font-weight: 700;
+  font-weight: 850;
 }
 .status-pill--correct {
   background: var(--color-success-soft);
-  border-color: var(--color-success);
+  border-color: color-mix(in srgb, var(--color-success) 56%, var(--color-border));
   color: var(--color-success);
 }
 .status-pill--wrong {
   background: var(--color-danger-soft);
-  border-color: var(--color-danger);
+  border-color: color-mix(in srgb, var(--color-danger) 60%, var(--color-border));
   color: var(--color-danger);
 }
 
