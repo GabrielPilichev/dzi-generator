@@ -23,6 +23,8 @@
       Тест #{{ assignment.id }} · {{ assignment.question_count }} въпроса
       {% if assignment.time_limit_minutes %}
         · време: {{ assignment.time_limit_minutes }} мин.
+      {% else %}
+        · без ограничение във времето
       {% endif %}
     </p>
     {% if mixed_status and mixed_status.is_mixed %}
@@ -36,7 +38,7 @@
       </div>
     {% endif %}
   </div>
-  <div class="header-actions">
+  <div class="header-actions teacher-results-actions" aria-label="Действия за резултатите">
     <a class="button secondary back-link" href="{{ url_for('teacher_assignment', assignment_id=assignment.id) }}">Към тест #{{ assignment.id }}</a>
     <a class="button secondary" href="{{ url_for('teacher_assignment_results_export', assignment_id=assignment.id) }}">Експортирай CSV (всички предадени)</a>
     {% if filter_active or sort_active %}
@@ -50,18 +52,21 @@
   </div>
 </section>
 
-<div class="cards teacher-stat-grid">
+<div class="cards teacher-stat-grid teacher-results-overview" aria-label="Обобщение на опитите">
   <div class="card">
     <div class="label">Всички опити</div>
     <div class="value">{{ totals.attempts_count or 0 }}</div>
+    <div class="muted">общо започнати</div>
   </div>
   <div class="card">
     <div class="label">Предадени</div>
     <div class="value">{{ totals.submitted_count or 0 }}</div>
+    <div class="muted">готови за преглед</div>
   </div>
   <div class="card">
     <div class="label">Незавършени</div>
     <div class="value">{{ totals.unfinished_count or 0 }}</div>
+    <div class="muted">в процес</div>
   </div>
   <div class="card">
     <div class="label">Среден резултат</div>
@@ -72,10 +77,20 @@
         —
       {% endif %}
     </div>
+    <div class="muted">само предадени</div>
   </div>
 </div>
 
 <section class="card teacher-filter-card" id="results-filters">
+  <div class="section-heading teacher-filter-heading">
+    <div>
+      <h2>Филтри и експорт</h2>
+      <p class="help">Филтрите променят списъка на екрана; CSV експортите са в горната част на страницата.</p>
+    </div>
+    {% if filter_active or sort_active %}
+      <span class="pill">активен филтър</span>
+    {% endif %}
+  </div>
   <form method="get" class="filter-bar">
     <label for="results-q">Търсене по име</label>
     <input id="results-q" name="q" type="search" value="{{ filters.q }}" placeholder="напр. Иван">
@@ -116,7 +131,10 @@
 
 <section class="card teacher-summary-card" id="results-summary">
   <div class="section-heading">
-    <h2>Аналитика на резултатите</h2>
+    <div>
+      <h2>Аналитика на резултатите</h2>
+      <p class="help">MC показателите са по предадените опити; отворените отговори са отделен преглед.</p>
+    </div>
     {% if filter_active %}
       <span class="pill">филтрирано</span>
     {% endif %}
@@ -274,7 +292,11 @@
 {% if open_text_answers %}
   <section class="card teacher-open-answers-card">
     <div class="section-heading">
-      <h2>Отворени отговори</h2>
+      <div>
+        <h2>Отворени отговори</h2>
+        <p class="help">Прегледай автоматичния статус, запиши override и бележка при нужда.</p>
+      </div>
+      <span class="pill">{{ open_text_answers|length }} реда</span>
     </div>
     <p class="muted">
       {% if combined_scores_by_attempt %}
