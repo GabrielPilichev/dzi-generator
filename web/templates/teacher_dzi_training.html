@@ -13,8 +13,15 @@
 {% block content %}
 <section class="page-header dzi-page-header">
   <div>
-    <p class="eyebrow">ДЗИ</p>
+    <p class="eyebrow">ДЗИ тренировка</p>
     <h1>ДЗИ подготовка</h1>
+    <div class="dzi-start-meta" aria-label="Данни за тренировъчния режим">
+      <span class="pill">28 въпроса по подразбиране</span>
+      {% if dzi_pool_health %}
+        <span class="pill">{{ dzi_pool_health.source_slug }}</span>
+      {% endif %}
+      <span class="pill">{{ config.status }}</span>
+    </div>
     <p class="subtitle">Генериране на тренировъчни комплекти с контролирано разпределение по класове.</p>
   </div>
 </section>
@@ -30,22 +37,22 @@
     <span class="pill">{{ dzi_pool_health.source_slug }}</span>
   </div>
 
-  <div class="stat-row dzi-stat-row">
-    <div class="stat-box">
-      <span class="stat-number">{{ dzi_pool_health.imported_count }}</span>
-      <span class="stat-label">Общо импортирани</span>
+  <div class="dzi-start-summary" aria-label="Обобщение на ДЗИ тренировката">
+    <div class="dzi-start-summary-item">
+      <span class="label">Пул въпроси</span>
+      <strong>{{ dzi_pool_health.usable_count }} готови</strong>
     </div>
-    <div class="stat-box">
-      <span class="stat-number">{{ dzi_pool_health.usable_count }}</span>
-      <span class="stat-label">Готови за MC тест</span>
+    <div class="dzi-start-summary-item">
+      <span class="label">Стандартен комплект</span>
+      <strong>28 въпроса</strong>
     </div>
-    <div class="stat-box">
-      <span class="stat-number">{{ dzi_pool_health.not_yet_supported_count }}</span>
-      <span class="stat-label">Кратък отговор / предстои</span>
+    <div class="dzi-start-summary-item">
+      <span class="label">Общо импортирани</span>
+      <strong>{{ dzi_pool_health.imported_count }}</strong>
     </div>
-    <div class="stat-box">
-      <span class="stat-number">{{ dzi_pool_health.invalid_mc_count }}</span>
-      <span class="stat-label">Невалидни MC</span>
+    <div class="dzi-start-summary-item">
+      <span class="label">Изключени засега</span>
+      <strong>{{ dzi_pool_health.not_yet_supported_count + dzi_pool_health.invalid_mc_count }}</strong>
     </div>
   </div>
 
@@ -83,7 +90,11 @@
 </section>
 
 <section class="panel dzi-panel dzi-generator-panel">
-  <h2>Създай тренировъчен комплект</h2>
+  <div>
+    <p class="eyebrow">Старт</p>
+    <h2>Създай тренировъчен комплект</h2>
+    <p class="muted">Избери име, брой въпроси и seed само ако искаш повторяем избор.</p>
+  </div>
 
   <form method="post" class="dzi-training-form">
     <label for="name">Заглавие</label>
@@ -97,7 +108,7 @@
     <input id="seed" name="seed" value="" placeholder="например dzi-training-v2">
     <div class="help">Остави празно за автоматичен seed. Един и същ seed дава същия избор.</div>
 
-    <button type="submit">Генерирай комплект</button>
+    <button type="submit">Създай ДЗИ тренировъчен комплект</button>
   </form>
 </section>
 
