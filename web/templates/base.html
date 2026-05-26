@@ -114,11 +114,11 @@
 
         {% block content %}{% endblock %}
 
-        <footer>
-            LearnPilot · {{ app_version }}
-            {% if last_sync_label %} · последна промяна: {{ last_sync_label }}{% endif %}
-            · {{ ui_profile_label }}
-            {% if source_url %} · <a href="{{ source_url }}">source</a>{% endif %}
+        <footer class="site-footer">
+            <span>LearnPilot · {{ app_version }}</span>
+            {% if last_sync_label %}<span>последна промяна: {{ last_sync_label }}</span>{% endif %}
+            <span>{{ ui_profile_label }}</span>
+            {% if source_url %}<a href="{{ source_url }}">source</a>{% endif %}
         </footer>
     </div>
 </body>
