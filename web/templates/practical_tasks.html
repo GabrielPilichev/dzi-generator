@@ -24,9 +24,9 @@
 
 <div class="question-toolbar dzi-toolbar">
     {% if attempt %}
-        <a class="button secondary" href="{{ url_for('quiz_attempt', attempt_id=attempt.id) }}">← Към теста</a>
+        <a class="button secondary back-link" href="{{ url_for('quiz_attempt', attempt_id=attempt.id) }}">Към теста</a>
     {% else %}
-        <a class="button secondary" href="{{ url_for('dzi_source_view', source_slug=exam.source_slug) }}">← Към източника</a>
+        <a class="button secondary back-link" href="{{ url_for('dzi_source_view', source_slug=exam.source_slug) }}">Към източника</a>
     {% endif %}
     <span class="pill">{{ tasks|length }} задачи</span>
 </div>

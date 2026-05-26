@@ -21,7 +21,7 @@
 </section>
 
 <div class="question-toolbar">
-    <a class="button secondary" href="{{ url_for('grade_view', grade=section.grade) }}">← Към {{ section.grade }}. клас</a>
+    <a class="button secondary back-link" href="{{ url_for('grade_view', grade=section.grade) }}">Към {{ section.grade }}. клас</a>
     <span class="pill">{{ questions|length }} въпрос{{ '' if questions|length == 1 else 'а' }}</span>
 </div>
 

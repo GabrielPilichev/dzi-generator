@@ -37,7 +37,7 @@
     {% endif %}
   </div>
   <div class="header-actions">
-    <a class="button secondary" href="{{ url_for('teacher_assignment', assignment_id=assignment.id) }}">Към заданието</a>
+    <a class="button secondary back-link" href="{{ url_for('teacher_assignment', assignment_id=assignment.id) }}">Към тест #{{ assignment.id }}</a>
     <a class="button secondary" href="{{ url_for('teacher_assignment_results_export', assignment_id=assignment.id) }}">Експортирай CSV (всички предадени)</a>
     {% if filter_active or sort_active %}
       <a class="button secondary"
