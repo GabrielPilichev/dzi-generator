@@ -99,7 +99,10 @@
         data-question-id="{{ q.id }}"
         data-question-type="{{ q.question_type }}"
       >
-        <h2>Въпрос {{ loop.index }} от {{ questions|length }}</h2>
+        <div class="quiz-card-header">
+          <h2 class="quiz-question-title question-number">Въпрос {{ loop.index }}</h2>
+          <span class="quiz-question-total">от {{ questions|length }}</span>
+        </div>
         {% set difficulty_label = question_difficulty_label(q.difficulty) %}
         {% if difficulty_label %}
           <p class="muted">Трудност: {{ difficulty_label }}</p>
@@ -140,7 +143,9 @@
       </article>
     {% endfor %}
 
-    <button type="submit">Предай теста</button>
+    <div class="quiz-submit-bar">
+      <button type="submit">Предай теста</button>
+    </div>
   </form>
 
   <script src="{{ url_for('static', filename='js/quiz-draft-autosave.js') }}" defer></script>
