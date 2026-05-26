@@ -957,6 +957,20 @@ button:disabled:hover,
   display: grid;
   gap: var(--space-4);
 }
+.teacher-form-section {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-bg-subtle) 54%, var(--color-bg));
+}
+.teacher-form-section .section-heading {
+  margin-bottom: 0;
+}
+.teacher-form-section .section-heading .help {
+  margin: var(--space-1) 0 0;
+}
 .teacher-form-card > label,
 .teacher-form-card > .help {
   margin-top: 0;
@@ -970,7 +984,7 @@ button:disabled:hover,
   padding-top: var(--space-2);
 }
 .teacher-form-actions button {
-  min-height: 44px;
+  min-height: 46px;
   padding-inline: var(--space-5);
 }
 .teacher-stat-grid {
