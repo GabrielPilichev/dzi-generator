@@ -81,7 +81,7 @@
 </section>
 
 <div class="question-toolbar dzi-toolbar">
-    <a class="button secondary" href="{{ url_for('dzi_index') }}">← Към всички ДЗИ източници</a>
+    <a class="button secondary back-link" href="{{ url_for('dzi_index') }}">Всички ДЗИ източници</a>
     {% if practical_resource_count %}
         <a class="button" href="{{ url_for('dzi_practical_source', source_slug=exam.source_slug) }}">
             Практически задачи 26–28
