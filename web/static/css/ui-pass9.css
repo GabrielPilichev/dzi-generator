@@ -1360,6 +1360,16 @@ button:disabled:hover,
   margin: var(--space-5) 0 var(--space-2);
   font-size: 1rem;
 }
+.practical-task-card .options-list {
+  gap: var(--space-2);
+}
+.practical-task-card .option-row {
+  align-items: center;
+}
+.practical-task-card .option-row > span:first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
 .practical-upload-form {
   display: grid;
   gap: var(--space-3);
@@ -1678,6 +1688,42 @@ button:disabled:hover,
   font-weight: 500;
   line-height: 1.75;
   font-size: 1.02rem;
+}
+.question-media,
+.task-media,
+.question figure,
+.question-card figure,
+.dzi-task-card figure,
+.practical-task-card figure {
+  display: grid;
+  gap: var(--space-2);
+  margin: var(--space-4) 0;
+}
+.question img,
+.question-card img,
+.quiz-card img,
+.dzi-task-card img,
+.practical-task-card img,
+.question-media img,
+.task-media img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg);
+  box-shadow: var(--shadow-sm);
+}
+.question figcaption,
+.question-card figcaption,
+.dzi-task-card figcaption,
+.practical-task-card figcaption,
+.question-media-caption,
+.task-media-caption {
+  color: var(--color-text-muted);
+  font-size: 0.84rem;
+  font-weight: 700;
+  line-height: 1.45;
 }
 .options-list {
   display: grid;
@@ -2781,6 +2827,29 @@ code {
   .dzi-task-card,
   .practical-task-card {
     padding: var(--space-4);
+  }
+  .question-media,
+  .task-media,
+  .question figure,
+  .question-card figure,
+  .dzi-task-card figure,
+  .practical-task-card figure {
+    margin-block: var(--space-3);
+  }
+  .question img,
+  .question-card img,
+  .quiz-card img,
+  .dzi-task-card img,
+  .practical-task-card img,
+  .question-media img,
+  .task-media img {
+    border-radius: var(--radius-md);
+  }
+  .practical-task-card .option-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .practical-task-card .option-row .button {
+    width: 100%;
   }
   .practical-upload-form {
     padding: var(--space-3);
