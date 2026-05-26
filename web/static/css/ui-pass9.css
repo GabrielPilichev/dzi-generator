@@ -209,13 +209,26 @@ h2 {
   margin-bottom: var(--space-6);
   background: linear-gradient(135deg, var(--color-bg), var(--color-primary-soft));
 }
+.hero h1,
+.quiz-hero h1,
+.page-header h1 {
+  margin-bottom: var(--space-2);
+  max-width: 860px;
+  font-size: clamp(2rem, 4vw, 3rem);
+  line-height: 1.06;
+}
+.hero .subtitle,
+.quiz-hero .subtitle,
+.page-header .subtitle {
+  max-width: 760px;
+}
 
 .eyebrow {
   margin: 0 0 var(--space-1);
   color: var(--color-primary);
   font-size: 0.76rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
+  font-weight: 850;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 
@@ -731,6 +744,16 @@ button:disabled,
   color: var(--color-text-muted);
   border: 1px solid var(--color-border);
 }
+.pill--mixed {
+  border-color: color-mix(in srgb, var(--color-primary) 44%, var(--color-border));
+  background: color-mix(in srgb, var(--color-primary-soft) 66%, var(--color-bg));
+  color: var(--color-primary);
+}
+.pill--combined {
+  border-color: color-mix(in srgb, var(--color-success) 50%, var(--color-border));
+  background: var(--color-success-soft);
+  color: var(--color-success);
+}
 .badge,
 .section-type-badge,
 .topic-chip {
@@ -748,12 +771,44 @@ button:disabled,
   gap: var(--space-4);
   margin-bottom: var(--space-5);
 }
-.page-header { margin-bottom: var(--space-5); }
+.page-header {
+  padding: var(--space-5);
+  border: 1px solid var(--color-border);
+  border-left: 4px solid var(--color-primary);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, var(--color-bg), color-mix(in srgb, var(--color-primary-soft) 42%, var(--color-bg)));
+  box-shadow: var(--shadow-sm);
+}
+.page-header > div:first-child,
+.section-heading > div:first-child,
+.question-toolbar > div:first-child {
+  min-width: 0;
+}
+.page-header h1,
+.section-heading h2,
+.question-toolbar h2 {
+  overflow-wrap: anywhere;
+}
+.section-heading {
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid color-mix(in srgb, var(--color-border) 72%, transparent);
+}
+.section-heading h2,
+.question-toolbar h2 {
+  margin-bottom: var(--space-1);
+}
 .header-actions,
 .links,
-.actions { display: flex; gap: var(--space-2); flex-wrap: wrap; }
+.actions,
+.badges {
+  display: flex;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
 .header-actions {
   justify-content: flex-end;
+  align-items: center;
+  flex-shrink: 0;
 }
 
 .cards {
@@ -1130,7 +1185,8 @@ button:disabled,
   background: linear-gradient(135deg, var(--color-bg), color-mix(in srgb, var(--color-accent-dzi-soft) 68%, var(--color-bg)));
 }
 .dzi-page-header {
-  padding-bottom: var(--space-2);
+  border-left-color: var(--color-accent-dzi);
+  background: linear-gradient(135deg, var(--color-bg), color-mix(in srgb, var(--color-accent-dzi-soft) 48%, var(--color-bg)));
 }
 .dzi-warning {
   border-color: color-mix(in srgb, var(--color-accent-dzi) 42%, var(--color-border));
@@ -2411,6 +2467,14 @@ footer {
   .section-heading,
   .question-toolbar {
     display: block;
+  }
+  .page-header {
+    padding: var(--space-4);
+  }
+  .header-actions,
+  .badges {
+    justify-content: flex-start;
+    margin-top: var(--space-3);
   }
   .timer-panel {
     justify-items: start;
