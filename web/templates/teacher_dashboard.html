@@ -9,36 +9,44 @@
 {% endblock %}
 
 {% block content %}
-<section class="page-header">
+<section class="page-header dashboard-header">
   <div>
     <p class="eyebrow">Учител</p>
     <h1>Учителско табло</h1>
-    <p class="subtitle">Бърз преглед на тестове, опити и резултати.</p>
+    <p class="subtitle">Бърз преглед на създадените тестове, активността на учениците и последните резултати.</p>
   </div>
-  <div class="header-actions">
-    <a class="button secondary" href="{{ url_for('teacher_assignments') }}">Създадени тестове</a>
-    <a class="button secondary" href="{{ url_for('teacher_practical_submissions') }}">Практически файлове</a>
-    <a class="button secondary" href="{{ url_for('teacher_dzi_training') }}">ДЗИ подготовка</a>
-    <a class="button" href="{{ url_for('teacher_new') }}">+ Създай тест</a>
+  <div class="header-actions dashboard-actions" aria-label="Административни действия">
+    <div class="dashboard-action-group" aria-label="Прегледи">
+      <a class="button secondary" href="{{ url_for('teacher_assignments') }}">Създадени тестове</a>
+      <a class="button secondary" href="{{ url_for('teacher_practical_submissions') }}">Практически файлове</a>
+      <a class="button secondary" href="{{ url_for('teacher_dzi_training') }}">ДЗИ подготовка</a>
+    </div>
+    <div class="dashboard-action-group dashboard-action-group--primary" aria-label="Създаване">
+      <a class="button" href="{{ url_for('teacher_new') }}">+ Създай тест</a>
+    </div>
   </div>
 </section>
 
-<div class="cards">
+<div class="cards teacher-stat-grid dashboard-summary-grid" aria-label="Обобщение на таблото">
   <div class="card">
     <div class="label">Създадени тестове</div>
     <div class="value">{{ stats.assignments_count or 0 }}</div>
+    <div class="muted">готови за споделяне</div>
   </div>
   <div class="card">
     <div class="label">Всички опити</div>
     <div class="value">{{ stats.attempts_count or 0 }}</div>
+    <div class="muted">започнати от ученици</div>
   </div>
   <div class="card">
     <div class="label">Предадени</div>
     <div class="value">{{ stats.submitted_count or 0 }}</div>
+    <div class="muted">с готов резултат</div>
   </div>
   <div class="card">
     <div class="label">Незавършени</div>
     <div class="value">{{ stats.unfinished_count or 0 }}</div>
+    <div class="muted">в процес</div>
   </div>
   <div class="card">
     <div class="label">Среден резултат</div>
@@ -49,12 +57,16 @@
         —
       {% endif %}
     </div>
+    <div class="muted">само предадени опити</div>
   </div>
 </div>
 
-<section class="card">
+<section class="card dashboard-card">
   <div class="section-heading">
-    <h2>Последни тестове</h2>
+    <div>
+      <h2>Последни тестове</h2>
+      <p class="help">Най-новите задания, групирани по клас.</p>
+    </div>
     <a href="{{ url_for('teacher_assignments') }}">виж всички</a>
   </div>
 
@@ -107,12 +119,16 @@
   {% endif %}
 </section>
 
-<section class="card">
+<section class="card dashboard-card">
   <div class="section-heading">
-    <h2>Последни опити</h2>
+    <div>
+      <h2>Последни опити</h2>
+      <p class="help">Последна активност на учениците по тестове.</p>
+    </div>
   </div>
 
   {% if recent_attempts %}
+    <div class="table-wrap">
     <table>
       <thead>
         <tr>
@@ -161,6 +177,7 @@
         {% endfor %}
       </tbody>
     </table>
+    </div>
   {% else %}
     <p class="empty-state">Все още няма започнати опити. Когато ученик отвори тест, опитът ще се появи тук.</p>
   {% endif %}
