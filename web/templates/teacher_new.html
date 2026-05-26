@@ -37,48 +37,58 @@
 {% endif %}
 
 <form method="post" class="card form-card teacher-form-card" id="new-assignment-form">
-    <div class="section-heading">
-        <h2>1. Избери раздел</h2>
-        <span class="pill">{{ sections|length }} налични</span>
-    </div>
+    <section class="teacher-form-section">
+        <div class="section-heading">
+            <div>
+                <h2>1. Източник на въпросите</h2>
+                <p class="help">Учениците ще видят тест със заглавието на избрания раздел.</p>
+            </div>
+            <span class="pill">{{ sections|length }} налични</span>
+        </div>
 
-    <label for="section_id">Раздел с въпроси</label>
-    <select id="section_id" name="section_id" required>
-        <option value="">— избери раздел —</option>
-        {% for s in sections %}
-            <option
-                value="{{ s.id }}"
-                data-count="{{ s.question_count }}"
-                data-grade="{{ s.class }}"
-                {% if preselected_section_id and s.id == preselected_section_id %}selected{% endif %}
-            >
-                {{ s.class }}. клас — {{ s.title_bg }} ({{ s.question_count }} въпроса)
-            </option>
-        {% endfor %}
-    </select>
-    <div class="help" id="section-help">
-        Показват се само раздели, в които има въпроси с избираем отговор.
-    </div>
+        <label for="section_id">Раздел с въпроси</label>
+        <select id="section_id" name="section_id" required>
+            <option value="">— избери раздел —</option>
+            {% for s in sections %}
+                <option
+                    value="{{ s.id }}"
+                    data-count="{{ s.question_count }}"
+                    data-grade="{{ s.class }}"
+                    {% if preselected_section_id and s.id == preselected_section_id %}selected{% endif %}
+                >
+                    {{ s.class }}. клас — {{ s.title_bg }} ({{ s.question_count }} въпроса)
+                </option>
+            {% endfor %}
+        </select>
+        <div class="help" id="section-help">
+            Показват се само раздели, в които има въпроси с избираем отговор.
+        </div>
+    </section>
 
     <hr class="rule">
 
-    <div class="section-heading">
-        <h2>2. Настройки</h2>
-    </div>
-
-    <div class="detail-grid teacher-form-grid">
-        <div>
-            <label for="question_count">Брой въпроси</label>
-            <input id="question_count" name="question_count" type="number" min="1" value="{{ form_values.question_count }}" required>
-            <div class="help" id="count-help">Ако въведеш повече от наличните, системата ще използва максимума.</div>
+    <section class="teacher-form-section">
+        <div class="section-heading">
+            <div>
+                <h2>2. Обем и време</h2>
+                <p class="help">Тези настройки се показват на ученика преди старта на теста.</p>
+            </div>
         </div>
 
-        <div>
-            <label for="time_limit_minutes">Време в минути</label>
-            <input id="time_limit_minutes" name="time_limit_minutes" type="number" min="1" placeholder="без ограничение" value="{{ form_values.time_limit_minutes }}">
-            <div class="help">Остави празно за тест без таймер.</div>
+        <div class="detail-grid teacher-form-grid">
+            <div>
+                <label for="question_count">Брой въпроси</label>
+                <input id="question_count" name="question_count" type="number" min="1" value="{{ form_values.question_count }}" required>
+                <div class="help" id="count-help">Ако въведеш повече от наличните, системата ще използва максимума.</div>
+            </div>
+
+            <div>
+                <label for="time_limit_minutes">Време в минути</label>
+                <input id="time_limit_minutes" name="time_limit_minutes" type="number" min="1" placeholder="без ограничение" value="{{ form_values.time_limit_minutes }}">
+                <div class="help">Остави празно за тест без таймер; ученикът ще види „без ограничение“.</div>
+            </div>
         </div>
-    </div>
+    </section>
 
     <div class="open-question-panel">
         <label class="open-question-toggle" for="include_open_questions">
@@ -92,7 +102,7 @@
             <span class="open-question-toggle-copy">
                 <span class="open-question-toggle-title">Включи отворени въпроси</span>
                 <span class="open-question-toggle-help">
-                    Отговорите се записват за ръчен/учителски преглед. Автоматичната проверка е само ориентир и не променя MC резултата.
+                    Учениците ще получат полета за кратък отговор. Отговорите се записват за ръчен/учителски преглед, а MC резултатът остава отделен. Автоматичната проверка е само ориентир.
                 </span>
             </span>
         </label>
@@ -188,11 +198,11 @@
     {% endif %}
 
     <div class="warning warning--spaced form-message">
-        Тестът избира въпросите автоматично. Всеки ученик получава стабилен ред според името си, а отговорите се разбъркват.
+        След създаване ще получиш линк за учениците. Въпросите се избират автоматично, всеки ученик получава стабилен ред според името си, а отговорите се разбъркват.
     </div>
 
     <div class="teacher-form-actions">
-        <button type="submit">Създай тест</button>
+        <button type="submit">Създай тест и линк</button>
     </div>
 </form>
 
