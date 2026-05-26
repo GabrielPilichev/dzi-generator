@@ -9,12 +9,16 @@
 {% endblock %}
 
 {% block content %}
-<section class="quiz-hero">
-  <p class="eyebrow">Готов си за тест</p>
+<section class="quiz-hero student-assignment-hero">
+  <p class="eyebrow">Задание за ученик</p>
   <h1>{{ assignment.title_bg }}</h1>
-  <p class="subtitle">Прегледай условията и въведи име, за да започнеш или продължиш теста.</p>
+  <p class="subtitle">Прегледай условията. Със същото име можеш да започнеш, да продължиш или да отвориш вече предаден резултат.</p>
 
   <div class="quiz-start-summary" aria-label="Обобщение на теста">
+    <div class="quiz-start-summary-item">
+      <span class="label">Статус</span>
+      <strong>готов за решаване</strong>
+    </div>
     <div class="quiz-start-summary-item">
       <span class="label">Въпроси</span>
       <strong>{{ assignment.question_count }}</strong>
@@ -54,7 +58,7 @@
   {% endif %}
 </section>
 
-<form method="post" class="card form-card quiz-start-card">
+<form method="post" class="card form-card quiz-start-card student-assignment-card">
   <label for="student_name">Име на ученик</label>
   <input id="student_name" name="student_name" autocomplete="name" required minlength="2" placeholder="Например: Иван Петров" value="{{ student_name_value or '' }}">
   {% if name_error %}
@@ -62,9 +66,9 @@
   {% endif %}
 
   <div class="help">
-    Ако вече си започнал тест със същото име, ще продължиш съществуващия опит.
+    Ако вече си започнал тест със същото име, ще продължиш съществуващия опит. Ако е предаден, ще видиш резултата.
   </div>
 
-  <button type="submit">Започни или продължи теста</button>
+  <button type="submit">Продължи към теста</button>
 </form>
 {% endblock %}
