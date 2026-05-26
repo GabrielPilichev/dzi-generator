@@ -2337,6 +2337,174 @@ code {
   text-decoration: none;
 }
 
+@media print {
+  @page {
+    margin: 14mm;
+  }
+
+  html {
+    scroll-padding-top: 0;
+  }
+
+  body {
+    background: #fff;
+    color: #111;
+    font-size: 11pt;
+    line-height: 1.4;
+  }
+
+  .app-shell {
+    max-width: none;
+    padding: 0;
+  }
+
+  .top-nav,
+  .breadcrumb,
+  .site-footer,
+  .header-actions,
+  .actions,
+  .empty-actions,
+  .question-actions,
+  .section-toolbar,
+  .question-toolbar,
+  .toolbar-row,
+  .toolbar-details,
+  .teacher-filter-card,
+  .timer-panel,
+  .result-actions,
+  .practice-actions,
+  .button,
+  button,
+  .link-button {
+    display: none !important;
+  }
+
+  a {
+    color: #111;
+    text-decoration: none;
+  }
+
+  .hero,
+  .quiz-hero,
+  .page-header,
+  .card,
+  .panel,
+  .module-card,
+  .question,
+  .quiz-card,
+  .question-card,
+  .result-score-card,
+  .teacher-list-card,
+  .teacher-summary-card,
+  .teacher-table-card,
+  .teacher-open-answers-card,
+  .dzi-task-card,
+  .practical-task-card {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    border-color: #bbb;
+    box-shadow: none;
+    background: #fff;
+  }
+
+  .hero,
+  .quiz-hero,
+  .page-header {
+    padding: 0 0 10pt;
+    margin-bottom: 14pt;
+    border-width: 0 0 1px;
+    border-radius: 0;
+  }
+
+  h1 {
+    font-size: 22pt;
+    letter-spacing: 0;
+  }
+
+  h2 {
+    font-size: 15pt;
+  }
+
+  .subtitle,
+  .muted,
+  .help,
+  .eyebrow {
+    color: #444;
+  }
+
+  .pill,
+  .badge,
+  .section-type-badge,
+  .topic-chip {
+    border-color: #bbb;
+    background: #fff;
+    color: #222;
+  }
+
+  .questions-list,
+  .assignment-groups,
+  .quiz-options,
+  .quiz-options--readonly {
+    gap: 10pt;
+  }
+
+  .question,
+  .quiz-card,
+  .question-card {
+    padding: 12pt;
+  }
+
+  .quiz-option-card,
+  .result-option-card,
+  .option-row {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    background: #fff;
+    border-color: #bbb;
+    transform: none;
+  }
+
+  .table-wrap {
+    overflow: visible;
+    background: none;
+  }
+
+  table,
+  .teacher-table,
+  .teacher-table--dense,
+  .table-wrap--wide table {
+    min-width: 0;
+    width: 100%;
+    font-size: 9pt;
+  }
+
+  th,
+  td {
+    padding: 5pt;
+    border-color: #bbb;
+  }
+
+  tr,
+  th,
+  td {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  th {
+    position: static !important;
+    background: #f3f3f3;
+    color: #222;
+  }
+
+  pre,
+  code {
+    border: 1px solid #bbb;
+    background: #fff;
+    color: #111;
+  }
+}
+
 @media (max-width: 768px) {
   .app-shell { padding: var(--space-3); }
   .top-nav { border-radius: var(--radius-lg); }
