@@ -77,7 +77,35 @@
 <section class="hero dzi-hero">
     <p class="eyebrow">{{ exam.source_slug }}</p>
     <h1>{{ exam.title }}</h1>
-    <p class="subtitle">Преглед само за четене на задачите, въпросите, отговорите и практическата част.</p>
+    <div class="dzi-start-meta" aria-label="Данни за ДЗИ източника">
+        <span class="pill">Официален ДЗИ източник</span>
+        <span class="pill">{{ tasks.part1|length }} задачи в част 1</span>
+        <span class="pill">{{ tasks.part2|length }} задачи в част 2</span>
+    </div>
+    <p class="subtitle">Преглед само за четене на изпитния вариант, задачите, точките и практическата част.</p>
+
+    <div class="dzi-start-summary" aria-label="Обобщение на ДЗИ източника">
+        <div class="dzi-start-summary-item">
+            <span class="label">Изпит</span>
+            <strong>{{ exam.title }}</strong>
+        </div>
+        <div class="dzi-start-summary-item">
+            <span class="label">Задачи</span>
+            <strong>{{ tasks.part1|length + tasks.part2|length }} общо</strong>
+        </div>
+        <div class="dzi-start-summary-item">
+            <span class="label">Точки</span>
+            <strong>{{ (tasks.part1|sum(attribute='points')) + (tasks.part2|sum(attribute='points')) }} т.</strong>
+        </div>
+        <div class="dzi-start-summary-item">
+            <span class="label">Практическа част</span>
+            {% if practical_resource_count %}
+                <strong>{{ practical_resource_count }} файла</strong>
+            {% else %}
+                <strong>без файлове</strong>
+            {% endif %}
+        </div>
+    </div>
 </section>
 
 <div class="question-toolbar dzi-toolbar">
