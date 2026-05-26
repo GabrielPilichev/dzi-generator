@@ -47,6 +47,19 @@
       <span class="pill">Пропуснати: {{ skipped_question_count }} невалидни въпроса</span>
     {% endif %}
   </div>
+
+  <div class="result-next-steps" aria-label="Следващи стъпки">
+    <div>
+      <h2>Какво следва?</h2>
+      <p class="muted">
+        Прегледай въпросите по-долу. При грешен отговор ще видиш правилния отговор и обяснението, ако е налично.
+      </p>
+    </div>
+    <div class="result-actions">
+      <a class="button" href="{{ url_for('quiz_start', assignment_id=assignment.id) }}">Нов опит</a>
+      <a class="button secondary" href="{{ url_for('index') }}">Към началото</a>
+    </div>
+  </div>
 </section>
 
 {% if difficulty_breakdown %}
@@ -217,6 +230,4 @@
     </section>
   {% endif %}
 {% endif %}
-
-<p class="result-actions"><a class="button secondary" href="{{ url_for('index') }}">Към началото</a></p>
 {% endblock %}
