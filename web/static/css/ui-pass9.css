@@ -2126,6 +2126,9 @@ th {
   gap: var(--space-3);
   max-width: 560px;
 }
+.student-assignment-card {
+  border-radius: var(--radius-lg);
+}
 .quiz-start-card label {
   margin: 0;
   font-weight: 850;
@@ -3007,6 +3010,13 @@ code {
   .quiz-attempt-form > button[type="submit"],
   .result-actions .button {
     width: 100%;
+  }
+  .student-assignment-hero .subtitle,
+  .student-assignment-card .help {
+    line-height: 1.65;
+  }
+  .student-assignment-card {
+    max-width: none;
   }
   .result-next-steps {
     grid-template-columns: 1fr;
