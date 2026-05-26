@@ -10,21 +10,33 @@
 
 {% block content %}
 <section class="quiz-hero">
-  <p class="eyebrow">Тест</p>
+  <p class="eyebrow">Готов си за тест</p>
   <h1>{{ assignment.title_bg }}</h1>
-  <p class="subtitle">Въведи име, за да започнеш или продължиш теста.</p>
+  <p class="subtitle">Прегледай условията и въведи име, за да започнеш или продължиш теста.</p>
 
-  <div class="quiz-meta">
-    <span class="pill">{{ assignment.question_count }} въпроса</span>
-    {% if assignment.time_limit_minutes %}
-      <span class="pill">{{ assignment.time_limit_minutes }} мин.</span>
-    {% else %}
-      <span class="pill">без ограничение</span>
-    {% endif %}
+  <div class="quiz-start-summary" aria-label="Обобщение на теста">
+    <div class="quiz-start-summary-item">
+      <span class="label">Въпроси</span>
+      <strong>{{ assignment.question_count }}</strong>
+    </div>
+    <div class="quiz-start-summary-item">
+      <span class="label">Време</span>
+      {% if assignment.time_limit_minutes %}
+        <strong>{{ assignment.time_limit_minutes }} мин.</strong>
+      {% else %}
+        <strong>без ограничение</strong>
+      {% endif %}
+    </div>
     {% if mixed_status and mixed_status.is_mixed %}
-      <span class="pill pill--mixed">{{ mixed_status.open_count }} отворени въпроса</span>
+      <div class="quiz-start-summary-item">
+        <span class="label">Отворени</span>
+        <span class="pill pill--mixed">{{ mixed_status.open_count }} отворени въпроса</span>
+      </div>
       {% if mixed_status.combined_score %}
-        <span class="pill pill--combined">сборен резултат</span>
+        <div class="quiz-start-summary-item">
+          <span class="label">Резултат</span>
+          <span class="pill pill--combined">сборен резултат</span>
+        </div>
       {% endif %}
     {% endif %}
   </div>
@@ -53,6 +65,6 @@
     Ако вече си започнал тест със същото име, ще продължиш съществуващия опит.
   </div>
 
-  <button type="submit">Започни теста</button>
+  <button type="submit">Започни или продължи теста</button>
 </form>
 {% endblock %}
