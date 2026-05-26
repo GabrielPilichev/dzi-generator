@@ -264,6 +264,8 @@ button:focus-visible {
 }
 .button:active,
 button:active {
+  background: color-mix(in srgb, var(--color-primary) 76%, var(--color-bg));
+  border-color: var(--color-primary);
   transform: translateY(0);
 }
 .button.secondary,
@@ -361,13 +363,18 @@ button:disabled,
   border-radius: var(--radius-lg);
   background: linear-gradient(145deg, var(--color-bg), color-mix(in srgb, var(--color-bg-subtle) 72%, var(--color-bg)));
   box-shadow: var(--shadow-sm);
-  transition: transform var(--t-base), border-color var(--t-base), box-shadow var(--t-base);
+  transition: transform var(--t-base), border-color var(--t-base), background var(--t-base), box-shadow var(--t-base);
 }
 .mode-card:hover {
   text-decoration: none;
   transform: translateY(-2px);
   border-color: var(--color-border-strong);
+  background: linear-gradient(145deg, var(--color-bg), color-mix(in srgb, var(--color-primary-soft) 48%, var(--color-bg)));
   box-shadow: var(--shadow-md);
+}
+.mode-card:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-sm);
 }
 .mode-card:focus-visible,
 .pinned-card:focus-visible {
@@ -392,6 +399,9 @@ button:disabled,
   opacity: 0.78;
 }
 .mode-action {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
   margin-top: auto;
   padding-top: var(--space-5);
   color: var(--color-primary);
@@ -399,9 +409,17 @@ button:disabled,
   font-weight: 900;
   letter-spacing: 0.05em;
   text-transform: uppercase;
+  transition: color var(--t-base), transform var(--t-base);
+}
+.mode-card:hover .mode-action {
+  color: color-mix(in srgb, var(--color-primary) 82%, var(--color-text));
+  transform: translateX(2px);
 }
 .mode-card--dzi .mode-action {
   color: var(--color-accent-dzi);
+}
+.mode-card--dzi:hover .mode-action {
+  color: color-mix(in srgb, var(--color-accent-dzi) 86%, var(--color-text));
 }
 .mode-actions {
   display: flex;
@@ -447,12 +465,17 @@ button:disabled,
   border-radius: var(--radius-xl);
   background: linear-gradient(135deg, var(--color-bg), color-mix(in srgb, var(--color-accent-dzi-soft) 86%, var(--color-bg)));
   box-shadow: var(--shadow-lg);
-  transition: transform var(--t-base), box-shadow var(--t-base);
+  transition: transform var(--t-base), border-color var(--t-base), background var(--t-base), box-shadow var(--t-base);
 }
 .home-dzi-card:hover {
   text-decoration: none;
   transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--color-accent-dzi) 62%, var(--color-border));
+  background: linear-gradient(135deg, var(--color-bg), color-mix(in srgb, var(--color-accent-dzi-soft) 96%, var(--color-bg)));
   box-shadow: var(--shadow-lg);
+}
+.home-dzi-card:active {
+  transform: translateY(0);
 }
 .home-dzi-card:focus-visible {
   border-color: color-mix(in srgb, var(--color-accent-dzi) 72%, var(--color-primary));
@@ -512,6 +535,13 @@ button:disabled,
   transform: translateY(-2px);
   box-shadow: var(--shadow-md);
   border-color: var(--color-border-strong);
+}
+.grade-card:hover {
+  background: linear-gradient(145deg, var(--color-bg), color-mix(in srgb, var(--color-primary-soft) 42%, var(--color-bg)));
+}
+.grade-card:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-sm);
 }
 .grade-card:focus-visible {
   outline: 3px solid color-mix(in srgb, var(--color-primary) 32%, transparent);
@@ -592,12 +622,18 @@ button:disabled,
   border-left: 4px solid var(--pin-color, var(--color-primary));
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
-  transition: transform var(--t-base), box-shadow var(--t-base);
+  transition: transform var(--t-base), border-color var(--t-base), background var(--t-base), box-shadow var(--t-base);
 }
 .pinned-card:hover {
   text-decoration: none;
   transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--pin-color, var(--color-primary)) 46%, var(--color-border));
+  background: color-mix(in srgb, var(--color-bg) 80%, var(--color-primary-soft));
   box-shadow: var(--shadow-md);
+}
+.pinned-card:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-sm);
 }
 .pin-icon { font-size: 1.5rem; }
 .pin-title { color: var(--color-text); font-weight: 900; }
@@ -646,13 +682,17 @@ button:disabled,
   border: 1px solid transparent;
   border-left: 3px solid transparent;
   border-radius: var(--radius-md);
-  transition: border-color var(--t-fast), background var(--t-fast), box-shadow var(--t-fast);
+  transition: border-color var(--t-fast), background var(--t-fast), box-shadow var(--t-fast), transform var(--t-fast);
 }
 .section-item:hover {
   background: var(--color-bg-subtle);
   border-color: var(--color-border);
   border-left-color: var(--module-color, var(--color-primary));
+  transform: translateY(-1px);
   box-shadow: var(--shadow-sm);
+}
+.section-item:active {
+  transform: translateY(0);
 }
 .section-title-row {
   display: flex;
@@ -748,12 +788,17 @@ button:disabled,
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--color-bg-subtle);
-  transition: border-color var(--t-fast), background var(--t-fast);
+  transition: border-color var(--t-fast), background var(--t-fast), box-shadow var(--t-fast), transform var(--t-fast);
 }
 .assignment-mini-card:hover,
 .assignment-mini-card:focus-within {
   border-color: var(--color-border-strong);
   background: color-mix(in srgb, var(--color-bg-subtle) 72%, var(--color-primary-soft));
+  box-shadow: var(--shadow-sm);
+  transform: translateY(-1px);
+}
+.assignment-mini-card:active {
+  transform: translateY(0);
 }
 .assignment-mini-title {
   display: inline-flex;
@@ -1127,6 +1172,16 @@ button:disabled,
 .dzi-source-card {
   display: grid;
   gap: var(--space-4);
+  transition: border-color var(--t-base), box-shadow var(--t-base), transform var(--t-base);
+}
+.dzi-source-card:hover {
+  border-color: color-mix(in srgb, var(--color-accent-dzi) 42%, var(--color-border-strong));
+  box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
+}
+.dzi-source-card:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-sm);
 }
 .dzi-source-card .question-header,
 .dzi-task-card .question-header,
@@ -1153,6 +1208,12 @@ button:disabled,
 .dzi-task-card,
 .practical-task-card {
   border-top: 3px solid color-mix(in srgb, var(--color-accent-dzi) 65%, var(--color-border));
+  transition: border-color var(--t-base), box-shadow var(--t-base);
+}
+.dzi-task-card:hover,
+.practical-task-card:hover {
+  border-color: color-mix(in srgb, var(--color-accent-dzi) 46%, var(--color-border-strong));
+  box-shadow: var(--shadow-md);
 }
 .dzi-task-card .prompt,
 .practical-task-card .prompt {
@@ -1338,11 +1399,12 @@ button:disabled,
   padding: var(--space-6);
   border-top: 3px solid color-mix(in srgb, var(--color-primary) 55%, var(--color-border));
   border-radius: var(--radius-lg);
-  transition: border-color var(--t-base), box-shadow var(--t-base);
+  transition: border-color var(--t-base), box-shadow var(--t-base), transform var(--t-base);
 }
 .question:hover {
   border-color: var(--color-primary);
   box-shadow: var(--shadow-md);
+  transform: translateY(-1px);
 }
 .question.is-hidden { display: none; }
 .question-header {
@@ -1411,6 +1473,11 @@ button:disabled,
 .copy-question-button:hover,
 .bookmark-button:hover {
   border-color: var(--color-border-strong);
+  background: var(--color-primary-soft);
+}
+.copy-question-button:active,
+.bookmark-button:active {
+  transform: translateY(0);
 }
 .copy-question-button:focus-visible,
 .bookmark-button:focus-visible {
@@ -1455,6 +1522,10 @@ button:disabled,
 }
 .answer-details summary:hover {
   border-color: var(--color-border-strong);
+  background: var(--color-bg-subtle);
+}
+.answer-details summary:active {
+  background: color-mix(in srgb, var(--color-primary-soft) 58%, var(--color-bg));
 }
 .answer-details[open] summary {
   margin-bottom: var(--space-3);
@@ -1935,6 +2006,10 @@ form .quiz-option-card {
   background: color-mix(in srgb, var(--color-primary-soft) 34%, var(--color-bg-subtle));
   transform: translateY(-1px);
 }
+.quiz-option-card:active {
+  transform: translateY(0);
+  box-shadow: inset 3px 0 0 color-mix(in srgb, var(--color-primary) 62%, var(--color-border));
+}
 .quiz-option-card:focus-within {
   border-color: var(--color-primary);
   box-shadow: 0 0 0 3px var(--color-primary-soft);
@@ -2009,6 +2084,11 @@ form .quiz-option-card {
   border-radius: var(--radius-md);
   background: var(--color-bg);
   color: var(--color-text);
+  transition: border-color var(--t-base), box-shadow var(--t-base);
+}
+.result-option-card:hover {
+  border-color: var(--color-border-strong);
+  box-shadow: var(--shadow-sm);
 }
 .result-option-card.is-correct {
   border-color: color-mix(in srgb, var(--color-success) 78%, var(--color-border));
@@ -2552,6 +2632,10 @@ footer {
   transform: translateY(-1px);
   border-color: var(--color-border-strong);
   box-shadow: var(--shadow-sm);
+}
+.topic-list-link:active {
+  transform: translateY(0);
+  box-shadow: none;
 }
 .topic-list-grade {
   font-size: 0.74rem;
