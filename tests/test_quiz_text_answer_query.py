@@ -19,7 +19,10 @@ _TMP_VAULT.mkdir()
 os.environ["DZI_DB"] = str(_TMP_DB)
 os.environ["DZI_VAULT"] = str(_TMP_VAULT)
 
-from web.app import fetch_quiz_text_answers_for_attempt  # noqa: E402
+from web.app import (  # noqa: E402
+    fetch_quiz_text_answers_for_attempt,
+    sqlite_table_columns,
+)
 
 
 MIGRATION_SQL = (_ROOT / "web" / "migrations" / "005_quiz_text_answers.sql").read_text(encoding="utf-8")
@@ -102,6 +105,10 @@ class QuizTextAnswerQueryTest(unittest.TestCase):
         after = self.conn.total_changes
 
         self.assertEqual(after, before)
+
+    def test_table_columns_rejects_unapproved_table_name(self):
+        with self.assertRaises(ValueError):
+            sqlite_table_columns(self.conn, "quiz_text_answers); DROP TABLE questions; --")
 
 
 if __name__ == "__main__":

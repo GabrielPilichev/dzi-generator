@@ -482,7 +482,7 @@ class AuthGuardTest(unittest.TestCase):
     def test_session_cookie_security_defaults_are_set(self):
         self.assertEqual(self.app.config["SESSION_COOKIE_SAMESITE"], "Strict")
         self.assertTrue(self.app.config["SESSION_COOKIE_HTTPONLY"])
-        self.assertFalse(self.app.config.get("SESSION_COOKIE_SECURE", False))
+        self.assertTrue(self.app.config["SESSION_COOKIE_SECURE"])
 
     def test_switch_profile_rejects_external_next_and_referrer(self):
         self._login_admin()
