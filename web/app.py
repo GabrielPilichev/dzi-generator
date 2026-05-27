@@ -414,6 +414,15 @@ def admin_logout():
 # DB helpers
 # ---------------------------------------------------------------------------
 
+ALLOWED_INTERNAL_TABLES = {
+    "multiple_choice_options",
+    "practical_submission_grades",
+    "practical_submissions",
+    "questions",
+    "quiz_text_answers",
+}
+
+
 def get_db() -> sqlite3.Connection:
     """Per-request SQLite connection. Closed in teardown."""
     if "db" not in g:
@@ -978,6 +987,8 @@ def sqlite_table_exists(conn: sqlite3.Connection, table_name: str) -> bool:
 
 
 def sqlite_table_columns(conn: sqlite3.Connection, table_name: str) -> set[str]:
+    if table_name not in ALLOWED_INTERNAL_TABLES:
+        raise ValueError(f"Unsupported internal table name: {table_name}")
     return {
         row["name"]
         for row in conn.execute(f"PRAGMA table_info({table_name})").fetchall()
