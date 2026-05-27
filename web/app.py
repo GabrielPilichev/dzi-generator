@@ -418,6 +418,7 @@ def get_db() -> sqlite3.Connection:
     """Per-request SQLite connection. Closed in teardown."""
     if "db" not in g:
         conn = sqlite3.connect(app.config["DB_PATH"])
+        conn.execute("PRAGMA journal_mode=WAL")
         conn.row_factory = sqlite3.Row
         g.db = conn
     return g.db
