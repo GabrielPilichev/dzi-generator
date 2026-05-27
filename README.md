@@ -43,6 +43,10 @@ PY
 
 ## Architecture & Security Assumptions
 
+### UI polish direction
+- Recent UI polish keeps logged-out navigation simple, the homepage cleaner, and student/teacher/DZI flows easier to scan.
+- These UI-only changes are not intended to change routes, scoring, assignment behavior, filters, or database behavior.
+
 ### Tester visibility / multi-tenancy assumptions
 - The tester role is currently a shared role, not an isolated per-teacher account.
 - Tester-visible assignment pages may show assignments/attempts across the local instance.
