@@ -217,6 +217,43 @@ class AuthGuardTest(unittest.TestCase):
         self.assertIn('class="section-item"', body)
         self.assertIn('class="stretched-link"', body)
 
+    def test_current_grade_nav_item_is_link_with_aria_current(self):
+        self._login_tester()
+        response = self.client.get("/grade/8")
+        self.assertEqual(response.status_code, 200)
+        body = response.get_data(as_text=True)
+        nav_start = body.find('<nav class="nav-links"')
+        nav_end = body.find("</nav>", nav_start)
+        nav = body[nav_start:nav_end]
+
+        self.assertIn('href="/grade/8"', nav)
+        self.assertIn('aria-current="page">8. клас</a>', nav)
+        self.assertNotIn('<span class="nav-current">8. клас</span>', nav)
+
+    def test_current_home_nav_item_is_link_with_aria_current(self):
+        self._login_tester()
+        response = self.client.get("/")
+        self.assertEqual(response.status_code, 200)
+        body = response.get_data(as_text=True)
+        nav_start = body.find('<nav class="nav-links"')
+        nav_end = body.find("</nav>", nav_start)
+        nav = body[nav_start:nav_end]
+
+        self.assertIn('href="/"', nav)
+        self.assertIn('aria-current="page">Класове</a>', nav)
+
+    def test_current_dzi_nav_item_is_link_with_aria_current(self):
+        self._login_tester()
+        response = self.client.get("/section/grade12-dzi-preparation")
+        self.assertEqual(response.status_code, 200)
+        body = response.get_data(as_text=True)
+        nav_start = body.find('<nav class="nav-links"')
+        nav_end = body.find("</nav>", nav_start)
+        nav = body[nav_start:nav_end]
+
+        self.assertIn('href="/section/grade12-dzi-preparation"', nav)
+        self.assertIn('aria-current="page">ДЗИ</a>', nav)
+
     def test_teacher_assignments_list_shows_class_and_teacher_fallback(self):
         assignment_url = self._create_assignment_as_tester()
         assignment_id = assignment_url.rstrip("/").split("/")[-1]

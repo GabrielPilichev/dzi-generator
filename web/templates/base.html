@@ -46,20 +46,21 @@
                 {% if tester_authenticated or admin_authenticated %}
                     <nav class="nav-links" aria-label="Съдържание">
                         {% set current_grade = request.view_args.grade if request.endpoint == 'grade_view' else none %}
+                        {% set is_dzi_current = request.path == '/section/grade12-dzi-preparation' or (request.endpoint and request.endpoint.startswith('dzi')) %}
 
                         <a class="{% if request.endpoint == 'index' %}nav-current{% else %}nav-link{% endif %}"
-                           {% if request.endpoint != 'index' %}href="{{ url_for('index') }}"{% endif %}>Класове</a>
+                           href="{{ url_for('index') }}"
+                           {% if request.endpoint == 'index' %}aria-current="page"{% endif %}>Класове</a>
 
                         {% for grade_num in [8, 9, 10, 11, 12] %}
-                            {% if current_grade == grade_num %}
-                                <span class="nav-current">{{ grade_num }}. клас</span>
-                            {% else %}
-                                <a class="nav-link" href="{{ url_for('grade_view', grade=grade_num) }}">{{ grade_num }}. клас</a>
-                            {% endif %}
+                            <a class="{% if current_grade == grade_num %}nav-current{% else %}nav-link{% endif %}"
+                               href="{{ url_for('grade_view', grade=grade_num) }}"
+                               {% if current_grade == grade_num %}aria-current="page"{% endif %}>{{ grade_num }}. клас</a>
                         {% endfor %}
 
-                        <a class="{% if request.path == '/section/grade12-dzi-preparation' %}nav-current{% else %}nav-link{% endif %}"
-                           {% if request.path != '/section/grade12-dzi-preparation' %}href="{{ url_for('section_view', slug='grade12-dzi-preparation') }}"{% endif %}>ДЗИ</a>
+                        <a class="{% if is_dzi_current %}nav-current{% else %}nav-link{% endif %}"
+                           href="{{ url_for('section_view', slug='grade12-dzi-preparation') }}"
+                           {% if is_dzi_current %}aria-current="page"{% endif %}>ДЗИ</a>
 
                         {% if ui_profile == "admin" %}
                             <a class="nav-link" href="{{ url_for('teacher_dashboard') }}">Учител</a>
