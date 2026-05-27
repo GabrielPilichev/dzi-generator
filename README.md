@@ -43,6 +43,10 @@ PY
 
 ## Architecture & Security Assumptions
 
+### Recent safety review notes
+- Recent safety follow-ups keep app behavior unchanged while tightening release defaults: direct dev-server debug mode is controlled by `FLASK_DEBUG`, session cookie defaults are hardened, the local `data/questions.db` path is ignored, SQLite WAL mode is enabled, internal SQL table-name helpers are guarded by an explicit whitelist, and `requirements.txt` documents the minimal app/test dependencies.
+- Larger follow-up direction: `web/app.py` should gradually move toward smaller route modules or blueprints, and `web/static/css/ui-pass9.css` should keep being cleaned in small, safe PRs.
+
 ### UI polish direction
 - Recent UI polish keeps logged-out navigation simple, the homepage cleaner, and student/teacher/DZI flows easier to scan.
 - These UI-only changes are not intended to change routes, scoring, assignment behavior, filters, or database behavior.
