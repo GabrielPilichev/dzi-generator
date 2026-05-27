@@ -145,11 +145,14 @@
 
     <ul class="topic-list" data-home-search-group="topics">
         {% for s in searchable_sections %}
-            <li class="topic-list-item" data-search-item>
+            <li
+                class="topic-list-item"
+                data-search-item
+                data-search-text="{{ s.grade }}. клас {{ s.section_title }} {{ s.module_title or '' }} {{ s.section_slug }}"
+            >
                 <a
                     class="topic-list-link"
                     href="{{ url_for('section_view', slug=s.section_slug) }}"
-                    data-search-text="{{ s.grade }}. клас {{ s.section_title }} {{ s.module_title or '' }} {{ s.section_slug }}"
                 >
                     <span class="topic-list-grade">{{ s.grade }}. клас</span>
                     <span class="topic-list-title">{{ s.section_title }}</span>
