@@ -143,8 +143,7 @@ h2 {
   font-weight: 800;
 }
 
-.mobile-profile-menu,
-.mobile-login-link { display: none; }
+.mobile-profile-menu { display: none; }
 
 .mobile-profile-menu summary {
   display: inline-flex;
@@ -2888,10 +2887,6 @@ code {
   .mobile-profile-menu {
     display: block;
     position: relative;
-  }
-  .mobile-login-link {
-    display: inline-flex;
-    justify-self: end;
   }
   .user-menu-toggle {
     display: inline-flex;
