@@ -63,6 +63,11 @@ class HomepageSearchTest(unittest.TestCase):
         self.assertIn("data-search-text=\"ДЗИ подготовка матура по информационни технологии", html)
         self.assertIn("Практически задачи 26–28", html)
 
+    def test_logged_out_teacher_card_points_to_tester_login(self):
+        html = self._get_home_html()
+        self.assertIn('href="/tester/login?next=/teacher/new"', html)
+        self.assertIn("Вход за учител", html)
+
     def test_mobile_profile_login_entry_is_rendered(self):
         html = self._get_home_html()
         self.assertIn('class="mobile-profile-menu"', html)
@@ -71,6 +76,15 @@ class HomepageSearchTest(unittest.TestCase):
         self.assertIn('href="/tester/login?next=/"', html)
         self.assertIn("Вход за админ", html)
         self.assertIn('href="/admin/login?next=/"', html)
+
+    def test_desktop_profile_login_entries_match_mobile_choices(self):
+        html = self._get_home_html()
+        start = html.find('class="profile-switch" aria-label="Вход"')
+        self.assertNotEqual(start, -1)
+        end = html.find('class="mobile-profile-menu"', start)
+        desktop_profile = html[start:end]
+        self.assertIn('href="/tester/login?next=/"', desktop_profile)
+        self.assertIn('href="/admin/login?next=/"', desktop_profile)
 
     def test_mobile_profile_css_is_present(self):
         css_path = _ROOT / "web" / "static" / "css" / "ui-pass9.css"
