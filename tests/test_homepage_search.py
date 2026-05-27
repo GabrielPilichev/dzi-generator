@@ -41,6 +41,7 @@ class HomepageSearchTest(unittest.TestCase):
         html = self._get_home_html()
         self.assertIn('id="home-search-input"', html)
         self.assertIn('type="search"', html)
+        self.assertIn('aria-controls="home-search-dzi home-search-results home-search-topics"', html)
         # Bulgarian placeholder/label copy
         self.assertIn("Търсене по теми", html)
 
@@ -139,8 +140,14 @@ class HomepageSearchTest(unittest.TestCase):
     def test_no_results_message_present(self):
         html = self._get_home_html()
         # Hidden by default; revealed by JS when query has no matches
-        self.assertIn('id="home-search-empty"', html)
+        self.assertIn('id="home-search-empty" class="home-search-empty" role="status" aria-live="polite" hidden', html)
         self.assertIn("Няма съвпадения", html)
+
+    def test_search_controlled_regions_are_present(self):
+        html = self._get_home_html()
+        self.assertIn('id="home-search-dzi"', html)
+        self.assertIn('id="home-search-results"', html)
+        self.assertIn('id="home-search-topics"', html)
 
     def test_topics_section_heading(self):
         html = self._get_home_html()

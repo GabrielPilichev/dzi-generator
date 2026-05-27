@@ -24,9 +24,9 @@
             class="home-search-input"
             placeholder="Търси тема, раздел или клас…"
             autocomplete="off"
-            aria-controls="home-search-results"
+            aria-controls="home-search-dzi home-search-results home-search-topics"
         >
-        <p id="home-search-empty" class="home-search-empty" hidden>Няма съвпадения. Опитайте с друга дума.</p>
+        <p id="home-search-empty" class="home-search-empty" role="status" aria-live="polite" hidden>Няма съвпадения. Опитайте с друга дума.</p>
     </form>
 </section>
 
@@ -64,7 +64,7 @@
     {% endif %}
 </section>
 
-<section class="home-section home-dzi-section" data-home-search-group="dzi">
+<section id="home-search-dzi" class="home-section home-dzi-section" data-home-search-group="dzi">
     <div class="section-heading">
         <div>
             <p class="eyebrow">Подготовка за ДЗИ</p>
@@ -134,7 +134,7 @@
 </section>
 
 {% if searchable_sections %}
-<section class="home-section home-section--topics">
+<section id="home-search-topics" class="home-section home-section--topics">
     <div class="section-heading">
         <div>
             <p class="eyebrow">Учебно съдържание</p>
