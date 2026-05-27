@@ -28,6 +28,7 @@ web/static.*.bak/
 data/questions.backup-*.db
 
 # SQLite runtime sidecars
+data/questions.db
 *.db-shm
 *.db-wal
 
