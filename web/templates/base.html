@@ -82,7 +82,8 @@
                         <span class="profile-link active">Тестер</span>
                         <a class="profile-link" href="{{ url_for('tester_logout') }}">Изход</a>
                     {% else %}
-                        <a class="profile-link" href="{{ url_for('tester_login', next=request.path) }}">Вход</a>
+                        <a class="profile-link" href="{{ url_for('tester_login', next=request.path) }}">Вход за тестер</a>
+                        <a class="profile-link" href="{{ url_for('admin_login', next=request.path) }}">Вход за админ</a>
                     {% endif %}
                 </div>
 

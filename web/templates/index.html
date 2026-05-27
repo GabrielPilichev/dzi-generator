@@ -55,7 +55,7 @@
             <span class="mode-action">Отвори панела</span>
         </a>
     {% else %}
-        <a href="{{ url_for('teacher_new') }}" class="mode-card">
+        <a href="{{ url_for('tester_login', next=url_for('teacher_new')) }}" class="mode-card">
             <p class="eyebrow">Учител</p>
             <h2>Създаване на тест</h2>
             <p class="subtitle">Влез, за да използваш учителските инструменти и заданията.</p>
