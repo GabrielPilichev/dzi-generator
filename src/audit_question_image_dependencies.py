@@ -14,6 +14,7 @@ from urllib.parse import quote
 
 
 DEFAULT_DB_PATH = Path("data/questions.db")
+DEFAULT_MARKDOWN_REVIEW_PATH = Path("docs/reviews/question_image_dependency_review.md")
 VISUAL_ASSET_TYPES = {"image", "pdf_crop"}
 CONFIDENCE_RANK = {"low": 1, "medium": 2, "high": 3}
 CATEGORY_ORDER = {
@@ -76,6 +77,9 @@ class Candidate:
     source_exam: str
     source_number: str
     question_type: str
+    topic_slug: str
+    topic_title: str
+    section_refs: str
     category: str
     confidence: str
     asset_status: str
@@ -153,6 +157,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--missing-only", action="store_true", help="Show only candidates without usable visuals.")
     parser.add_argument("--limit", type=int, help="Limit printed candidate rows.")
     parser.add_argument("--format", choices=("text", "csv"), default="text")
+    parser.add_argument(
+        "--export-markdown",
+        nargs="?",
+        const=DEFAULT_MARKDOWN_REVIEW_PATH,
+        type=Path,
+        help=(
+            "Write a manual review Markdown file. Defaults to "
+            f"{DEFAULT_MARKDOWN_REVIEW_PATH} when no path is provided."
+        ),
+    )
     return parser.parse_args()
 
 
@@ -209,8 +223,20 @@ def fetch_questions(conn: sqlite3.Connection, args: argparse.Namespace) -> list[
             q.question_type,
             q.prompt,
             q.has_image,
-            q.image_path
+            q.image_path,
+            ct.topic_slug,
+            ct.title_bg AS topic_title,
+            (
+                SELECT GROUP_CONCAT(
+                    cs.class || '. клас: ' || cs.title_bg || ' (' || cs.section_slug || ')',
+                    '; '
+                )
+                FROM topic_section_assignments tsa
+                JOIN curriculum_sections cs ON cs.id = tsa.section_id
+                WHERE tsa.topic_id = q.topic_id
+            ) AS section_refs
         FROM questions q
+        LEFT JOIN curriculum_topics ct ON ct.id = q.topic_id
         {where_sql}
         ORDER BY q.source_exam, COALESCE(q.source_number, 999999), q.id
         """,
@@ -350,6 +376,9 @@ def build_candidates(
                 source_exam=str(question["source_exam"] or ""),
                 source_number="" if question["source_number"] is None else str(question["source_number"]),
                 question_type=str(question["question_type"] or ""),
+                topic_slug=str(question["topic_slug"] or ""),
+                topic_title=str(question["topic_title"] or ""),
+                section_refs=str(question["section_refs"] or ""),
                 category=best_category(matches),
                 confidence=best_confidence(matches, coverage),
                 asset_status=coverage.status,
@@ -484,6 +513,7 @@ def print_text_report(
                 "source": row.source_exam,
                 "no": row.source_number,
                 "type": row.question_type,
+                "topic": row.topic_slug,
                 "confidence": row.confidence,
                 "category": row.category,
                 "asset_status": row.asset_status,
@@ -508,6 +538,9 @@ def print_csv_report(candidates: list[Candidate]) -> None:
         "source_exam",
         "source_number",
         "question_type",
+        "topic_slug",
+        "topic_title",
+        "section_refs",
         "confidence",
         "category",
         "asset_status",
@@ -520,6 +553,132 @@ def print_csv_report(candidates: list[Candidate]) -> None:
     writer.writeheader()
     for row in candidates:
         writer.writerow({field: getattr(row, field) for field in fieldnames})
+
+
+def markdown_value(value: str) -> str:
+    text = clean_text(value)
+    return text if text else "—"
+
+
+def markdown_prompt(value: str) -> str:
+    text = clean_text(value)
+    return text.replace("\n", " ")
+
+
+def validate_markdown_review_path(path: Path) -> None:
+    normalised = path.as_posix()
+    if "vault/Generated/Quizzes" in normalised:
+        raise ValueError("refusing to write image-dependency review into vault/Generated/Quizzes")
+    if path.suffix.lower() != ".md":
+        raise ValueError("markdown review path must end with .md")
+
+
+def markdown_review_content(
+    *,
+    db_path: Path,
+    questions: list[sqlite3.Row],
+    candidates: list[Candidate],
+    visible_candidates: list[Candidate],
+) -> str:
+    status_counts = Counter(row.asset_status for row in candidates)
+    category_counts = Counter(row.category for row in candidates)
+    lines = [
+        "# Question Image Dependency Review",
+        "",
+        "Manual review worksheet generated from `src/audit_question_image_dependencies.py`.",
+        "This file is for review only. Do not treat it as an import manifest.",
+        "",
+        "## Summary",
+        "",
+        f"- DB: `{db_path}`",
+        f"- Questions inspected: {len(questions)}",
+        f"- Likely image-dependent candidates: {len(candidates)}",
+        f"- Covered by existing usable visual: {status_counts['covered']}",
+        "- Needs mapping or file fix: "
+        f"{status_counts['needs_mapping'] + status_counts['file_missing'] + status_counts['metadata_only']}",
+        "",
+        "## Category Counts",
+        "",
+        "| Category | Count |",
+        "|---|---:|",
+    ]
+    for category, count in sorted(category_counts.items()):
+        lines.append(f"| {category} | {count} |")
+
+    lines.extend(
+        [
+            "",
+            "## Instructions",
+            "",
+            "For each candidate, fill the manual fields before any asset import or DB update:",
+            "",
+            "- `needs_image`: `yes`, `no`, or `unclear`.",
+            "- `asset_source`: official PDF page/crop, existing resource ZIP path, or other reviewed source.",
+            "- `expected_asset_filename`: proposed repo-relative file under `data/assets/exams/<source_slug>/`.",
+            "- `notes`: reviewer context, uncertainty, or reason for rejection.",
+            "",
+            "## Candidates",
+            "",
+        ]
+    )
+
+    for index, row in enumerate(visible_candidates, start=1):
+        source_label = row.source_exam or "no-source"
+        number_label = f"#{row.source_number}" if row.source_number else f"id:{row.question_id}"
+        lines.extend(
+            [
+                f"### {index}. Q{row.question_id} — {source_label} {number_label}",
+                "",
+                f"- question_id: `{row.question_id}`",
+                f"- source/exam: `{markdown_value(row.source_exam)}`",
+                f"- source_number: `{markdown_value(row.source_number)}`",
+                f"- question_type: `{markdown_value(row.question_type)}`",
+                f"- topic: `{markdown_value(row.topic_slug)}` — {markdown_value(row.topic_title)}",
+                f"- section(s): {markdown_value(row.section_refs)}",
+                f"- detected_category: `{row.category}`",
+                f"- confidence: `{row.confidence}`",
+                f"- asset_status: `{row.asset_status}`",
+                f"- visual_asset_count: {row.visual_asset_count}",
+                f"- missing_visual_asset_count: {row.missing_visual_asset_count}",
+                f"- reason: {markdown_value(row.reason_text)}",
+                "",
+                "Question text snippet:",
+                "",
+                f"> {markdown_prompt(row.prompt_preview)}",
+                "",
+                "Manual fields:",
+                "",
+                "- needs_image: ",
+                "- asset_source: ",
+                "- expected_asset_filename: ",
+                "- notes: ",
+                "",
+                "---",
+                "",
+            ]
+        )
+    return "\n".join(lines).rstrip() + "\n"
+
+
+def write_markdown_review(
+    path: Path,
+    *,
+    db_path: Path,
+    questions: list[sqlite3.Row],
+    candidates: list[Candidate],
+    visible_candidates: list[Candidate],
+) -> None:
+    validate_markdown_review_path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        markdown_review_content(
+            db_path=db_path,
+            questions=questions,
+            candidates=candidates,
+            visible_candidates=visible_candidates,
+        ),
+        encoding="utf-8",
+    )
 
 
 def main() -> int:
@@ -541,11 +700,25 @@ def main() -> int:
         questions = fetch_questions(conn, args)
         candidates = build_candidates(conn, project_root, questions)
         visible_candidates = apply_output_filters(candidates, args)
-    except sqlite3.Error as exc:
+    except (sqlite3.Error, ValueError) as exc:
         print(f"error: audit query failed: {exc}", file=sys.stderr)
         return 1
     finally:
         conn.close()
+
+    if args.export_markdown is not None:
+        try:
+            write_markdown_review(
+                args.export_markdown,
+                db_path=db_path,
+                questions=questions,
+                candidates=candidates,
+                visible_candidates=visible_candidates,
+            )
+        except ValueError as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 1
+        print(f"wrote markdown review: {args.export_markdown}", file=sys.stderr)
 
     if args.format == "csv":
         print_csv_report(visible_candidates)
