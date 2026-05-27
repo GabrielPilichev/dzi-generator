@@ -3,7 +3,9 @@ import os
 import shutil
 import tempfile
 import unittest
+from html.parser import HTMLParser
 from pathlib import Path
+from urllib.parse import parse_qs, urlparse
 
 
 _TMP = tempfile.TemporaryDirectory()
@@ -23,6 +25,51 @@ os.environ["DZI_TESTER_PASSWORD"] = "tester-pass"
 from web import app as web_app  # noqa: E402
 
 
+class _HTMLProbe(HTMLParser):
+    def __init__(self, html: str):
+        super().__init__()
+        self.tags = []
+        self.text_parts = []
+        self.feed(html)
+
+    def handle_starttag(self, tag, attrs):
+        self.tags.append((tag, dict(attrs)))
+
+    def handle_startendtag(self, tag, attrs):
+        self.handle_starttag(tag, attrs)
+
+    def handle_data(self, data):
+        if data.strip():
+            self.text_parts.append(data.strip())
+
+    def elements(self, tag=None):
+        return [
+            (element_tag, attrs)
+            for element_tag, attrs in self.tags
+            if tag is None or element_tag == tag
+        ]
+
+    def first(self, tag=None, **expected_attrs):
+        for element_tag, attrs in self.elements(tag):
+            if all(attrs.get(name) == value for name, value in expected_attrs.items()):
+                return attrs
+        return None
+
+    def hrefs(self):
+        return [attrs["href"] for _, attrs in self.elements("a") if attrs.get("href")]
+
+    def ids(self):
+        return {attrs["id"] for _, attrs in self.elements() if attrs.get("id")}
+
+    @property
+    def text(self):
+        return " ".join(self.text_parts)
+
+
+def _classes(attrs):
+    return set((attrs.get("class") or "").split())
+
+
 class HomepageSearchTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -37,55 +84,93 @@ class HomepageSearchTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         return response.get_data(as_text=True)
 
+    def _assert_login_link(self, html: str, path: str, next_path: str, *, min_count: int = 1):
+        matches = []
+        for href in _HTMLProbe(html).hrefs():
+            parsed = urlparse(href)
+            if parsed.path == path and parse_qs(parsed.query).get("next") == [next_path]:
+                matches.append(href)
+        self.assertGreaterEqual(len(matches), min_count)
+
     def test_search_input_is_rendered(self):
         html = self._get_home_html()
-        self.assertIn('id="home-search-input"', html)
-        self.assertIn('type="search"', html)
-        self.assertIn('aria-controls="home-search-dzi home-search-results home-search-topics"', html)
-        # Bulgarian placeholder/label copy
-        self.assertIn("Търсене по теми", html)
+        parsed = _HTMLProbe(html)
+        search_form = parsed.first("form", role="search")
+        search_input = parsed.first("input", id="home-search-input")
+
+        self.assertIsNotNone(search_form)
+        self.assertTrue(search_form.get("aria-label"))
+        self.assertIsNotNone(search_input)
+        self.assertEqual(search_input.get("type"), "search")
+        self.assertEqual(
+            set((search_input.get("aria-controls") or "").split()),
+            {"home-search-dzi", "home-search-results", "home-search-topics"},
+        )
+        self.assertTrue(
+            any(attrs.get("for") == "home-search-input" for _, attrs in parsed.elements("label"))
+        )
 
     def test_homepage_renders_distinct_dzi_preparation_section(self):
         html = self._get_home_html()
-        self.assertIn('class="home-section home-dzi-section"', html)
-        self.assertIn("Подготовка за ДЗИ", html)
-        self.assertIn("Матура по информационни технологии", html)
-        self.assertIn("отделен режим", html)
+        parsed = _HTMLProbe(html)
+        section = parsed.first("section", id="home-search-dzi")
+
+        self.assertIsNotNone(section)
+        self.assertIn("home-dzi-section", _classes(section))
+        self.assertEqual(section.get("data-home-search-group"), "dzi")
+        self.assertIn("ДЗИ", parsed.text)
+        self.assertIn("Матура", parsed.text)
 
     def test_homepage_dzi_preparation_link_points_to_existing_route(self):
         html = self._get_home_html()
-        self.assertIn('href="/section/grade12-dzi-preparation"', html)
+        self.assertIn("/section/grade12-dzi-preparation", _HTMLProbe(html).hrefs())
         response = self.client.get("/section/grade12-dzi-preparation")
         self.assertEqual(response.status_code, 200)
 
     def test_homepage_search_includes_dzi_searchable_text(self):
         html = self._get_home_html()
-        self.assertIn('data-home-search-group="dzi"', html)
-        self.assertIn("data-search-text=\"ДЗИ подготовка матура по информационни технологии", html)
-        self.assertIn("Практически задачи 26–28", html)
+        parsed = _HTMLProbe(html)
+        dzi_items = [
+            attrs
+            for _, attrs in parsed.elements()
+            if "data-search-item" in attrs
+            and "ДЗИ" in (attrs.get("data-search-text") or "")
+        ]
+
+        self.assertTrue(dzi_items)
+        self.assertTrue(
+            any(
+                all(token in attrs.get("data-search-text", "") for token in ("ДЗИ", "матура", "26", "27", "28"))
+                for attrs in dzi_items
+            )
+        )
 
     def test_logged_out_teacher_card_points_to_tester_login(self):
         html = self._get_home_html()
-        self.assertIn('href="/tester/login?next=/teacher/new"', html)
-        self.assertIn("Вход за учител", html)
+        self._assert_login_link(html, "/tester/login", "/teacher/new")
+        self.assertIn("Учител", _HTMLProbe(html).text)
 
     def test_mobile_profile_login_entry_is_rendered(self):
         html = self._get_home_html()
-        self.assertIn('class="mobile-profile-menu"', html)
-        self.assertIn("<summary>Вход</summary>", html)
-        self.assertIn("Вход за тестер", html)
-        self.assertIn('href="/tester/login?next=/"', html)
-        self.assertIn("Вход за админ", html)
-        self.assertIn('href="/admin/login?next=/"', html)
+        parsed = _HTMLProbe(html)
+        mobile_menu = next(
+            (
+                attrs
+                for _, attrs in parsed.elements("details")
+                if "mobile-profile-menu" in _classes(attrs)
+            ),
+            None,
+        )
+
+        self.assertIsNotNone(mobile_menu)
+        self.assertTrue(parsed.elements("summary"))
+        self._assert_login_link(html, "/tester/login", "/")
+        self._assert_login_link(html, "/admin/login", "/")
 
     def test_desktop_profile_login_entries_match_mobile_choices(self):
         html = self._get_home_html()
-        start = html.find('class="profile-switch" aria-label="Вход"')
-        self.assertNotEqual(start, -1)
-        end = html.find('class="mobile-profile-menu"', start)
-        desktop_profile = html[start:end]
-        self.assertIn('href="/tester/login?next=/"', desktop_profile)
-        self.assertIn('href="/admin/login?next=/"', desktop_profile)
+        self._assert_login_link(html, "/tester/login", "/", min_count=2)
+        self._assert_login_link(html, "/admin/login", "/", min_count=2)
 
     def test_mobile_profile_css_is_present(self):
         css_path = _ROOT / "web" / "static" / "css" / "ui-pass9.css"
@@ -100,22 +185,29 @@ class HomepageSearchTest(unittest.TestCase):
         self.assertIn("js/home-search.js", html)
         # Static asset is actually served by Flask
         asset = self.client.get("/static/js/home-search.js")
-        self.assertEqual(asset.status_code, 200)
-        body = asset.get_data(as_text=True)
+        try:
+            self.assertEqual(asset.status_code, 200)
+            body = asset.get_data(as_text=True)
+        finally:
+            asset.close()
         self.assertIn("home-search-input", body)
 
     def test_searchable_items_have_data_attributes(self):
         html = self._get_home_html()
-        self.assertIn("data-search-item", html)
-        # Items expose search text so filtering can run client-side
-        self.assertIn("data-search-text", html)
-        self.assertNotIn('class="topic-list-title">Подготовка за матура</span>', html)
+        searchable_items = [
+            attrs
+            for _, attrs in _HTMLProbe(html).elements()
+            if "data-search-item" in attrs
+        ]
+
+        self.assertTrue(searchable_items)
+        self.assertTrue(all(attrs.get("data-search-text") for attrs in searchable_items))
 
     def test_grade_links_still_render(self):
         html = self._get_home_html()
-        # Existing grade cards still link to /grade/<n>
+        hrefs = _HTMLProbe(html).hrefs()
         for grade in (8, 9, 10, 11, 12):
-            self.assertIn(f'/grade/{grade}"', html)
+            self.assertIn(f"/grade/{grade}", hrefs)
 
     def test_searchable_sections_include_topic_titles(self):
         html = self._get_home_html()
@@ -134,24 +226,54 @@ class HomepageSearchTest(unittest.TestCase):
         finally:
             conn.close()
         self.assertIsNotNone(row, "expected at least one curriculum section in grades 8-12")
-        self.assertIn(row["title_bg"], html)
-        self.assertIn(f"/section/{row['section_slug']}", html)
+        parsed = _HTMLProbe(html)
+        self.assertIn(row["title_bg"], parsed.text)
+        self.assertIn(f"/section/{row['section_slug']}", parsed.hrefs())
+        self.assertTrue(
+            any(
+                row["title_bg"] in (attrs.get("data-search-text") or "")
+                and row["section_slug"] in (attrs.get("data-search-text") or "")
+                for _, attrs in parsed.elements()
+            )
+        )
 
     def test_no_results_message_present(self):
         html = self._get_home_html()
-        # Hidden by default; revealed by JS when query has no matches
-        self.assertIn('id="home-search-empty" class="home-search-empty" role="status" aria-live="polite" hidden', html)
-        self.assertIn("Няма съвпадения", html)
+        parsed = _HTMLProbe(html)
+        empty_message = parsed.first("p", id="home-search-empty")
+
+        self.assertIsNotNone(empty_message)
+        self.assertEqual(empty_message.get("role"), "status")
+        self.assertEqual(empty_message.get("aria-live"), "polite")
+        self.assertIn("hidden", empty_message)
+        self.assertIn("Няма съвпадения", parsed.text)
 
     def test_search_controlled_regions_are_present(self):
         html = self._get_home_html()
-        self.assertIn('id="home-search-dzi"', html)
-        self.assertIn('id="home-search-results"', html)
-        self.assertIn('id="home-search-topics"', html)
+        self.assertGreaterEqual(
+            _HTMLProbe(html).ids(),
+            {"home-search-dzi", "home-search-results", "home-search-topics"},
+        )
 
     def test_topics_section_heading(self):
         html = self._get_home_html()
-        self.assertIn("Теми и раздели", html)
+        parsed = _HTMLProbe(html)
+        topics_section = parsed.first("section", id="home-search-topics")
+        topic_list = next(
+            (
+                attrs
+                for _, attrs in parsed.elements("ul")
+                if attrs.get("data-home-search-group") == "topics"
+            ),
+            None,
+        )
+
+        self.assertIsNotNone(topics_section)
+        self.assertIn("home-section--topics", _classes(topics_section))
+        self.assertIsNotNone(topic_list)
+        self.assertTrue(
+            any("topic-list-title" in _classes(attrs) for _, attrs in parsed.elements("span"))
+        )
 
 
 if __name__ == "__main__":

@@ -1,5 +1,6 @@
 import atexit
 import os
+import re
 import shutil
 import tempfile
 import unittest
@@ -110,6 +111,35 @@ class AuthGuardTest(unittest.TestCase):
         location = response.headers["Location"]
         self.assertIn("/teacher/assignment/", location)
         return location
+
+    def _assert_single_current_nav_link(self, body: str, href: str):
+        nav_match = re.search(
+            r'<nav\b(?=[^>]*class="[^"]*\bnav-links\b)[^>]*>(.*?)</nav>',
+            body,
+            flags=re.DOTALL,
+        )
+        self.assertIsNotNone(nav_match)
+        nav = nav_match.group(1)
+        current_links = [
+            tag
+            for tag in re.findall(r"<a\b[^>]*>", nav)
+            if 'aria-current="page"' in tag
+        ]
+
+        self.assertEqual(len(current_links), 1)
+        self.assertIn(f'href="{href}"', current_links[0])
+        self.assertNotIn('<span class="nav-current"', nav)
+
+    def _mobile_profile_menu(self, body: str) -> str:
+        match = re.search(
+            r'<details\b(?=[^>]*class="[^"]*\bmobile-profile-menu\b)[^>]*>(.*?)</details>',
+            body,
+            flags=re.DOTALL,
+        )
+        self.assertIsNotNone(match)
+        menu = match.group(1)
+        self.assertRegex(menu, r"<summary\b[^>]*>[^<]+</summary>")
+        return menu
 
     def _assignment_count(self):
         conn = web_app.quiz_db()
@@ -222,37 +252,24 @@ class AuthGuardTest(unittest.TestCase):
         response = self.client.get("/grade/8")
         self.assertEqual(response.status_code, 200)
         body = response.get_data(as_text=True)
-        nav_start = body.find('<nav class="nav-links"')
-        nav_end = body.find("</nav>", nav_start)
-        nav = body[nav_start:nav_end]
 
-        self.assertIn('href="/grade/8"', nav)
-        self.assertIn('aria-current="page">8. клас</a>', nav)
-        self.assertNotIn('<span class="nav-current">8. клас</span>', nav)
+        self._assert_single_current_nav_link(body, "/grade/8")
 
     def test_current_home_nav_item_is_link_with_aria_current(self):
         self._login_tester()
         response = self.client.get("/")
         self.assertEqual(response.status_code, 200)
         body = response.get_data(as_text=True)
-        nav_start = body.find('<nav class="nav-links"')
-        nav_end = body.find("</nav>", nav_start)
-        nav = body[nav_start:nav_end]
 
-        self.assertIn('href="/"', nav)
-        self.assertIn('aria-current="page">Класове</a>', nav)
+        self._assert_single_current_nav_link(body, "/")
 
     def test_current_dzi_nav_item_is_link_with_aria_current(self):
         self._login_tester()
         response = self.client.get("/section/grade12-dzi-preparation")
         self.assertEqual(response.status_code, 200)
         body = response.get_data(as_text=True)
-        nav_start = body.find('<nav class="nav-links"')
-        nav_end = body.find("</nav>", nav_start)
-        nav = body[nav_start:nav_end]
 
-        self.assertIn('href="/section/grade12-dzi-preparation"', nav)
-        self.assertIn('aria-current="page">ДЗИ</a>', nav)
+        self._assert_single_current_nav_link(body, "/section/grade12-dzi-preparation")
 
     def test_teacher_assignments_list_shows_class_and_teacher_fallback(self):
         assignment_url = self._create_assignment_as_tester()
@@ -330,21 +347,21 @@ class AuthGuardTest(unittest.TestCase):
         response = self.client.get("/")
         self.assertEqual(response.status_code, 200)
         body = response.data.decode("utf-8")
-        self.assertIn('class="mobile-profile-menu"', body)
-        self.assertIn("<summary>Профил</summary>", body)
-        self.assertIn("Тестер", body)
-        self.assertIn('href="/tester/logout"', body)
-        self.assertIn("Вход за админ", body)
+        menu = self._mobile_profile_menu(body)
+
+        self.assertIn("Тестер", menu)
+        self.assertIn('href="/tester/logout"', menu)
+        self.assertIn('href="/admin/login?next=/"', menu)
 
     def test_mobile_profile_menu_reflects_admin_session(self):
         self._login_admin()
         response = self.client.get("/")
         self.assertEqual(response.status_code, 200)
         body = response.data.decode("utf-8")
-        self.assertIn('class="mobile-profile-menu"', body)
-        self.assertIn("<summary>Профил</summary>", body)
-        self.assertIn("Админ", body)
-        self.assertIn('href="/admin/logout"', body)
+        menu = self._mobile_profile_menu(body)
+
+        self.assertIn("Админ", menu)
+        self.assertIn('href="/admin/logout"', menu)
 
     def test_admin_login_with_cyrillic_wrong_password_returns_normal_error(self):
         response = self.client.post(

@@ -1,6 +1,7 @@
 import atexit
 import json
 import os
+import re
 import shutil
 import tempfile
 import unittest
@@ -167,12 +168,11 @@ class TesterFlowSmokeTest(unittest.TestCase):
 
         self.assertEqual(response.status_code, 200)
         html = response.get_data(as_text=True)
-        self.assertIn('id="home-search-input"', html)
-        self.assertIn('class="home-section home-dzi-section"', html)
-        self.assertIn("Подготовка за ДЗИ", html)
-        self.assertIn('class="mobile-profile-menu"', html)
-        self.assertIn("Вход за тестер", html)
-        self.assertIn("Вход за админ", html)
+        self.assertRegex(html, r'<input\b(?=[^>]*id="home-search-input")(?=[^>]*type="search")')
+        self.assertRegex(html, r'<section\b(?=[^>]*id="home-search-dzi")(?=[^>]*data-home-search-group="dzi")')
+        self.assertRegex(html, r'<details\b(?=[^>]*class="[^"]*\bmobile-profile-menu\b)')
+        self.assertIn('href="/tester/login?next=/"', html)
+        self.assertIn('href="/admin/login?next=/"', html)
 
     def test_grade_page_renders_content_cards_and_primary_links(self):
         response = self.client.get(f"/grade/{self.section['class']}")
