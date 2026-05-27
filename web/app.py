@@ -69,6 +69,7 @@ app.config["DB_PATH"] = str(DB_PATH)
 app.config["SECRET_KEY"] = build_secret_key()
 app.config["SESSION_COOKIE_SAMESITE"] = "Strict"
 app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SECURE"] = True
 app.config["PRACTICAL_TASK_BATCH_DIR"] = str(PROJECT_ROOT / "data" / "import_batches")
 app.config["PRACTICAL_UPLOAD_ROOT"] = str(PROJECT_ROOT / "data" / "uploads" / "practical")
 app.config["PRACTICAL_MAX_UPLOAD_BYTES"] = MAX_UPLOAD_BYTES
@@ -4718,4 +4719,5 @@ if __name__ == "__main__":
     print(f"   DB:      {DB_PATH}")
     print(f"   URL:     http://127.0.0.1:5000")
     print(f"   Stop:    Ctrl+C")
-    app.run(host="127.0.0.1", port=5000, debug=True)
+    debug = os.environ.get("FLASK_DEBUG", "0") == "1"
+    app.run(host="127.0.0.1", port=5000, debug=debug)
