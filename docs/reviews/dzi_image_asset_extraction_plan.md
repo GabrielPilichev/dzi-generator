@@ -91,13 +91,13 @@ For each ready mapping:
 7. Run the file-presence validator in non-strict mode while work is in progress:
 
    ```bash
-   python3 src/validate_confirmed_dzi_image_files.py
+   python3 src/validate_confirmed_dzi_asset_files.py
    ```
 
 8. Before an asset-file PR is ready for review, run strict mode:
 
    ```bash
-   python3 src/validate_confirmed_dzi_image_files.py --require-files
+   python3 src/validate_confirmed_dzi_asset_files.py --strict
    ```
 
 Manual tools that are acceptable for extraction include Preview, Acrobat,
@@ -136,20 +136,21 @@ Default mode is non-blocking for missing files so this planning PR can pass
 without adding images:
 
 ```bash
-python3 src/validate_confirmed_dzi_image_files.py
+python3 src/validate_confirmed_dzi_asset_files.py
 ```
 
 Strict mode should be used in the future asset-file PR:
 
 ```bash
-python3 src/validate_confirmed_dzi_image_files.py --require-files
+python3 src/validate_confirmed_dzi_asset_files.py --strict
 ```
 
 Expected output includes:
 
 - total ready mappings
-- image files present
-- image files missing
+- assets found
+- assets missing
+- unexpected files in the target directory
 - validation errors
 
 ## Future Asset-File PR
@@ -159,7 +160,7 @@ The next PR after this plan should:
 - add reviewed PNG files under `web/static/img/questions/dzi/`
 - keep filenames exactly aligned with the mapping file
 - run `src/validate_confirmed_dzi_image_mappings.py`
-- run `src/validate_confirmed_dzi_image_files.py --require-files`
+- run `src/validate_confirmed_dzi_asset_files.py --strict`
 - avoid DB writes, migrations, and importer changes
 
 ## Future DB-Linking PR
