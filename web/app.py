@@ -27,7 +27,7 @@ import secrets
 import warnings
 
 import sqlite3
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from urllib.parse import urlparse
 
 from flask import Flask, abort, g, render_template, url_for, request, redirect, send_file, session
@@ -566,6 +566,10 @@ PRACTICAL_RESOURCE_ROOTS = (
     PROJECT_ROOT / "data" / "reference",
     PROJECT_ROOT / "data" / "assets",
 )
+QUESTION_VISUAL_ASSET_TYPES = ("image", "pdf_crop")
+QUESTION_VISUAL_STATIC_PREFIX = "web/static/"
+QUESTION_VISUAL_ALLOWED_PREFIX = "web/static/img/questions/dzi/"
+QUESTION_VISUAL_ALLOWED_SUFFIXES = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
 
 
 def dzi_source_slug(row: sqlite3.Row | dict) -> str:
@@ -687,6 +691,120 @@ def fetch_dzi_task_asset_counts(exam_id: int) -> dict[int, int]:
         GROUP BY et.id
     """, (exam_id,)).fetchall()
     return {int(row["task_number"]): int(row["asset_count"] or 0) for row in rows}
+
+
+def question_visual_static_filename(local_path: object) -> str | None:
+    raw_path = str(local_path or "").strip().replace("\\", "/")
+    if not raw_path or raw_path.startswith(("/", "~")) or "://" in raw_path:
+        return None
+    if not raw_path.startswith(QUESTION_VISUAL_ALLOWED_PREFIX):
+        return None
+
+    path = PurePosixPath(raw_path)
+    if path.is_absolute() or any(part in {".", ".."} for part in path.parts):
+        return None
+    if path.suffix.lower() not in QUESTION_VISUAL_ALLOWED_SUFFIXES:
+        return None
+
+    return raw_path[len(QUESTION_VISUAL_STATIC_PREFIX):]
+
+
+def fetch_question_visual_assets(conn: sqlite3.Connection, question_ids: list[int]) -> dict[int, list[dict]]:
+    clean_ids = []
+    for question_id in question_ids:
+        try:
+            if isinstance(question_id, bool):
+                raise ValueError
+            parsed_id = int(question_id)
+        except (TypeError, ValueError):
+            continue
+        if parsed_id not in clean_ids:
+            clean_ids.append(parsed_id)
+
+    if not clean_ids:
+        return {}
+    if not sqlite_table_exists(conn, "assets") or not sqlite_table_exists(conn, "asset_links"):
+        return {question_id: [] for question_id in clean_ids}
+
+    placeholders = ",".join("?" for _ in clean_ids)
+    owner_clause = "(al.owner_type IN ('question', 'questions') AND al.owner_id = q.id)"
+    if sqlite_table_exists(conn, "exam_task_questions"):
+        owner_clause = f"""
+            (
+                {owner_clause}
+                OR (
+                    al.owner_type = 'exam_task'
+                    AND al.owner_id IN (
+                        SELECT etq.task_id
+                        FROM exam_task_questions etq
+                        WHERE etq.question_id = q.id
+                    )
+                )
+            )
+        """
+
+    rows = conn.execute(f"""
+        SELECT
+            q.id AS question_id,
+            q.source_exam,
+            q.source_number,
+            a.id AS asset_id,
+            a.local_path,
+            al.caption_bg,
+            al.display_order,
+            al.owner_type
+        FROM questions q
+        JOIN asset_links al
+          ON {owner_clause}
+        JOIN assets a
+          ON a.id = al.asset_id
+        WHERE q.id IN ({placeholders})
+          AND a.asset_type IN (?, ?)
+        ORDER BY
+            q.id,
+            COALESCE(al.display_order, 0),
+            CASE WHEN al.owner_type IN ('question', 'questions') THEN 0 ELSE 1 END,
+            a.id
+    """, (*clean_ids, *QUESTION_VISUAL_ASSET_TYPES)).fetchall()
+
+    assets_by_question: dict[int, list[dict]] = {question_id: [] for question_id in clean_ids}
+    seen_assets: dict[int, set[int]] = {question_id: set() for question_id in clean_ids}
+    for row in rows:
+        question_id = int(row["question_id"])
+        asset_id = int(row["asset_id"])
+        if asset_id in seen_assets[question_id]:
+            continue
+
+        static_filename = question_visual_static_filename(row["local_path"])
+        if static_filename is None:
+            continue
+
+        source_exam = str(row["source_exam"] or "").strip()
+        source_number = row["source_number"]
+        if source_exam and source_number is not None:
+            alt_text = f"Изображение към {source_exam} задача {source_number}"
+        else:
+            alt_text = f"Изображение към въпрос {question_id}"
+
+        assets_by_question[question_id].append({
+            "asset_id": asset_id,
+            "static_filename": static_filename,
+            "alt_text": alt_text,
+            "caption": str(row["caption_bg"] or "").strip(),
+        })
+        seen_assets[question_id].add(asset_id)
+
+    return assets_by_question
+
+
+def attach_question_visual_assets(conn: sqlite3.Connection, questions: list[dict]) -> list[dict]:
+    assets_by_question = fetch_question_visual_assets(
+        conn,
+        [int(question["id"]) for question in questions if question.get("id") is not None],
+    )
+    for question in questions:
+        question["visual_assets"] = assets_by_question.get(int(question["id"]), [])
+    return questions
 
 
 def fetch_practical_resource_count(exam_id: int) -> int:
@@ -830,12 +948,23 @@ def fetch_dzi_tasks(exam_id: int) -> dict[str, list[dict]]:
 
     asset_counts = fetch_dzi_task_asset_counts(exam_id)
     grouped = {"part1": [], "part2": []}
+    question_ids = [
+        int(row["question_id"])
+        for row in rows
+        if row["question_id"] is not None
+    ]
+    visual_assets_by_question = fetch_question_visual_assets(db, question_ids)
     for row in rows:
         task = dict(row)
         task["asset_count"] = asset_counts.get(int(task["task_number"]), 0)
         task["linked"] = task["question_id"] is not None
         task["options"] = []
         task["subquestions"] = []
+        task["visual_assets"] = (
+            visual_assets_by_question.get(int(task["question_id"]), [])
+            if task["question_id"] is not None
+            else []
+        )
         if task["question_id"] and task["question_type"] == "multiple_choice":
             task["options"] = fetch_dzi_question_options(int(task["question_id"]))
         elif task["question_id"] and task["question_type"] in {"fill_in", "short_answer"}:
@@ -2582,7 +2711,7 @@ def quiz_load_questions(conn, question_ids: list[int], seed: str, include_correc
         q["options"] = quiz_shuffle_options(seed, int(qid), [dict(o) for o in opt_rows])
         result.append(q)
 
-    return result
+    return attach_question_visual_assets(conn, result)
 
 
 STALE_ATTEMPT_MESSAGE = (

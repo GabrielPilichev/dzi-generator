@@ -46,6 +46,13 @@ class SectionReviewAnswersTest(unittest.TestCase):
             cls.true_false_question_id = cls._insert_true_false_fixture(conn)
             cls.unknown_difficulty_question_id = cls._insert_unknown_difficulty_fixture(conn)
             cls.dzi_q23 = cls._fetch_dzi_task_23_answer_fixture(conn)
+            cls.dzi_q23_image_path = "web/static/img/questions/dzi/test_dzi_task_23.png"
+            cls._link_question_image_asset(
+                conn,
+                question_id=int(cls.dzi_q23["question_id"]),
+                local_path=cls.dzi_q23_image_path,
+                caption="Тестово изображение към ДЗИ задача 23",
+            )
             conn.commit()
         finally:
             conn.close()
@@ -223,6 +230,34 @@ class SectionReviewAnswersTest(unittest.TestCase):
         if row is None:
             raise AssertionError("No DZI task 23 accepted answer found in DB")
         return dict(row)
+
+    @staticmethod
+    def _link_question_image_asset(conn, *, question_id, local_path, caption):
+        existing = conn.execute(
+            "SELECT id FROM assets WHERE local_path = ?",
+            (local_path,),
+        ).fetchone()
+        if existing:
+            asset_id = int(existing["id"])
+        else:
+            cur = conn.execute("""
+                INSERT INTO assets (
+                    asset_type, original_filename, local_path, mime_type, file_size, notes
+                )
+                VALUES ('pdf_crop', ?, ?, 'image/png', 1, 'test DZI linked image')
+            """, (
+                Path(local_path).name,
+                local_path,
+            ))
+            asset_id = int(cur.lastrowid)
+
+        conn.execute("""
+            INSERT OR IGNORE INTO asset_links (
+                asset_id, owner_type, owner_id, role, display_order, caption_bg
+            )
+            VALUES (?, 'question', ?, 'pdf_crop', 0, ?)
+        """, (asset_id, question_id, caption))
+        return asset_id
 
     def setUp(self):
         self.client = self.app.test_client()
@@ -453,6 +488,24 @@ class SectionReviewAnswersTest(unittest.TestCase):
         next_task = body.find("Задача 24", task_start)
         task_html = body[task_start:next_task if next_task != -1 else len(body)]
         self.assertIn(html.escape(expected_answers[0], quote=True), task_html)
+
+    def test_dzi_source_renders_linked_question_image(self):
+        slug = web_app.dzi_source_slug(self.dzi_q23)
+
+        with self.client.session_transaction() as sess:
+            sess["admin_authenticated"] = True
+            sess["ui_profile"] = "admin"
+        response = self.client.get(f"/dzi/source/{slug}")
+        self.assertEqual(response.status_code, 200)
+        body = response.data.decode("utf-8")
+
+        task_start = body.find("Задача 23")
+        self.assertNotEqual(task_start, -1)
+        next_task = body.find("Задача 24", task_start)
+        task_html = body[task_start:next_task if next_task != -1 else len(body)]
+        self.assertIn('/static/img/questions/dzi/test_dzi_task_23.png', task_html)
+        self.assertIn("Тестово изображение към ДЗИ задача 23", task_html)
+        self.assertIn('alt="Изображение към', task_html)
 
 
 if __name__ == "__main__":
