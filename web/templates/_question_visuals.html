@@ -1,0 +1,18 @@
+{% macro render_question_visuals(visual_assets) %}
+  {% if visual_assets %}
+    <div class="question-visual-assets">
+      {% for asset in visual_assets %}
+        <figure class="question-visual">
+          <img
+            src="{{ url_for('static', filename=asset.static_filename) }}"
+            alt="{{ asset.alt_text }}"
+            loading="lazy"
+          >
+          {% if asset.caption %}
+            <figcaption>{{ asset.caption }}</figcaption>
+          {% endif %}
+        </figure>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endmacro %}

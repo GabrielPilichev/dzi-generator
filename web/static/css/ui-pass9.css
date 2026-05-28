@@ -1770,6 +1770,7 @@ button:disabled:hover,
 }
 .question-media,
 .task-media,
+.question-visual-assets,
 .question figure,
 .question-card figure,
 .dzi-task-card figure,
@@ -1777,6 +1778,12 @@ button:disabled:hover,
   display: grid;
   gap: var(--space-2);
   margin: var(--space-4) 0;
+}
+.question-visual-assets {
+  max-width: 860px;
+}
+.question-visual {
+  min-width: 0;
 }
 .question img,
 .question-card img,
@@ -2982,6 +2989,7 @@ code {
   }
   .question-media,
   .task-media,
+  .question-visual-assets,
   .question figure,
   .question-card figure,
   .dzi-task-card figure,

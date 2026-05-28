@@ -55,6 +55,18 @@ class QuizAttemptRenderTest(unittest.TestCase):
                 cls.visual_filter_question_id,
                 cls.visual_filter_text_question_id,
             ) = cls._insert_visual_filter_fixture(conn)
+            cls.linked_image_question_id = cls._insert_eligible_mc_question(
+                conn,
+                source_number=3,
+                prompt="Въпрос с приложено изображение.",
+            )
+            cls.linked_image_path = "web/static/img/questions/dzi/test_quiz_linked_question.png"
+            cls._link_question_image_asset(
+                conn,
+                question_id=cls.linked_image_question_id,
+                local_path=cls.linked_image_path,
+                caption="Тестово изображение към въпрос",
+            )
             conn.commit()
         finally:
             conn.close()
@@ -194,6 +206,34 @@ class QuizAttemptRenderTest(unittest.TestCase):
             prompt="Кое твърдение за електронна таблица е вярно?",
         )
         return section_id, visual_question_id, text_question_id
+
+    @staticmethod
+    def _link_question_image_asset(conn, *, question_id, local_path, caption):
+        existing = conn.execute(
+            "SELECT id FROM assets WHERE local_path = ?",
+            (local_path,),
+        ).fetchone()
+        if existing:
+            asset_id = int(existing["id"])
+        else:
+            cur = conn.execute("""
+                INSERT INTO assets (
+                    asset_type, original_filename, local_path, mime_type, file_size, notes
+                )
+                VALUES ('pdf_crop', ?, ?, 'image/png', 1, 'test linked question image')
+            """, (
+                Path(local_path).name,
+                local_path,
+            ))
+            asset_id = int(cur.lastrowid)
+
+        conn.execute("""
+            INSERT OR IGNORE INTO asset_links (
+                asset_id, owner_type, owner_id, role, display_order, caption_bg
+            )
+            VALUES (?, 'question', ?, 'pdf_crop', 0, ?)
+        """, (asset_id, question_id, caption))
+        return asset_id
 
     def setUp(self):
         self.client = self.app.test_client()
@@ -605,6 +645,36 @@ class QuizAttemptRenderTest(unittest.TestCase):
         self.assertIn(self.valid_prompt.encode("utf-8"), response.data)
         self.assertNotIn(b'name="open_q_', response.data)
         self.assertNotIn("Отворените отговори".encode("utf-8"), response.data)
+
+    def test_active_quiz_attempt_renders_linked_question_image(self):
+        _assignment_id, attempt_id = self._create_attempt(
+            [self.linked_image_question_id],
+            submitted=False,
+            student_name="Linked Image Active",
+        )
+
+        response = self.client.get(f"/quiz/attempt/{attempt_id}")
+        self.assertEqual(response.status_code, 200)
+        body = response.data.decode("utf-8")
+
+        self.assertIn('/static/img/questions/dzi/test_quiz_linked_question.png', body)
+        self.assertIn('alt="Изображение към temp-visual-filter-test задача 3"', body)
+        self.assertIn("Тестово изображение към въпрос", body)
+        self.assertIn(f'name="q_{self.linked_image_question_id}"', body)
+
+    def test_quiz_result_renders_linked_question_image(self):
+        _assignment_id, attempt_id = self._create_attempt(
+            [self.linked_image_question_id],
+            student_name="Linked Image Result",
+        )
+
+        response = self.client.get(f"/quiz/attempt/{attempt_id}/result")
+        self.assertEqual(response.status_code, 200)
+        body = response.data.decode("utf-8")
+
+        self.assertIn('/static/img/questions/dzi/test_quiz_linked_question.png', body)
+        self.assertIn('alt="Изображение към temp-visual-filter-test задача 3"', body)
+        self.assertIn("Тестово изображение към въпрос", body)
 
     def test_30_minute_assignment_renders_non_expired_timer(self):
         fixed_now = datetime(2026, 5, 13, 12, 0, 0)

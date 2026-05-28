@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_question_visuals.html" import render_question_visuals %}
 
 {% block title %}{{ exam.title }}{% endblock %}
 
@@ -42,6 +43,7 @@
         {% else %}
             <div class="open-question-note">Няма свързан официален въпрос.</div>
         {% endif %}
+        {{ render_question_visuals(task.visual_assets) }}
 
         {% if task.options %}
             <ol class="options-list">
