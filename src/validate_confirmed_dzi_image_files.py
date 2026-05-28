@@ -29,7 +29,7 @@ DEFAULT_IMAGE_DIR = Path("web/static/img/questions/dzi")
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Check extracted image files for confirmed DZI image mappings."
+        description="Check extracted asset files for confirmed DZI image mappings."
     )
     parser.add_argument("--mapping", type=Path, default=DEFAULT_MAPPING_PATH)
     parser.add_argument("--image-dir", type=Path, default=DEFAULT_IMAGE_DIR)
@@ -37,6 +37,11 @@ def parse_args() -> argparse.Namespace:
         "--require-files",
         action="store_true",
         help="Treat missing expected PNG files as validation errors.",
+    )
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Alias for --require-files.",
     )
     return parser.parse_args()
 
@@ -84,10 +89,11 @@ def validate_image_files(
     image_dir: Path,
     *,
     require_files: bool,
-) -> tuple[list[str], dict[str, int], list[str]]:
+) -> tuple[list[str], dict[str, int], list[str], list[str]]:
     errors = validate_image_dir(image_dir)
     missing: list[str] = []
     ready_entries = ready_mapping_entries(payload)
+    expected_filenames: set[str] = set()
     present_count = 0
 
     for entry in ready_entries:
@@ -104,6 +110,7 @@ def validate_image_files(
             errors.append(f"{label}: expected_asset_filename must be {expected}, got {filename}")
         for filename_error in validate_safe_filename(filename):
             errors.append(f"{label}: expected_asset_filename {filename_error}")
+        expected_filenames.add(filename)
 
         image_path = image_dir / filename
         if image_path.exists():
@@ -116,12 +123,21 @@ def validate_image_files(
             if require_files:
                 errors.append(f"{label}: missing expected image file: {image_path}")
 
+    unexpected = []
+    if image_dir.exists() and image_dir.is_dir():
+        unexpected = [
+            str(path)
+            for path in sorted(image_dir.iterdir())
+            if path.is_file() and path.name not in expected_filenames
+        ]
+
     summary = {
         "ready_mappings": len(ready_entries),
         "files_present": present_count,
         "files_missing": len(missing),
+        "unexpected_files": len(unexpected),
     }
-    return errors, summary, missing
+    return errors, summary, missing, unexpected
 
 
 def print_summary(
@@ -130,17 +146,19 @@ def print_summary(
     summary: dict[str, int],
     errors: list[str],
     missing: list[str],
+    unexpected: list[str],
     *,
     require_files: bool,
 ) -> None:
-    print("Confirmed DZI image file validation")
+    print("Confirmed DZI asset file validation")
     print("===================================")
     print(f"mapping: {mapping_path}")
     print(f"image_dir: {image_dir}")
     print(f"require_files: {'yes' if require_files else 'no'}")
     print(f"ready mappings: {summary['ready_mappings']}")
-    print(f"image files present: {summary['files_present']}")
-    print(f"image files missing: {summary['files_missing']}")
+    print(f"assets found: {summary['files_present']}")
+    print(f"assets missing: {summary['files_missing']}")
+    print(f"unexpected files: {summary['unexpected_files']}")
     print(f"validation errors: {len(errors)}")
     print(f"validation_exit={0 if not errors else 1}")
     if missing:
@@ -151,6 +169,14 @@ def print_summary(
             print(f"- {path}")
         if len(missing) > 25:
             print(f"- ... {len(missing) - 25} more")
+    if unexpected:
+        print()
+        print("Unexpected files")
+        print("----------------")
+        for path in unexpected[:25]:
+            print(f"- {path}")
+        if len(unexpected) > 25:
+            print(f"- ... {len(unexpected) - 25} more")
     if errors:
         print()
         print("Validation errors")
@@ -161,12 +187,13 @@ def print_summary(
 
 def main() -> int:
     args = parse_args()
+    require_files = bool(args.require_files or args.strict)
     try:
         payload = load_mapping(args.mapping)
-        errors, summary, missing = validate_image_files(
+        errors, summary, missing, unexpected = validate_image_files(
             payload,
             args.image_dir,
-            require_files=args.require_files,
+            require_files=require_files,
         )
     except (OSError, json.JSONDecodeError, ValueError) as exc:
         print(f"error: {exc}", file=sys.stderr)
@@ -178,7 +205,8 @@ def main() -> int:
         summary,
         errors,
         missing,
-        require_files=args.require_files,
+        unexpected,
+        require_files=require_files,
     )
     return 1 if errors else 0
 

@@ -1,0 +1,136 @@
+import tempfile
+import unittest
+from pathlib import Path
+
+from src.validate_confirmed_dzi_image_files import validate_image_files
+
+
+def payload(filename="aug_2022_v2_q2.png"):
+    return {
+        "mappings": [
+            {
+                "source_slug": "aug_2022_v2",
+                "official_question_number": 2,
+                "db_question_id": 182,
+                "question_text_snippet": "На изображението е показана заявка.",
+                "needs_image": True,
+                "expected_asset_filename": filename,
+                "confidence": "exact",
+                "notes": "matched",
+            }
+        ],
+        "explicit_no_image_notes": [
+            {
+                "source_slug": "aug_2022_v2",
+                "official_question_number": 11,
+                "db_question_id": 835,
+                "question_text_snippet": "No image.",
+                "needs_image": False,
+                "expected_asset_filename": None,
+                "confidence": "exact",
+                "notes": "explicit no-image note",
+            }
+        ],
+    }
+
+
+class ValidateConfirmedDziImageFilesTest(unittest.TestCase):
+    def test_missing_files_are_reported_but_non_blocking_by_default(self):
+        errors, summary, missing, unexpected = validate_image_files(
+            payload(),
+            Path("web/static/img/questions/dzi"),
+            require_files=False,
+        )
+
+        self.assertEqual(errors, [])
+        self.assertEqual(summary["ready_mappings"], 1)
+        self.assertEqual(summary["files_present"], 0)
+        self.assertEqual(summary["files_missing"], 1)
+        self.assertEqual(summary["unexpected_files"], 0)
+        self.assertEqual(missing, ["web/static/img/questions/dzi/aug_2022_v2_q2.png"])
+        self.assertEqual(unexpected, [])
+
+    def test_require_files_makes_missing_images_blocking(self):
+        errors, summary, missing, unexpected = validate_image_files(
+            payload(),
+            Path("web/static/img/questions/dzi"),
+            require_files=True,
+        )
+
+        self.assertEqual(summary["files_missing"], 1)
+        self.assertEqual(missing, ["web/static/img/questions/dzi/aug_2022_v2_q2.png"])
+        self.assertEqual(unexpected, [])
+        self.assertIn(
+            "aug_2022_v2 Q2: missing expected image file: web/static/img/questions/dzi/aug_2022_v2_q2.png",
+            errors,
+        )
+
+    def test_existing_file_counts_as_present(self):
+        with tempfile.TemporaryDirectory(dir=".") as tmpdir:
+            image_dir = Path(tmpdir) / "web" / "static" / "img" / "questions" / "dzi"
+            image_dir.mkdir(parents=True)
+            (image_dir / "aug_2022_v2_q2.png").write_bytes(b"fake png")
+
+            errors, summary, missing, unexpected = validate_image_files(
+                payload(),
+                image_dir,
+                require_files=True,
+            )
+
+        self.assertEqual(errors, [])
+        self.assertEqual(missing, [])
+        self.assertEqual(unexpected, [])
+        self.assertEqual(summary["files_present"], 1)
+        self.assertEqual(summary["files_missing"], 0)
+
+    def test_filename_must_match_mapping_convention(self):
+        errors, _, _, _ = validate_image_files(
+            payload("aug_2022_v2_q3.png"),
+            Path("web/static/img/questions/dzi"),
+            require_files=False,
+        )
+
+        self.assertIn(
+            "aug_2022_v2 Q2: expected_asset_filename must be aug_2022_v2_q2.png, got aug_2022_v2_q3.png",
+            errors,
+        )
+
+    def test_path_traversal_filename_is_rejected(self):
+        errors, _, _, _ = validate_image_files(
+            payload("../aug_2022_v2_q2.png"),
+            Path("web/static/img/questions/dzi"),
+            require_files=False,
+        )
+
+        self.assertTrue(any("must be a filename, not a path" in error for error in errors))
+        self.assertTrue(any("path segment" in error for error in errors))
+
+    def test_image_dir_must_stay_out_of_generated_quizzes(self):
+        errors, _, _, _ = validate_image_files(
+            payload(),
+            Path("vault/Generated/Quizzes/questions"),
+            require_files=False,
+        )
+
+        self.assertTrue(any("vault/Generated/Quizzes" in error for error in errors))
+
+    def test_unexpected_files_are_reported(self):
+        with tempfile.TemporaryDirectory(dir=".") as tmpdir:
+            image_dir = Path(tmpdir) / "web" / "static" / "img" / "questions" / "dzi"
+            image_dir.mkdir(parents=True)
+            (image_dir / "unexpected.png").write_bytes(b"fake png")
+
+            errors, summary, missing, unexpected = validate_image_files(
+                payload(),
+                image_dir,
+                require_files=False,
+            )
+
+        self.assertEqual(errors, [])
+        self.assertEqual(summary["unexpected_files"], 1)
+        self.assertEqual(unexpected, [str(image_dir / "unexpected.png")])
+        self.assertEqual(summary["files_missing"], 1)
+
+
+if __name__ == "__main__":
+    unittest.main()
