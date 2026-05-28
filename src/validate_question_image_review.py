@@ -17,8 +17,10 @@ DEFAULT_DB_PATH = Path("data/questions.db")
 DEFAULT_REVIEW_PATH = Path("docs/reviews/question_image_dependency_review.md")
 REQUIRED_MANUAL_FIELDS = ("needs_image", "asset_source", "expected_asset_filename", "notes")
 VALID_NEEDS_IMAGE = {"yes", "no", "unclear"}
+VALID_SUGGESTED_BY_TOOL = {"yes", "no"}
 UNSET_VALUES = {"", "-", "\u2014"}
 SAFE_ASSET_PREFIX = "data/assets/exams/"
+SAFE_BARE_ASSET_FILENAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*\.[A-Za-z0-9]+$")
 SECTION_RE = re.compile(r"^###\s+\d+\.\s+Q(?P<question_id>\d+)\b")
 
 
@@ -126,7 +128,7 @@ def fetch_question_ids(db_path: Path) -> set[int]:
     return {int(row[0]) for row in rows}
 
 
-def validate_asset_filename(value: str) -> list[str]:
+def validate_asset_path(value: str) -> list[str]:
     errors = []
     if "\\" in value:
         errors.append("uses backslashes")
@@ -151,6 +153,31 @@ def validate_asset_filename(value: str) -> list[str]:
     if not path.name or not path.suffix:
         errors.append("must include a filename with an extension")
     return errors
+
+
+def validate_bare_asset_filename(value: str) -> list[str]:
+    errors = []
+    if "\\" in value:
+        errors.append("uses backslashes")
+    if "/" in value:
+        errors.append("must be a filename, not a path")
+    if "://" in value:
+        errors.append("looks like a URL")
+    if value.startswith(("~", "/")):
+        errors.append("is not a relative filename")
+    if value in {".", ".."} or ".." in PurePosixPath(value).parts:
+        errors.append("contains path traversal")
+    if not PurePosixPath(value).suffix:
+        errors.append("must include a filename extension")
+    if not SAFE_BARE_ASSET_FILENAME_RE.fullmatch(value):
+        errors.append("must contain only letters, digits, '.', '_', or '-' and start with a letter or digit")
+    return errors
+
+
+def validate_asset_filename(value: str) -> list[str]:
+    if value.startswith(SAFE_ASSET_PREFIX):
+        return validate_asset_path(value)
+    return validate_bare_asset_filename(value)
 
 
 def duplicate_errors(entries: list[ReviewEntry]) -> list[str]:
@@ -193,6 +220,7 @@ def validate_entries(
         "unclear": 0,
         "no_image": 0,
         "unreviewed": 0,
+        "tool_suggested": 0,
     }
 
     if not entries:
@@ -224,8 +252,16 @@ def validate_entries(
                 errors.append(f"{label}: missing manual field {field}")
 
         needs_image = entry.value("needs_image").lower()
+        suggested_by_tool = entry.value("suggested_by_tool").lower()
         asset_filename = entry.value("expected_asset_filename")
         asset_errors = [] if is_unset(asset_filename) else validate_asset_filename(asset_filename)
+
+        if not is_unset(suggested_by_tool):
+            if suggested_by_tool not in VALID_SUGGESTED_BY_TOOL:
+                errors.append(f"{label}: suggested_by_tool must be yes or no when present")
+            elif suggested_by_tool == "yes":
+                summary["tool_suggested"] += 1
+        is_tool_suggested = suggested_by_tool == "yes"
 
         if is_unset(needs_image):
             summary["unreviewed"] += 1
@@ -233,6 +269,15 @@ def validate_entries(
                 errors.append(f"{label}: needs_image must be yes, no, or unclear")
         elif needs_image not in VALID_NEEDS_IMAGE:
             errors.append(f"{label}: needs_image must be yes, no, or unclear")
+        elif is_tool_suggested:
+            if require_reviewed:
+                errors.append(f"{label}: tool suggestion still needs human approval")
+            if needs_image == "yes":
+                if is_unset(asset_filename):
+                    errors.append(f"{label}: expected_asset_filename is required when needs_image is yes")
+                elif asset_errors:
+                    details = "; ".join(asset_errors)
+                    errors.append(f"{label}: expected_asset_filename {details}")
         else:
             summary["reviewed"] += 1
             if needs_image == "yes":
@@ -262,11 +307,12 @@ def print_summary(review_path: Path, db_path: Path, summary: dict[str, int], err
     print(f"review: {review_path}")
     print(f"DB: {db_path}")
     print(f"entries in file: {summary['entries']}")
-    print(f"total reviewed: {summary['reviewed']}")
+    print(f"human-reviewed entries: {summary['reviewed']}")
     print(f"ready mappings: {summary['ready_mappings']}")
     print(f"unclear entries: {summary['unclear']}")
     print(f"no-image entries: {summary['no_image']}")
     print(f"unreviewed entries: {summary['unreviewed']}")
+    print(f"tool-suggested entries: {summary['tool_suggested']}")
     print(f"validation errors: {len(errors)}")
     print(f"validation_exit={0 if not errors else 1}")
     if errors:
