@@ -7,9 +7,10 @@ This file is for review only. Do not treat it as an import manifest.
 
 - DB: `data/questions.db`
 - Questions inspected: 832
-- Likely image-dependent candidates: 26
+- Likely image-dependent candidates: 28
+- Tool prefilled suggestions in this file: 16
 - Covered by existing usable visual: 0
-- Needs mapping or file fix: 26
+- Needs mapping or file fix: 28
 
 ## Category Counts
 
@@ -17,16 +18,19 @@ This file is for review only. Do not treat it as an import manifest.
 |---|---:|
 | chart/table | 4 |
 | diagram | 12 |
-| unknown visual dependency | 10 |
+| screenshot/UI | 3 |
+| unknown visual dependency | 9 |
 
 ## Instructions
 
 For each candidate, fill the manual fields before any asset import or DB update:
 
 - `needs_image`: `yes`, `no`, or `unclear`.
-- `asset_source`: official PDF page/crop, existing resource ZIP path, or other reviewed source.
-- `expected_asset_filename`: proposed repo-relative file under `data/assets/exams/<source_slug>/`.
+- `asset_source`: `official_exam_pdf`, existing resource ZIP path, or other reviewed source.
+- `expected_asset_filename`: deterministic filename, normally `<source_slug>_q<source_number>.png`.
 - `notes`: reviewer context, uncertainty, or reason for rejection.
+- `suggested_by_tool`: `yes` means blank fields were pre-filled by this script and still need human approval.
+  After verification, change it to `no` or leave it blank so validation can treat the row as human-reviewed.
 
 ## Candidates
 
@@ -38,23 +42,24 @@ For each candidate, fill the manual fields before any asset import or DB update:
 - question_type: `multiple_choice`
 - topic: `access-select-queries` — Заявки за избиране в база данни
 - section(s): 11. клас: Проектиране и създаване на бази от данни и на информационни системи (grade11-m1-databases-and-information-systems); 11. клас: Обобщение — Обработка и анализ на данни (grade11-m1-summary); 11. клас: Обобщение — Мултимедия (grade11-m2-summary); 12. клас: Подготовка за матура (grade12-dzi-preparation)
-- detected_category: `unknown visual dependency`
+- detected_category: `screenshot/UI`
 - confidence: `high`
 - asset_status: `needs_mapping`
 - visual_asset_count: 0
 - missing_visual_asset_count: 0
-- reason: unknown visual dependency: 'изображението' (image reference, high); unknown visual dependency: 'на изображението' (image reference, high)
+- reason: screenshot/UI: 'показана заявка' (shown query reference, high); unknown visual dependency: 'изображението' (image reference, high); unknown visual dependency: 'на изображението' (image reference, high)
 
 Question text snippet:
 
 > На изображението по-долу е показана заявка. Отбележете типа на заявката:
 
-Manual fields:
+Review fields:
 
-- needs_image: 
-- asset_source: 
-- expected_asset_filename: 
+- needs_image: yes
+- asset_source: official_exam_pdf
+- expected_asset_filename: aug_2022_v2_q2.png
 - notes: 
+- suggested_by_tool: yes
 
 ---
 
@@ -77,12 +82,13 @@ Question text snippet:
 
 > База от данни съдържа две таблици - едната с информация за автомобилни части в магазин за авточасти, а другата - с данн…
 
-Manual fields:
+Review fields:
 
-- needs_image: 
-- asset_source: 
-- expected_asset_filename: 
+- needs_image: yes
+- asset_source: official_exam_pdf
+- expected_asset_filename: aug_2022_v2_q23.png
 - notes: 
+- suggested_by_tool: yes
 
 ---
 
@@ -105,12 +111,13 @@ Question text snippet:
 
 > Разгледайте изображението по-долу. Напишете в листа за отговори как се нарича полиномна параметрична крива (набор от ди…
 
-Manual fields:
+Review fields:
 
-- needs_image: 
-- asset_source: 
-- expected_asset_filename: 
+- needs_image: yes
+- asset_source: official_exam_pdf
+- expected_asset_filename: aug_2022_v2_q24.png
 - notes: 
+- suggested_by_tool: yes
 
 ---
 
@@ -133,12 +140,13 @@ Question text snippet:
 
 > Запишете термините, допълващи правилно следните изречения: (В листа за отговори напишете (1), (2) и (3) и срещу тях зап…
 
-Manual fields:
+Review fields:
 
-- needs_image: 
-- asset_source: 
-- expected_asset_filename: 
+- needs_image: yes
+- asset_source: official_exam_pdf
+- expected_asset_filename: aug_2023_q19.png
 - notes: 
+- suggested_by_tool: yes
 
 ---
 
@@ -161,12 +169,13 @@ Question text snippet:
 
 > В листа за отговори напишете (1), (2) и (3) и срещу тях съответно наименованието на диаграмата. (1) (2) (3)
 
-Manual fields:
+Review fields:
 
 - needs_image: 
 - asset_source: 
 - expected_asset_filename: 
 - notes: 
+- suggested_by_tool: 
 
 ---
 
@@ -179,22 +188,23 @@ Manual fields:
 - topic: `countif` — COUNTIF
 - section(s): 11. клас: Приложение на електронни таблици за обработка на големи обеми от данни (grade11-m1-spreadsheets-big-data); 11. клас: Обобщение — Обработка и анализ на данни (grade11-m1-summary); 11. клас: Обобщение — Мултимедия (grade11-m2-summary); 12. клас: Подготовка за матура (grade12-dzi-preparation)
 - detected_category: `chart/table`
-- confidence: `medium`
+- confidence: `high`
 - asset_status: `needs_mapping`
 - visual_asset_count: 0
 - missing_visual_asset_count: 0
-- reason: chart/table: 'графиката' (chart/graph reference, medium); chart/table: 'разгледайте графиката' (chart/graph reference, medium)
+- reason: chart/table: 'разгледайте графиката' (shown chart/graph reference, high); chart/table: 'графиката' (chart/graph reference, medium)
 
 Question text snippet:
 
 > Разгледайте графиката на получените резултати от проведено анкетно проучване. Като знаете броя на анкетираните, които с…
 
-Manual fields:
+Review fields:
 
-- needs_image: 
-- asset_source: 
-- expected_asset_filename: 
+- needs_image: yes
+- asset_source: official_exam_pdf
+- expected_asset_filename: aug_2023_q24.png
 - notes: 
+- suggested_by_tool: yes
 
 ---
 
@@ -217,12 +227,13 @@ Question text snippet:
 
 > Запишете термините, допълващи правилно следните изречения: (В листа за отговори напишете (1), (2) и (3) и срещу тях зап…
 
-Manual fields:
+Review fields:
 
-- needs_image: 
-- asset_source: 
-- expected_asset_filename: 
+- needs_image: yes
+- asset_source: official_exam_pdf
+- expected_asset_filename: aug_2023_v2_q19.png
 - notes: 
+- suggested_by_tool: yes
 
 ---
 
@@ -245,12 +256,13 @@ Question text snippet:
 
 > В листа за отговори напишете (1), (2) и (3) и срещу тях съответно наименованието на диаграмата. (1) (2) (3)
 
-Manual fields:
+Review fields:
 
 - needs_image: 
 - asset_source: 
 - expected_asset_filename: 
 - notes: 
+- suggested_by_tool: 
 
 ---
 
@@ -263,22 +275,23 @@ Manual fields:
 - topic: `countif` — COUNTIF
 - section(s): 11. клас: Приложение на електронни таблици за обработка на големи обеми от данни (grade11-m1-spreadsheets-big-data); 11. клас: Обобщение — Обработка и анализ на данни (grade11-m1-summary); 11. клас: Обобщение — Мултимедия (grade11-m2-summary); 12. клас: Подготовка за матура (grade12-dzi-preparation)
 - detected_category: `chart/table`
-- confidence: `medium`
+- confidence: `high`
 - asset_status: `needs_mapping`
 - visual_asset_count: 0
 - missing_visual_asset_count: 0
-- reason: chart/table: 'графиката' (chart/graph reference, medium); chart/table: 'разгледайте графиката' (chart/graph reference, medium)
+- reason: chart/table: 'разгледайте графиката' (shown chart/graph reference, high); chart/table: 'графиката' (chart/graph reference, medium)
 
 Question text snippet:
 
 > Разгледайте графиката на получените резултати от проведено анкетно проучване. Като знаете броя на анкетираните, които с…
 
-Manual fields:
+Review fields:
 
-- needs_image: 
-- asset_source: 
-- expected_asset_filename: 
+- needs_image: yes
+- asset_source: official_exam_pdf
+- expected_asset_filename: aug_2023_v2_q24.png
 - notes: 
+- suggested_by_tool: yes
 
 ---
 
@@ -301,12 +314,13 @@ Question text snippet:
 
 > Даденото изображение представлява визуално представяне на уеб страница. Как се нарича?
 
-Manual fields:
+Review fields:
 
-- needs_image: 
-- asset_source: 
-- expected_asset_filename: 
+- needs_image: yes
+- asset_source: official_exam_pdf
+- expected_asset_filename: aug_2024_v2_q9.png
 - notes: 
+- suggested_by_tool: yes
 
 ---
 
@@ -329,12 +343,13 @@ Question text snippet:
 
 > В диаграмата е представена извадка от резултатите и явилите се ученици на ДЗИ ИТ профилирана подготовка. В полето за от…
 
-Manual fields:
+Review fields:
 
 - needs_image: 
 - asset_source: 
 - expected_asset_filename: 
 - notes: 
+- suggested_by_tool: 
 
 ---
 
@@ -357,12 +372,13 @@ Question text snippet:
 
 > Коя от фигурите се използва за изобразяване на безусловно действие в блок- схема на алгоритъм:
 
-Manual fields:
+Review fields:
 
 - needs_image: 
 - asset_source: 
 - expected_asset_filename: 
 - notes: 
+- suggested_by_tool: 
 
 ---
 
@@ -385,12 +401,13 @@ Question text snippet:
 
 > Коя от фигурите се използва за въвеждане на данни в блок-схема на алгоритъм:
 
-Manual fields:
+Review fields:
 
 - needs_image: 
 - asset_source: 
 - expected_asset_filename: 
 - notes: 
+- suggested_by_tool: 
 
 ---
 
@@ -413,12 +430,13 @@ Question text snippet:
 
 > Изберете верния отговор: коя от фигурите се използва за изобразяване на безусловно действие в блок- схема на алгоритъм?
 
-Manual fields:
+Review fields:
 
 - needs_image: 
 - asset_source: 
 - expected_asset_filename: 
 - notes: 
+- suggested_by_tool: 
 
 ---
 
@@ -441,12 +459,13 @@ Question text snippet:
 
 > Изберете верния отговор: коя от фигурите се използва за въвеждане на данни в блок-схема на алгоритъм?
 
-Manual fields:
+Review fields:
 
 - needs_image: 
 - asset_source: 
 - expected_asset_filename: 
 - notes: 
+- suggested_by_tool: 
 
 ---
 
@@ -469,12 +488,13 @@ Question text snippet:
 
 > Кой инструмент е използван за създаване на следното изображение?
 
-Manual fields:
+Review fields:
 
-- needs_image: 
-- asset_source: 
-- expected_asset_filename: 
+- needs_image: yes
+- asset_source: official_exam_pdf
+- expected_asset_filename: jun_2022_q5.png
 - notes: 
+- suggested_by_tool: yes
 
 ---
 
@@ -497,12 +517,13 @@ Question text snippet:
 
 > На диаграмата са представени графично приходите от продажби в четири магазина, разпределени по групи продукти. Запишете…
 
-Manual fields:
+Review fields:
 
 - needs_image: 
 - asset_source: 
 - expected_asset_filename: 
 - notes: 
+- suggested_by_tool: 
 
 ---
 
@@ -525,12 +546,13 @@ Question text snippet:
 
 > Даден е фрагмент от електронна таблица и диаграма. Стойностите, по които е построена диаграмата, са пропорционални на д…
 
-Manual fields:
+Review fields:
 
-- needs_image: 
-- asset_source: 
-- expected_asset_filename: 
+- needs_image: yes
+- asset_source: official_exam_pdf
+- expected_asset_filename: may_2022_v1_q19.png
 - notes: 
+- suggested_by_tool: yes
 
 ---
 
@@ -553,16 +575,46 @@ Question text snippet:
 
 > Какъв вид диаграма е представена на изображението?
 
-Manual fields:
+Review fields:
 
-- needs_image: 
-- asset_source: 
-- expected_asset_filename: 
+- needs_image: yes
+- asset_source: official_exam_pdf
+- expected_asset_filename: may_2023_q15.png
 - notes: 
+- suggested_by_tool: yes
 
 ---
 
-### 20. Q830 — may_2023_v2 #12
+### 20. Q40 — may_2023 #19
+
+- question_id: `40`
+- source/exam: `may_2023`
+- source_number: `19`
+- question_type: `fill_in`
+- topic: `sql-select` — SQL SELECT
+- section(s): 11. клас: Проектиране и създаване на бази от данни и на информационни системи (grade11-m1-databases-and-information-systems); 11. клас: Обобщение — Обработка и анализ на данни (grade11-m1-summary); 11. клас: Обобщение — Мултимедия (grade11-m2-summary); 12. клас: Подготовка за матура (grade12-dzi-preparation)
+- detected_category: `screenshot/UI`
+- confidence: `high`
+- asset_status: `needs_mapping`
+- visual_asset_count: 0
+- missing_visual_asset_count: 0
+- reason: screenshot/UI: 'показаната заявка' (shown query reference, high)
+
+Question text snippet:
+
+> В таблиците по-долу е въведена информация за ученици и за тези от тях, които са участници в различни олимпиади. В листа…
+
+Review fields:
+
+- needs_image: yes
+- asset_source: official_exam_pdf
+- expected_asset_filename: may_2023_q19.png
+- notes: 
+- suggested_by_tool: yes
+
+---
+
+### 21. Q830 — may_2023_v2 #12
 
 - question_id: `830`
 - source/exam: `may_2023_v2`
@@ -581,16 +633,17 @@ Question text snippet:
 
 > На диаграмата по-долу е показано процентното разпределение на родените деца през 2021 г. в България по райони. Ако разд…
 
-Manual fields:
+Review fields:
 
 - needs_image: 
 - asset_source: 
 - expected_asset_filename: 
 - notes: 
+- suggested_by_tool: 
 
 ---
 
-### 21. Q213 — may_2023_v2 #15
+### 22. Q213 — may_2023_v2 #15
 
 - question_id: `213`
 - source/exam: `may_2023_v2`
@@ -609,16 +662,46 @@ Question text snippet:
 
 > Какъв вид диаграма е представена на изображението?
 
-Manual fields:
+Review fields:
 
-- needs_image: 
-- asset_source: 
-- expected_asset_filename: 
+- needs_image: yes
+- asset_source: official_exam_pdf
+- expected_asset_filename: may_2023_v2_q15.png
 - notes: 
+- suggested_by_tool: yes
 
 ---
 
-### 22. Q91 — may_2024_v1 #1
+### 23. Q217 — may_2023_v2 #19
+
+- question_id: `217`
+- source/exam: `may_2023_v2`
+- source_number: `19`
+- question_type: `fill_in`
+- topic: `sql-select` — SQL SELECT
+- section(s): 11. клас: Проектиране и създаване на бази от данни и на информационни системи (grade11-m1-databases-and-information-systems); 11. клас: Обобщение — Обработка и анализ на данни (grade11-m1-summary); 11. клас: Обобщение — Мултимедия (grade11-m2-summary); 12. клас: Подготовка за матура (grade12-dzi-preparation)
+- detected_category: `screenshot/UI`
+- confidence: `high`
+- asset_status: `needs_mapping`
+- visual_asset_count: 0
+- missing_visual_asset_count: 0
+- reason: screenshot/UI: 'показаната заявка' (shown query reference, high)
+
+Question text snippet:
+
+> В таблиците по-долу е въведена информация за ученици и за тези от тях, които са участници в различни олимпиади. В листа…
+
+Review fields:
+
+- needs_image: yes
+- asset_source: official_exam_pdf
+- expected_asset_filename: may_2023_v2_q19.png
+- notes: 
+- suggested_by_tool: yes
+
+---
+
+### 24. Q91 — may_2024_v1 #1
 
 - question_id: `91`
 - source/exam: `may_2024_v1`
@@ -637,16 +720,17 @@ Question text snippet:
 
 > В електронна таблица са записани резултатите от проведено писмено изпитване по информационни технологии. На резултатите…
 
-Manual fields:
+Review fields:
 
 - needs_image: 
 - asset_source: 
 - expected_asset_filename: 
 - notes: 
+- suggested_by_tool: 
 
 ---
 
-### 23. Q106 — may_2024_v1 #16
+### 25. Q106 — may_2024_v1 #16
 
 - question_id: `106`
 - source/exam: `may_2024_v1`
@@ -665,16 +749,17 @@ Question text snippet:
 
 > В диаграмата са представени данни от Евростат за потреблението на интернет в домакинствата в балкански държави за после…
 
-Manual fields:
+Review fields:
 
 - needs_image: 
 - asset_source: 
 - expected_asset_filename: 
 - notes: 
+- suggested_by_tool: 
 
 ---
 
-### 24. Q108 — may_2024_v1 #18
+### 26. Q108 — may_2024_v1 #18
 
 - question_id: `108`
 - source/exam: `may_2024_v1`
@@ -693,16 +778,17 @@ Question text snippet:
 
 > Дадена е таблица с данни за класовете от 8 до 12 клас и техните извинени и неизвинени отсъствия. В полетата за отговори…
 
-Manual fields:
+Review fields:
 
-- needs_image: 
-- asset_source: 
-- expected_asset_filename: 
+- needs_image: yes
+- asset_source: official_exam_pdf
+- expected_asset_filename: may_2024_v1_q18.png
 - notes: 
+- suggested_by_tool: yes
 
 ---
 
-### 25. Q111 — may_2024_v1 #21
+### 27. Q111 — may_2024_v1 #21
 
 - question_id: `111`
 - source/exam: `may_2024_v1`
@@ -721,16 +807,17 @@ Question text snippet:
 
 > В полето за отговори срещу (1), (2) и (3) напишете коя конструктивна операция е използвана за създаването на обекти, ви…
 
-Manual fields:
+Review fields:
 
-- needs_image: 
-- asset_source: 
-- expected_asset_filename: 
+- needs_image: yes
+- asset_source: official_exam_pdf
+- expected_asset_filename: may_2024_v1_q21.png
 - notes: 
+- suggested_by_tool: yes
 
 ---
 
-### 26. Q16 — may_2025_v2 #16
+### 28. Q16 — may_2025_v2 #16
 
 - question_id: `16`
 - source/exam: `may_2025_v2`
@@ -749,11 +836,12 @@ Question text snippet:
 
 > На диаграмата са представени суми от продажби на стоки в няколко области от страната за месец юни. В полетата за отгово…
 
-Manual fields:
+Review fields:
 
 - needs_image: 
 - asset_source: 
 - expected_asset_filename: 
 - notes: 
+- suggested_by_tool: 
 
 ---

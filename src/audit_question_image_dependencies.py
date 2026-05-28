@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import re
 import sqlite3
 import sys
 from collections import Counter, defaultdict
@@ -24,6 +25,13 @@ CATEGORY_ORDER = {
     "diagram": 3,
     "unknown visual dependency": 4,
 }
+AUTO_SUGGEST_ASSET_SOURCE = "official_exam_pdf"
+AUTO_SUGGEST_MARKER = "yes"
+REVIEW_DECISION_FIELDS = ("needs_image", "asset_source", "expected_asset_filename", "notes")
+REVIEW_OUTPUT_FIELDS = (*REVIEW_DECISION_FIELDS, "suggested_by_tool")
+UNSET_REVIEW_VALUES = {"", "-", "—"}
+SECTION_RE = re.compile(r"^###\s+\d+\.\s+Q(?P<question_id>\d+)\b")
+SAFE_REVIEW_TOKEN_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]*$")
 
 
 @dataclass(frozen=True)
@@ -99,6 +107,9 @@ PATTERNS = (
     VisualPattern("screenshot/UI", "high", "екрана по-долу", "shown screen reference"),
     VisualPattern("screenshot/UI", "high", "показания екран", "shown screen reference"),
     VisualPattern("screenshot/UI", "high", "показаният екран", "shown screen reference"),
+    VisualPattern("screenshot/UI", "high", "показана е заявка", "shown query reference"),
+    VisualPattern("screenshot/UI", "high", "показана заявка", "shown query reference"),
+    VisualPattern("screenshot/UI", "high", "показаната заявка", "shown query reference"),
     VisualPattern("screenshot/UI", "medium", "показаното меню", "shown menu reference"),
     VisualPattern("screenshot/UI", "medium", "показаната лента", "shown toolbar/ribbon reference"),
 
@@ -120,8 +131,10 @@ PATTERNS = (
     VisualPattern("chart/table", "high", "кръгова диаграма", "chart reference"),
     VisualPattern("chart/table", "high", "стълбовидна диаграма", "chart reference"),
     VisualPattern("chart/table", "high", "линейна диаграма", "chart reference"),
+    VisualPattern("chart/table", "high", "разгледайте графиката", "shown chart/graph reference"),
+    VisualPattern("chart/table", "high", "показаната графика", "shown chart/graph reference"),
+    VisualPattern("chart/table", "high", "следната графика", "shown chart/graph reference"),
     VisualPattern("chart/table", "medium", "графиката", "chart/graph reference"),
-    VisualPattern("chart/table", "medium", "разгледайте графиката", "chart/graph reference"),
 
     # Diagrams and figures.
     VisualPattern("diagram", "high", "коя от фигурите", "visual answer choices"),
@@ -132,9 +145,9 @@ PATTERNS = (
     VisualPattern("diagram", "high", "мрежова схема", "network diagram reference"),
     VisualPattern("diagram", "high", "фигурата", "figure reference"),
     VisualPattern("diagram", "high", "на фигурата", "figure reference"),
+    VisualPattern("diagram", "high", "показана диаграма", "shown diagram"),
+    VisualPattern("diagram", "high", "показаната диаграма", "shown diagram"),
     VisualPattern("diagram", "medium", "диаграмата", "diagram reference"),
-    VisualPattern("diagram", "medium", "показана диаграма", "shown diagram"),
-    VisualPattern("diagram", "medium", "показаната диаграма", "shown diagram"),
 
     # Generic visual wording where the exact visual type is unclear.
     VisualPattern("unknown visual dependency", "high", "изображението", "image reference"),
@@ -458,6 +471,10 @@ def print_text_report(
     print(f"DB: {db_path}")
     print(f"questions inspected: {len(questions)}")
     print(f"likely image-dependent candidates: {len(candidates)}")
+    print(
+        "high-confidence auto-suggestion candidates: "
+        f"{sum(1 for row in candidates if auto_suggest_review_fields(row) is not None)}"
+    )
     print(f"covered by existing usable visual: {status_counts['covered']}")
     print(
         "needs mapping or file fix: "
@@ -565,6 +582,107 @@ def markdown_prompt(value: str) -> str:
     return text.replace("\n", " ")
 
 
+def clean_review_value(value: str) -> str:
+    value = value.strip()
+    if len(value) >= 2 and value[0] == "`" and value[-1] == "`":
+        return value[1:-1].strip()
+    return value
+
+
+def review_value_is_set(value: str) -> bool:
+    return clean_review_value(value) not in UNSET_REVIEW_VALUES
+
+
+def parse_review_bullet(line: str) -> tuple[str, str] | None:
+    if not line.startswith("- ") or ":" not in line:
+        return None
+    key, value = line[2:].split(":", 1)
+    return key.strip(), clean_review_value(value)
+
+
+def parse_existing_review_fields(path: Path) -> dict[int, dict[str, str]]:
+    if not path.exists():
+        return {}
+
+    fields_by_question_id: dict[int, dict[str, str]] = {}
+    current_question_id: int | None = None
+    current_fields: dict[str, str] = {}
+
+    def flush() -> None:
+        nonlocal current_question_id, current_fields
+        if current_question_id is None:
+            return
+        fields_by_question_id.setdefault(current_question_id, current_fields)
+        current_question_id = None
+        current_fields = {}
+
+    for line in path.read_text(encoding="utf-8").splitlines():
+        match = SECTION_RE.match(line)
+        if match:
+            flush()
+            current_question_id = int(match.group("question_id"))
+            current_fields = {}
+            continue
+        if current_question_id is None:
+            continue
+        parsed = parse_review_bullet(line.strip())
+        if parsed is None:
+            continue
+        key, value = parsed
+        if key in REVIEW_OUTPUT_FIELDS:
+            current_fields[key] = value
+
+    flush()
+    return fields_by_question_id
+
+
+def has_review_decision(fields: dict[str, str]) -> bool:
+    return any(review_value_is_set(fields.get(field, "")) for field in REVIEW_DECISION_FIELDS)
+
+
+def safe_review_token(value: str) -> str | None:
+    value = value.strip()
+    if SAFE_REVIEW_TOKEN_RE.fullmatch(value):
+        return value
+    return None
+
+
+def suggested_asset_filename(row: Candidate) -> str | None:
+    source_slug = safe_review_token(row.source_exam)
+    source_number = safe_review_token(row.source_number)
+    if not source_slug or not source_number:
+        return None
+    return f"{source_slug}_q{source_number}.png"
+
+
+def auto_suggest_review_fields(row: Candidate) -> dict[str, str] | None:
+    if row.confidence != "high":
+        return None
+    asset_filename = suggested_asset_filename(row)
+    if asset_filename is None:
+        return None
+    return {
+        "needs_image": "yes",
+        "asset_source": AUTO_SUGGEST_ASSET_SOURCE,
+        "expected_asset_filename": asset_filename,
+        "notes": "",
+        "suggested_by_tool": AUTO_SUGGEST_MARKER,
+    }
+
+
+def review_fields_for_candidate(
+    row: Candidate,
+    existing_review_fields: dict[int, dict[str, str]],
+) -> dict[str, str]:
+    fields = {field: "" for field in REVIEW_OUTPUT_FIELDS}
+    fields.update(existing_review_fields.get(row.question_id, {}))
+    if not has_review_decision(fields):
+        suggestion = auto_suggest_review_fields(row)
+        if suggestion is not None:
+            fields.update(suggestion)
+    return fields
+
+
 def validate_markdown_review_path(path: Path) -> None:
     normalised = path.as_posix()
     if "vault/Generated/Quizzes" in normalised:
@@ -579,9 +697,19 @@ def markdown_review_content(
     questions: list[sqlite3.Row],
     candidates: list[Candidate],
     visible_candidates: list[Candidate],
+    existing_review_fields: dict[int, dict[str, str]] | None = None,
 ) -> str:
+    existing_review_fields = existing_review_fields or {}
     status_counts = Counter(row.asset_status for row in candidates)
     category_counts = Counter(row.category for row in candidates)
+    suggested_entries = sum(
+        1
+        for row in visible_candidates
+        if (
+            review_fields_for_candidate(row, existing_review_fields).get("suggested_by_tool")
+            == AUTO_SUGGEST_MARKER
+        )
+    )
     lines = [
         "# Question Image Dependency Review",
         "",
@@ -593,6 +721,7 @@ def markdown_review_content(
         f"- DB: `{db_path}`",
         f"- Questions inspected: {len(questions)}",
         f"- Likely image-dependent candidates: {len(candidates)}",
+        f"- Tool prefilled suggestions in this file: {suggested_entries}",
         f"- Covered by existing usable visual: {status_counts['covered']}",
         "- Needs mapping or file fix: "
         f"{status_counts['needs_mapping'] + status_counts['file_missing'] + status_counts['metadata_only']}",
@@ -613,9 +742,11 @@ def markdown_review_content(
             "For each candidate, fill the manual fields before any asset import or DB update:",
             "",
             "- `needs_image`: `yes`, `no`, or `unclear`.",
-            "- `asset_source`: official PDF page/crop, existing resource ZIP path, or other reviewed source.",
-            "- `expected_asset_filename`: proposed repo-relative file under `data/assets/exams/<source_slug>/`.",
+            "- `asset_source`: `official_exam_pdf`, existing resource ZIP path, or other reviewed source.",
+            "- `expected_asset_filename`: deterministic filename, normally `<source_slug>_q<source_number>.png`.",
             "- `notes`: reviewer context, uncertainty, or reason for rejection.",
+            "- `suggested_by_tool`: `yes` means blank fields were pre-filled by this script and still need human approval.",
+            "  After verification, change it to `no` or leave it blank so validation can treat the row as human-reviewed.",
             "",
             "## Candidates",
             "",
@@ -623,6 +754,7 @@ def markdown_review_content(
     )
 
     for index, row in enumerate(visible_candidates, start=1):
+        review_fields = review_fields_for_candidate(row, existing_review_fields)
         source_label = row.source_exam or "no-source"
         number_label = f"#{row.source_number}" if row.source_number else f"id:{row.question_id}"
         lines.extend(
@@ -646,12 +778,13 @@ def markdown_review_content(
                 "",
                 f"> {markdown_prompt(row.prompt_preview)}",
                 "",
-                "Manual fields:",
+                "Review fields:",
                 "",
-                "- needs_image: ",
-                "- asset_source: ",
-                "- expected_asset_filename: ",
-                "- notes: ",
+                f"- needs_image: {review_fields['needs_image']}",
+                f"- asset_source: {review_fields['asset_source']}",
+                f"- expected_asset_filename: {review_fields['expected_asset_filename']}",
+                f"- notes: {review_fields['notes']}",
+                f"- suggested_by_tool: {review_fields['suggested_by_tool']}",
                 "",
                 "---",
                 "",
@@ -669,6 +802,7 @@ def write_markdown_review(
     visible_candidates: list[Candidate],
 ) -> None:
     validate_markdown_review_path(path)
+    existing_review_fields = parse_existing_review_fields(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(
         markdown_review_content(
@@ -676,6 +810,7 @@ def write_markdown_review(
             questions=questions,
             candidates=candidates,
             visible_candidates=visible_candidates,
+            existing_review_fields=existing_review_fields,
         ),
         encoding="utf-8",
     )
