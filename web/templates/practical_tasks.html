@@ -42,131 +42,160 @@
 {% endif %}
 
 <section class="dzi-task-section">
-    <div class="questions-list">
+    <div class="questions-list practical-tasks-list">
         {% for task in tasks %}
             <article class="question practical-task-card">
-                <div class="question-header">
-                    <div class="question-meta">
-                        <span class="question-number">Задача {{ task.task_number }}</span>
+                <header class="question-header practical-task-header">
+                    <div class="practical-task-heading">
+                        <p class="practical-task-source">{{ exam.source_slug }}</p>
+                        <h2 class="practical-task-title">Задача {{ task.task_number }}</h2>
+                    </div>
+                    <div class="question-meta practical-task-meta" aria-label="Метаданни за задачата">
                         <span class="badge type-badge type-{{ task.task_kind }}">{{ question_kind_label(task.task_kind) }}</span>
                         <span class="badge">{{ task.points }} т.</span>
                         {% if task.work_environment %}
                             <span class="badge">{{ task.work_environment }}</span>
                         {% endif %}
                     </div>
-                </div>
+                </header>
 
                 {% if task.prompt_bg %}
-                    <p class="prompt">{{ task.prompt_bg }}</p>
+                    <section class="practical-task-section-block practical-brief-block" aria-label="Кратко условие">
+                        <h3 class="practical-section-title">Кратко условие</h3>
+                        <p class="prompt">{{ task.prompt_bg }}</p>
+                    </section>
                 {% endif %}
 
-                {% if task.instructions_bg %}
-                    <div class="open-question-note">
-                        {% for line in task.instructions_bg.splitlines() %}
-                            {% if line.strip() %}
-                                <p>{{ line }}</p>
-                            {% endif %}
-                        {% endfor %}
-                    </div>
-                {% endif %}
-
-                {% if task.expected_outputs %}
-                    <h3>Очаквани файлове</h3>
-                    <ul class="options-list">
-                        {% for output in task.expected_outputs %}
-                            <li class="option-row">{{ output }}</li>
-                        {% endfor %}
-                    </ul>
-                {% endif %}
-
-                <h3>Ресурси</h3>
-                {% if task.resources %}
-                    <ul class="options-list">
-                        {% for resource in task.resources %}
-                            <li class="option-row">
-                                <span>
-                                    {{ resource.label_bg or resource.original_filename or "resource" }}
-                                    {% if resource.file_size_bytes %}
-                                        <span class="subtitle"> · {{ resource.file_size_bytes }} байта</span>
-                                    {% endif %}
-                                </span>
-                                {% if resource.is_available %}
-                                    <a class="button secondary" href="{{ url_for('dzi_practical_resource_download', resource_id=resource.id) }}">Изтегли</a>
-                                {% else %}
-                                    <span class="badge diff-hard">файлът липсва</span>
-                                {% endif %}
-                            </li>
-                        {% endfor %}
-                    </ul>
-                {% else %}
-                    <p class="empty-state">Няма записани ресурси за тази задача.</p>
-                {% endif %}
-
-                {% if attempt %}
-                    <h3>Статус</h3>
-                    {% if task.submission %}
-                        {% if task.review %}
-                            <div class="open-question-note">
-                                <p>
-                                    Статус:
-                                    {% if task.submission.status == "reviewed" %}
-                                        прегледано
-                                    {% else %}
-                                        очаква преглед
-                                    {% endif %}
-                                    {% if task.review.reviewed_at %}
-                                        · {{ task.review.reviewed_at }}
-                                    {% endif %}
-                                </p>
-                                {% if task.review.score is not none %}
-                                    <p>
-                                        Ръчна оценка:
-                                        {{ task.review.score }}{% if task.review.max_score is not none %}/{{ task.review.max_score }}{% else %}/{{ task.points }}{% endif %} т.
-                                    </p>
-                                {% endif %}
-                                {% if task.review.teacher_note %}
-                                    <p>Бележка от проверяващ: {{ task.review.teacher_note }}</p>
-                                {% endif %}
-                            </div>
-                        {% elif task.uploaded_files %}
-                            <p class="open-question-note">Статус: качено, очаква преглед.</p>
-                        {% else %}
-                            <p class="empty-state">Статус: няма качени файлове.</p>
-                        {% endif %}
-                    {% else %}
-                        <p class="empty-state">Статус: няма качени файлове.</p>
-                    {% endif %}
-
-                    <h3>Качени решения</h3>
-                    {% if task.uploaded_files %}
-                        <ul class="options-list">
-                            {% for uploaded_file in task.uploaded_files %}
-                                <li class="option-row">
-                                    <span>
-                                        {{ uploaded_file.original_filename }}
-                                        {% if uploaded_file.size_bytes %}
-                                            <span class="subtitle"> · {{ uploaded_file.size_bytes }} байта</span>
+                <section class="practical-task-section-block practical-resource-block" aria-label="Ресурси и файлове">
+                    <h3 class="practical-section-title">Ресурси и файлове</h3>
+                    {% if task.resources %}
+                        <ul class="practical-resource-list">
+                            {% for resource in task.resources %}
+                                <li class="practical-resource-item">
+                                    <span class="practical-resource-title">
+                                        {{ resource.label_bg or resource.original_filename or "resource" }}
+                                    </span>
+                                    <span class="practical-resource-meta">
+                                        {% if resource.file_size_bytes %}
+                                            {{ resource.file_size_bytes }} байта
+                                        {% else %}
+                                            файл за задачата
+                                        {% endif %}
+                                    </span>
+                                    <span class="practical-resource-action">
+                                        {% if resource.is_available %}
+                                            <a
+                                                class="button secondary"
+                                                href="{{ url_for('dzi_practical_resource_download', resource_id=resource.id) }}"
+                                            >Изтегли</a>
+                                        {% else %}
+                                            <span class="badge diff-hard">файлът липсва</span>
                                         {% endif %}
                                     </span>
                                 </li>
                             {% endfor %}
                         </ul>
                     {% else %}
-                        <p class="empty-state">Все още няма качени решения за тази задача.</p>
+                        <p class="empty-state">Няма записани ресурси за тази задача.</p>
                     {% endif %}
+                </section>
 
-                    <form
-                        class="practical-upload-form"
-                        method="post"
-                        enctype="multipart/form-data"
-                        action="{{ url_for('quiz_practical_upload', attempt_id=attempt.id, source_slug=exam.source_slug, exam_task_id=task.task_id) }}"
-                    >
-                        <label>
-                            <span>Файлове за задача {{ task.task_number }}</span>
-                            <input type="file" name="files" multiple required>
-                        </label>
-                        <button type="submit">Качи файлове</button>
-                    </form>
+                {% if task.instructions_bg %}
+                    <section class="practical-task-section-block practical-instructions-block" aria-label="Инструкции">
+                        <h3 class="practical-section-title">Инструкции</h3>
+                        <div class="practical-step-list">
+                            {% set step = namespace(number=0) %}
+                            {% for line in task.instructions_bg.splitlines() %}
+                                {% if line.strip() %}
+                                    {% set step.number = step.number + 1 %}
+                                    <article class="practical-step-card">
+                                        <span class="practical-step-number">{{ step.number }}</span>
+                                        <p>{{ line }}</p>
+                                    </article>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    </section>
+                {% endif %}
+
+                {% if task.expected_outputs %}
+                    <section class="practical-task-section-block practical-output-block" aria-label="Очаквани файлове">
+                        <h3 class="practical-section-title">Очаквани файлове</h3>
+                        <ul class="practical-output-list">
+                            {% for output in task.expected_outputs %}
+                                <li class="practical-output-item">{{ output }}</li>
+                            {% endfor %}
+                        </ul>
+                    </section>
+                {% endif %}
+
+                {% if attempt %}
+                    <section class="practical-task-section-block practical-submission-block" aria-label="Статус и предаване">
+                        <h3 class="practical-section-title">Статус и предаване</h3>
+                        {% if task.submission %}
+                            {% if task.review %}
+                                <div class="practical-status-note">
+                                    <p>
+                                        Статус:
+                                        {% if task.submission.status == "reviewed" %}
+                                            прегледано
+                                        {% else %}
+                                            очаква преглед
+                                        {% endif %}
+                                        {% if task.review.reviewed_at %}
+                                            · {{ task.review.reviewed_at }}
+                                        {% endif %}
+                                    </p>
+                                    {% if task.review.score is not none %}
+                                        <p>
+                                            Ръчна оценка:
+                                            {{ task.review.score }}{% if task.review.max_score is not none %}/{{ task.review.max_score }}{% else %}/{{ task.points }}{% endif %} т.
+                                        </p>
+                                    {% endif %}
+                                    {% if task.review.teacher_note %}
+                                        <p>Бележка от проверяващ: {{ task.review.teacher_note }}</p>
+                                    {% endif %}
+                                </div>
+                            {% elif task.uploaded_files %}
+                                <p class="practical-status-note">Статус: качено, очаква преглед.</p>
+                            {% else %}
+                                <p class="empty-state">Статус: няма качени файлове.</p>
+                            {% endif %}
+                        {% else %}
+                            <p class="empty-state">Статус: няма качени файлове.</p>
+                        {% endif %}
+
+                        <div class="practical-uploaded-block">
+                            <h3 class="practical-subsection-title">Качени решения</h3>
+                            {% if task.uploaded_files %}
+                                <ul class="practical-output-list">
+                                    {% for uploaded_file in task.uploaded_files %}
+                                        <li class="practical-output-item">
+                                            <span>{{ uploaded_file.original_filename }}</span>
+                                            {% if uploaded_file.size_bytes %}
+                                                <span class="practical-resource-meta">{{ uploaded_file.size_bytes }} байта</span>
+                                            {% endif %}
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                            {% else %}
+                                <p class="empty-state">Все още няма качени решения за тази задача.</p>
+                            {% endif %}
+                        </div>
+
+                        <form
+                            class="practical-upload-form"
+                            method="post"
+                            enctype="multipart/form-data"
+                            action="{{ url_for('quiz_practical_upload', attempt_id=attempt.id, source_slug=exam.source_slug, exam_task_id=task.task_id) }}"
+                        >
+                            <label>
+                                <span>Файлове за задача {{ task.task_number }}</span>
+                                <input type="file" name="files" multiple required>
+                            </label>
+                            <button type="submit">Качи файлове</button>
+                        </form>
+                    </section>
                 {% endif %}
             </article>
         {% else %}
