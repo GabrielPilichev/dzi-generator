@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_question_visuals.html" import render_question_image_indicator %}
 
 {% block title %}Резултати — {{ assignment.title_bg }}{% endblock %}
 
@@ -234,6 +235,7 @@
         <tr>
           <th>Ученик</th>
           <th>Статус</th>
+          <th>Изображения</th>
           <th>Резултат</th>
           <th>Успеваемост</th>
           <th>Време за решаване</th>
@@ -251,6 +253,13 @@
                 <span class="badge done">предаден</span>
               {% else %}
                 <span class="badge open">незавършен</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if a.has_linked_image_question %}
+                {{ render_question_image_indicator(a.has_linked_image_question, a.image_question_count) }}
+              {% else %}
+                —
               {% endif %}
             </td>
             <td>
@@ -363,7 +372,12 @@
               <strong>{{ answer.student_name }}</strong>
               <div class="muted">MC резултат: {{ answer.attempt_score_correct }}/{{ answer.attempt_score_total }}</div>
             </td>
-            <td>Q{{ answer.question_id }}.{{ answer.subquestion_number }}</td>
+            <td>
+              <span class="question-ref-with-indicator">
+                <span>Q{{ answer.question_id }}.{{ answer.subquestion_number }}</span>
+                {{ render_question_image_indicator(answer.has_linked_image, answer.linked_image_count) }}
+              </span>
+            </td>
             <td class="wrap-cell">{{ answer.raw_answer or "Няма въведен отговор." }}</td>
             <td class="wrap-cell">{{ answer.normalized_answer or "—" }}</td>
             <td>

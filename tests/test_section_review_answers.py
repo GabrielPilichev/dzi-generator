@@ -506,6 +506,8 @@ class SectionReviewAnswersTest(unittest.TestCase):
         self.assertIn('/static/img/questions/dzi/test_dzi_task_23.png', task_html)
         self.assertIn("Тестово изображение към ДЗИ задача 23", task_html)
         self.assertIn('alt="Изображение към', task_html)
+        self.assertIn("question-image-indicator", task_html)
+        self.assertIn("изображение", task_html)
 
 
 if __name__ == "__main__":

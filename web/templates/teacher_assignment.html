@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_question_visuals.html" import render_question_image_indicator %}
 
 {% block title %}{{ assignment.title_bg }} — Задание{% endblock %}
 
@@ -180,6 +181,7 @@
       <thead>
         <tr>
           <th>Ученик</th>
+          <th>Изображения</th>
           <th>Резултат</th>
           <th>Начало</th>
           <th>Предадено</th>
@@ -189,6 +191,13 @@
         {% for a in attempts %}
           <tr>
             <td><strong>{{ a.student_name }}</strong></td>
+            <td>
+              {% if a.has_linked_image_question %}
+                {{ render_question_image_indicator(a.has_linked_image_question, a.image_question_count) }}
+              {% else %}
+                —
+              {% endif %}
+            </td>
             <td>
               {% if a.submitted_at %}
                 <span class="badge done">{{ a.score_correct }}/{{ a.score_total }}</span>

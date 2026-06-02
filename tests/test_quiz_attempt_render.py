@@ -676,6 +676,26 @@ class QuizAttemptRenderTest(unittest.TestCase):
         self.assertIn('alt="Изображение към temp-visual-filter-test задача 3"', body)
         self.assertIn("Тестово изображение към въпрос", body)
 
+    def test_teacher_assignment_attempt_list_marks_linked_image_question(self):
+        assignment_id, _attempt_id = self._create_attempt(
+            [self.linked_image_question_id],
+            submitted=False,
+            student_name="Linked Image Teacher Detail",
+        )
+        self._login_admin()
+
+        response = self.client.get(f"/teacher/assignment/{assignment_id}")
+        self.assertEqual(response.status_code, 200)
+        body = response.data.decode("utf-8")
+        row_start = body.find("Linked Image Teacher Detail")
+        self.assertNotEqual(row_start, -1)
+        row_end = body.find("</tr>", row_start)
+        row_html = body[row_start:row_end]
+
+        self.assertIn("question-image-indicator", row_html)
+        self.assertIn("изображение", row_html)
+        self.assertNotIn("/static/img/questions/dzi/test_quiz_linked_question.png", row_html)
+
     def test_30_minute_assignment_renders_non_expired_timer(self):
         fixed_now = datetime(2026, 5, 13, 12, 0, 0)
         _assignment_id, attempt_id = self._create_attempt(
@@ -937,6 +957,27 @@ class QuizAttemptRenderTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn("Успеваемост".encode("utf-8"), response.data)
         self.assertIn(">0%</td>".encode("utf-8"), response.data)
+
+    def test_teacher_results_marks_attempts_with_linked_image_questions(self):
+        assignment_id, _attempt_id = self._create_attempt(
+            [self.linked_image_question_id],
+            submitted=True,
+            student_name="Linked Image Results Table",
+        )
+        self._login_admin()
+
+        response = self.client.get(f"/teacher/assignment/{assignment_id}/results")
+
+        self.assertEqual(response.status_code, 200)
+        body = response.data.decode("utf-8")
+        row_start = body.find("Linked Image Results Table")
+        self.assertNotEqual(row_start, -1)
+        row_end = body.find("</tr>", row_start)
+        row_html = body[row_start:row_end]
+
+        self.assertIn("question-image-indicator", row_html)
+        self.assertIn("изображение", row_html)
+        self.assertNotIn("/static/img/questions/dzi/test_quiz_linked_question.png", row_html)
 
     def test_teacher_results_show_attempt_duration(self):
         assignment_id, attempt_id = self._create_attempt(
@@ -1671,6 +1712,45 @@ class QuizAttemptRenderTest(unittest.TestCase):
             conn.close()
         self.assertEqual(attempt["score_correct"], 0)
         self.assertEqual(attempt["score_total"], 1)
+
+    def test_teacher_results_marks_open_answer_question_with_linked_image(self):
+        assignment_id, attempt_id, open_question_id = self._create_mixed_planned_attempt(
+            student_name="Open Image Review",
+        )
+        conn = web_app.quiz_db()
+        try:
+            self._link_question_image_asset(
+                conn,
+                question_id=open_question_id,
+                local_path="web/static/img/questions/dzi/test_teacher_open_answer_indicator.png",
+                caption="Тестово изображение към отворен въпрос",
+            )
+            wrong_letter = self._wrong_letter(conn, self.valid_question_id)
+            conn.commit()
+        finally:
+            conn.close()
+
+        post_response = self.client.post(f"/quiz/attempt/{attempt_id}", data={
+            f"q_{self.valid_question_id}": wrong_letter,
+            f"open_q_{open_question_id}_1": "клиент",
+            f"open_q_{open_question_id}_2": "jpg",
+        })
+        self.assertEqual(post_response.status_code, 302)
+
+        self._login_admin()
+        response = self.client.get(f"/teacher/assignment/{assignment_id}/results")
+        self.assertEqual(response.status_code, 200)
+        body = response.data.decode("utf-8")
+
+        question_ref = f"Q{open_question_id}.1"
+        row_start = body.find(question_ref)
+        self.assertNotEqual(row_start, -1)
+        row_end = body.find("</tr>", row_start)
+        row_html = body[row_start:row_end]
+
+        self.assertIn("question-image-indicator", row_html)
+        self.assertIn("изображение", row_html)
+        self.assertNotIn("/static/img/questions/dzi/test_teacher_open_answer_indicator.png", row_html)
 
     def test_tester_cannot_access_teacher_open_answer_review(self):
         assignment_id, _attempt_id, _open_question_id = self._create_mixed_planned_attempt(
