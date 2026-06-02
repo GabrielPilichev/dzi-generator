@@ -24,6 +24,7 @@ rename is handled separately.
 - `docs/reviews/dzi_expansion_log.md` - DZI expansion history and notes
 - `docs/dzi_question_import_format.md` - reviewed JSON import format
 - `docs/question_batch_review.md` - dry-run-only question batch review pipeline
+- `docs/reviews/dzi_image_db_linking_plan.md` - confirmed DZI question image pipeline checklist
 
 ## Local Run
 
