@@ -1,5 +1,66 @@
 # DZI Image DB Linking Plan
 
+## Completed Confirmed-Image Pipeline
+
+Current source of truth is the reviewed official-PDF mapping file:
+
+```text
+docs/reviews/confirmed_dzi_image_question_mappings.json
+```
+
+The mapping keys are `source_slug + official_question_number`, where
+`official_question_number` is the task number printed in the official DZI PDF.
+It is not a LearnPilot DB question ID. Use the mapped `db_question_id` only
+after validation confirms that the official PDF task number still resolves to
+the same DB question.
+
+Confirmed DZI question images live under:
+
+```text
+web/static/img/questions/dzi/
+```
+
+Filenames must match the mapping exactly:
+
+```text
+<source_slug>_q<official_question_number>.png
+```
+
+Example: `may_2025_v2_q22.png`.
+
+Use this validation/check sequence for the completed pipeline:
+
+```bash
+python3 src/validate_confirmed_dzi_image_mappings.py
+python3 src/validate_confirmed_dzi_asset_files.py --strict
+python3 src/apply_confirmed_dzi_image_mappings.py --check
+python3 src/audit_rendered_question_images.py
+sqlite3 "file:data/questions.db?mode=ro" "SELECT * FROM pragma_foreign_key_check;"
+```
+
+The intentional DB-linking command for a dedicated data PR is:
+
+```bash
+python3 src/apply_confirmed_dzi_image_mappings.py
+```
+
+Run it only in a PR that explicitly owns `data/questions.db` changes, then
+re-run the read-only `--check`, rendered-image audit, FK check, and tests.
+
+Safe PR order for future official DZI exams:
+
+1. Add/confirm official PDFs and review image-dependent PDF task numbers.
+2. Add/update the confirmed mapping JSON; validate mappings before adding files.
+3. Add extracted PNG assets under `web/static/img/questions/dzi/` using the
+   filename convention above; run strict asset validation.
+4. Link assets to DB questions and official exam tasks in a dedicated data PR.
+5. Verify student rendering with `audit_rendered_question_images.py`.
+6. Add or adjust teacher/admin indicators only after linked images render for
+   students; do not change scoring or answer submission.
+
+The older sections below document the design path that led to the completed
+pipeline and are kept as historical context.
+
 This plan covers the future DB and rendering step for showing confirmed DZI
 question images in the app. It is documentation only: no DB writes, migrations,
 template changes, route changes, or asset imports are part of this PR.
