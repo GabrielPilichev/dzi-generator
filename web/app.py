@@ -965,6 +965,8 @@ def fetch_dzi_tasks(exam_id: int) -> dict[str, list[dict]]:
             if task["question_id"] is not None
             else []
         )
+        task["linked_image_count"] = len(task["visual_assets"])
+        task["has_linked_image"] = bool(task["linked_image_count"])
         if task["question_id"] and task["question_type"] == "multiple_choice":
             task["options"] = fetch_dzi_question_options(int(task["question_id"]))
         elif task["question_id"] and task["question_type"] in {"fill_in", "short_answer"}:
@@ -1991,6 +1993,7 @@ def fetch_open_question_candidates(
         if limit is not None and len(candidates) >= limit:
             break
 
+    attach_question_image_indicators(conn, candidates)
     return candidates
 
 
@@ -2785,6 +2788,80 @@ def quiz_parse_attempt_question_plan(raw_value) -> dict:
         "mixed_open_enabled": mixed_open_enabled,
         "include_open_answers_in_final_score": include_open_answers_in_final_score,
     }
+
+
+def _quiz_clean_question_ids(question_ids) -> list[int]:
+    clean_ids = []
+    for qid in question_ids or []:
+        try:
+            if isinstance(qid, bool):
+                raise ValueError
+            parsed_id = int(qid)
+        except (TypeError, ValueError):
+            continue
+        if parsed_id not in clean_ids:
+            clean_ids.append(parsed_id)
+    return clean_ids
+
+
+def question_linked_image_counts(conn, question_ids) -> dict[int, int]:
+    clean_ids = _quiz_clean_question_ids(question_ids)
+    if not clean_ids:
+        return {}
+    visual_assets_by_question = fetch_question_visual_assets(conn, clean_ids)
+    return {
+        question_id: len(visual_assets_by_question.get(question_id, []))
+        for question_id in clean_ids
+    }
+
+
+def attach_question_image_indicators(
+    conn,
+    items: list[dict],
+    *,
+    question_id_key: str = "question_id",
+) -> list[dict]:
+    question_ids = _quiz_clean_question_ids(
+        item.get(question_id_key)
+        for item in items
+        if item.get(question_id_key) is not None
+    )
+    image_counts = question_linked_image_counts(conn, question_ids)
+    for item in items:
+        try:
+            question_id = int(item.get(question_id_key))
+        except (TypeError, ValueError):
+            image_count = 0
+        else:
+            image_count = image_counts.get(question_id, 0)
+        item["linked_image_count"] = image_count
+        item["has_linked_image"] = image_count > 0
+    return items
+
+
+def attach_attempt_question_image_counts(conn, attempts) -> list[dict]:
+    annotated_attempts = [dict(attempt) for attempt in attempts]
+    question_ids_by_attempt: dict[int, list[int]] = {}
+    all_question_ids: list[int] = []
+
+    for attempt in annotated_attempts:
+        attempt_id = int(attempt["id"])
+        plan = quiz_parse_attempt_question_plan(attempt.get("question_ids_json"))
+        question_ids = _quiz_clean_question_ids(plan["question_ids"])
+        question_ids_by_attempt[attempt_id] = question_ids
+        all_question_ids.extend(question_ids)
+
+    image_counts = question_linked_image_counts(conn, all_question_ids)
+    for attempt in annotated_attempts:
+        attempt_id = int(attempt["id"])
+        image_question_count = sum(
+            1
+            for question_id in question_ids_by_attempt.get(attempt_id, [])
+            if image_counts.get(question_id, 0) > 0
+        )
+        attempt["image_question_count"] = image_question_count
+        attempt["has_linked_image_question"] = image_question_count > 0
+    return annotated_attempts
 
 
 def quiz_parse_assignment_question_plan(raw_value) -> dict | None:
@@ -3757,6 +3834,7 @@ def teacher_assignment(assignment_id):
         WHERE assignment_id = ?
         ORDER BY started_at
     """, (assignment_id,)).fetchall()
+    attempts = attach_attempt_question_image_counts(conn, attempts)
 
     quiz_url = _quiz_request.host_url.rstrip("/") + _quiz_url_for("quiz_start", assignment_id=assignment_id)
     mixed_status = quiz_assignment_mixed_status(assignment["question_plan_json"])
@@ -4184,6 +4262,7 @@ def teacher_assignment_results(assignment_id):
         sort=filters["sort"],
         open_subtotal_by_id=open_subtotal_by_id,
     )
+    attempts = attach_attempt_question_image_counts(conn, attempts)
 
     open_text_answers = []
     open_subtotals_by_attempt: dict[int, dict] = {}
@@ -4230,6 +4309,8 @@ def teacher_assignment_results(assignment_id):
                 "attempt_score_total": attempt["score_total"],
                 "submitted_at": attempt["submitted_at"],
             })
+
+    attach_question_image_indicators(conn, open_text_answers)
 
     totals = conn.execute("""
         SELECT

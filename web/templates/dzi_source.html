@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_question_visuals.html" import render_question_visuals %}
+{% from "_question_visuals.html" import render_question_image_indicator, render_question_visuals %}
 
 {% block title %}{{ exam.title }}{% endblock %}
 
@@ -26,6 +26,7 @@
                 {% if task.asset_count %}
                     <span class="badge">assets: {{ task.asset_count }}</span>
                 {% endif %}
+                {{ render_question_image_indicator(task.has_linked_image, task.linked_image_count) }}
             </div>
         </div>
 

@@ -1,3 +1,13 @@
+{% macro render_question_image_indicator(has_linked_image, linked_image_count=1) -%}
+  {% if has_linked_image %}
+    <span
+      class="badge question-image-indicator"
+      title="Има свързано изображение"
+      aria-label="Има свързано изображение"
+    >изображение{% if linked_image_count|int > 1 %} x{{ linked_image_count }}{% endif %}</span>
+  {% endif %}
+{%- endmacro %}
+
 {% macro render_question_visuals(visual_assets) %}
   {% if visual_assets %}
     <div class="question-visual-assets">

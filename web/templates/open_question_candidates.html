@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_question_visuals.html" import render_question_image_indicator %}
 
 {% block title %}Отворени въпроси · планиране{% endblock %}
 
@@ -83,6 +84,7 @@
           <th>question_id</th>
           <th>Източник</th>
           <th>Задача</th>
+          <th>Изображение</th>
           <th>Оценяване</th>
           <th>Подвъпроси</th>
         </tr>
@@ -93,6 +95,13 @@
             <td>{{ candidate.question_id }}</td>
             <td><code>{{ candidate.source_slug }}</code></td>
             <td>{{ candidate.task_number }}</td>
+            <td>
+              {% if candidate.has_linked_image %}
+                {{ render_question_image_indicator(candidate.has_linked_image, candidate.linked_image_count) }}
+              {% else %}
+                —
+              {% endif %}
+            </td>
             <td>{{ candidate.grading_mode }}</td>
             <td>{{ candidate.subquestion_count }}</td>
           </tr>
