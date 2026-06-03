@@ -17,6 +17,7 @@
       "question_text_snippet": "На изображението по-долу е показана заявка. Отбележете типа на заявката:",
       "needs_image": true,
       "expected_asset_filename": "aug_2022_v2_q2.png",
+      "pdf_page": 1,
       "confidence": "exact",
       "notes": "matched questions.source_exam and questions.source_number exactly"
     },
@@ -27,6 +28,7 @@
       "question_text_snippet": "Дадена е таблица с описани стоки, подредени по категории и цена за всяка от тях. Предоставена е формула за изчисление според направеното в таблицата описание и резултат от извърше...",
       "needs_image": true,
       "expected_asset_filename": "aug_2022_v2_q12.png",
+      "pdf_page": 4,
       "confidence": "exact",
       "notes": "matched questions.source_exam and questions.source_number exactly"
     },
@@ -37,6 +39,7 @@
       "question_text_snippet": "Напишете в листа за отговори коя функция е необходимо да се използва, за да се изчисли бонусът на служителя, като годишната заплата се умножава по процента, съответстващ на рейтин...",
       "needs_image": true,
       "expected_asset_filename": "aug_2022_v2_q13.png",
+      "pdf_page": 4,
       "confidence": "exact",
       "notes": "matched questions.source_exam and questions.source_number exactly"
     },
@@ -47,6 +50,7 @@
       "question_text_snippet": "База от данни съдържа две таблици - едната с информация за автомобилни части в магазин за авточасти, а другата - с данни за клиентите. /Разгледайте изображението по-долу/ Всяка ча...",
       "needs_image": true,
       "expected_asset_filename": "aug_2022_v2_q23.png",
+      "pdf_page": 6,
       "confidence": "exact",
       "notes": "matched questions.source_exam and questions.source_number exactly"
     },
@@ -57,6 +61,7 @@
       "question_text_snippet": "Разгледайте изображението по-долу. Напишете в листа за отговори как се нарича полиномна параметрична крива (набор от дискретни „контролни точки“, които дефинират гладка, непрекъсн...",
       "needs_image": true,
       "expected_asset_filename": "aug_2022_v2_q24.png",
+      "pdf_page": 7,
       "confidence": "exact",
       "notes": "matched questions.source_exam and questions.source_number exactly"
     },
@@ -67,6 +72,7 @@
       "question_text_snippet": "Следните таблици са част от база данни за прегледи на пациенти от лекари. В листа за отговори напишете (1), (2), и (3) и срещу тях пропуснатите думи в текста: Най-подходящото поле...",
       "needs_image": true,
       "expected_asset_filename": "aug_2023_v2_q20.png",
+      "pdf_page": 5,
       "confidence": "exact",
       "notes": "matched questions.source_exam and questions.source_number exactly"
     },
@@ -77,6 +83,7 @@
       "question_text_snippet": "Разполагате с таблица със STEM професии по области със следния заглавен ред и примерен първи ред. Получили сте обобщаваща таблица със следния вид: В листа за отговори напишете (1)...",
       "needs_image": true,
       "expected_asset_filename": "aug_2023_v2_q21.png",
+      "pdf_page": 5,
       "confidence": "exact",
       "notes": "matched questions.source_exam and questions.source_number exactly"
     },
@@ -87,6 +94,7 @@
       "question_text_snippet": "Информационна система за недвижими имоти съхранява информация за всеки имот с различни характеристики. В листа за отговори запишете името на полето и срещу него критерия, който ще...",
       "needs_image": true,
       "expected_asset_filename": "aug_2023_v2_q22.png",
+      "pdf_page": 6,
       "confidence": "exact",
       "notes": "matched questions.source_exam and questions.source_number exactly"
     },
@@ -97,6 +105,7 @@
       "question_text_snippet": "В листа за отговори напишете (1), (2) и (3) и срещу тях съответно наименованието на диаграмата. (1) (2) (3)",
       "needs_image": true,
       "expected_asset_filename": "aug_2023_v2_q23.png",
+      "pdf_page": 6,
       "confidence": "exact",
       "notes": "matched questions.source_exam and questions.source_number exactly"
     },
@@ -107,6 +116,7 @@
       "question_text_snippet": "Разгледайте графиката на получените резултати от проведено анкетно проучване. Като знаете броя на анкетираните, които са отговорили с „Не“, в листа за отговори запишете броя на от...",
       "needs_image": true,
       "expected_asset_filename": "aug_2023_v2_q24.png",
+      "pdf_page": 6,
       "confidence": "exact",
       "notes": "matched questions.source_exam and questions.source_number exactly"
     },
@@ -117,6 +127,7 @@
       "question_text_snippet": "В база от данни е показана част от заявка в режим Design: Какъв е видът на заявката?",
       "needs_image": true,
       "expected_asset_filename": "aug_2024_v2_q3.png",
+      "pdf_page": 1,
       "confidence": "exact",
       "notes": "matched questions.source_exam and questions.source_number exactly"
     },
@@ -127,6 +138,7 @@
       "question_text_snippet": "Даденото изображение представлява визуално представяне на уеб страница. Как се нарича?",
       "needs_image": true,
       "expected_asset_filename": "aug_2024_v2_q9.png",
+      "pdf_page": 3,
       "confidence": "exact",
       "notes": "matched questions.source_exam and questions.source_number exactly"
     },
@@ -137,6 +149,7 @@
       "question_text_snippet": "В диаграмата е представена извадка от резултатите и явилите се ученици на ДЗИ ИТ профилирана подготовка. В полето за отговори срещу (1), (2) и (3) запишете: (1) Името на училището...",
       "needs_image": true,
       "expected_asset_filename": "aug_2024_v2_q17.png",
+      "pdf_page": 5,
       "confidence": "exact",
       "notes": "matched questions.source_exam and questions.source_number exactly"
     },
@@ -147,6 +160,7 @@
       "question_text_snippet": "Електронна таблица съдържа резултати на ученици от ДЗИ ИТ профилирана подготовка. В полето за отговор напишете функцията, която трябва да въведете в клетка C2, така че след размно...",
       "needs_image": true,
       "expected_asset_filename": "aug_2024_v2_q18.png",
+      "pdf_page": 5,
       "confidence": "exact",
       "notes": "matched questions.source_exam and questions.source_number exactly"
     },
@@ -157,6 +171,7 @@
       "question_text_snippet": "Електронна таблица съдържа информация за седмичната заетост на даден преподавател в училище. Получена е следната обобщаваща таблица: В полето за отговори срещу (1), (2) и (3) напи...",
       "needs_image": true,
       "expected_asset_filename": "aug_2024_v2_q19.png",
+      "pdf_page": 6,
       "confidence": "exact",
       "notes": "matched questions.source_exam and questions.source_number exactly"
     },
@@ -167,6 +182,7 @@
       "question_text_snippet": "Дадена е база данни за хотел, която включва три таблици: В полето за отговори срещу (1), (2) и (3) запишете: (1) Кое поле е първичен ключ в таблица \"гости на хотела\"? (2) Кое поле...",
       "needs_image": true,
       "expected_asset_filename": "aug_2024_v2_q21.png",
+      "pdf_page": 6,
       "confidence": "exact",
       "notes": "matched questions.source_exam and questions.source_number exactly"
     },
@@ -177,6 +193,7 @@
       "question_text_snippet": "Какъв ще бъде резултатът от изпълнение на формулата в клетка B11?",
       "needs_image": true,
       "expected_asset_filename": "may_2022_v1_q1.png",
+      "pdf_page": 1,
       "confidence": "exact",
       "notes": "matched questions.source_exam and questions.source_number exactly"
     },
@@ -187,6 +204,7 @@
       "question_text_snippet": "Какъв ще бъде резултатът от изпълнението на функцията VLOOKUP?",
       "needs_image": true,
       "expected_asset_filename": "may_2022_v1_q11.png",
+      "pdf_page": 4,
       "confidence": "exact",
       "notes": "matched questions.source_exam and questions.source_number exactly"
     },
@@ -197,6 +215,7 @@
       "question_text_snippet": "В таблица в Еxcel се съхраняват данни за продажбите в четири магазина за последните 3 години. Записите са повече от 900, а е необходимо бързо да се получат общите приходи за всеки...",
       "needs_image": true,
       "expected_asset_filename": "may_2022_v1_q12.png",
+      "pdf_page": 5,
       "confidence": "exact",
       "notes": "matched questions.source_exam and questions.source_number exactly"
     },
@@ -207,6 +226,7 @@
       "question_text_snippet": "Даден е фрагмент от електронна таблица и диаграма. Стойностите, по които е построена диаграмата, са пропорционални на диапазона от клетки B1:B3. Ако стойността на клетка B3 e 25,...",
       "needs_image": true,
       "expected_asset_filename": "may_2022_v1_q19.png",
+      "pdf_page": 7,
       "confidence": "exact",
       "notes": "matched questions.source_exam and questions.source_number exactly"
     },
@@ -217,6 +237,7 @@
       "question_text_snippet": "Дадена е таблица с направени резервации към няколко хотела. Запишете стойностите в празните полета на филтъра, така че да се визуализират резервациите направени за повече от 5 нощ...",
       "needs_image": true,
       "expected_asset_filename": "may_2023_v2_q11.png",
+      "pdf_page": 3,
       "confidence": "exact",
       "notes": "matched questions.source_exam and questions.source_number exactly"
     },
@@ -227,6 +248,7 @@
       "question_text_snippet": "На диаграмата по-долу е показано процентното разпределение на родените деца през 2021 г. в България по райони. Ако разделим България на три района: (1) Западен, (2) Централен и (3...",
       "needs_image": true,
       "expected_asset_filename": "may_2023_v2_q12.png",
+      "pdf_page": 3,
       "confidence": "exact",
       "notes": "matched questions.source_exam and questions.source_number exactly"
     },
@@ -237,6 +259,7 @@
       "question_text_snippet": "В таблица са представени данни за доставки на макаронени изделия. Необходимо е да се създаде обобщаваща таблица, която да представи общата сума за всяко от доставените изделия, за...",
       "needs_image": true,
       "expected_asset_filename": "may_2023_v2_q13.png",
+      "pdf_page": 4,
       "confidence": "exact",
       "notes": "matched questions.source_exam and questions.source_number exactly"
     },
@@ -247,6 +270,7 @@
       "question_text_snippet": "Какъв вид диаграма е представена на изображението?",
       "needs_image": true,
       "expected_asset_filename": "may_2023_v2_q15.png",
+      "pdf_page": 5,
       "confidence": "exact",
       "notes": "matched questions.source_exam and questions.source_number exactly"
     },
@@ -257,6 +281,7 @@
       "question_text_snippet": "В таблиците по-долу е въведена информация за ученици и за тези от тях, които са участници в различни олимпиади. В листа за отговори запишете какъв ще е резултатът от показаната за...",
       "needs_image": true,
       "expected_asset_filename": "may_2023_v2_q19.png",
+      "pdf_page": 6,
       "confidence": "exact",
       "notes": "matched questions.source_exam and questions.source_number exactly"
     },
@@ -267,6 +292,7 @@
       "question_text_snippet": "Следният етикет е изграден от три слоя с имена сладоледи, етикет и желатерия. В листа за отговори напишете (1), (2) и (3) и срещу тях имената на слоевете. (1) Най-отгоре - ..........",
       "needs_image": true,
       "expected_asset_filename": "may_2023_v2_q20.png",
+      "pdf_page": 7,
       "confidence": "exact",
       "notes": "matched questions.source_exam and questions.source_number exactly"
     },
@@ -277,6 +303,7 @@
       "question_text_snippet": "В електронна таблица са записани резултатите от проведено писмено изпитване по информационни технологии. На резултатите на кой клас съответства диаграмата?",
       "needs_image": true,
       "expected_asset_filename": "may_2024_v1_q1.png",
+      "pdf_page": 1,
       "confidence": "exact",
       "notes": "matched questions.source_exam and questions.source_number exactly"
     },
@@ -287,6 +314,7 @@
       "question_text_snippet": "В диаграмата са представени данни от Евростат за потреблението на интернет в домакинствата в балкански държави за последните три години. В полето за отговори срещу (1), (2) и (3)...",
       "needs_image": true,
       "expected_asset_filename": "may_2024_v1_q16.png",
+      "pdf_page": 3,
       "confidence": "exact",
       "notes": "matched questions.source_exam and questions.source_number exactly"
     },
@@ -297,6 +325,7 @@
       "question_text_snippet": "Създадена е електронна таблица за пресмятане стойността на функцията. В клетки A2, C2 и D2 са въведени стойности съответно за х, а и b. В полето за отговори запишете условна функц...",
       "needs_image": true,
       "expected_asset_filename": "may_2024_v1_q17.png",
+      "pdf_page": 3,
       "confidence": "exact",
       "notes": "matched questions.source_exam and questions.source_number exactly"
     },
@@ -307,6 +336,7 @@
       "question_text_snippet": "Дадена е таблица с данни за класовете от 8 до 12 клас и техните извинени и неизвинени отсъствия. В полетата за отговори срещу Rows, Columns и Values напишете имената на колоните,...",
       "needs_image": true,
       "expected_asset_filename": "may_2024_v1_q18.png",
+      "pdf_page": 4,
       "confidence": "exact",
       "notes": "matched questions.source_exam and questions.source_number exactly"
     },
@@ -317,6 +347,7 @@
       "question_text_snippet": "Разполагате с данните в следните свързани таблици за отчитане на разходите на вода в кубици на абонати от инкасатори. Какви ще са критериите за полета \"адрес\", \"кубици\" и \"ID инка...",
       "needs_image": true,
       "expected_asset_filename": "may_2024_v1_q20.png",
+      "pdf_page": 4,
       "confidence": "exact",
       "notes": "matched questions.source_exam and questions.source_number exactly"
     },
@@ -327,6 +358,7 @@
       "question_text_snippet": "В полето за отговори срещу (1), (2) и (3) напишете коя конструктивна операция е използвана за създаването на обекти, визуализирани на изображението в програма за векторна графика.",
       "needs_image": true,
       "expected_asset_filename": "may_2024_v1_q21.png",
+      "pdf_page": 5,
       "confidence": "exact",
       "notes": "matched questions.source_exam and questions.source_number exactly"
     },
@@ -337,6 +369,7 @@
       "question_text_snippet": "Дадена е електронна таблица С коя от изброените функции може да се пресметне общият брой рекламации за определен продукт?",
       "needs_image": true,
       "expected_asset_filename": "may_2025_v2_q1.png",
+      "pdf_page": 1,
       "confidence": "exact",
       "notes": "matched questions.source_exam and questions.source_number exactly"
     },
@@ -347,6 +380,7 @@
       "question_text_snippet": "На диаграмата са представени суми от продажби на стоки в няколко области от страната за месец юни. В полетата за отговори (1), (2) и (3) запишете съответно какви са били сумите от...",
       "needs_image": true,
       "expected_asset_filename": "may_2025_v2_q16.png",
+      "pdf_page": 5,
       "confidence": "exact",
       "notes": "matched questions.source_exam and questions.source_number exactly"
     },
@@ -357,6 +391,7 @@
       "question_text_snippet": "В електронна таблица са въведени данни за учениците и участието им в извънкласни дейности. Създадена е следната обобщаваща таблица: В полетата за отговори (1), (2) и (3) напишете...",
       "needs_image": true,
       "expected_asset_filename": "may_2025_v2_q18.png",
+      "pdf_page": 5,
       "confidence": "exact",
       "notes": "matched questions.source_exam and questions.source_number exactly"
     },
@@ -367,6 +402,7 @@
       "question_text_snippet": "В таблицата са представени данни за книгите в релационна база данни, използвана за обслужване на библиотека. Разгледайте дадената заявка, в която се използват данните от таблицата...",
       "needs_image": true,
       "expected_asset_filename": "may_2025_v2_q21.png",
+      "pdf_page": 7,
       "confidence": "exact",
       "notes": "matched questions.source_exam and questions.source_number exactly"
     },
@@ -377,6 +413,7 @@
       "question_text_snippet": "В полетата за отговори (1), (2) и (3) напишете съответно какъв операторски план е използван в съответните кадри. (1) (2) (3)",
       "needs_image": true,
       "expected_asset_filename": "may_2025_v2_q22.png",
+      "pdf_page": 8,
       "confidence": "exact",
       "notes": "matched questions.source_exam and questions.source_number exactly"
     }
