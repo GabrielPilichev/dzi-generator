@@ -196,9 +196,10 @@ def audit_mapping_links(
     conn: sqlite3.Connection,
     payload: dict[str, object],
     image_dir: Path,
-) -> tuple[list[str], list[dict[str, object]]]:
+) -> tuple[list[str], list[dict[str, object]], list[str]]:
     errors: list[str] = []
     linked: list[dict[str, object]] = []
+    skipped_missing: list[str] = []
 
     for entry in ready_mapping_entries(payload):
         source_slug = str(entry["source_slug"])
@@ -218,9 +219,8 @@ def audit_mapping_links(
             errors.append(f"{label}: expected local_path {path_error}: {expected_local_path}")
 
         file_path = Path(expected_local_path)
-        if not file_path.exists():
-            errors.append(f"{label}: linked image file is missing: {expected_local_path}")
-        elif not file_path.is_file():
+        file_exists = file_path.exists()
+        if file_exists and not file_path.is_file():
             errors.append(f"{label}: linked image path is not a file: {expected_local_path}")
 
         asset_rows = conn.execute(
@@ -233,6 +233,27 @@ def audit_mapping_links(
             """,
             (expected_local_path, *VISUAL_ASSET_TYPES),
         ).fetchall()
+
+        if not file_exists:
+            if asset_rows:
+                errors.append(
+                    f"{label}: assets row exists for missing image file: {expected_local_path}"
+                )
+            stale_question = conn.execute(
+                """
+                SELECT has_image, image_path
+                FROM questions
+                WHERE id = ?
+                """,
+                (int(context["question_id"]),),
+            ).fetchone()
+            if stale_question is not None and int(stale_question["has_image"] or 0) == 1:
+                errors.append(f"{label}: questions.has_image is 1 for missing image file")
+            if stale_question is not None and stale_question["image_path"] == expected_local_path:
+                errors.append(f"{label}: questions.image_path points to missing image file")
+            skipped_missing.append(f"{label}: expected image file is missing: {expected_local_path}")
+            continue
+
         if len(asset_rows) != 1:
             errors.append(f"{label}: expected 1 visual assets row for {expected_local_path}, found {len(asset_rows)}")
             continue
@@ -269,7 +290,7 @@ def audit_mapping_links(
                 "caption": f"DZI {source_slug} Q{official_number}",
             })
 
-    return errors, linked
+    return errors, linked, skipped_missing
 
 
 def audit_all_db_static_links(conn: sqlite3.Connection) -> tuple[list[str], int]:
@@ -360,17 +381,17 @@ def audit_rendered_question_images(
         image_errors, image_summary, _missing, _unexpected = validate_image_files(
             payload,
             image_dir,
-            require_files=True,
+            require_files=False,
         )
         errors.extend(image_errors)
 
-        link_errors, linked_assets = audit_mapping_links(conn, payload, image_dir)
+        link_errors, linked_assets, skipped_missing = audit_mapping_links(conn, payload, image_dir)
         errors.extend(link_errors)
 
         db_static_errors, db_static_link_count = audit_all_db_static_links(conn)
         errors.extend(db_static_errors)
 
-    render_errors = audit_render_markup(templates_dir, linked_assets)
+    render_errors = audit_render_markup(templates_dir, linked_assets) if linked_assets else []
     errors.extend(render_errors)
 
     summary = {
@@ -379,8 +400,9 @@ def audit_rendered_question_images(
         "ready_mappings_linked": len(linked_assets),
         "assets_found": image_summary["files_present"],
         "assets_missing": image_summary["files_missing"],
+        "missing_skipped": len(skipped_missing),
         "db_static_links": db_static_link_count,
-        "render_markup_checks": 0 if render_errors else 1,
+        "render_markup_checks": 1 if linked_assets and not render_errors else 0,
         "validation_errors": len(errors),
     }
     return errors, summary
@@ -406,6 +428,7 @@ def print_summary(
     print(f"ready mappings linked: {summary['ready_mappings_linked']}")
     print(f"assets found: {summary['assets_found']}")
     print(f"assets missing: {summary['assets_missing']}")
+    print(f"missing/skipped: {summary['missing_skipped']}")
     print(f"DB static links audited: {summary['db_static_links']}")
     print(f"render markup checks: {summary['render_markup_checks']}")
     print(f"validation errors: {summary['validation_errors']}")
