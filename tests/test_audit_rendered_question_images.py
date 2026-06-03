@@ -21,6 +21,7 @@ def mapping_payload():
       "question_text_snippet": "На изображението е показана заявка.",
       "needs_image": true,
       "expected_asset_filename": "aug_2022_v2_q2.png",
+      "pdf_page": 1,
       "confidence": "exact",
       "notes": "matched"
     }

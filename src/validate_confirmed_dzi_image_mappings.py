@@ -134,6 +134,7 @@ def validate_entries(
         confidence = entry.get("confidence")
         db_question_id = entry.get("db_question_id")
         expected_asset_filename = entry.get("expected_asset_filename")
+        pdf_page = entry.get("pdf_page")
 
         if not isinstance(source_slug, str) or not source_slug.strip():
             errors.append(f"{label}: source_slug is required")
@@ -150,6 +151,12 @@ def validate_entries(
             if confidence in {"missing", "ambiguous"}:
                 errors.append(f"{label}: confidence is {confidence}; resolve before asset import")
 
+        if pdf_page is not None:
+            if not is_plain_int(pdf_page):
+                errors.append(f"{label}: pdf_page must be an integer")
+            elif pdf_page <= 0:
+                errors.append(f"{label}: pdf_page must be positive")
+
         if isinstance(source_slug, str) and is_plain_int(official_number):
             source_pairs[(source_slug, official_number)].append(label)
 
@@ -164,6 +171,8 @@ def validate_entries(
                     )
                 for filename_error in validate_safe_filename(expected_asset_filename):
                     errors.append(f"{label}: expected_asset_filename {filename_error}")
+            if confidence in READY_CONFIDENCE and pdf_page is None:
+                errors.append(f"{label}: pdf_page is required for ready image mappings")
         elif expected_asset_filename not in (None, ""):
             errors.append(f"{label}: expected_asset_filename must be null/blank when needs_image is false")
             if isinstance(expected_asset_filename, str):

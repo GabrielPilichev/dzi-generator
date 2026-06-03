@@ -56,6 +56,7 @@ class ValidateConfirmedDziImageMappingsTest(unittest.TestCase):
                     "question_text_snippet": "snippet",
                     "needs_image": True,
                     "expected_asset_filename": "aug_2022_v2_q2.png",
+                    "pdf_page": 1,
                     "confidence": "exact",
                     "notes": "matched",
                 }
@@ -80,6 +81,36 @@ class ValidateConfirmedDziImageMappingsTest(unittest.TestCase):
         self.assertEqual(summary["total_entries"], 2)
         self.assertEqual(summary["exact"], 2)
         self.assertEqual(summary["ready_mapping_count"], 1)
+
+    def test_ready_image_mapping_requires_pdf_page(self):
+        payload = {
+            "mappings": [
+                {
+                    "source_slug": "aug_2022_v2",
+                    "official_question_number": 2,
+                    "db_question_id": 182,
+                    "needs_image": True,
+                    "expected_asset_filename": "aug_2022_v2_q2.png",
+                    "confidence": "exact",
+                    "notes": "matched",
+                },
+                {
+                    "source_slug": "aug_2023_v2",
+                    "official_question_number": 20,
+                    "db_question_id": 240,
+                    "needs_image": True,
+                    "expected_asset_filename": "aug_2023_v2_q20.png",
+                    "pdf_page": 0,
+                    "confidence": "likely",
+                    "notes": "matched",
+                },
+            ]
+        }
+
+        errors, _ = validate_payload(payload)
+
+        self.assertIn("mappings[1] aug_2022_v2 Q2: pdf_page is required for ready image mappings", errors)
+        self.assertIn("mappings[2] aug_2023_v2 Q20: pdf_page must be positive", errors)
 
     def test_expected_asset_filename_must_match_source_and_number(self):
         payload = {
