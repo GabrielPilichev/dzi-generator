@@ -36,32 +36,38 @@ def payload(filename="aug_2022_v2_q2.png"):
 
 class ValidateConfirmedDziImageFilesTest(unittest.TestCase):
     def test_missing_files_are_reported_but_non_blocking_by_default(self):
-        errors, summary, missing, unexpected = validate_image_files(
-            payload(),
-            Path("web/static/img/questions/dzi"),
-            require_files=False,
-        )
+        with tempfile.TemporaryDirectory(dir=".") as tmpdir:
+            image_dir = Path(tmpdir) / "web" / "static" / "img" / "questions" / "dzi"
+
+            errors, summary, missing, unexpected = validate_image_files(
+                payload(),
+                image_dir,
+                require_files=False,
+            )
 
         self.assertEqual(errors, [])
         self.assertEqual(summary["ready_mappings"], 1)
         self.assertEqual(summary["files_present"], 0)
         self.assertEqual(summary["files_missing"], 1)
         self.assertEqual(summary["unexpected_files"], 0)
-        self.assertEqual(missing, ["web/static/img/questions/dzi/aug_2022_v2_q2.png"])
+        self.assertEqual(missing, [str(image_dir / "aug_2022_v2_q2.png")])
         self.assertEqual(unexpected, [])
 
     def test_require_files_makes_missing_images_blocking(self):
-        errors, summary, missing, unexpected = validate_image_files(
-            payload(),
-            Path("web/static/img/questions/dzi"),
-            require_files=True,
-        )
+        with tempfile.TemporaryDirectory(dir=".") as tmpdir:
+            image_dir = Path(tmpdir) / "web" / "static" / "img" / "questions" / "dzi"
+
+            errors, summary, missing, unexpected = validate_image_files(
+                payload(),
+                image_dir,
+                require_files=True,
+            )
 
         self.assertEqual(summary["files_missing"], 1)
-        self.assertEqual(missing, ["web/static/img/questions/dzi/aug_2022_v2_q2.png"])
+        self.assertEqual(missing, [str(image_dir / "aug_2022_v2_q2.png")])
         self.assertEqual(unexpected, [])
         self.assertIn(
-            "aug_2022_v2 Q2: missing expected image file: web/static/img/questions/dzi/aug_2022_v2_q2.png",
+            f"aug_2022_v2 Q2: missing expected image file: {image_dir / 'aug_2022_v2_q2.png'}",
             errors,
         )
 
