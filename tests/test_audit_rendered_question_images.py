@@ -31,7 +31,14 @@ def mapping_payload():
 """
 
 
-def create_db(path: Path, *, include_question_link: bool = True) -> None:
+def create_db(
+    path: Path,
+    *,
+    include_asset: bool = True,
+    include_question_link: bool = True,
+    has_image: int = 1,
+    has_assets: int = 1,
+) -> None:
     conn = sqlite3.connect(path)
     try:
         conn.executescript(
@@ -94,8 +101,9 @@ def create_db(path: Path, *, include_question_link: bool = True) -> None:
             INSERT INTO questions (
                 id, source_exam, source_number, prompt, has_image
             )
-            VALUES (182, 'aug_2022_v2', 2, 'На изображението е показана заявка.', 1)
-            """
+            VALUES (182, 'aug_2022_v2', 2, 'На изображението е показана заявка.', ?)
+            """,
+            (has_image,),
         )
         conn.execute(
             """
@@ -108,8 +116,9 @@ def create_db(path: Path, *, include_question_link: bool = True) -> None:
         conn.execute(
             """
             INSERT INTO exam_tasks (id, exam_id, task_number, has_assets)
-            VALUES (10, 1, 2, 1)
-            """
+            VALUES (10, 1, 2, ?)
+            """,
+            (has_assets,),
         )
         conn.execute(
             """
@@ -117,38 +126,39 @@ def create_db(path: Path, *, include_question_link: bool = True) -> None:
             VALUES (10, 182, 'primary')
             """
         )
-        conn.execute(
-            """
-            INSERT INTO assets (
-                id, asset_type, original_filename, local_path, mime_type, file_size
+        if include_asset:
+            conn.execute(
+                """
+                INSERT INTO assets (
+                    id, asset_type, original_filename, local_path, mime_type, file_size
+                )
+                VALUES (
+                    5,
+                    'pdf_crop',
+                    'aug_2022_v2_q2.png',
+                    'web/static/img/questions/dzi/aug_2022_v2_q2.png',
+                    'image/png',
+                    8
+                )
+                """
             )
-            VALUES (
-                5,
-                'pdf_crop',
-                'aug_2022_v2_q2.png',
-                'web/static/img/questions/dzi/aug_2022_v2_q2.png',
-                'image/png',
-                8
-            )
-            """
-        )
-        if include_question_link:
+            if include_question_link:
+                conn.execute(
+                    """
+                    INSERT INTO asset_links (
+                        asset_id, owner_type, owner_id, role, display_order, caption_bg
+                    )
+                    VALUES (5, 'question', 182, 'pdf_crop', 0, 'DZI aug_2022_v2 Q2')
+                    """
+                )
             conn.execute(
                 """
                 INSERT INTO asset_links (
                     asset_id, owner_type, owner_id, role, display_order, caption_bg
                 )
-                VALUES (5, 'question', 182, 'pdf_crop', 0, 'DZI aug_2022_v2 Q2')
+                VALUES (5, 'exam_task', 10, 'pdf_crop', 0, 'DZI aug_2022_v2 Q2')
                 """
             )
-        conn.execute(
-            """
-            INSERT INTO asset_links (
-                asset_id, owner_type, owner_id, role, display_order, caption_bg
-            )
-            VALUES (5, 'exam_task', 10, 'pdf_crop', 0, 'DZI aug_2022_v2 Q2')
-            """
-        )
         conn.commit()
     finally:
         conn.close()
@@ -211,6 +221,36 @@ class AuditRenderedQuestionImagesTest(unittest.TestCase):
         self.assertEqual(summary["ready_mappings"], 1)
         self.assertTrue(any("missing question asset_link" in error for error in errors))
         self.assertEqual(summary["validation_errors"], len(errors))
+
+    def test_missing_unlinked_mapping_is_skipped(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            old_cwd = Path.cwd()
+            os.chdir(root)
+            try:
+                image_dir = Path("web/static/img/questions/dzi")
+                image_dir.mkdir(parents=True)
+                mapping_path = Path("mapping.json")
+                mapping_path.write_text(mapping_payload(), encoding="utf-8")
+                db_path = Path("questions.db")
+                create_db(db_path, include_asset=False, has_image=0, has_assets=0)
+
+                errors, summary = audit_rendered_question_images(
+                    db_path=db_path,
+                    mapping_path=mapping_path,
+                    image_dir=image_dir,
+                    templates_dir=TEMPLATES_DIR,
+                )
+            finally:
+                os.chdir(old_cwd)
+
+        self.assertEqual(errors, [])
+        self.assertEqual(summary["ready_mappings"], 1)
+        self.assertEqual(summary["ready_mappings_linked"], 0)
+        self.assertEqual(summary["assets_found"], 0)
+        self.assertEqual(summary["assets_missing"], 1)
+        self.assertEqual(summary["missing_skipped"], 1)
+        self.assertEqual(summary["render_markup_checks"], 0)
 
 
 if __name__ == "__main__":

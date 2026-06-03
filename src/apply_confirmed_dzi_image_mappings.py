@@ -115,7 +115,21 @@ class RowAction:
         return f"{self.table} id={self.row_id} {self.action}{suffix}"
 
 
-def parse_args() -> argparse.Namespace:
+@dataclass(frozen=True)
+class TargetCollection:
+    targets: list[MappingTarget]
+    skipped_missing: list[str]
+    errors: list[str]
+
+
+@dataclass(frozen=True)
+class CheckResult:
+    errors: list[str]
+    linked: list[str]
+    unlinked_available: list[str]
+
+
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Link confirmed DZI question images to DB questions and exam tasks."
     )
@@ -127,7 +141,12 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Verify that every ready mapping is already linked; do not write the DB.",
     )
-    return parser.parse_args()
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="Fail if any expected image file is missing instead of skipping missing mappings.",
+    )
+    return parser.parse_args(argv)
 
 
 def writable_uri(db_path: Path) -> str:
@@ -202,6 +221,8 @@ def run_preflight(
     db_path: Path,
     mapping_path: Path,
     image_dir: Path,
+    *,
+    strict: bool,
 ) -> tuple[dict[str, object] | None, list[str]]:
     errors: list[str] = []
     payload: dict[str, object] | None = None
@@ -224,7 +245,7 @@ def run_preflight(
             errors.append(f"DB validation failed: {exc}")
 
     try:
-        asset_errors, _, _, _ = validate_image_files(payload, image_dir, require_files=True)
+        asset_errors, _, _, _ = validate_image_files(payload, image_dir, require_files=strict)
         errors.extend(asset_errors)
     except (OSError, ValueError) as exc:
         errors.append(f"asset file validation failed: {exc}")
@@ -236,8 +257,9 @@ def collect_targets(
     conn: sqlite3.Connection,
     payload: dict[str, object],
     image_dir: Path,
-) -> tuple[list[MappingTarget], list[str]]:
+) -> TargetCollection:
     targets: list[MappingTarget] = []
+    skipped_missing: list[str] = []
     errors: list[str] = []
 
     for entry in ready_mapping_entries(payload):
@@ -321,7 +343,7 @@ def collect_targets(
 
         file_path = image_dir / filename
         if not file_path.exists() or not file_path.is_file():
-            errors.append(f"{label}: expected image file is missing: {file_path}")
+            skipped_missing.append(f"{label}: expected image file is missing: {file_path}")
             continue
 
         targets.append(
@@ -338,7 +360,7 @@ def collect_targets(
             )
         )
 
-    return targets, errors
+    return TargetCollection(targets=targets, skipped_missing=skipped_missing, errors=errors)
 
 
 def upsert_asset(conn: sqlite3.Connection, target: MappingTarget) -> tuple[int, RowAction]:
@@ -549,10 +571,12 @@ def apply_targets(conn: sqlite3.Connection, targets: list[MappingTarget]) -> lis
     return results
 
 
-def check_targets(conn: sqlite3.Connection, targets: list[MappingTarget]) -> tuple[list[str], list[str]]:
+def check_targets(conn: sqlite3.Connection, targets: list[MappingTarget]) -> CheckResult:
     errors: list[str] = []
     linked: list[str] = []
+    unlinked_available: list[str] = []
     for target in targets:
+        target_error_start = len(errors)
         metadata = file_metadata(target.file_path)
         asset = conn.execute(
             """
@@ -564,6 +588,7 @@ def check_targets(conn: sqlite3.Connection, targets: list[MappingTarget]) -> tup
         ).fetchone()
         if asset is None:
             errors.append(f"{target.label}: missing assets row for {target.local_path}")
+            unlinked_available.append(f"{target.label} local_path={target.local_path}")
             continue
 
         asset_id = int(asset["id"])
@@ -611,11 +636,13 @@ def check_targets(conn: sqlite3.Connection, targets: list[MappingTarget]) -> tup
         if task is None or int(task["has_assets"] or 0) != 1:
             errors.append(f"{target.label}: exam_tasks.has_assets is not 1")
 
-        linked.append(
-            f"{target.label} task_id={target.exam_task_id} asset_id={asset_id} local_path={target.local_path}"
-        )
+        line = f"{target.label} task_id={target.exam_task_id} asset_id={asset_id} local_path={target.local_path}"
+        if len(errors) == target_error_start:
+            linked.append(line)
+        else:
+            unlinked_available.append(line)
 
-    return errors, linked
+    return CheckResult(errors=errors, linked=linked, unlinked_available=unlinked_available)
 
 
 def print_preflight_errors(errors: list[str]) -> None:
@@ -626,10 +653,14 @@ def print_preflight_errors(errors: list[str]) -> None:
         print(f"- {error}")
 
 
-def print_apply_results(results: list[tuple[MappingTarget, list[RowAction]]]) -> None:
+def print_apply_results(
+    results: list[tuple[MappingTarget, list[RowAction]]],
+    skipped_missing: list[str],
+) -> None:
     print("Confirmed DZI image mappings applied")
     print("====================================")
-    print(f"ready mappings processed: {len(results)}")
+    print(f"available mappings processed: {len(results)}")
+    print(f"missing/skipped count: {len(skipped_missing)}")
     changed = 0
     for target, actions in results:
         print(f"- {target.label} task_id={target.exam_task_id}")
@@ -637,33 +668,62 @@ def print_apply_results(results: list[tuple[MappingTarget, list[RowAction]]]) ->
             if action.action != "unchanged":
                 changed += 1
             print(f"  - {action.format()}")
+    if skipped_missing:
+        print()
+        print("Skipped missing assets")
+        print("----------------------")
+        for line in skipped_missing:
+            print(f"- {line}")
     print(f"rows inserted/updated: {changed}")
     print("apply_exit=0")
 
 
-def print_check_results(errors: list[str], linked: list[str]) -> None:
+def print_check_results(
+    result: CheckResult,
+    skipped_missing: list[str],
+) -> None:
     print("Confirmed DZI image mapping link check")
     print("======================================")
-    print(f"ready mappings checked: {len(linked)}")
-    print(f"validation errors: {len(errors)}")
-    if linked:
+    print(f"ready mappings checked: {len(result.linked) + len(result.unlinked_available) + len(skipped_missing)}")
+    print(f"linked count: {len(result.linked)}")
+    print(f"missing/skipped count: {len(skipped_missing)}")
+    print(f"unlinked available count: {len(result.unlinked_available)}")
+    print(f"validation errors: {len(result.errors)}")
+    if result.linked:
         print()
         print("Linked mappings")
         print("---------------")
-        for line in linked:
+        for line in result.linked:
             print(f"- {line}")
-    if errors:
+    if skipped_missing:
+        print()
+        print("Skipped missing assets")
+        print("----------------------")
+        for line in skipped_missing:
+            print(f"- {line}")
+    if result.unlinked_available:
+        print()
+        print("Unlinked available mappings")
+        print("---------------------------")
+        for line in result.unlinked_available:
+            print(f"- {line}")
+    if result.errors:
         print()
         print("Validation errors")
         print("-----------------")
-        for error in errors:
+        for error in result.errors:
             print(f"- {error}")
-    print(f"check_exit={0 if not errors else 1}")
+    print(f"check_exit={0 if not result.errors else 1}")
 
 
-def main() -> int:
-    args = parse_args()
-    payload, preflight_errors = run_preflight(args.db, args.mapping, args.image_dir)
+def main(argv: list[str] | None = None) -> int:
+    args = parse_args(argv)
+    payload, preflight_errors = run_preflight(
+        args.db,
+        args.mapping,
+        args.image_dir,
+        strict=args.strict,
+    )
     if payload is None or preflight_errors:
         print_preflight_errors(preflight_errors)
         return 1
@@ -671,22 +731,22 @@ def main() -> int:
     try:
         if args.check:
             with closing(connect_readonly(args.db)) as conn:
-                targets, target_errors = collect_targets(conn, payload, args.image_dir)
-                if target_errors:
-                    print_preflight_errors(target_errors)
+                collection = collect_targets(conn, payload, args.image_dir)
+                if collection.errors:
+                    print_preflight_errors(collection.errors)
                     return 1
-                check_errors, linked = check_targets(conn, targets)
-                print_check_results(check_errors, linked)
-                return 1 if check_errors else 0
+                check_result = check_targets(conn, collection.targets)
+                print_check_results(check_result, collection.skipped_missing)
+                return 1 if check_result.errors else 0
 
         with closing(connect_writable(args.db)) as conn:
-            targets, target_errors = collect_targets(conn, payload, args.image_dir)
-            if target_errors:
-                print_preflight_errors(target_errors)
+            collection = collect_targets(conn, payload, args.image_dir)
+            if collection.errors:
+                print_preflight_errors(collection.errors)
                 return 1
             with conn:
-                results = apply_targets(conn, targets)
-            print_apply_results(results)
+                results = apply_targets(conn, collection.targets)
+            print_apply_results(results, collection.skipped_missing)
             return 0
     except sqlite3.Error as exc:
         print(f"error: DB operation failed: {exc}", file=sys.stderr)
