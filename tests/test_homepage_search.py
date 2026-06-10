@@ -104,7 +104,7 @@ class HomepageSearchTest(unittest.TestCase):
         self.assertEqual(search_input.get("type"), "search")
         self.assertEqual(
             set((search_input.get("aria-controls") or "").split()),
-            {"home-search-dzi", "home-search-subjects", "home-search-results", "home-search-topics"},
+            {"home-search-dzi", "home-search-subjects"},
         )
         self.assertTrue(
             any(attrs.get("for") == "home-search-input" for _, attrs in parsed.elements("label"))
@@ -153,7 +153,8 @@ class HomepageSearchTest(unittest.TestCase):
         self.assertIsNotNone(section)
         self.assertIn("home-subject-section", _classes(section))
         self.assertEqual(section.get("data-home-search-group"), "subjects")
-        self.assertIn("#grades", parsed.hrefs())
+        for grade in (8, 9, 10, 11, 12):
+            self.assertIn(f"/grade/{grade}", parsed.hrefs())
         self.assertIn("/physics", parsed.hrefs())
         self.assertIn("Предмети", parsed.text)
         self.assertIn("6 предмета", parsed.text)
@@ -251,10 +252,15 @@ class HomepageSearchTest(unittest.TestCase):
 
         self.assertEqual(response.status_code, 404)
 
-    def test_logged_out_teacher_card_points_to_tester_login(self):
+    def test_homepage_omits_old_mode_class_and_topic_sections(self):
         html = self._get_home_html()
-        self._assert_login_link(html, "/tester/login", "/teacher/new")
-        self.assertIn("Учител", _HTMLProbe(html).text)
+        parsed = _HTMLProbe(html)
+
+        self.assertNotIn("Класове и раздели", parsed.text)
+        self.assertNotIn("Теми и раздели", parsed.text)
+        self.assertNotIn("Учебно съдържание", parsed.text)
+        self.assertIsNone(parsed.first("section", id="grades"))
+        self.assertIsNone(parsed.first("section", id="home-search-topics"))
 
     def test_mobile_profile_login_entry_is_rendered(self):
         html = self._get_home_html()
@@ -309,15 +315,16 @@ class HomepageSearchTest(unittest.TestCase):
         self.assertTrue(searchable_items)
         self.assertTrue(all(attrs.get("data-search-text") for attrs in searchable_items))
 
-    def test_grade_links_still_render(self):
+    def test_it_subject_card_links_to_existing_grade_routes(self):
         html = self._get_home_html()
         hrefs = _HTMLProbe(html).hrefs()
         for grade in (8, 9, 10, 11, 12):
             self.assertIn(f"/grade/{grade}", hrefs)
 
-    def test_searchable_sections_include_topic_titles(self):
+    def test_homepage_no_longer_lists_topic_titles(self):
         html = self._get_home_html()
-        # Pull one real section title from the DB and assert it appears
+        # Existing topic routes remain available, but topic listings are no longer
+        # rendered directly on the subject-first homepage.
         conn = web_app.quiz_db()
         try:
             row = conn.execute(
@@ -333,15 +340,8 @@ class HomepageSearchTest(unittest.TestCase):
             conn.close()
         self.assertIsNotNone(row, "expected at least one curriculum section in grades 8-12")
         parsed = _HTMLProbe(html)
-        self.assertIn(row["title_bg"], parsed.text)
-        self.assertIn(f"/section/{row['section_slug']}", parsed.hrefs())
-        self.assertTrue(
-            any(
-                row["title_bg"] in (attrs.get("data-search-text") or "")
-                and row["section_slug"] in (attrs.get("data-search-text") or "")
-                for _, attrs in parsed.elements()
-            )
-        )
+        self.assertNotIn(row["title_bg"], parsed.text)
+        self.assertNotIn(f"/section/{row['section_slug']}", parsed.hrefs())
 
     def test_no_results_message_present(self):
         html = self._get_home_html()
@@ -358,26 +358,17 @@ class HomepageSearchTest(unittest.TestCase):
         html = self._get_home_html()
         self.assertGreaterEqual(
             _HTMLProbe(html).ids(),
-            {"home-search-dzi", "home-search-subjects", "home-search-results", "home-search-topics"},
+            {"home-search-dzi", "home-search-subjects"},
         )
 
-    def test_topics_section_heading(self):
+    def test_topics_section_is_not_rendered_on_homepage(self):
         html = self._get_home_html()
         parsed = _HTMLProbe(html)
-        topics_section = parsed.first("section", id="home-search-topics")
-        topic_list = next(
-            (
-                attrs
-                for _, attrs in parsed.elements("ul")
-                if attrs.get("data-home-search-group") == "topics"
-            ),
-            None,
+        self.assertIsNone(parsed.first("section", id="home-search-topics"))
+        self.assertFalse(
+            any(attrs.get("data-home-search-group") == "topics" for _, attrs in parsed.elements())
         )
-
-        self.assertIsNotNone(topics_section)
-        self.assertIn("home-section--topics", _classes(topics_section))
-        self.assertIsNotNone(topic_list)
-        self.assertTrue(
+        self.assertFalse(
             any("topic-list-title" in _classes(attrs) for _, attrs in parsed.elements("span"))
         )
 
