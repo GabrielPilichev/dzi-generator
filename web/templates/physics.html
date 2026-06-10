@@ -38,12 +38,12 @@
     </div>
 
     <div class="cards physics-topic-grid">
-        {% for topic in topics %}
+        {% for placeholder_num in [1, 2, 3] %}
             <article class="card physics-topic-card">
-                <p class="eyebrow">{{ topic.eyebrow }}</p>
-                <h2>{{ topic.title }}</h2>
-                <p class="subtitle">{{ topic.description }}</p>
-                <span class="physics-topic-status">в подготовка</span>
+                <p class="eyebrow">Плейсхолдър {{ placeholder_num }}</p>
+                <h2>Тема в подготовка</h2>
+                <p class="subtitle">Тук ще се появи бъдеща тема по физика за {{ physics_grade }}. клас.</p>
+                <span class="physics-topic-status">В подготовка</span>
             </article>
         {% endfor %}
     </div>
@@ -96,9 +96,9 @@
                 <div>
                     <p class="eyebrow">Физика</p>
                     <h2>{{ grade }}. клас</h2>
-                    <p class="subtitle">Бъдещи теми и упражнения за {{ grade }}. клас.</p>
+                    <p class="subtitle">Място за бъдещи теми и упражнения за {{ grade }}. клас.</p>
                 </div>
-                <span class="physics-topic-status">в подготовка</span>
+                <span class="physics-topic-status">В подготовка</span>
             </a>
         {% endfor %}
     </div>
