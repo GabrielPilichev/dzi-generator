@@ -94,6 +94,7 @@ h2 {
 
 .nav-links { overflow-x: auto; scrollbar-width: none; }
 .nav-links::-webkit-scrollbar { display: none; }
+.nav-links:has(.nav-menu[open]) { overflow: visible; }
 .profile-switch { justify-content: flex-end; white-space: nowrap; }
 
 .nav-link,
@@ -135,6 +136,72 @@ h2 {
   border-color: var(--color-primary);
   color: #1a1410;
   cursor: default;
+}
+
+.nav-menu {
+  position: relative;
+  flex: 0 0 auto;
+}
+.nav-menu summary::-webkit-details-marker {
+  display: none;
+}
+.nav-menu-trigger {
+  list-style: none;
+  cursor: pointer;
+}
+.nav-menu-trigger::after {
+  content: "⌄";
+  margin-left: var(--space-1);
+  color: currentColor;
+  font-size: 0.78rem;
+  line-height: 1;
+}
+.nav-menu[open] .nav-menu-trigger::after {
+  transform: rotate(180deg);
+}
+.nav-menu[open] .nav-menu-trigger,
+.nav-menu-trigger--current {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #1a1410;
+}
+.nav-menu-panel {
+  position: absolute;
+  top: calc(100% + var(--space-2));
+  left: 0;
+  z-index: 80;
+  display: grid;
+  gap: var(--space-1);
+  min-width: 230px;
+  padding: var(--space-2);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: color-mix(in srgb, var(--color-bg) 96%, var(--color-bg-subtle));
+  box-shadow: var(--shadow-lg);
+}
+.nav-menu-link {
+  display: flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-md);
+  color: var(--color-text-muted);
+  font-size: 0.88rem;
+  font-weight: 750;
+  white-space: nowrap;
+}
+.nav-menu-link:hover {
+  text-decoration: none;
+  background: var(--color-primary-soft);
+  color: var(--color-text);
+}
+.nav-menu-link:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--color-primary) 36%, transparent);
+  outline-offset: 2px;
+}
+.nav-menu-link--current {
+  background: var(--color-primary);
+  color: #1a1410;
 }
 
 .profile-label {
@@ -3226,6 +3293,14 @@ code {
   .nav-links {
     min-width: 0;
     justify-content: flex-start;
+  }
+  .nav-menu-panel {
+    position: fixed;
+    top: calc(var(--space-3) + var(--header-height) + var(--space-2));
+    left: var(--space-3);
+    right: var(--space-3);
+    width: auto;
+    min-width: 0;
   }
   .profile-switch {
     display: none;

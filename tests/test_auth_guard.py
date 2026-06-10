@@ -263,6 +263,34 @@ class AuthGuardTest(unittest.TestCase):
 
         self._assert_single_current_nav_link(body, "/")
 
+    def test_authenticated_nav_groups_classes_and_subjects(self):
+        self._login_tester()
+        response = self.client.get("/")
+        self.assertEqual(response.status_code, 200)
+        body = response.get_data(as_text=True)
+        nav_match = re.search(
+            r'<nav\b(?=[^>]*class="[^"]*\bnav-links\b)[^>]*>(.*?)</nav>',
+            body,
+            flags=re.DOTALL,
+        )
+        self.assertIsNotNone(nav_match)
+        nav = nav_match.group(1)
+
+        self.assertIn(">Начало</a>", nav)
+        self.assertIn("Класове", nav)
+        self.assertIn("Предмети", nav)
+        self.assertIn("ДЗИ", nav)
+        for grade in (8, 9, 10, 11, 12):
+            self.assertIn(f'href="/grade/{grade}"', nav)
+            self.assertIn(f">{grade}. клас</a>", nav)
+            self.assertNotRegex(
+                nav,
+                rf'<a\b(?=[^>]*class="[^"]*\bnav-link\b)(?=[^>]*href="/grade/{grade}")',
+            )
+        self.assertIn("Информационни технологии", nav)
+        self.assertIn('href="/physics"', nav)
+        self.assertIn(">Физика</a>", nav)
+
     def test_current_dzi_nav_item_is_link_with_aria_current(self):
         self._login_tester()
         response = self.client.get("/section/grade12-dzi-preparation")
