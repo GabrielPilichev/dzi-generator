@@ -1438,6 +1438,11 @@ def index():
     )
 
 
+@app.route("/physics")
+def physics():
+    return render_template("physics.html")
+
+
 @app.route("/favicon.ico")
 def favicon():
     return send_file(PROJECT_ROOT / "web" / "static" / "img" / "brand" / "favicon.ico", mimetype="image/x-icon")

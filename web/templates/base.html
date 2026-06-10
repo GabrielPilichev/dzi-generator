@@ -47,6 +47,7 @@
                     <nav class="nav-links" aria-label="Съдържание">
                         {% set current_grade = request.view_args.grade if request.endpoint == 'grade_view' else none %}
                         {% set is_dzi_current = request.path == '/section/grade12-dzi-preparation' or (request.endpoint and request.endpoint.startswith('dzi')) %}
+                        {% set is_physics_current = request.endpoint == 'physics' %}
 
                         <a class="{% if request.endpoint == 'index' %}nav-current{% else %}nav-link{% endif %}"
                            href="{{ url_for('index') }}"
@@ -61,6 +62,10 @@
                         <a class="{% if is_dzi_current %}nav-current{% else %}nav-link{% endif %}"
                            href="{{ url_for('section_view', slug='grade12-dzi-preparation') }}"
                            {% if is_dzi_current %}aria-current="page"{% endif %}>ДЗИ</a>
+
+                        <a class="{% if is_physics_current %}nav-current{% else %}nav-link{% endif %}"
+                           href="{{ url_for('physics') }}"
+                           {% if is_physics_current %}aria-current="page"{% endif %}>Физика</a>
 
                         {% if ui_profile == "admin" %}
                             <a class="nav-link" href="{{ url_for('teacher_dashboard') }}">Учител</a>

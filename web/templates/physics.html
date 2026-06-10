@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}Физика{% endblock %}
+
+{% block breadcrumb %}
+    <a href="{{ url_for('index') }}">Начало</a>
+    <span>›</span>
+    Физика
+{% endblock %}
+
+{% block content %}
+<section class="hero physics-hero">
+    <p class="eyebrow">Предмет</p>
+    <h1>Физика</h1>
+    <p class="subtitle">
+        Нов раздел за бъдещи уроци, упражнения и тестове по физика. Съдържанието е в подготовка и все още няма добавени въпроси.
+    </p>
+    <div class="badges">
+        <span class="pill physics-pill">в подготовка</span>
+        <span class="pill">скоро</span>
+    </div>
+</section>
+
+<section class="panel physics-status-panel" aria-labelledby="physics-status-title">
+    <div>
+        <p class="eyebrow">Състояние</p>
+        <h2 id="physics-status-title">Съдържанието идва скоро</h2>
+        <p class="subtitle">
+            Това е само видима обвивка за предмета. Тук няма активни въпроси, оценяване или тестове по физика.
+        </p>
+    </div>
+    <span class="physics-soon">скоро</span>
+</section>
+
+<section class="home-section" aria-labelledby="physics-topics-title">
+    <div class="section-heading">
+        <div>
+            <p class="eyebrow">Бъдещи теми</p>
+            <h2 id="physics-topics-title">Раздели в подготовка</h2>
+        </div>
+        <span class="pill">плейсхолдъри</span>
+    </div>
+
+    <div class="cards physics-topic-grid">
+        <article class="card physics-topic-card">
+            <p class="eyebrow">Механика</p>
+            <h2>Движение и сили</h2>
+            <p class="subtitle">Основни понятия за движение, взаимодействие и закони на Нютон.</p>
+            <span class="physics-topic-status">в подготовка</span>
+        </article>
+
+        <article class="card physics-topic-card">
+            <p class="eyebrow">Електричество</p>
+            <h2>Ток и вериги</h2>
+            <p class="subtitle">Бъдещи упражнения за заряд, напрежение, съпротивление и електрически вериги.</p>
+            <span class="physics-topic-status">скоро</span>
+        </article>
+
+        <article class="card physics-topic-card">
+            <p class="eyebrow">Вълни и оптика</p>
+            <h2>Светлина и звук</h2>
+            <p class="subtitle">Плейсхолдър за теми с вълнови явления, лещи, отражение и пречупване.</p>
+            <span class="physics-topic-status">в подготовка</span>
+        </article>
+
+        <article class="card physics-topic-card">
+            <p class="eyebrow">Термодинамика</p>
+            <h2>Топлина и енергия</h2>
+            <p class="subtitle">Място за бъдещи задачи за температура, топлина и енергийни процеси.</p>
+            <span class="physics-topic-status">скоро</span>
+        </article>
+    </div>
+</section>
+
+<p class="empty-state physics-empty-state">
+    В този раздел все още няма реални въпроси. Когато материалите са готови, те ще се появят тук като отделни теми и тестове.
+</p>
+{% endblock %}
