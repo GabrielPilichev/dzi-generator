@@ -53,24 +53,34 @@
                            href="{{ url_for('index') }}"
                            {% if request.endpoint == 'index' %}aria-current="page"{% endif %}>Начало</a>
 
-                        <details class="nav-menu">
-                            <summary class="nav-link nav-menu-trigger {% if current_grade %}nav-menu-trigger--current{% endif %}">
+                        <div class="nav-menu">
+                            <button
+                                class="nav-link nav-menu-trigger {% if current_grade %}nav-menu-trigger--current{% endif %}"
+                                type="button"
+                                aria-expanded="false"
+                                aria-controls="nav-menu-classes"
+                            >
                                 Класове
-                            </summary>
-                            <div class="nav-menu-panel">
+                            </button>
+                            <div class="nav-menu-panel" id="nav-menu-classes" hidden>
                                 {% for grade_num in [8, 9, 10, 11, 12] %}
                                     <a class="nav-menu-link {% if current_grade == grade_num %}nav-menu-link--current{% endif %}"
                                        href="{{ url_for('grade_view', grade=grade_num) }}"
                                        {% if current_grade == grade_num %}aria-current="page"{% endif %}>{{ grade_num }}. клас</a>
                                 {% endfor %}
                             </div>
-                        </details>
+                        </div>
 
-                        <details class="nav-menu">
-                            <summary class="nav-link nav-menu-trigger {% if is_physics_current %}nav-menu-trigger--current{% endif %}">
+                        <div class="nav-menu">
+                            <button
+                                class="nav-link nav-menu-trigger {% if is_physics_current %}nav-menu-trigger--current{% endif %}"
+                                type="button"
+                                aria-expanded="false"
+                                aria-controls="nav-menu-subjects"
+                            >
                                 Предмети
-                            </summary>
-                            <div class="nav-menu-panel">
+                            </button>
+                            <div class="nav-menu-panel" id="nav-menu-subjects" hidden>
                                 <a class="nav-menu-link" href="{{ url_for('index') }}#grades">
                                     Информационни технологии
                                 </a>
@@ -78,7 +88,7 @@
                                    href="{{ url_for('physics') }}"
                                    {% if is_physics_current %}aria-current="page"{% endif %}>Физика</a>
                             </div>
-                        </details>
+                        </div>
 
                         <a class="{% if is_dzi_current %}nav-current{% else %}nav-link{% endif %}"
                            href="{{ url_for('section_view', slug='grade12-dzi-preparation') }}"
@@ -142,5 +152,60 @@
             {% if source_url %}<a href="{{ source_url }}">source</a>{% endif %}
         </footer>
     </div>
+    <script>
+        (function () {
+            const menus = Array.from(document.querySelectorAll(".nav-menu"));
+            if (menus.length === 0) return;
+
+            function setMenuOpen(menu, isOpen) {
+                const trigger = menu.querySelector(".nav-menu-trigger");
+                const panel = trigger ? document.getElementById(trigger.getAttribute("aria-controls")) : null;
+
+                menu.classList.toggle("is-open", isOpen);
+                if (trigger) {
+                    trigger.setAttribute("aria-expanded", isOpen ? "true" : "false");
+                }
+                if (panel) {
+                    panel.hidden = !isOpen;
+                }
+            }
+
+            function closeMenus(except) {
+                menus.forEach(function (menu) {
+                    if (menu !== except) {
+                        setMenuOpen(menu, false);
+                    }
+                });
+            }
+
+            menus.forEach(function (menu) {
+                const trigger = menu.querySelector(".nav-menu-trigger");
+                if (!trigger) return;
+
+                trigger.addEventListener("click", function () {
+                    const shouldOpen = !menu.classList.contains("is-open");
+                    closeMenus(menu);
+                    setMenuOpen(menu, shouldOpen);
+                });
+            });
+
+            document.addEventListener("click", function (event) {
+                if (!menus.some(function (menu) { return menu.contains(event.target); })) {
+                    closeMenus();
+                }
+            });
+
+            document.addEventListener("keydown", function (event) {
+                if (event.key === "Escape") {
+                    const activeMenu = document.activeElement ? document.activeElement.closest(".nav-menu") : null;
+                    closeMenus();
+                    if (activeMenu) {
+                        const trigger = activeMenu.querySelector(".nav-menu-trigger");
+                        if (trigger) trigger.focus();
+                    }
+                }
+            });
+        })();
+    </script>
 </body>
 </html>

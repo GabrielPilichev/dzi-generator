@@ -291,6 +291,34 @@ class AuthGuardTest(unittest.TestCase):
         self.assertIn('href="/physics"', nav)
         self.assertIn(">Физика</a>", nav)
 
+    def test_nav_dropdowns_use_single_explicit_open_state(self):
+        self._login_tester()
+        response = self.client.get("/")
+        self.assertEqual(response.status_code, 200)
+        body = response.get_data(as_text=True)
+        nav = re.search(
+            r'<nav\b(?=[^>]*class="[^"]*\bnav-links\b)[^>]*>(.*?)</nav>',
+            body,
+            flags=re.DOTALL,
+        ).group(1)
+        css = (_ROOT / "web" / "static" / "css" / "ui-pass9.css").read_text(encoding="utf-8")
+
+        self.assertNotIn('<details class="nav-menu"', nav)
+        self.assertIn('aria-expanded="false"', nav)
+        self.assertIn('aria-controls="nav-menu-classes"', nav)
+        self.assertIn('aria-controls="nav-menu-subjects"', nav)
+        self.assertIn('id="nav-menu-classes" hidden', nav)
+        self.assertIn('id="nav-menu-subjects" hidden', nav)
+        self.assertIn('classList.toggle("is-open"', body)
+        self.assertIn('setMenuOpen(menu, false)', body)
+        self.assertIn("panel.hidden = !isOpen", body)
+        self.assertIn('document.addEventListener("click"', body)
+        self.assertIn('event.key === "Escape"', body)
+        self.assertIn(".nav-links:has(.nav-menu.is-open)", css)
+        self.assertNotIn(".nav-menu[open]", css)
+        self.assertRegex(css, r"\.nav-menu-panel\s*\{[^}]*display:\s*none")
+        self.assertRegex(css, r"\.nav-menu\.is-open \.nav-menu-panel:not\(\[hidden\]\)\s*\{[^}]*display:\s*grid")
+
     def test_current_dzi_nav_item_is_link_with_aria_current(self):
         self._login_tester()
         response = self.client.get("/section/grade12-dzi-preparation")

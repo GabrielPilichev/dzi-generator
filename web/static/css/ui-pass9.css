@@ -94,7 +94,7 @@ h2 {
 
 .nav-links { overflow-x: auto; scrollbar-width: none; }
 .nav-links::-webkit-scrollbar { display: none; }
-.nav-links:has(.nav-menu[open]) { overflow: visible; }
+.nav-links:has(.nav-menu.is-open) { overflow: visible; }
 .profile-switch { justify-content: flex-end; white-space: nowrap; }
 
 .nav-link,
@@ -142,10 +142,9 @@ h2 {
   position: relative;
   flex: 0 0 auto;
 }
-.nav-menu summary::-webkit-details-marker {
-  display: none;
-}
 .nav-menu-trigger {
+  appearance: none;
+  font-family: inherit;
   list-style: none;
   cursor: pointer;
 }
@@ -156,10 +155,10 @@ h2 {
   font-size: 0.78rem;
   line-height: 1;
 }
-.nav-menu[open] .nav-menu-trigger::after {
+.nav-menu.is-open .nav-menu-trigger::after {
   transform: rotate(180deg);
 }
-.nav-menu[open] .nav-menu-trigger,
+.nav-menu.is-open .nav-menu-trigger,
 .nav-menu-trigger--current {
   background: var(--color-primary);
   border-color: var(--color-primary);
@@ -170,7 +169,7 @@ h2 {
   top: calc(100% + var(--space-2));
   left: 0;
   z-index: 80;
-  display: grid;
+  display: none;
   gap: var(--space-1);
   min-width: 230px;
   padding: var(--space-2);
@@ -178,6 +177,9 @@ h2 {
   border-radius: var(--radius-lg);
   background: color-mix(in srgb, var(--color-bg) 96%, var(--color-bg-subtle));
   box-shadow: var(--shadow-lg);
+}
+.nav-menu.is-open .nav-menu-panel:not([hidden]) {
+  display: grid;
 }
 .nav-menu-link {
   display: flex;
