@@ -112,14 +112,17 @@ class AuthGuardTest(unittest.TestCase):
         self.assertIn("/teacher/assignment/", location)
         return location
 
-    def _assert_single_current_nav_link(self, body: str, href: str):
+    def _nav_markup(self, body: str) -> str:
         nav_match = re.search(
             r'<nav\b(?=[^>]*class="[^"]*\bnav-links\b)[^>]*>(.*?)</nav>',
             body,
             flags=re.DOTALL,
         )
         self.assertIsNotNone(nav_match)
-        nav = nav_match.group(1)
+        return nav_match.group(1)
+
+    def _assert_single_current_nav_link(self, body: str, href: str):
+        nav = self._nav_markup(body)
         current_links = [
             tag
             for tag in re.findall(r"<a\b[^>]*>", nav)
@@ -267,14 +270,7 @@ class AuthGuardTest(unittest.TestCase):
         self._login_tester()
         response = self.client.get("/")
         self.assertEqual(response.status_code, 200)
-        body = response.get_data(as_text=True)
-        nav_match = re.search(
-            r'<nav\b(?=[^>]*class="[^"]*\bnav-links\b)[^>]*>(.*?)</nav>',
-            body,
-            flags=re.DOTALL,
-        )
-        self.assertIsNotNone(nav_match)
-        nav = nav_match.group(1)
+        nav = self._nav_markup(response.get_data(as_text=True))
 
         self.assertIn(">Начало</a>", nav)
         self.assertIn("Класове", nav)
@@ -290,6 +286,36 @@ class AuthGuardTest(unittest.TestCase):
         self.assertIn("Информационни технологии", nav)
         self.assertIn('href="/physics"', nav)
         self.assertIn(">Физика</a>", nav)
+        self.assertNotRegex(
+            nav,
+            r'<a\b(?=[^>]*class="[^"]*\bnav-link\b)(?=[^>]*href="/physics")',
+        )
+
+    def test_admin_nav_uses_same_grouped_structure(self):
+        self._login_admin()
+        response = self.client.get("/")
+        self.assertEqual(response.status_code, 200)
+        body = response.get_data(as_text=True)
+        nav = self._nav_markup(body)
+
+        self.assertIn(">Начало</a>", nav)
+        self.assertIn("Класове", nav)
+        self.assertIn("Предмети", nav)
+        self.assertIn("ДЗИ", nav)
+        for grade in (8, 9, 10, 11, 12):
+            self.assertIn(f'href="/grade/{grade}"', nav)
+            self.assertNotRegex(
+                nav,
+                rf'<a\b(?=[^>]*class="[^"]*\bnav-link\b)(?=[^>]*href="/grade/{grade}")',
+            )
+        self.assertIn("Информационни технологии", nav)
+        self.assertIn('href="/physics"', nav)
+        self.assertNotRegex(
+            nav,
+            r'<a\b(?=[^>]*class="[^"]*\bnav-link\b)(?=[^>]*href="/physics")',
+        )
+        self.assertIn("Админ", body)
+        self.assertIn("Изход", body)
 
     def test_current_dzi_nav_item_is_link_with_aria_current(self):
         self._login_tester()
