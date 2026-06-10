@@ -706,6 +706,37 @@ button:disabled:hover,
   color: var(--color-text-muted);
   font-weight: 650;
 }
+.home-subject-class-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: auto;
+  padding-top: var(--space-5);
+}
+.home-subject-class-links a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  background: var(--color-bg-subtle);
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+  font-weight: 850;
+}
+.home-subject-class-links a:hover {
+  text-decoration: none;
+  border-color: var(--color-border-strong);
+  background: var(--color-primary-soft);
+  color: var(--color-text);
+}
+.home-subject-class-links a:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--color-primary) 36%, transparent);
+  outline-offset: 2px;
+  border-color: var(--color-primary);
+}
 .home-subject-status {
   display: inline-flex;
   align-items: center;
@@ -3404,6 +3435,9 @@ code {
   .home-subject-stats {
     flex-direction: column;
     gap: var(--space-1);
+  }
+  .home-subject-class-links {
+    padding-top: var(--space-3);
   }
   .physics-status-panel {
     grid-template-columns: 1fr;

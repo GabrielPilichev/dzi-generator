@@ -38,15 +38,15 @@
         <span>{{ total_questions.value }} въпроса</span>
         <span>{{ grades|length }} класа</span>
     </div>
-    <form class="home-search" role="search" aria-label="Търсене по теми" onsubmit="return false;">
-        <label class="home-search-label" for="home-search-input">Търсене по теми</label>
+    <form class="home-search" role="search" aria-label="Търсене по предмети" onsubmit="return false;">
+        <label class="home-search-label" for="home-search-input">Търсене по предмети</label>
         <input
             id="home-search-input"
             type="search"
             class="home-search-input"
-            placeholder="Търси тема, раздел или клас…"
+            placeholder="Търси предмет или ДЗИ…"
             autocomplete="off"
-            aria-controls="home-search-dzi home-search-subjects home-search-results home-search-topics"
+            aria-controls="home-search-dzi home-search-subjects"
         >
         <p id="home-search-empty" class="home-search-empty" role="status" aria-live="polite" hidden>Няма съвпадения. Опитайте с друга дума.</p>
     </form>
@@ -97,9 +97,8 @@
     </div>
 
     <div class="home-subject-grid">
-        <a
+        <article
             class="mode-card home-subject-card home-subject-card--it"
-            href="#grades"
             data-search-item
             data-search-text="Информационни технологии ИТ informatsionni tehnologii 8. клас 9. клас 10. клас 11. клас 12. клас теми въпроси тестове"
         >
@@ -114,8 +113,12 @@
                     <span>{{ total_questions.value }} въпроса</span>
                 </div>
             </div>
-            <span class="mode-action">Към класовете</span>
-        </a>
+            <div class="home-subject-class-links" aria-label="Класове по информационни технологии">
+                {% for g in grades|sort(attribute='grade') %}
+                    <a href="{{ url_for('grade_view', grade=g.grade) }}">{{ g.grade }}. клас</a>
+                {% endfor %}
+            </div>
+        </article>
 
         <a
             class="mode-card mode-card--physics home-subject-card home-subject-card--physics"
@@ -159,107 +162,6 @@
         {% endfor %}
     </div>
 </section>
-
-<section class="mode-grid" aria-label="Основни режими">
-    <a href="#grades" class="mode-card">
-        <p class="eyebrow">Преглед</p>
-        <h2>Класове и раздели</h2>
-        <p class="subtitle">Бърз достъп до учебните теми, въпроси и обобщения.</p>
-        <span class="mode-action">Разгледай класовете</span>
-    </a>
-
-    {% if can_generate_tests %}
-        <a href="{{ url_for('teacher_new') }}" class="mode-card">
-            <p class="eyebrow">Тестове</p>
-            <h2>Нов тест</h2>
-            <p class="subtitle">Създай тренировъчен тест от наличните въпроси.</p>
-            <span class="mode-action">Създай тест</span>
-        </a>
-    {% endif %}
-
-    {% if admin_authenticated %}
-        <a href="{{ url_for('teacher_dashboard') }}" class="mode-card">
-            <p class="eyebrow">Учител</p>
-            <h2>Управление</h2>
-            <p class="subtitle">Преглед на задания, резултати и учителски инструменти.</p>
-            <span class="mode-action">Отвори панела</span>
-        </a>
-    {% else %}
-        <a href="{{ url_for('tester_login', next=url_for('teacher_new')) }}" class="mode-card">
-            <p class="eyebrow">Учител</p>
-            <h2>Създаване на тест</h2>
-            <p class="subtitle">Влез, за да използваш учителските инструменти и заданията.</p>
-            <span class="mode-action">Вход за учител</span>
-        </a>
-    {% endif %}
-</section>
-
-<section id="grades" class="home-section">
-    <div class="section-heading">
-        <div>
-            <p class="eyebrow">Учебно съдържание</p>
-            <h2>Класове</h2>
-        </div>
-        <span class="pill">{{ total_questions.value }} въпроса общо</span>
-    </div>
-
-    <div class="grade-grid" id="home-search-results" data-home-search-group="grades">
-        {% for g in grades|sort(attribute='grade') %}
-            <a href="{{ url_for('grade_view', grade=g.grade) }}"
-               class="grade-card {% if g.question_count == 0 %}disabled{% endif %}"
-               data-search-item
-               data-search-text="{{ g.grade }}. клас {{ g.grade }} клас grade{{ g.grade }}">
-                <span class="grade-card-ghost">{{ g.grade }}</span>
-                <div class="label">{{ g.grade }}. клас</div>
-                <div class="stat-row">
-                    <div class="stat-box">
-                        <span class="stat-number">{{ g.question_count }}</span>
-                        <span class="stat-label">въпроса</span>
-                    </div>
-                    <div class="stat-box">
-                        <span class="stat-number">{{ g.topic_count }}</span>
-                        <span class="stat-label">теми</span>
-                    </div>
-                </div>
-            </a>
-        {% else %}
-            <p class="empty-state">Все още няма публикувани класове за преглед.</p>
-        {% endfor %}
-    </div>
-</section>
-
-{% if searchable_sections %}
-<section id="home-search-topics" class="home-section home-section--topics">
-    <div class="section-heading">
-        <div>
-            <p class="eyebrow">Учебно съдържание</p>
-            <h2>Теми и раздели</h2>
-        </div>
-        <span class="pill">{{ searchable_sections|length }} раздела</span>
-    </div>
-
-    <ul class="topic-list" data-home-search-group="topics">
-        {% for s in searchable_sections %}
-            <li
-                class="topic-list-item"
-                data-search-item
-                data-search-text="{{ s.grade }}. клас {{ s.section_title }} {{ s.module_title or '' }} {{ s.section_slug }}"
-            >
-                <a
-                    class="topic-list-link"
-                    href="{{ url_for('section_view', slug=s.section_slug) }}"
-                >
-                    <span class="topic-list-grade">{{ s.grade }}. клас</span>
-                    <span class="topic-list-title">{{ s.section_title }}</span>
-                    {% if s.module_title %}
-                        <span class="topic-list-module">{{ s.module_title }}</span>
-                    {% endif %}
-                </a>
-            </li>
-        {% endfor %}
-    </ul>
-</section>
-{% endif %}
 
 <script src="{{ url_for('static', filename='js/home-search.js') }}" defer></script>
 {% endblock %}
