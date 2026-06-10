@@ -24,44 +24,10 @@
             class="home-search-input"
             placeholder="Търси тема, раздел или клас…"
             autocomplete="off"
-            aria-controls="home-search-dzi home-search-physics home-search-results home-search-topics"
+            aria-controls="home-search-dzi home-search-subjects home-search-results home-search-topics"
         >
         <p id="home-search-empty" class="home-search-empty" role="status" aria-live="polite" hidden>Няма съвпадения. Опитайте с друга дума.</p>
     </form>
-</section>
-
-<section class="mode-grid" aria-label="Основни режими">
-    <a href="#grades" class="mode-card">
-        <p class="eyebrow">Преглед</p>
-        <h2>Класове и раздели</h2>
-        <p class="subtitle">Бърз достъп до учебните теми, въпроси и обобщения.</p>
-        <span class="mode-action">Разгледай класовете</span>
-    </a>
-
-    {% if can_generate_tests %}
-        <a href="{{ url_for('teacher_new') }}" class="mode-card">
-            <p class="eyebrow">Тестове</p>
-            <h2>Нов тест</h2>
-            <p class="subtitle">Създай тренировъчен тест от наличните въпроси.</p>
-            <span class="mode-action">Създай тест</span>
-        </a>
-    {% endif %}
-
-    {% if admin_authenticated %}
-        <a href="{{ url_for('teacher_dashboard') }}" class="mode-card">
-            <p class="eyebrow">Учител</p>
-            <h2>Управление</h2>
-            <p class="subtitle">Преглед на задания, резултати и учителски инструменти.</p>
-            <span class="mode-action">Отвори панела</span>
-        </a>
-    {% else %}
-        <a href="{{ url_for('tester_login', next=url_for('teacher_new')) }}" class="mode-card">
-            <p class="eyebrow">Учител</p>
-            <h2>Създаване на тест</h2>
-            <p class="subtitle">Влез, за да използваш учителските инструменти и заданията.</p>
-            <span class="mode-action">Вход за учител</span>
-        </a>
-    {% endif %}
 </section>
 
 <section id="home-search-dzi" class="home-section home-dzi-section" data-home-search-group="dzi">
@@ -99,34 +65,91 @@
     </a>
 </section>
 
-<section id="home-search-physics" class="home-section home-physics-section" data-home-search-group="physics">
+<section id="home-search-subjects" class="home-section home-subject-section" data-home-search-group="subjects">
     <div class="section-heading">
         <div>
-            <p class="eyebrow">Нов предмет</p>
-            <h2>Физика</h2>
+            <p class="eyebrow">Предмети</p>
+            <h2>Избери предмет</h2>
         </div>
-        <span class="pill">в подготовка</span>
+        <span class="pill">2 предмета</span>
     </div>
-    <a
-        class="mode-card mode-card--physics home-physics-card"
-        href="{{ url_for('physics') }}"
-        data-search-item
-        data-search-text="Физика physics природни науки 8. клас 9. клас 10. клас 11. клас 12. клас скоро в подготовка"
-    >
-        <div>
-            <p class="eyebrow">Предмет</p>
-            <h2 class="home-physics-title">Физика</h2>
-            <p class="subtitle">
-                Обособен раздел по класове за бъдещи теми по физика. Въпросите и тестовете са в подготовка.
-            </p>
-            <div class="home-physics-stats">
-                <span>8.–12. клас</span>
-                <span>В подготовка</span>
+
+    <div class="home-subject-grid">
+        <a
+            class="mode-card home-subject-card home-subject-card--it"
+            href="#grades"
+            data-search-item
+            data-search-text="Информационни технологии ИТ informatsionni tehnologii 8. клас 9. клас 10. клас 11. клас 12. клас теми въпроси тестове"
+        >
+            <div>
+                <p class="eyebrow">Активен предмет</p>
+                <h2 class="home-subject-title">Информационни технологии</h2>
+                <p class="subtitle">
+                    Класове, теми, въпроси и тренировъчни тестове от текущото съдържание.
+                </p>
+                <div class="home-subject-stats">
+                    <span>{{ grades|length }} класа</span>
+                    <span>{{ total_questions.value }} въпроса</span>
+                </div>
             </div>
+            <span class="mode-action">Към класовете</span>
+        </a>
+
+        <a
+            class="mode-card mode-card--physics home-subject-card home-subject-card--physics"
+            href="{{ url_for('physics') }}"
+            data-search-item
+            data-search-text="Физика physics природни науки 8. клас 9. клас 10. клас 11. клас 12. клас в подготовка"
+        >
+            <div>
+                <p class="eyebrow">Предмет</p>
+                <h2 class="home-subject-title">Физика</h2>
+                <p class="subtitle">
+                    Обособен раздел по класове за бъдещи теми по физика. Въпросите и тестовете са в подготовка.
+                </p>
+                <div class="home-subject-stats">
+                    <span>8.–12. клас</span>
+                    <span>В подготовка</span>
+                </div>
+            </div>
+            <span class="home-subject-status">В подготовка</span>
             <span class="mode-action">Към Физика</span>
-        </div>
-        <span class="home-physics-icon" aria-hidden="true">Ф</span>
+        </a>
+    </div>
+</section>
+
+<section class="mode-grid" aria-label="Основни режими">
+    <a href="#grades" class="mode-card">
+        <p class="eyebrow">Преглед</p>
+        <h2>Класове и раздели</h2>
+        <p class="subtitle">Бърз достъп до учебните теми, въпроси и обобщения.</p>
+        <span class="mode-action">Разгледай класовете</span>
     </a>
+
+    {% if can_generate_tests %}
+        <a href="{{ url_for('teacher_new') }}" class="mode-card">
+            <p class="eyebrow">Тестове</p>
+            <h2>Нов тест</h2>
+            <p class="subtitle">Създай тренировъчен тест от наличните въпроси.</p>
+            <span class="mode-action">Създай тест</span>
+        </a>
+    {% endif %}
+
+    {% if admin_authenticated %}
+        <a href="{{ url_for('teacher_dashboard') }}" class="mode-card">
+            <p class="eyebrow">Учител</p>
+            <h2>Управление</h2>
+            <p class="subtitle">Преглед на задания, резултати и учителски инструменти.</p>
+            <span class="mode-action">Отвори панела</span>
+        </a>
+    {% else %}
+        <a href="{{ url_for('tester_login', next=url_for('teacher_new')) }}" class="mode-card">
+            <p class="eyebrow">Учител</p>
+            <h2>Създаване на тест</h2>
+            <p class="subtitle">Влез, за да използваш учителските инструменти и заданията.</p>
+            <span class="mode-action">Вход за учител</span>
+        </a>
+    {% endif %}
 </section>
 
 <section id="grades" class="home-section">
