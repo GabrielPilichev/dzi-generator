@@ -290,6 +290,10 @@ class AuthGuardTest(unittest.TestCase):
         self.assertIn("Информационни технологии", nav)
         self.assertIn('href="/physics"', nav)
         self.assertIn(">Физика</a>", nav)
+        for subject in ("Информатика", "Биология", "Математика", "Химия"):
+            self.assertIn(subject, nav)
+        self.assertIn("В подготовка", nav)
+        self.assertIn('aria-disabled="true"', nav)
 
     def test_nav_dropdowns_use_single_explicit_open_state(self):
         self._login_tester()
