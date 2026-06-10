@@ -184,6 +184,7 @@ class HomepageSearchTest(unittest.TestCase):
         self.assertIn("Физика", parsed.text)
         self.assertIn("Съдържанието идва скоро", parsed.text)
         self.assertIn("Избери клас", parsed.text)
+        self.assertLess(parsed.text.index("Избери клас"), parsed.text.index("Съдържанието идва скоро"))
         for grade in (8, 9, 10, 11, 12):
             self.assertIn(f"{grade}. клас", parsed.text)
             self.assertIn(f"/physics/grade/{grade}", parsed.hrefs())
@@ -191,17 +192,19 @@ class HomepageSearchTest(unittest.TestCase):
         self.assertNotIn("Движение и сили", parsed.text)
         self.assertIn("все още няма реални въпроси", parsed.text)
 
-    def test_physics_grade_page_renders_topic_placeholders(self):
+    def test_physics_grade_page_renders_preparation_placeholders(self):
         response = self.client.get("/physics/grade/8")
 
         self.assertEqual(response.status_code, 200)
         parsed = _HTMLProbe(response.get_data(as_text=True))
         self.assertIn("Физика", parsed.text)
         self.assertIn("8. клас", parsed.text)
-        self.assertIn("Теми за 8. клас", parsed.text)
-        self.assertIn("Тема в подготовка", parsed.text)
-        self.assertIn("Плейсхолдър 1", parsed.text)
+        self.assertIn("Темите за 8. клас са в подготовка", parsed.text)
+        self.assertIn("Какво ще се добави", parsed.text)
+        for placeholder in ("Теми", "Упражнения", "Тестове"):
+            self.assertIn(placeholder, parsed.text)
         self.assertIn("В подготовка", parsed.text)
+        self.assertNotIn("Плейсхолдър 1", parsed.text)
         self.assertNotIn("Физични величини и измерване", parsed.text)
         self.assertNotIn("Движение и сили", parsed.text)
         self.assertIn("Реални въпроси, оценки и тестове по физика още не са добавени", parsed.text)

@@ -12,12 +12,17 @@
   {% if visual_assets %}
     <div class="question-visual-assets">
       {% for asset in visual_assets %}
+        {% set caption = (asset.caption or "")|trim %}
+        {% set has_debug_caption = caption.startswith("DZI ") and " Q" in caption %}
         <figure class="question-visual">
           <img
             src="{{ url_for('static', filename=asset.static_filename) }}"
             alt="{{ asset.alt_text }}"
             loading="lazy"
           >
+          {% if caption and not has_debug_caption %}
+            <figcaption class="question-media-caption">{{ caption }}</figcaption>
+          {% endif %}
         </figure>
       {% endfor %}
     </div>
