@@ -20,30 +20,41 @@
     <p class="eyebrow">Физика</p>
     <h1>{{ physics_grade }}. клас</h1>
     <p class="subtitle">
-        Плейсхолдър за бъдещото съдържание по физика за {{ physics_grade }}. клас. Темите са в подготовка и все още няма активни въпроси.
+        Обвивка за бъдещото съдържание по физика за {{ physics_grade }}. клас. Темите, упражненията и тестовете са в подготовка.
     </p>
     <div class="badges">
         <span class="pill physics-pill">в подготовка</span>
-        <span class="pill">скоро</span>
+        <span class="pill">без активни въпроси</span>
     </div>
 </section>
 
-<section class="home-section" aria-labelledby="physics-grade-topics-title">
+<section class="panel physics-status-panel physics-grade-shell" aria-labelledby="physics-grade-shell-title">
+    <div>
+        <p class="eyebrow">Бъдещи теми</p>
+        <h2 id="physics-grade-shell-title">Темите за {{ physics_grade }}. клас са в подготовка</h2>
+        <p class="subtitle">
+            Тук ще се появи списъкът с теми по физика, когато учебното съдържание е готово.
+        </p>
+    </div>
+    <span class="physics-soon">В подготовка</span>
+</section>
+
+<section class="home-section" aria-labelledby="physics-grade-placeholders-title">
     <div class="section-heading">
         <div>
-            <p class="eyebrow">Бъдещи теми</p>
-            <h2 id="physics-grade-topics-title">Теми за {{ physics_grade }}. клас</h2>
+            <p class="eyebrow">Структура</p>
+            <h2 id="physics-grade-placeholders-title">Какво ще се добави</h2>
         </div>
-        <span class="pill">плейсхолдъри</span>
+        <span class="pill">В подготовка</span>
     </div>
 
-    <div class="cards physics-topic-grid">
-        {% for placeholder_num in [1, 2, 3] %}
-            <article class="card physics-topic-card">
-                <p class="eyebrow">Плейсхолдър {{ placeholder_num }}</p>
-                <h2>Тема в подготовка</h2>
-                <p class="subtitle">Тук ще се появи бъдеща тема по физика за {{ physics_grade }}. клас.</p>
-                <span class="physics-topic-status">В подготовка</span>
+    <div class="cards physics-placeholder-grid">
+        {% for placeholder in ["Теми", "Упражнения", "Тестове"] %}
+            <article class="card physics-placeholder-card">
+                <p class="eyebrow">{{ placeholder }}</p>
+                <h2>В подготовка</h2>
+                <p class="subtitle">Място за бъдещо съдържание по физика за {{ physics_grade }}. клас.</p>
+                <span class="physics-status-badge">В подготовка</span>
             </article>
         {% endfor %}
     </div>
@@ -69,17 +80,6 @@
     </div>
 </section>
 
-<section class="panel physics-status-panel" aria-labelledby="physics-status-title">
-    <div>
-        <p class="eyebrow">Състояние</p>
-        <h2 id="physics-status-title">Съдържанието идва скоро</h2>
-        <p class="subtitle">
-            Това е само видима обвивка за предмета. Избери клас, за да видиш бъдещите теми в подготовка.
-        </p>
-    </div>
-    <span class="physics-soon">скоро</span>
-</section>
-
 <section class="home-section" aria-labelledby="physics-classes-title">
     <div class="section-heading">
         <div>
@@ -98,10 +98,21 @@
                     <h2>{{ grade }}. клас</h2>
                     <p class="subtitle">Място за бъдещи теми и упражнения за {{ grade }}. клас.</p>
                 </div>
-                <span class="physics-topic-status">В подготовка</span>
+                <span class="physics-status-badge">В подготовка</span>
             </a>
         {% endfor %}
     </div>
+</section>
+
+<section class="panel physics-status-panel" aria-labelledby="physics-status-title">
+    <div>
+        <p class="eyebrow">Състояние</p>
+        <h2 id="physics-status-title">Съдържанието идва скоро</h2>
+        <p class="subtitle">
+            Това е само видима обвивка за предмета. Избери клас, за да видиш бъдещите теми в подготовка.
+        </p>
+    </div>
+    <span class="physics-soon">В подготовка</span>
 </section>
 
 <p class="empty-state physics-empty-state">

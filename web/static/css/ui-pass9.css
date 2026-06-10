@@ -707,7 +707,7 @@ button:disabled:hover,
   background: linear-gradient(135deg, var(--color-bg), color-mix(in srgb, var(--color-success-soft) 62%, var(--color-bg)));
 }
 .physics-pill,
-.physics-topic-status {
+.physics-status-badge {
   border-color: color-mix(in srgb, var(--color-success) 42%, var(--color-border));
   background: color-mix(in srgb, var(--color-success-soft) 70%, var(--color-bg));
   color: color-mix(in srgb, var(--color-success) 84%, var(--color-text));
@@ -725,6 +725,9 @@ button:disabled:hover,
 }
 .physics-status-panel .subtitle {
   max-width: 720px;
+}
+.physics-grade-shell {
+  margin-top: var(--space-2);
 }
 .physics-soon {
   display: inline-flex;
@@ -784,23 +787,23 @@ button:disabled:hover,
   font-weight: 950;
   line-height: 1;
 }
-.physics-topic-grid {
+.physics-placeholder-grid {
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
-.physics-topic-card {
+.physics-placeholder-card {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
   border-top: 3px solid color-mix(in srgb, var(--color-success) 68%, var(--color-primary));
 }
-.physics-topic-card h2 {
+.physics-placeholder-card h2 {
   margin-bottom: 0;
   font-size: 1.1rem;
 }
-.physics-topic-card .subtitle {
+.physics-placeholder-card .subtitle {
   margin: 0;
 }
-.physics-topic-status {
+.physics-status-badge {
   align-self: flex-start;
   display: inline-flex;
   align-items: center;
