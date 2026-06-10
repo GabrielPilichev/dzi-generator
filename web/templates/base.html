@@ -47,7 +47,7 @@
                     <nav class="nav-links" aria-label="Съдържание">
                         {% set current_grade = request.view_args.grade if request.endpoint == 'grade_view' else none %}
                         {% set is_dzi_current = request.path == '/section/grade12-dzi-preparation' or (request.endpoint and request.endpoint.startswith('dzi')) %}
-                        {% set is_physics_current = request.endpoint == 'physics' %}
+                        {% set is_physics_current = request.endpoint in ['physics', 'physics_grade'] %}
 
                         <a class="{% if request.endpoint == 'index' %}nav-current{% else %}nav-link{% endif %}"
                            href="{{ url_for('index') }}"

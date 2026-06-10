@@ -170,21 +170,45 @@ class HomepageSearchTest(unittest.TestCase):
         self.assertTrue(physics_items)
         self.assertTrue(
             any(
-                all(token in attrs.get("data-search-text", "") for token in ("Физика", "механика", "скоро"))
+                all(token in attrs.get("data-search-text", "") for token in ("Физика", "8. клас", "12. клас"))
                 for attrs in physics_items
             )
         )
 
-    def test_physics_page_renders_placeholder_shell(self):
+    def test_physics_page_renders_class_first_placeholder_shell(self):
         response = self.client.get("/physics")
+
+        self.assertEqual(response.status_code, 200)
+        html = response.get_data(as_text=True)
+        parsed = _HTMLProbe(html)
+        self.assertIn("Физика", parsed.text)
+        self.assertIn("Съдържанието идва скоро", parsed.text)
+        self.assertIn("Избери клас", parsed.text)
+        for grade in (8, 9, 10, 11, 12):
+            self.assertIn(f"{grade}. клас", parsed.text)
+            self.assertIn(f"/physics/grade/{grade}", parsed.hrefs())
+        self.assertNotIn("Теми за 8. клас", parsed.text)
+        self.assertNotIn("Движение и сили", parsed.text)
+        self.assertIn("все още няма реални въпроси", parsed.text)
+
+    def test_physics_grade_page_renders_topic_placeholders(self):
+        response = self.client.get("/physics/grade/8")
 
         self.assertEqual(response.status_code, 200)
         parsed = _HTMLProbe(response.get_data(as_text=True))
         self.assertIn("Физика", parsed.text)
-        self.assertIn("Съдържанието идва скоро", parsed.text)
-        self.assertIn("Раздели в подготовка", parsed.text)
-        self.assertIn("Механика", parsed.text)
-        self.assertIn("В този раздел все още няма реални въпроси", parsed.text)
+        self.assertIn("8. клас", parsed.text)
+        self.assertIn("Теми за 8. клас", parsed.text)
+        self.assertIn("Физични величини и измерване", parsed.text)
+        self.assertIn("Движение и сили", parsed.text)
+        self.assertIn("в подготовка", parsed.text)
+        self.assertIn("Реални въпроси, оценки и тестове по физика още не са добавени", parsed.text)
+        self.assertIn("/physics", parsed.hrefs())
+
+    def test_invalid_physics_grade_returns_404(self):
+        response = self.client.get("/physics/grade/7")
+
+        self.assertEqual(response.status_code, 404)
 
     def test_logged_out_teacher_card_points_to_tester_login(self):
         html = self._get_home_html()
