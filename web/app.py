@@ -1438,9 +1438,56 @@ def index():
     )
 
 
+PHYSICS_GRADES = (8, 9, 10, 11, 12)
+PHYSICS_TOPIC_PLACEHOLDERS = {
+    8: (
+        {"eyebrow": "Основи", "title": "Физични величини и измерване", "description": "Бъдещи задачи за единици, измервания и обработка на резултати."},
+        {"eyebrow": "Механика", "title": "Движение и сили", "description": "Плейсхолдър за равномерно движение, скорост и взаимодействия."},
+        {"eyebrow": "Топлина", "title": "Температура и топлообмен", "description": "Място за бъдещи упражнения за топлина и промени на състоянието."},
+    ),
+    9: (
+        {"eyebrow": "Електричество", "title": "Електричен ток", "description": "Бъдещи теми за заряд, напрежение, съпротивление и прости вериги."},
+        {"eyebrow": "Магнетизъм", "title": "Магнитни явления", "description": "Плейсхолдър за магнитно поле и електромагнитни взаимодействия."},
+        {"eyebrow": "Вълни", "title": "Звук и светлина", "description": "Място за бъдещи задачи за вълнови явления, отражение и пречупване."},
+    ),
+    10: (
+        {"eyebrow": "Механика", "title": "Закони за движение", "description": "Бъдещи упражнения за сили, ускорение и закони на Нютон."},
+        {"eyebrow": "Енергия", "title": "Работа, мощност и енергия", "description": "Плейсхолдър за задачи с енергийни преобразувания."},
+        {"eyebrow": "Термодинамика", "title": "Газове и топлинни процеси", "description": "Място за бъдещи теми за състояние на газа и топлинни процеси."},
+    ),
+    11: (
+        {"eyebrow": "Електромагнетизъм", "title": "Електрични и магнитни полета", "description": "Бъдещи теми за полета, потенциал и електромагнитна индукция."},
+        {"eyebrow": "Трептения", "title": "Механични и електромагнитни трептения", "description": "Плейсхолдър за периодични процеси и резонанс."},
+        {"eyebrow": "Вълни", "title": "Вълнови процеси", "description": "Място за бъдещи задачи за интерференция, дифракция и спектри."},
+    ),
+    12: (
+        {"eyebrow": "Квантова физика", "title": "Фотони и атоми", "description": "Бъдещи упражнения за квантови явления и строеж на атома."},
+        {"eyebrow": "Ядрена физика", "title": "Ядра и радиоактивност", "description": "Плейсхолдър за радиоактивност, разпади и ядрени реакции."},
+        {"eyebrow": "Преговор", "title": "Обобщение за зрелостници", "description": "Място за бъдещи обзорни теми и тренировъчни тестове."},
+    ),
+}
+
+
 @app.route("/physics")
 def physics():
-    return render_template("physics.html")
+    return render_template(
+        "physics.html",
+        physics_grades=PHYSICS_GRADES,
+        physics_grade=None,
+        topics=(),
+    )
+
+
+@app.route("/physics/grade/<int:grade>")
+def physics_grade(grade: int):
+    if grade not in PHYSICS_GRADES:
+        abort(404)
+    return render_template(
+        "physics.html",
+        physics_grades=PHYSICS_GRADES,
+        physics_grade=grade,
+        topics=PHYSICS_TOPIC_PLACEHOLDERS[grade],
+    )
 
 
 @app.route("/favicon.ico")
