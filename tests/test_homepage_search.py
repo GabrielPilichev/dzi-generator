@@ -104,7 +104,7 @@ class HomepageSearchTest(unittest.TestCase):
         self.assertEqual(search_input.get("type"), "search")
         self.assertEqual(
             set((search_input.get("aria-controls") or "").split()),
-            {"home-search-dzi", "home-search-results", "home-search-topics"},
+            {"home-search-dzi", "home-search-physics", "home-search-results", "home-search-topics"},
         )
         self.assertTrue(
             any(attrs.get("for") == "home-search-input" for _, attrs in parsed.elements("label"))
@@ -144,6 +144,47 @@ class HomepageSearchTest(unittest.TestCase):
                 for attrs in dzi_items
             )
         )
+
+    def test_homepage_renders_physics_subject_entry(self):
+        html = self._get_home_html()
+        parsed = _HTMLProbe(html)
+        section = parsed.first("section", id="home-search-physics")
+
+        self.assertIsNotNone(section)
+        self.assertIn("home-physics-section", _classes(section))
+        self.assertEqual(section.get("data-home-search-group"), "physics")
+        self.assertIn("/physics", parsed.hrefs())
+        self.assertIn("Физика", parsed.text)
+        self.assertIn("в подготовка", parsed.text)
+
+    def test_homepage_search_includes_physics_searchable_text(self):
+        html = self._get_home_html()
+        parsed = _HTMLProbe(html)
+        physics_items = [
+            attrs
+            for _, attrs in parsed.elements()
+            if "data-search-item" in attrs
+            and "Физика" in (attrs.get("data-search-text") or "")
+        ]
+
+        self.assertTrue(physics_items)
+        self.assertTrue(
+            any(
+                all(token in attrs.get("data-search-text", "") for token in ("Физика", "механика", "скоро"))
+                for attrs in physics_items
+            )
+        )
+
+    def test_physics_page_renders_placeholder_shell(self):
+        response = self.client.get("/physics")
+
+        self.assertEqual(response.status_code, 200)
+        parsed = _HTMLProbe(response.get_data(as_text=True))
+        self.assertIn("Физика", parsed.text)
+        self.assertIn("Съдържанието идва скоро", parsed.text)
+        self.assertIn("Раздели в подготовка", parsed.text)
+        self.assertIn("Механика", parsed.text)
+        self.assertIn("В този раздел все още няма реални въпроси", parsed.text)
 
     def test_logged_out_teacher_card_points_to_tester_login(self):
         html = self._get_home_html()
@@ -252,7 +293,7 @@ class HomepageSearchTest(unittest.TestCase):
         html = self._get_home_html()
         self.assertGreaterEqual(
             _HTMLProbe(html).ids(),
-            {"home-search-dzi", "home-search-results", "home-search-topics"},
+            {"home-search-dzi", "home-search-physics", "home-search-results", "home-search-topics"},
         )
 
     def test_topics_section_heading(self):

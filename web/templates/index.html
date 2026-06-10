@@ -24,7 +24,7 @@
             class="home-search-input"
             placeholder="Търси тема, раздел или клас…"
             autocomplete="off"
-            aria-controls="home-search-dzi home-search-results home-search-topics"
+            aria-controls="home-search-dzi home-search-physics home-search-results home-search-topics"
         >
         <p id="home-search-empty" class="home-search-empty" role="status" aria-live="polite" hidden>Няма съвпадения. Опитайте с друга дума.</p>
     </form>
@@ -96,6 +96,36 @@
             {% endif %}
         </div>
         <span class="home-dzi-icon" aria-hidden="true">ДЗИ</span>
+    </a>
+</section>
+
+<section id="home-search-physics" class="home-section home-physics-section" data-home-search-group="physics">
+    <div class="section-heading">
+        <div>
+            <p class="eyebrow">Нов предмет</p>
+            <h2>Физика</h2>
+        </div>
+        <span class="pill">в подготовка</span>
+    </div>
+    <a
+        class="mode-card mode-card--physics home-physics-card"
+        href="{{ url_for('physics') }}"
+        data-search-item
+        data-search-text="Физика physics природни науки механика електричество вълни оптика термодинамика скоро в подготовка"
+    >
+        <div>
+            <p class="eyebrow">Предмет</p>
+            <h2 class="home-physics-title">Физика</h2>
+            <p class="subtitle">
+                Обособен раздел за бъдещи теми по физика. Въпросите и тестовете са в подготовка.
+            </p>
+            <div class="home-physics-stats">
+                <span>без въпроси засега</span>
+                <span>съдържание скоро</span>
+            </div>
+            <span class="mode-action">Виж обвивката</span>
+        </div>
+        <span class="home-physics-icon" aria-hidden="true">Ф</span>
     </a>
 </section>
 
