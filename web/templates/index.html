@@ -6,6 +6,28 @@
 {% for g in grades %}
     {% set total_questions.value = total_questions.value + g.question_count %}
 {% endfor %}
+{% set future_subjects = [
+    {
+        "title": "Информатика",
+        "description": "Място за бъдещ раздел по информатика. Съдържанието ще бъде добавено по-късно.",
+        "search": "Информатика informatika алгоритми програмиране 8. клас 9. клас 10. клас 11. клас 12. клас в подготовка"
+    },
+    {
+        "title": "Биология",
+        "description": "Място за бъдещ раздел по биология. Съдържанието ще бъде добавено по-късно.",
+        "search": "Биология biologiya природни науки 8. клас 9. клас 10. клас 11. клас 12. клас в подготовка"
+    },
+    {
+        "title": "Математика",
+        "description": "Място за бъдещ раздел по математика. Съдържанието ще бъде добавено по-късно.",
+        "search": "Математика matematika алгебра геометрия 8. клас 9. клас 10. клас 11. клас 12. клас в подготовка"
+    },
+    {
+        "title": "Химия",
+        "description": "Място за бъдещ раздел по химия. Съдържанието ще бъде добавено по-късно.",
+        "search": "Химия himiya природни науки 8. клас 9. клас 10. клас 11. клас 12. клас в подготовка"
+    }
+] %}
 
 {% block content %}
 <section class="hero home-hero">
@@ -71,7 +93,7 @@
             <p class="eyebrow">Предмети</p>
             <h2>Избери предмет</h2>
         </div>
-        <span class="pill">2 предмета</span>
+        <span class="pill">6 предмета</span>
     </div>
 
     <div class="home-subject-grid">
@@ -115,6 +137,26 @@
             <span class="home-subject-status">В подготовка</span>
             <span class="mode-action">Към Физика</span>
         </a>
+
+        {% for subject in future_subjects %}
+            <article
+                class="mode-card mode-card--inactive home-subject-card home-subject-card--placeholder"
+                data-search-item
+                data-search-text="{{ subject.search }}"
+                aria-disabled="true"
+            >
+                <div>
+                    <p class="eyebrow">Бъдещ предмет</p>
+                    <h2 class="home-subject-title">{{ subject.title }}</h2>
+                    <p class="subtitle">{{ subject.description }}</p>
+                    <div class="home-subject-stats">
+                        <span>8.–12. клас</span>
+                        <span>В подготовка</span>
+                    </div>
+                </div>
+                <span class="home-subject-status">В подготовка</span>
+            </article>
+        {% endfor %}
     </div>
 </section>
 

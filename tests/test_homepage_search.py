@@ -156,8 +156,10 @@ class HomepageSearchTest(unittest.TestCase):
         self.assertIn("#grades", parsed.hrefs())
         self.assertIn("/physics", parsed.hrefs())
         self.assertIn("Предмети", parsed.text)
+        self.assertIn("6 предмета", parsed.text)
         self.assertIn("Информационни технологии", parsed.text)
-        self.assertIn("Физика", parsed.text)
+        for subject in ("Физика", "Информатика", "Биология", "Математика", "Химия"):
+            self.assertIn(subject, parsed.text)
         self.assertIn("В подготовка", parsed.text)
 
     def test_homepage_search_includes_subject_searchable_text(self):
@@ -175,9 +177,20 @@ class HomepageSearchTest(unittest.TestCase):
             if "data-search-item" in attrs
             and "Физика" in (attrs.get("data-search-text") or "")
         ]
+        future_subject_items = {
+            subject: [
+                attrs
+                for _, attrs in parsed.elements()
+                if "data-search-item" in attrs
+                and subject in (attrs.get("data-search-text") or "")
+            ]
+            for subject in ("Информатика", "Биология", "Математика", "Химия")
+        }
 
         self.assertTrue(it_items)
         self.assertTrue(physics_items)
+        for items in future_subject_items.values():
+            self.assertTrue(items)
         self.assertTrue(
             any(
                 all(token in attrs.get("data-search-text", "") for token in ("Информационни технологии", "8. клас", "12. клас"))
@@ -190,6 +203,13 @@ class HomepageSearchTest(unittest.TestCase):
                 for attrs in physics_items
             )
         )
+        for subject, items in future_subject_items.items():
+            self.assertTrue(
+                any(
+                    all(token in attrs.get("data-search-text", "") for token in (subject, "8. клас", "12. клас", "в подготовка"))
+                    for attrs in items
+                )
+            )
 
     def test_physics_page_renders_class_first_placeholder_shell(self):
         response = self.client.get("/physics")

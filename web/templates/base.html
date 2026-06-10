@@ -87,6 +87,12 @@
                                 <a class="nav-menu-link {% if is_physics_current %}nav-menu-link--current{% endif %}"
                                    href="{{ url_for('physics') }}"
                                    {% if is_physics_current %}aria-current="page"{% endif %}>Физика</a>
+                                {% for future_subject in ["Информатика", "Биология", "Математика", "Химия"] %}
+                                    <span class="nav-menu-link nav-menu-link--placeholder" aria-disabled="true">
+                                        {{ future_subject }}
+                                        <span class="nav-menu-status">В подготовка</span>
+                                    </span>
+                                {% endfor %}
                             </div>
                         </div>
 
