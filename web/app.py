@@ -27,6 +27,7 @@ import secrets
 import warnings
 
 import sqlite3
+from datetime import datetime
 from pathlib import Path, PurePosixPath
 from urllib.parse import urlparse
 
@@ -231,12 +232,16 @@ def load_ui_profile():
 def inject_app_meta():
     sync_label = None
     try:
-        db_mtime = DB_PATH.stat().st_mtime
-        vault_path = BASE_DIR / "vault"
-        vault_mtime = vault_path.stat().st_mtime if vault_path.exists() else db_mtime
+        db_path = Path(app.config.get("DB_PATH", DB_PATH))
+        db_mtime = db_path.stat().st_mtime
+        vault_path = PROJECT_ROOT / "vault"
+        try:
+            vault_mtime = vault_path.stat().st_mtime
+        except FileNotFoundError:
+            vault_mtime = db_mtime
         latest = max(db_mtime, vault_mtime)
         sync_label = datetime.fromtimestamp(latest).strftime("%Y-%m-%d %H:%M")
-    except Exception:
+    except (OSError, TypeError, ValueError, OverflowError):
         sync_label = None
 
     return {
