@@ -6,28 +6,6 @@
 {% for g in grades %}
     {% set total_questions.value = total_questions.value + g.question_count %}
 {% endfor %}
-{% set future_subjects = [
-    {
-        "title": "Информатика",
-        "description": "Място за бъдещ раздел по информатика. Съдържанието ще бъде добавено по-късно.",
-        "search": "Информатика informatika алгоритми програмиране 8. клас 9. клас 10. клас 11. клас 12. клас в подготовка"
-    },
-    {
-        "title": "Биология",
-        "description": "Място за бъдещ раздел по биология. Съдържанието ще бъде добавено по-късно.",
-        "search": "Биология biologiya природни науки 8. клас 9. клас 10. клас 11. клас 12. клас в подготовка"
-    },
-    {
-        "title": "Математика",
-        "description": "Място за бъдещ раздел по математика. Съдържанието ще бъде добавено по-късно.",
-        "search": "Математика matematika алгебра геометрия 8. клас 9. клас 10. клас 11. клас 12. клас в подготовка"
-    },
-    {
-        "title": "Химия",
-        "description": "Място за бъдещ раздел по химия. Съдържанието ще бъде добавено по-късно.",
-        "search": "Химия himiya природни науки 8. клас 9. клас 10. клас 11. клас 12. клас в подготовка"
-    }
-] %}
 
 {% block content %}
 <section class="hero home-hero">
@@ -93,71 +71,43 @@
             <p class="eyebrow">Предмети</p>
             <h2>Избери предмет</h2>
         </div>
-        <span class="pill">6 предмета</span>
+        <span class="pill">{{ subjects|length }} предмета</span>
     </div>
 
     <div class="home-subject-grid">
-        <article
-            class="mode-card home-subject-card home-subject-card--it"
-            data-search-item
-            data-search-text="Информационни технологии ИТ informatsionni tehnologii 8. клас 9. клас 10. клас 11. клас 12. клас теми въпроси тестове"
-        >
-            <div>
-                <p class="eyebrow">Активен предмет</p>
-                <h2 class="home-subject-title">Информационни технологии</h2>
-                <p class="subtitle">
-                    Класове, теми, въпроси и тренировъчни тестове от текущото съдържание.
-                </p>
-                <div class="home-subject-stats">
-                    <span>{{ grades|length }} класа</span>
-                    <span>{{ total_questions.value }} въпроса</span>
-                </div>
-            </div>
-            <div class="home-subject-class-links" aria-label="Класове по информационни технологии">
-                {% for g in grades|sort(attribute='grade') %}
-                    <a href="{{ url_for('grade_view', grade=g.grade) }}">{{ g.grade }}. клас</a>
-                {% endfor %}
-            </div>
-        </article>
-
-        <a
-            class="mode-card mode-card--physics home-subject-card home-subject-card--physics"
-            href="{{ url_for('physics') }}"
-            data-search-item
-            data-search-text="Физика physics природни науки 8. клас 9. клас 10. клас 11. клас 12. клас в подготовка"
-        >
-            <div>
-                <p class="eyebrow">Предмет</p>
-                <h2 class="home-subject-title">Физика</h2>
-                <p class="subtitle">
-                    Обособен раздел по класове за бъдещи теми по физика. Въпросите и тестовете са в подготовка.
-                </p>
-                <div class="home-subject-stats">
-                    <span>8.–12. клас</span>
-                    <span>В подготовка</span>
-                </div>
-            </div>
-            <span class="home-subject-status">В подготовка</span>
-            <span class="mode-action">Към Физика</span>
-        </a>
-
-        {% for subject in future_subjects %}
+        {% for subject in subjects %}
             <article
-                class="mode-card mode-card--inactive home-subject-card home-subject-card--placeholder"
+                class="mode-card home-subject-card {% if subject.has_real_content %}home-subject-card--it{% else %}mode-card--inactive home-subject-card--placeholder{% endif %}"
                 data-search-item
-                data-search-text="{{ subject.search }}"
-                aria-disabled="true"
+                data-search-text="{{ subject_search_text(subject) }}"
             >
                 <div>
-                    <p class="eyebrow">Бъдещ предмет</p>
-                    <h2 class="home-subject-title">{{ subject.title }}</h2>
+                    <p class="eyebrow">{{ "Активен предмет" if subject.has_real_content else "Бъдещ предмет" }}</p>
+                    <a class="home-subject-card-link" href="{{ subject_url(subject) }}">
+                        <h2 class="home-subject-title">{{ subject.title }}</h2>
+                    </a>
                     <p class="subtitle">{{ subject.description }}</p>
                     <div class="home-subject-stats">
-                        <span>8.–12. клас</span>
-                        <span>В подготовка</span>
+                        {% if subject.has_real_content %}
+                            <span>{{ grades|length }} класа</span>
+                            <span>{{ total_questions.value }} въпроса</span>
+                        {% else %}
+                            <span>{{ subject_class_range_label(subject) }}</span>
+                            <span>{{ subject_status_label(subject) }}</span>
+                        {% endif %}
                     </div>
                 </div>
-                <span class="home-subject-status">В подготовка</span>
+                {% if subject.has_real_content %}
+                    <div class="home-subject-class-links" aria-label="Класове по {{ subject.title|lower }}">
+                        {% for g in grades|sort(attribute='grade') %}
+                            <a href="{{ url_for('grade_view', grade=g.grade) }}">{{ g.grade }}. клас</a>
+                        {% endfor %}
+                    </div>
+                    <a class="mode-action" href="{{ subject_url(subject) }}">Към предмета</a>
+                {% else %}
+                    <span class="home-subject-status">{{ subject_status_label(subject) }}</span>
+                    <a class="mode-action" href="{{ subject_url(subject) }}">Към {{ subject.title }}</a>
+                {% endif %}
             </article>
         {% endfor %}
     </div>

@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}{{ subject.title }} — {{ grade }}. клас{% endblock %}
+
+{% block breadcrumb %}
+    <a href="{{ url_for('index') }}">Начало</a>
+    <a href="{{ subject_url(subject) }}">{{ subject.title }}</a>
+    <span>{{ grade }}. клас</span>
+{% endblock %}
+
+{% block content %}
+<section class="hero subject-hero subject-hero--placeholder">
+    <p class="eyebrow">{{ subject.title }}</p>
+    <h1>{{ grade }}. клас</h1>
+    <p class="subtitle">
+        Обвивка за бъдещото съдържание по {{ subject.title|lower }} за {{ grade }}. клас.
+        Темите, упражненията и тестовете са в подготовка.
+    </p>
+    <div class="subject-meta">
+        <span class="pill subject-pill">В подготовка</span>
+        <span>{{ subject.title }}</span>
+    </div>
+</section>
+
+<section class="panel subject-status-panel subject-grade-shell" aria-labelledby="subject-grade-shell-title">
+    <div>
+        <p class="eyebrow">Структура по клас</p>
+        <h2 id="subject-grade-shell-title">Темите за {{ grade }}. клас са в подготовка</h2>
+        <p class="subtitle">
+            Тази страница запазва бъдещото място за теми и тренировъчни задачи, без да добавя реални въпроси.
+        </p>
+    </div>
+    <span class="subject-soon">В подготовка</span>
+</section>
+
+<section class="home-section" aria-labelledby="subject-grade-placeholders-title">
+    <div class="section-heading">
+        <div>
+            <p class="eyebrow">Бъдещо съдържание</p>
+            <h2 id="subject-grade-placeholders-title">Какво ще се добави</h2>
+        </div>
+        <span class="pill">скоро</span>
+    </div>
+
+    <div class="cards subject-placeholder-grid">
+        {% for placeholder in ["Теми", "Упражнения", "Тестове"] %}
+            <article class="card subject-placeholder-card">
+                <p class="eyebrow">{{ subject.title }}</p>
+                <h2>{{ placeholder }}</h2>
+                <p class="subtitle">Място за бъдещо съдържание по {{ subject.title|lower }} за {{ grade }}. клас.</p>
+                <span class="subject-status-badge">В подготовка</span>
+            </article>
+        {% endfor %}
+    </div>
+</section>
+
+<div class="actions">
+    <a class="button secondary" href="{{ subject_url(subject) }}">Всички класове по {{ subject.title|lower }}</a>
+</div>
+
+<p class="empty-state subject-empty-state">
+    Тази страница е само структура за {{ subject.title }} - {{ grade }}. клас.
+    Реални въпроси, оценки и тестове по {{ subject.title|lower }} още не са добавени.
+</p>
+{% endblock %}

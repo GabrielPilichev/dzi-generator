@@ -288,12 +288,19 @@ class AuthGuardTest(unittest.TestCase):
                 rf'<a\b(?=[^>]*class="[^"]*\bnav-link\b)(?=[^>]*href="/grade/{grade}")',
             )
         self.assertIn("Информационни технологии", nav)
-        self.assertIn('href="/physics"', nav)
-        self.assertIn(">Физика</a>", nav)
-        for subject in ("Информатика", "Биология", "Математика", "Химия"):
+        self.assertIn('href="/subjects/information-technologies"', nav)
+        self.assertIn('href="/subjects/physics"', nav)
+        self.assertIn("Физика", nav)
+        for slug, subject in (
+            ("informatics", "Информатика"),
+            ("biology", "Биология"),
+            ("mathematics", "Математика"),
+            ("chemistry", "Химия"),
+        ):
             self.assertIn(subject, nav)
+            self.assertIn(f'href="/subjects/{slug}"', nav)
         self.assertIn("В подготовка", nav)
-        self.assertIn('aria-disabled="true"', nav)
+        self.assertNotIn('aria-disabled="true"', nav)
 
     def test_nav_dropdowns_use_single_explicit_open_state(self):
         self._login_tester()
