@@ -208,6 +208,8 @@ class PracticalStudentPageEscapingTest(unittest.TestCase):
             PRACTICAL_UPLOAD_ROOT=str(self.upload_root),
         )
         self.client = web_app.app.test_client()
+        with self.client.session_transaction() as sess:
+            sess[web_app.quiz_attempt_owner_session_key(101)] = True
 
     def _restore_app_config(self):
         web_app.PROJECT_ROOT = self.old_project_root

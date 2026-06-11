@@ -159,6 +159,8 @@ class TesterFlowSmokeTest(unittest.TestCase):
                     VALUES (?, ?, 'А', 0)
                 """, (attempt_id, question_id))
             conn.commit()
+            with self.client.session_transaction() as sess:
+                sess[web_app.quiz_attempt_owner_session_key(attempt_id)] = True
             return assignment_id, attempt_id
         finally:
             conn.close()

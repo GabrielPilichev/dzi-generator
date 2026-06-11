@@ -422,6 +422,9 @@ class SectionReviewAnswersTest(unittest.TestCase):
         finally:
             conn.close()
 
+        with self.client.session_transaction() as sess:
+            sess[web_app.quiz_attempt_owner_session_key(attempt_id)] = True
+
         response = self.client.get(f"/quiz/attempt/{attempt_id}")
         self.assertEqual(response.status_code, 200)
         body = response.data.decode("utf-8")
