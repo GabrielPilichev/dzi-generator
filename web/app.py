@@ -2892,6 +2892,43 @@ def quiz_load_questions(conn, question_ids: list[int], seed: str, include_correc
     return attach_question_visual_assets(conn, result)
 
 
+def quiz_question_types_by_id(conn, question_ids: list[int]) -> dict[int, str]:
+    if not question_ids:
+        return {}
+
+    unique_ids = list(dict.fromkeys(int(qid) for qid in question_ids))
+    # SAFE: placeholders are generated from trusted question IDs.
+    placeholders = ",".join("?" for _ in unique_ids)
+    rows = conn.execute(f"""
+        SELECT id, question_type
+        FROM questions
+        WHERE id IN ({placeholders})
+    """, unique_ids).fetchall()
+    return {int(row["id"]): row["question_type"] for row in rows}
+
+
+def quiz_correct_mc_letters_by_id(conn, question_ids: list[int]) -> dict[int, str | None]:
+    if not question_ids:
+        return {}
+
+    unique_ids = list(dict.fromkeys(int(qid) for qid in question_ids))
+    # SAFE: placeholders are generated from trusted question IDs.
+    placeholders = ",".join("?" for _ in unique_ids)
+    rows = conn.execute(f"""
+        SELECT question_id, option_letter
+        FROM multiple_choice_options
+        WHERE question_id IN ({placeholders})
+          AND is_correct = 1
+    """, unique_ids).fetchall()
+
+    correct_by_qid: dict[int, str | None] = {}
+    for row in rows:
+        qid = int(row["question_id"])
+        if qid not in correct_by_qid:
+            correct_by_qid[qid] = row["option_letter"]
+    return correct_by_qid
+
+
 STALE_ATTEMPT_MESSAGE = (
     "Този тест съдържа стари или непълни въпроси и не може да бъде показан коректно. "
     "Моля, създайте нов тест."
@@ -4974,15 +5011,12 @@ def quiz_attempt(attempt_id):
                 mixed_status=attempt_mixed_status,
             )
 
-        mc_question_ids = []
-        for qid in question_ids:
-            row = conn.execute("""
-                SELECT question_type
-                FROM questions
-                WHERE id = ?
-            """, (qid,)).fetchone()
-            if row and row["question_type"] == "multiple_choice":
-                mc_question_ids.append(qid)
+        question_types = quiz_question_types_by_id(conn, question_ids)
+        mc_question_ids = [
+            qid
+            for qid in question_ids
+            if question_types.get(int(qid)) == "multiple_choice"
+        ]
 
         remaining = quiz_remaining_seconds(assignment, attempt)
         server_timer_expired = remaining is not None and remaining <= 0
@@ -5013,16 +5047,7 @@ def quiz_attempt(attempt_id):
                 mixed_status=attempt_mixed_status,
             ), 400
 
-        correct_by_qid = {}
-        for qid in mc_question_ids:
-            row = conn.execute("""
-                SELECT option_letter
-                FROM multiple_choice_options
-                WHERE question_id = ?
-                  AND is_correct = 1
-                LIMIT 1
-            """, (qid,)).fetchone()
-            correct_by_qid[int(qid)] = row["option_letter"] if row else None
+        correct_by_qid = quiz_correct_mc_letters_by_id(conn, mc_question_ids)
 
         score = 0
         # Stale invalid IDs and planned open fields are excluded from MC scoring.
