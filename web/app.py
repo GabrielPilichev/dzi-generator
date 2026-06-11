@@ -1602,10 +1602,28 @@ def dzi_practical_source(source_slug: str):
 def dzi_practical_resource_download(resource_id: int):
     resource = fetch_practical_resource(resource_id)
     if resource is None:
+        app.logger.warning(
+            "Practical resource download rejected: reason=not_found resource_id=%s",
+            resource_id,
+        )
         abort(404)
 
     safe_path = practical_resource_safe_path(resource.get("resource_path"))
-    if safe_path is None or not safe_path.is_file():
+    if safe_path is None:
+        app.logger.warning(
+            "Practical resource download rejected: reason=unsafe_path resource_id=%s exam_task_id=%s task_number=%s",
+            resource_id,
+            resource.get("exam_task_id"),
+            resource.get("task_number"),
+        )
+        abort(404)
+    if not safe_path.is_file():
+        app.logger.warning(
+            "Practical resource download rejected: reason=missing_file resource_id=%s exam_task_id=%s task_number=%s",
+            resource_id,
+            resource.get("exam_task_id"),
+            resource.get("task_number"),
+        )
         abort(404)
 
     download_name = safe_download_name(resource.get("original_filename"), safe_path.name)
@@ -1616,7 +1634,14 @@ def dzi_practical_resource_download(resource_id: int):
             download_name=download_name,
             max_age=0,
         )
-    except (OSError, ValueError):
+    except (OSError, ValueError) as exc:
+        app.logger.warning(
+            "Practical resource download rejected: reason=send_failed resource_id=%s exam_task_id=%s task_number=%s error_type=%s",
+            resource_id,
+            resource.get("exam_task_id"),
+            resource.get("task_number"),
+            type(exc).__name__,
+        )
         abort(404)
 
 
@@ -1648,6 +1673,12 @@ def quiz_practical_upload(attempt_id: int, source_slug: str, exam_task_id: int):
         exam_task_id=exam_task_id,
     )
     if attempt is None or exam is None or task is None:
+        app.logger.warning(
+            "Practical upload rejected: reason=context_not_found attempt_id=%s source_slug=%s exam_task_id=%s",
+            attempt_id,
+            source_slug,
+            exam_task_id,
+        )
         abort(404)
 
     uploaded_files = [
@@ -1656,6 +1687,12 @@ def quiz_practical_upload(attempt_id: int, source_slug: str, exam_task_id: int):
         if file_storage and (file_storage.filename or "").strip()
     ]
     if not uploaded_files:
+        app.logger.info(
+            "Practical upload rejected: reason=empty attempt_id=%s source_slug=%s exam_task_id=%s",
+            attempt_id,
+            source_slug,
+            exam_task_id,
+        )
         return upload_error_redirect(attempt_id, source_slug, "empty")
 
     prepared_files = []
@@ -1669,7 +1706,15 @@ def quiz_practical_upload(attempt_id: int, source_slug: str, exam_task_id: int):
             )
             file_storage.stream.seek(0)
             prepared_files.append((file_storage, original_filename, size_bytes))
-    except PracticalUploadError:
+    except PracticalUploadError as exc:
+        app.logger.warning(
+            "Practical upload rejected: reason=validation attempt_id=%s source_slug=%s exam_task_id=%s file_count=%s error_type=%s",
+            attempt_id,
+            source_slug,
+            exam_task_id,
+            len(uploaded_files),
+            type(exc).__name__,
+        )
         return upload_error_redirect(attempt_id, source_slug, "invalid")
 
     try:
@@ -1720,8 +1765,16 @@ def quiz_practical_upload(attempt_id: int, source_slug: str, exam_task_id: int):
             ))
 
         conn.commit()
-    except (OSError, sqlite3.Error, PracticalUploadError):
+    except (OSError, sqlite3.Error, PracticalUploadError) as exc:
         conn.rollback()
+        app.logger.warning(
+            "Practical upload rejected: reason=save_failed attempt_id=%s source_slug=%s exam_task_id=%s file_count=%s error_type=%s",
+            attempt_id,
+            source_slug,
+            exam_task_id,
+            len(prepared_files),
+            type(exc).__name__,
+        )
         return upload_error_redirect(attempt_id, source_slug, "invalid")
 
     return redirect(url_for(
@@ -1765,6 +1818,11 @@ def admin_open_question_candidates():
 @app.errorhandler(404)
 def not_found(e):
     return render_template("404.html"), 404
+
+
+@app.errorhandler(500)
+def internal_server_error(e):
+    return render_template("500.html"), 500
 
 
 # ---------------------------------------------------------------------------
@@ -3639,11 +3697,37 @@ def teacher_practical_submissions():
 @app.route("/teacher/practical/submission-file/<int:file_id>/download")
 def teacher_practical_submission_file_download(file_id: int):
     file_row = fetch_practical_submission_file(file_id)
-    if file_row is None or file_row["is_deleted"]:
+    if file_row is None:
+        app.logger.warning(
+            "Practical submission download rejected: reason=not_found file_id=%s",
+            file_id,
+        )
+        abort(404)
+    if file_row["is_deleted"]:
+        app.logger.warning(
+            "Practical submission download rejected: reason=deleted file_id=%s attempt_id=%s exam_task_id=%s",
+            file_id,
+            file_row.get("quiz_attempt_id"),
+            file_row.get("exam_task_id"),
+        )
         abort(404)
 
     safe_path = practical_uploaded_file_safe_path(file_row.get("stored_path"))
-    if safe_path is None or not safe_path.is_file():
+    if safe_path is None:
+        app.logger.warning(
+            "Practical submission download rejected: reason=unsafe_path file_id=%s attempt_id=%s exam_task_id=%s",
+            file_id,
+            file_row.get("quiz_attempt_id"),
+            file_row.get("exam_task_id"),
+        )
+        abort(404)
+    if not safe_path.is_file():
+        app.logger.warning(
+            "Practical submission download rejected: reason=missing_file file_id=%s attempt_id=%s exam_task_id=%s",
+            file_id,
+            file_row.get("quiz_attempt_id"),
+            file_row.get("exam_task_id"),
+        )
         abort(404)
 
     return send_file(

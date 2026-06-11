@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+
+{% block title %}500 — Вътрешна грешка{% endblock %}
+
+{% block content %}
+    <h1>500</h1>
+    <p>Възникна вътрешна грешка. Опитайте отново по-късно.</p>
+    <p><a href="{{ url_for('index') }}">Обратно към началото</a></p>
+{% endblock %}
