@@ -94,9 +94,10 @@ Status is conservative:
 
 | File | Purpose |
 | --- | --- |
-| `src/schema.sql` | Original v1 SQLite schema snapshot. |
-| `src/schema_v2.sql` | v2 schema snapshot introducing exams/source metadata. |
-| `src/schema_v3.sql` | v3 schema snapshot introducing curriculum and vault sync tables. |
+| `src/legacy_schemas/README.md` | Explains that legacy schema snapshots are historical and that `web/migrations/` is the source of truth. |
+| `src/legacy_schemas/schema.sql` | Original v1 SQLite schema snapshot. |
+| `src/legacy_schemas/schema_v2.sql` | v2 schema snapshot introducing exams/source metadata. |
+| `src/legacy_schemas/schema_v3.sql` | v3 schema snapshot introducing curriculum and vault sync tables. |
 | `src/migrate_to_v2.py` | One-off migration from v1 to v2 schema with backup/copy behavior. |
 | `src/migrate_v2_to_v3.py` | One-off migration from v2 to v3 schema with backup and curriculum tables. |
 | `src/parse.py` | Original DZI PDF parser for tasks 1-25. |

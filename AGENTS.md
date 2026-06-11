@@ -22,6 +22,12 @@
 - Code identifiers should be English.
 - Do not store binary blobs in SQLite.
 
+## Database tracking policy
+- `data/questions.db` is currently tracked intentionally as the project seed/dev DB.
+- `.gitignore` lists `data/questions.db`, but that does not untrack the already-tracked file; Git will still report local DB modifications.
+- Restore accidental DB dirtiness before commits unless the PR explicitly owns a planned DB/data change.
+- Future PR: replace tracked DB with migration + seed script.
+
 ## Existing routes to preserve
 - /
 - /grade/<n>
