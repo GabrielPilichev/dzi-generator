@@ -748,7 +748,9 @@ def fetch_question_visual_assets(conn: sqlite3.Connection, question_ids: list[in
     if not sqlite_table_exists(conn, "assets") or not sqlite_table_exists(conn, "asset_links"):
         return {question_id: [] for question_id in clean_ids}
 
+    # SAFE: placeholders are generated from parsed integer question IDs.
     placeholders = ",".join("?" for _ in clean_ids)
+    # SAFE: SQL fragment is static and values still use ? params.
     owner_clause = "(al.owner_type IN ('question', 'questions') AND al.owner_id = q.id)"
     if sqlite_table_exists(conn, "exam_task_questions"):
         owner_clause = f"""
@@ -1142,6 +1144,7 @@ def sqlite_table_exists(conn: sqlite3.Connection, table_name: str) -> bool:
 def sqlite_table_columns(conn: sqlite3.Connection, table_name: str) -> set[str]:
     if table_name not in ALLOWED_INTERNAL_TABLES:
         raise ValueError(f"Unsupported internal table name: {table_name}")
+    # SAFE: table name is selected from ALLOWED_INTERNAL_TABLES.
     return {
         row["name"]
         for row in conn.execute(f"PRAGMA table_info({table_name})").fetchall()
@@ -1171,6 +1174,8 @@ def fetch_practical_submission_review(conn: sqlite3.Connection, submission_id: i
                     "teacher_note": note_col,
                     "reviewed_at": reviewed_at_col,
                 }
+                # SAFE: selected columns and ORDER BY column come from schema columns
+                # intersected with fixed candidate whitelists above.
                 for alias, column in aliases.items():
                     if column:
                         selected.append(f"{column} AS {alias}")
@@ -1205,6 +1210,8 @@ def fetch_practical_submission_review(conn: sqlite3.Connection, submission_id: i
         "reviewed_at": reviewed_at_col,
     }
     selected = []
+    # SAFE: selected columns come from schema columns intersected with fixed
+    # candidate whitelists above.
     for alias, column in aliases.items():
         if column:
             selected.append(f"{column} AS {alias}")
@@ -2028,6 +2035,7 @@ def fetch_open_question_candidates(
         section_filter = "AND tsa.section_id = ?"
         params.append(section_id)
 
+    # SAFE: optional SQL fragments are static; values still use ? params.
     question_rows = conn.execute(f"""
         SELECT DISTINCT
             q.id,
@@ -2105,6 +2113,7 @@ def build_mixed_quiz_plan(
         section_filter = "AND tsa.section_id = ?"
         params.append(section_id)
 
+    # SAFE: optional SQL fragments are static; values still use ? params.
     closed_rows = conn.execute(f"""
         SELECT DISTINCT
             q.id,
@@ -2364,6 +2373,8 @@ def fetch_quiz_text_answers_for_attempt(conn, attempt_id: int, *, question_id: i
         else "NULL AS teacher_override_status"
     )
 
+    # SAFE: question_filter is a static fragment and teacher_status_expr is
+    # selected from a known column name or a static NULL expression.
     rows = conn.execute(f"""
         SELECT
             id,
@@ -2431,6 +2442,8 @@ def fetch_question_explanations(conn, question_ids: list[int]) -> dict[int, str]
     if column is None:
         return {}
 
+    # SAFE: column is selected from QUESTION_EXPLANATION_COLUMNS; placeholders
+    # are generated from trusted question IDs.
     placeholders = ",".join("?" for _ in question_ids)
     rows = conn.execute(f"""
         SELECT id, {column} AS explanation
@@ -2454,6 +2467,8 @@ def fetch_option_explanations(conn, question_ids: list[int]) -> dict[tuple[int, 
     if column is None:
         return {}
 
+    # SAFE: column is selected from OPTION_EXPLANATION_COLUMNS; placeholders
+    # are generated from trusted question IDs.
     placeholders = ",".join("?" for _ in question_ids)
     rows = conn.execute(f"""
         SELECT question_id, option_letter, {column} AS explanation
@@ -2657,6 +2672,7 @@ def is_quiz_question_eligible(conn, question) -> bool:
 
 
 def quiz_section_question_ids(conn, section_id: int) -> list[int]:
+    # SAFE: QUIZ_APPROVED_FILTER is a static SQL fragment; section_id uses ?.
     rows = conn.execute(f"""
         SELECT DISTINCT q.id, q.prompt, q.question_type, q.has_image, q.image_path
         FROM questions q
@@ -2676,6 +2692,7 @@ def fetch_dzi_pool_health(source_slug: str = "may_2025_v2") -> dict | None:
 
     conn = quiz_db()
     try:
+        # SAFE: QUIZ_APPROVED_FILTER is a static SQL fragment; exam id uses ?.
         rows = conn.execute(f"""
             SELECT DISTINCT q.id, q.prompt, q.question_type, q.has_image, q.image_path
             FROM exam_tasks et
@@ -2745,6 +2762,7 @@ def quiz_load_questions(conn, question_ids: list[int], seed: str, include_correc
     if not question_ids:
         return []
 
+    # SAFE: placeholders are generated from trusted question IDs.
     placeholders = ",".join("?" for _ in question_ids)
     q_rows = conn.execute(f"""
         SELECT id, prompt, question_type, difficulty
@@ -3034,6 +3052,7 @@ def filter_renderable_attempt_question_ids(
         return [], skipped
 
     unique_ids = list(dict.fromkeys(parsed_ids))
+    # SAFE: placeholders are generated from parsed integer question IDs.
     placeholders = ",".join("?" for _ in unique_ids)
     rows = conn.execute(f"""
         SELECT id, prompt, question_type, has_image, image_path
@@ -3193,6 +3212,7 @@ def quiz_teacher_difficulty_breakdown(conn, attempt_ids: list[int]) -> list[dict
     if not attempt_ids:
         return []
 
+    # SAFE: placeholders are generated from trusted attempt IDs.
     placeholders = ",".join("?" for _ in attempt_ids)
     rows = conn.execute(f"""
         SELECT q.difficulty, qa.is_correct
@@ -3648,6 +3668,7 @@ def teacher_assignments():
     elif type_filter == "mixed":
         where_clause = "WHERE qa.question_plan_json IS NOT NULL AND TRIM(qa.question_plan_json) <> ''"
 
+    # SAFE: where_clause is selected from fixed branches after type_filter validation.
     assignment_rows = conn.execute(f"""
         SELECT
             qa.id,
@@ -3833,6 +3854,7 @@ def teacher_new():
                 quiz_write_assignment_note(assignment_id, _quiz_request.host_url)
                 return _quiz_redirect(_quiz_url_for("teacher_assignment", assignment_id=assignment_id))
 
+    # SAFE: QUIZ_APPROVED_FILTER is a static SQL fragment.
     section_rows = conn.execute(f"""
         SELECT
             cs.id,
