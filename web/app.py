@@ -391,6 +391,18 @@ PUBLIC_DZI_ENDPOINTS: set[str] = set()
 
 @app.before_request
 def protect_admin_routes():
+    # Route access contract:
+    # - endpoint names starting with "admin" are admin-only, except admin_login.
+    # - endpoint names starting with "dzi" are admin-only unless explicitly listed
+    #   in PUBLIC_DZI_ENDPOINTS.
+    # - endpoint names starting with "teacher" are admin-only, except the
+    #   TESTER_TEACHER_ENDPOINTS allowlist used for tester assignment creation/detail.
+    # - switch_profile is public only for switching to tester; switching to admin
+    #   redirects to admin login unless the session is already admin-authenticated.
+    # - quiz attempt routes do not use endpoint prefixes for ownership; they call
+    #   require_quiz_attempt_access(attempt_id) inside each attempt route.
+    # Future blueprint extraction must preserve these endpoint names or update this
+    # guard and docs/AUTH_ROUTE_CONTRACT.md together.
     endpoint = request.endpoint or ""
 
     if endpoint in {"static", "admin_login", "tester_login", "switch_profile"}:
