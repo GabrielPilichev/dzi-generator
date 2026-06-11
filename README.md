@@ -18,6 +18,19 @@ rename is handled separately.
 - Jinja templates in `web/templates`
 - Obsidian vault in `vault/`
 
+## Database Tracking Policy
+
+`data/questions.db` is currently tracked intentionally as the project seed/dev
+database. It gives local development, smoke tests, and the current DZI/quiz UI a
+known dataset.
+
+The file is also listed in `.gitignore`, but `.gitignore` does not untrack files
+that are already tracked by Git. Git will still report modifications to
+`data/questions.db` after tests or local runtime use. Restore accidental DB
+dirtiness before commits unless the PR explicitly owns a planned DB/data change.
+
+Future PR: replace tracked DB with migration + seed script.
+
 ## Important Docs
 
 - `AGENTS.md` - agent rules and project constraints
@@ -45,7 +58,7 @@ PY
 ## Architecture & Security Assumptions
 
 ### Recent safety review notes
-- Recent safety follow-ups keep app behavior unchanged while tightening release defaults: direct dev-server debug mode is controlled by `FLASK_DEBUG`, session cookie defaults are hardened, the local `data/questions.db` path is ignored, SQLite WAL mode is enabled, internal SQL table-name helpers are guarded by an explicit whitelist, and `requirements.txt` documents the minimal app/test dependencies.
+- Recent safety follow-ups keep app behavior unchanged while tightening release defaults: direct dev-server debug mode is controlled by `FLASK_DEBUG`, session cookie defaults are hardened, SQLite runtime sidecars are ignored, SQLite WAL mode is enabled, internal SQL table-name helpers are guarded by an explicit whitelist, and `requirements.txt` documents the minimal app/test dependencies.
 - Larger follow-up direction: `web/app.py` should gradually move toward smaller route modules or blueprints, and `web/static/css/ui-pass9.css` should keep being cleaned in small, safe PRs.
 
 ### UI polish direction
