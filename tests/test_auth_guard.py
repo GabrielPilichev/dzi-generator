@@ -559,7 +559,22 @@ class AuthGuardTest(unittest.TestCase):
     def test_session_cookie_security_defaults_are_set(self):
         self.assertEqual(self.app.config["SESSION_COOKIE_SAMESITE"], "Strict")
         self.assertTrue(self.app.config["SESSION_COOKIE_HTTPONLY"])
-        self.assertTrue(self.app.config["SESSION_COOKIE_SECURE"])
+
+    def test_session_cookie_secure_env_defaults_true(self):
+        with patch.dict(os.environ, {}, clear=True):
+            self.assertTrue(web_app.build_session_cookie_secure())
+
+    def test_session_cookie_secure_env_accepts_explicit_false(self):
+        for value in ("0", "false", "no", "off"):
+            with self.subTest(value=value):
+                with patch.dict(os.environ, {"DZI_SESSION_COOKIE_SECURE": value}, clear=True):
+                    self.assertFalse(web_app.build_session_cookie_secure())
+
+    def test_session_cookie_secure_env_accepts_explicit_true(self):
+        for value in ("1", "true", "yes", "on"):
+            with self.subTest(value=value):
+                with patch.dict(os.environ, {"DZI_SESSION_COOKIE_SECURE": value}, clear=True):
+                    self.assertTrue(web_app.build_session_cookie_secure())
 
     def test_switch_profile_rejects_external_next_and_referrer(self):
         self._login_admin()

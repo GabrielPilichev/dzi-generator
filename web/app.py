@@ -49,6 +49,9 @@ from src.practical_uploads import (
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DB_PATH = PROJECT_ROOT / "data" / "questions.db"
+SESSION_COOKIE_SECURE_ENV = "DZI_SESSION_COOKIE_SECURE"
+TRUE_ENV_VALUES = {"1", "true", "yes", "on"}
+FALSE_ENV_VALUES = {"0", "false", "no", "off"}
 
 
 def build_secret_key() -> str:
@@ -65,12 +68,32 @@ def build_secret_key() -> str:
     return secrets.token_urlsafe(32)
 
 
+def build_session_cookie_secure() -> bool:
+    configured = os.environ.get(SESSION_COOKIE_SECURE_ENV)
+    if configured is None:
+        return True
+
+    normalized = configured.strip().lower()
+    if normalized in TRUE_ENV_VALUES:
+        return True
+    if normalized in FALSE_ENV_VALUES:
+        return False
+
+    warnings.warn(
+        f"{SESSION_COOKIE_SECURE_ENV} has unsupported value {configured!r}; "
+        "using secure cookies. Expected one of: 1/true/yes/on or 0/false/no/off.",
+        RuntimeWarning,
+        stacklevel=2,
+    )
+    return True
+
+
 app = Flask(__name__)
 app.config["DB_PATH"] = str(DB_PATH)
 app.config["SECRET_KEY"] = build_secret_key()
 app.config["SESSION_COOKIE_SAMESITE"] = "Strict"
 app.config["SESSION_COOKIE_HTTPONLY"] = True
-app.config["SESSION_COOKIE_SECURE"] = True
+app.config["SESSION_COOKIE_SECURE"] = build_session_cookie_secure()
 app.config["PRACTICAL_TASK_BATCH_DIR"] = str(PROJECT_ROOT / "data" / "import_batches")
 app.config["PRACTICAL_UPLOAD_ROOT"] = str(PROJECT_ROOT / "data" / "uploads" / "practical")
 app.config["PRACTICAL_MAX_UPLOAD_BYTES"] = MAX_UPLOAD_BYTES
