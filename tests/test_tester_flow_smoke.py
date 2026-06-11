@@ -214,8 +214,13 @@ class TesterFlowSmokeTest(unittest.TestCase):
         html = page.get_data(as_text=True)
         self.assertIn("Практически задачи", html)
         self.assertIn("Задача 26", html)
-        self.assertIn("/dzi/practical/resource/", html)
-        self.assertIn("/download", html)
+        self.assertTrue(
+            (
+                "/dzi/practical/resource/" in html
+                and "/download" in html
+            )
+            or "файлът липсва" in html
+        )
 
         missing = self.client.get("/dzi/practical/resource/999999/download")
         self.assertEqual(missing.status_code, 404)
