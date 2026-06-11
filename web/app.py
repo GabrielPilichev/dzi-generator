@@ -148,6 +148,23 @@ def question_difficulty_bucket(value) -> dict:
     return {"key": bucket_key, "label": label, "class": css_class}
 
 
+def quiz_attempt_owner_session_key(attempt_id: int) -> str:
+    return f"quiz_attempt_owner:{int(attempt_id)}"
+
+
+def mark_quiz_attempt_owner(attempt_id: int) -> None:
+    session[quiz_attempt_owner_session_key(attempt_id)] = True
+
+
+def has_quiz_attempt_access(attempt_id: int) -> bool:
+    return session.get(quiz_attempt_owner_session_key(attempt_id)) is True
+
+
+def require_quiz_attempt_access(attempt_id: int) -> None:
+    if not has_quiz_attempt_access(attempt_id):
+        abort(404)
+
+
 def safe_redirect_target(candidate: str | None, fallback: str) -> str:
     fallback_url = fallback if fallback.startswith("/") else url_for(fallback)
     if not isinstance(candidate, str) or not candidate:
@@ -1593,6 +1610,7 @@ def dzi_practical_resource_download(resource_id: int):
 
 @app.route("/quiz/attempt/<int:attempt_id>/practical/<source_slug>")
 def quiz_practical_attempt(attempt_id: int, source_slug: str):
+    require_quiz_attempt_access(attempt_id)
     resolved = fetch_practical_attempt_page(attempt_id, source_slug)
     if resolved is None:
         abort(404)
@@ -1609,6 +1627,7 @@ def quiz_practical_attempt(attempt_id: int, source_slug: str):
 
 @app.route("/quiz/attempt/<int:attempt_id>/practical/<source_slug>/task/<int:exam_task_id>/upload", methods=["POST"])
 def quiz_practical_upload(attempt_id: int, source_slug: str, exam_task_id: int):
+    require_quiz_attempt_access(attempt_id)
     conn = get_db()
     attempt, exam, task = fetch_practical_upload_task(
         conn,
@@ -4693,10 +4712,12 @@ def quiz_start(assignment_id):
         """, (assignment_id, student_name)).fetchone()
 
         if existing:
+            attempt_id = int(existing["id"])
             conn.close()
+            require_quiz_attempt_access(attempt_id)
             if existing["submitted_at"]:
-                return _quiz_redirect(_quiz_url_for("quiz_result", attempt_id=existing["id"]))
-            return _quiz_redirect(_quiz_url_for("quiz_attempt", attempt_id=existing["id"]))
+                return _quiz_redirect(_quiz_url_for("quiz_result", attempt_id=attempt_id))
+            return _quiz_redirect(_quiz_url_for("quiz_attempt", attempt_id=attempt_id))
 
         assignment_question_plan = quiz_parse_assignment_question_plan(assignment["question_plan_json"])
         if (assignment["question_plan_json"] or "").strip() and assignment_question_plan is None:
@@ -4736,14 +4757,17 @@ def quiz_start(assignment_id):
             """, (assignment_id, student_name)).fetchone()
             conn.close()
             if existing:
+                attempt_id = int(existing["id"])
+                mark_quiz_attempt_owner(attempt_id)
                 if existing["submitted_at"]:
-                    return _quiz_redirect(_quiz_url_for("quiz_result", attempt_id=existing["id"]))
-                return _quiz_redirect(_quiz_url_for("quiz_attempt", attempt_id=existing["id"]))
+                    return _quiz_redirect(_quiz_url_for("quiz_result", attempt_id=attempt_id))
+                return _quiz_redirect(_quiz_url_for("quiz_attempt", attempt_id=attempt_id))
             raise
         attempt_id = cur.lastrowid
         conn.commit()
         conn.close()
 
+        mark_quiz_attempt_owner(attempt_id)
         return _quiz_redirect(_quiz_url_for("quiz_attempt", attempt_id=attempt_id))
 
     mixed_status = quiz_assignment_mixed_status(assignment["question_plan_json"])
@@ -4759,6 +4783,7 @@ def quiz_start(assignment_id):
 
 @app.route("/quiz/attempt/<int:attempt_id>", methods=["GET", "POST"])
 def quiz_attempt(attempt_id):
+    require_quiz_attempt_access(attempt_id)
     conn = quiz_db()
     attempt = conn.execute("SELECT * FROM quiz_attempts WHERE id = ?", (attempt_id,)).fetchone()
     if not attempt:
@@ -4930,6 +4955,7 @@ def quiz_attempt(attempt_id):
 
 @app.route("/quiz/attempt/<int:attempt_id>/result")
 def quiz_result(attempt_id):
+    require_quiz_attempt_access(attempt_id)
     conn = quiz_db()
     attempt = conn.execute("SELECT * FROM quiz_attempts WHERE id = ?", (attempt_id,)).fetchone()
     if not attempt:

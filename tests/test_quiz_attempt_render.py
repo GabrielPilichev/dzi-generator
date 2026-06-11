@@ -248,6 +248,11 @@ class QuizAttemptRenderTest(unittest.TestCase):
             sess["tester_authenticated"] = True
             sess["ui_profile"] = "tester"
 
+    def _mark_attempt_owner(self, attempt_id, *, client=None):
+        target_client = client or self.client
+        with target_client.session_transaction() as sess:
+            sess[web_app.quiz_attempt_owner_session_key(attempt_id)] = True
+
     def test_dzi_pool_health_counts_may_2025_v2(self):
         with self.app.app_context():
             health = web_app.fetch_dzi_pool_health("may_2025_v2")
@@ -361,6 +366,7 @@ class QuizAttemptRenderTest(unittest.TestCase):
                 """, (attempt_id, self.valid_question_id, wrong_letter))
 
             conn.commit()
+            self._mark_attempt_owner(attempt_id)
             return assignment_id, attempt_id
         finally:
             conn.close()
@@ -417,6 +423,7 @@ class QuizAttemptRenderTest(unittest.TestCase):
                     WHERE id = ?
                 """, (attempt_id,))
             conn.commit()
+            self._mark_attempt_owner(attempt_id)
             return assignment_id, attempt_id, open_question_id
         finally:
             conn.close()
@@ -595,6 +602,39 @@ class QuizAttemptRenderTest(unittest.TestCase):
         finally:
             conn.close()
         self.assertEqual(row["student_name"], "Иван")
+
+    def test_quiz_start_marks_attempt_owner_for_current_session(self):
+        assignment_id = self._create_assignment()
+
+        response = self.client.post(
+            f"/quiz/{assignment_id}",
+            data={"student_name": "Owned Student Flow"},
+            follow_redirects=False,
+        )
+
+        self.assertEqual(response.status_code, 302)
+        attempt_path = response.headers["Location"]
+        self.assertIn("/quiz/attempt/", attempt_path)
+        own_response = self.client.get(attempt_path)
+        self.assertEqual(own_response.status_code, 200)
+
+        other_client = self.app.test_client()
+        other_response = other_client.get(attempt_path)
+        self.assertEqual(other_response.status_code, 404)
+
+    def test_unauthenticated_client_cannot_access_another_attempt_result(self):
+        _assignment_id, attempt_id = self._create_attempt(
+            [self.valid_question_id],
+            student_name="Owned Result",
+        )
+
+        owner_response = self.client.get(f"/quiz/attempt/{attempt_id}/result")
+        self.assertEqual(owner_response.status_code, 200)
+
+        other_client = self.app.test_client()
+        response = other_client.get(f"/quiz/attempt/{attempt_id}/result")
+
+        self.assertEqual(response.status_code, 404)
 
     def test_all_invalid_result_shows_stale_message(self):
         _assignment_id, attempt_id = self._create_attempt(

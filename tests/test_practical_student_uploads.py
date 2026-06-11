@@ -39,6 +39,8 @@ class PracticalStudentUploadsTest(unittest.TestCase):
             PRACTICAL_MAX_UPLOAD_BYTES=1024,
         )
         self.client = web_app.app.test_client()
+        with self.client.session_transaction() as sess:
+            sess[web_app.quiz_attempt_owner_session_key(101)] = True
 
     def _restore_app_config(self):
         web_app.PROJECT_ROOT = self.old_project_root
@@ -195,6 +197,28 @@ class PracticalStudentUploadsTest(unittest.TestCase):
         self.assertIn("Student One", html)
         self.assertIn('enctype="multipart/form-data"', html)
         self.assertIn("/quiz/attempt/101/practical/may_2025_v2/task/260/upload", html)
+
+    def test_fresh_session_cannot_access_other_practical_attempt_page(self):
+        other_client = web_app.app.test_client()
+
+        response = other_client.get("/quiz/attempt/101/practical/may_2025_v2")
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_fresh_session_cannot_upload_to_other_practical_attempt(self):
+        other_client = web_app.app.test_client()
+
+        response = other_client.post(
+            "/quiz/attempt/101/practical/may_2025_v2/task/260/upload",
+            data={"files": (io.BytesIO(b"xlsx bytes"), "solution.xlsx")},
+            content_type="multipart/form-data",
+            follow_redirects=False,
+        )
+
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(self._rows("practical_submissions"), [])
+        self.assertEqual(self._rows("practical_submission_files"), [])
+        self.assertFalse(self.upload_root.exists())
 
     def test_page_shows_not_submitted_status_before_upload(self):
         response = self.client.get("/quiz/attempt/101/practical/may_2025_v2")
