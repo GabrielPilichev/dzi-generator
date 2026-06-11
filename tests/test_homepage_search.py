@@ -155,7 +155,15 @@ class HomepageSearchTest(unittest.TestCase):
         self.assertEqual(section.get("data-home-search-group"), "subjects")
         for grade in (8, 9, 10, 11, 12):
             self.assertIn(f"/grade/{grade}", parsed.hrefs())
-        self.assertIn("/physics", parsed.hrefs())
+        for slug in (
+            "information-technologies",
+            "physics",
+            "informatics",
+            "biology",
+            "mathematics",
+            "chemistry",
+        ):
+            self.assertIn(f"/subjects/{slug}", parsed.hrefs())
         self.assertIn("Предмети", parsed.text)
         self.assertIn("6 предмета", parsed.text)
         self.assertIn("Информационни технологии", parsed.text)
@@ -224,7 +232,7 @@ class HomepageSearchTest(unittest.TestCase):
         self.assertLess(parsed.text.index("Избери клас"), parsed.text.index("Съдържанието идва скоро"))
         for grade in (8, 9, 10, 11, 12):
             self.assertIn(f"{grade}. клас", parsed.text)
-            self.assertIn(f"/physics/grade/{grade}", parsed.hrefs())
+            self.assertIn(f"/subjects/physics/{grade}", parsed.hrefs())
         self.assertNotIn("Теми за 8. клас", parsed.text)
         self.assertNotIn("Движение и сили", parsed.text)
         self.assertIn("все още няма реални въпроси", parsed.text)
@@ -245,12 +253,77 @@ class HomepageSearchTest(unittest.TestCase):
         self.assertNotIn("Физични величини и измерване", parsed.text)
         self.assertNotIn("Движение и сили", parsed.text)
         self.assertIn("Реални въпроси, оценки и тестове по физика още не са добавени", parsed.text)
-        self.assertIn("/physics", parsed.hrefs())
+        self.assertIn("/subjects/physics", parsed.hrefs())
 
     def test_invalid_physics_grade_returns_404(self):
         response = self.client.get("/physics/grade/7")
 
         self.assertEqual(response.status_code, 404)
+
+    def test_subject_hub_includes_all_configured_subjects(self):
+        response = self.client.get("/")
+
+        self.assertEqual(response.status_code, 200)
+        parsed = _HTMLProbe(response.get_data(as_text=True))
+        for subject in (
+            "Информационни технологии",
+            "Физика",
+            "Информатика",
+            "Биология",
+            "Математика",
+            "Химия",
+        ):
+            self.assertIn(subject, parsed.text)
+
+    def test_active_it_subject_page_renders_existing_class_links(self):
+        response = self.client.get("/subjects/information-technologies")
+
+        self.assertEqual(response.status_code, 200)
+        parsed = _HTMLProbe(response.get_data(as_text=True))
+        self.assertIn("Информационни технологии", parsed.text)
+        self.assertIn("Съдържанието вече е налично", parsed.text)
+        for grade in (8, 9, 10, 11, 12):
+            self.assertIn(f"{grade}. клас", parsed.text)
+            self.assertIn(f"/grade/{grade}", parsed.hrefs())
+
+    def test_future_subject_page_renders_placeholder_state(self):
+        response = self.client.get("/subjects/biology")
+
+        self.assertEqual(response.status_code, 200)
+        parsed = _HTMLProbe(response.get_data(as_text=True))
+        self.assertIn("Биология", parsed.text)
+        self.assertIn("Съдържанието идва скоро", parsed.text)
+        self.assertIn("В подготовка", parsed.text)
+        for grade in (8, 9, 10, 11, 12):
+            self.assertIn(f"/subjects/biology/{grade}", parsed.hrefs())
+
+    def test_future_subject_class_page_renders_placeholder_state(self):
+        response = self.client.get("/subjects/biology/8")
+
+        self.assertEqual(response.status_code, 200)
+        parsed = _HTMLProbe(response.get_data(as_text=True))
+        self.assertIn("Биология", parsed.text)
+        self.assertIn("8. клас", parsed.text)
+        self.assertIn("Темите за 8. клас са в подготовка", parsed.text)
+        self.assertIn("Какво ще се добави", parsed.text)
+        self.assertIn("В подготовка", parsed.text)
+
+    def test_invalid_subject_returns_404(self):
+        response = self.client.get("/subjects/unknown-subject")
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_invalid_future_subject_grade_returns_404(self):
+        response = self.client.get("/subjects/physics/7")
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_existing_grade_routes_still_work(self):
+        response = self.client.get("/grade/8")
+
+        self.assertEqual(response.status_code, 200)
+        parsed = _HTMLProbe(response.get_data(as_text=True))
+        self.assertIn("8. клас", parsed.text)
 
     def test_homepage_omits_old_mode_class_and_topic_sections(self):
         html = self._get_home_html()

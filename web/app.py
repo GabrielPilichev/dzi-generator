@@ -148,6 +148,104 @@ QUESTION_DIFFICULTY_BUCKET_ORDER = [
     "unknown",
 ]
 
+SUBJECT_CLASS_GRADES = (8, 9, 10, 11, 12)
+SUBJECT_STATUS_LABELS = {
+    "active": "Активен",
+    "in_preparation": "В подготовка",
+}
+LEARNPILOT_SUBJECTS = (
+    {
+        "slug": "information-technologies",
+        "title": "Информационни технологии",
+        "status": "active",
+        "available_classes": SUBJECT_CLASS_GRADES,
+        "description": "Текущото съдържание с класове, теми, въпроси и тренировъчни тестове.",
+        "has_real_content": True,
+        "search_terms": "ИТ informatsionni tehnologii теми въпроси тестове",
+    },
+    {
+        "slug": "physics",
+        "title": "Физика",
+        "status": "in_preparation",
+        "available_classes": SUBJECT_CLASS_GRADES,
+        "description": "Бъдещ раздел по класове за теми, упражнения и тестове по физика.",
+        "has_real_content": False,
+        "search_terms": "physics fizika природни науки",
+    },
+    {
+        "slug": "informatics",
+        "title": "Информатика",
+        "status": "in_preparation",
+        "available_classes": SUBJECT_CLASS_GRADES,
+        "description": "Бъдещ раздел за алгоритми, програмиране и задачи по информатика.",
+        "has_real_content": False,
+        "search_terms": "informatika алгоритми програмиране",
+    },
+    {
+        "slug": "biology",
+        "title": "Биология",
+        "status": "in_preparation",
+        "available_classes": SUBJECT_CLASS_GRADES,
+        "description": "Бъдещ раздел по класове за теми и упражнения по биология.",
+        "has_real_content": False,
+        "search_terms": "biologiya природни науки",
+    },
+    {
+        "slug": "mathematics",
+        "title": "Математика",
+        "status": "in_preparation",
+        "available_classes": SUBJECT_CLASS_GRADES,
+        "description": "Бъдещ раздел по класове за задачи, теми и тестове по математика.",
+        "has_real_content": False,
+        "search_terms": "matematika алгебра геометрия",
+    },
+    {
+        "slug": "chemistry",
+        "title": "Химия",
+        "status": "in_preparation",
+        "available_classes": SUBJECT_CLASS_GRADES,
+        "description": "Бъдещ раздел по класове за теми и упражнения по химия.",
+        "has_real_content": False,
+        "search_terms": "himiya природни науки",
+    },
+)
+SUBJECTS_BY_SLUG = {subject["slug"]: subject for subject in LEARNPILOT_SUBJECTS}
+
+
+def learnpilot_subjects() -> tuple[dict, ...]:
+    return LEARNPILOT_SUBJECTS
+
+
+def get_subject_config(subject_slug: str) -> dict | None:
+    return SUBJECTS_BY_SLUG.get(subject_slug)
+
+
+def subject_status_label(subject: dict) -> str:
+    return SUBJECT_STATUS_LABELS.get(str(subject.get("status", "")), "В подготовка")
+
+
+def subject_class_range_label(subject: dict) -> str:
+    classes = tuple(subject.get("available_classes") or ())
+    if not classes:
+        return "Класове в подготовка"
+    if len(classes) == 1:
+        return f"{classes[0]}. клас"
+    return f"{min(classes)}.–{max(classes)}. клас"
+
+
+def subject_search_text(subject: dict) -> str:
+    class_terms = " ".join(f"{grade}. клас" for grade in subject.get("available_classes") or ())
+    return " ".join(
+        part
+        for part in (
+            str(subject.get("title", "")),
+            str(subject.get("search_terms", "")),
+            class_terms,
+            subject_status_label(subject).lower(),
+        )
+        if part
+    )
+
 
 def question_kind_label(value) -> str:
     key = str(value or "").strip().lower()
@@ -271,6 +369,26 @@ def inject_app_meta():
         "app_version": "UI pass 9",
         "last_sync_label": sync_label,
         "source_url": os.environ.get("DZI_SOURCE_URL"),
+    }
+
+
+@app.context_processor
+def inject_subject_navigation():
+    def subject_url(subject: dict) -> str:
+        return url_for("subject_view", subject_slug=subject["slug"])
+
+    def subject_class_url(subject: dict, grade: int) -> str:
+        if subject.get("has_real_content"):
+            return url_for("grade_view", grade=grade)
+        return url_for("subject_grade_view", subject_slug=subject["slug"], grade=grade)
+
+    return {
+        "learnpilot_subjects": learnpilot_subjects(),
+        "subject_url": subject_url,
+        "subject_class_url": subject_class_url,
+        "subject_status_label": subject_status_label,
+        "subject_class_range_label": subject_class_range_label,
+        "subject_search_text": subject_search_text,
     }
 
 
@@ -1497,61 +1615,61 @@ def index():
     return render_template(
         "index.html",
         grades=grades,
+        subjects=learnpilot_subjects(),
         searchable_sections=searchable_sections,
         dzi_section=dzi_section,
     )
 
 
-PHYSICS_GRADES = (8, 9, 10, 11, 12)
-PHYSICS_TOPIC_PLACEHOLDERS = {
-    8: (
-        {"eyebrow": "Основи", "title": "Физични величини и измерване", "description": "Бъдещи задачи за единици, измервания и обработка на резултати."},
-        {"eyebrow": "Механика", "title": "Движение и сили", "description": "Плейсхолдър за равномерно движение, скорост и взаимодействия."},
-        {"eyebrow": "Топлина", "title": "Температура и топлообмен", "description": "Място за бъдещи упражнения за топлина и промени на състоянието."},
-    ),
-    9: (
-        {"eyebrow": "Електричество", "title": "Електричен ток", "description": "Бъдещи теми за заряд, напрежение, съпротивление и прости вериги."},
-        {"eyebrow": "Магнетизъм", "title": "Магнитни явления", "description": "Плейсхолдър за магнитно поле и електромагнитни взаимодействия."},
-        {"eyebrow": "Вълни", "title": "Звук и светлина", "description": "Място за бъдещи задачи за вълнови явления, отражение и пречупване."},
-    ),
-    10: (
-        {"eyebrow": "Механика", "title": "Закони за движение", "description": "Бъдещи упражнения за сили, ускорение и закони на Нютон."},
-        {"eyebrow": "Енергия", "title": "Работа, мощност и енергия", "description": "Плейсхолдър за задачи с енергийни преобразувания."},
-        {"eyebrow": "Термодинамика", "title": "Газове и топлинни процеси", "description": "Място за бъдещи теми за състояние на газа и топлинни процеси."},
-    ),
-    11: (
-        {"eyebrow": "Електромагнетизъм", "title": "Електрични и магнитни полета", "description": "Бъдещи теми за полета, потенциал и електромагнитна индукция."},
-        {"eyebrow": "Трептения", "title": "Механични и електромагнитни трептения", "description": "Плейсхолдър за периодични процеси и резонанс."},
-        {"eyebrow": "Вълни", "title": "Вълнови процеси", "description": "Място за бъдещи задачи за интерференция, дифракция и спектри."},
-    ),
-    12: (
-        {"eyebrow": "Квантова физика", "title": "Фотони и атоми", "description": "Бъдещи упражнения за квантови явления и строеж на атома."},
-        {"eyebrow": "Ядрена физика", "title": "Ядра и радиоактивност", "description": "Плейсхолдър за радиоактивност, разпади и ядрени реакции."},
-        {"eyebrow": "Преговор", "title": "Обобщение за зрелостници", "description": "Място за бъдещи обзорни теми и тренировъчни тестове."},
-    ),
-}
+def render_subject_page(subject_slug: str):
+    subject = get_subject_config(subject_slug)
+    if subject is None:
+        abort(404)
+
+    grade_rows = fetch_grades_with_counts() if subject.get("has_real_content") else []
+    grade_rows_by_number = {int(row["grade"]): row for row in grade_rows}
+    total_questions = sum(int(row["question_count"] or 0) for row in grade_rows)
+    return render_template(
+        "subject.html",
+        subject=subject,
+        grade_rows_by_number=grade_rows_by_number,
+        total_questions=total_questions,
+    )
+
+
+def render_subject_grade_page(subject_slug: str, grade: int):
+    subject = get_subject_config(subject_slug)
+    if subject is None or grade not in subject.get("available_classes", ()):
+        abort(404)
+
+    if subject.get("has_real_content"):
+        return redirect(url_for("grade_view", grade=grade))
+
+    return render_template(
+        "subject_grade.html",
+        subject=subject,
+        grade=grade,
+    )
+
+
+@app.route("/subjects/<subject_slug>")
+def subject_view(subject_slug: str):
+    return render_subject_page(subject_slug)
+
+
+@app.route("/subjects/<subject_slug>/<int:grade>")
+def subject_grade_view(subject_slug: str, grade: int):
+    return render_subject_grade_page(subject_slug, grade)
 
 
 @app.route("/physics")
 def physics():
-    return render_template(
-        "physics.html",
-        physics_grades=PHYSICS_GRADES,
-        physics_grade=None,
-        topics=(),
-    )
+    return render_subject_page("physics")
 
 
 @app.route("/physics/grade/<int:grade>")
 def physics_grade(grade: int):
-    if grade not in PHYSICS_GRADES:
-        abort(404)
-    return render_template(
-        "physics.html",
-        physics_grades=PHYSICS_GRADES,
-        physics_grade=grade,
-        topics=PHYSICS_TOPIC_PLACEHOLDERS[grade],
-    )
+    return render_subject_grade_page("physics", grade)
 
 
 @app.route("/favicon.ico")

@@ -47,7 +47,12 @@
                     <nav class="nav-links" aria-label="Съдържание">
                         {% set current_grade = request.view_args.grade if request.endpoint == 'grade_view' else none %}
                         {% set is_dzi_current = request.path == '/section/grade12-dzi-preparation' or (request.endpoint and request.endpoint.startswith('dzi')) %}
-                        {% set is_physics_current = request.endpoint in ['physics', 'physics_grade'] %}
+                        {% set current_subject_slug = none %}
+                        {% if request.endpoint in ['subject_view', 'subject_grade_view'] and request.view_args %}
+                            {% set current_subject_slug = request.view_args.get('subject_slug') %}
+                        {% elif request.endpoint in ['physics', 'physics_grade'] %}
+                            {% set current_subject_slug = 'physics' %}
+                        {% endif %}
 
                         <a class="{% if request.endpoint == 'index' %}nav-current{% else %}nav-link{% endif %}"
                            href="{{ url_for('index') }}"
@@ -73,7 +78,7 @@
 
                         <div class="nav-menu">
                             <button
-                                class="nav-link nav-menu-trigger {% if is_physics_current %}nav-menu-trigger--current{% endif %}"
+                                class="nav-link nav-menu-trigger {% if current_subject_slug %}nav-menu-trigger--current{% endif %}"
                                 type="button"
                                 aria-expanded="false"
                                 aria-controls="nav-menu-subjects"
@@ -81,17 +86,15 @@
                                 Предмети
                             </button>
                             <div class="nav-menu-panel" id="nav-menu-subjects" hidden>
-                                <a class="nav-menu-link" href="{{ url_for('index') }}#grades">
-                                    Информационни технологии
-                                </a>
-                                <a class="nav-menu-link {% if is_physics_current %}nav-menu-link--current{% endif %}"
-                                   href="{{ url_for('physics') }}"
-                                   {% if is_physics_current %}aria-current="page"{% endif %}>Физика</a>
-                                {% for future_subject in ["Информатика", "Биология", "Математика", "Химия"] %}
-                                    <span class="nav-menu-link nav-menu-link--placeholder" aria-disabled="true">
-                                        {{ future_subject }}
-                                        <span class="nav-menu-status">В подготовка</span>
-                                    </span>
+                                {% for subject in learnpilot_subjects %}
+                                    <a class="nav-menu-link {% if current_subject_slug == subject.slug %}nav-menu-link--current{% endif %} {% if subject.status != 'active' %}nav-menu-link--placeholder{% endif %}"
+                                       href="{{ subject_url(subject) }}"
+                                       {% if request.endpoint == 'subject_view' and current_subject_slug == subject.slug %}aria-current="page"{% endif %}>
+                                        {{ subject.title }}
+                                        {% if subject.status != 'active' %}
+                                            <span class="nav-menu-status">{{ subject_status_label(subject) }}</span>
+                                        {% endif %}
+                                    </a>
                                 {% endfor %}
                             </div>
                         </div>
