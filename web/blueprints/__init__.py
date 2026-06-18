@@ -1,0 +1,1 @@
+"""Flask blueprints for LearnPilot."""
