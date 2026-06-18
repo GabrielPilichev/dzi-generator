@@ -30,6 +30,7 @@
     <div class="cards subject-class-grid">
         {% for grade in subject.available_classes %}
             {% set grade_row = grade_rows_by_number.get(grade) %}
+            {% set grade_topic_groups = subject_topic_groups(subject, grade) %}
             <a class="card subject-class-card {% if subject.has_real_content %}subject-class-card--active{% endif %}"
                href="{{ subject_class_url(subject, grade) }}">
                 <span class="subject-class-number">{{ grade }}</span>
@@ -41,7 +42,11 @@
                         </p>
                     {% else %}
                         <p class="subtitle">
-                            Място за бъдещи теми и упражнения за {{ grade }}. клас.
+                            {% if grade_topic_groups %}
+                                {{ grade_topic_groups|length }} тематични групи в подготовка за {{ grade }}. клас.
+                            {% else %}
+                                Място за бъдещи теми и упражнения за {{ grade }}. клас.
+                            {% endif %}
                         </p>
                     {% endif %}
                 </div>

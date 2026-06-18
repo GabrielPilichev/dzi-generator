@@ -33,26 +33,52 @@
     <span class="subject-soon">В подготовка</span>
 </section>
 
-<section class="home-section" aria-labelledby="subject-grade-placeholders-title">
-    <div class="section-heading">
-        <div>
-            <p class="eyebrow">Бъдещо съдържание</p>
-            <h2 id="subject-grade-placeholders-title">Какво ще се добави</h2>
+{% if topic_groups %}
+    <section class="home-section" aria-labelledby="subject-grade-topic-groups-title">
+        <div class="section-heading">
+            <div>
+                <p class="eyebrow">Тематични групи</p>
+                <h2 id="subject-grade-topic-groups-title">Теми за {{ grade }}. клас</h2>
+            </div>
+            <span class="pill">{{ topic_groups|length }} групи</span>
         </div>
-        <span class="pill">скоро</span>
-    </div>
 
-    <div class="cards subject-placeholder-grid">
-        {% for placeholder in ["Теми", "Упражнения", "Тестове"] %}
-            <article class="card subject-placeholder-card">
-                <p class="eyebrow">{{ subject.title }}</p>
-                <h2>{{ placeholder }}</h2>
-                <p class="subtitle">Място за бъдещо съдържание по {{ subject.title|lower }} за {{ grade }}. клас.</p>
-                <span class="subject-status-badge">В подготовка</span>
-            </article>
-        {% endfor %}
-    </div>
-</section>
+        <div class="cards subject-topic-group-grid">
+            {% for topic_group in topic_groups %}
+                <a class="card subject-topic-group-card"
+                   href="{{ subject_topic_group_url(subject, grade, topic_group) }}">
+                    <p class="eyebrow">{{ subject.title }}</p>
+                    <h2>{{ topic_group.title }}</h2>
+                    <p class="subtitle">
+                        Навигационна рамка за бъдещо съдържание по {{ subject.title|lower }} за {{ grade }}. клас.
+                    </p>
+                    <span class="subject-status-badge">{{ subject_status_label(topic_group) }}</span>
+                </a>
+            {% endfor %}
+        </div>
+    </section>
+{% else %}
+    <section class="home-section" aria-labelledby="subject-grade-placeholders-title">
+        <div class="section-heading">
+            <div>
+                <p class="eyebrow">Бъдещо съдържание</p>
+                <h2 id="subject-grade-placeholders-title">Какво ще се добави</h2>
+            </div>
+            <span class="pill">скоро</span>
+        </div>
+
+        <div class="cards subject-placeholder-grid">
+            {% for placeholder in ["Теми", "Упражнения", "Тестове"] %}
+                <article class="card subject-placeholder-card">
+                    <p class="eyebrow">{{ subject.title }}</p>
+                    <h2>{{ placeholder }}</h2>
+                    <p class="subtitle">Място за бъдещо съдържание по {{ subject.title|lower }} за {{ grade }}. клас.</p>
+                    <span class="subject-status-badge">В подготовка</span>
+                </article>
+            {% endfor %}
+        </div>
+    </section>
+{% endif %}
 
 <div class="actions">
     <a class="button secondary" href="{{ subject_url(subject) }}">Всички класове по {{ subject.title|lower }}</a>

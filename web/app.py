@@ -153,6 +153,38 @@ SUBJECT_STATUS_LABELS = {
     "active": "Активен",
     "in_preparation": "В подготовка",
 }
+PHYSICS_TOPIC_GROUPS_BY_GRADE = {
+    8: (
+        {"slug": "mechanics", "title": "Механика", "status": "in_preparation"},
+        {"slug": "thermal-phenomena", "title": "Топлинни явления", "status": "in_preparation"},
+        {"slug": "pressure", "title": "Налягане", "status": "in_preparation"},
+        {"slug": "electricity", "title": "Електричество", "status": "in_preparation"},
+    ),
+    9: (
+        {"slug": "mechanics", "title": "Механика", "status": "in_preparation"},
+        {"slug": "oscillations-and-waves", "title": "Трептения и вълни", "status": "in_preparation"},
+        {"slug": "sound", "title": "Звук", "status": "in_preparation"},
+        {"slug": "light", "title": "Светлина", "status": "in_preparation"},
+    ),
+    10: (
+        {"slug": "mechanics", "title": "Механика", "status": "in_preparation"},
+        {"slug": "thermal-processes", "title": "Топлинни процеси", "status": "in_preparation"},
+        {"slug": "electric-phenomena", "title": "Електрични явления", "status": "in_preparation"},
+        {"slug": "magnetic-phenomena", "title": "Магнитни явления", "status": "in_preparation"},
+    ),
+    11: (
+        {"slug": "electromagnetism", "title": "Електромагнетизъм", "status": "in_preparation"},
+        {"slug": "geometric-optics", "title": "Геометрична оптика", "status": "in_preparation"},
+        {"slug": "wave-optics", "title": "Вълнова оптика", "status": "in_preparation"},
+        {"slug": "quantum-phenomena", "title": "Квантови явления", "status": "in_preparation"},
+    ),
+    12: (
+        {"slug": "atomic-physics", "title": "Атомна физика", "status": "in_preparation"},
+        {"slug": "nuclear-physics", "title": "Ядрена физика", "status": "in_preparation"},
+        {"slug": "elementary-particles", "title": "Елементарни частици", "status": "in_preparation"},
+        {"slug": "astrophysics", "title": "Астрофизика", "status": "in_preparation"},
+    ),
+}
 LEARNPILOT_SUBJECTS = (
     {
         "slug": "information-technologies",
@@ -168,8 +200,9 @@ LEARNPILOT_SUBJECTS = (
         "title": "Физика",
         "status": "in_preparation",
         "available_classes": SUBJECT_CLASS_GRADES,
-        "description": "Бъдещ раздел по класове за теми, упражнения и тестове по физика.",
+        "description": "Раздел по класове за бъдещи теми, упражнения и тестове по физика.",
         "has_real_content": False,
+        "topic_groups_by_grade": PHYSICS_TOPIC_GROUPS_BY_GRADE,
         "search_terms": "physics fizika природни науки",
     },
     {
@@ -218,6 +251,22 @@ def learnpilot_subjects() -> tuple[dict, ...]:
 
 def get_subject_config(subject_slug: str) -> dict | None:
     return SUBJECTS_BY_SLUG.get(subject_slug)
+
+
+def subject_topic_groups(subject: dict, grade: int) -> tuple[dict, ...]:
+    topic_groups_by_grade = subject.get("topic_groups_by_grade") or {}
+    return tuple(topic_groups_by_grade.get(int(grade), ()))
+
+
+def get_subject_topic_group_config(subject_slug: str, grade: int, topic_group_slug: str) -> tuple[dict, dict] | None:
+    subject = get_subject_config(subject_slug)
+    if subject is None or grade not in subject.get("available_classes", ()):
+        return None
+
+    for topic_group in subject_topic_groups(subject, grade):
+        if topic_group.get("slug") == topic_group_slug:
+            return subject, topic_group
+    return None
 
 
 def subject_status_label(subject: dict) -> str:
@@ -382,10 +431,20 @@ def inject_subject_navigation():
             return url_for("grade_view", grade=grade)
         return url_for("subject_grade_view", subject_slug=subject["slug"], grade=grade)
 
+    def subject_topic_group_url(subject: dict, grade: int, topic_group: dict) -> str:
+        return url_for(
+            "subject_topic_group_view",
+            subject_slug=subject["slug"],
+            grade=grade,
+            topic_group_slug=topic_group["slug"],
+        )
+
     return {
         "learnpilot_subjects": learnpilot_subjects(),
         "subject_url": subject_url,
         "subject_class_url": subject_class_url,
+        "subject_topic_group_url": subject_topic_group_url,
+        "subject_topic_groups": subject_topic_groups,
         "subject_status_label": subject_status_label,
         "subject_class_range_label": subject_class_range_label,
         "subject_search_text": subject_search_text,
@@ -1649,6 +1708,21 @@ def render_subject_grade_page(subject_slug: str, grade: int):
         "subject_grade.html",
         subject=subject,
         grade=grade,
+        topic_groups=subject_topic_groups(subject, grade),
+    )
+
+
+def render_subject_topic_group_page(subject_slug: str, grade: int, topic_group_slug: str):
+    topic_group_result = get_subject_topic_group_config(subject_slug, grade, topic_group_slug)
+    if topic_group_result is None:
+        abort(404)
+
+    subject, topic_group = topic_group_result
+    return render_template(
+        "subject_topic_group.html",
+        subject=subject,
+        grade=grade,
+        topic_group=topic_group,
     )
 
 
@@ -1660,6 +1734,11 @@ def subject_view(subject_slug: str):
 @app.route("/subjects/<subject_slug>/<int:grade>")
 def subject_grade_view(subject_slug: str, grade: int):
     return render_subject_grade_page(subject_slug, grade)
+
+
+@app.route("/subjects/<subject_slug>/<int:grade>/<topic_group_slug>")
+def subject_topic_group_view(subject_slug: str, grade: int, topic_group_slug: str):
+    return render_subject_topic_group_page(subject_slug, grade, topic_group_slug)
 
 
 @app.route("/physics")

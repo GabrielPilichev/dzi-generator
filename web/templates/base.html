@@ -48,7 +48,7 @@
                         {% set current_grade = request.view_args.grade if request.endpoint == 'grade_view' else none %}
                         {% set is_dzi_current = request.path == '/section/grade12-dzi-preparation' or (request.endpoint and request.endpoint.startswith('dzi')) %}
                         {% set current_subject_slug = none %}
-                        {% if request.endpoint in ['subject_view', 'subject_grade_view'] and request.view_args %}
+                        {% if request.endpoint in ['subject_view', 'subject_grade_view', 'subject_topic_group_view'] and request.view_args %}
                             {% set current_subject_slug = request.view_args.get('subject_slug') %}
                         {% elif request.endpoint in ['physics', 'physics_grade'] %}
                             {% set current_subject_slug = 'physics' %}
