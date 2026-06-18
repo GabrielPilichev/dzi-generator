@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}{{ subject.title }} — {{ grade }}. клас — {{ topic_group.title }}{% endblock %}
+
+{% block breadcrumb %}
+    <a href="{{ url_for('index') }}">Начало</a>
+    <a href="{{ subject_url(subject) }}">{{ subject.title }}</a>
+    <a href="{{ subject_class_url(subject, grade) }}">{{ grade }}. клас</a>
+    <span>{{ topic_group.title }}</span>
+{% endblock %}
+
+{% block content %}
+<section class="hero subject-hero subject-hero--placeholder">
+    <p class="eyebrow">{{ subject.title }} - {{ grade }}. клас</p>
+    <h1>{{ topic_group.title }}</h1>
+    <p class="subtitle">
+        Тематична група в подготовка. Страницата е част от бъдещата структура по {{ subject.title|lower }},
+        без добавени реални въпроси, оценки или тестове.
+    </p>
+    <div class="subject-meta">
+        <span class="pill subject-pill">{{ subject_status_label(topic_group) }}</span>
+        <span>{{ grade }}. клас</span>
+    </div>
+</section>
+
+<section class="panel subject-status-panel subject-grade-shell" aria-labelledby="subject-topic-group-status-title">
+    <div>
+        <p class="eyebrow">Статус</p>
+        <h2 id="subject-topic-group-status-title">{{ topic_group.title }} е в подготовка</h2>
+        <p class="subtitle">
+            Тук ще се подреди бъдещото съдържание за тази тематична група. В момента страницата служи само като
+            навигационна рамка.
+        </p>
+    </div>
+    <span class="subject-soon">{{ subject_status_label(topic_group) }}</span>
+</section>
+
+<div class="actions">
+    <a class="button secondary" href="{{ subject_class_url(subject, grade) }}">Всички теми за {{ grade }}. клас</a>
+    <a class="button secondary" href="{{ subject_url(subject) }}">Всички класове по {{ subject.title|lower }}</a>
+</div>
+
+<p class="empty-state subject-empty-state">
+    Няма добавена база с въпроси или учебно съдържание за {{ topic_group.title|lower }}.
+</p>
+{% endblock %}

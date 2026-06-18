@@ -220,8 +220,8 @@ class HomepageSearchTest(unittest.TestCase):
                 )
             )
 
-    def test_physics_page_renders_class_first_placeholder_shell(self):
-        response = self.client.get("/physics")
+    def test_physics_subject_page_renders_class_first_framework(self):
+        response = self.client.get("/subjects/physics")
 
         self.assertEqual(response.status_code, 200)
         html = response.get_data(as_text=True)
@@ -233,31 +233,75 @@ class HomepageSearchTest(unittest.TestCase):
         for grade in (8, 9, 10, 11, 12):
             self.assertIn(f"{grade}. клас", parsed.text)
             self.assertIn(f"/subjects/physics/{grade}", parsed.hrefs())
+            self.assertIn(f"4 тематични групи в подготовка за {grade}. клас", parsed.text)
         self.assertNotIn("Теми за 8. клас", parsed.text)
         self.assertNotIn("Движение и сили", parsed.text)
         self.assertIn("все още няма реални въпроси", parsed.text)
 
-    def test_physics_grade_page_renders_preparation_placeholders(self):
+    def test_legacy_physics_routes_still_render_subject_framework(self):
+        response = self.client.get("/physics")
+
+        self.assertEqual(response.status_code, 200)
+        parsed = _HTMLProbe(response.get_data(as_text=True))
+        self.assertIn("Физика", parsed.text)
+        self.assertIn("/subjects/physics/8", parsed.hrefs())
+
         response = self.client.get("/physics/grade/8")
+        self.assertEqual(response.status_code, 200)
+        parsed = _HTMLProbe(response.get_data(as_text=True))
+        self.assertIn("Механика", parsed.text)
+        self.assertIn("/subjects/physics/8/mechanics", parsed.hrefs())
+
+    def test_physics_grade_pages_render_configured_topic_groups(self):
+        for grade, topic_groups in web_app.PHYSICS_TOPIC_GROUPS_BY_GRADE.items():
+            with self.subTest(grade=grade):
+                response = self.client.get(f"/subjects/physics/{grade}")
+
+                self.assertEqual(response.status_code, 200)
+                parsed = _HTMLProbe(response.get_data(as_text=True))
+                self.assertIn("Физика", parsed.text)
+                self.assertIn(f"{grade}. клас", parsed.text)
+                self.assertIn(f"Теми за {grade}. клас", parsed.text)
+                self.assertIn("Тематични групи", parsed.text)
+                self.assertIn("Темите за", parsed.text)
+                self.assertIn("В подготовка", parsed.text)
+                self.assertNotIn("Какво ще се добави", parsed.text)
+                for topic_group in topic_groups:
+                    self.assertEqual(topic_group["status"], "in_preparation")
+                    self.assertIn(topic_group["title"], parsed.text)
+                    self.assertIn(f"/subjects/physics/{grade}/{topic_group['slug']}", parsed.hrefs())
+                self.assertIn("Реални въпроси, оценки и тестове по физика още не са добавени", parsed.text)
+                self.assertIn("/subjects/physics", parsed.hrefs())
+
+    def test_physics_topic_group_page_renders_preparation_placeholder(self):
+        topic_group = web_app.PHYSICS_TOPIC_GROUPS_BY_GRADE[8][0]
+        response = self.client.get(f"/subjects/physics/8/{topic_group['slug']}")
 
         self.assertEqual(response.status_code, 200)
         parsed = _HTMLProbe(response.get_data(as_text=True))
         self.assertIn("Физика", parsed.text)
         self.assertIn("8. клас", parsed.text)
-        self.assertIn("Темите за 8. клас са в подготовка", parsed.text)
-        self.assertIn("Какво ще се добави", parsed.text)
-        for placeholder in ("Теми", "Упражнения", "Тестове"):
-            self.assertIn(placeholder, parsed.text)
+        self.assertIn(topic_group["title"], parsed.text)
+        self.assertIn("Тематична група в подготовка", parsed.text)
         self.assertIn("В подготовка", parsed.text)
-        self.assertNotIn("Плейсхолдър 1", parsed.text)
-        self.assertNotIn("Физични величини и измерване", parsed.text)
-        self.assertNotIn("Движение и сили", parsed.text)
-        self.assertIn("Реални въпроси, оценки и тестове по физика още не са добавени", parsed.text)
+        self.assertIn("Няма добавена база с въпроси", parsed.text)
+        self.assertIn("/subjects/physics/8", parsed.hrefs())
         self.assertIn("/subjects/physics", parsed.hrefs())
 
     def test_invalid_physics_grade_returns_404(self):
-        response = self.client.get("/physics/grade/7")
+        response = self.client.get("/subjects/physics/7")
 
+        self.assertEqual(response.status_code, 404)
+
+        response = self.client.get("/physics/grade/7")
+        self.assertEqual(response.status_code, 404)
+
+    def test_invalid_physics_topic_group_returns_404(self):
+        response = self.client.get("/subjects/physics/8/not-a-topic-group")
+
+        self.assertEqual(response.status_code, 404)
+
+        response = self.client.get("/subjects/physics/7/mechanics")
         self.assertEqual(response.status_code, 404)
 
     def test_subject_hub_includes_all_configured_subjects(self):

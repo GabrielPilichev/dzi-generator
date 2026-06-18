@@ -1001,11 +1001,42 @@ button:disabled:hover,
 .subject-placeholder-grid {
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
+.subject-topic-group-grid {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
 .subject-placeholder-card {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
   border-top: 3px solid color-mix(in srgb, var(--color-success) 68%, var(--color-primary));
+}
+.subject-topic-group-card {
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+  gap: var(--space-2);
+  min-height: 190px;
+  color: var(--color-text);
+  border-top: 3px solid color-mix(in srgb, var(--color-success) 68%, var(--color-primary));
+  transition: transform var(--t-base), border-color var(--t-base), background var(--t-base), box-shadow var(--t-base);
+}
+.subject-topic-group-card:hover {
+  text-decoration: none;
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--color-success) 46%, var(--color-border));
+  background: linear-gradient(145deg, var(--color-bg), color-mix(in srgb, var(--color-success-soft) 66%, var(--color-bg)));
+  box-shadow: var(--shadow-md);
+}
+.subject-topic-group-card:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--color-success) 34%, transparent);
+  outline-offset: 4px;
+  border-color: color-mix(in srgb, var(--color-success) 70%, var(--color-primary));
+}
+.subject-topic-group-card h2 {
+  margin-bottom: 0;
+  font-size: 1.1rem;
+}
+.subject-topic-group-card .subtitle {
+  margin: 0;
 }
 .subject-placeholder-card h2 {
   margin-bottom: 0;
