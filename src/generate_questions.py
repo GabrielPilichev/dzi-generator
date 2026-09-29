@@ -42,12 +42,13 @@ from pathlib import Path
 # Path hack
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from agents.ollama_client import (
+from src.agents.ollama_client import (
     OllamaClient,
     OllamaError,
     DEFAULT_CHAT_MODEL,
     DEFAULT_HOST,
 )
+from src.subject_content import IT, require_topic_subject
 
 
 LOG_PATH = Path("data/qgen_log.jsonl")
@@ -137,6 +138,8 @@ def fetch_topic_info(conn: sqlite3.Connection, slug: str) -> dict | None:
     
     if not row:
         return None
+
+    require_topic_subject(conn, int(row[0]), IT)
     
     classes = [r[0] for r in conn.execute(
         "SELECT class FROM topic_classes WHERE topic_id=? ORDER BY class",
@@ -318,6 +321,7 @@ def save_question(conn: sqlite3.Connection,
                   difficulty: str,
                   explanation: str) -> int:
     """Записва въпрос в DB. Връща question_id."""
+    require_topic_subject(conn, int(topic_info["id"]), IT)
     cur = conn.cursor()
     
     # Get next source_number for this AI batch (auto-increment per source_exam)
@@ -418,18 +422,18 @@ def main() -> None:
     if args.dry_run:
         print(f"   ⚠️  DRY RUN")
     
-    client = OllamaClient(host=args.host)
-    if not client.is_alive():
-        print(f"\n❌ Ollama не работи. Стартирай: ollama serve")
-        sys.exit(1)
-    
     conn = sqlite3.connect(str(args.db))
     
     # Determine which topics to process
     topics_to_process = []
     
     if args.topic:
-        info = fetch_topic_info(conn, args.topic)
+        try:
+            info = fetch_topic_info(conn, args.topic)
+        except ValueError as exc:
+            conn.close()
+            print(f"❌ {exc}")
+            sys.exit(1)
         if not info:
             print(f"❌ Topic '{args.topic}' не съществува в DB.")
             sys.exit(1)
@@ -448,14 +452,26 @@ def main() -> None:
             """
         slugs = [r[0] for r in conn.execute(sql, (args.area,))]
         for s in slugs:
-            info = fetch_topic_info(conn, s)
+            try:
+                info = fetch_topic_info(conn, s)
+            except ValueError as exc:
+                conn.close()
+                print(f"❌ {exc}")
+                sys.exit(1)
             if info:
                 topics_to_process.append(info)
     
     print(f"\n📋 Topics to process: {len(topics_to_process)}")
     if not topics_to_process:
         print(f"❌ Няма нищо за обработка.")
+        conn.close()
         return
+
+    client = OllamaClient(host=args.host)
+    if not client.is_alive():
+        print(f"\n❌ Ollama не работи. Стартирай: ollama serve")
+        conn.close()
+        sys.exit(1)
     
     source_exam = f"ai_generated_{datetime.now().strftime('%Y%m%d')}"
     
