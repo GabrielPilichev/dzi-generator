@@ -2,19 +2,14 @@
 
 {% block title %}LearnPilot — Преглед{% endblock %}
 
-{% set total_questions = namespace(value=0) %}
-{% for g in grades %}
-    {% set total_questions.value = total_questions.value + g.question_count %}
-{% endfor %}
-
 {% block content %}
 <section class="hero home-hero">
     <p class="eyebrow">LearnPilot</p>
     <h1>Учи по-умно. Подготвяй се уверено.</h1>
-    <p class="subtitle">Локална платформа за информационни технологии с подредено съдържание по класове, ДЗИ подготовка и тренировъчни тестове.</p>
+    <p class="subtitle">Локална платформа с подредено съдържание по предмети и класове, ДЗИ подготовка и тренировъчни тестове.</p>
     <div class="home-hero-stats">
-        <span>{{ total_questions.value }} въпроса</span>
-        <span>{{ grades|length }} класа</span>
+        <span>{{ home_total_questions }} въпроса</span>
+        <span>{{ home_class_count }} класа</span>
     </div>
     <form class="home-search" role="search" aria-label="Търсене по предмети" onsubmit="return false;">
         <label class="home-search-label" for="home-search-input">Търсене по предмети</label>
@@ -89,8 +84,8 @@
                     <p class="subtitle">{{ subject.description }}</p>
                     <div class="home-subject-stats">
                         {% if subject.has_real_content %}
-                            <span>{{ grades|length }} класа</span>
-                            <span>{{ total_questions.value }} въпроса</span>
+                            <span>{{ subject.content_grades|length }} класа</span>
+                            <span>{{ subject.question_count }} въпроса</span>
                         {% else %}
                             <span>{{ subject_class_range_label(subject) }}</span>
                             <span>{{ subject_status_label(subject) }}</span>
@@ -99,8 +94,8 @@
                 </div>
                 {% if subject.has_real_content %}
                     <div class="home-subject-class-links" aria-label="Класове по {{ subject.title|lower }}">
-                        {% for g in grades|sort(attribute='grade') %}
-                            <a href="{{ url_for('grade_view', grade=g.grade) }}">{{ g.grade }}. клас</a>
+                        {% for grade in subject.content_grades %}
+                            <a href="{{ subject_class_url(subject, grade) }}">{{ grade }}. клас</a>
                         {% endfor %}
                     </div>
                     <a class="mode-action" href="{{ subject_url(subject) }}">Към предмета</a>

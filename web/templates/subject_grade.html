@@ -9,6 +9,37 @@
 {% endblock %}
 
 {% block content %}
+{% if sections %}
+<section class="hero subject-hero">
+    <p class="eyebrow">{{ subject.title }}</p>
+    <h1>{{ grade }}. клас</h1>
+    <p class="subtitle">Избери раздел за преговор по {{ subject.title|lower }}.</p>
+</section>
+
+<section class="home-section" aria-labelledby="subject-grade-sections-title">
+    <div class="section-heading">
+        <div>
+            <p class="eyebrow">Раздели</p>
+            <h2 id="subject-grade-sections-title">Съдържание за {{ grade }}. клас</h2>
+        </div>
+        <span class="pill">{{ sections|length }} раздела</span>
+    </div>
+    <div class="cards subject-topic-group-grid">
+        {% for section in sections %}
+            <a class="card subject-topic-group-card"
+               href="{{ url_for('subject_topic_group_view', subject_slug=subject.slug, grade=grade, topic_group_slug=section.section_slug) }}">
+                <p class="eyebrow">{{ subject.title }}</p>
+                <h2>{{ section.section_title }}</h2>
+                <p class="subtitle">{{ section.question_count }} въпроса</p>
+            </a>
+        {% endfor %}
+    </div>
+</section>
+
+<div class="actions">
+    <a class="button secondary" href="{{ subject_url(subject) }}">Всички класове по {{ subject.title|lower }}</a>
+</div>
+{% else %}
 <section class="hero subject-hero subject-hero--placeholder">
     <p class="eyebrow">{{ subject.title }}</p>
     <h1>{{ grade }}. клас</h1>
@@ -88,4 +119,5 @@
     Тази страница е само структура за {{ subject.title }} - {{ grade }}. клас.
     Реални въпроси, оценки и тестове по {{ subject.title|lower }} още не са добавени.
 </p>
+{% endif %}
 {% endblock %}

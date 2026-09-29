@@ -30,6 +30,11 @@ questions have no `topic_id`. Existing IT/DZI routes continue to handle these
 as before. The IT-only question generator now rejects topics outside `it`
 before generating or saving an IT/DZI-labelled question.
 
-Subject-scoped browsing and counts remain F2; assignment/question pools remain
-F3; reviewed non-DZI import tooling remains F4. This contract adds no Physics
-questions, migrations, tables, or curriculum decisions.
+F2 browsing uses `src/subject_browsing.py` to select sections, topics,
+questions, counts, and homepage search titles through these ownership rules.
+The legacy `/grade/<n>` and `/section/<slug>` paths remain IT-only; the latter
+still permits the known curriculum-less section URL without assigning it an IT
+owner. A populated generic subject/class page uses its own database sections,
+while an empty Physics class keeps its provisional cards. Assignment/question
+pools remain F3; reviewed non-DZI import tooling remains F4. No Physics
+questions, migrations, tables, or curriculum decisions are added.
