@@ -11,7 +11,7 @@
 <section class="hero subject-hero {% if not subject.has_real_content %}subject-hero--placeholder{% endif %}">
     <p class="eyebrow">Предмет</p>
     <h1>{{ subject.title }}</h1>
-    <p class="subtitle">{{ subject.description }}</p>
+    <p class="subtitle">{% if subject.has_real_content and subject.slug == 'physics' %}Съдържание по класове, раздели и въпроси по физика.{% else %}{{ subject.description }}{% endif %}</p>
     <div class="subject-meta">
         <span class="pill subject-pill">{{ subject_status_label(subject) }}</span>
         <span>{{ subject_class_range_label(subject) }}</span>
@@ -31,12 +31,13 @@
         {% for grade in subject.available_classes %}
             {% set grade_row = grade_rows_by_number.get(grade) %}
             {% set grade_topic_groups = subject_topic_groups(subject, grade) %}
-            <a class="card subject-class-card {% if subject.has_real_content %}subject-class-card--active{% endif %}"
+            {% set grade_has_content = grade in content_grades %}
+            <a class="card subject-class-card {% if grade_has_content %}subject-class-card--active{% endif %}"
                href="{{ subject_class_url(subject, grade) }}">
                 <span class="subject-class-number">{{ grade }}</span>
                 <div>
                     <h2>{{ grade }}. клас</h2>
-                    {% if subject.has_real_content %}
+                    {% if grade_has_content %}
                         <p class="subtitle">
                             Към текущите раздели, въпроси и тестове за {{ grade }}. клас.
                         </p>
@@ -50,9 +51,9 @@
                         </p>
                     {% endif %}
                 </div>
-                {% if subject.has_real_content %}
+                {% if grade_has_content %}
                     <span class="subject-status-badge">
-                        {% if grade_row %}{{ grade_row.question_count }} въпроса{% else %}Активен{% endif %}
+                        {% if grade_row %}{{ grade_row.question_count }} въпроса{% else %}0 въпроса{% endif %}
                     </span>
                 {% else %}
                     <span class="subject-status-badge">В подготовка</span>
@@ -68,7 +69,7 @@
             <p class="eyebrow">Активен предмет</p>
             <h2 id="subject-active-title">Съдържанието вече е налично</h2>
             <p class="subtitle">
-                {{ subject.title }} използва текущите класове, раздели и въпроси в LearnPilot.
+                Наличните раздели и въпроси са подредени по предмет и клас.
             </p>
         </div>
         <span class="subject-soon">{{ total_questions }} въпроса</span>

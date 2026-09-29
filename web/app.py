@@ -33,6 +33,8 @@ from urllib.parse import urlparse
 
 from flask import Flask, abort, g, render_template, url_for, request, redirect, send_file, session
 
+from src.subject_browsing import SubjectContentBrowser
+from src.subject_content import IT, canonical_subject
 from src.practical_uploads import (
     MAX_UPLOAD_BYTES,
     PracticalUploadError,
@@ -299,6 +301,7 @@ def subject_search_text(subject: dict) -> str:
             str(subject.get("search_terms", "")),
             class_terms,
             subject_status_label(subject).lower(),
+            str(subject.get("search_content", "")),
         )
         if part
     )
@@ -418,7 +421,7 @@ def inject_subject_navigation():
         return url_for("subject_view", subject_slug=subject["slug"])
 
     def subject_class_url(subject: dict, grade: int) -> str:
-        if subject.get("has_real_content"):
+        if canonical_subject(subject["slug"]) == IT:
             return url_for("grade_view", grade=grade)
         return url_for("subject_grade_view", subject_slug=subject["slug"], grade=grade)
 
@@ -430,8 +433,13 @@ def inject_subject_navigation():
             topic_group_slug=topic_group["slug"],
         )
 
+    status_overrides = getattr(g, "subject_status_overrides", {})
+    navigation_subjects = tuple(
+        {**subject, "status": status_overrides.get(subject["slug"], subject["status"])}
+        for subject in learnpilot_subjects()
+    )
     return {
-        "learnpilot_subjects": learnpilot_subjects(),
+        "learnpilot_subjects": navigation_subjects,
         "subject_url": subject_url,
         "subject_class_url": subject_class_url,
         "subject_topic_group_url": subject_topic_group_url,
@@ -670,88 +678,27 @@ def close_db(exception):
 # ---------------------------------------------------------------------------
 
 def fetch_grades_with_counts() -> list[dict]:
-    """List of grades 8-12 with question counts (production-ready only)."""
-    db = get_db()
-    rows = db.execute("""
-        SELECT
-            tc.class AS grade,
-            COUNT(DISTINCT q.id) AS question_count,
-            COUNT(DISTINCT t.id) AS topic_count
-        FROM topic_classes tc
-        JOIN curriculum_topics t ON t.id = tc.topic_id
-        LEFT JOIN questions q
-            ON q.topic_id = t.id
-            AND (q.is_ai_generated = 0 OR q.quality_score >= 1.0)
-        WHERE tc.class BETWEEN 8 AND 12
-        GROUP BY tc.class
-        ORDER BY tc.class
-    """).fetchall()
-    return [dict(r) for r in rows]
+    """Legacy IT grade counts; other subjects use their own browsing scope."""
+    return SubjectContentBrowser(get_db(), IT, legacy_it=True).grade_counts()
 
 
 def fetch_sections_for_grade(grade: int) -> list[dict]:
-    """Sections for a grade, grouped by module."""
-    db = get_db()
-    rows = db.execute("""
-        SELECT
-            cs.id              AS section_id,
-            cs.section_slug    AS section_slug,
-            cs.title_bg        AS section_title,
-            cs.section_type    AS section_type,
-            cs.has_section_test AS has_test,
-            cm.module_slug     AS module_slug,
-            cm.title_bg        AS module_title,
-            cm.module_number   AS module_number,
-            (
-                SELECT COUNT(DISTINCT q.id)
-                FROM topic_section_assignments tsa
-                JOIN questions q ON q.topic_id = tsa.topic_id
-                WHERE tsa.section_id = cs.id
-                  AND (q.is_ai_generated = 0 OR q.quality_score >= 1.0)
-            ) AS question_count
-        FROM curriculum_sections cs
-        LEFT JOIN curriculum_modules cm ON cm.id = cs.module_id
-        WHERE cs.class = ?
-        ORDER BY COALESCE(cm.module_number, 99), cs.display_order, cs.title_bg
-    """, (grade,)).fetchall()
-    return [dict(r) for r in rows]
+    """Legacy IT sections, grouped by module."""
+    return SubjectContentBrowser(get_db(), IT, legacy_it=True).sections_for_grade(grade)
 
 
 def fetch_section(slug: str) -> dict | None:
-    db = get_db()
-    row = db.execute("""
-        SELECT
-            cs.id              AS section_id,
-            cs.section_slug    AS section_slug,
-            cs.title_bg        AS section_title,
-            cs.class           AS grade,
-            cm.title_bg        AS module_title,
-            cm.module_number   AS module_number
-        FROM curriculum_sections cs
-        LEFT JOIN curriculum_modules cm ON cm.id = cs.module_id
-        WHERE cs.section_slug = ?
-    """, (slug,)).fetchone()
-    return dict(row) if row else None
+    browser = SubjectContentBrowser(get_db(), IT, legacy_it=True)
+    return browser.section(slug, legacy_unclassified=True)
 
 
-def fetch_questions_in_section(section_id: int) -> list[dict]:
+def fetch_questions_in_section(
+    section_id: int, *, browser: SubjectContentBrowser | None = None
+) -> list[dict]:
     """Approved questions linked to this section via topic_section_assignments."""
     db = get_db()
-    rows = db.execute("""
-        SELECT DISTINCT
-            q.id            AS question_id,
-            q.prompt        AS prompt,
-            q.question_type AS question_type,
-            q.difficulty    AS difficulty,
-            t.topic_slug    AS topic_slug,
-            t.title_bg      AS topic_title
-        FROM topic_section_assignments tsa
-        JOIN questions q ON q.topic_id = tsa.topic_id
-        JOIN curriculum_topics t ON t.id = q.topic_id
-        WHERE tsa.section_id = ?
-          AND (q.is_ai_generated = 0 OR q.quality_score >= 1.0)
-        ORDER BY t.topic_slug, q.id
-    """, (section_id,)).fetchall()
+    browser = browser or SubjectContentBrowser(db, IT, legacy_it=True)
+    rows = browser.questions_in_section(section_id)
 
     questions = []
     for r in rows:
@@ -1646,27 +1593,44 @@ def tester_home():
 
 @app.route("/")
 def index():
-    grades = fetch_grades_with_counts()
-    searchable_sections: list[dict] = []
+    subjects = []
     dzi_section = None
-    for g in grades:
-        for s in fetch_sections_for_grade(int(g["grade"])):
-            item = {
-                "grade": int(g["grade"]),
-                "section_slug": s["section_slug"],
-                "section_title": s["section_title"],
-                "module_title": s.get("module_title"),
-                "question_count": s.get("question_count") or 0,
-            }
-            if s["section_slug"] == "grade12-dzi-preparation":
-                dzi_section = item
-                continue
-            searchable_sections.append(item)
+    for configured in learnpilot_subjects():
+        subject = dict(configured)
+        content_subject = canonical_subject(subject["slug"])
+        if content_subject is not None:
+            browser = SubjectContentBrowser(
+                get_db(), content_subject, legacy_it=content_subject == IT
+            )
+            grade_rows = browser.grade_counts()
+            sections = [
+                section
+                for grade in subject["available_classes"]
+                for section in browser.sections_for_grade(grade)
+            ]
+            section_grades = {section["grade"] for section in sections}
+            subject["has_real_content"] = bool(subject["has_real_content"] or section_grades)
+            if section_grades:
+                subject["status"] = "active"
+            subject["content_grades"] = sorted(section_grades)
+            subject["question_count"] = sum(int(row["question_count"]) for row in grade_rows)
+            subject["search_content"] = browser.search_titles(sections)
+            if content_subject == IT:
+                dzi_section = next(
+                    (section for section in sections
+                     if section["section_slug"] == "grade12-dzi-preparation"),
+                    None,
+                )
+        subjects.append(subject)
+    g.subject_status_overrides = {
+        subject["slug"]: subject["status"] for subject in subjects
+    }
+
     return render_template(
         "index.html",
-        grades=grades,
-        subjects=learnpilot_subjects(),
-        searchable_sections=searchable_sections,
+        subjects=subjects,
+        home_total_questions=sum(subject.get("question_count", 0) for subject in subjects),
+        home_class_count=len({grade for subject in subjects for grade in subject.get("content_grades", ())}),
         dzi_section=dzi_section,
     )
 
@@ -1676,12 +1640,29 @@ def render_subject_page(subject_slug: str):
     if subject is None:
         abort(404)
 
-    grade_rows = fetch_grades_with_counts() if subject.get("has_real_content") else []
+    subject = dict(subject)
+    content_subject = canonical_subject(subject_slug)
+    grade_rows = []
+    content_grades = set()
+    if content_subject is not None:
+        browser = SubjectContentBrowser(
+            get_db(), content_subject, legacy_it=content_subject == IT
+        )
+        grade_rows = browser.grade_counts()
+        content_grades = {
+            grade for grade in subject["available_classes"]
+            if browser.sections_for_grade(grade)
+        }
+        subject["has_real_content"] = bool(subject["has_real_content"] or content_grades)
+        if content_grades:
+            subject["status"] = "active"
+    g.subject_status_overrides = {subject_slug: subject["status"]}
     grade_rows_by_number = {int(row["grade"]): row for row in grade_rows}
     total_questions = sum(int(row["question_count"] or 0) for row in grade_rows)
     return render_template(
         "subject.html",
         subject=subject,
+        content_grades=content_grades,
         grade_rows_by_number=grade_rows_by_number,
         total_questions=total_questions,
     )
@@ -1692,18 +1673,56 @@ def render_subject_grade_page(subject_slug: str, grade: int):
     if subject is None or grade not in subject.get("available_classes", ()):
         abort(404)
 
-    if subject.get("has_real_content"):
-        return redirect(url_for("grade_view", grade=grade))
+    content_subject = canonical_subject(subject_slug)
+    sections = []
+    if content_subject is not None:
+        browser = SubjectContentBrowser(
+            get_db(), content_subject, legacy_it=content_subject == IT
+        )
+        sections = browser.sections_for_grade(grade)
+        if sections or any(
+            browser.sections_for_grade(other_grade)
+            for other_grade in subject["available_classes"] if other_grade != grade
+        ):
+            g.subject_status_overrides = {subject_slug: "active"}
 
     return render_template(
         "subject_grade.html",
         subject=subject,
         grade=grade,
-        topic_groups=subject_topic_groups(subject, grade),
+        sections=sections,
+        topic_groups=subject_topic_groups(subject, grade) if not sections else (),
     )
 
 
 def render_subject_topic_group_page(subject_slug: str, grade: int, topic_group_slug: str):
+    subject = get_subject_config(subject_slug)
+    if subject is None or grade not in subject.get("available_classes", ()):
+        abort(404)
+
+    content_subject = canonical_subject(subject_slug)
+    if content_subject is not None:
+        browser = SubjectContentBrowser(
+            get_db(), content_subject, legacy_it=content_subject == IT
+        )
+        if any(browser.sections_for_grade(value) for value in subject["available_classes"]):
+            g.subject_status_overrides = {subject_slug: "active"}
+        section = browser.section(topic_group_slug, grade=grade)
+        if section is not None:
+            return render_template(
+                "subject_topic_group.html",
+                subject={**subject, "status": "active"},
+                grade=grade,
+                topic_group={"slug": section["section_slug"], "title": section["section_title"]},
+                section=section,
+                topics=browser.topics_in_section(section["section_id"]),
+                questions=fetch_questions_in_section(section["section_id"], browser=browser),
+            )
+        # Once this class has DB content, the provisional configuration is no
+        # longer a parallel source of real group routes.
+        if browser.sections_for_grade(grade):
+            abort(404)
+
     topic_group_result = get_subject_topic_group_config(subject_slug, grade, topic_group_slug)
     if topic_group_result is None:
         abort(404)
@@ -1768,7 +1787,7 @@ def grade_view(grade: int):
 
     modules_list = sorted(
         modules.values(),
-        key=lambda m: (m["module_number"] or 99, m["module_title"]),
+        key=lambda m: (m["module_number"] or 99, m["module_title"] or ""),
     )
 
     return render_template(

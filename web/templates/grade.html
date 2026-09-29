@@ -71,9 +71,9 @@
 
     {% if visible_sections %}
         {% set module_color = 'var(--color-primary)' %}
-        {% if 'module-3' in module.module_slug or 'web' in module.module_slug %}
+        {% if 'module-3' in (module.module_slug or '') or 'web' in (module.module_slug or '') %}
             {% set module_color = 'var(--color-module-3)' %}
-        {% elif 'module-4' in module.module_slug or 'ict' in module.module_slug or 'solving-problems' in module.module_slug %}
+        {% elif 'module-4' in (module.module_slug or '') or 'ict' in (module.module_slug or '') or 'solving-problems' in (module.module_slug or '') %}
             {% set module_color = 'var(--color-module-4)' %}
         {% elif module.module_slug == 'module-dzi-preparation' %}
             {% set module_color = 'var(--color-accent-dzi)' %}
@@ -84,8 +84,8 @@
                 {% if module.module_slug == "module-dzi-preparation" %}
                     <span class="module-name">{{ module.module_title }}</span>
                 {% else %}
-                    <span class="module-kicker">Модул {{ module.module_number }}</span>
-                    <span class="module-name">{{ module.module_title }}</span>
+                    {% if module.module_number %}<span class="module-kicker">Модул {{ module.module_number }}</span>{% endif %}
+                    <span class="module-name">{{ module.module_title or 'Други раздели' }}</span>
                 {% endif %}
             </div>
 
