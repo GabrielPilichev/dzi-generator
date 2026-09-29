@@ -719,7 +719,7 @@ def fetch_questions_in_section(
         else:
             q["subquestions"] = []
         questions.append(q)
-    return questions
+    return attach_question_visual_assets(db, questions, id_key="question_id")
 
 
 DZI_FORMAT_VERSION = "dzi_it_pp_2025_format"
@@ -972,13 +972,15 @@ def fetch_question_visual_assets(conn: sqlite3.Connection, question_ids: list[in
     return assets_by_question
 
 
-def attach_question_visual_assets(conn: sqlite3.Connection, questions: list[dict]) -> list[dict]:
+def attach_question_visual_assets(
+    conn: sqlite3.Connection, questions: list[dict], *, id_key: str = "id"
+) -> list[dict]:
     assets_by_question = fetch_question_visual_assets(
         conn,
-        [int(question["id"]) for question in questions if question.get("id") is not None],
+        [int(question[id_key]) for question in questions if question.get(id_key) is not None],
     )
     for question in questions:
-        question["visual_assets"] = assets_by_question.get(int(question["id"]), [])
+        question["visual_assets"] = assets_by_question.get(int(question[id_key]), [])
     return questions
 
 

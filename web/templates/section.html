@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_question_visuals.html" import render_question_visuals %}
 
 {% block title %}{{ section.section_title }} — {{ section.grade }}. клас{% endblock %}
 
@@ -127,6 +128,7 @@
                 </div>
 
                 <div class="prompt" data-copy-prompt>{{ q.prompt }}</div>
+                {{ render_question_visuals(q.visual_assets) }}
 
                 {% if q.options %}
                     <details class="answer-details">
