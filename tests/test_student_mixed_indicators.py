@@ -1,27 +1,8 @@
-import atexit
 import json
-import os
-import shutil
-import tempfile
 import unittest
-from pathlib import Path
 
 
-_TMP = tempfile.TemporaryDirectory()
-atexit.register(_TMP.cleanup)
-
-_ROOT = Path(__file__).resolve().parents[1]
-_TMP_DB = Path(_TMP.name) / "questions.db"
-_TMP_VAULT = Path(_TMP.name) / "vault"
-shutil.copy2(_ROOT / "data" / "questions.db", _TMP_DB)
-_TMP_VAULT.mkdir()
-
-os.environ["DZI_DB"] = str(_TMP_DB)
-os.environ["DZI_VAULT"] = str(_TMP_VAULT)
-os.environ["DZI_ADMIN_PASSWORD"] = "admin-pass"
-os.environ["DZI_TESTER_PASSWORD"] = "tester-pass"
-
-from web import app as web_app  # noqa: E402
+from tests.support import IsolatedAppTestCase, web_app
 
 
 def _register_dzi_default_denied_test_route(app):
@@ -35,9 +16,10 @@ def _register_dzi_default_denied_test_route(app):
     app.add_url_rule("/__test__/dzi-default-denied", endpoint=endpoint, view_func=view)
 
 
-class StudentMixedIndicatorsTest(unittest.TestCase):
+class StudentMixedIndicatorsTest(IsolatedAppTestCase):
     @classmethod
     def setUpClass(cls):
+        super().setUpClass()
         cls.app = web_app.app
         _register_dzi_default_denied_test_route(cls.app)
         cls.app.config.update(TESTING=True)

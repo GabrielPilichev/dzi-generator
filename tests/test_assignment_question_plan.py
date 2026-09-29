@@ -1,8 +1,5 @@
-import atexit
 import io
 import json
-import os
-import shutil
 import sqlite3
 import tempfile
 import unittest
@@ -11,21 +8,9 @@ from pathlib import Path
 from src import manage_migrations
 
 
-_TMP = tempfile.TemporaryDirectory()
-atexit.register(_TMP.cleanup)
-
 _ROOT = Path(__file__).resolve().parents[1]
-_TMP_DB = Path(_TMP.name) / "questions.db"
-_TMP_VAULT = Path(_TMP.name) / "vault"
-shutil.copy2(_ROOT / "data" / "questions.db", _TMP_DB)
-_TMP_VAULT.mkdir()
 
-os.environ["DZI_DB"] = str(_TMP_DB)
-os.environ["DZI_VAULT"] = str(_TMP_VAULT)
-os.environ["DZI_ADMIN_PASSWORD"] = "admin-pass"
-os.environ["DZI_TESTER_PASSWORD"] = "tester-pass"
-
-from web import app as web_app  # noqa: E402
+from tests.support import IsolatedAppTestCase, web_app
 
 
 MIGRATION_SQL = (_ROOT / "web" / "migrations" / "006_assignment_question_plan.sql").read_text(encoding="utf-8")
@@ -137,9 +122,10 @@ class AssignmentQuestionPlanMigrationTest(unittest.TestCase):
         self.assertIsNotNone(web_app.quiz_parse_assignment_question_plan(rows[1][1]))
 
 
-class AssignmentQuestionPlanHelperTest(unittest.TestCase):
+class AssignmentQuestionPlanHelperTest(IsolatedAppTestCase):
     @classmethod
     def setUpClass(cls):
+        super().setUpClass()
         cls.app = web_app.app
         _register_dzi_default_denied_test_route(cls.app)
         cls.app.config.update(TESTING=True)

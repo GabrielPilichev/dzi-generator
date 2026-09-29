@@ -1,16 +1,14 @@
 import json
-import os
 import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
 
-os.environ["DZI_ADMIN_PASSWORD"] = "admin-pass"
 
-from web import app as web_app  # noqa: E402
+from tests.support import IsolatedAppTestCase, web_app
 
 
-class PracticalTaskDownloadsTest(unittest.TestCase):
+class PracticalTaskDownloadsTest(IsolatedAppTestCase):
     def setUp(self):
         self.temp_dir = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp_dir.cleanup)

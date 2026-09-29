@@ -1,12 +1,10 @@
-import os
 import unittest
 
-os.environ["DZI_ADMIN_PASSWORD"] = "admin-pass"
 
-from web import app as web_app  # noqa: E402
+from tests.support import IsolatedAppTestCase, web_app
 
 
-class ErrorHandlerTest(unittest.TestCase):
+class ErrorHandlerTest(IsolatedAppTestCase):
     def test_internal_server_error_renders_safe_500_page(self):
         with web_app.app.test_request_context("/__test__/500"):
             html, status = web_app.internal_server_error(Exception("boom"))

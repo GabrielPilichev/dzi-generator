@@ -3,10 +3,10 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from web import app as web_app
+from tests.support import IsolatedAppTestCase, web_app
 
 
-class AppMetaContextTest(unittest.TestCase):
+class AppMetaContextTest(IsolatedAppTestCase):
     def setUp(self):
         self.temp_dir = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp_dir.cleanup)

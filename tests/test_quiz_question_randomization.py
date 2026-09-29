@@ -15,29 +15,15 @@ is exercised through seeded ``random.Random`` instances passed via the
 helper's new ``rng`` parameter, so the suite is non-flaky.
 """
 
-import atexit
-import os
 import random
-import shutil
 import sqlite3
-import tempfile
 import unittest
-from pathlib import Path
 
 
-_TMP = tempfile.TemporaryDirectory()
-atexit.register(_TMP.cleanup)
+from tests.support import web_app
 
-_ROOT = Path(__file__).resolve().parents[1]
-_TMP_DB = Path(_TMP.name) / "questions.db"
-_TMP_VAULT = Path(_TMP.name) / "vault"
-shutil.copy2(_ROOT / "data" / "questions.db", _TMP_DB)
-_TMP_VAULT.mkdir()
-
-os.environ["DZI_DB"] = str(_TMP_DB)
-os.environ["DZI_VAULT"] = str(_TMP_VAULT)
-
-from web.app import build_mixed_quiz_plan, quiz_pick_questions  # noqa: E402
+build_mixed_quiz_plan = web_app.build_mixed_quiz_plan
+quiz_pick_questions = web_app.quiz_pick_questions
 
 
 def _build_pool_conn():
