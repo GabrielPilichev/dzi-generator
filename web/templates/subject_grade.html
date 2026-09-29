@@ -2,6 +2,8 @@
 
 {% block title %}{{ subject.title }} — {{ grade }}. клас{% endblock %}
 
+{% block body_class %}content-browse-page{% endblock %}
+
 {% block breadcrumb %}
     <a href="{{ url_for('index') }}">Начало</a>
     <a href="{{ subject_url(subject) }}">{{ subject.title }}</a>

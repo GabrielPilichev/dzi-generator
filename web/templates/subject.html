@@ -2,6 +2,8 @@
 
 {% block title %}{{ subject.title }} — LearnPilot{% endblock %}
 
+{% block body_class %}content-browse-page{% endblock %}
+
 {% block breadcrumb %}
     <a href="{{ url_for('index') }}">Начало</a>
     <span>{{ subject.title }}</span>
