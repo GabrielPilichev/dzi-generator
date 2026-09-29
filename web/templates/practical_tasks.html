@@ -2,6 +2,8 @@
 
 {% block title %}Практически задачи · {{ exam.title }}{% endblock %}
 
+{% block body_class %}{% if not (attempt is defined and attempt) %}management-page admin-management-page management-detail-page{% endif %}{% endblock %}
+
 {% block breadcrumb %}
     <a href="{{ url_for('index') }}">Начало</a>
     <span>›</span>

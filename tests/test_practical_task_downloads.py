@@ -249,6 +249,10 @@ class PracticalTaskDownloadsTest(IsolatedAppTestCase):
         self.assertIn("Instruction line one", html)
         self.assertIn("Shipments.xlsx", html)
         self.assertIn("/dzi/practical/resource/1/download", html)
+        self.assertIn(
+            '<body class="management-page admin-management-page management-detail-page">',
+            html,
+        )
 
     def test_dzi_source_page_links_to_practical_tasks_when_resources_exist(self):
         response = self.client.get("/dzi/source/may_2025_v2")

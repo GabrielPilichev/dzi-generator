@@ -3,6 +3,8 @@
 
 {% block title %}Резултати — {{ assignment.title_bg }}{% endblock %}
 
+{% block body_class %}management-page teacher-management-page management-results-page management-table-page{% endblock %}
+
 {% block breadcrumb %}
     <a href="{{ url_for('index') }}">Начало</a>
     <span>›</span>

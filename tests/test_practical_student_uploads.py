@@ -195,6 +195,7 @@ class PracticalStudentUploadsTest(IsolatedAppTestCase):
         self.assertIn("Student One", html)
         self.assertIn('enctype="multipart/form-data"', html)
         self.assertIn("/quiz/attempt/101/practical/may_2025_v2/task/260/upload", html)
+        self.assertNotIn("management-page", html)
 
     def test_fresh_session_cannot_access_other_practical_attempt_page(self):
         other_client = web_app.app.test_client()
