@@ -1,9 +1,21 @@
+from __future__ import annotations
+
 import json
 import sqlite3
+import stat
 import tempfile
 import unittest
+import zipfile
 from pathlib import Path
+from unittest.mock import Mock
 
+from src.practical_resource_resolution import (
+    MAX_MEMBER_BYTES,
+    ResourceResolutionError,
+    _zip_info,
+    read_zip_member,
+    resolve_resource_reference,
+)
 
 from tests.support import IsolatedAppTestCase, web_app
 
@@ -208,6 +220,23 @@ class PracticalTaskDownloadsTest(IsolatedAppTestCase):
         finally:
             conn.close()
 
+    def _zip_reference(self, member: str, data: bytes = b"zip member bytes",
+                       *, filename: str | None = None) -> int:
+        zip_path = self.resource_dir / "resources.zip"
+        with zipfile.ZipFile(zip_path, "a", compression=zipfile.ZIP_STORED) as archive:
+            archive.writestr(member, data)
+        return self._insert_resource(
+            "data/reference/may_2025_v2/resources.zip::" + member,
+            filename or Path(member).name,
+        )
+
+    def _resolve(self, reference: str):
+        return resolve_resource_reference(
+            reference,
+            project_root=self.project_root,
+            allowed_roots=web_app.PRACTICAL_RESOURCE_ROOTS,
+        )
+
     def test_page_renders_may_2025_practical_tasks_and_resources(self):
         response = self.client.get("/dzi/source/may_2025_v2/practical")
 
@@ -289,7 +318,7 @@ class PracticalTaskDownloadsTest(IsolatedAppTestCase):
         self.assertIn("файлът липсва", page.get_data(as_text=True))
         self.assertEqual(download.status_code, 404)
 
-    def test_zip_internal_resource_row_does_not_crash_download_route(self):
+    def test_missing_zip_archive_does_not_crash_download_route(self):
         resource_id = self._insert_resource(
             "data/reference/may_2025_v2/resources.zip::task_26/Shipments.xlsx",
             "Shipments.xlsx",
@@ -298,6 +327,180 @@ class PracticalTaskDownloadsTest(IsolatedAppTestCase):
         response = self.client.get(f"/dzi/practical/resource/{resource_id}/download")
 
         self.assertEqual(response.status_code, 404)
+
+    def test_zip_member_download_returns_bytes_and_safe_filename(self):
+        resource_id = self._zip_reference("task_26/Shipments.xlsx", b"spreadsheet bytes")
+        response = self.client.get(f"/dzi/practical/resource/{resource_id}/download")
+        try:
+            self.assertEqual(response.status_code, 200)
+            self.assertEqual(response.data, b"spreadsheet bytes")
+            self.assertIn("attachment", response.headers["Content-Disposition"])
+            self.assertIn("Shipments.xlsx", response.headers["Content-Disposition"])
+            self.assertEqual(response.headers["Content-Type"], "application/octet-stream")
+            self.assertEqual(response.headers["X-Content-Type-Options"], "nosniff")
+        finally:
+            response.close()
+        page = self.client.get("/dzi/source/may_2025_v2/practical")
+        self.assertIn(f"/dzi/practical/resource/{resource_id}/download",
+                      page.get_data(as_text=True))
+
+    def test_nested_unicode_member_resolves_without_extraction(self):
+        member = "task_28/nested/данни.xlsx"
+        resource_id = self._zip_reference(member, b"nested contents")
+        response = self.client.get(f"/dzi/practical/resource/{resource_id}/download")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data, b"nested contents")
+        self.assertIn("attachment", response.headers["Content-Disposition"])
+        self.assertFalse((self.resource_dir / "task_28").exists())
+
+    def test_ordinary_file_still_resolves_through_same_helper(self):
+        resolved = self._resolve(str(self.resource_path))
+        self.assertEqual(resolved.kind, "file")
+        self.assertEqual(resolved.path.read_bytes(), b"fake practical resource")
+
+    def test_missing_member_and_directory_are_rejected(self):
+        self._zip_reference("task_26/actual.xlsx")
+        for member in ("task_26/missing.xlsx", "task_26/"):
+            with self.subTest(member=member):
+                resource_id = self._insert_resource(
+                    "data/reference/may_2025_v2/resources.zip::" + member)
+                response = self.client.get(f"/dzi/practical/resource/{resource_id}/download")
+                self.assertEqual(response.status_code, 404)
+
+    def test_archive_and_member_traversal_variants_are_rejected(self):
+        self._zip_reference("task_26/actual.xlsx")
+        bad_references = (
+            "../reference/may_2025_v2/resources.zip::task_26/actual.xlsx",
+            "data/reference/may_2025_v2/../resources.zip::task_26/actual.xlsx",
+            "/etc/resources.zip::task_26/actual.xlsx",
+            "C:/data/resources.zip::task_26/actual.xlsx",
+            "\\\\server\\share\\resources.zip::task_26/actual.xlsx",
+            "data/reference/may_2025_v2/resources.zip::../secret.xlsx",
+            "data/reference/may_2025_v2/resources.zip::task_26/../secret.xlsx",
+            "data/reference/may_2025_v2/resources.zip::/etc/passwd",
+            "data/reference/may_2025_v2/resources.zip::C:/secret.xlsx",
+            "data/reference/may_2025_v2/resources.zip::..\\secret.xlsx",
+            "data/reference/may_2025_v2/resources.zip::\\\\server\\share\\secret.xlsx",
+            "data/reference/may_2025_v2/resources.zip::task_26//actual.xlsx",
+            "data/reference/may_2025_v2/resources.zip::task_26/./actual.xlsx",
+            "data/reference/may_2025_v2/resources.zip::task_26/actual.xlsx::extra",
+        )
+        for reference in bad_references:
+            with self.subTest(reference=reference):
+                with self.assertRaises(ResourceResolutionError):
+                    self._resolve(reference)
+                resource_id = self._insert_resource(reference)
+                self.assertEqual(self.client.get(
+                    f"/dzi/practical/resource/{resource_id}/download").status_code, 404)
+
+    def test_archive_symlink_outside_approved_root_is_rejected(self):
+        outside = self.project_root / "outside.zip"
+        with zipfile.ZipFile(outside, "w") as archive:
+            archive.writestr("file.txt", b"outside")
+        (self.resource_dir / "link.zip").symlink_to(outside)
+        with self.assertRaisesRegex(ResourceResolutionError, "unsafe_path"):
+            self._resolve("data/reference/may_2025_v2/link.zip::file.txt")
+
+    def test_malformed_zip_and_nonzip_archive_are_rejected(self):
+        (self.resource_dir / "broken.zip").write_bytes(b"not a zip")
+        (self.resource_dir / "notzip.txt").write_bytes(b"not a zip")
+        for reference in (
+            "data/reference/may_2025_v2/broken.zip::file.txt",
+            "data/reference/may_2025_v2/notzip.txt::file.txt",
+        ):
+            with self.subTest(reference=reference):
+                resource_id = self._insert_resource(reference)
+                self.assertEqual(self.client.get(
+                    f"/dzi/practical/resource/{resource_id}/download").status_code, 404)
+
+    def test_oversized_and_high_ratio_members_are_rejected(self):
+        archive_path = self.resource_dir / "large.zip"
+        with zipfile.ZipFile(archive_path, "w", compression=zipfile.ZIP_STORED) as archive:
+            archive.writestr("big.bin", b"x" * (MAX_MEMBER_BYTES + 1))
+        resource_id = self._insert_resource(
+            "data/reference/may_2025_v2/large.zip::big.bin")
+        self.assertEqual(self.client.get(
+            f"/dzi/practical/resource/{resource_id}/download").status_code, 404)
+
+        ratio_path = self.resource_dir / "ratio.zip"
+        with zipfile.ZipFile(ratio_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+            archive.writestr("expands.txt", b"x" * 100_000)
+        resource_id = self._insert_resource(
+            "data/reference/may_2025_v2/ratio.zip::expands.txt")
+        self.assertEqual(self.client.get(
+            f"/dzi/practical/resource/{resource_id}/download").status_code, 404)
+
+    def test_unsupported_compression_and_encrypted_metadata_are_rejected(self):
+        path = self.resource_dir / "bzip.zip"
+        with zipfile.ZipFile(path, "w", compression=zipfile.ZIP_BZIP2) as archive:
+            archive.writestr("file.txt", b"payload")
+        resource_id = self._insert_resource(
+            "data/reference/may_2025_v2/bzip.zip::file.txt")
+        self.assertEqual(self.client.get(
+            f"/dzi/practical/resource/{resource_id}/download").status_code, 404)
+        info = zipfile.ZipInfo("secret.txt")
+        info.flag_bits |= 1
+        with self.assertRaisesRegex(ResourceResolutionError, "encrypted_member"):
+            _zip_info(Mock(infolist=lambda: [info]), "secret.txt")
+
+    def test_zip_symlink_and_mode_only_directory_members_are_rejected(self):
+        path = self.resource_dir / "special.zip"
+        link = zipfile.ZipInfo("link.txt")
+        link.create_system = 3
+        link.external_attr = (stat.S_IFLNK | 0o777) << 16
+        directory = zipfile.ZipInfo("directory_without_slash")
+        directory.create_system = 3
+        directory.external_attr = (stat.S_IFDIR | 0o755) << 16
+        with zipfile.ZipFile(path, "w") as archive:
+            archive.writestr(link, "outside.txt")
+            archive.writestr(directory, "")
+        for member in ("link.txt", "directory_without_slash"):
+            with self.subTest(member=member):
+                resource_id = self._insert_resource(
+                    f"data/reference/may_2025_v2/special.zip::{member}")
+                self.assertEqual(self.client.get(
+                    f"/dzi/practical/resource/{resource_id}/download"
+                ).status_code, 404)
+
+    def test_missing_record_and_constructed_path_never_bypass_lookup(self):
+        self._zip_reference("task_26/actual.xlsx")
+        self.assertEqual(self.client.get(
+            "/dzi/practical/resource/99999/download").status_code, 404)
+        self.assertEqual(self.client.get(
+            "/dzi/practical/resource/data/reference/may_2025_v2/resources.zip::task_26/actual.xlsx/download"
+        ).status_code, 404)
+
+    def test_zip_and_ordinary_keep_existing_admin_only_access(self):
+        resource_id = self._zip_reference("task_26/actual.xlsx")
+        anonymous = web_app.app.test_client()
+        for target in (1, resource_id):
+            with self.subTest(target=target):
+                url = f"/dzi/practical/resource/{target}/download"
+                denied = anonymous.get(url)
+                self.assertEqual(denied.status_code, 302)
+                self.assertIn("/admin/login", denied.headers["Location"])
+                denied.close()
+                with anonymous.session_transaction() as sess:
+                    sess["tester_authenticated"] = True
+                    sess["ui_profile"] = "tester"
+                denied_tester = anonymous.get(url)
+                self.assertEqual(denied_tester.status_code, 302)
+                self.assertIn("/admin/login", denied_tester.headers["Location"])
+                denied_tester.close()
+                allowed = self.client.get(url)
+                try:
+                    self.assertEqual(allowed.status_code, 200)
+                    self.assertIn("attachment", allowed.headers["Content-Disposition"])
+                finally:
+                    allowed.close()
+
+    def test_zip_html_member_is_forced_to_download(self):
+        resource_id = self._zip_reference("task_28/page.html", b"<script>bad()</script>")
+        response = self.client.get(f"/dzi/practical/resource/{resource_id}/download")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers["Content-Type"], "application/octet-stream")
+        self.assertIn("attachment", response.headers["Content-Disposition"])
+        self.assertEqual(response.headers["X-Content-Type-Options"], "nosniff")
 
     def test_page_does_not_expose_raw_filesystem_paths(self):
         response = self.client.get("/dzi/source/may_2025_v2/practical")

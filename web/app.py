@@ -25,6 +25,7 @@ import json
 import math
 import secrets
 import warnings
+from io import BytesIO
 
 import sqlite3
 from datetime import datetime
@@ -36,6 +37,11 @@ from flask import Flask, abort, g, render_template, url_for, request, redirect, 
 from src.subject_browsing import SubjectContentBrowser
 from src.subject_assessment import AssessmentScope, question_belongs_to_subject
 from src.subject_content import IT, PHYSICS, canonical_subject, section_ownership
+from src.practical_resource_resolution import (
+    ResourceResolutionError,
+    read_zip_member,
+    resolve_resource_reference,
+)
 from src.practical_uploads import (
     MAX_UPLOAD_BYTES,
     PracticalUploadError,
@@ -1181,30 +1187,20 @@ def load_practical_task_batch(source_slug: str) -> dict[int, dict]:
     return by_number
 
 
-def practical_resource_safe_path(resource_path: str | None) -> Path | None:
-    if not isinstance(resource_path, str) or not resource_path.strip():
-        return None
-    if "::" in resource_path:
-        return None
-    raw_path = Path(resource_path)
-    if raw_path.is_absolute() or ".." in raw_path.parts:
-        return None
-    candidate = (PROJECT_ROOT / raw_path).resolve(strict=False)
-    allowed_roots = [root.resolve(strict=False) for root in PRACTICAL_RESOURCE_ROOTS]
-    for root in allowed_roots:
-        try:
-            candidate.relative_to(root)
-            return candidate
-        except ValueError:
-            continue
-    return None
-
-
 def practical_resource_status(resource: dict) -> dict:
-    safe_path = practical_resource_safe_path(resource.get("resource_path"))
     resource = dict(resource)
-    resource["is_path_safe"] = safe_path is not None
-    resource["is_available"] = bool(safe_path and safe_path.is_file())
+    try:
+        resolve_resource_reference(
+            resource.get("resource_path"),
+            project_root=PROJECT_ROOT,
+            allowed_roots=PRACTICAL_RESOURCE_ROOTS,
+        )
+    except ResourceResolutionError as exc:
+        resource["is_path_safe"] = exc.reason not in {"unsafe_path", "invalid_archive"}
+        resource["is_available"] = False
+    else:
+        resource["is_path_safe"] = True
+        resource["is_available"] = True
     return resource
 
 
@@ -1853,32 +1849,38 @@ def dzi_practical_resource_download(resource_id: int):
         )
         abort(404)
 
-    safe_path = practical_resource_safe_path(resource.get("resource_path"))
-    if safe_path is None:
-        app.logger.warning(
-            "Practical resource download rejected: reason=unsafe_path resource_id=%s exam_task_id=%s task_number=%s",
-            resource_id,
-            resource.get("exam_task_id"),
-            resource.get("task_number"),
-        )
-        abort(404)
-    if not safe_path.is_file():
-        app.logger.warning(
-            "Practical resource download rejected: reason=missing_file resource_id=%s exam_task_id=%s task_number=%s",
-            resource_id,
-            resource.get("exam_task_id"),
-            resource.get("task_number"),
-        )
-        abort(404)
-
-    download_name = safe_download_name(resource.get("original_filename"), safe_path.name)
     try:
+        resolved = resolve_resource_reference(
+            resource.get("resource_path"),
+            project_root=PROJECT_ROOT,
+            allowed_roots=PRACTICAL_RESOURCE_ROOTS,
+        )
+        download_name = safe_download_name(resource.get("original_filename"), resolved.filename)
+        if resolved.kind == "zip_member":
+            response = send_file(
+                BytesIO(read_zip_member(resolved)),
+                as_attachment=True,
+                download_name=download_name,
+                mimetype="application/octet-stream",
+                max_age=0,
+            )
+            response.headers["X-Content-Type-Options"] = "nosniff"
+            return response
         return send_file(
-            safe_path,
+            resolved.path,
             as_attachment=True,
             download_name=download_name,
             max_age=0,
         )
+    except ResourceResolutionError as exc:
+        app.logger.warning(
+            "Practical resource download rejected: reason=%s resource_id=%s exam_task_id=%s task_number=%s",
+            exc.reason,
+            resource_id,
+            resource.get("exam_task_id"),
+            resource.get("task_number"),
+        )
+        abort(404)
     except (OSError, ValueError) as exc:
         app.logger.warning(
             "Practical resource download rejected: reason=send_failed resource_id=%s exam_task_id=%s task_number=%s error_type=%s",
