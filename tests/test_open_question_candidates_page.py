@@ -89,6 +89,10 @@ class OpenQuestionCandidatesPageTest(IsolatedAppTestCase):
         self.assertIn("Отворени въпроси за смесени тестове".encode("utf-8"), response.data)
         self.assertIn("read-only".encode("utf-8"), response.data)
         self.assertIn("MC-only".encode("utf-8"), response.data)
+        self.assertIn(
+            b'<body class="management-page admin-management-page management-table-page">',
+            response.data,
+        )
 
     def test_tester_cannot_access_open_question_candidates_page(self):
         self._login_tester()

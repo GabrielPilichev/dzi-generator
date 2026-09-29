@@ -4395,3 +4395,251 @@ code {
     }
   }
 }
+
+/* Teacher and admin surfaces keep management density while sharing the approved material language. */
+@media screen {
+  @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .management-page {
+      --management-panel-surface: color-mix(in srgb, var(--color-bg) 87%, transparent);
+      --management-card-surface: color-mix(in srgb, var(--color-bg) 93%, transparent);
+      --management-card-hover-surface: color-mix(in srgb, var(--color-bg) 95%, transparent);
+      --management-control-surface: color-mix(in srgb, var(--color-bg-subtle) 89%, transparent);
+      --management-control-soft-surface: color-mix(in srgb, var(--color-bg-subtle) 60%, transparent);
+      --management-material-edge: color-mix(in srgb, var(--color-border-strong) 62%, var(--color-border));
+    }
+
+    /* Breadcrumbs stay compact and secondary to each management page heading. */
+    .management-page .breadcrumb a {
+      border: 1px solid color-mix(in srgb, var(--management-material-edge) 54%, transparent);
+      background: var(--management-control-soft-surface);
+      box-shadow: inset 0 1px 0 rgba(255, 239, 218, 0.04);
+    }
+    .management-page .breadcrumb a:hover {
+      border-color: var(--management-material-edge);
+      background: var(--management-control-surface);
+    }
+
+    /* Only independent headers and outer panels establish a backdrop material. */
+    .management-page .page-header,
+    .management-page .hero {
+      border-color: var(--management-material-edge);
+      background: var(--management-panel-surface);
+      -webkit-backdrop-filter: blur(18px) saturate(104%);
+      backdrop-filter: blur(18px) saturate(104%);
+      box-shadow: var(--shadow-md), inset 0 1px 0 rgba(255, 239, 218, 0.09);
+    }
+    .management-page .page-header {
+      border-left-color: var(--color-primary);
+    }
+    .management-page .dzi-page-header {
+      border-left-color: var(--color-accent-dzi);
+    }
+    .management-page .dzi-hero {
+      border-top-color: var(--color-accent-dzi);
+    }
+
+    .management-page .dashboard-card,
+    .management-page .teacher-form-card,
+    .management-page .teacher-list-card,
+    .management-page .teacher-filter-card,
+    .management-page .teacher-summary-card,
+    .management-page .teacher-table-card,
+    .management-page .teacher-open-answers-card,
+    .management-page .dzi-panel,
+    .management-page .practical-submissions-card,
+    .management-login-page .login-card,
+    .admin-management-page .panel,
+    .management-detail-page .app-shell > .card {
+      border-color: var(--management-material-edge);
+      background: var(--management-panel-surface);
+      -webkit-backdrop-filter: blur(15px) saturate(103%);
+      backdrop-filter: blur(15px) saturate(103%);
+      box-shadow: var(--shadow-md), inset 0 1px 0 rgba(255, 239, 218, 0.075);
+    }
+
+    /* Nested cards and form groups use surface depth without another backdrop root. */
+    .management-page .teacher-stat-grid .card,
+    .management-page .assignment-mini-card,
+    .management-page .teacher-form-section,
+    .management-page .mix-card,
+    .management-page .detail-grid > div,
+    .management-page .dzi-start-summary-item,
+    .management-page .dzi-source-card,
+    .management-page .dzi-task-card,
+    .management-page .practical-task-card,
+    .management-page .practical-source-option,
+    .management-page .stat-box {
+      border-color: var(--management-material-edge);
+      background: var(--management-card-surface);
+      box-shadow: var(--shadow-sm), inset 0 1px 0 rgba(255, 239, 218, 0.06);
+    }
+    .management-page .dashboard-summary-grid .card,
+    .management-page .teacher-results-overview .card {
+      border-left-color: color-mix(in srgb, var(--color-primary) 54%, var(--management-material-edge));
+    }
+    .management-page .assignment-mini-card:hover,
+    .management-page .assignment-mini-card:focus-within,
+    .management-page .dzi-source-card:hover,
+    .management-page .dzi-task-card:hover,
+    .management-page .practical-task-card:hover {
+      border-color: var(--color-border-strong);
+      background: var(--management-card-hover-surface);
+      box-shadow: var(--shadow-md), inset 0 1px 0 rgba(255, 239, 218, 0.08);
+    }
+    .management-page .dzi-task-card,
+    .management-page .practical-task-card {
+      border-top-color: color-mix(in srgb, var(--color-accent-dzi) 65%, var(--management-material-edge));
+    }
+    .management-page .dzi-start-summary-item,
+    .management-page .dzi-stat-row .stat-box {
+      border-color: color-mix(in srgb, var(--color-accent-dzi) 36%, var(--management-material-edge));
+      background: color-mix(in srgb, var(--management-card-surface) 78%, var(--color-accent-dzi-soft));
+    }
+    .management-page .practical-source-option {
+      border-color: color-mix(in srgb, var(--color-accent-dzi) 30%, var(--management-material-edge));
+    }
+
+    /* Preserve the established warning and DZI identities above the neutral material. */
+    .management-page .open-question-panel {
+      box-shadow: inset 0 1px 0 rgba(255, 239, 218, 0.055);
+    }
+    .management-page .practical-assignment-panel {
+      box-shadow: inset 0 1px 0 rgba(255, 239, 218, 0.055);
+    }
+
+    /* Dense tables use one restrained container; rows and cells do not blur independently. */
+    .management-page .table-wrap {
+      border-color: var(--management-material-edge);
+      background-color: var(--management-card-surface);
+      box-shadow: inset 0 1px 0 rgba(255, 239, 218, 0.05);
+    }
+    .management-page .teacher-table th,
+    .admin-management-page .panel table th {
+      background: var(--management-control-surface);
+    }
+    .management-page .teacher-table tbody tr,
+    .admin-management-page .panel table tbody tr {
+      background: color-mix(in srgb, var(--color-bg) 90%, transparent);
+    }
+    .management-page .teacher-table tbody tr:nth-child(even),
+    .admin-management-page .panel table tbody tr:nth-child(even) {
+      background: color-mix(in srgb, var(--color-bg-subtle) 62%, transparent);
+    }
+    .management-page .teacher-table tbody tr:hover,
+    .admin-management-page .panel table tbody tr:hover {
+      background: var(--management-control-surface);
+    }
+    .management-page .teacher-table .links a,
+    .management-page .teacher-table .link-button {
+      border-color: var(--management-material-edge);
+      background: var(--management-control-soft-surface);
+      box-shadow: inset 0 1px 0 rgba(255, 239, 218, 0.04);
+    }
+    .management-page .teacher-table .links a:hover,
+    .management-page .teacher-table .link-button:hover {
+      border-color: var(--color-border-strong);
+      background: var(--color-primary-soft);
+    }
+
+    /* Inputs stay practical and native controls keep their existing semantics. */
+    .management-page input:not([type="radio"]):not([type="checkbox"]):not([type="file"]),
+    .management-page select,
+    .management-page textarea {
+      border-color: var(--management-material-edge);
+      background: var(--management-control-surface);
+      box-shadow: inset 0 1px 0 rgba(255, 239, 218, 0.045);
+    }
+    .management-page input:not([type="radio"]):not([type="checkbox"]):not([type="file"]):focus-visible,
+    .management-page select:focus-visible,
+    .management-page textarea:focus-visible {
+      border-color: var(--color-primary);
+      outline: 3px solid color-mix(in srgb, var(--color-primary) 30%, transparent);
+      outline-offset: 2px;
+      box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-primary) 24%, transparent);
+    }
+    .management-page input:disabled,
+    .management-page select:disabled,
+    .management-page textarea:disabled,
+    .management-page input[readonly],
+    .management-page textarea[readonly] {
+      border-color: var(--color-border);
+      background: var(--color-bg);
+      color: var(--color-text-muted);
+      box-shadow: none;
+    }
+
+    .management-page .filter-bar,
+    .management-page .share-box,
+    .management-page .open-answer-review-form,
+    .management-page .dzi-toolbar {
+      border: 1px solid var(--management-material-edge);
+      border-radius: var(--radius-md);
+      border-color: var(--management-material-edge);
+      background: var(--management-control-soft-surface);
+      box-shadow: inset 0 1px 0 rgba(255, 239, 218, 0.045);
+    }
+    .management-page .filter-bar,
+    .management-page .share-box,
+    .management-page .open-answer-review-form {
+      padding: var(--space-3);
+    }
+    .management-page .open-answer-review-form {
+      display: grid;
+      gap: var(--space-2);
+    }
+    .management-page .open-answer-review-form label {
+      margin-top: 0;
+    }
+    .management-page .count-pill,
+    .management-page .section-heading > .pill,
+    .management-page .question-toolbar > .pill {
+      border-color: var(--management-material-edge);
+      background: var(--management-control-surface);
+      box-shadow: inset 0 1px 0 rgba(255, 239, 218, 0.05);
+    }
+    .management-page .button.secondary {
+      border-color: var(--management-material-edge);
+      background: var(--management-control-surface);
+      box-shadow: var(--shadow-sm), inset 0 1px 0 rgba(255, 239, 218, 0.05);
+    }
+    .management-page .button.secondary:hover {
+      border-color: var(--color-border-strong);
+      background: color-mix(in srgb, var(--management-control-surface) 78%, var(--color-primary-soft));
+    }
+    .management-page .button:disabled,
+    .management-page button:disabled,
+    .management-page .button[aria-disabled="true"] {
+      border-color: var(--color-border);
+      background: var(--color-bg-subtle);
+      box-shadow: none;
+    }
+  }
+
+  @media (prefers-reduced-transparency: reduce) {
+    .management-page {
+      --management-panel-surface: var(--color-bg);
+      --management-card-surface: var(--color-bg);
+      --management-card-hover-surface: var(--color-bg-subtle);
+      --management-control-surface: var(--color-bg-subtle);
+      --management-control-soft-surface: var(--color-bg-subtle);
+    }
+
+    .management-page .page-header,
+    .management-page .hero,
+    .management-page .dashboard-card,
+    .management-page .teacher-form-card,
+    .management-page .teacher-list-card,
+    .management-page .teacher-filter-card,
+    .management-page .teacher-summary-card,
+    .management-page .teacher-table-card,
+    .management-page .teacher-open-answers-card,
+    .management-page .dzi-panel,
+    .management-page .practical-submissions-card,
+    .management-login-page .login-card,
+    .admin-management-page .panel,
+    .management-detail-page .app-shell > .card {
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+    }
+  }
+}

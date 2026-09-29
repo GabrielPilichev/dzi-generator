@@ -158,6 +158,10 @@ class AuthGuardTest(IsolatedAppTestCase):
         response = self.client.get(f"/teacher/new?section={self.section['section_slug']}")
         self.assertEqual(response.status_code, 200)
         self.assertIn(b'id="new-assignment-form"', response.data)
+        self.assertIn(
+            b'<body class="management-page teacher-management-page management-form-page">',
+            response.data,
+        )
 
         assignment_url = self._create_assignment_as_tester()
         response = self.client.get(assignment_url)
