@@ -2,6 +2,8 @@
 
 {% block title %}{{ assignment.title_bg }} — Старт{% endblock %}
 
+{% block body_class %}student-assessment-page student-assessment-start-page{% endblock %}
+
 {% block breadcrumb %}
     <a href="{{ url_for('index') }}">Начало</a>
     <span>›</span>

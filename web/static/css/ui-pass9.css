@@ -4395,3 +4395,259 @@ code {
     }
   }
 }
+
+/* Student assessment keeps semantic answer states above the material layer. */
+@media screen {
+  @supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .student-assessment-page {
+      --assessment-panel-surface: color-mix(in srgb, var(--color-bg) 85%, transparent);
+      --assessment-question-surface: color-mix(in srgb, var(--color-bg) 87%, transparent);
+      --assessment-card-surface: color-mix(in srgb, var(--color-bg) 91%, transparent);
+      --assessment-card-hover-surface: color-mix(in srgb, var(--color-bg) 94%, transparent);
+      --assessment-control-surface: color-mix(in srgb, var(--color-bg-subtle) 86%, transparent);
+      --assessment-control-soft-surface: color-mix(in srgb, var(--color-bg-subtle) 54%, transparent);
+      --assessment-material-edge: color-mix(in srgb, var(--color-border-strong) 62%, var(--color-border));
+    }
+
+    .student-assessment-page .breadcrumb a {
+      border: 1px solid color-mix(in srgb, var(--assessment-material-edge) 55%, transparent);
+      background: var(--assessment-control-soft-surface);
+      box-shadow: inset 0 1px 0 rgba(255, 239, 218, 0.05);
+    }
+    .student-assessment-page .breadcrumb a:hover {
+      border-color: var(--assessment-material-edge);
+      background: var(--assessment-control-surface);
+    }
+
+    /* Independent page and question surfaces carry the assessment blur. */
+    .student-assessment-start-page .quiz-hero,
+    .student-assessment-result-page .quiz-hero,
+    .student-assessment-attempt-page .page-header {
+      border-color: var(--assessment-material-edge);
+      background: var(--assessment-panel-surface);
+      -webkit-backdrop-filter: blur(20px) saturate(105%);
+      backdrop-filter: blur(20px) saturate(105%);
+      box-shadow: var(--shadow-md), inset 0 1px 0 rgba(255, 239, 218, 0.09);
+    }
+
+    .student-assessment-start-page .quiz-start-card {
+      border-color: var(--assessment-material-edge);
+      background: var(--assessment-question-surface);
+      -webkit-backdrop-filter: blur(16px) saturate(104%);
+      backdrop-filter: blur(16px) saturate(104%);
+      box-shadow: var(--shadow-md), inset 0 1px 0 rgba(255, 239, 218, 0.08);
+    }
+
+    .student-assessment-attempt-page .quiz-card {
+      border-color: var(--assessment-material-edge);
+      background: var(--assessment-question-surface);
+      -webkit-backdrop-filter: blur(18px) saturate(104%);
+      backdrop-filter: blur(18px) saturate(104%);
+      box-shadow: var(--shadow-md), inset 0 1px 0 rgba(255, 239, 218, 0.08);
+    }
+    .student-assessment-attempt-page .quiz-card.is-answered {
+      border-color: color-mix(in srgb, var(--color-success) 48%, var(--assessment-material-edge));
+      border-left-color: var(--color-success);
+    }
+
+    /* Start and attempt metadata use lighter material without nested blur. */
+    .student-assessment-page .quiz-start-summary-item,
+    .student-assessment-page .quiz-mixed-banner,
+    .student-assessment-page .result-next-steps {
+      border-color: var(--assessment-material-edge);
+      background: var(--assessment-card-surface);
+      box-shadow: var(--shadow-sm), inset 0 1px 0 rgba(255, 239, 218, 0.06);
+    }
+    .student-assessment-page .quiz-mixed-hint {
+      background: color-mix(
+        in srgb,
+        var(--color-primary-soft) 48%,
+        var(--assessment-control-surface)
+      );
+      box-shadow: inset 0 1px 0 rgba(255, 239, 218, 0.05);
+    }
+    .student-assessment-page .quiz-question-title,
+    .student-assessment-page .result-meta .pill {
+      border-color: var(--assessment-material-edge);
+      background: var(--assessment-control-surface);
+      box-shadow: inset 0 1px 0 rgba(255, 239, 218, 0.05);
+    }
+
+    .student-assessment-page .quiz-progress {
+      border-color: var(--assessment-material-edge);
+      background: color-mix(in srgb, var(--color-bg) 88%, transparent);
+      -webkit-backdrop-filter: blur(12px) saturate(104%);
+      backdrop-filter: blur(12px) saturate(104%);
+      box-shadow: var(--shadow-sm), inset 0 1px 0 rgba(255, 239, 218, 0.07);
+    }
+
+    /* Inputs and choices are light controls inside their parent material. */
+    .student-assessment-page .quiz-start-card input,
+    .student-assessment-page .quiz-open-answer input {
+      border-color: var(--assessment-material-edge);
+      background: var(--assessment-control-surface);
+      box-shadow: inset 0 1px 0 rgba(255, 239, 218, 0.06);
+    }
+    .student-assessment-page .quiz-option-card {
+      border-color: var(--assessment-material-edge);
+      background: var(--assessment-control-soft-surface);
+      box-shadow: inset 0 1px 0 rgba(255, 239, 218, 0.05);
+    }
+    .student-assessment-page .quiz-option-card:hover {
+      border-color: color-mix(in srgb, var(--color-primary) 60%, var(--assessment-material-edge));
+      background: color-mix(
+        in srgb,
+        var(--color-primary-soft) 34%,
+        var(--assessment-control-surface)
+      );
+      box-shadow: var(--shadow-sm), inset 3px 0 0 color-mix(in srgb, var(--color-primary) 62%, var(--color-border));
+    }
+    .student-assessment-page .quiz-option-card:focus-within {
+      border-color: var(--color-primary);
+      box-shadow: 0 0 0 3px var(--color-primary-soft), inset 0 1px 0 rgba(255, 239, 218, 0.06);
+    }
+    .student-assessment-page .quiz-option-card.is-selected {
+      border-color: var(--color-primary);
+      background: var(--color-primary-soft);
+      box-shadow: inset 3px 0 0 var(--color-primary), inset 0 1px 0 rgba(255, 239, 218, 0.08);
+    }
+    .student-assessment-page .quiz-option-letter,
+    .student-assessment-page .result-option-tag {
+      border-color: var(--assessment-material-edge);
+      background: var(--assessment-control-surface);
+      box-shadow: inset 0 1px 0 rgba(255, 239, 218, 0.05);
+    }
+    .student-assessment-page .quiz-option-card.is-selected .quiz-option-letter {
+      border-color: var(--color-primary);
+      background: var(--color-primary);
+      color: #1a1410;
+    }
+
+    /* Results cards stay quieter than the summary and retain all state colors. */
+    .student-assessment-result-page .difficulty-breakdown,
+    .student-assessment-result-page .question-card {
+      border-color: var(--assessment-material-edge);
+      background: var(--assessment-card-surface);
+      box-shadow: var(--shadow-sm), inset 0 1px 0 rgba(255, 239, 218, 0.07);
+    }
+    .student-assessment-result-page .question-card.correct {
+      border-top: 3px solid color-mix(in srgb, var(--color-success) 72%, var(--assessment-material-edge));
+    }
+    .student-assessment-result-page .question-card.incorrect {
+      border-top: 3px solid color-mix(in srgb, var(--color-danger) 72%, var(--assessment-material-edge));
+    }
+    .student-assessment-result-page .result-score-card {
+      border-color: var(--assessment-material-edge);
+      background: var(--assessment-control-surface);
+      box-shadow: var(--shadow-sm), inset 0 1px 0 rgba(255, 239, 218, 0.07);
+    }
+    .student-assessment-result-page .result-score-card.is-complete {
+      border-color: color-mix(in srgb, var(--color-success) 70%, var(--assessment-material-edge));
+      background: var(--color-success-soft);
+    }
+    .student-assessment-result-page .result-score-card.needs-review {
+      border-color: color-mix(in srgb, var(--color-warning) 55%, var(--assessment-material-edge));
+    }
+
+    .student-assessment-result-page .result-option-card,
+    .student-assessment-result-page .answer-note,
+    .student-assessment-result-page .status-pill {
+      border-color: var(--assessment-material-edge);
+      background: var(--assessment-control-surface);
+      box-shadow: inset 0 1px 0 rgba(255, 239, 218, 0.05);
+    }
+    .student-assessment-result-page .result-option-card:hover {
+      border-color: var(--color-border-strong);
+      background: var(--assessment-card-hover-surface);
+      box-shadow: var(--shadow-sm), inset 0 1px 0 rgba(255, 239, 218, 0.06);
+    }
+    .student-assessment-result-page .result-option-card.is-correct {
+      border-color: color-mix(in srgb, var(--color-success) 78%, var(--assessment-material-edge));
+      background: var(--color-success-soft);
+    }
+    .student-assessment-result-page .result-option-card.is-wrong-chosen {
+      border-color: color-mix(in srgb, var(--color-danger) 82%, var(--assessment-material-edge));
+      background: var(--color-danger-soft);
+    }
+    .student-assessment-result-page .result-option-card.is-correct .quiz-option-letter {
+      border-color: var(--color-success);
+      color: var(--color-success);
+    }
+    .student-assessment-result-page .result-option-card.is-wrong-chosen .quiz-option-letter {
+      border-color: var(--color-danger);
+      color: var(--color-danger);
+    }
+    .student-assessment-result-page .result-option-card.is-correct .result-option-tag {
+      border-color: var(--color-success);
+      color: var(--color-success);
+    }
+    .student-assessment-result-page .result-option-card.is-wrong-chosen .result-option-tag {
+      border-color: var(--color-danger);
+      color: var(--color-danger);
+    }
+
+    .student-assessment-result-page .answer-note--correct {
+      border-color: color-mix(in srgb, var(--color-success) 76%, var(--assessment-material-edge));
+      background: var(--color-success-soft);
+      color: var(--color-success);
+    }
+    .student-assessment-result-page .answer-note--wrong {
+      border-color: color-mix(in srgb, var(--color-danger) 82%, var(--assessment-material-edge));
+      background: var(--color-danger-soft);
+      color: var(--color-danger);
+    }
+    .student-assessment-result-page .answer-note--unanswered {
+      border-color: color-mix(in srgb, var(--color-warning) 70%, var(--assessment-material-edge));
+      background: var(--color-warning-soft);
+      color: var(--color-warning);
+    }
+    .student-assessment-result-page .status-pill--correct {
+      border-color: color-mix(in srgb, var(--color-success) 56%, var(--assessment-material-edge));
+      background: var(--color-success-soft);
+      color: var(--color-success);
+    }
+    .student-assessment-result-page .status-pill--wrong {
+      border-color: color-mix(in srgb, var(--color-danger) 60%, var(--assessment-material-edge));
+      background: var(--color-danger-soft);
+      color: var(--color-danger);
+    }
+
+    .student-assessment-page .button.secondary {
+      border-color: var(--assessment-material-edge);
+      background: var(--assessment-control-surface);
+      box-shadow: inset 0 1px 0 rgba(255, 239, 218, 0.06);
+    }
+
+    @media (max-width: 768px) {
+      .student-assessment-attempt-page .quiz-submit-bar {
+        border-color: var(--assessment-material-edge);
+        background: color-mix(in srgb, var(--color-bg) 90%, transparent);
+        -webkit-backdrop-filter: blur(10px) saturate(104%);
+        backdrop-filter: blur(10px) saturate(104%);
+        box-shadow: var(--shadow-md), inset 0 1px 0 rgba(255, 239, 218, 0.07);
+      }
+    }
+  }
+
+  @media (prefers-reduced-transparency: reduce) {
+    .student-assessment-page {
+      --assessment-panel-surface: var(--color-bg);
+      --assessment-question-surface: var(--color-bg);
+      --assessment-card-surface: var(--color-bg);
+      --assessment-card-hover-surface: var(--color-bg);
+      --assessment-control-surface: var(--color-bg-subtle);
+      --assessment-control-soft-surface: var(--color-bg-subtle);
+    }
+
+    .student-assessment-start-page .quiz-hero,
+    .student-assessment-result-page .quiz-hero,
+    .student-assessment-attempt-page .page-header,
+    .student-assessment-start-page .quiz-start-card,
+    .student-assessment-attempt-page .quiz-card,
+    .student-assessment-page .quiz-progress,
+    .student-assessment-attempt-page .quiz-submit-bar {
+      -webkit-backdrop-filter: none;
+      backdrop-filter: none;
+    }
+  }
+}
