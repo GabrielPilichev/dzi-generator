@@ -3,9 +3,14 @@ import json
 import random
 import re
 import sqlite3
+import sys
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from src.subject_assessment import question_belongs_to_subject
+from src.subject_content import IT, section_ownership, topic_ownership
 
 DB_PATH = Path("data/questions.db")
 CONFIG_PATH = Path("data/dzi_training/class_mix.json")
@@ -99,7 +104,9 @@ def get_pool(con, classes):
     WITH question_classes AS (
         SELECT DISTINCT
             q.id AS question_id,
-            cs.class AS class
+            cs.class AS class,
+            qta.topic_id AS mapped_topic_id,
+            cs.id AS section_id
         FROM questions q
         JOIN question_topic_assignments qta
           ON qta.question_id = q.id
@@ -111,14 +118,25 @@ def get_pool(con, classes):
         WHERE {APPROVED_FILTER}
           AND cs.class IN ({class_placeholders})
     )
-    SELECT class, question_id
+    SELECT class, question_id, mapped_topic_id, section_id
     FROM question_classes
     ORDER BY class, question_id;
     """
 
     pools = defaultdict(list)
     for row in con.execute(query, tuple(classes)):
-        pools[int(row["class"])].append(int(row["question_id"]))
+        question_id = int(row["question_id"])
+        mapped_topic = topic_ownership(con, int(row["mapped_topic_id"]))
+        section = section_ownership(con, int(row["section_id"]))
+        if not question_belongs_to_subject(con, question_id, IT):
+            continue
+        if not (mapped_topic.is_consistent and mapped_topic.subject == IT):
+            continue
+        if not (section.is_consistent and section.subject == IT):
+            continue
+        pool = pools[int(row["class"])]
+        if question_id not in pool:
+            pool.append(question_id)
 
     return pools
 

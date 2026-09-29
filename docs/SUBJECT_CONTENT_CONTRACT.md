@@ -35,6 +35,16 @@ questions, counts, and homepage search titles through these ownership rules.
 The legacy `/grade/<n>` and `/section/<slug>` paths remain IT-only; the latter
 still permits the known curriculum-less section URL without assigning it an IT
 owner. A populated generic subject/class page uses its own database sections,
-while an empty Physics class keeps its provisional cards. Assignment/question
-pools remain F3; reviewed non-DZI import tooling remains F4. No Physics
-questions, migrations, tables, or curriculum decisions are added.
+while an empty Physics class keeps its provisional cards.
+
+F3 new assignment selection uses `src/subject_assessment.py`. The selected
+section supplies the subject; its MC and accepted-text open candidates must
+have F1-consistent question ownership and membership in that section. New
+mixed plans are validated before persistence. The teacher form defaults to IT
+for old links and can explicitly select Physics; unknown or mismatched subject
+requests are rejected. Existing persisted plans, metadata-only edits,
+duplication's verbatim snapshot copy, and started attempt snapshots are not
+regenerated. The IT-only DZI training generator excludes non-IT and
+unclassified questions, even when class membership matches. Reviewed non-DZI
+import tooling remains F4. No Physics questions, migrations, tables, or
+curriculum decisions are added.
