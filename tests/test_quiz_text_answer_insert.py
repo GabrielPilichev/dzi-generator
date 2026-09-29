@@ -1,25 +1,13 @@
-import atexit
-import os
-import shutil
 import sqlite3
-import tempfile
 import unittest
 from pathlib import Path
 
 
-_TMP = tempfile.TemporaryDirectory()
-atexit.register(_TMP.cleanup)
-
 _ROOT = Path(__file__).resolve().parents[1]
-_TMP_DB = Path(_TMP.name) / "questions.db"
-_TMP_VAULT = Path(_TMP.name) / "vault"
-shutil.copy2(_ROOT / "data" / "questions.db", _TMP_DB)
-_TMP_VAULT.mkdir()
 
-os.environ["DZI_DB"] = str(_TMP_DB)
-os.environ["DZI_VAULT"] = str(_TMP_VAULT)
+from tests.support import web_app
 
-from web.app import insert_quiz_text_answer  # noqa: E402
+insert_quiz_text_answer = web_app.insert_quiz_text_answer
 
 
 MIGRATION_SQL = (_ROOT / "web" / "migrations" / "005_quiz_text_answers.sql").read_text(encoding="utf-8")

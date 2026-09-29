@@ -13,15 +13,13 @@ If a regression slips a ``|safe`` filter or a ``Markup(...)`` wrapper onto
 any of these fields, the corresponding test fails.
 """
 
-import os
 import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
 
-os.environ["DZI_ADMIN_PASSWORD"] = "admin-pass"
 
-from web import app as web_app  # noqa: E402
+from tests.support import IsolatedAppTestCase, web_app
 
 
 SCRIPT_PAYLOAD = '<script>alert("xss")</script>'
@@ -41,7 +39,7 @@ TEACHER_NOTE_ESCAPED_FRAGMENT = "&lt;script&gt;alert(&#34;teacher-note&#34;)&lt;
 # Practical: teacher review page
 # ---------------------------------------------------------------------------
 
-class PracticalTeacherReviewPageEscapingTest(unittest.TestCase):
+class PracticalTeacherReviewPageEscapingTest(IsolatedAppTestCase):
     """Mirrors the setUp in test_practical_submission_review for isolation."""
 
     def setUp(self):
@@ -179,7 +177,7 @@ class PracticalTeacherReviewPageEscapingTest(unittest.TestCase):
 # Practical: student status page
 # ---------------------------------------------------------------------------
 
-class PracticalStudentPageEscapingTest(unittest.TestCase):
+class PracticalStudentPageEscapingTest(IsolatedAppTestCase):
     """Mirrors test_practical_student_uploads setUp; inserts payloads directly."""
 
     def setUp(self):

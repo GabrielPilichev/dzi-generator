@@ -1,7 +1,9 @@
 import unittest
 from html.parser import HTMLParser
 
-from web.app import app
+from tests.support import IsolatedAppTestCase, web_app
+
+app = web_app.app
 
 
 class _LinkParser(HTMLParser):
@@ -15,7 +17,7 @@ class _LinkParser(HTMLParser):
             self.links.append(dict(attrs))
 
 
-class FaviconTest(unittest.TestCase):
+class FaviconTest(IsolatedAppTestCase):
     def setUp(self):
         self.client = app.test_client()
 

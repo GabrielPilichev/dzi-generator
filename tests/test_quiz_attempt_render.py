@@ -1,29 +1,11 @@
-import atexit
 from datetime import datetime
 import json
-import os
-import shutil
-import tempfile
 import unittest
 from unittest.mock import patch
 from pathlib import Path
 
 
-_TMP = tempfile.TemporaryDirectory()
-atexit.register(_TMP.cleanup)
-
-_ROOT = Path(__file__).resolve().parents[1]
-_TMP_DB = Path(_TMP.name) / "questions.db"
-_TMP_VAULT = Path(_TMP.name) / "vault"
-shutil.copy2(_ROOT / "data" / "questions.db", _TMP_DB)
-_TMP_VAULT.mkdir()
-
-os.environ["DZI_DB"] = str(_TMP_DB)
-os.environ["DZI_VAULT"] = str(_TMP_VAULT)
-os.environ["DZI_ADMIN_PASSWORD"] = "admin-pass"
-os.environ["DZI_TESTER_PASSWORD"] = "tester-pass"
-
-from web import app as web_app  # noqa: E402
+from tests.support import IsolatedAppTestCase, web_app
 
 
 STALE_MESSAGE = (
@@ -32,14 +14,12 @@ STALE_MESSAGE = (
 )
 
 
-class QuizAttemptRenderTest(unittest.TestCase):
+class QuizAttemptRenderTest(IsolatedAppTestCase):
     @classmethod
     def setUpClass(cls):
-        web_app.QUIZ_DB_PATH = _TMP_DB
-        web_app.QUIZ_VAULT_PATH = _TMP_VAULT
+        super().setUpClass()
         cls.app = web_app.app
         cls.app.config.update(TESTING=True)
-        cls.app.config["DB_PATH"] = str(_TMP_DB)
 
         conn = web_app.quiz_db()
         try:

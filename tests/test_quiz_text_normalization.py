@@ -1,24 +1,9 @@
-import atexit
-import os
-import shutil
-import tempfile
 import unittest
-from pathlib import Path
 
 
-_TMP = tempfile.TemporaryDirectory()
-atexit.register(_TMP.cleanup)
+from tests.support import web_app
 
-_ROOT = Path(__file__).resolve().parents[1]
-_TMP_DB = Path(_TMP.name) / "questions.db"
-_TMP_VAULT = Path(_TMP.name) / "vault"
-shutil.copy2(_ROOT / "data" / "questions.db", _TMP_DB)
-_TMP_VAULT.mkdir()
-
-os.environ["DZI_DB"] = str(_TMP_DB)
-os.environ["DZI_VAULT"] = str(_TMP_VAULT)
-
-from web.app import quiz_normalize_text_answer  # noqa: E402
+quiz_normalize_text_answer = web_app.quiz_normalize_text_answer
 
 
 class QuizTextNormalizationTest(unittest.TestCase):
