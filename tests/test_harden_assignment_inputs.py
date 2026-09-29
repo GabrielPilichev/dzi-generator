@@ -145,7 +145,7 @@ class HardenAssignmentInputsTest(IsolatedAppTestCase):
         self.assertLessEqual(len(new_row["title_bg"]), web_app.QUIZ_TITLE_MAX_LENGTH)
         self.assertTrue(new_row["title_bg"].endswith(web_app.QUIZ_DUPLICATE_TITLE_SUFFIX))
         
-    def test_quiz_start_integrity_error_redirect(self):
+    def test_quiz_start_integrity_error_does_not_claim_attempt(self):
         # Create an assignment
         conn = web_app.quiz_db()
         cur = conn.execute("""
@@ -168,6 +168,7 @@ class HardenAssignmentInputsTest(IsolatedAppTestCase):
                 VALUES (?, ?, ?, ?, ?)
             """, (int(assignment["id"]), name, 12345, "[]", 0))
             inserted_attempt_id = int(cur.lastrowid)
+            conn.commit()
             return 12345, []
 
         with patch.object(web_app, "quiz_pick_questions", side_effect=insert_competing_attempt):
@@ -177,8 +178,12 @@ class HardenAssignmentInputsTest(IsolatedAppTestCase):
                 follow_redirects=False,
             )
 
-        self.assertEqual(resp.status_code, 302)
-        self.assertEqual(resp.location, f"/quiz/attempt/{inserted_attempt_id}")
+        self.assertEqual(resp.status_code, 404)
+        with self.client.session_transaction() as sess:
+            self.assertNotIn(web_app.quiz_attempt_owner_session_key(inserted_attempt_id), sess)
+        self.assertEqual(
+            self.client.get(f"/quiz/attempt/{inserted_attempt_id}").status_code, 404
+        )
 
 if __name__ == "__main__":
     unittest.main()

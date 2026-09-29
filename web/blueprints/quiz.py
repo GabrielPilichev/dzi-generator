@@ -108,7 +108,7 @@ def quiz_start(assignment_id):
             conn.close()
             if existing:
                 attempt_id = int(existing["id"])
-                mark_quiz_attempt_owner(attempt_id)
+                require_quiz_attempt_access(attempt_id)
                 if existing["submitted_at"]:
                     return redirect(url_for("quiz_result", attempt_id=attempt_id))
                 return redirect(url_for("quiz_attempt", attempt_id=attempt_id))

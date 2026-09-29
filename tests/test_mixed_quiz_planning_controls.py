@@ -476,7 +476,7 @@ class MixedQuizPlanningControlsTest(IsolatedAppTestCase):
         self.assertEqual(response.status_code, 302)
         self.assertIn("/admin/login", response.headers["Location"])
 
-    def test_quiz_start_integrity_error_redirects_to_existing_attempt(self):
+    def test_quiz_start_integrity_error_does_not_claim_existing_attempt(self):
         self._login_tester()
         create_response = self.client.post("/teacher/new", data={
             "section_id": str(self.section["id"]),
@@ -496,6 +496,7 @@ class MixedQuizPlanningControlsTest(IsolatedAppTestCase):
                 VALUES (?, ?, ?, ?, ?)
             """, (int(assignment["id"]), name, 12345, "[]", 0))
             inserted_attempt_id = int(cur.lastrowid)
+            conn.commit()
             return 12345, []
 
         with patch.object(web_app, "quiz_pick_questions", side_effect=insert_competing_attempt):
@@ -504,8 +505,12 @@ class MixedQuizPlanningControlsTest(IsolatedAppTestCase):
                 data={"student_name": student_name},
             )
 
-        self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.headers["Location"], f"/quiz/attempt/{inserted_attempt_id}")
+        self.assertEqual(response.status_code, 404)
+        with self.client.session_transaction() as sess:
+            self.assertNotIn(web_app.quiz_attempt_owner_session_key(inserted_attempt_id), sess)
+        self.assertEqual(
+            self.client.get(f"/quiz/attempt/{inserted_attempt_id}").status_code, 404
+        )
 
 
 if __name__ == "__main__":
