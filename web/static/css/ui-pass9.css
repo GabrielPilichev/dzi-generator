@@ -43,11 +43,10 @@ h2 {
   top: 0;
   z-index: 50;
   min-height: var(--header-height);
-  background: color-mix(in srgb, var(--color-bg) 92%, transparent);
-  backdrop-filter: blur(var(--space-2));
+  background: var(--color-bg);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-md);
   margin-bottom: var(--space-3);
 }
 
@@ -109,6 +108,7 @@ h2 {
   border: 1px solid var(--color-border);
   background: var(--color-bg-subtle);
   color: var(--color-text-muted);
+  box-shadow: inset 0 1px 0 rgba(255, 239, 218, 0.07);
   font-size: 0.86rem;
   font-weight: 750;
   white-space: nowrap;
@@ -135,6 +135,7 @@ h2 {
   background: var(--color-primary);
   border-color: var(--color-primary);
   color: #1a1410;
+  box-shadow: inset 0 1px 0 rgba(255, 239, 218, 0.18), 0 1px 3px rgba(0, 0, 0, 0.24);
   cursor: default;
 }
 
@@ -163,6 +164,7 @@ h2 {
   background: var(--color-primary);
   border-color: var(--color-primary);
   color: #1a1410;
+  box-shadow: none;
 }
 .nav-menu-panel {
   position: absolute;
@@ -175,7 +177,7 @@ h2 {
   padding: var(--space-2);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
-  background: color-mix(in srgb, var(--color-bg) 96%, var(--color-bg-subtle));
+  background: var(--color-bg);
   box-shadow: var(--shadow-lg);
 }
 .nav-menu.is-open .nav-menu-panel:not([hidden]) {
@@ -206,6 +208,7 @@ h2 {
 .nav-menu-link--current {
   background: var(--color-primary);
   color: #1a1410;
+  box-shadow: inset 0 1px 0 rgba(255, 239, 218, 0.16);
 }
 .nav-menu-link--placeholder {
   cursor: default;
@@ -241,6 +244,7 @@ h2 {
   border: 1px solid var(--color-border);
   background: var(--color-primary);
   color: #1a1410;
+  box-shadow: inset 0 1px 0 rgba(255, 239, 218, 0.18), 0 1px 3px rgba(0, 0, 0, 0.24);
   font-size: 0.86rem;
   font-weight: 850;
   cursor: pointer;
@@ -251,6 +255,7 @@ h2 {
   position: absolute;
   right: var(--space-3);
   top: calc(100% + var(--space-2));
+  z-index: 80;
   display: grid;
   gap: var(--space-2);
   min-width: 180px;
@@ -259,6 +264,66 @@ h2 {
   border-radius: var(--radius-lg);
   background: var(--color-bg);
   box-shadow: var(--shadow-lg);
+}
+
+/* Existing brown surfaces gain translucency only where the browser can blur. */
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .top-nav {
+    background: transparent;
+    border-color: color-mix(in srgb, var(--color-border-strong) 64%, var(--color-border));
+    box-shadow: var(--shadow-md), inset 0 1px 0 rgba(255, 239, 218, 0.12);
+  }
+
+  .top-nav::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    background: color-mix(in srgb, var(--color-bg) 84%, transparent);
+    -webkit-backdrop-filter: blur(22px) saturate(112%);
+    backdrop-filter: blur(22px) saturate(112%);
+    pointer-events: none;
+  }
+
+  .nav-link:not(.nav-menu-trigger--current),
+  .profile-link:not(.active) {
+    background: color-mix(in srgb, var(--color-bg-subtle) 90%, transparent);
+    -webkit-backdrop-filter: blur(6px) saturate(105%);
+    backdrop-filter: blur(6px) saturate(105%);
+  }
+
+  .nav-menu-panel,
+  .mobile-profile-panel {
+    background: color-mix(in srgb, var(--color-bg) 82%, transparent);
+    border-color: color-mix(in srgb, var(--color-border-strong) 76%, var(--color-border));
+    -webkit-backdrop-filter: blur(30px) saturate(110%);
+    backdrop-filter: blur(30px) saturate(110%);
+    box-shadow: 0 8px 22px rgba(0, 0, 0, 0.38), inset 0 1px 0 rgba(255, 239, 218, 0.11);
+  }
+
+  .nav-menu.is-open .nav-menu-trigger:not(:focus-visible) {
+    outline: none;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .top-nav,
+  .nav-menu-panel,
+  .mobile-profile-panel {
+    background: var(--color-bg);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  .top-nav::before {
+    content: none;
+  }
+
+  .nav-link:not(.nav-menu-trigger--current),
+  .profile-link:not(.active) {
+    background: var(--color-bg-subtle);
+  }
 }
 
 .breadcrumb {
