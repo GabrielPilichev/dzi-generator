@@ -30,6 +30,10 @@
             Няма достатъчно отворени въпроси за избрания раздел. Избери друг източник или намали броя.
         {% elif teacher_new_error == "insufficient_closed_questions" %}
             Няма достатъчно въпроси с избираем отговор за избрания раздел. Намали общия брой въпроси.
+        {% elif teacher_new_error == "subject_mismatch" or teacher_new_error == "invalid_subject" %}
+            Избраният раздел не принадлежи на този предмет.
+        {% elif teacher_new_error == "invalid_question_plan" %}
+            Планът с въпроси не е валиден за избрания раздел и предмет.
         {% else %}
             Провери числовите стойности във формата и опитай отново.
         {% endif %}
@@ -37,6 +41,7 @@
 {% endif %}
 
 <form method="post" class="card form-card teacher-form-card" id="new-assignment-form">
+    <input type="hidden" name="subject" value="{{ selected_subject }}">
     <section class="teacher-form-section">
         <div class="section-heading">
             <div>
@@ -44,6 +49,11 @@
                 <p class="help">Учениците ще видят тест със заглавието на избрания раздел.</p>
             </div>
             <span class="pill">{{ sections|length }} налични</span>
+        </div>
+
+        <div class="actions" aria-label="Избери предмет">
+            <a class="button secondary" href="{{ url_for('teacher_new', subject='information-technologies') }}">Информационни технологии</a>
+            <a class="button secondary" href="{{ url_for('teacher_new', subject='physics') }}">Физика</a>
         </div>
 
         <label for="section_id">Раздел с въпроси</label>
@@ -56,7 +66,7 @@
                     data-grade="{{ s.class }}"
                     {% if preselected_section_id and s.id == preselected_section_id %}selected{% endif %}
                 >
-                    {{ s.class }}. клас — {{ s.title_bg }} ({{ s.question_count }} въпроса)
+                    {{ 'Физика' if selected_subject == 'physics' else 'Информационни технологии' }} — {{ s.class }}. клас — {{ s.title_bg }} ({{ s.question_count }} въпроса)
                 </option>
             {% endfor %}
         </select>
@@ -122,7 +132,7 @@
         </div>
     </div>
 
-    <label for="source_slug">ДЗИ източник за отворени въпроси</label>
+    <label for="source_slug">{{ 'Източник' if selected_subject == 'physics' else 'ДЗИ източник' }} за отворени въпроси</label>
     <select id="source_slug" name="source_slug">
         <option value="">Всички налични източници</option>
         {% for source in open_source_options %}
@@ -133,6 +143,7 @@
     </select>
     <div class="help">Използват се само кандидати с примерни/приети отговори; автоматичната проверка е ориентир, не финална оценка.</div>
 
+    {% if selected_subject == 'it' %}
     <section class="practical-assignment-panel" aria-labelledby="practical-assignment-title">
         <div>
             <p class="eyebrow">Практически задачи 26–28</p>
@@ -162,6 +173,7 @@
             <p class="empty-state">Няма налични практически ресурси за показване в момента.</p>
         {% endif %}
     </section>
+    {% endif %}
 
     {% if mixed_planning_result %}
         <div class="warning warning--spaced form-message" id="mixed-planning-result">

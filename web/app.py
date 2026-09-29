@@ -34,7 +34,8 @@ from urllib.parse import urlparse
 from flask import Flask, abort, g, render_template, url_for, request, redirect, send_file, session
 
 from src.subject_browsing import SubjectContentBrowser
-from src.subject_content import IT, canonical_subject
+from src.subject_assessment import AssessmentScope, question_belongs_to_subject
+from src.subject_content import IT, PHYSICS, canonical_subject, section_ownership
 from src.practical_uploads import (
     MAX_UPLOAD_BYTES,
     PracticalUploadError,
@@ -2322,7 +2323,11 @@ def fetch_open_question_candidates(
     source_slug: str | None = None,
     section_id: int | None = None,
     limit: int | None = None,
+    subject: str | None = None,
+    scope: AssessmentScope | None = None,
 ) -> list[dict]:
+    if scope is not None and section_id != scope.section_id:
+        raise ValueError("Open-question scope must match its section")
     params = []
     source_filter = ""
     if source_slug is not None:
@@ -2355,6 +2360,10 @@ def fetch_open_question_candidates(
 
     candidates = []
     for question in question_rows:
+        if scope is not None and not scope.accepts(int(question["id"])):
+            continue
+        if subject is not None and not question_belongs_to_subject(conn, int(question["id"]), subject):
+            continue
         subquestions = [
             dict(row)
             for row in conn.execute("""
@@ -2390,9 +2399,12 @@ def build_mixed_quiz_plan(
     open_source_slug: str | None = None,
     section_id: int | None = None,
     rng: "_quiz_random.Random | None" = None,
+    scope: AssessmentScope | None = None,
 ) -> dict:
     if closed_count < 0 or open_count < 0:
         raise ValueError("closed_count and open_count must be non-negative")
+    if scope is not None and section_id != scope.section_id:
+        raise ValueError("Mixed-question scope must match its section")
     # Randomization happens at plan-creation time so that two new assignments
     # for the same section/count pick different question sets when the pool
     # is large enough. Callers can pass a seeded ``rng`` for deterministic
@@ -2434,6 +2446,8 @@ def build_mixed_quiz_plan(
 
     closed_candidates = []
     for row in closed_rows:
+        if scope is not None and not scope.accepts(int(row["id"])):
+            continue
         if not is_quiz_question_eligible(conn, row):
             continue
         closed_candidates.append({
@@ -2447,6 +2461,7 @@ def build_mixed_quiz_plan(
         conn,
         source_slug=open_source_slug if open_source_slug is not None else source_slug,
         section_id=section_id,
+        scope=scope,
     )
 
     return {
@@ -2971,7 +2986,11 @@ def is_quiz_question_eligible(conn, question) -> bool:
     return False
 
 
-def quiz_section_question_ids(conn, section_id: int) -> list[int]:
+def quiz_section_question_ids(
+    conn, section_id: int, *, scope: AssessmentScope | None = None
+) -> list[int]:
+    if scope is not None and section_id != scope.section_id:
+        raise ValueError("MC scope must match its section")
     # SAFE: QUIZ_APPROVED_FILTER is a static SQL fragment; section_id uses ?.
     rows = conn.execute(f"""
         SELECT DISTINCT q.id, q.prompt, q.question_type, q.has_image, q.image_path
@@ -2982,7 +3001,11 @@ def quiz_section_question_ids(conn, section_id: int) -> list[int]:
           AND q.question_type = 'multiple_choice'
         ORDER BY q.id
     """, (section_id,)).fetchall()
-    return [int(r["id"]) for r in rows if is_quiz_question_eligible(conn, r)]
+    return [
+        int(r["id"]) for r in rows
+        if (scope is None or scope.accepts(int(r["id"])))
+        and is_quiz_question_eligible(conn, r)
+    ]
 
 
 def fetch_dzi_pool_health(source_slug: str = "may_2025_v2") -> dict | None:
@@ -3037,9 +3060,21 @@ def quiz_seed(assignment_id: int, student_name: str) -> str:
     return _quiz_hashlib.sha256(raw).hexdigest()
 
 
-def quiz_pick_questions(conn, assignment, student_name: str) -> tuple[str, list[int]]:
+def quiz_pick_questions(
+    conn, assignment, student_name: str, *, scope: AssessmentScope | None = None
+) -> tuple[str, list[int]]:
     seed = quiz_seed(int(assignment["id"]), student_name)
-    ids = quiz_section_question_ids(conn, int(assignment["section_id"]))
+    if scope is None:
+        try:
+            owner = section_ownership(conn, int(assignment["section_id"]))
+        except sqlite3.OperationalError as exc:
+            if "no such table: curriculum_sections" not in str(exc):
+                raise
+            # Legacy in-memory picker unit fixtures have no curriculum tables.
+            owner = None
+        if owner is not None and owner.is_consistent:
+            scope = AssessmentScope(conn, int(assignment["section_id"]))
+    ids = quiz_section_question_ids(conn, int(assignment["section_id"]), scope=scope)
     rng = _quiz_random.Random(seed)
     rng.shuffle(ids)
     count = min(int(assignment["question_count"]), len(ids))
@@ -4073,6 +4108,14 @@ def teacher_assignments():
 @app.route("/teacher/new", methods=["GET", "POST"])
 def teacher_new():
     conn = quiz_db()
+    raw_subject = (
+        _quiz_request.form.get("subject") if _quiz_request.method == "POST"
+        else _quiz_request.args.get("subject")
+    )
+    selected_subject = canonical_subject(raw_subject) if raw_subject else IT
+    if selected_subject not in {IT, PHYSICS}:
+        conn.close()
+        _quiz_abort(400 if _quiz_request.method == "POST" else 404)
     preselected_section_id = None
     mixed_planning_result = None
     teacher_new_error = None
@@ -4085,6 +4128,9 @@ def teacher_new():
     }
 
     if _quiz_request.method == "POST":
+        if any(key.startswith(("question_ids", "open_question_ids", "question_plan"))
+               for key in _quiz_request.form):
+            teacher_new_error = "invalid_question_plan"
         raw_section_id = (_quiz_request.form.get("section_id") or "").strip()
         raw_question_count = (_quiz_request.form.get("question_count") or "").strip()
         raw_limit = (_quiz_request.form.get("time_limit_minutes") or "").strip()
@@ -4126,6 +4172,23 @@ def teacher_new():
                 teacher_new_error = "open_count_exceeds_total"
 
         if teacher_new_error is None:
+            section = conn.execute("""
+                SELECT id, title_bg
+                FROM curriculum_sections
+                WHERE id = ?
+            """, (section_id,)).fetchone()
+            if not section:
+                conn.close()
+                _quiz_abort(404)
+            try:
+                scope = AssessmentScope(conn, section_id)
+            except ValueError:
+                teacher_new_error = "invalid_subject"
+            else:
+                if scope.subject != selected_subject:
+                    teacher_new_error = "subject_mismatch"
+
+        if teacher_new_error is None:
             form_values = {
                 "question_count": requested_count,
                 "time_limit_minutes": raw_limit,
@@ -4134,20 +4197,10 @@ def teacher_new():
                 "source_slug": source_slug,
             }
 
-            section = conn.execute("""
-                SELECT id, title_bg
-                FROM curriculum_sections
-                WHERE id = ?
-            """, (section_id,)).fetchone()
-
-            if not section:
-                conn.close()
-                _quiz_abort(404)
-
-            available = len(quiz_section_question_ids(conn, section_id))
+            available = len(quiz_section_question_ids(conn, section_id, scope=scope))
             if available <= 0:
                 conn.close()
-                return _quiz_redirect(_quiz_url_for("teacher_new"))
+                return _quiz_redirect(_quiz_url_for("teacher_new", subject=selected_subject))
 
             question_count = max(1, min(requested_count, available))
 
@@ -4159,6 +4212,7 @@ def teacher_new():
                     open_count=open_count,
                     open_source_slug=source_slug or None,
                     section_id=section_id,
+                    scope=scope,
                 )
                 closed_question_ids = [int(question["question_id"]) for question in plan["closed_questions"]]
                 open_question_ids = [int(question["question_id"]) for question in plan["open_questions"]]
@@ -4187,24 +4241,33 @@ def teacher_new():
                         "open_question_ids": open_question_ids,
                         "include_open_answers_in_final_score": include_open_answers_in_final_score,
                     }
-                    cur = conn.execute("""
+                    try:
+                        scope.validate_plan(
+                            question_plan["question_ids"], question_plan["open_question_ids"],
+                            open_source_slug=source_slug or None,
+                        )
+                    except ValueError:
+                        teacher_new_error = "invalid_question_plan"
+                        preselected_section_id = section_id
+                    else:
+                        cur = conn.execute("""
                         INSERT INTO quiz_assignments (
                             section_id, title_bg, question_count, time_limit_minutes, question_plan_json
                         )
                         VALUES (?, ?, ?, ?, ?)
                     """, (
-                        section_id,
-                        section["title_bg"],
-                        len(question_plan["question_ids"]),
-                        time_limit,
-                        _quiz_json.dumps(question_plan, ensure_ascii=False),
-                    ))
-                    assignment_id = cur.lastrowid
-                    conn.commit()
-                    conn.close()
+                            section_id,
+                            section["title_bg"],
+                            len(question_plan["question_ids"]),
+                            time_limit,
+                            _quiz_json.dumps(question_plan, ensure_ascii=False),
+                        ))
+                        assignment_id = cur.lastrowid
+                        conn.commit()
+                        conn.close()
 
-                    quiz_write_assignment_note(assignment_id, _quiz_request.host_url)
-                    return _quiz_redirect(_quiz_url_for("teacher_assignment", assignment_id=assignment_id))
+                        quiz_write_assignment_note(assignment_id, _quiz_request.host_url)
+                        return _quiz_redirect(_quiz_url_for("teacher_assignment", assignment_id=assignment_id))
             else:
                 cur = conn.execute("""
                     INSERT INTO quiz_assignments (section_id, title_bg, question_count, time_limit_minutes)
@@ -4217,28 +4280,24 @@ def teacher_new():
                 quiz_write_assignment_note(assignment_id, _quiz_request.host_url)
                 return _quiz_redirect(_quiz_url_for("teacher_assignment", assignment_id=assignment_id))
 
-    # SAFE: QUIZ_APPROVED_FILTER is a static SQL fragment.
-    section_rows = conn.execute(f"""
-        SELECT
-            cs.id,
-            cs.class,
-            cs.title_bg,
-            COUNT(DISTINCT q.id) AS question_count
-        FROM curriculum_sections cs
-        LEFT JOIN topic_section_assignments tsa ON tsa.section_id = cs.id
-        LEFT JOIN questions q
-          ON q.topic_id = tsa.topic_id
-         AND {QUIZ_APPROVED_FILTER}
-         AND q.question_type = 'multiple_choice'
-        GROUP BY cs.id
-        HAVING question_count > 0
-        ORDER BY cs.class, cs.display_order, cs.title_bg
+    section_rows = conn.execute("""
+        SELECT id, class, title_bg
+        FROM curriculum_sections
+        ORDER BY class, display_order, title_bg
     """).fetchall()
 
     sections = []
     for row in section_rows:
         section = dict(row)
-        eligible_count = len(quiz_section_question_ids(conn, int(section["id"])))
+        try:
+            section_scope = AssessmentScope(conn, int(section["id"]))
+        except ValueError:
+            continue
+        if section_scope.subject != selected_subject:
+            continue
+        eligible_count = len(quiz_section_question_ids(
+            conn, int(section["id"]), scope=section_scope
+        ))
         if eligible_count <= 0:
             continue
         section["question_count"] = eligible_count
@@ -4251,10 +4310,10 @@ def teacher_new():
             FROM curriculum_sections
             WHERE section_slug = ?
         """, (section_slug,)).fetchone()
-        if preselected:
+        if preselected and any(int(row["id"]) == int(preselected["id"]) for row in sections):
             preselected_section_id = int(preselected["id"])
 
-    open_candidates = fetch_open_question_candidates(conn)
+    open_candidates = fetch_open_question_candidates(conn, subject=selected_subject)
     open_source_counts: dict[str, int] = {}
     for candidate in open_candidates:
         source_slug = candidate.get("source_slug") or "unknown"
@@ -4263,13 +4322,16 @@ def teacher_new():
         {"source_slug": source_slug, "count": count}
         for source_slug, count in sorted(open_source_counts.items())
     ]
-    practical_source_options = fetch_practical_assignment_options(conn)
+    practical_source_options = (
+        fetch_practical_assignment_options(conn) if selected_subject == IT else []
+    )
 
     conn.close()
 
     return _quiz_render_template(
         "teacher_new.html",
         sections=sections,
+        selected_subject=selected_subject,
         preselected_section_id=preselected_section_id,
         form_values=form_values,
         teacher_new_error=teacher_new_error,
