@@ -4853,6 +4853,19 @@ def _quiz_csv_value(value):
     return value
 
 
+def _quiz_csv_text(value: str | None) -> str:
+    """Prefix formula-like text with an apostrophe before CSV serialization."""
+    if value is None:
+        return ""
+    for char in value:
+        if char.isspace() or _quiz_unicodedata.category(char) in {"Cc", "Cf"}:
+            continue
+        if char in "=+-@":
+            return "'" + value
+        break
+    return value
+
+
 def _quiz_format_points(value) -> str:
     try:
         return f"{float(value):.4f}"
@@ -4952,9 +4965,9 @@ def teacher_assignment_results_export(assignment_id):
             writer.writerow([
                 "attempt",
                 assignment_id,
-                assignment["title_bg"],
+                _quiz_csv_text(assignment["title_bg"]),
                 attempt_id_int,
-                attempt["student_name"],
+                _quiz_csv_text(attempt["student_name"]),
                 "",
                 "",
                 "",
@@ -4996,9 +5009,9 @@ def teacher_assignment_results_export(assignment_id):
         writer.writerow([
             "attempt",
             assignment_id,
-            assignment["title_bg"],
+            _quiz_csv_text(assignment["title_bg"]),
             attempt_id_int,
-            attempt["student_name"],
+            _quiz_csv_text(attempt["student_name"]),
             attempt["submitted_at"],
             _quiz_csv_value(mc_correct),
             _quiz_csv_value(mc_total),
@@ -5017,9 +5030,9 @@ def teacher_assignment_results_export(assignment_id):
             writer.writerow([
                 "open_answer",
                 assignment_id,
-                assignment["title_bg"],
+                _quiz_csv_text(assignment["title_bg"]),
                 attempt_id_int,
-                attempt["student_name"],
+                _quiz_csv_text(attempt["student_name"]),
                 attempt["submitted_at"],
                 "",
                 "",
@@ -5033,14 +5046,14 @@ def teacher_assignment_results_export(assignment_id):
                 "",
                 _quiz_csv_value(ans.get("question_id")),
                 _quiz_csv_value(ans.get("subquestion_number")),
-                _quiz_csv_value(ans.get("raw_answer")),
-                _quiz_csv_value(ans.get("normalized_answer")),
-                _quiz_csv_value(ans.get("matched_answer")),
+                _quiz_csv_text(ans.get("raw_answer")),
+                _quiz_csv_text(ans.get("normalized_answer")),
+                _quiz_csv_text(ans.get("matched_answer")),
                 _quiz_csv_value(ans.get("points_awarded")),
                 _quiz_csv_value(ans.get("points_possible")),
                 _quiz_csv_value(ans.get("grading_mode")),
                 _quiz_csv_value(ans.get("teacher_override")),
-                _quiz_csv_value(ans.get("teacher_note")),
+                _quiz_csv_text(ans.get("teacher_note")),
                 _quiz_csv_value(ans.get("is_correct")),
             ])
 

@@ -330,6 +330,72 @@ class AssignmentResultsExportFilteredTest(IsolatedAppTestCase):
         finally:
             self._delete_assignment(assignment_id)
 
+    def test_filtered_unsubmitted_export_neutralizes_text_and_keeps_blanks(self):
+        self._login_admin()
+        assignment_id = self._create_assignment(title="-1+2")
+        self._seed_attempt(assignment_id, student_name=" \t=cmd", submitted_at=None)
+        try:
+            response = self.client.get(
+                f"/teacher/assignment/{assignment_id}/results.csv?filtered=1&status=unsubmitted"
+            )
+            self.assertEqual(response.status_code, 200)
+            rows, _ = self._parse_csv(response.data)
+            self.assertEqual(len(rows), 1)
+            self.assertEqual(rows[0]["assignment_title"], "'-1+2")
+            self.assertEqual(rows[0]["student_name"], "' \t=cmd")
+            self.assertEqual(rows[0]["mc_score_correct"], "")
+            self.assertEqual(rows[0]["submitted_at"], "")
+        finally:
+            self._delete_assignment(assignment_id)
+
+    def test_filtered_submitted_export_neutralizes_open_answer_and_note(self):
+        self._login_admin()
+        assignment_id = self._create_assignment(
+            question_plan_json=self._mixed_assignment_plan(),
+            title="\t@SUM(1,1)",
+        )
+        attempt_id = self._seed_attempt(
+            assignment_id,
+            student_name="=cmd",
+            question_ids_json=self._attempt_plan(),
+            submitted_at="2026-05-01 09:00:00",
+        )
+        answer_id = self._seed_open_answer(attempt_id)
+        conn = web_app.quiz_db()
+        try:
+            conn.execute(
+                """
+                UPDATE quiz_text_answers
+                SET raw_answer = ?, normalized_answer = ?, matched_answer = ?, teacher_note = ?
+                WHERE id = ?
+                """,
+                ("\n-1+2", "+cmd", "@SUM(A1:A2)", " \r=cmd", answer_id),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+        try:
+            response = self.client.get(
+                f"/teacher/assignment/{assignment_id}/results.csv?filtered=1&open=has_open"
+            )
+            self.assertEqual(response.status_code, 200)
+            rows, fieldnames = self._parse_csv(response.data)
+            self.assertEqual(fieldnames, web_app.QUIZ_RESULTS_EXPORT_COLUMNS)
+            self.assertEqual(len(rows), 2)
+            attempt_row, answer_row = rows
+            for row in rows:
+                self.assertEqual(row["assignment_title"], "'\t@SUM(1,1)")
+                self.assertEqual(row["student_name"], "'=cmd")
+            self.assertEqual(attempt_row["mc_score_correct"], "2")
+            self.assertEqual(attempt_row["mc_score_total"], "4")
+            self.assertEqual(answer_row["raw_answer"], "'\n-1+2")
+            self.assertEqual(answer_row["normalized_answer"], "'+cmd")
+            self.assertEqual(answer_row["matched_answer"], "'@SUM(A1:A2)")
+            self.assertEqual(answer_row["teacher_note"], "' \r=cmd")
+            self.assertEqual(answer_row["points_awarded"], "1.0")
+        finally:
+            self._delete_assignment(assignment_id)
+
     def test_filtered_export_status_submitted_excludes_unsubmitted(self):
         self._login_admin()
         assignment_id = self._create_assignment(title="Filtered Submitted Only")

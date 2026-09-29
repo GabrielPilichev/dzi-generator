@@ -18,6 +18,44 @@ def _register_dzi_default_denied_test_route(app):
     app.add_url_rule("/__test__/dzi-default-denied", endpoint=endpoint, view_func=view)
 
 
+class QuizCsvCellSafetyTest(unittest.TestCase):
+    def test_text_cells_neutralize_formula_prefixes_after_leading_space_or_controls(self):
+        dangerous = (
+            "=SUM(1,1)",
+            "+cmd",
+            "-1+2",
+            "@SUM(A1:A2)",
+            "  =SUM(1,1)",
+            "\t+cmd",
+            "\r\n-1+2",
+            "\x01@SUM(A1:A2)",
+            "\u200b=SUM(1,1)",
+        )
+        for value in dangerous:
+            with self.subTest(value=value):
+                self.assertEqual(web_app._quiz_csv_text(value), "'" + value)
+
+        safe = (
+            "Боян Иванов",
+            "Ordinary English text",
+            "answer = 2",
+            '"quoted", text',
+            "първи ред\nвтори ред",
+            "'=-already-quoted",
+        )
+        for value in safe:
+            with self.subTest(value=value):
+                self.assertEqual(web_app._quiz_csv_text(value), value)
+        self.assertEqual(web_app._quiz_csv_text(None), "")
+        self.assertEqual(web_app._quiz_csv_text(""), "")
+
+    def test_numeric_cells_keep_existing_types_and_formatting(self):
+        self.assertEqual(web_app._quiz_csv_value(None), "")
+        self.assertEqual(web_app._quiz_csv_value(-1), -1)
+        self.assertEqual(web_app._quiz_csv_value(-1.25), -1.25)
+        self.assertEqual(web_app._quiz_format_points(-1.25), "-1.2500")
+
+
 class AssignmentResultsExportTest(IsolatedAppTestCase):
     @classmethod
     def setUpClass(cls):
@@ -372,6 +410,73 @@ class AssignmentResultsExportTest(IsolatedAppTestCase):
             answer_row = next(r for r in rows if r["row_type"] == "open_answer")
             self.assertEqual(answer_row["teacher_override"], "1")
             self.assertEqual(answer_row["teacher_note"], "Прието след преглед")
+        finally:
+            self._delete_assignment(assignment_id)
+
+    def test_csv_neutralizes_text_without_changing_numeric_scores_or_stored_values(self):
+        self._login_admin()
+        title = "=SUM(1,1)"
+        student_name = "+cmd"
+        raw_answer = "-1+2"
+        normalized_answer = " \t=SUM(A1:A2)"
+        matched_answer = "@SUM(A1:A2)"
+        teacher_note = '\r\n\t+cmd, "quoted"'
+        assignment_id = self._create_assignment(
+            question_plan_json=self._mixed_assignment_plan(combined_score=True),
+            title=title,
+        )
+        attempt_id = self._seed_attempt(
+            assignment_id,
+            student_name=student_name,
+            score_correct=-1,
+            score_total=2,
+            question_ids_json=self._attempt_plan(combined_score=True),
+        )
+        answer_id = self._seed_open_answer(
+            attempt_id,
+            raw_answer=raw_answer,
+            normalized_answer=normalized_answer,
+            matched_answer=matched_answer,
+            points_awarded=-0.5,
+            teacher_note=teacher_note,
+        )
+        try:
+            response = self.client.get(f"/teacher/assignment/{assignment_id}/results.csv")
+            self.assertEqual(response.status_code, 200)
+            rows, fieldnames = self._parse_csv(response.data)
+            self.assertEqual(fieldnames, web_app.QUIZ_RESULTS_EXPORT_COLUMNS)
+            self.assertEqual(len(rows), 2)
+            attempt_row, answer_row = rows
+
+            for row in rows:
+                self.assertEqual(row["assignment_title"], "'" + title)
+                self.assertEqual(row["student_name"], "'" + student_name)
+            self.assertEqual(attempt_row["mc_score_correct"], "-1")
+            self.assertEqual(attempt_row["mc_score_total"], "2")
+            self.assertEqual(attempt_row["mc_percent"], "-50.0")
+            self.assertEqual(attempt_row["open_subtotal_awarded"], "-0.5000")
+            self.assertEqual(attempt_row["combined_awarded"], "-1.5000")
+            self.assertEqual(answer_row["raw_answer"], "'" + raw_answer)
+            self.assertEqual(answer_row["normalized_answer"], "'" + normalized_answer)
+            self.assertEqual(answer_row["matched_answer"], "'" + matched_answer)
+            self.assertEqual(answer_row["teacher_note"], "'" + teacher_note)
+            self.assertEqual(answer_row["points_awarded"], "-0.5")
+            self.assertEqual(answer_row["points_possible"], "1.0")
+
+            conn = web_app.quiz_db()
+            try:
+                stored = conn.execute(
+                    """
+                    SELECT raw_answer, normalized_answer, matched_answer, teacher_note
+                    FROM quiz_text_answers WHERE id = ?
+                    """,
+                    (answer_id,),
+                ).fetchone()
+            finally:
+                conn.close()
+            self.assertEqual(tuple(stored), (
+                raw_answer, normalized_answer, matched_answer, teacher_note,
+            ))
         finally:
             self._delete_assignment(assignment_id)
 
