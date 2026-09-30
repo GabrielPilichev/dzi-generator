@@ -66,8 +66,11 @@ class MotionFoundationTest(IsolatedAppTestCase):
         self.assertEqual(response.status_code, 200)
         parsed = _HTMLProbe(response.get_data(as_text=True))
         self.assertNotIn("home-page", parsed.first("body")["class"].split())
-        self.assertFalse(any("data-motion" in attrs for _, attrs in parsed.elements()))
-        for name in ("quiz_start.html", "quiz_attempt.html", "quiz_result.html"):
+        self.assertEqual(
+            [(tag, attrs.get("data-motion")) for tag, attrs in parsed.elements() if "data-motion" in attrs],
+            [("h1", "feedback")],
+        )
+        for name in ("quiz_attempt.html",):
             self.assertNotIn("data-motion", (TEMPLATES / name).read_text(encoding="utf-8"))
 
     def test_navigation_keeps_immediate_state_and_has_native_no_js_fallback(self):

@@ -2212,6 +2212,40 @@ class QuizAttemptRenderTest(IsolatedAppTestCase):
         self.assertIn('value="0"', body)
         self.assertIn('src="/static/js/quiz-progress-indicator.js"', body)
 
+    def test_motion_keeps_start_form_and_attempt_questions_immediately_available(self):
+        assignment_id, attempt_id = self._create_attempt(
+            [self.valid_question_id], submitted=False, student_name="Motion Attempt",
+            time_limit_minutes=30,
+        )
+        start = self.client.get(f"/quiz/{assignment_id}")
+        self.assertEqual(start.status_code, 200)
+        start_html = start.get_data(as_text=True)
+        self.assertIn('<h1 data-motion="feedback">', start_html)
+        self.assertIn('name="student_name"', start_html)
+        self.assertIn('type="submit">Продължи към теста', start_html)
+        self.assertNotRegex(start_html, r'<form[^>]*data-motion=')
+
+        attempt = self.client.get(f"/quiz/attempt/{attempt_id}")
+        self.assertEqual(attempt.status_code, 200)
+        html = attempt.get_data(as_text=True)
+        self.assertNotIn('data-motion=', html)
+        self.assertIn('<progress', html)
+        self.assertIn('type="radio"', html)
+        self.assertIn('class="quiz-option-card"', html)
+        self.assertIn('form.submit();', html)
+
+    def test_result_motion_does_not_delay_final_score_or_review(self):
+        _assignment_id, attempt_id = self._create_attempt(
+            [self.valid_question_id], submitted=True, student_name="Motion Result",
+        )
+        result = self.client.get(f"/quiz/attempt/{attempt_id}/result")
+        self.assertEqual(result.status_code, 200)
+        html = result.get_data(as_text=True)
+        self.assertIn('class="result-score-label" data-motion="feedback"', html)
+        self.assertIn('class="result-score">0/1</span>', html)
+        self.assertIn('question-card incorrect', html)
+        self.assertNotIn('class="result-score" data-motion', html)
+
     def test_active_question_cards_carry_progress_data_attributes(self):
         _assignment_id, attempt_id = self._create_attempt(
             [self.valid_question_id],

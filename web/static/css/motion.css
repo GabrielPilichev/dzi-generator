@@ -1,4 +1,8 @@
 /* Motion leaves the server-rendered final state visible at all times. */
+.student-assessment-attempt-page .quiz-option-letter {
+  transition: border-color 110ms ease, background-color 110ms ease, color 110ms ease;
+}
+
 .content-browse-page [data-motion-accent] {
   position: relative;
   display: inline-block;
@@ -81,6 +85,10 @@
 
   .content-browse-page [data-motion-accent]::after,
   .content-browse-page .back-link::before {
+    transition-duration: 0ms;
+  }
+
+  .student-assessment-attempt-page .quiz-option-letter {
     transition-duration: 0ms;
   }
 

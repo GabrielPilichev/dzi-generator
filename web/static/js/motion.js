@@ -228,6 +228,26 @@
     }, true);
   }
 
+  function initFeedback() {
+    if (!canRunFirstPaintMotion()) return;
+    const body = document.body;
+    let target = null;
+    let duration = 170;
+    if (body.classList.contains("student-assessment-start-page")) {
+      target = document.querySelector('.student-assessment-start-page .quiz-hero h1[data-motion="feedback"]');
+    } else if (body.classList.contains("student-assessment-result-page")) {
+      target = document.querySelector('.student-assessment-result-page .result-score-label[data-motion="feedback"]');
+      duration = 200;
+    } else if (body.classList.contains("teacher-management-page") &&
+               body.classList.contains("management-dashboard-page")) {
+      target = document.querySelector('.management-dashboard-page .dashboard-header h1[data-motion="feedback"]');
+    }
+    if (target && !initialized.has(target)) {
+      initialized.add(target);
+      play(target, mobile.matches ? 1 : 3, mobile.matches ? 150 : duration);
+    }
+  }
+
   document.addEventListener("learnpilot:nav-state", (event) => {
     const { panel, open, keyboard } = event.detail || {};
     if (!panel || !panel.matches(".nav-menu-panel")) return;
@@ -287,9 +307,11 @@
     document.addEventListener("DOMContentLoaded", () => {
       initHomepage();
       initBrowsing();
+      initFeedback();
     }, { once: true });
   } else {
     initHomepage();
     initBrowsing();
+    initFeedback();
   }
 })();
