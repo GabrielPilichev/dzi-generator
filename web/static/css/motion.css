@@ -1,0 +1,20 @@
+/* Motion leaves the server-rendered final state visible at all times. */
+@media (hover: none), (pointer: coarse), (prefers-reduced-motion: reduce) {
+  .home-page .home-dzi-card:hover,
+  .home-page .home-subject-card:not(.mode-card--inactive):hover {
+    transform: none;
+  }
+
+  .home-page .home-dzi-card:hover .mode-action,
+  .home-page .home-subject-card:hover .mode-action {
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --t-fast: 0ms ease;
+    --t-base: 0ms ease;
+    --t-slow: 0ms ease;
+  }
+}
