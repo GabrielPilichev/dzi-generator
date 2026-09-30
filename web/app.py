@@ -34,7 +34,8 @@ from urllib.parse import urlparse
 
 from flask import Flask, abort, g, render_template, url_for, request, redirect, send_file, session
 
-from src.subject_browsing import SubjectContentBrowser, subject_content_grades
+from src.subject_browsing import subject_content_grades
+from src.subject_browse_cache import CachedSubjectBrowser
 from src.subject_assessment import AssessmentScope, question_belongs_to_subject
 from src.subject_content import IT, PHYSICS, canonical_subject, section_ownership
 from src.subject_registry import all_subjects, get_subject, subject_for_route_slug
@@ -627,28 +628,41 @@ def close_db(exception):
 # Queries
 # ---------------------------------------------------------------------------
 
+def subject_browser(subject_id: str = IT) -> CachedSubjectBrowser:
+    """One public browsing facade per subject/request, shared by legacy routes."""
+    subject_id = canonical_subject(subject_id)
+    browsers = g.setdefault("subject_browsers", {})
+    if subject_id not in browsers:
+        browsers[subject_id] = CachedSubjectBrowser(
+            get_db(), subject_id, legacy_it=subject_id == IT
+        )
+    return browsers[subject_id]
+
+
 def fetch_grades_with_counts() -> list[dict]:
     """Legacy IT grade counts; other subjects use their own browsing scope."""
-    return SubjectContentBrowser(get_db(), IT, legacy_it=True).grade_counts()
+    return subject_browser().grade_counts()
 
 
 def fetch_sections_for_grade(grade: int) -> list[dict]:
     """Legacy IT sections, grouped by module."""
-    return SubjectContentBrowser(get_db(), IT, legacy_it=True).sections_for_grade(grade)
+    return subject_browser().sections_for_grade(grade)
 
 
 def fetch_section(slug: str) -> dict | None:
-    browser = SubjectContentBrowser(get_db(), IT, legacy_it=True)
-    return browser.section(slug, legacy_unclassified=True)
+    return subject_browser().section(slug, legacy_unclassified=True)
 
 
 def fetch_questions_in_section(
-    section_id: int, *, browser: SubjectContentBrowser | None = None
+    section_id: int, *, browser: CachedSubjectBrowser | None = None
 ) -> list[dict]:
     """Approved questions linked to this section via topic_section_assignments."""
-    db = get_db()
-    browser = browser or SubjectContentBrowser(db, IT, legacy_it=True)
-    rows = browser.questions_in_section(section_id)
+    browser = browser or subject_browser()
+    return browser.question_details(section_id, _decorate_browse_questions)
+
+
+def _decorate_browse_questions(db: sqlite3.Connection, rows: list[dict]) -> list[dict]:
+    """DB-only public options/answers/asset metadata; no URLs or request state."""
 
     questions = []
     for r in rows:
@@ -1542,21 +1556,13 @@ def index():
         subject["question_count"] = 0
         subject["search_content"] = ""
         if subject["content_grades"]:
-            browser = SubjectContentBrowser(
-                get_db(), subject["id"], legacy_it=subject["id"] == IT
-            )
-            sections = [
-                section
-                for grade in subject["content_grades"]
-                for section in browser.sections_for_grade(grade)
-            ]
-            subject["question_count"] = sum(
-                int(row["question_count"]) for row in browser.grade_counts()
-            )
-            subject["search_content"] = browser.search_titles(sections)
+            browser = subject_browser(subject["id"])
+            overview = browser.overview(subject["content_grades"])
+            subject["question_count"] = overview["question_count"]
+            subject["search_content"] = overview["search_content"]
             if subject["dzi"]:
                 dzi_section = next(
-                    (section for section in sections
+                    (section for section in overview["sections"]
                      if section["section_slug"] == "grade12-dzi-preparation"),
                     None,
                 )
@@ -1571,11 +1577,11 @@ def index():
     )
 
 
-def _subject_browser(subject: dict) -> SubjectContentBrowser | None:
+def _subject_browser(subject: dict) -> CachedSubjectBrowser | None:
     """Browser for subjects that own stored sections; None while in preparation."""
     if not subject["content_grades"]:
         return None
-    return SubjectContentBrowser(get_db(), subject["id"], legacy_it=subject["id"] == IT)
+    return subject_browser(subject["id"])
 
 
 def render_subject_page(subject_slug: str):
