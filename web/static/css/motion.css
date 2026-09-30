@@ -1,4 +1,88 @@
 /* Motion leaves the server-rendered final state visible at all times. */
+.home-page .home-headline-reveal {
+  margin: 0.67em 0 var(--space-2);
+  overflow: hidden;
+  font-size: clamp(2rem, 4vw, 3rem);
+  line-height: 1.06;
+}
+
+.home-page .home-headline-reveal h1 {
+  margin: 0;
+  font-size: inherit;
+  line-height: inherit;
+}
+
+.home-page .home-hero-signature {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: var(--space-2);
+  vertical-align: middle;
+  pointer-events: none;
+}
+
+.home-page .home-hero-signature-line,
+.home-page .home-hero-signature-tip {
+  display: block;
+  height: 3px;
+  border-radius: var(--radius-pill);
+}
+
+.home-page .home-hero-signature-line {
+  width: 56px;
+  background: var(--color-primary);
+  transform-origin: left center;
+}
+
+.home-page .home-hero-signature-tip {
+  width: 8px;
+  background: var(--color-success);
+}
+
+.home-page [data-showcase-cta] {
+  position: relative;
+}
+
+.home-page [data-showcase-cta]::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: -3px;
+  left: 0;
+  height: 2px;
+  background: var(--color-primary);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 180ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  pointer-events: none;
+}
+
+.home-page .home-dzi-card [data-showcase-cta]::after {
+  background: var(--color-accent-dzi);
+}
+
+.home-page .home-dzi-card:focus-visible [data-showcase-cta]::after,
+.home-page [data-showcase-cta]:focus-visible::after {
+  transform: scaleX(1);
+}
+
+.home-page .home-dzi-card,
+.home-page .home-subject-card:not(.mode-card--inactive) {
+  transition: transform 190ms cubic-bezier(0.2, 0.7, 0.2, 1), border-color 190ms ease;
+}
+
+.home-page .home-dzi-card .mode-action,
+.home-page .home-subject-card:not(.mode-card--inactive) .mode-action {
+  transition: color var(--t-base), transform 190ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+@media (max-width: 768px) {
+  .home-page .home-headline-reveal {
+    font-size: 2rem;
+    line-height: 1.08;
+  }
+}
+
 .student-assessment-attempt-page .quiz-option-letter {
   transition: border-color 110ms ease, background-color 110ms ease, color 110ms ease;
 }
@@ -45,6 +129,21 @@
 }
 
 @media (hover: hover) and (pointer: fine) {
+  .home-page .home-dzi-card:hover,
+  .home-page .home-subject-card:not(.mode-card--inactive):hover {
+    transform: translateY(-3px);
+  }
+
+  .home-page .home-dzi-card:hover .mode-action,
+  .home-page .home-subject-card:not(.mode-card--inactive):hover .mode-action {
+    transform: translateX(3px);
+  }
+
+  .home-page .home-dzi-card:hover [data-showcase-cta]::after,
+  .home-page .home-subject-card:not(.mode-card--inactive):hover [data-showcase-cta]::after {
+    transform: scaleX(1);
+  }
+
   .content-browse-page a:hover [data-motion-accent]::after {
     transform: scaleX(1);
   }
@@ -55,6 +154,15 @@
 }
 
 @media (hover: none), (pointer: coarse), (prefers-reduced-motion: reduce) {
+  .home-page .home-dzi-card,
+  .home-page .home-subject-card:not(.mode-card--inactive) {
+    transition-duration: 0ms;
+  }
+
+  .home-page [data-showcase-cta]::after {
+    transition-duration: 0ms;
+  }
+
   .home-page .home-dzi-card:hover,
   .home-page .home-subject-card:not(.mode-card--inactive):hover {
     transform: none;
@@ -63,6 +171,11 @@
   .home-page .home-dzi-card:hover .mode-action,
   .home-page .home-subject-card:hover .mode-action {
     transform: none;
+  }
+
+  .home-page .home-dzi-card .mode-action,
+  .home-page .home-subject-card:not(.mode-card--inactive) .mode-action {
+    transition-duration: 0ms;
   }
 
   .content-browse-page .subject-class-card:hover,
@@ -95,5 +208,11 @@
   .content-browse-page .back-link:hover::before,
   .content-browse-page .back-link:focus-visible::before {
     transform: none;
+  }
+}
+
+@media print {
+  .home-page .home-headline-reveal {
+    overflow: visible;
   }
 }

@@ -5,14 +5,14 @@
 
 {% block content %}
 <section class="hero home-hero" data-motion="intro">
-    <p class="eyebrow" data-motion-item="eyebrow">LearnPilot</p>
-    <h1 data-motion-item="headline">Учи по-умно. Подготвяй се уверено.</h1>
+    <p class="eyebrow" data-motion-item="eyebrow">LearnPilot<span class="home-hero-signature" aria-hidden="true"><span class="home-hero-signature-line"></span><span class="home-hero-signature-tip"></span></span></p>
+    <div class="home-headline-reveal"><h1 data-motion-item="headline">Учи по-умно. Подготвяй се уверено.</h1></div>
     <p class="subtitle" data-motion-item="description">Локална платформа с подредено съдържание по предмети и класове, ДЗИ подготовка и тренировъчни тестове.</p>
     <div class="home-hero-stats" data-motion-item="stats">
         <span>{{ home_total_questions }} въпроса</span>
         <span>{{ home_class_count }} класа</span>
     </div>
-    <form class="home-search" role="search" aria-label="Търсене по предмети" onsubmit="return false;">
+    <form class="home-search" role="search" aria-label="Търсене по предмети" data-motion-item="search" onsubmit="return false;">
         <label class="home-search-label" for="home-search-input">Търсене по предмети</label>
         <input
             id="home-search-input"
@@ -52,7 +52,7 @@
                 {% endif %}
                 <span>Практически задачи 26–28</span>
             </div>
-            <span class="mode-action">Към прегледа</span>
+            <span class="mode-action" data-showcase-cta>Към прегледа</span>
             {% if admin_authenticated %}
                 <span class="mode-admin-link">админ изглед: /dzi</span>
             {% endif %}
@@ -64,8 +64,8 @@
 <section id="home-search-subjects" class="home-section home-subject-section" data-home-search-group="subjects">
     <div class="section-heading">
         <div data-motion="reveal">
-            <p class="eyebrow">Предмети</p>
-            <h2>Избери предмет</h2>
+            <p class="eyebrow" data-motion-item="subject-eyebrow">Предмети</p>
+            <h2 data-motion-item="subject-heading">Избери предмет</h2>
         </div>
         <span class="pill">{{ subjects|length }} предмета</span>
     </div>
@@ -99,7 +99,7 @@
                             <a href="{{ subject_class_url(subject, grade) }}">{{ grade }}. клас</a>
                         {% endfor %}
                     </div>
-                    <a class="mode-action" href="{{ subject_url(subject) }}">Към предмета</a>
+                    <a class="mode-action" href="{{ subject_url(subject) }}" data-showcase-cta>Към предмета</a>
                 {% else %}
                     <span class="home-subject-status">{{ subject_status_label(subject) }}</span>
                     <a class="mode-action" href="{{ subject_url(subject) }}">Към {{ subject.title }}</a>
