@@ -44,6 +44,11 @@ writing the target. `--apply` is the only writing mode; it uses one transaction
 and rolls back on any failure. Test/apply to a temporary DB before considering
 any separately authorized content PR. F4 does not apply to `data/questions.db`.
 
+`subject` may be any registered canonical subject (`it`, `physics`,
+`informatics`, `biology`, `mathematics`, `chemistry`) and `grade` must be one of
+that subject's declared grades in `src/subject_registry.py`; a subject or grade
+outside the registry is rejected. Registration alone adds no content.
+
 The section and topic slugs must be stable and namespaced
 `<canonical-subject>-g<grade>-...`. The `source` is a stable
 `reviewed:<canonical-subject>:<batch>` identifier. Each positive `number` is
