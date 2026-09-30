@@ -18,7 +18,7 @@
   <p class="subtitle">{{ attempt.student_name }}</p>
 
   <div class="result-score-card {{ 'is-complete' if attempt.score_correct == attempt.score_total else 'needs-review' }}">
-    <span class="result-score-label">MC резултат</span>
+    <span class="result-score-label" data-motion="feedback">MC резултат</span>
     <span class="result-score">{{ attempt.score_correct }}/{{ attempt.score_total }}</span>
     <span class="result-score-rate">Успеваемост: {{ success_rate }}</span>
     <span class="result-score-note">
