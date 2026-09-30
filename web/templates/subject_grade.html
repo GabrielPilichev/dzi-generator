@@ -12,10 +12,10 @@
 
 {% block content %}
 {% if sections %}
-<section class="hero subject-hero">
+<section class="hero subject-hero" data-motion="intro">
     <p class="eyebrow">{{ subject.title }}</p>
-    <h1>{{ grade }}. клас</h1>
-    <p class="subtitle">Избери раздел за преговор по {{ subject.title|lower }}.</p>
+    <h1 data-motion-item="headline">{{ grade }}. клас</h1>
+    <p class="subtitle" data-motion-item="description">Избери раздел за преговор по {{ subject.title|lower }}.</p>
 </section>
 
 <section class="home-section" aria-labelledby="subject-grade-sections-title">
@@ -26,12 +26,12 @@
         </div>
         <span class="pill">{{ sections|length }} раздела</span>
     </div>
-    <div class="cards subject-topic-group-grid">
+    <div class="cards subject-topic-group-grid" data-motion="stagger">
         {% for section in sections %}
             <a class="card subject-topic-group-card"
                href="{{ url_for('subject_topic_group_view', subject_slug=subject.slug, grade=grade, topic_group_slug=section.section_slug) }}">
                 <p class="eyebrow">{{ subject.title }}</p>
-                <h2>{{ section.section_title }}</h2>
+                <h2 data-motion-item><span data-motion-accent>{{ section.section_title }}</span></h2>
                 <p class="subtitle">{{ section.question_count }} въпроса</p>
             </a>
         {% endfor %}
@@ -42,10 +42,10 @@
     <a class="button secondary" href="{{ subject_url(subject) }}">Всички класове по {{ subject.title|lower }}</a>
 </div>
 {% else %}
-<section class="hero subject-hero subject-hero--placeholder">
+<section class="hero subject-hero subject-hero--placeholder" data-motion="intro">
     <p class="eyebrow">{{ subject.title }}</p>
-    <h1>{{ grade }}. клас</h1>
-    <p class="subtitle">
+    <h1 data-motion-item="headline">{{ grade }}. клас</h1>
+    <p class="subtitle" data-motion-item="description">
         Обвивка за бъдещото съдържание по {{ subject.title|lower }} за {{ grade }}. клас.
         Темите, упражненията и тестовете са в подготовка.
     </p>
@@ -76,12 +76,12 @@
             <span class="pill">{{ topic_groups|length }} групи</span>
         </div>
 
-        <div class="cards subject-topic-group-grid">
+        <div class="cards subject-topic-group-grid" data-motion="stagger">
             {% for topic_group in topic_groups %}
                 <a class="card subject-topic-group-card"
                    href="{{ subject_topic_group_url(subject, grade, topic_group) }}">
                     <p class="eyebrow">{{ subject.title }}</p>
-                    <h2>{{ topic_group.title }}</h2>
+                    <h2 data-motion-item>{{ topic_group.title }}</h2>
                     <p class="subtitle">
                         Навигационна рамка за бъдещо съдържание по {{ subject.title|lower }} за {{ grade }}. клас.
                     </p>

@@ -19,10 +19,10 @@
 } %}
 
 {% block content %}
-<section class="hero">
+<section class="hero" data-motion="intro">
     <p class="eyebrow">Учебна програма</p>
-    <h1>{{ grade }}. клас</h1>
-    <p class="subtitle">Избери раздел за преговор. Обобщенията и подготовката са изведени най-отгоре.</p>
+    <h1 data-motion-item="headline">{{ grade }}. клас</h1>
+    <p class="subtitle" data-motion-item="description">Избери раздел за преговор. Обобщенията и подготовката са изведени най-отгоре.</p>
 </section>
 
 {% set ns = namespace(featured=[]) %}
@@ -35,7 +35,7 @@
 {% endfor %}
 
 {% if ns.featured %}
-    <section class="pinned-grid">
+    <section class="pinned-grid" data-motion="stagger">
         {% for item in ns.featured %}
             {% set s = item.section %}
             {% set m = item.module %}
@@ -53,8 +53,8 @@
             {% endif %}
 
             <a class="pinned-card" href="{{ url_for('section_view', slug=s.section_slug) }}" style="--pin-color: {{ pin_color }};">
-                <div>
-                    <div class="pin-title">{{ s.section_title }}</div>
+                <div data-motion-item>
+                    <div class="pin-title"><span data-motion-accent>{{ s.section_title }}</span></div>
                     <div class="pin-meta">{{ pin_label }}</div>
                 </div>
                 <span class="count-pill">{{ s.question_count }} въпр.</span>
