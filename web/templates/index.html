@@ -1,13 +1,14 @@
 {% extends "base.html" %}
 
 {% block title %}LearnPilot — Преглед{% endblock %}
+{% block body_class %}home-page{% endblock %}
 
 {% block content %}
-<section class="hero home-hero">
-    <p class="eyebrow">LearnPilot</p>
-    <h1>Учи по-умно. Подготвяй се уверено.</h1>
-    <p class="subtitle">Локална платформа с подредено съдържание по предмети и класове, ДЗИ подготовка и тренировъчни тестове.</p>
-    <div class="home-hero-stats">
+<section class="hero home-hero" data-motion="intro">
+    <p class="eyebrow" data-motion-item="eyebrow">LearnPilot</p>
+    <h1 data-motion-item="headline">Учи по-умно. Подготвяй се уверено.</h1>
+    <p class="subtitle" data-motion-item="description">Локална платформа с подредено съдържание по предмети и класове, ДЗИ подготовка и тренировъчни тестове.</p>
+    <div class="home-hero-stats" data-motion-item="stats">
         <span>{{ home_total_questions }} въпроса</span>
         <span>{{ home_class_count }} класа</span>
     </div>
@@ -25,9 +26,9 @@
     </form>
 </section>
 
-<section id="home-search-dzi" class="home-section home-dzi-section" data-home-search-group="dzi">
+<section id="home-search-dzi" class="home-section home-dzi-section" data-home-search-group="dzi" data-motion="reveal">
     <div class="section-heading">
-        <div>
+        <div data-motion-item>
             <p class="eyebrow">Подготовка за ДЗИ</p>
             <h2>Матура по информационни технологии</h2>
         </div>
@@ -39,7 +40,7 @@
         data-search-item
         data-search-text="ДЗИ подготовка матура по информационни технологии 12. клас grade12 практически задачи 26 27 28 {{ dzi_section.section_title if dzi_section else '' }}"
     >
-        <div>
+        <div data-motion-item>
             <p class="eyebrow">ДЗИ подготовка</p>
             <h2 class="home-dzi-title">Матура по ИТ</h2>
             <p class="subtitle">
@@ -62,21 +63,21 @@
 
 <section id="home-search-subjects" class="home-section home-subject-section" data-home-search-group="subjects">
     <div class="section-heading">
-        <div>
+        <div data-motion="reveal">
             <p class="eyebrow">Предмети</p>
             <h2>Избери предмет</h2>
         </div>
         <span class="pill">{{ subjects|length }} предмета</span>
     </div>
 
-    <div class="home-subject-grid">
+    <div class="home-subject-grid" data-motion="stagger">
         {% for subject in subjects %}
             <article
                 class="mode-card home-subject-card {% if subject.has_real_content %}home-subject-card--it{% else %}mode-card--inactive home-subject-card--placeholder{% endif %}"
                 data-search-item
                 data-search-text="{{ subject_search_text(subject) }}"
             >
-                <div>
+                <div data-motion-item>
                     <p class="eyebrow">{{ "Активен предмет" if subject.has_real_content else "Бъдещ предмет" }}</p>
                     <a class="home-subject-card-link" href="{{ subject_url(subject) }}">
                         <h2 class="home-subject-title">{{ subject.title }}</h2>

@@ -11,6 +11,19 @@
     <link rel="manifest" href="{{ url_for('static', filename='img/brand/site.webmanifest') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/tokens.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/ui-pass9.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/motion.css') }}">
+    <script src="{{ url_for('static', filename='js/motion.js') }}" defer></script>
+    <noscript>
+        <style>
+            .nav-menu { display: none; }
+            .nav-links { overflow: visible; }
+            .nojs-nav-menu { position: relative; flex: 0 0 auto; }
+            .nojs-nav-menu > summary { list-style: none; }
+            .nojs-nav-menu > summary::-webkit-details-marker { display: none; }
+            .nojs-nav-menu[open] > .nav-menu-panel { display: grid; }
+            @media (max-width: 768px) { .nav-links { overflow-x: auto; } }
+        </style>
+    </noscript>
     <script>
         if ("scrollRestoration" in history) {
             history.scrollRestoration = "manual";
@@ -76,6 +89,17 @@
                             </div>
                         </div>
 
+                        <noscript>
+                            <details class="nojs-nav-menu">
+                                <summary class="nav-link nav-menu-trigger">Класове</summary>
+                                <div class="nav-menu-panel">
+                                    {% for grade_num in [8, 9, 10, 11, 12] %}
+                                        <a class="nav-menu-link" href="{{ url_for('grade_view', grade=grade_num) }}">{{ grade_num }}. клас</a>
+                                    {% endfor %}
+                                </div>
+                            </details>
+                        </noscript>
+
                         <div class="nav-menu">
                             <button
                                 class="nav-link nav-menu-trigger {% if current_subject_slug %}nav-menu-trigger--current{% endif %}"
@@ -98,6 +122,23 @@
                                 {% endfor %}
                             </div>
                         </div>
+
+                        <noscript>
+                            <details class="nojs-nav-menu">
+                                <summary class="nav-link nav-menu-trigger">Предмети</summary>
+                                <div class="nav-menu-panel">
+                                    {% for subject in learnpilot_subjects %}
+                                        <a class="nav-menu-link {% if subject.status != 'active' %}nav-menu-link--placeholder{% endif %}"
+                                           href="{{ subject_url(subject) }}">
+                                            {{ subject.title }}
+                                            {% if subject.status != 'active' %}
+                                                <span class="nav-menu-status">{{ subject_status_label(subject) }}</span>
+                                            {% endif %}
+                                        </a>
+                                    {% endfor %}
+                                </div>
+                            </details>
+                        </noscript>
 
                         <a class="{% if is_dzi_current %}nav-current{% else %}nav-link{% endif %}"
                            href="{{ url_for('section_view', slug='grade12-dzi-preparation') }}"
@@ -166,9 +207,10 @@
             const menus = Array.from(document.querySelectorAll(".nav-menu"));
             if (menus.length === 0) return;
 
-            function setMenuOpen(menu, isOpen) {
+            function setMenuOpen(menu, isOpen, keyboardOpen) {
                 const trigger = menu.querySelector(".nav-menu-trigger");
                 const panel = trigger ? document.getElementById(trigger.getAttribute("aria-controls")) : null;
+                const wasOpen = menu.classList.contains("is-open");
 
                 menu.classList.toggle("is-open", isOpen);
                 if (trigger) {
@@ -176,6 +218,11 @@
                 }
                 if (panel) {
                     panel.hidden = !isOpen;
+                    if (wasOpen !== isOpen) {
+                        document.dispatchEvent(new CustomEvent("learnpilot:nav-state", {
+                            detail: { panel: panel, open: isOpen, keyboard: Boolean(keyboardOpen) }
+                        }));
+                    }
                 }
             }
 
@@ -191,10 +238,10 @@
                 const trigger = menu.querySelector(".nav-menu-trigger");
                 if (!trigger) return;
 
-                trigger.addEventListener("click", function () {
+                trigger.addEventListener("click", function (event) {
                     const shouldOpen = !menu.classList.contains("is-open");
                     closeMenus(menu);
-                    setMenuOpen(menu, shouldOpen);
+                    setMenuOpen(menu, shouldOpen, event.detail === 0);
                 });
             });
 
