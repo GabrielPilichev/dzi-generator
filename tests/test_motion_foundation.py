@@ -40,7 +40,7 @@ class MotionFoundationTest(IsolatedAppTestCase):
         self.assertEqual(parsed.first("section", **{"data-motion": "intro"})["class"], "hero home-hero")
         self.assertEqual(
             {attrs.get("data-motion-item") for _, attrs in parsed.elements() if attrs.get("data-motion-item")},
-            {"eyebrow", "headline", "description", "stats"},
+            {"eyebrow", "headline", "description", "stats", "search", "subject-eyebrow", "subject-heading"},
         )
         self.assertEqual(parsed.first("section", id="home-search-dzi")["data-motion"], "reveal")
         self.assertIsNotNone(parsed.first("div", **{"data-motion": "stagger"}))

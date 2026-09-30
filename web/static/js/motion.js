@@ -40,18 +40,12 @@
       (element.contains(focused) || focused.contains(element));
   }
 
-  function play(element, distance, duration, delay = 0, opacity = 1) {
+  function playFrames(element, frames, duration, delay = 0, fill = "none") {
     if (!element || reduced.matches || isInteracting(element)) return;
     finish(element);
-    const start = { transform: `translateY(${distance}px)` };
-    const end = { transform: "none" };
-    if (opacity < 1) {
-      start.opacity = opacity;
-      end.opacity = 1;
-    }
     try {
-      const animation = element.animate([start, end], {
-        duration, delay, easing, fill: "none"
+      const animation = element.animate(frames, {
+        duration, delay, easing, fill
       });
       active.set(element, animation);
       const clear = () => {
@@ -62,6 +56,16 @@
     } catch (_) {
       // The final CSS state is already visible.
     }
+  }
+
+  function play(element, distance, duration, delay = 0, opacity = 1, fill = "none") {
+    const start = { transform: `translateY(${distance}px)` };
+    const end = { transform: "none" };
+    if (opacity < 1) {
+      start.opacity = opacity;
+      end.opacity = 1;
+    }
+    playFrames(element, [start, end], duration, delay, fill);
   }
 
   function canRunFirstPaintMotion() {
@@ -93,28 +97,46 @@
     if (initialized.has(hero)) return;
     initialized.add(hero);
     if (!shouldRunIntro()) return;
-    const presets = [
-      ["eyebrow", 4, 180, 0],
-      ["headline", 6, 280, 20],
-      ["description", 4, 220, 50],
-      ["stats", 3, 180, 75]
-    ];
-    presets.forEach(([name, distance, duration, delay]) => {
-      if (mobile.matches && name === "stats") return;
-      const element = hero.querySelector(`[data-motion-item="${name}"]`);
-      play(element, mobile.matches ? Math.ceil(distance / 2) : distance,
-        mobile.matches ? Math.round(duration * 0.8) : duration, delay, 0.88);
+    const compact = mobile.matches;
+    const item = (name) => hero.querySelector(`[data-motion-item="${name}"]`);
+    play(item("eyebrow"), compact ? 6 : 11, compact ? 235 : 280, 0, 0.35);
+    play(item("headline"), compact ? 8 : 16, compact ? 400 : 470,
+      compact ? 45 : 70, 0.08, "backwards");
+    play(item("description"), compact ? 6 : 11, compact ? 290 : 340,
+      compact ? 95 : 125, 0.35, "backwards");
+    const stats = item("stats");
+    if (stats) stats.querySelectorAll("span").forEach((stat, index) => {
+      play(stat, compact ? 5 : 9, compact ? 240 : 285,
+        (compact ? 130 : 170) + index * (compact ? 25 : 45), 0.45, "backwards");
     });
+    play(item("search"), compact ? 4 : 8, compact ? 250 : 290,
+      compact ? 190 : 240, 0.7, "backwards");
+
+    const line = hero.querySelector(".home-hero-signature-line");
+    const tip = hero.querySelector(".home-hero-signature-tip");
+    playFrames(line, [{ transform: "scaleX(0)" }, { transform: "scaleX(1)" }],
+      compact ? 290 : 340, compact ? 65 : 85, "backwards");
+    playFrames(tip, [
+      { transform: "translateX(-5px)", opacity: 0.15 },
+      { transform: "none", opacity: 1 }
+    ], compact ? 175 : 210, compact ? 300 : 340, "backwards");
   }
 
   function reveal(target) {
     if (target.id === "home-search-dzi") {
-      target.querySelectorAll("[data-motion-item]").forEach((item) => {
-        play(item, mobile.matches ? 3 : 6, mobile.matches ? 200 : 250, 0, 0.9);
-      });
+      const items = target.querySelectorAll("[data-motion-item]");
+      play(items[0], mobile.matches ? 6 : 13, mobile.matches ? 260 : 330, 0, 0.35);
+      play(items[1], mobile.matches ? 5 : 10, mobile.matches ? 250 : 305,
+        mobile.matches ? 35 : 55, 0.4, "backwards");
       return;
     }
-    play(target, mobile.matches ? 2 : 4, mobile.matches ? 190 : 210, 0, 0.9);
+    if (target.closest(".home-subject-section")) {
+      play(target.querySelector('[data-motion-item="subject-eyebrow"]'),
+        mobile.matches ? 4 : 10, mobile.matches ? 240 : 290, 0, 0.35);
+      play(target.querySelector('[data-motion-item="subject-heading"]'),
+        mobile.matches ? 6 : 12, mobile.matches ? 270 : 320,
+        mobile.matches ? 15 : 35, 0.35, "backwards");
+    }
   }
 
   function stagger(target) {
@@ -125,9 +147,10 @@
       !card.classList.contains("is-search-hidden")
     );
     cards.slice(0, 6).forEach((card, index) => {
-      play(card.querySelector("[data-motion-item]"), mobile.matches ? 3 : 5,
-        mobile.matches ? 190 : 220,
-        mobile.matches ? 0 : Math.min(index * 25, 75), 0.9);
+      play(card.querySelector("[data-motion-item]"), mobile.matches ? 5 : 10,
+        mobile.matches ? 250 : 290,
+        (mobile.matches ? 35 : 75) + Math.min(index * (mobile.matches ? 12 : 40),
+          mobile.matches ? 48 : 120), 0.4, "backwards");
     });
   }
 
