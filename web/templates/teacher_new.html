@@ -54,8 +54,9 @@
         </div>
 
         <div class="actions" aria-label="Избери предмет">
-            <a class="button secondary" href="{{ url_for('teacher_new', subject='information-technologies') }}">Информационни технологии</a>
-            <a class="button secondary" href="{{ url_for('teacher_new', subject='physics') }}">Физика</a>
+            {% for option in teacher_subject_options %}
+                <a class="button secondary" href="{{ url_for('teacher_new', subject=option.slug) }}">{{ option.title }}</a>
+            {% endfor %}
         </div>
 
         <label for="section_id">Раздел с въпроси</label>
@@ -68,13 +69,16 @@
                     data-grade="{{ s.class }}"
                     {% if preselected_section_id and s.id == preselected_section_id %}selected{% endif %}
                 >
-                    {{ 'Физика' if selected_subject == 'physics' else 'Информационни технологии' }} — {{ s.class }}. клас — {{ s.title_bg }} ({{ s.question_count }} въпроса)
+                    {{ selected_subject_title }} — {{ s.class }}. клас — {{ s.title_bg }} ({{ s.question_count }} въпроса)
                 </option>
             {% endfor %}
         </select>
         <div class="help" id="section-help">
             Показват се само раздели, в които има въпроси с избираем отговор.
         </div>
+        {% if not sections %}
+            <p class="empty-state">Все още няма раздели по {{ selected_subject_title|lower }} с въпроси за тест.</p>
+        {% endif %}
     </section>
 
     <hr class="rule">
@@ -134,7 +138,7 @@
         </div>
     </div>
 
-    <label for="source_slug">{{ 'Източник' if selected_subject == 'physics' else 'ДЗИ източник' }} за отворени въпроси</label>
+    <label for="source_slug">{{ 'ДЗИ източник' if selected_subject_dzi else 'Източник' }} за отворени въпроси</label>
     <select id="source_slug" name="source_slug">
         <option value="">Всички налични източници</option>
         {% for source in open_source_options %}
@@ -145,7 +149,7 @@
     </select>
     <div class="help">Използват се само кандидати с примерни/приети отговори; автоматичната проверка е ориентир, не финална оценка.</div>
 
-    {% if selected_subject == 'it' %}
+    {% if selected_subject_dzi %}
     <section class="practical-assignment-panel" aria-labelledby="practical-assignment-title">
         <div>
             <p class="eyebrow">Практически задачи 26–28</p>

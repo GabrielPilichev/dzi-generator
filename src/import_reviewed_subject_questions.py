@@ -18,6 +18,7 @@ from src.subject_content import (
     canonical_subject, curriculum_ownership, question_ownership,
     section_ownership, topic_ownership,
 )
+from src.subject_registry import get_subject, subject_supports_grade
 
 
 LETTERS = ("A", "B", "C", "D")
@@ -45,8 +46,9 @@ def validate_batch(batch):
     if subject is None:
         raise ValueError(f"Unknown content subject: {batch['subject']!r}")
     grade = batch["grade"]
-    if type(grade) is not int or grade not in range(8, 13):
-        raise ValueError("grade must be an integer from 8 to 12")
+    if not subject_supports_grade(subject, grade):
+        supported = ", ".join(str(value) for value in get_subject(subject).grades)
+        raise ValueError(f"grade must be an integer in the grades supported by {subject}: {supported}")
     source = _text(batch["source"], "source")
     if not source.startswith(f"reviewed:{subject}:") or len(source.split(":", 2)[2]) == 0:
         raise ValueError("source must be a stable reviewed:<subject>:<batch> identifier")

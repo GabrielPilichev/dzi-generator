@@ -141,10 +141,13 @@ class SubjectContentContractTest(IsolatedAppTestCase):
         self.assertEqual(subject_content.canonical_subject("physics"), "physics")
 
     def test_unknown_values_never_fall_back_to_it_or_future_informatics(self):
-        for value in ("unmapped-subject", "informatics", "", None, 8):
+        for value in ("unmapped-subject", "Информатика", "informatika", "", None, 8):
             with self.subTest(value=value):
                 self.assertIsNone(subject_content.canonical_subject(value))
                 self.assertFalse(subject_content.is_known_content_subject(value))
+        # Informatics is a registered subject since the canonical registry; the
+        # legacy IT/DZI value still never resolves to it.
+        self.assertEqual(subject_content.canonical_subject("informatics"), "informatics")
         self.assertEqual(subject_content.canonical_subject("informatika_it"), "it")
 
     def test_curriculum_and_section_inherit_declared_subject(self):

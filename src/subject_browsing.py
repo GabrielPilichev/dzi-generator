@@ -15,6 +15,31 @@ from src.subject_content import (
     section_ownership,
     topic_ownership,
 )
+from src.subject_registry import all_subjects, get_subject
+
+
+def subject_content_grades(conn: sqlite3.Connection) -> dict[str, frozenset[int]]:
+    """Declared grades in which each registered subject owns at least one section.
+
+    A grade counts when a section of the subject's curriculum has the same class
+    and curriculum grade, matching ``SubjectContentBrowser.sections_for_grade``.
+    Availability is derived from stored content, never configured.
+    """
+    found: dict[str, set[int]] = {subject.id: set() for subject in all_subjects()}
+    rows = conn.execute(
+        """
+        SELECT DISTINCT c.subject, cs.class
+        FROM curriculum_sections cs
+        JOIN curricula c ON c.id = cs.curriculum_id
+        WHERE cs.class = c.grade
+        """
+    ).fetchall()
+    for stored_subject, grade in rows:
+        subject_id = canonical_subject(stored_subject)
+        definition = get_subject(subject_id)
+        if definition is not None and grade in definition.grades:
+            found[subject_id].add(int(grade))
+    return {subject_id: frozenset(grades) for subject_id, grades in found.items()}
 
 
 class SubjectContentBrowser:
@@ -67,16 +92,20 @@ class SubjectContentBrowser:
 
     def grade_counts(self) -> list[dict]:
         """Existing class/topic-count semantics, with subject-owned content only."""
+        grades = get_subject(self.subject).grades
+        # SAFE: placeholders are generated from the registry's integer grades.
+        placeholders = ",".join("?" for _ in grades)
         rows = self.conn.execute(
-            """
+            f"""
             SELECT tc.class AS grade, tc.topic_id, q.id AS question_id
             FROM topic_classes tc
             JOIN curriculum_topics t ON t.id = tc.topic_id
             LEFT JOIN questions q ON q.topic_id = t.id
                 AND (q.is_ai_generated = 0 OR q.quality_score >= 1.0)
-            WHERE tc.class BETWEEN 8 AND 12
+            WHERE tc.class IN ({placeholders})
             ORDER BY tc.class
-            """
+            """,
+            grades,
         ).fetchall()
         by_grade: dict[int, dict] = {}
         for grade, topic_id, question_id in rows:

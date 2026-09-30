@@ -34,9 +34,10 @@ from urllib.parse import urlparse
 
 from flask import Flask, abort, g, render_template, url_for, request, redirect, send_file, session
 
-from src.subject_browsing import SubjectContentBrowser
+from src.subject_browsing import SubjectContentBrowser, subject_content_grades
 from src.subject_assessment import AssessmentScope, question_belongs_to_subject
 from src.subject_content import IT, PHYSICS, canonical_subject, section_ownership
+from src.subject_registry import all_subjects, get_subject, subject_for_route_slug
 from src.practical_resource_resolution import (
     ResourceResolutionError,
     read_zip_member,
@@ -165,109 +166,56 @@ QUESTION_DIFFICULTY_BUCKET_ORDER = [
     "unknown",
 ]
 
-SUBJECT_CLASS_GRADES = (8, 9, 10, 11, 12)
 SUBJECT_STATUS_LABELS = {
     "active": "Активен",
     "in_preparation": "В подготовка",
 }
-PHYSICS_TOPIC_GROUPS_BY_GRADE = {
-    8: (
-        {"slug": "mechanics", "title": "Механика", "status": "in_preparation"},
-        {"slug": "thermal-phenomena", "title": "Топлинни явления", "status": "in_preparation"},
-        {"slug": "pressure", "title": "Налягане", "status": "in_preparation"},
-        {"slug": "electricity", "title": "Електричество", "status": "in_preparation"},
-    ),
-    9: (
-        {"slug": "mechanics", "title": "Механика", "status": "in_preparation"},
-        {"slug": "oscillations-and-waves", "title": "Трептения и вълни", "status": "in_preparation"},
-        {"slug": "sound", "title": "Звук", "status": "in_preparation"},
-        {"slug": "light", "title": "Светлина", "status": "in_preparation"},
-    ),
-    10: (
-        {"slug": "mechanics", "title": "Механика", "status": "in_preparation"},
-        {"slug": "thermal-processes", "title": "Топлинни процеси", "status": "in_preparation"},
-        {"slug": "electric-phenomena", "title": "Електрични явления", "status": "in_preparation"},
-        {"slug": "magnetic-phenomena", "title": "Магнитни явления", "status": "in_preparation"},
-    ),
-    11: (
-        {"slug": "electromagnetism", "title": "Електромагнетизъм", "status": "in_preparation"},
-        {"slug": "geometric-optics", "title": "Геометрична оптика", "status": "in_preparation"},
-        {"slug": "wave-optics", "title": "Вълнова оптика", "status": "in_preparation"},
-        {"slug": "quantum-phenomena", "title": "Квантови явления", "status": "in_preparation"},
-    ),
-    12: (
-        {"slug": "atomic-physics", "title": "Атомна физика", "status": "in_preparation"},
-        {"slug": "nuclear-physics", "title": "Ядрена физика", "status": "in_preparation"},
-        {"slug": "elementary-particles", "title": "Елементарни частици", "status": "in_preparation"},
-        {"slug": "astrophysics", "title": "Астрофизика", "status": "in_preparation"},
-    ),
-}
-LEARNPILOT_SUBJECTS = (
-    {
-        "slug": "information-technologies",
-        "title": "Информационни технологии",
-        "status": "active",
-        "available_classes": SUBJECT_CLASS_GRADES,
-        "description": "Текущото съдържание с класове, теми, въпроси и тренировъчни тестове.",
-        "has_real_content": True,
-        "search_terms": "ИТ informatsionni tehnologii теми въпроси тестове",
-    },
-    {
-        "slug": "physics",
-        "title": "Физика",
-        "status": "in_preparation",
-        "available_classes": SUBJECT_CLASS_GRADES,
-        "description": "Раздел по класове за бъдещи теми, упражнения и тестове по физика.",
-        "has_real_content": False,
-        "topic_groups_by_grade": PHYSICS_TOPIC_GROUPS_BY_GRADE,
-        "search_terms": "physics fizika природни науки",
-    },
-    {
-        "slug": "informatics",
-        "title": "Информатика",
-        "status": "in_preparation",
-        "available_classes": SUBJECT_CLASS_GRADES,
-        "description": "Бъдещ раздел за алгоритми, програмиране и задачи по информатика.",
-        "has_real_content": False,
-        "search_terms": "informatika алгоритми програмиране",
-    },
-    {
-        "slug": "biology",
-        "title": "Биология",
-        "status": "in_preparation",
-        "available_classes": SUBJECT_CLASS_GRADES,
-        "description": "Бъдещ раздел по класове за теми и упражнения по биология.",
-        "has_real_content": False,
-        "search_terms": "biologiya природни науки",
-    },
-    {
-        "slug": "mathematics",
-        "title": "Математика",
-        "status": "in_preparation",
-        "available_classes": SUBJECT_CLASS_GRADES,
-        "description": "Бъдещ раздел по класове за задачи, теми и тестове по математика.",
-        "has_real_content": False,
-        "search_terms": "matematika алгебра геометрия",
-    },
-    {
-        "slug": "chemistry",
-        "title": "Химия",
-        "status": "in_preparation",
-        "available_classes": SUBJECT_CLASS_GRADES,
-        "description": "Бъдещ раздел по класове за теми и упражнения по химия.",
-        "has_real_content": False,
-        "search_terms": "himiya природни науки",
-    },
-)
-SUBJECTS_BY_SLUG = {subject["slug"]: subject for subject in LEARNPILOT_SUBJECTS}
+PHYSICS_TOPIC_GROUPS_BY_GRADE = get_subject(PHYSICS).placeholder_topic_groups
 
 
-def learnpilot_subjects() -> tuple[dict, ...]:
-    return LEARNPILOT_SUBJECTS
+def subject_catalog() -> tuple[dict, ...]:
+    """Registered subjects with content-derived availability, cached per request.
+
+    Static metadata comes from the canonical registry; status and content grades
+    are derived from stored curriculum sections. A database error degrades to
+    every subject being in preparation instead of failing the page.
+    """
+    if "subject_catalog" in g:
+        return g.subject_catalog
+    try:
+        content_grades = subject_content_grades(get_db())
+    except sqlite3.Error as exc:
+        app.logger.warning("Subject availability lookup failed: %s", exc)
+        content_grades = {}
+    catalog = []
+    for definition in all_subjects():
+        grades = sorted(content_grades.get(definition.id, ()))
+        catalog.append({
+            "id": definition.id,
+            "slug": definition.route_slug,
+            "title": definition.title,
+            "description": definition.description,
+            "active_description": definition.active_description
+            or f"Съдържание по класове, раздели и въпроси по {definition.title.lower()}.",
+            "status": "active" if grades else "in_preparation",
+            "available_classes": definition.grades,
+            "has_real_content": bool(grades),
+            "content_grades": grades,
+            "search_terms": definition.search_terms,
+            "topic_groups_by_grade": definition.placeholder_topic_groups,
+            "dzi": definition.dzi,
+            "legacy_grade_routes": definition.legacy_grade_routes,
+        })
+    g.subject_catalog = tuple(catalog)
+    return g.subject_catalog
 
 
-def get_subject_config(subject_slug: str) -> dict | None:
-    return SUBJECTS_BY_SLUG.get(subject_slug)
+def catalog_subject(route_slug: str) -> dict | None:
+    """Catalog entry for a URL route slug; ids and legacy aliases are not URLs."""
+    definition = subject_for_route_slug(route_slug)
+    if definition is None:
+        return None
+    return next((subject for subject in subject_catalog() if subject["id"] == definition.id), None)
 
 
 def subject_topic_groups(subject: dict, grade: int) -> tuple[dict, ...]:
@@ -276,8 +224,8 @@ def subject_topic_groups(subject: dict, grade: int) -> tuple[dict, ...]:
 
 
 def get_subject_topic_group_config(subject_slug: str, grade: int, topic_group_slug: str) -> tuple[dict, dict] | None:
-    subject = get_subject_config(subject_slug)
-    if subject is None or grade not in subject.get("available_classes", ()):
+    subject = catalog_subject(subject_slug)
+    if subject is None or grade not in subject["available_classes"]:
         return None
 
     for topic_group in subject_topic_groups(subject, grade):
@@ -428,7 +376,7 @@ def inject_subject_navigation():
         return url_for("subject_view", subject_slug=subject["slug"])
 
     def subject_class_url(subject: dict, grade: int) -> str:
-        if canonical_subject(subject["slug"]) == IT:
+        if subject["legacy_grade_routes"]:
             return url_for("grade_view", grade=grade)
         return url_for("subject_grade_view", subject_slug=subject["slug"], grade=grade)
 
@@ -440,13 +388,8 @@ def inject_subject_navigation():
             topic_group_slug=topic_group["slug"],
         )
 
-    status_overrides = getattr(g, "subject_status_overrides", {})
-    navigation_subjects = tuple(
-        {**subject, "status": status_overrides.get(subject["slug"], subject["status"])}
-        for subject in learnpilot_subjects()
-    )
     return {
-        "learnpilot_subjects": navigation_subjects,
+        "learnpilot_subjects": subject_catalog(),
         "subject_url": subject_url,
         "subject_class_url": subject_class_url,
         "subject_topic_group_url": subject_topic_group_url,
@@ -1594,96 +1537,76 @@ def tester_home():
 def index():
     subjects = []
     dzi_section = None
-    for configured in learnpilot_subjects():
-        subject = dict(configured)
-        content_subject = canonical_subject(subject["slug"])
-        if content_subject is not None:
+    for catalog_entry in subject_catalog():
+        subject = dict(catalog_entry)
+        subject["question_count"] = 0
+        subject["search_content"] = ""
+        if subject["content_grades"]:
             browser = SubjectContentBrowser(
-                get_db(), content_subject, legacy_it=content_subject == IT
+                get_db(), subject["id"], legacy_it=subject["id"] == IT
             )
-            grade_rows = browser.grade_counts()
             sections = [
                 section
-                for grade in subject["available_classes"]
+                for grade in subject["content_grades"]
                 for section in browser.sections_for_grade(grade)
             ]
-            section_grades = {section["grade"] for section in sections}
-            subject["has_real_content"] = bool(subject["has_real_content"] or section_grades)
-            if section_grades:
-                subject["status"] = "active"
-            subject["content_grades"] = sorted(section_grades)
-            subject["question_count"] = sum(int(row["question_count"]) for row in grade_rows)
+            subject["question_count"] = sum(
+                int(row["question_count"]) for row in browser.grade_counts()
+            )
             subject["search_content"] = browser.search_titles(sections)
-            if content_subject == IT:
+            if subject["dzi"]:
                 dzi_section = next(
                     (section for section in sections
                      if section["section_slug"] == "grade12-dzi-preparation"),
                     None,
                 )
         subjects.append(subject)
-    g.subject_status_overrides = {
-        subject["slug"]: subject["status"] for subject in subjects
-    }
 
     return render_template(
         "index.html",
         subjects=subjects,
-        home_total_questions=sum(subject.get("question_count", 0) for subject in subjects),
-        home_class_count=len({grade for subject in subjects for grade in subject.get("content_grades", ())}),
+        home_total_questions=sum(subject["question_count"] for subject in subjects),
+        home_class_count=len({grade for subject in subjects for grade in subject["content_grades"]}),
         dzi_section=dzi_section,
     )
 
 
+def _subject_browser(subject: dict) -> SubjectContentBrowser | None:
+    """Browser for subjects that own stored sections; None while in preparation."""
+    if not subject["content_grades"]:
+        return None
+    return SubjectContentBrowser(get_db(), subject["id"], legacy_it=subject["id"] == IT)
+
+
 def render_subject_page(subject_slug: str):
-    subject = get_subject_config(subject_slug)
+    subject = catalog_subject(subject_slug)
     if subject is None:
         abort(404)
 
-    subject = dict(subject)
-    content_subject = canonical_subject(subject_slug)
     grade_rows = []
-    content_grades = set()
-    if content_subject is not None:
-        browser = SubjectContentBrowser(
-            get_db(), content_subject, legacy_it=content_subject == IT
-        )
+    browser = _subject_browser(subject)
+    if browser is not None:
         grade_rows = browser.grade_counts()
-        content_grades = {
-            grade for grade in subject["available_classes"]
-            if browser.sections_for_grade(grade)
-        }
-        subject["has_real_content"] = bool(subject["has_real_content"] or content_grades)
-        if content_grades:
-            subject["status"] = "active"
-    g.subject_status_overrides = {subject_slug: subject["status"]}
     grade_rows_by_number = {int(row["grade"]): row for row in grade_rows}
     total_questions = sum(int(row["question_count"] or 0) for row in grade_rows)
     return render_template(
         "subject.html",
         subject=subject,
-        content_grades=content_grades,
+        content_grades=set(subject["content_grades"]),
         grade_rows_by_number=grade_rows_by_number,
         total_questions=total_questions,
     )
 
 
 def render_subject_grade_page(subject_slug: str, grade: int):
-    subject = get_subject_config(subject_slug)
-    if subject is None or grade not in subject.get("available_classes", ()):
+    subject = catalog_subject(subject_slug)
+    if subject is None or grade not in subject["available_classes"]:
         abort(404)
 
-    content_subject = canonical_subject(subject_slug)
     sections = []
-    if content_subject is not None:
-        browser = SubjectContentBrowser(
-            get_db(), content_subject, legacy_it=content_subject == IT
-        )
+    browser = _subject_browser(subject)
+    if browser is not None:
         sections = browser.sections_for_grade(grade)
-        if sections or any(
-            browser.sections_for_grade(other_grade)
-            for other_grade in subject["available_classes"] if other_grade != grade
-        ):
-            g.subject_status_overrides = {subject_slug: "active"}
 
     return render_template(
         "subject_grade.html",
@@ -1695,22 +1618,17 @@ def render_subject_grade_page(subject_slug: str, grade: int):
 
 
 def render_subject_topic_group_page(subject_slug: str, grade: int, topic_group_slug: str):
-    subject = get_subject_config(subject_slug)
-    if subject is None or grade not in subject.get("available_classes", ()):
+    subject = catalog_subject(subject_slug)
+    if subject is None or grade not in subject["available_classes"]:
         abort(404)
 
-    content_subject = canonical_subject(subject_slug)
-    if content_subject is not None:
-        browser = SubjectContentBrowser(
-            get_db(), content_subject, legacy_it=content_subject == IT
-        )
-        if any(browser.sections_for_grade(value) for value in subject["available_classes"]):
-            g.subject_status_overrides = {subject_slug: "active"}
+    browser = _subject_browser(subject)
+    if browser is not None:
         section = browser.section(topic_group_slug, grade=grade)
         if section is not None:
             return render_template(
                 "subject_topic_group.html",
-                subject={**subject, "status": "active"},
+                subject=subject,
                 grade=grade,
                 topic_group={"slug": section["section_slug"], "title": section["section_title"]},
                 section=section,
@@ -1719,7 +1637,7 @@ def render_subject_topic_group_page(subject_slug: str, grade: int, topic_group_s
             )
         # Once this class has DB content, the provisional configuration is no
         # longer a parallel source of real group routes.
-        if browser.sections_for_grade(grade):
+        if grade in subject["content_grades"]:
             abort(404)
 
     topic_group_result = get_subject_topic_group_config(subject_slug, grade, topic_group_slug)
@@ -4117,9 +4035,10 @@ def teacher_new():
         else _quiz_request.args.get("subject")
     )
     selected_subject = canonical_subject(raw_subject) if raw_subject else IT
-    if selected_subject not in {IT, PHYSICS}:
+    if selected_subject is None:
         conn.close()
         _quiz_abort(400 if _quiz_request.method == "POST" else 404)
+    selected_definition = get_subject(selected_subject)
     preselected_section_id = None
     mixed_planning_result = None
     teacher_new_error = None
@@ -4327,15 +4246,23 @@ def teacher_new():
         for source_slug, count in sorted(open_source_counts.items())
     ]
     practical_source_options = (
-        fetch_practical_assignment_options(conn) if selected_subject == IT else []
+        fetch_practical_assignment_options(conn) if selected_definition.dzi else []
     )
 
     conn.close()
+
+    teacher_subject_options = [
+        subject for subject in subject_catalog()
+        if subject["has_real_content"] or subject["id"] == selected_subject
+    ]
 
     return _quiz_render_template(
         "teacher_new.html",
         sections=sections,
         selected_subject=selected_subject,
+        selected_subject_title=selected_definition.title,
+        selected_subject_dzi=selected_definition.dzi,
+        teacher_subject_options=teacher_subject_options,
         preselected_section_id=preselected_section_id,
         form_values=form_values,
         teacher_new_error=teacher_new_error,

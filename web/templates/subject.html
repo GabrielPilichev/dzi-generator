@@ -13,7 +13,7 @@
 <section class="hero subject-hero {% if not subject.has_real_content %}subject-hero--placeholder{% endif %}" data-motion="intro">
     <p class="eyebrow">Предмет</p>
     <h1 data-motion-item="headline">{{ subject.title }}</h1>
-    <p class="subtitle" data-motion-item="description">{% if subject.has_real_content and subject.slug == 'physics' %}Съдържание по класове, раздели и въпроси по физика.{% else %}{{ subject.description }}{% endif %}</p>
+    <p class="subtitle" data-motion-item="description">{{ subject.active_description if subject.has_real_content else subject.description }}</p>
     <div class="subject-meta">
         <span class="pill subject-pill">{{ subject_status_label(subject) }}</span>
         <span>{{ subject_class_range_label(subject) }}</span>

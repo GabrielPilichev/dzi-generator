@@ -9,29 +9,22 @@ from __future__ import annotations
 import sqlite3
 from dataclasses import dataclass
 
+from src.subject_registry import IT, PHYSICS, SUBJECTS, resolve_subject_identifier
 
-IT = "it"
-PHYSICS = "physics"
-
-# The UI has other placeholder subjects, but these are the content identities
-# supported by this contract. Their presence does not imply available content.
-KNOWN_CONTENT_SUBJECTS = frozenset({IT, PHYSICS})
+# Content identities come from the canonical registry; being registered does not
+# imply available content.
+KNOWN_CONTENT_SUBJECTS = frozenset(subject.id for subject in SUBJECTS)
 SUBJECT_ALIASES = {
-    "IT": IT,
-    "informatika_it": IT,
-    "Информационни технологии": IT,
-    "information-technologies": IT,  # Existing subject-page slug.
+    alias: subject.id
+    for subject in SUBJECTS
+    for alias in (*subject.legacy_aliases, subject.route_slug)
+    if alias != subject.id
 }
 
 
 def canonical_subject(value: object) -> str | None:
-    """Resolve an explicit stored value/key/IT page slug; unknown stays unknown."""
-    if not isinstance(value, str):
-        return None
-    value = value.strip()
-    if value in KNOWN_CONTENT_SUBJECTS:
-        return value
-    return SUBJECT_ALIASES.get(value)
+    """Resolve an explicit stored value/key/route slug; unknown stays unknown."""
+    return resolve_subject_identifier(value)
 
 
 def is_known_content_subject(value: object) -> bool:
