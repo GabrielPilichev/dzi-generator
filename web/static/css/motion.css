@@ -1,4 +1,55 @@
 /* Motion leaves the server-rendered final state visible at all times. */
+.content-browse-page [data-motion-accent] {
+  position: relative;
+  display: inline-block;
+}
+
+.content-browse-page [data-motion-accent]::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: -2px;
+  left: 0;
+  height: 2px;
+  background: var(--color-primary);
+  transform: scaleX(0);
+  transform-origin: left center;
+  transition: transform 160ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  pointer-events: none;
+}
+
+.content-browse-page a:focus-visible [data-motion-accent]::after {
+  transform: scaleX(1);
+}
+
+.content-browse-page .back-link::before {
+  display: inline-block;
+  transition: transform 150ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.content-browse-page .back-link:hover {
+  transform: none;
+}
+
+.content-browse-page .back-link:focus-visible::before {
+  transform: translateX(-2px);
+}
+
+/* Native details owns the open state; only its inner content may move. */
+.content-browse-page .answer-details::details-content {
+  transition: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .content-browse-page a:hover [data-motion-accent]::after {
+    transform: scaleX(1);
+  }
+
+  .content-browse-page .back-link:hover::before {
+    transform: translateX(-2px);
+  }
+}
+
 @media (hover: none), (pointer: coarse), (prefers-reduced-motion: reduce) {
   .home-page .home-dzi-card:hover,
   .home-page .home-subject-card:not(.mode-card--inactive):hover {
@@ -9,6 +60,16 @@
   .home-page .home-subject-card:hover .mode-action {
     transform: none;
   }
+
+  .content-browse-page .subject-class-card:hover,
+  .content-browse-page .subject-topic-group-card:hover,
+  .content-browse-page .pinned-card:hover,
+  .content-browse-page .section-item:hover,
+  .content-browse-page .section-readonly .question:hover,
+  .content-browse-page .button:hover,
+  .content-browse-page button:hover {
+    transform: none;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -16,5 +77,15 @@
     --t-fast: 0ms ease;
     --t-base: 0ms ease;
     --t-slow: 0ms ease;
+  }
+
+  .content-browse-page [data-motion-accent]::after,
+  .content-browse-page .back-link::before {
+    transition-duration: 0ms;
+  }
+
+  .content-browse-page .back-link:hover::before,
+  .content-browse-page .back-link:focus-visible::before {
+    transform: none;
   }
 }

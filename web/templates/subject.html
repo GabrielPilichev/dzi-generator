@@ -10,10 +10,10 @@
 {% endblock %}
 
 {% block content %}
-<section class="hero subject-hero {% if not subject.has_real_content %}subject-hero--placeholder{% endif %}">
+<section class="hero subject-hero {% if not subject.has_real_content %}subject-hero--placeholder{% endif %}" data-motion="intro">
     <p class="eyebrow">Предмет</p>
-    <h1>{{ subject.title }}</h1>
-    <p class="subtitle">{% if subject.has_real_content and subject.slug == 'physics' %}Съдържание по класове, раздели и въпроси по физика.{% else %}{{ subject.description }}{% endif %}</p>
+    <h1 data-motion-item="headline">{{ subject.title }}</h1>
+    <p class="subtitle" data-motion-item="description">{% if subject.has_real_content and subject.slug == 'physics' %}Съдържание по класове, раздели и въпроси по физика.{% else %}{{ subject.description }}{% endif %}</p>
     <div class="subject-meta">
         <span class="pill subject-pill">{{ subject_status_label(subject) }}</span>
         <span>{{ subject_class_range_label(subject) }}</span>
@@ -29,7 +29,7 @@
         <span class="pill">{{ subject.available_classes|length }} класа</span>
     </div>
 
-    <div class="cards subject-class-grid">
+    <div class="cards subject-class-grid" data-motion="stagger">
         {% for grade in subject.available_classes %}
             {% set grade_row = grade_rows_by_number.get(grade) %}
             {% set grade_topic_groups = subject_topic_groups(subject, grade) %}
@@ -37,8 +37,8 @@
             <a class="card subject-class-card {% if grade_has_content %}subject-class-card--active{% endif %}"
                href="{{ subject_class_url(subject, grade) }}">
                 <span class="subject-class-number">{{ grade }}</span>
-                <div>
-                    <h2>{{ grade }}. клас</h2>
+                <div data-motion-item>
+                    <h2><span data-motion-accent>{{ grade }}. клас</span></h2>
                     {% if grade_has_content %}
                         <p class="subtitle">
                             Към текущите раздели, въпроси и тестове за {{ grade }}. клас.

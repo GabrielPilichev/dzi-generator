@@ -49,13 +49,15 @@ class MotionFoundationTest(IsolatedAppTestCase):
         self.assertIsNotNone(parsed.first("input", id="home-search-input"))
         self.assertIn("/section/grade12-dzi-preparation", parsed.hrefs())
 
-    def test_hooks_do_not_leak_to_browsing_or_management(self):
+    def test_homepage_and_browsing_hooks_stay_in_their_scopes(self):
         for path in ("/grade/8", "/subjects/information-technologies"):
             response = self.client.get(path)
             self.assertEqual(response.status_code, 200)
             parsed = _HTMLProbe(response.get_data(as_text=True))
             self.assertNotIn("home-page", parsed.first("body")["class"].split())
-            self.assertFalse(any("data-motion" in attrs for _, attrs in parsed.elements()))
+            self.assertIn("content-browse-page", parsed.first("body")["class"].split())
+            self.assertTrue(any(attrs.get("data-motion") == "intro" for _, attrs in parsed.elements()))
+            self.assertFalse(any(attrs.get("data-motion") == "reveal" for _, attrs in parsed.elements()))
 
         with self.client.session_transaction() as session:
             session["admin_authenticated"] = True
@@ -89,7 +91,7 @@ class MotionFoundationTest(IsolatedAppTestCase):
         js = (STATIC / "js" / "motion.js").read_text(encoding="utf-8")
         self.assertIn("@media (prefers-reduced-motion: reduce)", css)
         self.assertIn("(pointer: coarse)", css)
-        self.assertNotRegex(css, r"\[data-motion[^]]*\]\s*\{")
+        self.assertNotRegex(css, r"(?m)^\s*\[data-motion(?:\]|=)")
         self.assertNotRegex(css, r"opacity:\s*0\b")
         self.assertIn('window.matchMedia("(prefers-reduced-motion: reduce)")', js)
         self.assertIn("IntersectionObserver", js)
