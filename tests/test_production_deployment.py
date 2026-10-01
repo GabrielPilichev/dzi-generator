@@ -54,6 +54,7 @@ def _state_dir(test: unittest.TestCase, *, seed: bool) -> dict:
         "DZI_DB": str(db),
         "DZI_UPLOAD_ROOT": str(root / "uploads"),
         "DZI_VAULT": str(root / "vault"),
+        "DZI_PUBLIC_HOST": "learnpilot.example.com",
     }
 
 
@@ -111,6 +112,14 @@ class ProductionConfigValidationTest(unittest.TestCase):
             with self.subTest(debug=value):
                 self.assertIn("FLASK_DEBUG must not be enabled in production",
                               self.errors(FLASK_DEBUG=value))
+
+    def test_public_host_is_required_and_rejects_url_or_wildcard(self):
+        for value in (None, "", "https://school.example", "*.school.example",
+                      "school.example:443", "school.example/evil",
+                      f'{"a" * 64}.example.com'):
+            with self.subTest(value=value):
+                self.assertTrue(any("DZI_PUBLIC_HOST" in error for error in
+                                    self.errors(DZI_PUBLIC_HOST=value)))
 
     def test_state_paths_must_be_explicit_absolute_and_outside_checkout(self):
         cases = {
@@ -176,6 +185,8 @@ proxy = {"X-Forwarded-Proto": "https", "X-Forwarded-Host": "learnpilot.example.c
 origin = {"Origin": "https://learnpilot.example.com"}
 client = app.test_client()
 health = client.get("/healthz", headers=proxy)
+public = client.get("/", headers=proxy)
+foreign_host = client.get("/", headers={**proxy, "X-Forwarded-Host": "evil.example"})
 wrong = client.post("/tester/login", data={"password": "wrong"}, headers={**proxy, **origin})
 forged = client.post("/tester/login", data={"password": "wrong"},
                      headers={**proxy, "Origin": "https://evil.example"})
@@ -195,6 +206,10 @@ print(json.dumps({
     "max_content_length": app.config["MAX_CONTENT_LENGTH"],
     "proxy": isinstance(wsgi, ProxyFix) and [wsgi.x_for, wsgi.x_proto, wsgi.x_host, wsgi.x_port, wsgi.x_prefix],
     "health": [health.status_code, health.get_data(as_text=True)],
+    "public_cookie": public.headers.get("Set-Cookie"),
+    "health_cookie": health.headers.get("Set-Cookie"),
+    "foreign_host": foreign_host.status_code,
+    "trusted_hosts": app.config["TRUSTED_HOSTS"],
     "wrong_password": wrong.status_code, "forged_origin": forged.status_code,
     "unproxied": unproxied.status_code,
     "login": [login.status_code, login.headers.get("Set-Cookie", "")],
@@ -239,6 +254,10 @@ class ProductionStartupTest(unittest.TestCase):
         self.assertEqual(report["max_content_length"], MAX_REQUEST_BYTES)
         self.assertEqual(report["proxy"], [1, 1, 1, 0, 0])
         self.assertEqual(report["health"], [200, "ok\n"])
+        self.assertIsNone(report["public_cookie"])
+        self.assertIsNone(report["health_cookie"])
+        self.assertEqual(report["foreign_host"], 400)
+        self.assertIn(env["DZI_PUBLIC_HOST"], report["trusted_hosts"])
         # Same-origin POST guard sees the public HTTPS origin only via the proxy.
         self.assertEqual(report["wrong_password"], 200)
         self.assertEqual(report["forged_origin"], 403)
@@ -478,6 +497,49 @@ class DeploymentTemplateTest(unittest.TestCase):
         static_alias = re.search(r"location /static/ \{\s+alias (\S+);", conf).group(1)
         self.assertTrue(static_alias.endswith("/web/static/"))
         self.assertEqual(Path(web_app.app.static_folder).resolve(), ROOT / "web" / "static")
+
+    def test_nginx_limits_only_targeted_posts_and_sets_security_headers(self):
+        conf = self.read("deploy/nginx/learnpilot.conf")
+        self.assertRegex(conf, r"map \$request_method \$learnpilot_post_client\s*\{\s*default \"\";\s*POST \$binary_remote_addr;")
+        for zone, rate, burst in (("lp_admin_login", "5r/m", 10),
+                                  ("lp_tester_login", "5r/m", 10),
+                                  ("lp_quiz_write", "20r/s", 90),
+                                  ("lp_upload", "2r/s", 45)):
+            self.assertIn(f"zone={zone}:1m rate={rate};", conf)
+            self.assertIn(f"limit_req zone={zone} burst={burst} nodelay;", conf)
+        for path in ("/admin/login", "/tester/login"):
+            self.assertIn(f"location = {path}", conf)
+        self.assertIn("location ~ ^/quiz/[0-9]+$", conf)
+        self.assertIn("location ~ ^/quiz/attempt/[0-9]+$", conf)
+        self.assertIn("location ~ ^/quiz/attempt/[0-9]+/practical/[^/]+/task/[0-9]+/upload$", conf)
+        self.assertNotRegex(conf, r"location /static/ \{[^}]*limit_req")
+        for header in ("X-Content-Type-Options \"nosniff\" always",
+                       "X-Frame-Options \"DENY\" always",
+                       "Referrer-Policy \"strict-origin-when-cross-origin\" always"):
+            self.assertIn(header, conf)
+        self.assertIn("limit_req_status 429", conf)
+
+    def test_backup_unit_has_only_state_paths_and_complete_snapshot(self):
+        unit = self.read("deploy/systemd/learnpilot-backup.service")
+        timer = self.read("deploy/systemd/learnpilot-backup.timer")
+        backup_env = self.read("deploy/learnpilot-backup.env.example")
+        self.assertIn("EnvironmentFile=/etc/learnpilot/backup.env", unit)
+        self.assertIn("-m src.backup_application", unit)
+        self.assertIn("ReadWritePaths=/var/lib/learnpilot /var/backups/learnpilot", unit)
+        self.assertIn("UMask=0077", unit)
+        self.assertIn("OnCalendar=*-*-* 03:15:00", timer)
+        for secret in production.REQUIRED_SECRETS:
+            self.assertNotIn(secret, backup_env + unit)
+        for path in ("DZI_DB", "DZI_UPLOAD_ROOT", "DZI_VAULT"):
+            self.assertIn(path, backup_env)
+
+    def test_guide_covers_first_deploy_backup_and_permissions(self):
+        guide = self.read("docs/DEPLOYMENT.md")
+        for expected in ("rsync", "--chmod=D755,F644", "root:root", "0600",
+                         "1 vCPU, 2 GB RAM, 30 GB disk", "python -B -m unittest discover -s tests",
+                         "python --version", "pip freeze", "snapshot-", "off-server",
+                         "-mtime +14", "systemctl --failed"):
+            self.assertIn(expected, guide)
 
     def test_templates_and_docs_contain_no_secret_values(self):
         env_example = self.read("deploy/learnpilot.env.example")

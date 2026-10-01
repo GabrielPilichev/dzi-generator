@@ -1,4 +1,4 @@
-# Production deployment (Ubuntu 24.04, single small VPS)
+# Production deployment (Ubuntu 24.04, 1 vCPU, 2 GB RAM, 30 GB disk)
 
 ```
 Internet -> Nginx (80/443) -> Gunicorn 127.0.0.1:8000 (1 sync worker) -> Flask (web.wsgi:app) -> SQLite/WAL
@@ -11,11 +11,12 @@ domain only on the server; never commit domains, IP addresses or secrets.
 | --- | --- | --- |
 | `/srv/learnpilot/app` | Git checkout (code, templates, static files) | `root`, world-readable; read-only to the service |
 | `/srv/learnpilot/venv` | Python virtual environment | `root` |
-| `/etc/learnpilot/learnpilot.env` | Secrets and state paths | `root:learnpilot` `0640` |
+| `/etc/learnpilot/learnpilot.env` | Secrets and state paths | `root:root` `0600` |
+| `/etc/learnpilot/backup.env` | Backup state paths only | `root:root` `0600` |
 | `/var/lib/learnpilot/questions.db` | Live database (`DZI_DB`) | `learnpilot` `0600` |
 | `/var/lib/learnpilot/uploads/practical` | Student uploads (`DZI_UPLOAD_ROOT`) | `learnpilot` `0750` |
 | `/var/lib/learnpilot/vault` | Generated quiz notes (`DZI_VAULT`) | `learnpilot` `0750` |
-| `/var/backups/learnpilot` | Database and file backups | `learnpilot` `0700` |
+| `/var/backups/learnpilot` | Completed application snapshots | `learnpilot` `0700` |
 
 The repository tracks a seed `data/questions.db`. Production state must stay
 outside the checkout so a `git pull` can never replace live data; startup
@@ -25,10 +26,10 @@ refuses state paths inside `/srv/learnpilot/app`.
 
 ```bash
 sudo apt update && sudo apt upgrade -y
-sudo apt install -y git python3 python3-venv nginx sqlite3 certbot python3-certbot-nginx ufw
+sudo apt install -y git rsync python3 python3-venv nginx sqlite3 certbot python3-certbot-nginx ufw
 ```
 
-Add 1 GB of swap as emergency protection only (see "1 GB VPS sizing"):
+Add 1 GB of swap as emergency protection only:
 
 ```bash
 sudo fallocate -l 1G /swapfile && sudo chmod 600 /swapfile
@@ -46,6 +47,12 @@ sudo install -d -o root -g learnpilot -m 0750 /etc/learnpilot
 sudo install -d -o learnpilot -g learnpilot -m 0750 /var/lib/learnpilot \
   /var/lib/learnpilot/uploads /var/lib/learnpilot/uploads/practical /var/lib/learnpilot/vault
 sudo install -d -o learnpilot -g learnpilot -m 0700 /var/backups/learnpilot
+
+# Keep SSH access while enabling the firewall before public HTTP/HTTPS setup.
+sudo ufw allow OpenSSH
+sudo ufw allow 'Nginx Full'
+sudo ufw enable
+sudo ufw status verbose
 ```
 
 ## 3. Repository deployment
@@ -55,13 +62,18 @@ sudo git clone <repository-url> /srv/learnpilot/app
 cd /srv/learnpilot/app && sudo git checkout <release-commit-or-tag>
 ```
 
+For a private GitHub repository, provision read-only deploy-key or other
+authenticated Git access before cloning. Keep the private key outside the
+checkout; do not commit it or place it in the service environment file.
+
 `data/reference/` (official DZI PDFs/ZIP resources for practical-task
 downloads) is git-ignored. If those downloads are needed, copy it from a trusted
 workstation into `/srv/learnpilot/app/data/reference/` (read-only, root-owned):
 
 ```bash
 rsync -a data/reference/ <admin>@<server>:/tmp/learnpilot-reference/   # on the workstation
-sudo rsync -a --chown=root:root /tmp/learnpilot-reference/ /srv/learnpilot/app/data/reference/
+sudo rsync -a --chown=root:root --chmod=D755,F644 \
+  /tmp/learnpilot-reference/ /srv/learnpilot/app/data/reference/
 ```
 
 ## 4. Python virtual environment
@@ -77,12 +89,18 @@ sudo /srv/learnpilot/venv/bin/pip install --upgrade pip
 sudo /srv/learnpilot/venv/bin/pip install -r /srv/learnpilot/app/requirements.txt
 ```
 
-`requirements.txt` pins Flask, Werkzeug and Gunicorn (the production server).
+`requirements.txt` constrains Flask, Werkzeug and Gunicorn (the production server).
+Record the first-deploy runtime and installed versions as deployment evidence:
+
+```bash
+/srv/learnpilot/venv/bin/python --version
+/srv/learnpilot/venv/bin/pip freeze
+```
 
 ## 6. Environment configuration
 
 ```bash
-sudo install -o root -g learnpilot -m 0640 \
+sudo install -o root -g root -m 0600 \
   /srv/learnpilot/app/deploy/learnpilot.env.example /etc/learnpilot/learnpilot.env
 python3 -c 'import secrets; print(secrets.token_urlsafe(48))'   # value for DZI_SECRET_KEY
 sudoedit /etc/learnpilot/learnpilot.env
@@ -96,6 +114,7 @@ sudoedit /etc/learnpilot/learnpilot.env
 | `DZI_DB` | yes | absolute path of the existing live database, outside the checkout |
 | `DZI_UPLOAD_ROOT` | yes | absolute, existing, writable directory outside the checkout |
 | `DZI_VAULT` | yes | absolute, existing, writable directory outside the checkout |
+| `DZI_PUBLIC_HOST` | yes | the real public DNS hostname in Nginx `server_name`, without scheme or port. It is exactly **one** trusted hostname: a future `www` alias must be deliberately supported in the application (and Certbot), not merely added to Nginx, or Flask answers it with 400 |
 | `DZI_SOURCE_URL` | no | optional footer link |
 | `DZI_SESSION_COOKIE_SECURE` | no | leave unset; any false value is rejected (HTTPS-only cookies) |
 | `FLASK_DEBUG` | no | must not be enabled; startup rejects it |
@@ -103,6 +122,8 @@ sudoedit /etc/learnpilot/learnpilot.env
 `web.wsgi` validates all of this before importing the app and stops with a
 message naming the problem settings (never their values). Development runs
 (`python3 web/app.py`, tests, the tunnel runner) keep their existing defaults.
+systemd reads `EnvironmentFile` as manager before dropping to `User=learnpilot`;
+the service user does not need read access to the root-owned secret file.
 
 ## 7. Writable paths and permissions
 
@@ -111,7 +132,7 @@ The systemd unit makes the whole filesystem read-only for the service
 
 - `DZI_DB` and its `-wal`/`-shm` sidecars (the directory must be writable);
 - uploads under `DZI_UPLOAD_ROOT` (files become `0640` via `UMask=0027`);
-- quiz notes under `DZI_VAULT`;
+- quiz notes and DZI training sets under `DZI_VAULT`;
 - temporary upload spool files in the service's private `/tmp`.
 
 Nginx (`www-data`) needs read access to `/srv/learnpilot/app/web/static/`
@@ -126,11 +147,16 @@ uses `client_max_body_size 102m`, just above the application limit, so every
 request the app accepts passes the proxy; change both together. Larger
 requests are rejected (Nginx 413, or the app's upload error message). A
 maximum-size request is buffered once by Nginx and once in the service's
-private `/tmp`, so keep about 250 MB of disk free. Files are stored under
-token names and never extracted. No retention policy exists, so
-nothing is deleted automatically. A failed upload request can leave saved
-files without database rows; review `DZI_UPLOAD_ROOT` growth with
+private `/tmp`. The upload filesystem keeps at least 2 GiB free after the
+whole incoming request. Each quiz attempt and practical task may retain at
+most 100 MiB and 40 files in total across requests (including soft-deleted
+rows). A rejected request stores no files or database rows. Files are stored
+under token names and never extracted. Review `DZI_UPLOAD_ROOT` growth with
 `sudo du -sh /var/lib/learnpilot/uploads` and `df -h`.
+
+The DZI training class mix is tracked at `deploy/dzi-training-class-mix.json`.
+The teacher generator reads `DZI_DB` and writes both Markdown and JSON under
+`DZI_VAULT/Generated/DZI-Training/sets`; it does not write to the checkout.
 
 ## 8. Database preparation (first deployment)
 
@@ -166,6 +192,16 @@ The runner's own automatic backup covers only the repository database, so
 always back up the production database first. The development-only
 request-time `ALTER TABLE` guard for teacher answer review is disabled in
 production as well, so no request path runs schema code.
+
+Before the first public start, run the complete suite inside the server venv
+with isolated temporary test databases, and retain the version evidence:
+
+```bash
+cd /srv/learnpilot/app
+/srv/learnpilot/venv/bin/python --version
+/srv/learnpilot/venv/bin/pip freeze
+/srv/learnpilot/venv/bin/python -B -m unittest discover -s tests
+```
 
 ## 10. Gunicorn
 
@@ -212,7 +248,17 @@ The template proxies to `127.0.0.1:8000`, overwrites `X-Forwarded-For/Proto/Host
 (the app trusts exactly one proxy hop), buffers requests and responses so slow
 clients never hold the single worker, gzips text responses, serves
 `/static/` directly with a short cache (assets are not fingerprinted), drops
-unknown host names and denies hidden files.
+unknown host names and denies hidden files. The application also validates the
+configured public Host after ProxyFix; only local health probes may use
+`localhost` or `127.0.0.1`. The template includes `nosniff`, `DENY` framing and
+`strict-origin-when-cross-origin` referrer headers.
+
+Only POSTs are rate limited per public IP: each login has 5 requests/minute
+with burst 10; quiz start/submission has 20 requests/second with burst 90;
+practical uploads have 2 requests/second with burst 45. Empty GET keys are
+not charged. These bursts allow at least 30 students behind one school NAT to
+submit together; Flask ownership, file quotas and the disk floor still enforce
+the application rules. Nginx responds 429 when a bucket is exhausted.
 
 ## 13. DNS
 
@@ -234,71 +280,151 @@ be added to the TLS server block:
 
 ## 15. Firewall
 
-```bash
-sudo ufw allow OpenSSH
-sudo ufw allow 'Nginx Full'
-sudo ufw enable
-sudo ufw status verbose
-```
-
-Never open port 8000; Gunicorn listens on loopback only.
+The firewall was enabled in section 2, before public deployment. Keep SSH,
+HTTP (Certbot challenge) and HTTPS open. Never open port 8000; Gunicorn listens
+on loopback only. After Certbot, configure a TLS default server to reject
+unknown names once the certificate paths are known; do not guess certificate
+paths in the pre-Certbot template.
 
 ## 16. Backup
 
-The database uses WAL: copying only `questions.db` can miss committed data.
-Use the online backup tool, which reads one consistent snapshot while the app
-runs, verifies it with `PRAGMA quick_check`, writes a single `0600` file and
-never overwrites or writes inside the checkout:
+The scheduled snapshot combines the existing WAL-safe SQLite online backup
+with practical uploads and `DZI_VAULT/Generated` (quiz notes and DZI training
+sets). It creates a private `snapshot-<UTC timestamp>/` containing
+`questions.db` and `files.tar.gz`, then publishes the complete directory.
+The live SQLite file is never placed in the tar archive.
+
+A snapshot is all-or-nothing: if `snapshot-<stamp>/` exists, both files were
+written and verified; if anything fails the command exits non-zero, no
+snapshot is published and every partial file is removed. There is deliberately
+no database-only fallback, so a directory named `snapshot-*` always means a
+complete snapshot.
+
+Before doing any work the tool estimates the space needed from what it will
+actually store (the database and its WAL, the uploads tree and
+`DZI_VAULT/Generated`; never SHM, env files or other vault content), adds tar
+overhead and 10 %, assumes no compression, and requires 256 MiB of headroom on
+top. If the backup filesystem has less free space it stops immediately with
+"not enough free space". Uploads may legitimately fill the disk down to the
+application's 2 GiB reserve, so keep the backup directory on a filesystem with
+room (or a separate volume) and move old snapshots off the server regularly.
+The tool refuses layouts where the backup directory, uploads, vault or
+database overlap or nest inside one another.
+
+Configure the backup unit with only state paths, without application secrets:
 
 ```bash
+sudo install -o root -g root -m 0600 \
+  /srv/learnpilot/app/deploy/learnpilot-backup.env.example /etc/learnpilot/backup.env
+sudoedit /etc/learnpilot/backup.env  # confirm the same external state paths as learnpilot.env
 cd /srv/learnpilot/app
-sudo -u learnpilot /srv/learnpilot/venv/bin/python -m src.backup_sqlite \
-  --db /var/lib/learnpilot/questions.db --output-dir /var/backups/learnpilot
+sudo -u learnpilot /srv/learnpilot/venv/bin/python -m src.backup_application \
+  --db /var/lib/learnpilot/questions.db \
+  --uploads /var/lib/learnpilot/uploads/practical \
+  --vault /var/lib/learnpilot/vault --output-dir /var/backups/learnpilot
 ```
 
-(`sqlite3 /var/lib/learnpilot/questions.db ".backup '/var/backups/learnpilot/manual.db'"`
-is an equivalent supported method; run `PRAGMA quick_check` on the result.)
+The SQLite snapshot uses `src.backup_sqlite`, verifies `PRAGMA quick_check`
+and stores files with mode `0600` in a `0700` directory. During heavy live
+uploads, a file can change after the DB snapshot but before the tar finishes;
+for a strict point-in-time restore, briefly pause writes or take a maintenance
+snapshot. Verify backups with a test restore.
 
 Daily schedule:
 
 ```bash
 sudo cp /srv/learnpilot/app/deploy/systemd/learnpilot-backup.{service,timer} /etc/systemd/system/
 sudo systemctl daemon-reload && sudo systemctl enable --now learnpilot-backup.timer
-sudo systemctl start learnpilot-backup.service && journalctl -u learnpilot-backup -n 20
+sudo systemctl start learnpilot-backup.service
+systemctl status learnpilot-backup.service
 ```
 
-Uploads and quiz notes are files, not database rows. Back them up after the
-database so every file the database backup references is included:
+Inspect results and failures:
 
 ```bash
-sudo tar -C /var/lib/learnpilot -czf \
-  /var/backups/learnpilot/files-$(date -u +%Y%m%dT%H%M%SZ).tar.gz uploads vault
+systemctl is-failed learnpilot-backup.service        # "failed" = last run did not complete
+systemctl list-timers learnpilot-backup.timer        # next/last run
+journalctl -u learnpilot-backup.service -n 50 --no-pager   # "LearnPilot backup failed: ..." reasons
+sudo ls -1dt /var/backups/learnpilot/snapshot-* | head -3  # newest complete snapshots
+df -h /var/backups/learnpilot
 ```
 
-Copy `/var/backups/learnpilot` to another machine regularly; a backup on the
-same disk does not survive loss of the VPS. Nothing prunes backups
-automatically; review and delete old ones deliberately, for example
-`sudo find /var/backups/learnpilot -name 'questions-*.db' -mtime +30 -print`.
+A failed run leaves no `snapshot-*` directory. Hidden `.snapshot-*` directories
+are staging only; one can remain only after a hard kill (power loss) and is
+safe to delete. There is no notification recipient configured, so check
+`systemctl --failed` and the newest snapshot date regularly; an `OnFailure`
+alert would not notify anyone.
+
+A backup on the same VPS is **not disaster recovery**. After each scheduled
+run, copy completed snapshots to a separate machine. Example initiated from
+the administrator's Mac (prepare a private local destination first):
+
+```bash
+mkdir -p "$HOME/learnpilot-offsite" && chmod 700 "$HOME/learnpilot-offsite"
+rsync -a --partial --rsync-path='sudo rsync' \
+  <admin>@<server>:/var/backups/learnpilot/snapshot-<stamp>/ \
+  "$HOME/learnpilot-offsite/snapshot-<stamp>/"
+```
+
+The admin account must have narrowly controlled sudo permission for the
+read-only transfer, or an equivalent secure SSH/SFTP retrieval method. Backup
+archives contain no env file, SSH key or other server credential. Keep 14 days
+of completed local snapshots and at least 7 daily plus 4 weekly copies
+off-server. Check off-server copies before manual local pruning. No automatic
+deletion is installed; review only known snapshot directories under the
+dedicated backup root:
+
+```bash
+sudo find /var/backups/learnpilot -mindepth 1 -maxdepth 1 \
+  -type d -name 'snapshot-*' -mtime +14 -print
+```
+
+After verification, delete individual printed snapshot paths deliberately.
+Also review manually created `pre-deploy-*.db` backups when retiring old
+releases; those are not part of the scheduled snapshot naming policy.
+Watch `df -h /var/backups/learnpilot` so local snapshots do not consume the
+30 GB disk or the upload free-space reserve if they share a filesystem.
 
 ## 17. Restore
 
+A snapshot is `snapshot-<stamp>/questions.db` plus `files.tar.gz`. The archive
+holds exactly two trees, relative to `/var/lib/learnpilot`: `uploads/practical/`
+(`DZI_UPLOAD_ROOT`) and `vault/` (`DZI_VAULT`, only its top directory and
+`Generated/`). The commands below assume the default paths from
+`learnpilot.env.example`; if yours differ, extract into a scratch directory and
+copy `uploads/practical` and `vault` to your configured paths.
+
+Restore everything **while the service is stopped**, start it only at the end:
+
 ```bash
+SNAP=/var/backups/learnpilot/snapshot-<stamp>
 sudo systemctl stop learnpilot
-sudo -u learnpilot sqlite3 /var/backups/learnpilot/<backup>.db 'PRAGMA quick_check;'   # expect: ok
+
+# 1. Verify the snapshot before touching live state.
+sudo -u learnpilot sqlite3 "$SNAP/questions.db" 'PRAGMA quick_check;'   # expect: ok
+sudo tar -tzf "$SNAP/files.tar.gz" | head                            # expect uploads/practical/... and vault/...
+
+# 2. Move the current state aside, together (database + sidecars, uploads, vault).
 STAMP=$(date -u +%Y%m%dT%H%M%SZ)
 sudo install -d -o learnpilot -g learnpilot -m 0700 /var/lib/learnpilot/replaced-$STAMP
-sudo sh -c "mv /var/lib/learnpilot/questions.db* /var/lib/learnpilot/replaced-$STAMP/"
-sudo install -o learnpilot -g learnpilot -m 0600 /var/backups/learnpilot/<backup>.db \
-  /var/lib/learnpilot/questions.db
+sudo sh -c "mv /var/lib/learnpilot/questions.db* /var/lib/learnpilot/uploads \
+  /var/lib/learnpilot/vault /var/lib/learnpilot/replaced-$STAMP/"
+
+# 3. Restore the database, then the files, as the service user.
+sudo install -o learnpilot -g learnpilot -m 0600 "$SNAP/questions.db" /var/lib/learnpilot/questions.db
 sudo -u learnpilot sqlite3 /var/lib/learnpilot/questions.db 'PRAGMA journal_mode=WAL;'
+sudo install -d -o learnpilot -g learnpilot -m 0750 /var/lib/learnpilot/uploads /var/lib/learnpilot/vault
+sudo -u learnpilot tar -C /var/lib/learnpilot -xzf "$SNAP/files.tar.gz"
+
+# 4. Check the schema, then start and confirm.
 cd /srv/learnpilot/app && sudo -u learnpilot /srv/learnpilot/venv/bin/python -m src.manage_migrations \
   --db /var/lib/learnpilot/questions.db --dry-run
 sudo systemctl start learnpilot && curl -fsS http://127.0.0.1:8000/healthz
 ```
 
-The database and its sidecars are moved together, so the replaced copy stays
-consistent. Restore files with
-`sudo tar -C /var/lib/learnpilot -xzf /var/backups/learnpilot/files-<stamp>.tar.gz`.
+Everything moved aside stays in `replaced-<stamp>/` until you delete it
+deliberately. A snapshot's files can be slightly newer than its database (see
+section 16); uploads without a database row are harmless leftovers.
 
 ## 18. Logs
 
@@ -360,10 +486,20 @@ never the live database.
   (section 17), which discards writes made after it; decide that explicitly.
 - Browsers may keep old CSS/JS for up to one hour (static cache lifetime).
 
-## 1 GB VPS sizing
+## 2 GB VPS sizing
 
 Initial configuration from capacity testing: Gunicorn `workers = 1`,
 `worker_class = "sync"`, `threads = 1`, `timeout = 30`.
+
+**One worker is a validated requirement, not just a default.** Do not raise
+`workers` merely because the VPS has 2 GB of RAM. The practical-upload quota is
+safe across processes (it uses SQLite's write lock), but `quiz_practical_upload`
+holds that lock (`BEGIN IMMEDIATE`) while it saves files to disk. With more than
+one worker, a slow upload can keep another worker's write (for example a quiz
+submission) waiting past SQLite's 5-second busy timeout, which fails that
+request with "database is locked". Before increasing the worker count, move
+slow file I/O outside the write transaction (or otherwise shorten the lock),
+then re-run the concurrency tests on the real VPS.
 
 - Threaded serving collapsed under concurrent requests because of GIL
   contention; one sync worker handles one request at a time and lets Nginx

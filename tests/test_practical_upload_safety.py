@@ -18,6 +18,11 @@ from src.practical_uploads import (
 
 
 class PracticalUploadSafetyTest(unittest.TestCase):
+    def test_cumulative_quota_and_disk_reserve_defaults(self):
+        self.assertEqual(practical_uploads_module.MIN_FREE_BYTES, 2 * 1024**3)
+        self.assertEqual(practical_uploads_module.MAX_STORED_BYTES_PER_TASK, 100 * 1024**2)
+        self.assertEqual(practical_uploads_module.MAX_STORED_FILES_PER_TASK, 40)
+
     def test_normal_filename_accepted(self):
         self.assertEqual(sanitize_original_filename("result.xlsx"), "result.xlsx")
         self.assertEqual(validate_upload_extension("result.xlsx"), ".xlsx")

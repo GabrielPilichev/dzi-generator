@@ -558,6 +558,34 @@ class QuizAttemptRenderTest(IsolatedAppTestCase):
             conn.close()
         self.assertEqual(count, 0)
 
+    def test_student_name_80_characters_is_accepted(self):
+        assignment_id = self._create_assignment()
+        response = self.client.post(f"/quiz/{assignment_id}", data={"student_name": "А" * 80})
+        self.assertEqual(response.status_code, 302)
+        conn = web_app.quiz_db()
+        try:
+            stored = conn.execute("SELECT student_name FROM quiz_attempts WHERE assignment_id = ?",
+                                  (assignment_id,)).fetchone()[0]
+        finally:
+            conn.close()
+        self.assertEqual(stored, "А" * 80)
+
+    def test_student_name_over_80_cannot_enter_database(self):
+        for length in (81, 10000):
+            with self.subTest(length=length):
+                assignment_id = self._create_assignment()
+                response = self.client.post(f"/quiz/{assignment_id}",
+                                            data={"student_name": "А" * length})
+                self.assertEqual(response.status_code, 400)
+                self.assertIn("най-много 80 символа".encode(), response.data)
+                conn = web_app.quiz_db()
+                try:
+                    count = conn.execute("SELECT COUNT(*) FROM quiz_attempts WHERE assignment_id = ?",
+                                         (assignment_id,)).fetchone()[0]
+                finally:
+                    conn.close()
+                self.assertEqual(count, 0)
+
     def test_student_name_whitespace_only_is_rejected(self):
         assignment_id = self._create_assignment()
 

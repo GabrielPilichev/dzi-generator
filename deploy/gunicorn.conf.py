@@ -1,4 +1,4 @@
-"""Gunicorn configuration for the initial 1 vCPU / 1 GB VPS (see docs/DEPLOYMENT.md).
+"""Gunicorn configuration for the initial 1 vCPU / 2 GB VPS (see docs/DEPLOYMENT.md).
 
 One sync worker, one thread: requests are handled strictly one at a time per
 process, which avoids the GIL contention measured with threaded servers. Do not

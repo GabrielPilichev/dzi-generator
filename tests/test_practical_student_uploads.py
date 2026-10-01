@@ -3,13 +3,18 @@ import json
 import sqlite3
 import tempfile
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from threading import Barrier
+from types import SimpleNamespace
+from unittest.mock import patch
 
 
 from werkzeug.datastructures import FileStorage, MultiDict
 from werkzeug.test import encode_multipart
 
 from src.practical_uploads import MAX_FILES_PER_REQUEST, MAX_REQUEST_BYTES, MAX_UPLOAD_BYTES
+import src.practical_uploads as upload_policy
 from tests.support import IsolatedAppTestCase, web_app
 
 
@@ -553,6 +558,124 @@ class PracticalStudentUploadsTest(IsolatedAppTestCase):
         # PRACTICAL_MAX_UPLOAD_BYTES is 1024 in setUp; the request itself is small enough.
         response = self._upload_many([("ok.csv", b"x" * 1024), ("big.csv", b"x" * 1025)])
 
+        self.assertIn("upload_error=invalid", response.headers["Location"])
+        self.assertEqual(self._rows("practical_submission_files"), [])
+
+    def test_free_space_floor_rejects_low_space_and_whole_request_crossing(self):
+        floor = upload_policy.MIN_FREE_BYTES
+        for free, files in ((floor - 1, [("a.csv", b"a")]),
+                            (floor + 2, [("a.csv", b"ab"), ("b.csv", b"c")])):
+            with self.subTest(free=free), patch.object(upload_policy.shutil, "disk_usage",
+                                                  return_value=SimpleNamespace(free=free)):
+                response = self._upload_many(files)
+            self.assertIn("upload_error=invalid", response.headers["Location"])
+            self.assertEqual(self._rows("practical_submissions"), [])
+            self.assertEqual(self._rows("practical_submission_files"), [])
+            self.assertFalse(self.upload_root.exists())
+        with patch.object(upload_policy.shutil, "disk_usage",
+                          return_value=SimpleNamespace(free=floor + 3)):
+            self.assertIn("uploaded=1", self._upload_many([
+                ("a.csv", b"ab"), ("b.csv", b"c")]).headers["Location"])
+
+    def test_cumulative_byte_quota_is_inclusive_and_rejection_atomic(self):
+        with patch.object(upload_policy, "MAX_STORED_BYTES_PER_TASK", 10):
+            self.assertIn("uploaded=1", self._upload(content=b"12345").headers["Location"])
+            self.assertIn("uploaded=1", self._upload(content=b"67890").headers["Location"])
+            rejected = self._upload_many([("a.csv", b"x"), ("b.csv", b"y")])
+        self.assertIn("upload_error=invalid", rejected.headers["Location"])
+        self.assertEqual(len(self._rows("practical_submission_files")), 2)
+        self.assertEqual(len(list(self.upload_root.rglob("*.csv"))), 0)
+
+    def test_cumulative_file_quota_is_inclusive_and_scoped_to_task(self):
+        with patch.object(upload_policy, "MAX_STORED_FILES_PER_TASK", 2):
+            self._upload()
+            self._upload()
+            rejected = self._upload_many([("a.csv", b"x"), ("b.csv", b"y")])
+            other_task = self._upload(exam_task_id=270, filename="other.zip")
+        self.assertIn("upload_error=invalid", rejected.headers["Location"])
+        self.assertIn("uploaded=1", other_task.headers["Location"])
+        self.assertEqual(len(self._rows("practical_submission_files")), 3)
+
+    def test_another_attempt_does_not_count_against_quota(self):
+        conn = sqlite3.connect(self.db_path)
+        with conn:
+            conn.execute("INSERT INTO quiz_attempts (id, assignment_id, student_name, seed, question_ids_json) "
+                         "VALUES (202, 1, 'Student Two', 'seed', '[]')")
+        conn.close()
+        with patch.object(upload_policy, "MAX_STORED_FILES_PER_TASK", 1):
+            self._upload()
+            with self.client.session_transaction() as sess:
+                sess[web_app.quiz_attempt_owner_session_key(202)] = True
+            response = self.client.post(
+                "/quiz/attempt/202/practical/may_2025_v2/task/260/upload",
+                data={"files": (io.BytesIO(b"second"), "second.xlsx")},
+                content_type="multipart/form-data",
+            )
+        self.assertIn("uploaded=1", response.headers["Location"])
+        self.assertEqual(len(self._rows("practical_submission_files")), 2)
+
+    def test_concurrent_uploads_cannot_cross_one_file_quota(self):
+        clients = [web_app.app.test_client(), web_app.app.test_client()]
+        for client in clients:
+            with client.session_transaction() as sess:
+                sess[web_app.quiz_attempt_owner_session_key(101)] = True
+        barrier = Barrier(2)
+
+        def upload(client):
+            barrier.wait(timeout=5)
+            return client.post(self.UPLOAD_URL,
+                               data={"files": (io.BytesIO(b"content"), "answer.csv")},
+                               content_type="multipart/form-data").headers["Location"]
+
+        with patch.object(upload_policy, "MAX_STORED_FILES_PER_TASK", 1):
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                results = list(pool.map(upload, clients))
+        self.assertEqual(sum("uploaded=1" in location for location in results), 1)
+        self.assertEqual(sum("upload_error=invalid" in location for location in results), 1)
+        self.assertEqual(len(self._rows("practical_submission_files")), 1)
+        self.assertEqual(len([p for p in self.upload_root.rglob("*") if p.is_file()]), 1)
+
+    def test_partial_disk_save_is_cleaned_up_and_database_rolled_back(self):
+        original_save = FileStorage.save
+        calls = 0
+
+        def fail_after_partial_save(storage, destination, *args, **kwargs):
+            nonlocal calls
+            calls += 1
+            original_save(storage, destination, *args, **kwargs)
+            if calls == 2:
+                raise OSError("simulated disk failure")
+
+        with patch.object(FileStorage, "save", fail_after_partial_save):
+            response = self._upload_many([("a.csv", b"first"), ("b.csv", b"second")])
+        self.assertIn("upload_error=invalid", response.headers["Location"])
+        self.assertEqual(self._rows("practical_submissions"), [])
+        self.assertEqual(self._rows("practical_submission_files"), [])
+        self.assertEqual([p for p in self.upload_root.rglob("*") if p.is_file()], [])
+
+    def test_completed_attempt_cannot_upload(self):
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute("UPDATE quiz_attempts SET submitted_at = CURRENT_TIMESTAMP WHERE id = 101")
+        page = self.client.get("/quiz/attempt/101/practical/may_2025_v2")
+        self.assertEqual(page.status_code, 200)
+        self.assertNotIn('class="practical-upload-form"', page.get_data(as_text=True))
+        response = self._upload()
+        self.assertIn("upload_error=invalid", response.headers["Location"])
+        self.assertEqual(self._rows("practical_submission_files"), [])
+        self.assertFalse(self.upload_root.exists())
+
+    def test_closed_practical_submission_has_no_upload_form(self):
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute("""
+                INSERT INTO practical_submissions (quiz_attempt_id, exam_task_id, status)
+                VALUES (101, 260, 'submitted')
+            """)
+        page = self.client.get("/quiz/attempt/101/practical/may_2025_v2")
+        self.assertEqual(page.status_code, 200)
+        html = page.get_data(as_text=True)
+        self.assertNotIn('/task/260/upload', html)
+        self.assertIn('/task/270/upload', html)
+        response = self._upload()
         self.assertIn("upload_error=invalid", response.headers["Location"])
         self.assertEqual(self._rows("practical_submission_files"), [])
 

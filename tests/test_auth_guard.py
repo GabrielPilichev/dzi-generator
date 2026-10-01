@@ -76,6 +76,39 @@ class AuthGuardTest(IsolatedAppTestCase):
     def setUp(self):
         self.client = self.app.test_client()
 
+    def test_public_gets_and_guard_redirects_do_not_create_session_cookies(self):
+        for path in ("/", "/subjects/information-technologies", "/healthz",
+                     "/teacher", "/teacher/new"):
+            with self.subTest(path=path):
+                response = self.app.test_client().get(path)
+                self.assertNotIn("Set-Cookie", response.headers)
+
+    def test_profile_change_and_authenticated_navigation_persist(self):
+        response = self.client.get("/profile/tester")
+        self.assertIn("Set-Cookie", response.headers)
+        with self.client.session_transaction() as sess:
+            self.assertEqual(sess["ui_profile"], "tester")
+            sess["tester_authenticated"] = True
+        self.assertNotIn("Set-Cookie", self.client.get("/").headers)
+        with self.client.session_transaction() as sess:
+            self.assertTrue(sess["tester_authenticated"])
+        with self.client.session_transaction() as sess:
+            sess["admin_authenticated"] = True
+            sess["ui_profile"] = "admin"
+        self.assertNotIn("Set-Cookie", self.client.get("/").headers)
+        with self.client.session_transaction() as sess:
+            self.assertTrue(sess["admin_authenticated"])
+            self.assertEqual(sess["ui_profile"], "admin")
+
+    def test_cookieless_external_entry_does_not_clobber_attempt_cookie(self):
+        owner = self.app.test_client()
+        with owner.session_transaction() as sess:
+            sess[web_app.quiz_attempt_owner_session_key(123)] = True
+        external_entry = self.app.test_client().get("/", headers={"Referer": "https://school.example/"})
+        self.assertNotIn("Set-Cookie", external_entry.headers)
+        with owner.session_transaction() as sess:
+            self.assertTrue(sess[web_app.quiz_attempt_owner_session_key(123)])
+
     def _login_tester(self):
         with self.client.session_transaction() as sess:
             sess["tester_authenticated"] = True

@@ -185,18 +185,20 @@
                             {% endif %}
                         </div>
 
-                        <form
-                            class="practical-upload-form"
-                            method="post"
-                            enctype="multipart/form-data"
-                            action="{{ url_for('quiz_practical_upload', attempt_id=attempt.id, source_slug=exam.source_slug, exam_task_id=task.task_id) }}"
-                        >
-                            <label>
-                                <span>Файлове за задача {{ task.task_number }}</span>
-                                <input type="file" name="files" multiple required>
-                            </label>
-                            <button type="submit">Качи файлове</button>
-                        </form>
+                        {% if not attempt.submitted_at and (not task.submission or task.submission.status == "draft") %}
+                            <form
+                                class="practical-upload-form"
+                                method="post"
+                                enctype="multipart/form-data"
+                                action="{{ url_for('quiz_practical_upload', attempt_id=attempt.id, source_slug=exam.source_slug, exam_task_id=task.task_id) }}"
+                            >
+                                <label>
+                                    <span>Файлове за задача {{ task.task_number }}</span>
+                                    <input type="file" name="files" multiple required>
+                                </label>
+                                <button type="submit">Качи файлове</button>
+                            </form>
+                        {% endif %}
                     </section>
                 {% endif %}
             </article>

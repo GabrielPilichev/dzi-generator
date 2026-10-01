@@ -52,6 +52,7 @@ from src.practical_uploads import (
     PracticalUploadError,
     build_practical_upload_path,
     sanitize_original_filename,
+    validate_upload_capacity,
     validate_upload_extension,
     validate_upload_size,
 )
@@ -371,7 +372,10 @@ def load_ui_profile():
     if profile == "admin" and not session.get("admin_authenticated"):
         profile = "tester"
 
-    session["ui_profile"] = profile
+    if session.get("ui_profile") not in VALID_UI_PROFILES or (
+        session.get("ui_profile") == "admin" and not session.get("admin_authenticated")
+    ):
+        session.pop("ui_profile", None)
     g.ui_profile = profile
 
 
@@ -579,15 +583,12 @@ def protect_admin_routes():
         return redirect(url_for("admin_login", next=request.path))
 
     if endpoint.startswith("dzi") and endpoint not in PUBLIC_DZI_ENDPOINTS and not is_admin_authenticated():
-        session["ui_profile"] = "tester"
         return redirect(url_for("admin_login", next=request.path))
 
     if endpoint in TESTER_TEACHER_ENDPOINTS and not can_generate_tests():
-        session["ui_profile"] = "tester"
         return redirect(url_for("tester_login", next=request.path))
 
     if endpoint.startswith("teacher") and endpoint not in TESTER_TEACHER_ENDPOINTS and not is_admin_authenticated():
-        session["ui_profile"] = "tester"
         return redirect(url_for("admin_login", next=request.path))
 
 
@@ -1976,12 +1977,35 @@ def quiz_practical_upload(attempt_id: int, source_slug: str, exam_task_id: int):
         )
         return upload_error_redirect(attempt_id, source_slug, "invalid")
 
+    saved_paths = []
     try:
+        # Serialize quota checks and inserts across workers. The existing route
+        # already held a write transaction while saving files.
+        conn.execute("BEGIN IMMEDIATE")
+        current_attempt = conn.execute(
+            "SELECT submitted_at FROM quiz_attempts WHERE id = ?", (attempt_id,)
+        ).fetchone()
+        if current_attempt is None or current_attempt["submitted_at"] is not None:
+            raise PracticalUploadError("quiz attempt is closed")
         submission = conn.execute("""
-            SELECT id
+            SELECT id, status
             FROM practical_submissions
             WHERE quiz_attempt_id = ? AND exam_task_id = ?
         """, (attempt_id, exam_task_id)).fetchone()
+        if submission is not None and submission["status"] != "draft":
+            raise PracticalUploadError("practical submission is closed")
+        totals = conn.execute("""
+            SELECT COUNT(*), COALESCE(SUM(psf.size_bytes), 0)
+            FROM practical_submission_files psf
+            JOIN practical_submissions ps ON ps.id = psf.practical_submission_id
+            WHERE ps.quiz_attempt_id = ? AND ps.exam_task_id = ?
+        """, (attempt_id, exam_task_id)).fetchone()
+        validate_upload_capacity(
+            Path(app.config["PRACTICAL_UPLOAD_ROOT"]),
+            sum(size for _, _, size in prepared_files),
+            existing_bytes=int(totals[1]), existing_files=int(totals[0]),
+            incoming_files=len(prepared_files),
+        )
         if submission is None:
             cur = conn.execute("""
                 INSERT INTO practical_submissions (
@@ -2008,7 +2032,10 @@ def quiz_practical_upload(attempt_id: int, source_slug: str, exam_task_id: int):
                 size_bytes=size_bytes,
             )
             stored.absolute_path.parent.mkdir(parents=True, exist_ok=True)
+            saved_paths.append(stored.absolute_path)
             file_storage.save(stored.absolute_path)
+            if stored.absolute_path.stat().st_size != size_bytes:
+                raise PracticalUploadError("incomplete practical upload")
             conn.execute("""
                 INSERT INTO practical_submission_files (
                     practical_submission_id, stored_path, original_filename,
@@ -2026,6 +2053,11 @@ def quiz_practical_upload(attempt_id: int, source_slug: str, exam_task_id: int):
         conn.commit()
     except (OSError, sqlite3.Error, PracticalUploadError) as exc:
         conn.rollback()
+        for path in saved_paths:
+            try:
+                path.unlink()
+            except FileNotFoundError:
+                pass
         app.logger.warning(
             "Practical upload rejected: reason=save_failed attempt_id=%s source_slug=%s exam_task_id=%s file_count=%s error_type=%s",
             attempt_id,
@@ -3204,12 +3236,15 @@ STALE_ATTEMPT_MESSAGE = (
     "Моля, създайте нов тест."
 )
 QUIZ_STUDENT_NAME_TOO_SHORT_MESSAGE = "Името трябва да съдържа поне 2 символа."
+QUIZ_STUDENT_NAME_TOO_LONG_MESSAGE = "Името трябва да е най-много 80 символа."
 QUIZ_EMPTY_SUBMISSION_MESSAGE = "Попълни поне един отговор, преди да предадеш теста."
 
 
 def quiz_student_name_error(student_name: str) -> str | None:
     if len(student_name) < 2:
         return QUIZ_STUDENT_NAME_TOO_SHORT_MESSAGE
+    if len(student_name) > 80:
+        return QUIZ_STUDENT_NAME_TOO_LONG_MESSAGE
     return None
 
 
@@ -3823,9 +3858,9 @@ def teacher_dzi_training():
     from pathlib import Path
 
     project_root = Path(__file__).resolve().parents[1]
-    config_path = project_root / "data" / "dzi_training" / "class_mix.json"
+    config_path = project_root / "deploy" / "dzi-training-class-mix.json"
     generator_path = project_root / "src" / "generate_dzi_training_set.py"
-    sets_dir = project_root / "vault" / "Generated" / "DZI-Training" / "sets"
+    sets_dir = QUIZ_VAULT_PATH / "Generated" / "DZI-Training" / "sets"
 
     generated_output = None
     generated_ok = None
@@ -3878,6 +3913,10 @@ def teacher_dzi_training():
             cmd = [
                 sys.executable,
                 str(generator_path),
+                "--db", str(Path(app.config["DB_PATH"]).resolve()),
+                "--config", str(config_path.resolve()),
+                "--data-output-dir", str(sets_dir.resolve()),
+                "--vault-output-dir", str(sets_dir.resolve()),
                 "--count",
                 str(count),
                 "--name",
@@ -3917,7 +3956,7 @@ def teacher_dzi_training():
         for path in sorted(sets_dir.glob("*.md"), key=lambda p: p.stat().st_mtime, reverse=True)[:20]:
             recent_sets.append({
                 "name": path.name,
-                "relative_path": str(path.relative_to(project_root / "vault")),
+                "relative_path": str(path.relative_to(QUIZ_VAULT_PATH)),
                 "size": path.stat().st_size,
                 "modified": path.stat().st_mtime,
             })
