@@ -21,6 +21,11 @@ from pathlib import Path
 
 DEFAULT_UPLOAD_ROOT = Path("data/uploads/practical")
 MAX_UPLOAD_BYTES = 25 * 1024 * 1024
+# One upload request (one practical task): a bounded number of files and a
+# bounded body. Four maximum-size files fit, plus 1 MiB of multipart overhead.
+# deploy/nginx/learnpilot.conf client_max_body_size must stay just above this.
+MAX_FILES_PER_REQUEST = 20
+MAX_REQUEST_BYTES = 4 * MAX_UPLOAD_BYTES + 1024 * 1024
 MAX_FILENAME_LENGTH = 200
 ALLOWED_EXTENSIONS = frozenset({
     ".xlsx",

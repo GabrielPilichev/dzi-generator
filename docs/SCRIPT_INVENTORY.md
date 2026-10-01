@@ -22,7 +22,8 @@ Status is conservative:
 | File | Purpose |
 | --- | --- |
 | `src/practical_uploads.py` | Runtime safety helpers for practical-task student uploads; imported by `web/app.py` and covered by tests. |
-| `src/manage_migrations.py` | Numbered SQLite migration planner/runner with dry-run and baseline support; covered by migration tests. |
+| `src/manage_migrations.py` | Numbered SQLite migration planner/runner with dry-run and baseline support; covered by migration tests. It is also the only production schema-change step (`docs/DEPLOYMENT.md`). |
+| `src/backup_sqlite.py` | WAL-safe online SQLite backup with `PRAGMA quick_check` verification; explicit source/destination, never overwrites or writes inside the checkout. Covered by `tests/test_backup_sqlite.py`. |
 | `src/validate_question_batch.py` | Read-only dry-run validator for prepared question batch JSON files before import. |
 | `src/import_dzi_questions_json.py` | Imports reviewed official DZI Part 1 question JSON into the current schema; used by the validator path. |
 | `src/validate_practical_task_batch.py` | Dry-run validator for reviewed DZI practical-task batch JSON and resource references. |

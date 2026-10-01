@@ -119,6 +119,11 @@ Do not run these unless the user explicitly asks to start/stop/restart local tes
 - `cloudflared tunnel --url ...`
 - `app.run`, `flask run`, or `python web/app.py`
 
+### Production deployment
+- Production runs Gunicorn with `web.wsgi:app` (see `docs/DEPLOYMENT.md`); development keeps importing `web.app`.
+- `web.wsgi` requires secrets and absolute state paths outside the checkout, never changes schema on import, and refuses pending migrations.
+- Back up live databases only with `python3 -m src.backup_sqlite` (WAL-safe); never copy a live SQLite file.
+
 ### Generated artifact hygiene
 - Do not commit `vault/Generated/Quizzes/`.
 - Do not commit local uploads.

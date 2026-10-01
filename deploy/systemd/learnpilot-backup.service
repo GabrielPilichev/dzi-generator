@@ -1,0 +1,23 @@
+# LearnPilot online SQLite backup - template; see docs/DEPLOYMENT.md (Backup).
+# Runs as the service user against the live database; safe while the app runs.
+
+[Unit]
+Description=LearnPilot SQLite online backup
+After=learnpilot.service
+
+[Service]
+Type=oneshot
+User=learnpilot
+Group=learnpilot
+WorkingDirectory=/srv/learnpilot/app
+EnvironmentFile=/etc/learnpilot/learnpilot.env
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=/bin/sh -c 'exec /srv/learnpilot/venv/bin/python -m src.backup_sqlite --db "$DZI_DB" --output-dir /var/backups/learnpilot'
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+# The live DB directory must be writable for SQLite WAL/SHM handling.
+ReadWritePaths=/var/lib/learnpilot /var/backups/learnpilot
+UMask=0077

@@ -1,0 +1,13 @@
+# Daily LearnPilot database backup - template; see docs/DEPLOYMENT.md (Backup).
+# Backups are never deleted automatically; prune them deliberately.
+
+[Unit]
+Description=Daily LearnPilot SQLite backup
+
+[Timer]
+OnCalendar=*-*-* 03:15:00
+RandomizedDelaySec=15min
+Persistent=true
+
+[Install]
+WantedBy=timers.target

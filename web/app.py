@@ -33,6 +33,7 @@ from pathlib import Path, PurePosixPath
 from urllib.parse import urlparse
 
 from flask import Flask, abort, g, render_template, url_for, request, redirect, send_file, session
+from werkzeug.exceptions import RequestEntityTooLarge
 
 from src.subject_browsing import subject_content_grades
 from src.subject_browse_cache import CachedSubjectBrowser
@@ -45,6 +46,8 @@ from src.practical_resource_resolution import (
     resolve_resource_reference,
 )
 from src.practical_uploads import (
+    MAX_FILES_PER_REQUEST,
+    MAX_REQUEST_BYTES,
     MAX_UPLOAD_BYTES,
     PracticalUploadError,
     build_practical_upload_path,
@@ -67,10 +70,28 @@ from web.blueprints.quiz import (
 # ---------------------------------------------------------------------------
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-DB_PATH = PROJECT_ROOT / "data" / "questions.db"
+DB_ENV = "DZI_DB"
+UPLOAD_ROOT_ENV = "DZI_UPLOAD_ROOT"
+SKIP_STARTUP_MIGRATION_ENV = "DZI_SKIP_STARTUP_MIGRATION"
 SESSION_COOKIE_SECURE_ENV = "DZI_SESSION_COOKIE_SECURE"
+
+
+def configured_db_path() -> Path:
+    """The one database for browsing and quiz code: DZI_DB, else the repository seed."""
+    configured = os.environ.get(DB_ENV)
+    return Path(configured) if configured else PROJECT_ROOT / "data" / "questions.db"
+
+
+DB_PATH = configured_db_path()
 TRUE_ENV_VALUES = {"1", "true", "yes", "on"}
 FALSE_ENV_VALUES = {"0", "false", "no", "off"}
+# Development/tests keep legacy self-healing schema helpers (import-time quiz
+# tables, request-time column guard). web.wsgi sets the flag so production
+# changes schema only through `python3 -m src.manage_migrations`.
+SCHEMA_CHANGES_ON_DEMAND = (
+    (os.environ.get(SKIP_STARTUP_MIGRATION_ENV) or "").strip().lower()
+    not in TRUE_ENV_VALUES
+)
 
 
 def build_secret_key() -> str:
@@ -114,8 +135,13 @@ app.config["SESSION_COOKIE_SAMESITE"] = "Strict"
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SECURE"] = build_session_cookie_secure()
 app.config["PRACTICAL_TASK_BATCH_DIR"] = str(PROJECT_ROOT / "data" / "import_batches")
-app.config["PRACTICAL_UPLOAD_ROOT"] = str(PROJECT_ROOT / "data" / "uploads" / "practical")
+app.config["PRACTICAL_UPLOAD_ROOT"] = (
+    os.environ.get(UPLOAD_ROOT_ENV) or str(PROJECT_ROOT / "data" / "uploads" / "practical")
+)
 app.config["PRACTICAL_MAX_UPLOAD_BYTES"] = MAX_UPLOAD_BYTES
+app.config["PRACTICAL_MAX_FILES_PER_REQUEST"] = MAX_FILES_PER_REQUEST
+# Request-wide body limit for every route; uploads are the only large requests.
+app.config["MAX_CONTENT_LENGTH"] = MAX_REQUEST_BYTES
 
 
 
@@ -336,6 +362,8 @@ def protect_same_origin_unsafe_methods():
 
 @app.before_request
 def load_ui_profile():
+    if request.endpoint == "healthz":
+        return  # Monitoring probes get no session cookie.
     profile = session.get("ui_profile", "tester")
     if profile not in VALID_UI_PROFILES:
         profile = "tester"
@@ -1689,6 +1717,46 @@ def favicon():
     return send_file(PROJECT_ROOT / "web" / "static" / "img" / "brand" / "favicon.ico", mimetype="image/x-icon")
 
 
+HEALTH_DB_TIMEOUT_SECONDS = 2.0
+
+
+def open_existing_database_read_only(path, *, timeout: float = 5.0) -> sqlite3.Connection:
+    """Never creates a missing database file; this connection refuses SQL writes.
+
+    mode=rw (not mode=ro) lets SQLite initialize absent WAL/SHM sidecars, as in
+    src.subject_browse_cache; query_only keeps the connection read-only.
+    """
+    conn = sqlite3.connect(Path(path).resolve().as_uri() + "?mode=rw", uri=True, timeout=timeout)
+    try:
+        conn.execute("PRAGMA query_only=ON")
+    except BaseException:
+        conn.close()
+        raise
+    return conn
+
+
+@app.route("/healthz")
+def healthz():
+    """Liveness plus one cheap database header read; no templates or content queries."""
+    try:
+        conn = open_existing_database_read_only(
+            app.config["DB_PATH"], timeout=HEALTH_DB_TIMEOUT_SECONDS
+        )
+        try:
+            conn.execute("PRAGMA schema_version").fetchone()
+        finally:
+            conn.close()
+    except (sqlite3.Error, OSError, ValueError) as exc:
+        app.logger.warning("Health check failed: %s", type(exc).__name__)
+        status, body = 503, "unavailable\n"
+    else:
+        status, body = 200, "ok\n"
+    return app.response_class(
+        body, status=status, mimetype="text/plain",
+        headers={"Cache-Control": "no-store"},
+    )
+
+
 @app.route("/grade/<int:grade>")
 def grade_view(grade: int):
     if not 8 <= grade <= 12:
@@ -1852,9 +1920,19 @@ def quiz_practical_upload(attempt_id: int, source_slug: str, exam_task_id: int):
         )
         abort(404)
 
+    try:
+        submitted_files = request.files.getlist("files")
+    except RequestEntityTooLarge:
+        app.logger.warning(
+            "Practical upload rejected: reason=request_too_large attempt_id=%s source_slug=%s exam_task_id=%s",
+            attempt_id,
+            source_slug,
+            exam_task_id,
+        )
+        return upload_error_redirect(attempt_id, source_slug, "too_large")
     uploaded_files = [
         file_storage
-        for file_storage in request.files.getlist("files")
+        for file_storage in submitted_files
         if file_storage and (file_storage.filename or "").strip()
     ]
     if not uploaded_files:
@@ -1865,6 +1943,16 @@ def quiz_practical_upload(attempt_id: int, source_slug: str, exam_task_id: int):
             exam_task_id,
         )
         return upload_error_redirect(attempt_id, source_slug, "empty")
+
+    if len(uploaded_files) > int(app.config["PRACTICAL_MAX_FILES_PER_REQUEST"]):
+        app.logger.warning(
+            "Practical upload rejected: reason=too_many_files attempt_id=%s source_slug=%s exam_task_id=%s file_count=%s",
+            attempt_id,
+            source_slug,
+            exam_task_id,
+            len(uploaded_files),
+        )
+        return upload_error_redirect(attempt_id, source_slug, "invalid")
 
     prepared_files = []
     try:
@@ -2026,7 +2114,7 @@ from flask import render_template as _quiz_render_template
 
 
 QUIZ_APPROVED_FILTER = "(q.is_ai_generated = 0 OR q.quality_score >= 1.0)"
-QUIZ_DB_PATH = _QuizPath(_quiz_os.environ.get("DZI_DB", "data/questions.db"))
+QUIZ_DB_PATH = DB_PATH  # Same database as browsing; see configured_db_path().
 QUIZ_VAULT_PATH = _QuizPath(
     _quiz_os.environ.get(
         "DZI_VAULT",
@@ -3717,7 +3805,11 @@ def quiz_load_result_questions(conn, attempt, question_ids: list[int], seed: str
     return questions
 
 
-quiz_apply_migration()
+# Development/test imports keep the legacy idempotent quiz-table guard. The
+# production entry point (web.wsgi) disables it: production schema changes run
+# only through the explicit `python3 -m src.manage_migrations` deploy step.
+if SCHEMA_CHANGES_ON_DEMAND:
+    quiz_apply_migration()
 
 
 
@@ -4444,6 +4536,10 @@ def quiz_parse_review_points(value: object, *, points_possible: float) -> float:
 
 
 def quiz_ensure_text_answer_teacher_status_column(conn) -> None:
+    # Production never runs schema code from requests: migration 009 adds this
+    # column and web.wsgi refuses to start while any migration is pending.
+    if not SCHEMA_CHANGES_ON_DEMAND:
+        return
     if "teacher_override_status" in sqlite_table_columns(conn, "quiz_text_answers"):
         return
     conn.execute("""
