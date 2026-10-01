@@ -1,12 +1,12 @@
 import io
 import json
 import sqlite3
-import tempfile
 import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
 
 from src.apply_confirmed_dzi_image_mappings import main
+from tests.repo_relative_tempdir import RepoRelativeTemporaryDirectory
 
 
 def payload():
@@ -138,8 +138,8 @@ def create_db(path: Path) -> None:
 
 class ApplyConfirmedDziImageMappingsTest(unittest.TestCase):
     def setUp(self):
-        self.tmp = tempfile.TemporaryDirectory(dir=".")
-        self.root = Path(self.tmp.name)
+        self.tmp = RepoRelativeTemporaryDirectory()
+        self.root = Path(self.tmp.relative_name)
         self.db_path = self.root / "questions.db"
         self.mapping_path = self.root / "mapping.json"
         self.image_dir = self.root / "web" / "static" / "img" / "questions" / "dzi"
@@ -165,6 +165,25 @@ class ApplyConfirmedDziImageMappingsTest(unittest.TestCase):
         with redirect_stdout(stdout):
             exit_code = main(argv)
         return exit_code, stdout.getvalue()
+
+    def test_absolute_image_dir_is_rejected_and_nothing_is_linked(self):
+        absolute = self.image_dir.resolve()
+        self.assertTrue((absolute / "aug_2022_v2_q2.png").is_file())  # exists, still rejected
+        for extra in ((), ("--check",)):
+            with self.subTest(extra=extra):
+                stdout = io.StringIO()
+                with redirect_stdout(stdout):
+                    exit_code = main([
+                        "--db", str(self.db_path),
+                        "--mapping", str(self.mapping_path),
+                        "--image-dir", str(absolute),
+                        *extra,
+                    ])
+                self.assertEqual(exit_code, 1)
+                self.assertIn("image-dir must be repo-relative", stdout.getvalue())
+        with sqlite3.connect(self.db_path) as conn:
+            self.assertEqual(conn.execute("SELECT COUNT(*) FROM asset_links").fetchone()[0], 0)
+            self.assertEqual(conn.execute("SELECT COUNT(*) FROM assets").fetchone()[0], 0)
 
     def test_default_apply_links_available_and_skips_missing(self):
         exit_code, output = self.run_main()

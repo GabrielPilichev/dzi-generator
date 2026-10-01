@@ -1,8 +1,7 @@
 import io
 import json
-import tempfile
 import unittest
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 
 from src.extract_dzi_image_candidates import (
@@ -11,6 +10,7 @@ from src.extract_dzi_image_candidates import (
     main,
     mapping_pdf_page,
 )
+from tests.repo_relative_tempdir import RepoRelativeTemporaryDirectory
 
 
 def payload():
@@ -54,7 +54,7 @@ def payload():
 
 class ExtractDziImageCandidatesTest(unittest.TestCase):
     def test_collect_plans_uses_canonical_output_name_and_pdf_page(self):
-        with tempfile.TemporaryDirectory(dir=".") as tmpdir:
+        with RepoRelativeTemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
             pdf_dir = root / "data" / "source_pdfs"
             image_dir = root / "web" / "static" / "img" / "questions" / "dzi"
@@ -77,7 +77,7 @@ class ExtractDziImageCandidatesTest(unittest.TestCase):
         self.assertFalse(plans[0].output_exists)
 
     def test_existing_png_is_marked_without_overwrite(self):
-        with tempfile.TemporaryDirectory(dir=".") as tmpdir:
+        with RepoRelativeTemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
             pdf_dir = root / "data" / "source_pdfs"
             image_dir = root / "web" / "static" / "img" / "questions" / "dzi"
@@ -98,7 +98,7 @@ class ExtractDziImageCandidatesTest(unittest.TestCase):
         self.assertTrue(plans[0].output_exists)
 
     def test_locate_pdf_uses_only_exact_exam_filename(self):
-        with tempfile.TemporaryDirectory(dir=".") as tmpdir:
+        with RepoRelativeTemporaryDirectory() as tmpdir:
             pdf_dir = Path(tmpdir) / "data" / "source_pdfs"
             pdf_dir.mkdir(parents=True)
             fallback = pdf_dir / "may_2025_v2.pdf"
@@ -110,7 +110,7 @@ class ExtractDziImageCandidatesTest(unittest.TestCase):
         self.assertIn("may_2025_v2_exam.pdf", issue)
 
     def test_locate_pdf_accepts_exact_exam_filename(self):
-        with tempfile.TemporaryDirectory(dir=".") as tmpdir:
+        with RepoRelativeTemporaryDirectory() as tmpdir:
             pdf_dir = Path(tmpdir) / "data" / "source_pdfs"
             pdf_dir.mkdir(parents=True)
             exact = pdf_dir / "may_2025_v2_exam.pdf"
@@ -122,7 +122,7 @@ class ExtractDziImageCandidatesTest(unittest.TestCase):
         self.assertIsNone(issue)
 
     def test_missing_pdf_page_is_reported_in_dry_run(self):
-        with tempfile.TemporaryDirectory(dir=".") as tmpdir:
+        with RepoRelativeTemporaryDirectory() as tmpdir:
             root = Path(tmpdir)
             mapping_path = root / "mapping.json"
             image_dir = root / "web" / "static" / "img" / "questions" / "dzi"
@@ -148,6 +148,33 @@ class ExtractDziImageCandidatesTest(unittest.TestCase):
         self.assertIn("missing pdf_page in confirmed mapping", stdout.getvalue())
         self.assertIn("missing_pages: 1", stdout.getvalue())
         self.assertFalse(image_dir.exists())
+
+    def test_absolute_or_traversal_image_dir_is_rejected_before_any_work(self):
+        with RepoRelativeTemporaryDirectory() as tmpdir:
+            root = Path(tmpdir)
+            mapping_path = root / "mapping.json"
+            mapping_path.write_text(json.dumps(payload()), encoding="utf-8")
+            absolute = (root / "web" / "static" / "img" / "questions" / "dzi").resolve()
+            cases = {
+                str(absolute): "image-dir must be repo-relative",
+                str(root / ".." / "escaped-images"): "parent path segments",
+            }
+            for image_dir, expected in cases.items():
+                with self.subTest(image_dir=image_dir):
+                    stderr = io.StringIO()
+                    with redirect_stdout(io.StringIO()), redirect_stderr(stderr):
+                        exit_code = main([
+                            "--mapping", str(mapping_path),
+                            "--pdf-dir", str(root / "data" / "source_pdfs"),
+                            "--image-dir", image_dir,
+                            "--source-slug", "may_2025_v2",
+                            "--question", "16",
+                            "--dry-run",
+                        ])
+                    self.assertEqual(exit_code, 1)
+                    self.assertIn(expected, stderr.getvalue())
+            self.assertFalse(absolute.exists())
+            self.assertFalse((root.resolve().parent / "escaped-images").exists())
 
     def test_pdf_page_accepts_numeric_strings(self):
         self.assertEqual(mapping_pdf_page({"pdf_page": "5"}), 5)
