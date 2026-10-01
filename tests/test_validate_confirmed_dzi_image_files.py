@@ -1,8 +1,8 @@
-import tempfile
 import unittest
 from pathlib import Path
 
-from src.validate_confirmed_dzi_image_files import validate_image_files
+from src.validate_confirmed_dzi_image_files import validate_image_dir, validate_image_files
+from tests.repo_relative_tempdir import RepoRelativeTemporaryDirectory
 
 
 def payload(filename="aug_2022_v2_q2.png"):
@@ -36,7 +36,7 @@ def payload(filename="aug_2022_v2_q2.png"):
 
 class ValidateConfirmedDziImageFilesTest(unittest.TestCase):
     def test_missing_files_are_reported_but_non_blocking_by_default(self):
-        with tempfile.TemporaryDirectory(dir=".") as tmpdir:
+        with RepoRelativeTemporaryDirectory() as tmpdir:
             image_dir = Path(tmpdir) / "web" / "static" / "img" / "questions" / "dzi"
 
             errors, summary, missing, unexpected = validate_image_files(
@@ -54,7 +54,7 @@ class ValidateConfirmedDziImageFilesTest(unittest.TestCase):
         self.assertEqual(unexpected, [])
 
     def test_require_files_makes_missing_images_blocking(self):
-        with tempfile.TemporaryDirectory(dir=".") as tmpdir:
+        with RepoRelativeTemporaryDirectory() as tmpdir:
             image_dir = Path(tmpdir) / "web" / "static" / "img" / "questions" / "dzi"
 
             errors, summary, missing, unexpected = validate_image_files(
@@ -72,7 +72,7 @@ class ValidateConfirmedDziImageFilesTest(unittest.TestCase):
         )
 
     def test_existing_file_counts_as_present(self):
-        with tempfile.TemporaryDirectory(dir=".") as tmpdir:
+        with RepoRelativeTemporaryDirectory() as tmpdir:
             image_dir = Path(tmpdir) / "web" / "static" / "img" / "questions" / "dzi"
             image_dir.mkdir(parents=True)
             (image_dir / "aug_2022_v2_q2.png").write_bytes(b"fake png")
@@ -111,6 +111,29 @@ class ValidateConfirmedDziImageFilesTest(unittest.TestCase):
         self.assertTrue(any("must be a filename, not a path" in error for error in errors))
         self.assertTrue(any("path segment" in error for error in errors))
 
+    def test_absolute_image_dir_is_rejected_even_when_it_exists(self):
+        with RepoRelativeTemporaryDirectory() as tmpdir:
+            absolute = (Path(tmpdir) / "web" / "static" / "img" / "questions" / "dzi").resolve()
+            absolute.mkdir(parents=True)
+            (absolute / "aug_2022_v2_q2.png").write_bytes(b"fake png")
+            self.assertTrue(absolute.is_absolute())
+
+            errors, _, _, _ = validate_image_files(payload(), absolute, require_files=False)
+
+        self.assertIn("image-dir must be repo-relative", errors)
+
+    def test_image_dir_rejects_absolute_and_traversal_paths(self):
+        for candidate in (Path("/tmp/learnpilot-images"), Path("/etc"), Path.cwd() / "web" / "static"):
+            with self.subTest(candidate=str(candidate)):
+                self.assertIn("image-dir must be repo-relative", validate_image_dir(candidate))
+        for candidate in (Path("../outside"), Path("web/../../outside"), Path("web/static/..")):
+            with self.subTest(candidate=str(candidate)):
+                self.assertIn(
+                    "image-dir must not contain empty/current/parent path segments",
+                    validate_image_dir(candidate),
+                )
+        self.assertEqual(validate_image_dir(Path("web/static/img/questions/dzi")), [])
+
     def test_image_dir_must_stay_out_of_generated_quizzes(self):
         errors, _, _, _ = validate_image_files(
             payload(),
@@ -121,7 +144,7 @@ class ValidateConfirmedDziImageFilesTest(unittest.TestCase):
         self.assertTrue(any("vault/Generated/Quizzes" in error for error in errors))
 
     def test_unexpected_files_are_reported(self):
-        with tempfile.TemporaryDirectory(dir=".") as tmpdir:
+        with RepoRelativeTemporaryDirectory() as tmpdir:
             image_dir = Path(tmpdir) / "web" / "static" / "img" / "questions" / "dzi"
             image_dir.mkdir(parents=True)
             (image_dir / "unexpected.png").write_bytes(b"fake png")
