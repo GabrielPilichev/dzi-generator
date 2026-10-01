@@ -38,6 +38,7 @@ Future PR: replace tracked DB with migration + seed script.
 - `docs/dzi_question_import_format.md` - reviewed JSON import format
 - `docs/question_batch_review.md` - dry-run-only question batch review pipeline
 - `docs/reviews/dzi_image_db_linking_plan.md` - confirmed DZI question image pipeline checklist
+- `docs/DEPLOYMENT.md` - production deployment (Nginx -> Gunicorn `web.wsgi:app` -> SQLite/WAL), backups and operations
 
 ## Local Run
 

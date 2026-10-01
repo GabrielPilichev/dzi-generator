@@ -6,6 +6,10 @@ import unittest
 from pathlib import Path
 
 
+from werkzeug.datastructures import FileStorage, MultiDict
+from werkzeug.test import encode_multipart
+
+from src.practical_uploads import MAX_FILES_PER_REQUEST, MAX_REQUEST_BYTES, MAX_UPLOAD_BYTES
 from tests.support import IsolatedAppTestCase, web_app
 
 
@@ -472,6 +476,90 @@ class PracticalStudentUploadsTest(IsolatedAppTestCase):
         self.assertNotEqual(stored_basename, "solution.xlsx")
         # Stored filename keeps the original extension but uses a token name.
         self.assertTrue(stored_basename.endswith(".xlsx"))
+
+    # --- request-wide limits (file count and body size) ---------------------
+
+    UPLOAD_URL = "/quiz/attempt/101/practical/may_2025_v2/task/260/upload"
+
+    def _upload_many(self, files):
+        return self.client.post(
+            self.UPLOAD_URL,
+            data={"files": [(io.BytesIO(content), name) for name, content in files]},
+            content_type="multipart/form-data",
+        )
+
+    def _multipart(self, files):
+        boundary, body = encode_multipart(
+            MultiDict(("files", FileStorage(io.BytesIO(content), filename=name))
+                      for name, content in files),
+            boundary="learnpilot-test-boundary",
+        )
+        return body, f"multipart/form-data; boundary={boundary}"
+
+    def test_default_request_limits_come_from_upload_policy(self):
+        self.assertEqual(web_app.app.config["MAX_CONTENT_LENGTH"], MAX_REQUEST_BYTES)
+        self.assertEqual(web_app.app.config["PRACTICAL_MAX_FILES_PER_REQUEST"], MAX_FILES_PER_REQUEST)
+        # Four maximum-size files always fit in one request, with room for overhead.
+        self.assertGreater(MAX_REQUEST_BYTES, 4 * MAX_UPLOAD_BYTES)
+        self.assertLess(MAX_REQUEST_BYTES, 5 * MAX_UPLOAD_BYTES)
+        self.assertGreaterEqual(MAX_FILES_PER_REQUEST, 4)
+
+    def test_multi_file_upload_is_stored_in_one_submission(self):
+        response = self._upload_many([
+            ("index.html", b"<html></html>"), ("style.css", b"body{}"),
+            ("logo.png", b"png bytes"), ("data.csv", b"a,b"),
+        ])
+
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("uploaded=1", response.headers["Location"])
+        self.assertEqual(len(self._rows("practical_submissions")), 1)
+        names = [row["original_filename"] for row in self._rows("practical_submission_files")]
+        self.assertEqual(sorted(names), ["data.csv", "index.html", "logo.png", "style.css"])
+
+    def test_file_count_boundary(self):
+        web_app.app.config["PRACTICAL_MAX_FILES_PER_REQUEST"] = 3
+        too_many = self._upload_many([(f"f{i}.csv", b"x") for i in range(4)])
+
+        self.assertEqual(too_many.status_code, 302)
+        self.assertIn("upload_error=invalid", too_many.headers["Location"])
+        self.assertEqual(self._rows("practical_submission_files"), [])
+        self.assertFalse(self.upload_root.exists())
+
+        at_limit = self._upload_many([(f"f{i}.csv", b"x") for i in range(3)])
+        self.assertIn("uploaded=1", at_limit.headers["Location"])
+        self.assertEqual(len(self._rows("practical_submission_files")), 3)
+
+    def test_request_size_boundary_is_enforced_by_flask(self):
+        body, content_type = self._multipart([("a.csv", b"a" * 300), ("b.csv", b"b" * 300)])
+
+        web_app.app.config["MAX_CONTENT_LENGTH"] = len(body) - 1
+        rejected = self.client.post(self.UPLOAD_URL, data=body, content_type=content_type)
+        self.assertEqual(rejected.status_code, 302)
+        self.assertIn("upload_error=too_large", rejected.headers["Location"])
+        self.assertEqual(self._rows("practical_submissions"), [])
+        self.assertEqual(self._rows("practical_submission_files"), [])
+        self.assertFalse(self.upload_root.exists())
+        page = self.client.get(rejected.headers["Location"])
+        self.assertEqual(page.status_code, 200)
+        self.assertIn("Файлът не беше приет", page.get_data(as_text=True))
+
+        web_app.app.config["MAX_CONTENT_LENGTH"] = len(body)
+        accepted = self.client.post(self.UPLOAD_URL, data=body, content_type=content_type)
+        self.assertEqual(accepted.status_code, 302)
+        self.assertIn("uploaded=1", accepted.headers["Location"])
+        self.assertEqual(len(self._rows("practical_submission_files")), 2)
+
+    def test_per_file_limit_still_applies_inside_an_allowed_request(self):
+        # PRACTICAL_MAX_UPLOAD_BYTES is 1024 in setUp; the request itself is small enough.
+        response = self._upload_many([("ok.csv", b"x" * 1024), ("big.csv", b"x" * 1025)])
+
+        self.assertIn("upload_error=invalid", response.headers["Location"])
+        self.assertEqual(self._rows("practical_submission_files"), [])
+
+    def test_oversized_non_upload_request_gets_413(self):
+        web_app.app.config["MAX_CONTENT_LENGTH"] = 512
+        response = self.client.post("/tester/login", data={"password": "x" * 2048})
+        self.assertEqual(response.status_code, 413)
 
 
 if __name__ == "__main__":

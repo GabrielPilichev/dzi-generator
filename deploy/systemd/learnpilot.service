@@ -1,0 +1,43 @@
+# LearnPilot (Gunicorn) - template; see docs/DEPLOYMENT.md.
+# Install: sudo cp deploy/systemd/learnpilot.service /etc/systemd/system/
+# Secrets live only in /etc/learnpilot/learnpilot.env (root:learnpilot, 0640).
+
+[Unit]
+Description=LearnPilot web application (Gunicorn)
+After=network.target
+# Stop restart loops caused by configuration errors (missing secret, pending migration).
+StartLimitIntervalSec=120
+StartLimitBurst=5
+
+[Service]
+Type=notify
+NotifyAccess=main
+User=learnpilot
+Group=learnpilot
+WorkingDirectory=/srv/learnpilot/app
+EnvironmentFile=/etc/learnpilot/learnpilot.env
+Environment=PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
+ExecStart=/srv/learnpilot/venv/bin/gunicorn --config /srv/learnpilot/app/deploy/gunicorn.conf.py
+
+# Graceful stop: SIGTERM to the master, which waits up to graceful_timeout (30 s).
+KillMode=mixed
+KillSignal=SIGTERM
+TimeoutStopSec=40
+Restart=on-failure
+RestartSec=5
+
+# Hardening: code is read-only to the service; only state paths are writable.
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+ReadWritePaths=/var/lib/learnpilot
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target
