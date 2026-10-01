@@ -1,6 +1,6 @@
 # LearnPilot (Gunicorn) - template; see docs/DEPLOYMENT.md.
 # Install: sudo cp deploy/systemd/learnpilot.service /etc/systemd/system/
-# Secrets live only in /etc/learnpilot/learnpilot.env (root:learnpilot, 0640).
+# Secrets live only in /etc/learnpilot/learnpilot.env (root:root, 0600).
 
 [Unit]
 Description=LearnPilot web application (Gunicorn)

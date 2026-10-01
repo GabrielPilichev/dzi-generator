@@ -1,0 +1,11 @@
+{
+  "description": "Class percentage mix for DZI training sets. Based on DZI PP focus: 11-12 class core, 8-10 class foundation review.",
+  "status": "active_draft",
+  "classes": {
+    "8": 3,
+    "9": 7,
+    "10": 10,
+    "11": 40,
+    "12": 40
+  }
+}

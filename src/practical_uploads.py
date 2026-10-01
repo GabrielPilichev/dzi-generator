@@ -14,6 +14,7 @@ Policy notes (referenced by tests):
 from __future__ import annotations
 
 import re
+import shutil
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
@@ -26,6 +27,9 @@ MAX_UPLOAD_BYTES = 25 * 1024 * 1024
 # deploy/nginx/learnpilot.conf client_max_body_size must stay just above this.
 MAX_FILES_PER_REQUEST = 20
 MAX_REQUEST_BYTES = 4 * MAX_UPLOAD_BYTES + 1024 * 1024
+MIN_FREE_BYTES = 2 * 1024 * 1024 * 1024
+MAX_STORED_BYTES_PER_TASK = 100 * 1024 * 1024
+MAX_STORED_FILES_PER_TASK = 40
 MAX_FILENAME_LENGTH = 200
 ALLOWED_EXTENSIONS = frozenset({
     ".xlsx",
@@ -105,6 +109,20 @@ def validate_upload_size(size_bytes: int, *, max_bytes: int = MAX_UPLOAD_BYTES) 
     if size_bytes > max_bytes:
         raise PracticalUploadError("upload exceeds maximum size")
     return size_bytes
+
+
+def validate_upload_capacity(upload_root: Path, incoming_bytes: int, *,
+                             existing_bytes: int, existing_files: int,
+                             incoming_files: int) -> None:
+    """Check the whole request before storing files or database rows."""
+    if (existing_bytes + incoming_bytes > MAX_STORED_BYTES_PER_TASK
+            or existing_files + incoming_files > MAX_STORED_FILES_PER_TASK):
+        raise PracticalUploadError("practical submission quota exceeded")
+    filesystem_path = Path(upload_root).resolve()
+    while not filesystem_path.exists():
+        filesystem_path = filesystem_path.parent
+    if shutil.disk_usage(filesystem_path).free - incoming_bytes < MIN_FREE_BYTES:
+        raise PracticalUploadError("upload free-space reserve exceeded")
 
 
 def _safe_identifier(value: int | str, name: str) -> str:

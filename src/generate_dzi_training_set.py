@@ -1,5 +1,6 @@
 import argparse
 import json
+import os
 import random
 import re
 import sqlite3
@@ -13,7 +14,7 @@ from src.subject_assessment import question_belongs_to_subject
 from src.subject_content import IT, section_ownership, topic_ownership
 
 DB_PATH = Path("data/questions.db")
-CONFIG_PATH = Path("data/dzi_training/class_mix.json")
+CONFIG_PATH = Path("deploy/dzi-training-class-mix.json")
 DATA_OUT_DIR = Path("data/dzi_training/sets")
 VAULT_OUT_DIR = Path("vault/Generated/DZI-Training/sets")
 
@@ -53,11 +54,11 @@ def pick_column(columns, candidates):
     return None
 
 
-def load_mix():
-    if not CONFIG_PATH.exists():
-        raise SystemExit(f"Missing config: {CONFIG_PATH}")
+def load_mix(config_path: Path = CONFIG_PATH):
+    if not config_path.is_file():
+        raise SystemExit(f"Missing DZI training config: {config_path}")
 
-    data = json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
+    data = json.loads(config_path.read_text(encoding="utf-8"))
     classes = data.get("classes") or {}
 
     mix = {}
@@ -241,15 +242,16 @@ def fetch_options(con, question_ids):
     return grouped
 
 
-def write_outputs(name, seed, count, config, target_counts, chosen_by_class, questions, options):
+def write_outputs(name, seed, count, config, target_counts, chosen_by_class, questions, options,
+                  *, data_out_dir=DATA_OUT_DIR, vault_out_dir=VAULT_OUT_DIR):
     now = datetime.now()
     date_str = now.strftime("%Y-%m-%d")
     ts = now.strftime("%Y%m%d-%H%M%S")
     slug = slugify(name)
     filename = f"{date_str}-{slug}-{ts}.md"
 
-    md_path = VAULT_OUT_DIR / filename
-    json_path = DATA_OUT_DIR / filename.replace(".md", ".json")
+    md_path = vault_out_dir / filename
+    json_path = data_out_dir / filename.replace(".md", ".json")
 
     flat_ids = []
     for cls in sorted(chosen_by_class):
@@ -350,13 +352,31 @@ def main():
     parser.add_argument("--count", type=int, default=28, help="Total questions in the training set.")
     parser.add_argument("--seed", default=None, help="Stable random seed.")
     parser.add_argument("--name", default=None, help="Training set title.")
+    parser.add_argument("--db", type=Path, default=Path(os.environ.get("DZI_DB") or DB_PATH))
+    parser.add_argument("--config", type=Path, default=CONFIG_PATH)
+    parser.add_argument("--data-output-dir", type=Path, default=DATA_OUT_DIR)
+    parser.add_argument("--vault-output-dir", type=Path, default=VAULT_OUT_DIR)
     args = parser.parse_args()
 
-    config, mix = load_mix()
+    db_path = args.db.resolve()
+    config_path = args.config.resolve()
+    data_out_dir = args.data_output_dir.resolve()
+    vault_out_dir = args.vault_output_dir.resolve()
+    if not db_path.is_file():
+        raise SystemExit(f"DZI training database does not exist: {db_path}")
+    configured_vault = os.environ.get("DZI_VAULT")
+    if configured_vault:
+        vault_root = Path(configured_vault).resolve()
+        if db_path.is_relative_to(Path(__file__).resolve().parents[1]):
+            raise SystemExit("DZI training database must be outside the checkout")
+        if not (data_out_dir.is_relative_to(vault_root)
+                and vault_out_dir.is_relative_to(vault_root)):
+            raise SystemExit("DZI training output paths must stay inside DZI_VAULT")
+    config, mix = load_mix(config_path)
     seed = args.seed or datetime.now().strftime("%Y%m%d-%H%M%S")
     name = args.name or f"ДЗИ тренировъчен комплект — {args.count} въпроса"
 
-    con = sqlite3.connect(DB_PATH)
+    con = sqlite3.connect(db_path.as_uri() + "?mode=ro", uri=True)
     con.row_factory = sqlite3.Row
 
     target_counts = allocate_counts(args.count, mix)
@@ -380,6 +400,8 @@ def main():
         chosen_by_class=chosen_by_class,
         questions=questions,
         options=options,
+        data_out_dir=data_out_dir,
+        vault_out_dir=vault_out_dir,
     )
 
     print(f"Wrote {md_path}")

@@ -9,6 +9,7 @@ Error messages name settings, never their values.
 from __future__ import annotations
 
 import os
+import re
 from pathlib import Path
 from typing import Mapping
 
@@ -25,6 +26,7 @@ MIN_PASSWORD_LENGTH = 12
 LOCAL_ONLY_PASSWORDS = frozenset({"admin123", "tester123"})
 
 DB_ENV = "DZI_DB"
+PUBLIC_HOST_ENV = "DZI_PUBLIC_HOST"
 STATE_DIRECTORY_ENVS = ("DZI_UPLOAD_ROOT", "DZI_VAULT")
 SKIP_STARTUP_MIGRATION_ENV = "DZI_SKIP_STARTUP_MIGRATION"
 TRUE_VALUES = {"1", "true", "yes", "on"}
@@ -94,6 +96,13 @@ def production_config_errors(environ: Mapping[str, str]) -> list[str]:
     if flask_debug and flask_debug not in FLASK_DEBUG_OFF_VALUES:
         errors.append("FLASK_DEBUG must not be enabled in production")
 
+    host = (environ.get(PUBLIC_HOST_ENV) or "").strip()
+    if not host or len(host) > 253 or any(len(label) > 63 for label in host.split(".")) or not re.fullmatch(
+        r"(?i)[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+",
+        host,
+    ):
+        errors.append("DZI_PUBLIC_HOST must be a configured DNS hostname without scheme or port")
+
     return errors + _state_path_errors(environ)
 
 
@@ -153,6 +162,7 @@ def create_production_app(environ: Mapping[str, str] | None = None):
         TESTING=False,
         SESSION_COOKIE_SECURE=True,
         PREFERRED_URL_SCHEME="https",
+        TRUSTED_HOSTS=[environ[PUBLIC_HOST_ENV].strip().lower(), "localhost", "127.0.0.1"],
     )
     if not isinstance(flask_app.wsgi_app, ProxyFix):
         flask_app.wsgi_app = trusted_proxy(flask_app.wsgi_app)

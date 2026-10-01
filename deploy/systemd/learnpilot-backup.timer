@@ -1,8 +1,7 @@
-# Daily LearnPilot database backup - template; see docs/DEPLOYMENT.md (Backup).
-# Backups are never deleted automatically; prune them deliberately.
+# Daily LearnPilot application snapshot. Prune only after off-server transfer.
 
 [Unit]
-Description=Daily LearnPilot SQLite backup
+Description=Daily LearnPilot application snapshot
 
 [Timer]
 OnCalendar=*-*-* 03:15:00
