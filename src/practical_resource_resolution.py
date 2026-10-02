@@ -3,6 +3,9 @@
 The stored ZIP syntax is ``data/reference/archive.zip::member/path``. No ZIP
 member is extracted to disk. Callers must first look up the resource record;
 this module never accepts a request path or performs authorization.
+
+Stored references are logical: ``data/reference/...`` normally lives in the
+checkout, but a deployment may keep that one tree elsewhere (``reference_root``).
 """
 
 from __future__ import annotations
@@ -24,6 +27,7 @@ MAX_MEMBER_BYTES = 16 * 1024 * 1024
 MAX_COMPRESSION_RATIO = 100
 MAX_ARCHIVE_ENTRIES = 10_000
 SUPPORTED_COMPRESSION = frozenset({zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED})
+REFERENCE_PREFIX = ("data", "reference")
 
 
 class ResourceResolutionError(ValueError):
@@ -57,10 +61,15 @@ def _relative_parts(raw: object) -> tuple[str, ...]:
     return parts
 
 
-def _approved_file(raw: str, project_root: Path, allowed_roots: tuple[Path, ...]) -> Path:
+def _approved_file(raw: str, project_root: Path, allowed_roots: tuple[Path, ...],
+                   reference_root: Path | None = None) -> Path:
     parts = _relative_parts(raw)
+    base = project_root
+    if reference_root is not None and parts[:2] == REFERENCE_PREFIX:
+        # Only this prefix is relocated; it never falls back to the checkout.
+        base, parts = Path(reference_root), parts[2:]
     try:
-        candidate = (project_root / Path(*parts)).resolve(strict=False)
+        candidate = base.joinpath(*parts).resolve(strict=False)
     except (OSError, RuntimeError) as exc:
         raise ResourceResolutionError("unsafe_path") from exc
     if not any(candidate.is_relative_to(Path(root).resolve(strict=False))
@@ -105,13 +114,18 @@ def _zip_info(archive: zipfile.ZipFile, member: str) -> zipfile.ZipInfo:
 
 
 def resolve_resource_reference(
-    raw: str | None, *, project_root: Path, allowed_roots: tuple[Path, ...]
+    raw: str | None, *, project_root: Path, allowed_roots: tuple[Path, ...],
+    reference_root: Path | None = None,
 ) -> ResolvedResource:
-    """Validate the stored reference and metadata without loading member bytes."""
+    """Validate the stored reference and metadata without loading member bytes.
+
+    ``reference_root`` relocates ``data/reference/...``; it must also be one of
+    ``allowed_roots``, which stays the only containment check.
+    """
     if not isinstance(raw, str) or not raw:
         raise ResourceResolutionError("unsafe_path")
     if ZIP_RESOURCE_SEPARATOR not in raw:
-        path = _approved_file(raw, project_root, allowed_roots)
+        path = _approved_file(raw, project_root, allowed_roots, reference_root)
         return ResolvedResource("file", path, path.name)
     if raw.count(ZIP_RESOURCE_SEPARATOR) != 1:
         raise ResourceResolutionError("unsafe_path")
@@ -119,7 +133,7 @@ def resolve_resource_reference(
     if member_raw.endswith("/"):
         raise ResourceResolutionError("directory_member")
     _relative_parts(member_raw)
-    archive_path = _approved_file(archive_raw, project_root, allowed_roots)
+    archive_path = _approved_file(archive_raw, project_root, allowed_roots, reference_root)
     if archive_path.suffix.lower() != ".zip":
         raise ResourceResolutionError("invalid_archive")
     try:

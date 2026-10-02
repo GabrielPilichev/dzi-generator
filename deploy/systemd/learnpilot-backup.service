@@ -9,10 +9,10 @@ After=learnpilot.service
 Type=oneshot
 User=learnpilot
 Group=learnpilot
-WorkingDirectory=/srv/learnpilot/app
+WorkingDirectory=/opt/learnpilot/app
 EnvironmentFile=/etc/learnpilot/backup.env
 Environment=PYTHONDONTWRITEBYTECODE=1
-ExecStart=/srv/learnpilot/venv/bin/python -m src.backup_application --db ${DZI_DB} --uploads ${DZI_UPLOAD_ROOT} --vault ${DZI_VAULT} --output-dir /var/backups/learnpilot
+ExecStart=/opt/learnpilot/venv/bin/python -m src.backup_application --db ${DZI_DB} --uploads ${DZI_UPLOAD_ROOT} --vault ${DZI_VAULT} --output-dir /var/backups/learnpilot
 
 NoNewPrivileges=true
 PrivateTmp=true

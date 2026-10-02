@@ -28,6 +28,7 @@ LOCAL_ONLY_PASSWORDS = frozenset({"admin123", "tester123"})
 DB_ENV = "DZI_DB"
 PUBLIC_HOST_ENV = "DZI_PUBLIC_HOST"
 STATE_DIRECTORY_ENVS = ("DZI_UPLOAD_ROOT", "DZI_VAULT")
+REFERENCE_ROOT_ENV = "DZI_REFERENCE_ROOT"
 SKIP_STARTUP_MIGRATION_ENV = "DZI_SKIP_STARTUP_MIGRATION"
 TRUE_VALUES = {"1", "true", "yes", "on"}
 FLASK_DEBUG_OFF_VALUES = {"0", "false", "no"}  # Flask's own get_debug_flag() rule.
@@ -70,6 +71,24 @@ def _state_path_errors(environ: Mapping[str, str]) -> list[str]:
     return errors
 
 
+def _reference_root_errors(environ: Mapping[str, str]) -> list[str]:
+    """Optional, read-only resources; unset keeps the checkout's data/reference."""
+    name = REFERENCE_ROOT_ENV
+    raw = environ.get(name)
+    if not raw:
+        return []
+    path = Path(raw)
+    if not path.is_absolute():
+        return [f"{name} must be an absolute path"]
+    if not _outside_checkout(path):
+        return [f"{name} must be outside the application checkout"]
+    if not path.is_dir():
+        return [f"{name} must be an existing directory"]
+    if not os.access(path, os.R_OK | os.X_OK):
+        return [f"{name} must be readable by the service user"]
+    return []
+
+
 def production_config_errors(environ: Mapping[str, str]) -> list[str]:
     errors = [f"{name} is not set" for name in REQUIRED_SECRETS if not environ.get(name)]
 
@@ -103,7 +122,7 @@ def production_config_errors(environ: Mapping[str, str]) -> list[str]:
     ):
         errors.append("DZI_PUBLIC_HOST must be a configured DNS hostname without scheme or port")
 
-    return errors + _state_path_errors(environ)
+    return errors + _state_path_errors(environ) + _reference_root_errors(environ)
 
 
 def pending_schema_migrations(db_path, open_read_only) -> list[str]:

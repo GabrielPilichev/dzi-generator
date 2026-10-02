@@ -136,6 +136,32 @@ class ProductionConfigValidationTest(unittest.TestCase):
                     self.assertTrue(any(error.startswith(name) for error in errors), errors)
         self.assertFalse((Path(self.env["DZI_VAULT"]) / "missing.db").exists())
 
+    def test_reference_root_is_optional_and_validated_only_when_set(self):
+        self.assertEqual(self.errors(DZI_REFERENCE_ROOT=None), [])
+        self.assertEqual(self.errors(DZI_REFERENCE_ROOT=""), [])
+        reference = Path(self.env["DZI_DB"]).parent / "reference"
+        reference.mkdir()
+        self.assertEqual(self.errors(DZI_REFERENCE_ROOT=str(reference)), [])
+        cases = {
+            "data/reference": "DZI_REFERENCE_ROOT must be an absolute path",
+            str(ROOT / "data" / "reference"): "DZI_REFERENCE_ROOT must be outside the application checkout",
+            str(reference / "missing"): "DZI_REFERENCE_ROOT must be an existing directory",
+            self.env["DZI_DB"]: "DZI_REFERENCE_ROOT must be an existing directory",
+        }
+        for value, expected in cases.items():
+            with self.subTest(value=value):
+                self.assertEqual(self.errors(DZI_REFERENCE_ROOT=value), [expected])
+        self.assertFalse((reference / "missing").exists())
+
+    @unittest.skipIf(hasattr(os, "geteuid") and os.geteuid() == 0, "root bypasses permissions")
+    def test_unreadable_reference_root_is_rejected(self):
+        reference = Path(self.env["DZI_DB"]).parent / "reference"
+        reference.mkdir()
+        reference.chmod(0)
+        self.addCleanup(reference.chmod, stat.S_IRWXU)
+        self.assertEqual(self.errors(DZI_REFERENCE_ROOT=str(reference)),
+                         ["DZI_REFERENCE_ROOT must be readable by the service user"])
+
     @unittest.skipIf(hasattr(os, "geteuid") and os.geteuid() == 0, "root bypasses permissions")
     def test_unwritable_state_directories_are_rejected(self):
         uploads = Path(self.env["DZI_UPLOAD_ROOT"])
@@ -283,6 +309,16 @@ class ProductionStartupTest(unittest.TestCase):
         for secret in (SECRET_KEY, TESTER_PASSWORD):
             self.assertNotIn(secret, output)
 
+    def test_invalid_reference_root_stops_before_the_app_is_imported(self):
+        env = _state_dir(self, seed=True)
+        env["DZI_REFERENCE_ROOT"] = str(Path(env["DZI_VAULT"]) / "missing-reference")
+        result = _run_python(FAILING_STARTUP_PROBE, env)
+        output = result.stdout + result.stderr
+        self.assertEqual(result.returncode, 3, output)
+        self.assertIn("DZI_REFERENCE_ROOT must be an existing directory", output)
+        self.assertIn("app imported: False", output)
+        self.assertIn("db unchanged: True", output)
+
     def test_pending_migration_stops_startup_without_changing_schema(self):
         env = _state_dir(self, seed=True)
         db = Path(env["DZI_DB"])
@@ -321,6 +357,8 @@ print(json.dumps({
     "db": web_app.app.config["DB_PATH"], "db_global": str(web_app.DB_PATH),
     "quiz_db": str(web_app.QUIZ_DB_PATH),
     "uploads": web_app.app.config["PRACTICAL_UPLOAD_ROOT"], "tables": tables,
+    "reference_root": web_app.PRACTICAL_REFERENCE_ROOT and str(web_app.PRACTICAL_REFERENCE_ROOT),
+    "resource_roots": [str(root) for root in web_app.PRACTICAL_RESOURCE_ROOTS],
 }))
 '''
 
@@ -345,6 +383,19 @@ class DatabaseAndStartupSchemaConfigTest(unittest.TestCase):
         self.assertEqual((report["db"], report["db_global"], report["quiz_db"]),
                          (env["DZI_DB"],) * 3)
         self.assertEqual(report["uploads"], env["DZI_UPLOAD_ROOT"])
+
+    def test_reference_root_defaults_to_the_checkout_and_follows_the_setting(self):
+        assets = str(ROOT / "data" / "assets")
+        report = self.probe({"DZI_SKIP_STARTUP_MIGRATION": "1"})
+        self.assertIsNone(report["reference_root"])
+        self.assertEqual(report["resource_roots"], [str(ROOT / "data" / "reference"), assets])
+
+        env = _state_dir(self, seed=False)
+        report = self.probe({"DZI_DB": env["DZI_DB"], "DZI_REFERENCE_ROOT": env["DZI_VAULT"],
+                             "DZI_SKIP_STARTUP_MIGRATION": "1"})
+        self.assertEqual(report["reference_root"], env["DZI_VAULT"])
+        self.assertEqual(report["resource_roots"], [env["DZI_VAULT"], assets])
+        self.assertEqual(report["uploads"], str(ROOT / "data" / "uploads" / "practical"))
 
     def test_development_import_keeps_startup_quiz_migration(self):
         env = _state_dir(self, seed=False)
@@ -474,10 +525,10 @@ class DeploymentTemplateTest(unittest.TestCase):
     def test_systemd_unit_runs_unprivileged_with_external_secrets(self):
         unit = self.read("deploy/systemd/learnpilot.service")
         for line in ("User=learnpilot", "EnvironmentFile=/etc/learnpilot/learnpilot.env",
-                     "Restart=on-failure", "WorkingDirectory=/srv/learnpilot/app",
+                     "Restart=on-failure", "WorkingDirectory=/opt/learnpilot/app",
                      "ReadWritePaths=/var/lib/learnpilot", "Type=notify"):
             self.assertIn(line, unit.splitlines())
-        self.assertRegex(unit, r"ExecStart=/srv/learnpilot/venv/bin/gunicorn --config \S+gunicorn\.conf\.py")
+        self.assertRegex(unit, r"ExecStart=/opt/learnpilot/venv/bin/gunicorn --config \S+gunicorn\.conf\.py")
         self.assertNotRegex(unit, r"(?m)^User=root")
         self.assertNotRegex(unit, r"(?m)^Environment=.*DZI_")
 
@@ -532,14 +583,21 @@ class DeploymentTemplateTest(unittest.TestCase):
             self.assertNotIn(secret, backup_env + unit)
         for path in ("DZI_DB", "DZI_UPLOAD_ROOT", "DZI_VAULT"):
             self.assertIn(path, backup_env)
+        # Reference data is provisioned separately; snapshots do not include it.
+        self.assertNotIn("DZI_REFERENCE_ROOT", backup_env + unit)
 
     def test_guide_covers_first_deploy_backup_and_permissions(self):
         guide = self.read("docs/DEPLOYMENT.md")
         for expected in ("rsync", "--chmod=D755,F644", "root:root", "0600",
                          "1 vCPU, 2 GB RAM, 30 GB disk", "python -B -m unittest discover -s tests",
                          "python --version", "pip freeze", "snapshot-", "off-server",
-                         "-mtime +14", "systemctl --failed"):
+                         "-mtime +14", "systemctl --failed",
+                         "DZI_REFERENCE_ROOT=/var/lib/learnpilot/data/reference",
+                         "mv /var/lib/learnpilot/data/questions.db* "):
             self.assertIn(expected, guide)
+        # Reference data lives outside the checkout and survives a restore.
+        self.assertNotIn("/opt/learnpilot/app/data/reference", guide)
+        self.assertNotIn("mv /var/lib/learnpilot/data /var", guide)
 
     def test_templates_and_docs_contain_no_secret_values(self):
         env_example = self.read("deploy/learnpilot.env.example")
@@ -547,6 +605,7 @@ class DeploymentTemplateTest(unittest.TestCase):
             self.assertRegex(env_example, rf"(?m)^{name}=$")
         for name in ("DZI_DB", "DZI_UPLOAD_ROOT", "DZI_VAULT"):
             self.assertRegex(env_example, rf"(?m)^{name}=/var/lib/learnpilot/")
+        self.assertRegex(env_example, r"(?m)^DZI_REFERENCE_ROOT=/var/lib/learnpilot/data/reference$")
         texts = [self.read(str(p.relative_to(ROOT))) for p in DEPLOY.rglob("*") if p.is_file()
                  and "__pycache__" not in p.parts]
         texts.append(self.read("docs/DEPLOYMENT.md"))
