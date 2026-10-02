@@ -1,6 +1,7 @@
 """Same-grade IT/Physics browsing, using only the isolated test database."""
 
 from src.subject_browsing import SubjectContentBrowser
+from tests.subject_fixtures import add_curriculum, add_membership, add_question, add_section, add_topic
 from tests.support import IsolatedAppTestCase, web_app
 from tests.test_homepage_search import _HTMLProbe
 
@@ -18,98 +19,36 @@ class SubjectScopedBrowsingTest(IsolatedAppTestCase):
 
         conn = web_app.quiz_db()
         try:
-            it_curriculum = cls._curriculum(conn, "IT", 8, "f2-it")
-            physics_curriculum = cls._curriculum(conn, "physics", 8, "f2-physics")
-            cls.it_section = cls._section(
-                conn, it_curriculum, "f2-it-grade8", "F2 IT раздел"
+            it_curriculum = add_curriculum(conn, "IT", 8, "f2-it")
+            physics_curriculum = add_curriculum(conn, "physics", 8, "f2-physics")
+            cls.it_section = add_section(
+                conn, it_curriculum, "f2-it-grade8", "F2 IT раздел", grade=8
             )
-            cls.physics_section = cls._section(
-                conn, physics_curriculum, "f2-physics-grade8", "F2 Физика раздел"
+            cls.physics_section = add_section(
+                conn, physics_curriculum, "f2-physics-grade8", "F2 Физика раздел", grade=8
             )
-            cls.it_topic = cls._topic(
-                conn, cls.it_section, "f2-it-topic", "F2 IT тема"
-            )
-            cls.physics_topic = cls._topic(
-                conn, cls.physics_section, "f2-physics-topic", "F2 Физика тема"
+            cls.it_topic = add_topic(conn, cls.it_section, "f2-it-topic", "F2 IT тема", grade=8)
+            cls.physics_topic = add_topic(
+                conn, cls.physics_section, "f2-physics-topic", "F2 Физика тема", grade=8
             )
             cls._question(conn, cls.it_topic, "IT", 1, "F2 IT въпрос")
             cls._question(conn, cls.physics_topic, "physics", 2, "F2 Физика въпрос")
             cls._question(conn, cls.physics_topic, "IT", 3, "F2 конфликтен предмет")
-            cross_topic = cls._topic(
-                conn, cls.physics_section, "f2-cross-topic", "F2 конфликтна тема"
+            cross_topic = add_topic(
+                conn, cls.physics_section, "f2-cross-topic", "F2 конфликтна тема", grade=8
             )
-            conn.execute(
-                "INSERT INTO topic_section_assignments (topic_id, section_id) VALUES (?, ?)",
-                (cross_topic, cls.it_section),
-            )
+            add_membership(conn, cross_topic, cls.it_section)
             cls._question(conn, cross_topic, "physics", 4, "F2 конфликтно членство")
             conn.commit()
         finally:
             conn.close()
 
     @staticmethod
-    def _curriculum(conn, subject, grade, education_type):
-        return conn.execute(
-            """
-            INSERT INTO curricula (grade, subject, education_type, title_bg)
-            VALUES (?, ?, ?, 'F2 test curriculum')
-            """,
-            (grade, subject, education_type),
-        ).lastrowid
-
-    @staticmethod
-    def _section(conn, curriculum_id, slug, title):
-        return conn.execute(
-            """
-            INSERT INTO curriculum_sections
-                (curriculum_id, section_slug, title_bg, class, section_type)
-            VALUES (?, ?, ?, 8, 'content')
-            """,
-            (curriculum_id, slug, title),
-        ).lastrowid
-
-    @staticmethod
-    def _topic(conn, section_id, slug, title):
-        topic_id = conn.execute(
-            """
-            INSERT INTO curriculum_topics (section_id, topic_slug, title_bg)
-            VALUES (?, ?, ?)
-            """,
-            (section_id, slug, title),
-        ).lastrowid
-        conn.execute(
-            """
-            INSERT INTO topic_section_assignments (topic_id, section_id, is_primary)
-            VALUES (?, ?, 1)
-            """,
-            (topic_id, section_id),
-        )
-        conn.execute(
-            "INSERT INTO topic_classes (topic_id, class) VALUES (?, 8)", (topic_id,)
-        )
-        return topic_id
-
-    @staticmethod
     def _question(conn, topic_id, subject, number, prompt):
-        question_id = conn.execute(
-            """
-            INSERT INTO questions
-                (source_exam, source_number, subject, topic_id,
-                 question_type, points, prompt)
-            VALUES ('f2-browser-fixture', ?, ?, ?, 'multiple_choice', 1, ?)
-            """,
-            (number, subject, topic_id, prompt),
-        ).lastrowid
-        if number in (1, 2):
-            conn.execute(
-                """
-                INSERT INTO multiple_choice_options
-                    (question_id, option_letter, option_text, is_correct)
-                VALUES (?, 'A', ?, 1)
-                """,
-                (question_id, f"F2 отговор {number}"),
-            )
-        return question_id
+        # Only the first two questions carry an answer option.
+        options = {"A": f"F2 отговор {number}"} if number in (1, 2) else None
+        return add_question(conn, topic_id, subject, number, source="f2-browser-fixture",
+                            prompt=prompt, options=options)
 
     def setUp(self):
         self.client = self.app.test_client()

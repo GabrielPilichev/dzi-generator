@@ -1,0 +1,29 @@
+{# Preparation/empty states shared by every generic subject page. Subject-neutral:
+   callers pass the wording, never a subject-specific class. #}
+
+{% macro preparation_hero(eyebrow, title, description, pill, meta) %}
+<section class="hero subject-hero subject-hero--placeholder" data-motion="intro">
+    <p class="eyebrow">{{ eyebrow }}</p>
+    <h1 data-motion-item="headline">{{ title }}</h1>
+    <p class="subtitle" data-motion-item="description">{{ description }}</p>
+    <div class="subject-meta">
+        <span class="pill subject-pill">{{ pill }}</span>
+        <span>{{ meta }}</span>
+    </div>
+</section>
+{% endmacro %}
+
+{% macro status_panel(heading_id, eyebrow, title, body, badge, shell=false) %}
+<section class="panel subject-status-panel{% if shell %} subject-grade-shell{% endif %}" aria-labelledby="{{ heading_id }}">
+    <div>
+        <p class="eyebrow">{{ eyebrow }}</p>
+        <h2 id="{{ heading_id }}">{{ title }}</h2>
+        <p class="subtitle">{{ body }}</p>
+    </div>
+    <span class="subject-soon">{{ badge }}</span>
+</section>
+{% endmacro %}
+
+{% macro empty_note(text) %}
+<p class="empty-state subject-empty-state">{{ text }}</p>
+{% endmacro %}

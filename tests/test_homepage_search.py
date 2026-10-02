@@ -6,7 +6,10 @@ from urllib.parse import parse_qs, urlparse
 
 _ROOT = Path(__file__).resolve().parents[1]
 
+from src.subject_registry import get_subject
 from tests.support import IsolatedAppTestCase, web_app
+
+PHYSICS_PLACEHOLDER_GROUPS = get_subject("physics").placeholder_topic_groups
 
 
 class _HTMLProbe(HTMLParser):
@@ -223,22 +226,26 @@ class HomepageSearchTest(IsolatedAppTestCase):
         self.assertNotIn("Движение и сили", parsed.text)
         self.assertIn("все още няма реални въпроси", parsed.text)
 
-    def test_legacy_physics_routes_still_render_subject_framework(self):
+    def test_legacy_physics_routes_redirect_permanently_to_the_subject_pages(self):
         response = self.client.get("/physics")
+        self.assertEqual(response.status_code, 301)
+        self.assertEqual(urlparse(response.headers["Location"]).path, "/subjects/physics")
 
-        self.assertEqual(response.status_code, 200)
-        parsed = _HTMLProbe(response.get_data(as_text=True))
-        self.assertIn("Физика", parsed.text)
-        self.assertIn("/subjects/physics/8", parsed.hrefs())
+        for grade in (8, 9, 10, 11, 12):
+            response = self.client.get(f"/physics/grade/{grade}")
+            self.assertEqual(response.status_code, 301)
+            self.assertEqual(
+                urlparse(response.headers["Location"]).path, f"/subjects/physics/{grade}"
+            )
 
-        response = self.client.get("/physics/grade/8")
+        response = self.client.get("/physics/grade/8", follow_redirects=True)
         self.assertEqual(response.status_code, 200)
         parsed = _HTMLProbe(response.get_data(as_text=True))
         self.assertIn("Механика", parsed.text)
         self.assertIn("/subjects/physics/8/mechanics", parsed.hrefs())
 
     def test_physics_grade_pages_render_configured_topic_groups(self):
-        for grade, topic_groups in web_app.PHYSICS_TOPIC_GROUPS_BY_GRADE.items():
+        for grade, topic_groups in PHYSICS_PLACEHOLDER_GROUPS.items():
             with self.subTest(grade=grade):
                 response = self.client.get(f"/subjects/physics/{grade}")
 
@@ -259,7 +266,7 @@ class HomepageSearchTest(IsolatedAppTestCase):
                 self.assertIn("/subjects/physics", parsed.hrefs())
 
     def test_physics_topic_group_page_renders_preparation_placeholder(self):
-        topic_group = web_app.PHYSICS_TOPIC_GROUPS_BY_GRADE[8][0]
+        topic_group = PHYSICS_PLACEHOLDER_GROUPS[8][0]
         response = self.client.get(f"/subjects/physics/8/{topic_group['slug']}")
 
         self.assertEqual(response.status_code, 200)

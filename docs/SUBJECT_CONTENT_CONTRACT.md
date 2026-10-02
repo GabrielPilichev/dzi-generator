@@ -1,6 +1,18 @@
-# Subject identity and content ownership
+# Subject identity, content ownership and the generic subject experience
 
-## Canonical registry
+Every subject uses the same routes, templates, styles and controller code:
+
+```
+Subject   src/subject_registry.py
+ └ Grade    curricula.grade = curriculum_sections.class
+    └ Section  curriculum_sections (subject through its curriculum)
+       └ Topic   curriculum_topics.section_id + topic_section_assignments
+          └ Questions  questions.topic_id, questions.subject
+```
+
+Adding a subject is a registry entry plus data (see "Adding a subject").
+
+## Canonical registry: what a subject is
 
 `src/subject_registry.py` is the single list of LearnPilot subjects. It holds
 static product metadata only: canonical id, URL route slug, Bulgarian title and
@@ -25,20 +37,31 @@ the bare names `informatika` and `Информатика` are deliberately not a
 Unknown values have no fallback. URLs accept route slugs only, never ids or
 legacy aliases.
 
-Being registered does not imply content. Availability is derived, not stored:
-a subject is `active` when it owns at least one section, in a declared grade,
-whose class equals its curriculum grade (`subject_content_grades`); otherwise it
-is `in_preparation` and shows the existing "В ПОДГОТОВКА" presentation. Teacher
-subject buttons and homepage/navigation status follow the same derivation, so
-importing reviewed content activates a subject without route changes. If the
-database cannot be read, every subject degrades to `in_preparation`.
+The registry never describes curriculum. The one exception is Physics'
+navigation-only `placeholder_topic_groups` (see "Placeholders and status").
+
+## Database: what a subject contains
+
+Curriculum structure and questions live only in the database, in the existing
+tables; there is no `subjects` table and no per-subject schema.
+
+- `curricula` declares a subject and a grade (several `education_type` rows per
+  subject and grade are allowed).
+- `curriculum_sections` belongs to one curriculum; `section_slug` is globally
+  unique and `display_order` orders sections in a grade.
+- `curriculum_modules` is optional. A section may have no module, and a subject
+  needs none.
+- `curriculum_topics.section_id` is a topic's primary section;
+  `topic_section_assignments` lists every section it appears in.
+  `topic_slug` is globally unique. Topics have no stored order inside a section
+  and are listed by title.
+- `questions.topic_id` and `questions.subject` attach a question.
 
 Each subject declares the grades it supports (currently 8-12 for all six). A
 declared grade without content is an intentional preparation page; an
-undeclared grade is a 404, and the importer rejects it. Only `it` carries the
-`dzi` flag, which gates the DZI homepage entry, practical-task panel and
-"ДЗИ източник" wording. Physics keeps navigation-only placeholder topic groups
-that retire per grade once that grade has database content.
+undeclared grade is a 404, and the importer rejects it.
+
+## Ownership inheritance
 
 Ownership is read through the existing records:
 
@@ -59,24 +82,136 @@ These helpers only read the database; they do not repair or hide old rows.
 
 Current seed exceptions: one unclassified section has no curriculum, and ten
 questions have no `topic_id`. Existing IT/DZI routes continue to handle these
-as before. The IT-only question generator now rejects topics outside `it`
-before generating or saving an IT/DZI-labelled question.
+as before. The IT-only question generator rejects topics outside `it` before
+generating or saving an IT/DZI-labelled question.
 
-F2 browsing uses `src/subject_browsing.py` to select sections, topics,
-questions, counts, and homepage search titles through these ownership rules.
-The legacy `/grade/<n>` and `/section/<slug>` paths remain IT-only; the latter
-still permits the known curriculum-less section URL without assigning it an IT
-owner. A populated generic subject/class page uses its own database sections,
-while an empty Physics class keeps its provisional cards.
+`src/subject_browsing.py` selects sections, topics, questions, counts and
+homepage search titles through these rules, and `src/subject_browse_cache.py`
+caches the detached results per database version. A record that is not
+consistently owned by the requested subject is never shown.
 
-F3 new assignment selection uses `src/subject_assessment.py`. The selected
+## Canonical subject URLs
+
+| URL | Page |
+|---|---|
+| `/subjects/<subject>` | Subject: its declared grades |
+| `/subjects/<subject>/<grade>` | Grade: sections, grouped by module when a grade has several |
+| `/subjects/<subject>/<grade>/<section>` | Section: topics, review questions, test action |
+| `/subjects/<subject>/<grade>/<section>/<topic>` | Topic: description, its questions, test action |
+
+`<subject>` is a registry route slug. Every level is checked: the subject must
+be registered, the grade declared, the section owned by that subject in that
+grade, and the topic an owned member of that section. Anything else is a 404,
+including another subject's section or topic and a topic with a cross-subject
+membership. Subject browsing is public.
+
+The section endpoint is still named `subject_topic_group_view` (its URL argument
+`topic_group_slug`): the same URL serves a stored section or, for a grade
+without stored sections, a Physics placeholder group.
+
+Legacy URLs:
+
+- `/grade/<n>` and `/section/<slug>` remain the IT-only pages and are where IT
+  class links point (`legacy_grade_routes`). `/section/<slug>` still permits
+  the known curriculum-less section without assigning it an IT owner.
+- `/physics` and `/physics/grade/<n>` are permanent (301) redirects to
+  `/subjects/physics` and `/subjects/physics/<n>`; an undeclared grade is a 404.
+
+### Section and topic slugs in URLs
+
+The reviewed importer namespaces new section and topic slugs as
+`<subject id>-g<grade>-...`. URLs do not repeat what they already say:
+
+- Links are built with `public_slug`: a stored slug that starts with the
+  namespace of the URL's own subject and grade is shortened
+  (`physics-g8-mechanics` → `/subjects/physics/8/mechanics`); any other slug
+  is used as stored (all existing IT slugs, and a topic listed in a section of
+  another grade).
+- Lookups use `stored_slug_candidates`: the namespaced form first, then the
+  exact slug. Full stored slugs therefore stay valid URLs, existing IT slugs
+  are unaffected, and a Physics placeholder URL such as
+  `/subjects/physics/8/mechanics` keeps working when a stored section with the
+  slug `physics-g8-mechanics` replaces the placeholder.
+- A subject must not own both `<namespace>x` and `x` in one grade; `x` would be
+  shadowed. The importer's namespace rule prevents this for new content.
+
+## Shared page components
+
+There are no per-subject templates or styles. The generic pages are
+`subject.html`, `subject_grade.html`, `subject_section.html` and
+`subject_topic.html`. Three partials are shared with the legacy IT section
+page (`section.html`), so review features exist once:
+
+- `_question_cards.html`: the read-only question list.
+- `_section_toolbar.html`: the review banner with the test action, the
+  search/filter toolbar and the `section-tools.js` include.
+- `_subject_states.html`: preparation hero, status panel and empty note.
+
+The toolbar's bookmark key is the stored section slug on section pages (the IT
+legacy page and the generic page of one section share bookmarks) and
+`<section slug>/<topic slug>` on topic pages.
+
+A topic page filters its section's cached topics and questions; it runs no
+query of its own. A topic description is shown only when it is prose; vault
+link residue such as `- [[moc]]` is never displayed.
+
+## Assessments are section-scoped
+
+`src/subject_assessment.py` scopes new assignment selection. The selected
 section supplies the subject; its MC and accepted-text open candidates must
-have F1-consistent question ownership and membership in that section. New
-mixed plans are validated before persistence. The teacher form defaults to IT
-for old links and can select any registered subject (buttons appear for subjects
-with content); unknown or mismatched subject requests are rejected. Existing persisted plans, metadata-only edits,
-duplication's verbatim snapshot copy, and started attempt snapshots are not
-regenerated. The IT-only DZI training generator excludes non-IT and
-unclassified questions, even when class membership matches. Reviewed non-DZI
-import tooling remains F4. No Physics questions, migrations, tables, or
-curriculum decisions are added.
+have consistent question ownership and membership in that section. New mixed
+plans are validated before persistence. The teacher form defaults to IT for old
+links and can select any registered subject (buttons appear for subjects with
+sections); unknown or mismatched subject requests are rejected.
+
+The "Създай тест от раздела" action on section and topic pages opens
+`/teacher/new?subject=<route slug>&section=<stored section slug>`. A test
+created from a topic page draws from the whole section: `quiz_assignments`
+references a section only and there are no topic-scoped assignments.
+
+Existing persisted plans, metadata-only edits, duplication's verbatim snapshot
+copy, and started attempt snapshots are not regenerated. The IT-only DZI
+training generator excludes non-IT and unclassified questions, even when class
+membership matches. Only `it` carries the `dzi` flag, which gates the DZI
+homepage entry, practical-task panel and "ДЗИ източник" wording.
+
+## Placeholders and status
+
+Being registered does not imply content. Availability is derived, not stored:
+a subject is `active` when it owns at least one section, in a declared grade,
+whose class equals its curriculum grade (`subject_content_grades`); otherwise it
+is `in_preparation`. Navigation and the teacher subject buttons use this one
+cheap, section-based status. If the database cannot be read, every subject
+degrades to `in_preparation`.
+
+Pages that already know question counts distinguish three presentations:
+
+| Stored content | Homepage card | Subject and grade pages |
+|---|---|---|
+| No sections | "Бъдещ предмет", inactive | Preparation shells for every declared grade |
+| Sections, no questions | "Предмет в подготовка", class links, "Въпросите са в подготовка" | Browsable sections and topics; no review tools or test action |
+| Sections and questions | "Активен предмет", counts | Full review and test creation |
+
+Physics keeps navigation-only placeholder topic groups in the registry. They
+are shown for a grade only while that grade has no stored sections, and retire
+per grade once it does. Placeholder groups have no topics and no topic pages.
+No other subject has placeholders, and new ones should not be added: stored
+sections are the structure.
+
+## Adding a subject
+
+1. Add one `SubjectDefinition` to `SUBJECTS` in `src/subject_registry.py` (id,
+   route slug, title, description, search terms, declared grades).
+2. Load its curriculum rows and reviewed questions into the database.
+
+No route, template, stylesheet or controller change is needed;
+`tests/test_subject_generic_flow.py` registers a synthetic subject and walks it
+through the homepage, navigation, subject, grade, section and topic pages and
+the teacher flow to keep that true.
+
+Content tooling today: `src/import_reviewed_subject_questions.py`
+(`docs/REVIEWED_SUBJECT_IMPORT.md`) imports one curriculum, one section, one
+topic and text-only multiple-choice questions per batch. Importing curriculum
+structure without questions, and a stored topic order within a section, are
+future work. No Physics or other curriculum decisions are made by this
+architecture.

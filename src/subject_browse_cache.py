@@ -152,6 +152,10 @@ class CachedSubjectBrowser:
         return self._read(("section", slug, grade, legacy_unclassified), lambda browser:
                           browser.section(slug, grade=grade, legacy_unclassified=legacy_unclassified))
 
+    def section_for_url(self, url_slug, grade):
+        return self._read(("section_url", url_slug, grade), lambda browser:
+                          browser.section_for_url(url_slug, grade))
+
     def topics_in_section(self, section_id):
         return self._read(("topics", section_id), lambda browser: browser.topics_in_section(section_id))
 
