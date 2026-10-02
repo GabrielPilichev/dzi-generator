@@ -362,6 +362,87 @@ class PracticalTaskDownloadsTest(IsolatedAppTestCase):
         self.assertEqual(resolved.kind, "file")
         self.assertEqual(resolved.path.read_bytes(), b"fake practical resource")
 
+    def _use_external_reference_root(self) -> Path:
+        """Reference data outside the checkout, as DZI_REFERENCE_ROOT configures it."""
+        root = self.project_root / "state" / "reference"
+        (root / "may_2025_v2").mkdir(parents=True)
+        (root / "may_2025_v2" / "Shipments.xlsx").write_bytes(b"external reference bytes")
+        web_app.PRACTICAL_REFERENCE_ROOT = root
+        web_app.PRACTICAL_RESOURCE_ROOTS = (root, self.project_root / "data" / "assets")
+        return root
+
+    def _resolve_configured(self, reference: str):
+        return resolve_resource_reference(
+            reference,
+            project_root=self.project_root,
+            allowed_roots=web_app.PRACTICAL_RESOURCE_ROOTS,
+            reference_root=web_app.PRACTICAL_REFERENCE_ROOT,
+        )
+
+    def test_configured_reference_root_serves_files_and_zip_members(self):
+        root = self._use_external_reference_root()
+        with zipfile.ZipFile(root / "may_2025_v2" / "external.zip", "w") as archive:
+            archive.writestr("task_26/data.xlsx", b"external member")
+        member_id = self._insert_resource(
+            "data/reference/may_2025_v2/external.zip::task_26/data.xlsx", "data.xlsx")
+
+        ordinary = self.client.get("/dzi/practical/resource/1/download")
+        try:
+            self.assertEqual(ordinary.status_code, 200)
+            self.assertEqual(ordinary.data, b"external reference bytes")
+        finally:
+            ordinary.close()
+        member = self.client.get(f"/dzi/practical/resource/{member_id}/download")
+        self.assertEqual(member.status_code, 200)
+        self.assertEqual(member.data, b"external member")
+        self.assertTrue(web_app.practical_resource_status(
+            {"resource_path": str(self.resource_path)})["is_available"])
+
+    def test_configured_reference_root_never_falls_back_to_the_checkout(self):
+        self._use_external_reference_root()
+        # Present only in the checkout's data/reference.
+        self.assertTrue((self.project_root / self.unicode_resource_path).is_file())
+        with self.assertRaisesRegex(ResourceResolutionError, "missing_file"):
+            self._resolve_configured(str(self.unicode_resource_path))
+        status = web_app.practical_resource_status(
+            {"resource_path": str(self.unicode_resource_path)})
+        self.assertTrue(status["is_path_safe"])
+        self.assertFalse(status["is_available"])
+
+    def test_configured_reference_root_does_not_redirect_assets(self):
+        root = self._use_external_reference_root()
+        asset = self.project_root / "data" / "assets" / "exams" / "figure.png"
+        asset.parent.mkdir(parents=True)
+        asset.write_bytes(b"checkout asset")
+        (root / "exams").mkdir()
+        (root / "exams" / "figure.png").write_bytes(b"not an asset")
+        (root.parent / "assets" / "exams").mkdir(parents=True)
+        (root.parent / "assets" / "exams" / "figure.png").write_bytes(b"not an asset")
+
+        resolved = self._resolve_configured("data/assets/exams/figure.png")
+        self.assertEqual(resolved.path, asset.resolve())
+        self.assertEqual(resolved.path.read_bytes(), b"checkout asset")
+
+    def test_configured_reference_root_keeps_containment_checks(self):
+        root = self._use_external_reference_root()
+        outside = self.project_root / "state" / "secret.txt"
+        outside.write_bytes(b"outside")
+        (root / "link.txt").symlink_to(outside)
+        for reference in ("data/reference/link.txt", "data/reference/../secret.txt",
+                          "data/reference", "data/referenceX/may_2025_v2/Shipments.xlsx",
+                          str(root / "may_2025_v2" / "Shipments.xlsx")):
+            with self.subTest(reference=reference):
+                with self.assertRaises(ResourceResolutionError) as caught:
+                    self._resolve_configured(reference)
+                self.assertIn(caught.exception.reason, {"unsafe_path", "missing_file"})
+        with self.assertRaisesRegex(ResourceResolutionError, "unsafe_path"):
+            self._resolve_configured("data/reference/link.txt")
+
+    def test_unconfigured_reference_root_keeps_checkout_resolution(self):
+        self.assertIsNone(web_app.PRACTICAL_REFERENCE_ROOT)
+        self.assertEqual(self._resolve_configured(str(self.resource_path)).path,
+                         (self.project_root / self.resource_path).resolve())
+
     def test_missing_member_and_directory_are_rejected(self):
         self._zip_reference("task_26/actual.xlsx")
         for member in ("task_26/missing.xlsx", "task_26/"):

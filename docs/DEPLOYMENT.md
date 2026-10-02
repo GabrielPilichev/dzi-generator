@@ -4,23 +4,25 @@
 Internet -> Nginx (80/443) -> Gunicorn 127.0.0.1:8000 (1 sync worker) -> Flask (web.wsgi:app) -> SQLite/WAL
 ```
 
-Templates live in `deploy/`. Replace `learnpilot.example.com` with the real
-domain only on the server; never commit domains, IP addresses or secrets.
+Templates in `deploy/` already use the layout below and install without path
+edits. Replace `learnpilot.example.com` in the Nginx template with the real
+domain (production: `learnpilot.bg`) only on the server; never commit domains, IP addresses or secrets.
 
 | Path | Purpose | Owner / mode |
 | --- | --- | --- |
-| `/srv/learnpilot/app` | Git checkout (code, templates, static files) | `root`, world-readable; read-only to the service |
-| `/srv/learnpilot/venv` | Python virtual environment | `root` |
+| `/opt/learnpilot/app` | Git checkout (code, templates, static files) | `root`, world-readable; read-only to the service |
+| `/opt/learnpilot/venv` | Python virtual environment | `root` |
 | `/etc/learnpilot/learnpilot.env` | Secrets and state paths | `root:root` `0600` |
 | `/etc/learnpilot/backup.env` | Backup state paths only | `root:root` `0600` |
-| `/var/lib/learnpilot/questions.db` | Live database (`DZI_DB`) | `learnpilot` `0600` |
+| `/var/lib/learnpilot/data/questions.db` | Live database (`DZI_DB`) | `learnpilot` `0600` (directory `0750`) |
+| `/var/lib/learnpilot/data/reference` | Official DZI reference resources (`DZI_REFERENCE_ROOT`); read, never written, by the app; not in snapshots | `learnpilot` `0750` |
 | `/var/lib/learnpilot/uploads/practical` | Student uploads (`DZI_UPLOAD_ROOT`) | `learnpilot` `0750` |
 | `/var/lib/learnpilot/vault` | Generated quiz notes (`DZI_VAULT`) | `learnpilot` `0750` |
 | `/var/backups/learnpilot` | Completed application snapshots | `learnpilot` `0700` |
 
 The repository tracks a seed `data/questions.db`. Production state must stay
 outside the checkout so a `git pull` can never replace live data; startup
-refuses state paths inside `/srv/learnpilot/app`.
+refuses state paths inside `/opt/learnpilot/app`.
 
 ## 1. Ubuntu prerequisites
 
@@ -42,9 +44,10 @@ echo 'vm.swappiness=10' | sudo tee /etc/sysctl.d/99-learnpilot-swap.conf && sudo
 
 ```bash
 sudo adduser --system --group --home /var/lib/learnpilot --no-create-home learnpilot
-sudo install -d -o root -g root -m 0755 /srv/learnpilot
+sudo install -d -o root -g root -m 0755 /opt/learnpilot
 sudo install -d -o root -g learnpilot -m 0750 /etc/learnpilot
 sudo install -d -o learnpilot -g learnpilot -m 0750 /var/lib/learnpilot \
+  /var/lib/learnpilot/data /var/lib/learnpilot/data/reference \
   /var/lib/learnpilot/uploads /var/lib/learnpilot/uploads/practical /var/lib/learnpilot/vault
 sudo install -d -o learnpilot -g learnpilot -m 0700 /var/backups/learnpilot
 
@@ -58,8 +61,8 @@ sudo ufw status verbose
 ## 3. Repository deployment
 
 ```bash
-sudo git clone <repository-url> /srv/learnpilot/app
-cd /srv/learnpilot/app && sudo git checkout <release-commit-or-tag>
+sudo git clone <repository-url> /opt/learnpilot/app
+cd /opt/learnpilot/app && sudo git checkout <release-commit-or-tag>
 ```
 
 For a private GitHub repository, provision read-only deploy-key or other
@@ -67,41 +70,47 @@ authenticated Git access before cloning. Keep the private key outside the
 checkout; do not commit it or place it in the service environment file.
 
 `data/reference/` (official DZI PDFs/ZIP resources for practical-task
-downloads) is git-ignored. If those downloads are needed, copy it from a trusted
-workstation into `/srv/learnpilot/app/data/reference/` (read-only, root-owned):
+downloads) is git-ignored and is never placed in the production checkout. The
+database stores these resources as `data/reference/...`; in production
+`DZI_REFERENCE_ROOT` (section 6) maps that prefix to
+`/var/lib/learnpilot/data/reference`. If those downloads are needed, copy the
+tree from a trusted workstation, keeping the same layout below `data/reference/`:
 
 ```bash
 rsync -a data/reference/ <admin>@<server>:/tmp/learnpilot-reference/   # on the workstation
-sudo rsync -a --chown=root:root --chmod=D755,F644 \
-  /tmp/learnpilot-reference/ /srv/learnpilot/app/data/reference/
+sudo rsync -a --chown=learnpilot:learnpilot --chmod=D755,F644 \
+  /tmp/learnpilot-reference/ /var/lib/learnpilot/data/reference/
 ```
+
+The workstation copy remains the source: snapshots (section 16) do not contain
+reference data.
 
 ## 4. Python virtual environment
 
 ```bash
-sudo python3 -m venv /srv/learnpilot/venv
-sudo /srv/learnpilot/venv/bin/pip install --upgrade pip
+sudo python3 -m venv /opt/learnpilot/venv
+sudo /opt/learnpilot/venv/bin/pip install --upgrade pip
 ```
 
 ## 5. Dependencies
 
 ```bash
-sudo /srv/learnpilot/venv/bin/pip install -r /srv/learnpilot/app/requirements.txt
+sudo /opt/learnpilot/venv/bin/pip install -r /opt/learnpilot/app/requirements.txt
 ```
 
 `requirements.txt` constrains Flask, Werkzeug and Gunicorn (the production server).
 Record the first-deploy runtime and installed versions as deployment evidence:
 
 ```bash
-/srv/learnpilot/venv/bin/python --version
-/srv/learnpilot/venv/bin/pip freeze
+/opt/learnpilot/venv/bin/python --version
+/opt/learnpilot/venv/bin/pip freeze
 ```
 
 ## 6. Environment configuration
 
 ```bash
 sudo install -o root -g root -m 0600 \
-  /srv/learnpilot/app/deploy/learnpilot.env.example /etc/learnpilot/learnpilot.env
+  /opt/learnpilot/app/deploy/learnpilot.env.example /etc/learnpilot/learnpilot.env
 python3 -c 'import secrets; print(secrets.token_urlsafe(48))'   # value for DZI_SECRET_KEY
 sudoedit /etc/learnpilot/learnpilot.env
 ```
@@ -114,6 +123,7 @@ sudoedit /etc/learnpilot/learnpilot.env
 | `DZI_DB` | yes | absolute path of the existing live database, outside the checkout |
 | `DZI_UPLOAD_ROOT` | yes | absolute, existing, writable directory outside the checkout |
 | `DZI_VAULT` | yes | absolute, existing, writable directory outside the checkout |
+| `DZI_REFERENCE_ROOT` | no | absolute, existing, readable directory outside the checkout holding the contents of `data/reference/`. Unset: the app looks in the checkout's `data/reference/`, which production does not have, so practical-task downloads show as unavailable |
 | `DZI_PUBLIC_HOST` | yes | the real public DNS hostname in Nginx `server_name`, without scheme or port. It is exactly **one** trusted hostname: a future `www` alias must be deliberately supported in the application (and Certbot), not merely added to Nginx, or Flask answers it with 400 |
 | `DZI_SOURCE_URL` | no | optional footer link |
 | `DZI_SESSION_COOKIE_SECURE` | no | leave unset; any false value is rejected (HTTPS-only cookies) |
@@ -122,6 +132,13 @@ sudoedit /etc/learnpilot/learnpilot.env
 `web.wsgi` validates all of this before importing the app and stops with a
 message naming the problem settings (never their values). Development runs
 (`python3 web/app.py`, tests, the tunnel runner) keep their existing defaults.
+Production values: `DZI_DB=/var/lib/learnpilot/data/questions.db`,
+`DZI_UPLOAD_ROOT=/var/lib/learnpilot/uploads/practical`,
+`DZI_VAULT=/var/lib/learnpilot/vault`,
+`DZI_REFERENCE_ROOT=/var/lib/learnpilot/data/reference`,
+`DZI_PUBLIC_HOST=learnpilot.bg`. An environment file installed before
+`DZI_REFERENCE_ROOT` existed needs that line added by hand (`sudoedit`); the
+Gunicorn check in section 10 validates it before a restart.
 systemd reads `EnvironmentFile` as manager before dropping to `User=learnpilot`;
 the service user does not need read access to the root-owned secret file.
 
@@ -135,7 +152,10 @@ The systemd unit makes the whole filesystem read-only for the service
 - quiz notes and DZI training sets under `DZI_VAULT`;
 - temporary upload spool files in the service's private `/tmp`.
 
-Nginx (`www-data`) needs read access to `/srv/learnpilot/app/web/static/`
+It only reads `DZI_REFERENCE_ROOT`. Only stored `data/reference/...` resource
+paths resolve there; `data/assets/...` always resolves inside the checkout.
+
+Nginx (`www-data`) needs read access to `/opt/learnpilot/app/web/static/`
 (the default world-readable checkout is enough). Uploads are never served by
 Nginx; downloads go through the app's authorization checks.
 
@@ -164,12 +184,14 @@ Create the live database from the tracked seed with the online backup tool
 (safe for WAL databases; never `cp` a live SQLite file):
 
 ```bash
-cd /srv/learnpilot/app
-sudo /srv/learnpilot/venv/bin/python -m src.backup_sqlite \
-  --db data/questions.db --output /var/lib/learnpilot/questions.db
-sudo chown learnpilot:learnpilot /var/lib/learnpilot/questions.db
-sudo -u learnpilot sqlite3 /var/lib/learnpilot/questions.db 'PRAGMA journal_mode=WAL;'
+cd /opt/learnpilot/app
+sudo /opt/learnpilot/venv/bin/python -m src.backup_sqlite \
+  --db data/questions.db --output /var/lib/learnpilot/data/questions.db
+sudo chown learnpilot:learnpilot /var/lib/learnpilot/data/questions.db
+sudo -u learnpilot sqlite3 /var/lib/learnpilot/data/questions.db 'PRAGMA journal_mode=WAL;'
 ```
+
+(`/var/lib/learnpilot/data` must already exist, owned by `learnpilot`; see section 2.)
 
 ## 9. Schema / pre-start step
 
@@ -180,12 +202,12 @@ Schema changes happen only through this explicit step, with the service
 stopped or before restarting it:
 
 ```bash
-cd /srv/learnpilot/app
-sudo -u learnpilot /srv/learnpilot/venv/bin/python -m src.manage_migrations \
-  --db /var/lib/learnpilot/questions.db --dry-run
-# Only if migrations are pending: take a backup (section 16) first, then
-sudo -u learnpilot /srv/learnpilot/venv/bin/python -m src.manage_migrations \
-  --db /var/lib/learnpilot/questions.db --apply
+cd /opt/learnpilot/app
+sudo -u learnpilot /opt/learnpilot/venv/bin/python -m src.manage_migrations \
+  --db /var/lib/learnpilot/data/questions.db --dry-run
+# Only if migrations are pending: take a complete snapshot (section 16) first, then
+sudo -u learnpilot /opt/learnpilot/venv/bin/python -m src.manage_migrations \
+  --db /var/lib/learnpilot/data/questions.db --apply
 ```
 
 The runner's own automatic backup covers only the repository database, so
@@ -197,10 +219,10 @@ Before the first public start, run the complete suite inside the server venv
 with isolated temporary test databases, and retain the version evidence:
 
 ```bash
-cd /srv/learnpilot/app
-/srv/learnpilot/venv/bin/python --version
-/srv/learnpilot/venv/bin/pip freeze
-/srv/learnpilot/venv/bin/python -B -m unittest discover -s tests
+cd /opt/learnpilot/app
+/opt/learnpilot/venv/bin/python --version
+/opt/learnpilot/venv/bin/pip freeze
+/opt/learnpilot/venv/bin/python -B -m unittest discover -s tests
 ```
 
 ## 10. Gunicorn
@@ -212,8 +234,8 @@ production settings and schema without binding a port:
 
 ```bash
 sudo systemd-run --quiet --pipe --wait --uid=learnpilot --gid=learnpilot \
-  -p EnvironmentFile=/etc/learnpilot/learnpilot.env -p WorkingDirectory=/srv/learnpilot/app \
-  /srv/learnpilot/venv/bin/gunicorn --config deploy/gunicorn.conf.py --check-config
+  -p EnvironmentFile=/etc/learnpilot/learnpilot.env -p WorkingDirectory=/opt/learnpilot/app \
+  /opt/learnpilot/venv/bin/gunicorn --config deploy/gunicorn.conf.py --check-config
 ```
 
 `systemd-run` reads the environment file exactly as the service unit does
@@ -222,7 +244,8 @@ sudo systemd-run --quiet --pipe --wait --uid=learnpilot --gid=learnpilot \
 ## 11. systemd
 
 ```bash
-sudo cp /srv/learnpilot/app/deploy/systemd/learnpilot.service /etc/systemd/system/
+sudo cp /opt/learnpilot/app/deploy/systemd/learnpilot.service /etc/systemd/system/
+grep -n '/opt/learnpilot' /etc/systemd/system/learnpilot.service
 sudo systemctl daemon-reload
 sudo systemctl enable --now learnpilot
 systemctl status learnpilot
@@ -237,7 +260,7 @@ deploy code: with `preload_app`, a reload would keep the old code.
 ## 12. Nginx
 
 ```bash
-sudo cp /srv/learnpilot/app/deploy/nginx/learnpilot.conf /etc/nginx/sites-available/learnpilot
+sudo cp /opt/learnpilot/app/deploy/nginx/learnpilot.conf /etc/nginx/sites-available/learnpilot
 sudoedit /etc/nginx/sites-available/learnpilot        # replace learnpilot.example.com
 sudo ln -s /etc/nginx/sites-available/learnpilot /etc/nginx/sites-enabled/learnpilot
 sudo rm /etc/nginx/sites-enabled/default               # the template has its own default_server
@@ -300,6 +323,11 @@ snapshot is published and every partial file is removed. There is deliberately
 no database-only fallback, so a directory named `snapshot-*` always means a
 complete snapshot.
 
+Reference data (`DZI_REFERENCE_ROOT`) is **not** in the snapshot. It is static
+official source material that the application never changes, provisioned from
+the workstation copy (section 3). Keep that copy; after losing the server,
+re-provision reference data from it rather than from a snapshot.
+
 Before doing any work the tool estimates the space needed from what it will
 actually store (the database and its WAL, the uploads tree and
 `DZI_VAULT/Generated`; never SHM, env files or other vault content), adds tar
@@ -315,11 +343,11 @@ Configure the backup unit with only state paths, without application secrets:
 
 ```bash
 sudo install -o root -g root -m 0600 \
-  /srv/learnpilot/app/deploy/learnpilot-backup.env.example /etc/learnpilot/backup.env
+  /opt/learnpilot/app/deploy/learnpilot-backup.env.example /etc/learnpilot/backup.env
 sudoedit /etc/learnpilot/backup.env  # confirm the same external state paths as learnpilot.env
-cd /srv/learnpilot/app
-sudo -u learnpilot /srv/learnpilot/venv/bin/python -m src.backup_application \
-  --db /var/lib/learnpilot/questions.db \
+cd /opt/learnpilot/app
+sudo -u learnpilot /opt/learnpilot/venv/bin/python -m src.backup_application \
+  --db /var/lib/learnpilot/data/questions.db \
   --uploads /var/lib/learnpilot/uploads/practical \
   --vault /var/lib/learnpilot/vault --output-dir /var/backups/learnpilot
 ```
@@ -333,7 +361,7 @@ snapshot. Verify backups with a test restore.
 Daily schedule:
 
 ```bash
-sudo cp /srv/learnpilot/app/deploy/systemd/learnpilot-backup.{service,timer} /etc/systemd/system/
+sudo cp /opt/learnpilot/app/deploy/systemd/learnpilot-backup.{service,timer} /etc/systemd/system/
 sudo systemctl daemon-reload && sudo systemctl enable --now learnpilot-backup.timer
 sudo systemctl start learnpilot-backup.service
 systemctl status learnpilot-backup.service
@@ -380,8 +408,8 @@ sudo find /var/backups/learnpilot -mindepth 1 -maxdepth 1 \
 ```
 
 After verification, delete individual printed snapshot paths deliberately.
-Also review manually created `pre-deploy-*.db` backups when retiring old
-releases; those are not part of the scheduled snapshot naming policy.
+Also review any legacy manually created `pre-deploy-*.db` backups when
+retiring old releases; those are not part of the snapshot naming policy.
 Watch `df -h /var/backups/learnpilot` so local snapshots do not consume the
 30 GB disk or the upload free-space reserve if they share a filesystem.
 
@@ -394,6 +422,11 @@ holds exactly two trees, relative to `/var/lib/learnpilot`: `uploads/practical/`
 `learnpilot.env.example`; if yours differ, extract into a scratch directory and
 copy `uploads/practical` and `vault` to your configured paths.
 
+Reference data is not part of a snapshot and a restore must not disturb it:
+only the database files are moved out of `/var/lib/learnpilot/data`, so
+`/var/lib/learnpilot/data/reference` stays in place. On a rebuilt server,
+provision it again as in section 3.
+
 Restore everything **while the service is stopped**, start it only at the end:
 
 ```bash
@@ -405,20 +438,21 @@ sudo -u learnpilot sqlite3 "$SNAP/questions.db" 'PRAGMA quick_check;'   # expect
 sudo tar -tzf "$SNAP/files.tar.gz" | head                            # expect uploads/practical/... and vault/...
 
 # 2. Move the current state aside, together (database + sidecars, uploads, vault).
+#    Not the data directory itself: data/reference stays where it is.
 STAMP=$(date -u +%Y%m%dT%H%M%SZ)
 sudo install -d -o learnpilot -g learnpilot -m 0700 /var/lib/learnpilot/replaced-$STAMP
-sudo sh -c "mv /var/lib/learnpilot/questions.db* /var/lib/learnpilot/uploads \
+sudo sh -c "mv /var/lib/learnpilot/data/questions.db* /var/lib/learnpilot/uploads \
   /var/lib/learnpilot/vault /var/lib/learnpilot/replaced-$STAMP/"
 
 # 3. Restore the database, then the files, as the service user.
-sudo install -o learnpilot -g learnpilot -m 0600 "$SNAP/questions.db" /var/lib/learnpilot/questions.db
-sudo -u learnpilot sqlite3 /var/lib/learnpilot/questions.db 'PRAGMA journal_mode=WAL;'
+sudo install -o learnpilot -g learnpilot -m 0600 "$SNAP/questions.db" /var/lib/learnpilot/data/questions.db
+sudo -u learnpilot sqlite3 /var/lib/learnpilot/data/questions.db 'PRAGMA journal_mode=WAL;'
 sudo install -d -o learnpilot -g learnpilot -m 0750 /var/lib/learnpilot/uploads /var/lib/learnpilot/vault
 sudo -u learnpilot tar -C /var/lib/learnpilot -xzf "$SNAP/files.tar.gz"
 
 # 4. Check the schema, then start and confirm.
-cd /srv/learnpilot/app && sudo -u learnpilot /srv/learnpilot/venv/bin/python -m src.manage_migrations \
-  --db /var/lib/learnpilot/questions.db --dry-run
+cd /opt/learnpilot/app && sudo -u learnpilot /opt/learnpilot/venv/bin/python -m src.manage_migrations \
+  --db /var/lib/learnpilot/data/questions.db --dry-run
 sudo systemctl start learnpilot && curl -fsS http://127.0.0.1:8000/healthz
 ```
 
@@ -448,9 +482,12 @@ sudo systemctl restart systemd-journald
 
 ## 19. Health check
 
+Nginx only answers the real hostname, and Flask trusts exactly
+`DZI_PUBLIC_HOST`, so a direct Gunicorn request needs the matching `Host`:
+
 ```bash
-curl -fsS http://127.0.0.1:8000/healthz      # Gunicorn directly
-curl -fsS https://<your-domain>/healthz      # through Nginx
+curl -fsS -H 'Host: learnpilot.bg' http://127.0.0.1:8000/healthz   # Gunicorn directly
+curl -fsS https://learnpilot.bg/healthz                            # through Nginx
 ```
 
 `GET /healthz` returns `200 ok` after opening the database read-only and
@@ -460,30 +497,133 @@ cached. It never creates a missing database.
 
 ## 20. Deploy / update procedure
 
+Production data lives outside the checkout (`/var/lib/learnpilot/...`) and is
+never replaced by repository files. The tracked seed `data/questions.db` in the
+checkout is not the live database. Do not change Gunicorn workers or threads
+(section "2 GB VPS sizing"). Do not apply migrations blindly.
+
+**1. Verify the checkout is clean and on `main`.**
+
 ```bash
-cd /srv/learnpilot/app
-sudo -u learnpilot /srv/learnpilot/venv/bin/python -m src.backup_sqlite \
-  --db /var/lib/learnpilot/questions.db --output /var/backups/learnpilot/pre-deploy-$(date -u +%Y%m%dT%H%M%SZ).db
-sudo git fetch && sudo git checkout <new-release>
-sudo /srv/learnpilot/venv/bin/pip install -r requirements.txt
-# Section 9: migrations dry-run, then --apply only if pending.
-# Section 10: gunicorn --check-config.
-sudo systemctl restart learnpilot
-curl -fsS http://127.0.0.1:8000/healthz
+cd /opt/learnpilot/app
+git branch --show-current          # expect: main
+git status --short                 # expect: no output
 ```
 
-Then smoke-test the homepage, a subject page, tester login and test creation
-over HTTPS. With one worker, a restart causes a few seconds of unavailability.
-The tracked seed database in the checkout may change with a release; it is
-never the live database.
+Stop and investigate if either differs; never `git reset --hard` over
+unexplained local changes.
+
+**2. Record the current release commit** (needed for rollback):
+
+```bash
+PREV=$(git rev-parse HEAD); echo "$PREV"
+```
+
+**3. Create a complete pre-deploy snapshot** (SQLite database, practical
+uploads and `vault/Generated`) with the existing systemd backup unit, which
+reads `/etc/learnpilot/backup.env` (section 16):
+
+```bash
+sudo systemctl start learnpilot-backup.service    # blocks until finished
+systemctl is-failed learnpilot-backup.service     # must NOT print "failed"
+sudo ls -1dt /var/backups/learnpilot/snapshot-* | head -1   # note the new snapshot
+```
+
+The newest `snapshot-<stamp>/` must be from just now and contain
+`questions.db` and `files.tar.gz`. Equivalent manual command:
+
+```bash
+sudo -u learnpilot /opt/learnpilot/venv/bin/python -m src.backup_application \
+  --db /var/lib/learnpilot/data/questions.db \
+  --uploads /var/lib/learnpilot/uploads/practical \
+  --vault /var/lib/learnpilot/vault --output-dir /var/backups/learnpilot
+```
+
+Do not continue if the snapshot failed. A database-only `src.backup_sqlite`
+copy is not a sufficient pre-deploy backup.
+
+**4. Fetch:**
+
+```bash
+git fetch origin
+```
+
+**5. Update the checkout to the intended `main` release** without discarding
+anything (fast-forward only; the command fails rather than merging):
+
+```bash
+git log --oneline HEAD..origin/main        # review what will be deployed
+sudo git merge --ff-only origin/main       # or: sudo git checkout <reviewed-release-commit>
+git rev-parse HEAD
+```
+
+**6. Install requirements into the production venv:**
+
+```bash
+sudo /opt/learnpilot/venv/bin/pip install -r requirements.txt
+```
+
+**7. Migration dry run** against the production database:
+
+```bash
+sudo -u learnpilot /opt/learnpilot/venv/bin/python -m src.manage_migrations \
+  --db /var/lib/learnpilot/data/questions.db --dry-run
+```
+
+**8. If migrations are pending**, first confirm explicitly that the step 3
+snapshot succeeded (exit status, newest `snapshot-*` directory with both files).
+Only then apply, and only the migrations the dry run listed:
+
+```bash
+sudo -u learnpilot /opt/learnpilot/venv/bin/python -m src.manage_migrations \
+  --db /var/lib/learnpilot/data/questions.db --apply
+```
+
+If nothing is pending, skip this step. The runner's own automatic backup covers
+only the repository database, not production.
+
+**9. Check Gunicorn configuration** (section 10):
+
+```bash
+sudo systemd-run --quiet --pipe --wait --uid=learnpilot --gid=learnpilot \
+  -p EnvironmentFile=/etc/learnpilot/learnpilot.env -p WorkingDirectory=/opt/learnpilot/app \
+  /opt/learnpilot/venv/bin/gunicorn --config deploy/gunicorn.conf.py --check-config
+```
+
+**10. Restart the service** (`preload_app` means a reload would keep old code):
+
+```bash
+sudo systemctl restart learnpilot
+systemctl status learnpilot --no-pager
+```
+
+**11. Verify `/healthz`** with the correct `Host` header:
+
+```bash
+curl -fsS -H 'Host: learnpilot.bg' http://127.0.0.1:8000/healthz
+curl -fsS https://learnpilot.bg/healthz
+```
+
+**12. Smoke-test** over HTTPS: the homepage, a subject page, tester login and
+test creation; check `journalctl -u learnpilot --since "10 minutes ago" -p warning`.
+With one worker, a restart causes a few seconds of unavailability.
+
+**13. Rollback** if a step fails: see section 21, using `$PREV` from step 2 and
+the step 3 snapshot.
 
 ## 21. Rollback considerations
 
-- Code: check out the previous release, reinstall requirements, restart.
+- Code: `cd /opt/learnpilot/app && sudo git checkout <previous-commit>` (the
+  commit recorded in step 2 of section 20), reinstall requirements into
+  `/opt/learnpilot/venv`, restart, and verify `/healthz` with
+  `-H 'Host: learnpilot.bg'`. Return to `main` afterwards (`git checkout main`)
+  once the fix is ready.
 - Migrations are forward-only. Startup blocks only *pending* migrations; older
   code usually runs on a newer, additively migrated schema. If a release's
-  migration is not backward compatible, restore the pre-deploy database backup
-  (section 17), which discards writes made after it; decide that explicitly.
+  migration is not backward compatible, restore the pre-deploy snapshot
+  (section 17), which discards database writes, uploads and vault changes made
+  after it; decide that explicitly.
+- If no migration was applied, a code rollback needs no data restore.
 - Browsers may keep old CSS/JS for up to one hour (static cache lifetime).
 
 ## 2 GB VPS sizing

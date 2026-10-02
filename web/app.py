@@ -73,6 +73,7 @@ from web.blueprints.quiz import (
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DB_ENV = "DZI_DB"
 UPLOAD_ROOT_ENV = "DZI_UPLOAD_ROOT"
+REFERENCE_ROOT_ENV = "DZI_REFERENCE_ROOT"
 SKIP_STARTUP_MIGRATION_ENV = "DZI_SKIP_STARTUP_MIGRATION"
 SESSION_COOKIE_SECURE_ENV = "DZI_SESSION_COOKIE_SECURE"
 
@@ -81,6 +82,12 @@ def configured_db_path() -> Path:
     """The one database for browsing and quiz code: DZI_DB, else the repository seed."""
     configured = os.environ.get(DB_ENV)
     return Path(configured) if configured else PROJECT_ROOT / "data" / "questions.db"
+
+
+def configured_reference_root() -> Path | None:
+    """Where stored ``data/reference/...`` resources live, if not in the checkout."""
+    configured = os.environ.get(REFERENCE_ROOT_ENV)
+    return Path(configured) if configured else None
 
 
 DB_PATH = configured_db_path()
@@ -727,8 +734,11 @@ DZI_SESSION_LABELS = {
     "may": "май",
     "august": "август",
 }
+# DZI_REFERENCE_ROOT relocates only data/reference (official DZI resources);
+# data/assets always stays in the checkout.
+PRACTICAL_REFERENCE_ROOT = configured_reference_root()
 PRACTICAL_RESOURCE_ROOTS = (
-    PROJECT_ROOT / "data" / "reference",
+    PRACTICAL_REFERENCE_ROOT or PROJECT_ROOT / "data" / "reference",
     PROJECT_ROOT / "data" / "assets",
 )
 QUESTION_VISUAL_ASSET_TYPES = ("image", "pdf_crop")
@@ -1180,6 +1190,7 @@ def practical_resource_status(resource: dict) -> dict:
             resource.get("resource_path"),
             project_root=PROJECT_ROOT,
             allowed_roots=PRACTICAL_RESOURCE_ROOTS,
+            reference_root=PRACTICAL_REFERENCE_ROOT,
         )
     except ResourceResolutionError as exc:
         resource["is_path_safe"] = exc.reason not in {"unsafe_path", "invalid_archive"}
@@ -1847,6 +1858,7 @@ def dzi_practical_resource_download(resource_id: int):
             resource.get("resource_path"),
             project_root=PROJECT_ROOT,
             allowed_roots=PRACTICAL_RESOURCE_ROOTS,
+            reference_root=PRACTICAL_REFERENCE_ROOT,
         )
         download_name = safe_download_name(resource.get("original_filename"), resolved.filename)
         if resolved.kind == "zip_member":

@@ -14,10 +14,10 @@ Type=notify
 NotifyAccess=main
 User=learnpilot
 Group=learnpilot
-WorkingDirectory=/srv/learnpilot/app
+WorkingDirectory=/opt/learnpilot/app
 EnvironmentFile=/etc/learnpilot/learnpilot.env
 Environment=PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1
-ExecStart=/srv/learnpilot/venv/bin/gunicorn --config /srv/learnpilot/app/deploy/gunicorn.conf.py
+ExecStart=/opt/learnpilot/venv/bin/gunicorn --config /opt/learnpilot/app/deploy/gunicorn.conf.py
 
 # Graceful stop: SIGTERM to the master, which waits up to graceful_timeout (30 s).
 KillMode=mixed

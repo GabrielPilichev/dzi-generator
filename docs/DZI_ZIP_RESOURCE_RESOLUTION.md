@@ -12,6 +12,12 @@ and non-NFC references. ZIP members are selected by exact name; ambiguous,
 directory, symlink, encrypted, and unsupported-compression entries are
 rejected. Only stored and deflated members are supported.
 
+The stored `data/reference/...` prefix is logical. When `DZI_REFERENCE_ROOT` is
+set (production keeps reference data outside the checkout, see
+`docs/DEPLOYMENT.md`), that prefix resolves below the configured directory
+instead of the checkout and never falls back to it; `data/assets/...` is
+unaffected. Unset, both resolve inside the checkout as before.
+
 The current seed has 77 practical-resource records: 17 ordinary files and 60
 ZIP members in five archives. The largest referenced archive is under 6 MB;
 the largest referenced member is 2,945,849 bytes and the highest observed

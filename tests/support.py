@@ -52,7 +52,7 @@ def preserved_app_state():
         stack.enter_context(patch.dict(web_app.app.config))
         for name in (
             "DB_PATH", "QUIZ_DB_PATH", "QUIZ_VAULT_PATH", "PROJECT_ROOT",
-            "PRACTICAL_RESOURCE_ROOTS",
+            "PRACTICAL_RESOURCE_ROOTS", "PRACTICAL_REFERENCE_ROOT",
         ):
             stack.enter_context(patch.object(web_app, name, getattr(web_app, name)))
         yield
