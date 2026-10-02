@@ -176,11 +176,54 @@ class PublicBrowseCacheTest(unittest.TestCase):
         stack.enter_context(isolated_app())
         stack.enter_context(patch.object(cache_module, "browse_cache", BrowseResultCache()))
 
+    GENERIC_SECTION = "/subjects/information-technologies/8/grade8-computer-systems"
+
+    def _generic_topic(self):
+        """A topic page of GENERIC_SECTION, addressed through the public URL."""
+        with web_app.app.test_client() as client:
+            html = client.get(self.GENERIC_SECTION).get_data(as_text=True)
+        prefix = f'href="{self.GENERIC_SECTION}/'
+        self.assertIn(prefix, html)
+        return f"{self.GENERIC_SECTION}/" + html.split(prefix, 1)[1].split('"', 1)[0]
+
+    def _assert_read_only(self, statements):
+        for sql in statements:
+            self.assertIn(sql.strip().split()[0].upper(), {"SELECT", "PRAGMA"}, sql)
+            if sql.strip().upper().startswith("PRAGMA"):
+                self.assertIn(sql.strip().upper(), {
+                    "PRAGMA JOURNAL_MODE=WAL", "PRAGMA DATABASE_LIST", "PRAGMA QUERY_ONLY=ON",
+                })
+
+    def test_topic_page_adds_no_query_path_beyond_its_section(self):
+        topic = self._generic_topic()
+        with patch.object(cache_module, "browse_cache", BrowseResultCache()):
+            section, section_sql = traced_get(self.GENERIC_SECTION)
+            # First visit of the topic: everything it needs is the section's cached result.
+            first, first_sql = traced_get(topic)
+            again, again_sql = traced_get(topic)
+        self.assertEqual((section.status_code, first.status_code), (200, 200))
+        self.assertEqual(first.data, again.data)
+        self.assertGreater(len(section_sql), 3)
+        self.assertLessEqual(len(first_sql), 3, first_sql)
+        self.assertLessEqual(len(again_sql), 3, again_sql)
+        self._assert_read_only(section_sql + first_sql + again_sql)
+
+    def test_cold_topic_page_costs_no_more_than_its_section(self):
+        topic = self._generic_topic()
+        with patch.object(cache_module, "browse_cache", BrowseResultCache()):
+            _, section_sql = traced_get(self.GENERIC_SECTION)
+        with patch.object(cache_module, "browse_cache", BrowseResultCache()):
+            cold, topic_sql = traced_get(topic)
+        self.assertEqual(cold.status_code, 200)
+        self.assertLessEqual(len(topic_sql), len(section_sql))
+        self._assert_read_only(topic_sql)
+
     def test_public_statement_budgets_and_no_writes(self):
         # Seed-size regression ceilings: retain the original F1 resolver on
         # cold loads; warm reads have only WAL setup, availability, and DB path.
         paths = ("/", "/grade/12", "/section/grade12-dzi-preparation",
-                 "/subjects/information-technologies")
+                 "/subjects/information-technologies", self.GENERIC_SECTION,
+                 self._generic_topic())
         for path in paths:
             with self.subTest(path=path), patch.object(cache_module, "browse_cache", BrowseResultCache()):
                 cold, cold_sql = traced_get(path)

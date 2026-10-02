@@ -72,13 +72,15 @@
 
     <div class="home-subject-grid" data-motion="stagger">
         {% for subject in subjects %}
+            {# Sections but no questions yet: browsable structure, not a ready question bank. #}
+            {% set structure_only = subject.has_real_content and not subject.question_count %}
             <article
-                class="mode-card home-subject-card {% if subject.has_real_content %}home-subject-card--it{% else %}mode-card--inactive home-subject-card--placeholder{% endif %}"
+                class="mode-card home-subject-card {% if structure_only %}home-subject-card--structure{% elif subject.has_real_content %}home-subject-card--active{% else %}mode-card--inactive home-subject-card--placeholder{% endif %}"
                 data-search-item
                 data-search-text="{{ subject_search_text(subject) }}"
             >
                 <div data-motion-item>
-                    <p class="eyebrow">{{ "Активен предмет" if subject.has_real_content else "Бъдещ предмет" }}</p>
+                    <p class="eyebrow">{{ "Предмет в подготовка" if structure_only else ("Активен предмет" if subject.has_real_content else "Бъдещ предмет") }}</p>
                     <a class="home-subject-card-link" href="{{ subject_url(subject) }}">
                         <h2 class="home-subject-title">{{ subject.title }}</h2>
                     </a>
@@ -86,7 +88,7 @@
                     <div class="home-subject-stats">
                         {% if subject.has_real_content %}
                             <span>{{ subject.content_grades|length }} класа</span>
-                            <span>{{ subject.question_count }} въпроса</span>
+                            <span>{{ "Въпросите са в подготовка" if structure_only else subject.question_count ~ " въпроса" }}</span>
                         {% else %}
                             <span>{{ subject_class_range_label(subject) }}</span>
                             <span>{{ subject_status_label(subject) }}</span>

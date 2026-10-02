@@ -86,8 +86,10 @@ class BrowsingMotionTest(IsolatedAppTestCase):
         self.assertTrue(any("data-motion-disclosure" in attrs
                             for _, attrs in section.elements("ol")))
         self.assertIn('js/section-tools.js', html)
-        topic_template = (TEMPLATES / "subject_topic_group.html").read_text(encoding="utf-8")
-        self.assertNotIn('data-motion="stagger"', topic_template)
+        for name in ("subject_section.html", "subject_topic.html",
+                     "_question_cards.html", "_section_toolbar.html"):
+            template = (TEMPLATES / name).read_text(encoding="utf-8")
+            self.assertNotIn('data-motion="stagger"', template, name)
 
     def test_disclosure_motion_keeps_native_open_state(self):
         css = (STATIC / "css" / "motion.css").read_text(encoding="utf-8")

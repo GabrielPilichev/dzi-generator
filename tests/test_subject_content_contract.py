@@ -1,6 +1,7 @@
 """Subject ownership on the isolated seed plus synthetic Physics rows."""
 
 from src import generate_questions, subject_content
+from tests.subject_fixtures import add_curriculum, add_membership, add_question, add_section, add_topic
 from tests.support import IsolatedAppTestCase, web_app
 
 
@@ -77,58 +78,23 @@ class SubjectContentContractTest(IsolatedAppTestCase):
 
     @staticmethod
     def _curriculum(conn, grade, subject):
-        return int(conn.execute(
-            """
-            INSERT INTO curricula (grade, subject, education_type, title_bg)
-            VALUES (?, ?, 'general', 'Contract test curriculum')
-            """,
-            (grade, subject),
-        ).lastrowid)
+        return add_curriculum(conn, subject, grade, title="Contract test curriculum")
 
     @staticmethod
     def _section(conn, curriculum_id, grade, slug):
-        return int(conn.execute(
-            """
-            INSERT INTO curriculum_sections (
-                curriculum_id, section_slug, title_bg, class, section_type
-            ) VALUES (?, ?, 'Contract test section', ?, 'theory')
-            """,
-            (curriculum_id, slug, grade),
-        ).lastrowid)
-
-    @classmethod
-    def _topic(cls, conn, slug, primary_section_id):
-        topic_id = int(conn.execute(
-            """
-            INSERT INTO curriculum_topics (topic_slug, title_bg, section_id)
-            VALUES (?, 'Contract test topic', ?)
-            """,
-            (slug, primary_section_id),
-        ).lastrowid)
-        cls._membership(conn, topic_id, primary_section_id, primary=True)
-        return topic_id
+        return add_section(conn, curriculum_id, slug, "Contract test section",
+                           grade=grade, section_type="theory")
 
     @staticmethod
-    def _membership(conn, topic_id, section_id, *, primary=False):
-        conn.execute(
-            """
-            INSERT INTO topic_section_assignments (topic_id, section_id, is_primary)
-            VALUES (?, ?, ?)
-            """,
-            (topic_id, section_id, int(primary)),
-        )
+    def _topic(conn, slug, primary_section_id):
+        return add_topic(conn, primary_section_id, slug, "Contract test topic")
+
+    _membership = staticmethod(add_membership)
 
     @staticmethod
     def _question(conn, source_number, subject, topic_id):
-        return int(conn.execute(
-            """
-            INSERT INTO questions (
-                source_exam, source_number, subject, topic_id,
-                question_type, points, prompt
-            ) VALUES ('test-subject-contract', ?, ?, ?, 'multiple_choice', 1, 'Contract test?')
-            """,
-            (source_number, subject, topic_id),
-        ).lastrowid)
+        return add_question(conn, topic_id, subject, source_number,
+                            source="test-subject-contract", prompt="Contract test?")
 
     def test_verified_it_aliases_and_canonical_physics(self):
         for value in (

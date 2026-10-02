@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_subject_states.html" import status_panel, empty_note %}
 
 {% block title %}{{ subject.title }} — LearnPilot{% endblock %}
 
@@ -9,13 +10,16 @@
     <span>{{ subject.title }}</span>
 {% endblock %}
 
+{# Sections without any question yet: the structure is browsable, the question bank is not ready. #}
+{% set structure_only = subject.has_real_content and not total_questions %}
+
 {% block content %}
 <section class="hero subject-hero {% if not subject.has_real_content %}subject-hero--placeholder{% endif %}" data-motion="intro">
     <p class="eyebrow">Предмет</p>
     <h1 data-motion-item="headline">{{ subject.title }}</h1>
-    <p class="subtitle" data-motion-item="description">{{ subject.active_description if subject.has_real_content else subject.description }}</p>
+    <p class="subtitle" data-motion-item="description">{{ subject.active_description if subject.has_real_content and not structure_only else subject.description }}</p>
     <div class="subject-meta">
-        <span class="pill subject-pill">{{ subject_status_label(subject) }}</span>
+        <span class="pill subject-pill">{{ "В подготовка" if structure_only else subject_status_label(subject) }}</span>
         <span>{{ subject_class_range_label(subject) }}</span>
     </div>
 </section>
@@ -34,14 +38,19 @@
             {% set grade_row = grade_rows_by_number.get(grade) %}
             {% set grade_topic_groups = subject_topic_groups(subject, grade) %}
             {% set grade_has_content = grade in content_grades %}
+            {% set grade_question_count = grade_row.question_count if grade_row else 0 %}
             <a class="card subject-class-card {% if grade_has_content %}subject-class-card--active{% endif %}"
                href="{{ subject_class_url(subject, grade) }}">
                 <span class="subject-class-number">{{ grade }}</span>
                 <div data-motion-item>
                     <h2><span data-motion-accent>{{ grade }}. клас</span></h2>
-                    {% if grade_has_content %}
+                    {% if grade_has_content and grade_question_count %}
                         <p class="subtitle">
                             Към текущите раздели, въпроси и тестове за {{ grade }}. клас.
+                        </p>
+                    {% elif grade_has_content %}
+                        <p class="subtitle">
+                            Разделите за {{ grade }}. клас са подредени. Въпросите са в подготовка.
                         </p>
                     {% else %}
                         <p class="subtitle">
@@ -53,10 +62,10 @@
                         </p>
                     {% endif %}
                 </div>
-                {% if grade_has_content %}
-                    <span class="subject-status-badge">
-                        {% if grade_row %}{{ grade_row.question_count }} въпроса{% else %}0 въпроса{% endif %}
-                    </span>
+                {% if grade_has_content and grade_question_count %}
+                    <span class="subject-status-badge">{{ grade_question_count }} въпроса</span>
+                {% elif grade_has_content %}
+                    <span class="subject-status-badge">Въпроси в подготовка</span>
                 {% else %}
                     <span class="subject-status-badge">В подготовка</span>
                 {% endif %}
@@ -65,31 +74,31 @@
     </div>
 </section>
 
-{% if subject.has_real_content %}
-    <section class="panel subject-status-panel" aria-labelledby="subject-active-title">
-        <div>
-            <p class="eyebrow">Активен предмет</p>
-            <h2 id="subject-active-title">Съдържанието вече е налично</h2>
-            <p class="subtitle">
-                Наличните раздели и въпроси са подредени по предмет и клас.
-            </p>
-        </div>
-        <span class="subject-soon">{{ total_questions }} въпроса</span>
-    </section>
+{% if structure_only %}
+    {{ status_panel(
+        "subject-structure-title",
+        "Учебна структура",
+        "Разделите и темите са подредени",
+        "Структурата по класове вече може да се разглежда. Въпросите и тестовете по " ~ subject.title|lower ~ " са в подготовка.",
+        "В подготовка"
+    ) }}
+{% elif subject.has_real_content %}
+    {{ status_panel(
+        "subject-active-title",
+        "Активен предмет",
+        "Съдържанието вече е налично",
+        "Наличните раздели и въпроси са подредени по предмет и клас.",
+        total_questions ~ " въпроса"
+    ) }}
 {% else %}
-    <section class="panel subject-status-panel" aria-labelledby="subject-status-title">
-        <div>
-            <p class="eyebrow">Статус</p>
-            <h2 id="subject-status-title">Съдържанието идва скоро</h2>
-            <p class="subtitle">
-                {{ subject.title }} е видим като структура по класове. Реални въпроси, оценки и тестове още не са добавени.
-            </p>
-        </div>
-        <span class="subject-soon">В подготовка</span>
-    </section>
+    {{ status_panel(
+        "subject-status-title",
+        "Статус",
+        "Съдържанието идва скоро",
+        subject.title ~ " е видим като структура по класове. Реални въпроси, оценки и тестове още не са добавени.",
+        "В подготовка"
+    ) }}
 
-    <p class="empty-state subject-empty-state">
-        В раздела по {{ subject.title|lower }} все още няма реални въпроси. Класовете са видими като структура за бъдещо съдържание.
-    </p>
+    {{ empty_note("В раздела по " ~ subject.title|lower ~ " все още няма реални въпроси. Класовете са видими като структура за бъдещо съдържание.") }}
 {% endif %}
 {% endblock %}

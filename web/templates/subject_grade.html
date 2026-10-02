@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_subject_states.html" import preparation_hero, status_panel, empty_note %}
 
 {% block title %}{{ subject.title }} — {{ grade }}. клас{% endblock %}
 
@@ -10,6 +11,21 @@
     <span>{{ grade }}. клас</span>
 {% endblock %}
 
+{# Only the first grid on a page reveals with motion. #}
+{% macro section_cards(sections, animated) %}
+    <div class="cards subject-topic-group-grid"{% if animated %} data-motion="stagger"{% endif %}>
+        {% for section in sections %}
+            <a class="card subject-topic-group-card" href="{{ subject_section_url(subject, grade, section) }}">
+                <p class="eyebrow">{{ subject.title }}</p>
+                <h2 data-motion-item><span data-motion-accent>{{ section.section_title }}</span></h2>
+                <p class="subtitle">
+                    {% if section.question_count %}{{ section.question_count }} въпроса{% else %}Въпросите са в подготовка{% endif %}
+                </p>
+            </a>
+        {% endfor %}
+    </div>
+{% endmacro %}
+
 {% block content %}
 {% if sections %}
 <section class="hero subject-hero" data-motion="intro">
@@ -18,53 +34,52 @@
     <p class="subtitle" data-motion-item="description">Избери раздел за преговор по {{ subject.title|lower }}.</p>
 </section>
 
-<section class="home-section" aria-labelledby="subject-grade-sections-title">
-    <div class="section-heading">
-        <div>
-            <p class="eyebrow">Раздели</p>
-            <h2 id="subject-grade-sections-title">Съдържание за {{ grade }}. клас</h2>
+{% if section_groups %}
+    {% for group in section_groups %}
+        <section class="home-section" aria-labelledby="subject-grade-group-{{ loop.index }}-title">
+            <div class="section-heading">
+                <div>
+                    <p class="eyebrow">{{ "Модул" if group.module_slug else "Раздели" }}</p>
+                    <h2 id="subject-grade-group-{{ loop.index }}-title">{{ group.title or "Други раздели" }}</h2>
+                </div>
+                <span class="pill">{{ group.sections|length }} раздела</span>
+            </div>
+            {{ section_cards(group.sections, loop.first) }}
+        </section>
+    {% endfor %}
+{% else %}
+    <section class="home-section" aria-labelledby="subject-grade-sections-title">
+        <div class="section-heading">
+            <div>
+                <p class="eyebrow">Раздели</p>
+                <h2 id="subject-grade-sections-title">Съдържание за {{ grade }}. клас</h2>
+            </div>
+            <span class="pill">{{ sections|length }} раздела</span>
         </div>
-        <span class="pill">{{ sections|length }} раздела</span>
-    </div>
-    <div class="cards subject-topic-group-grid" data-motion="stagger">
-        {% for section in sections %}
-            <a class="card subject-topic-group-card"
-               href="{{ url_for('subject_topic_group_view', subject_slug=subject.slug, grade=grade, topic_group_slug=section.section_slug) }}">
-                <p class="eyebrow">{{ subject.title }}</p>
-                <h2 data-motion-item><span data-motion-accent>{{ section.section_title }}</span></h2>
-                <p class="subtitle">{{ section.question_count }} въпроса</p>
-            </a>
-        {% endfor %}
-    </div>
-</section>
+        {{ section_cards(sections, true) }}
+    </section>
+{% endif %}
 
 <div class="actions">
     <a class="button secondary" href="{{ subject_url(subject) }}">Всички класове по {{ subject.title|lower }}</a>
 </div>
 {% else %}
-<section class="hero subject-hero subject-hero--placeholder" data-motion="intro">
-    <p class="eyebrow">{{ subject.title }}</p>
-    <h1 data-motion-item="headline">{{ grade }}. клас</h1>
-    <p class="subtitle" data-motion-item="description">
-        Обвивка за бъдещото съдържание по {{ subject.title|lower }} за {{ grade }}. клас.
-        Темите, упражненията и тестовете са в подготовка.
-    </p>
-    <div class="subject-meta">
-        <span class="pill subject-pill">В подготовка</span>
-        <span>{{ subject.title }}</span>
-    </div>
-</section>
+{{ preparation_hero(
+    subject.title,
+    grade ~ ". клас",
+    "Обвивка за бъдещото съдържание по " ~ subject.title|lower ~ " за " ~ grade ~ ". клас. Темите, упражненията и тестовете са в подготовка.",
+    "В подготовка",
+    subject.title
+) }}
 
-<section class="panel subject-status-panel subject-grade-shell" aria-labelledby="subject-grade-shell-title">
-    <div>
-        <p class="eyebrow">Структура по клас</p>
-        <h2 id="subject-grade-shell-title">Темите за {{ grade }}. клас са в подготовка</h2>
-        <p class="subtitle">
-            Тази страница запазва бъдещото място за теми и тренировъчни задачи, без да добавя реални въпроси.
-        </p>
-    </div>
-    <span class="subject-soon">В подготовка</span>
-</section>
+{{ status_panel(
+    "subject-grade-shell-title",
+    "Структура по клас",
+    "Темите за " ~ grade ~ ". клас са в подготовка",
+    "Тази страница запазва бъдещото място за теми и тренировъчни задачи, без да добавя реални въпроси.",
+    "В подготовка",
+    shell=true
+) }}
 
 {% if topic_groups %}
     <section class="home-section" aria-labelledby="subject-grade-topic-groups-title">
@@ -117,9 +132,6 @@
     <a class="button secondary" href="{{ subject_url(subject) }}">Всички класове по {{ subject.title|lower }}</a>
 </div>
 
-<p class="empty-state subject-empty-state">
-    Тази страница е само структура за {{ subject.title }} - {{ grade }}. клас.
-    Реални въпроси, оценки и тестове по {{ subject.title|lower }} още не са добавени.
-</p>
+{{ empty_note("Тази страница е само структура за " ~ subject.title ~ " - " ~ grade ~ ". клас. Реални въпроси, оценки и тестове по " ~ subject.title|lower ~ " още не са добавени.") }}
 {% endif %}
 {% endblock %}

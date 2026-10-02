@@ -35,11 +35,13 @@ from urllib.parse import urlparse
 from flask import Flask, abort, g, render_template, url_for, request, redirect, send_file, session
 from werkzeug.exceptions import RequestEntityTooLarge
 
-from src.subject_browsing import subject_content_grades
+from src.subject_browsing import public_slug, stored_slug_candidates, subject_content_grades
 from src.subject_browse_cache import CachedSubjectBrowser
 from src.subject_assessment import AssessmentScope, question_belongs_to_subject
-from src.subject_content import IT, PHYSICS, canonical_subject, section_ownership
-from src.subject_registry import all_subjects, get_subject, subject_for_route_slug
+from src.subject_content import IT, canonical_subject, section_ownership
+from src.subject_registry import (
+    all_subjects, get_subject, subject_for_route_slug, subject_supports_grade,
+)
 from src.practical_resource_resolution import (
     ResourceResolutionError,
     read_zip_member,
@@ -205,7 +207,6 @@ SUBJECT_STATUS_LABELS = {
     "active": "Активен",
     "in_preparation": "В подготовка",
 }
-PHYSICS_TOPIC_GROUPS_BY_GRADE = get_subject(PHYSICS).placeholder_topic_groups
 
 
 def subject_catalog() -> tuple[dict, ...]:
@@ -428,11 +429,34 @@ def inject_subject_navigation():
             topic_group_slug=topic_group["slug"],
         )
 
+    def subject_section_url(subject: dict, grade: int, section: dict) -> str:
+        return url_for(
+            "subject_topic_group_view",
+            subject_slug=subject["slug"],
+            grade=grade,
+            topic_group_slug=public_slug(subject["id"], grade, section["section_slug"]),
+        )
+
+    def subject_topic_url(subject: dict, grade: int, section: dict, topic: dict) -> str:
+        return url_for(
+            "subject_topic_view",
+            subject_slug=subject["slug"],
+            grade=grade,
+            topic_group_slug=public_slug(subject["id"], grade, section["section_slug"]),
+            topic_slug=public_slug(subject["id"], grade, topic["topic_slug"]),
+        )
+
+    def subject_create_test_url(subject: dict, section: dict) -> str:
+        return url_for("teacher_new", subject=subject["slug"], section=section["section_slug"])
+
     return {
         "learnpilot_subjects": subject_catalog(),
         "subject_url": subject_url,
         "subject_class_url": subject_class_url,
         "subject_topic_group_url": subject_topic_group_url,
+        "subject_section_url": subject_section_url,
+        "subject_topic_url": subject_topic_url,
+        "subject_create_test_url": subject_create_test_url,
         "subject_topic_groups": subject_topic_groups,
         "subject_status_label": subject_status_label,
         "subject_class_range_label": subject_class_range_label,
@@ -1644,6 +1668,25 @@ def render_subject_page(subject_slug: str):
     )
 
 
+def subject_section_groups(sections: list[dict]) -> list[dict]:
+    """Sections grouped by curriculum module, only where that adds structure.
+
+    Modules are optional: a grade with no module, or with a single one, stays a
+    flat list of sections. Sections outside any module form the last group.
+    """
+    groups: dict[object, dict] = {}
+    for section in sections:
+        key = section.get("module_slug")
+        group = groups.setdefault(
+            key, {"module_slug": key, "title": section.get("module_title"), "sections": []}
+        )
+        group["sections"].append(section)
+    if len(groups) < 2:
+        return []
+    ungrouped = groups.pop(None, None)
+    return [*groups.values(), *([ungrouped] if ungrouped else [])]
+
+
 def render_subject_grade_page(subject_slug: str, grade: int):
     subject = catalog_subject(subject_slug)
     if subject is None or grade not in subject["available_classes"]:
@@ -1659,8 +1702,21 @@ def render_subject_grade_page(subject_slug: str, grade: int):
         subject=subject,
         grade=grade,
         sections=sections,
+        section_groups=subject_section_groups(sections),
         topic_groups=subject_topic_groups(subject, grade) if not sections else (),
     )
+
+
+def _subject_section_content(browser: CachedSubjectBrowser, section: dict) -> tuple[list[dict], list[dict]]:
+    """A section's topics (with question counts) and questions, from cached reads."""
+    questions = fetch_questions_in_section(section["section_id"], browser=browser)
+    counts: dict[int, int] = {}
+    for question in questions:
+        counts[int(question["topic_id"])] = counts.get(int(question["topic_id"]), 0) + 1
+    topics = browser.topics_in_section(section["section_id"])
+    for topic in topics:
+        topic["question_count"] = counts.get(int(topic["topic_id"]), 0)
+    return topics, questions
 
 
 def render_subject_topic_group_page(subject_slug: str, grade: int, topic_group_slug: str):
@@ -1670,16 +1726,17 @@ def render_subject_topic_group_page(subject_slug: str, grade: int, topic_group_s
 
     browser = _subject_browser(subject)
     if browser is not None:
-        section = browser.section(topic_group_slug, grade=grade)
+        section = browser.section_for_url(topic_group_slug, grade)
         if section is not None:
+            topics, questions = _subject_section_content(browser, section)
             return render_template(
-                "subject_topic_group.html",
+                "subject_section.html",
                 subject=subject,
                 grade=grade,
                 topic_group={"slug": section["section_slug"], "title": section["section_title"]},
                 section=section,
-                topics=browser.topics_in_section(section["section_id"]),
-                questions=fetch_questions_in_section(section["section_id"], browser=browser),
+                topics=topics,
+                questions=questions,
             )
         # Once this class has DB content, the provisional configuration is no
         # longer a parallel source of real group routes.
@@ -1692,10 +1749,45 @@ def render_subject_topic_group_page(subject_slug: str, grade: int, topic_group_s
 
     subject, topic_group = topic_group_result
     return render_template(
-        "subject_topic_group.html",
+        "subject_section.html",
         subject=subject,
         grade=grade,
         topic_group=topic_group,
+    )
+
+
+def render_subject_topic_page(subject_slug: str, grade: int, section_slug: str, topic_slug: str):
+    """One topic of an owned section. Placeholder groups have no topics."""
+    subject = catalog_subject(subject_slug)
+    if subject is None or grade not in subject["available_classes"]:
+        abort(404)
+    browser = _subject_browser(subject)
+    if browser is None:
+        abort(404)
+    section = browser.section_for_url(section_slug, grade)
+    if section is None:
+        abort(404)
+
+    # The section's cached, ownership-checked topics and questions are filtered
+    # here; a topic page adds no query path of its own.
+    topics, section_questions = _subject_section_content(browser, section)
+    by_slug = {topic["topic_slug"]: topic for topic in topics}
+    topic = next(
+        (by_slug[slug] for slug in stored_slug_candidates(subject["id"], grade, topic_slug)
+         if slug in by_slug),
+        None,
+    )
+    if topic is None:
+        abort(404)
+
+    return render_template(
+        "subject_topic.html",
+        subject=subject,
+        grade=grade,
+        section=section,
+        topic=topic,
+        questions=[q for q in section_questions if q["topic_id"] == topic["topic_id"]],
+        section_question_count=len(section_questions),
     )
 
 
@@ -1714,14 +1806,22 @@ def subject_topic_group_view(subject_slug: str, grade: int, topic_group_slug: st
     return render_subject_topic_group_page(subject_slug, grade, topic_group_slug)
 
 
+@app.route("/subjects/<subject_slug>/<int:grade>/<topic_group_slug>/<topic_slug>")
+def subject_topic_view(subject_slug: str, grade: int, topic_group_slug: str, topic_slug: str):
+    return render_subject_topic_page(subject_slug, grade, topic_group_slug, topic_slug)
+
+
+# Pre-registry Physics URLs: permanent redirects to the generic subject pages.
 @app.route("/physics")
 def physics():
-    return render_subject_page("physics")
+    return redirect(url_for("subject_view", subject_slug="physics"), code=301)
 
 
 @app.route("/physics/grade/<int:grade>")
 def physics_grade(grade: int):
-    return render_subject_grade_page("physics", grade)
+    if not subject_supports_grade("physics", grade):
+        abort(404)
+    return redirect(url_for("subject_grade_view", subject_slug="physics", grade=grade), code=301)
 
 
 @app.route("/favicon.ico")

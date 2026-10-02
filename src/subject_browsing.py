@@ -18,6 +18,36 @@ from src.subject_content import (
 from src.subject_registry import all_subjects, get_subject
 
 
+def namespaced_slug_prefix(subject_id: str, grade: int) -> str:
+    """Namespace the reviewed importer requires for new section/topic slugs."""
+    return f"{subject_id}-g{int(grade)}-"
+
+
+def public_slug(subject_id: str, grade: int, stored_slug: str) -> str:
+    """Short URL form of a stored slug; the URL already names subject and grade."""
+    prefix = namespaced_slug_prefix(subject_id, grade)
+    if stored_slug.startswith(prefix) and len(stored_slug) > len(prefix):
+        return stored_slug[len(prefix):]
+    return stored_slug
+
+
+def stored_slug_candidates(subject_id: str, grade: int, url_slug: str) -> tuple[str, str]:
+    """Stored slugs a URL slug may name: the namespaced form, then the exact slug.
+
+    The exact form keeps legacy IT slugs and full-slug URLs valid. A subject
+    must not own both ``<prefix>x`` and ``x`` in one grade: ``x`` would be shadowed.
+    """
+    return (namespaced_slug_prefix(subject_id, grade) + url_slug, url_slug)
+
+
+def public_description(value: object) -> str | None:
+    """Topic prose fit for display; vault link residue such as ``[[moc]]`` is not."""
+    if not isinstance(value, str):
+        return None
+    text = value.strip()
+    return text if text and "[[" not in text else None
+
+
 def subject_content_grades(conn: sqlite3.Connection) -> dict[str, frozenset[int]]:
     """Declared grades in which each registered subject owns at least one section.
 
@@ -175,12 +205,21 @@ class SubjectContentBrowser:
             return section
         return None
 
+    def section_for_url(self, url_slug: str, grade: int) -> dict | None:
+        """The owned section of this grade that a subject URL slug names."""
+        for slug in stored_slug_candidates(self.subject, grade, url_slug):
+            section = self.section(slug, grade=grade)
+            if section is not None:
+                return section
+        return None
+
     def topics_in_section(self, section_id: int) -> list[dict]:
         if not self.owns_section(section_id):
             return []
         rows = self.conn.execute(
             """
-            SELECT t.id AS topic_id, t.topic_slug, t.title_bg AS topic_title
+            SELECT t.id AS topic_id, t.topic_slug, t.title_bg AS topic_title,
+                   t.description AS topic_description
             FROM topic_section_assignments tsa
             JOIN curriculum_topics t ON t.id = tsa.topic_id
             WHERE tsa.section_id = ?
@@ -188,7 +227,14 @@ class SubjectContentBrowser:
             """,
             (section_id,),
         ).fetchall()
-        return [dict(row) for row in rows if self.owns_topic(int(row["topic_id"]))]
+        topics = []
+        for row in rows:
+            if not self.owns_topic(int(row["topic_id"])):
+                continue
+            topic = dict(row)
+            topic["topic_description"] = public_description(topic["topic_description"])
+            topics.append(topic)
+        return topics
 
     def questions_in_section(self, section_id: int) -> list[dict]:
         if not self.owns_section(section_id):

@@ -85,7 +85,7 @@ class SeedSubjectRoutesTest(_RouteTestCase):
         for subject, (title, classes) in zip(SUBJECTS, _cards(html)):
             with self.subTest(subject=subject.id):
                 if subject.id == "it":
-                    self.assertIn("home-subject-card--it", classes)
+                    self.assertIn("home-subject-card--active", classes)
                     self.assertNotIn("mode-card--inactive", classes)
                 else:
                     self.assertIn("home-subject-card--placeholder", classes)
@@ -179,9 +179,14 @@ class SeedSubjectRoutesTest(_RouteTestCase):
         self.html("/grade/7", 404)
         self.html("/section/grade8-computer-systems")
         self.html("/section/grade12-dzi-preparation")
-        self.html("/physics")
-        self.html("/physics/grade/9")
         self.html("/subjects/information-technologies/8")
+        # Pre-registry Physics URLs stay valid as permanent redirects.
+        for legacy, canonical in (("/physics", "/subjects/physics"),
+                                  ("/physics/grade/9", "/subjects/physics/9")):
+            response = self.client.get(legacy)
+            self.assertEqual(response.status_code, 301, legacy)
+            self.assertTrue(response.headers["Location"].endswith(canonical), legacy)
+        self.html("/physics/grade/7", 404)
 
     def test_it_class_links_use_the_legacy_grade_routes(self):
         hrefs = _HTMLProbe(self.html("/")).hrefs()
@@ -275,7 +280,7 @@ class SyntheticBiologySubjectTest(_RouteTestCase):
         html = self.html("/")
         cards = dict(_cards(html))
         self.assertNotIn("mode-card--inactive", cards["Биология"])
-        self.assertIn("home-subject-card--it", cards["Биология"])
+        self.assertIn("home-subject-card--active", cards["Биология"])
         for subject in NON_IT:
             if subject.id != "biology":
                 self.assertIn("mode-card--inactive", cards[subject.title], subject.id)
@@ -300,7 +305,9 @@ class SyntheticBiologySubjectTest(_RouteTestCase):
         self.assertIn("Съдържание по класове, раздели и въпроси по биология.", page)
         grade8 = self.html("/subjects/biology/8")
         self.assertIn("Synthetic biology section", grade8)
-        self.assertIn(f"/subjects/biology/8/{self.section_slug}", _HTMLProbe(grade8).hrefs())
+        # Links use the short slug; the stored, namespaced slug stays a valid URL.
+        self.assertIn("/subjects/biology/8/synthetic-section", _HTMLProbe(grade8).hrefs())
+        self.assertNotIn(f"/subjects/biology/8/{self.section_slug}", _HTMLProbe(grade8).hrefs())
         # A declared grade without content is an intentional preparation shell.
         shell = _HTMLProbe(self.html("/subjects/biology/9")).text
         self.assertIn("Темите за 9. клас са в подготовка", shell)
@@ -312,6 +319,9 @@ class SyntheticBiologySubjectTest(_RouteTestCase):
         html = self.html(f"/subjects/biology/8/{self.section_slug}")
         self.assertIn("Synthetic biology question 1?", html)
         self.assertIn("Synthetic biology question 3?", html)
+        short = self.html("/subjects/biology/8/synthetic-section")
+        self.assertIn("Synthetic biology question 1?", short)
+        self.assertIn("Synthetic biology question 3?", short)
         self.html(f"/subjects/biology/9/{self.section_slug}", 404)
         self.html(f"/subjects/physics/8/{self.section_slug}", 404)
         self.html(f"/subjects/information-technologies/8/{self.section_slug}", 404)

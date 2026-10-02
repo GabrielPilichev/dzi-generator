@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% from "_question_cards.html" import question_cards with context %}
+{% from "_section_toolbar.html" import review_banner, section_toolbar, section_tools_script with context %}
+{% from "_subject_states.html" import preparation_hero, status_panel, empty_note %}
+
+{% block title %}{{ subject.title }} — {{ grade }}. клас — {{ topic_group.title }}{% endblock %}
+
+{% block body_class %}content-browse-page{% endblock %}
+
+{% block breadcrumb %}
+    <a href="{{ url_for('index') }}">Начало</a>
+    <a href="{{ subject_url(subject) }}">{{ subject.title }}</a>
+    <a href="{{ subject_class_url(subject, grade) }}">{{ grade }}. клас</a>
+    <span>{{ topic_group.title }}</span>
+{% endblock %}
+
+{% block content %}
+{% if section %}
+<section class="hero subject-hero" data-motion="intro">
+    <p class="eyebrow">{{ subject.title }} — {{ grade }}. клас</p>
+    <h1 data-motion-item="headline">{{ section.section_title }}</h1>
+    <p class="subtitle">
+        {% if questions %}{{ questions|length }} въпроса в този раздел.{% else %}Въпросите за този раздел са в подготовка.{% endif %}
+    </p>
+</section>
+
+{% if topics %}
+<section class="home-section" aria-labelledby="subject-section-topics-title">
+    <div class="section-heading">
+        <div>
+            <p class="eyebrow">Теми</p>
+            <h2 id="subject-section-topics-title">Теми в раздела</h2>
+        </div>
+        <span class="pill">{{ topics|length }} теми</span>
+    </div>
+    <ul class="section-list">
+        {% for topic in topics %}
+            <li class="section-item">
+                <div>
+                    <div class="section-title-row">
+                        <a class="stretched-link" href="{{ subject_topic_url(subject, grade, section, topic) }}">{{ topic.topic_title }}</a>
+                    </div>
+                </div>
+                <span class="count-pill">{{ topic.question_count }} въпр.</span>
+            </li>
+        {% endfor %}
+    </ul>
+</section>
+{% endif %}
+
+{% if questions %}
+    {{ review_banner(subject_create_test_url(subject, section)) }}
+    {{ section_toolbar(section.section_slug, questions|length) }}
+    {{ question_cards(questions) }}
+    {{ section_tools_script() }}
+{% else %}
+<p class="empty-state">В този раздел още няма публикувани въпроси.</p>
+{% endif %}
+
+<div class="actions">
+    <a class="button secondary" href="{{ subject_class_url(subject, grade) }}">Всички раздели за {{ grade }}. клас</a>
+    <a class="button secondary" href="{{ subject_url(subject) }}">Всички класове по {{ subject.title|lower }}</a>
+</div>
+{% else %}
+{{ preparation_hero(
+    subject.title ~ " - " ~ grade ~ ". клас",
+    topic_group.title,
+    "Тематична група в подготовка. Страницата е част от бъдещата структура по " ~ subject.title|lower ~ ", без добавени реални въпроси, оценки или тестове.",
+    subject_status_label(topic_group),
+    grade ~ ". клас"
+) }}
+
+{{ status_panel(
+    "subject-topic-group-status-title",
+    "Статус",
+    topic_group.title ~ " е в подготовка",
+    "Тук ще се подреди бъдещото съдържание за тази тематична група. В момента страницата служи само като навигационна рамка.",
+    subject_status_label(topic_group),
+    shell=true
+) }}
+
+<div class="actions">
+    <a class="button secondary" href="{{ subject_class_url(subject, grade) }}">Всички теми за {{ grade }}. клас</a>
+    <a class="button secondary" href="{{ subject_url(subject) }}">Всички класове по {{ subject.title|lower }}</a>
+</div>
+
+{{ empty_note("Няма добавена база с въпроси или учебно съдържание за " ~ topic_group.title|lower ~ ".") }}
+{% endif %}
+{% endblock %}

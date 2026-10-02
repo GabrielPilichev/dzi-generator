@@ -1,0 +1,83 @@
+{# Review tools shared by the IT section page and the generic subject
+   section/topic pages. Order on a page: review_banner, section_toolbar,
+   question_cards (_question_cards.html), then section_tools_script.
+   Import with context (label helpers). #}
+
+{% macro review_banner(create_test_url, hint=none) %}
+    <section class="review-banner">
+        <div>
+            <p class="eyebrow">Преговорен режим</p>
+            <p class="subtitle">{{ hint or "Преглеждаш въпроси със скрити отговори. За решаване създай тест от този раздел." }}</p>
+        </div>
+        <a class="button" href="{{ create_test_url }}">Създай тест от раздела</a>
+    </section>
+{% endmacro %}
+
+{# storage_key scopes the browser-side bookmarks of this question list. #}
+{% macro section_toolbar(storage_key, question_count) %}
+    <section class="section-toolbar" data-section-tools data-section-slug="{{ storage_key }}">
+        <div class="toolbar-row toolbar-row--search">
+            <input id="question-search" class="toolbar-search" type="search" placeholder="Търсене по въпрос, тема или отговор...">
+            <button
+                class="segmented-button reveal-all-button"
+                type="button"
+                id="toggle-correct"
+                aria-pressed="false"
+                aria-keyshortcuts="h"
+                title="Покажи всички отговори (h)"
+            >
+                <span class="button-label">Покажи всички отговори</span>
+            </button>
+        </div>
+
+        <details class="toolbar-details">
+            <summary>Опции за преглед</summary>
+            <div class="toolbar-row toolbar-row--advanced">
+                <select id="question-type-filter" class="toolbar-select" aria-label="Тип въпрос">
+                    <option value="">Тип</option>
+                    <option value="multiple_choice">{{ question_kind_label("multiple_choice") }}</option>
+                    <option value="true_false">{{ question_kind_label("true_false") }}</option>
+                    <option value="fill_in">{{ question_kind_label("fill_in") }}</option>
+                    <option value="open">{{ question_kind_label("open") }}</option>
+                </select>
+
+                <select id="question-difficulty-filter" class="toolbar-select" aria-label="Трудност">
+                    <option value="">Трудност</option>
+                    <option value="easy">{{ question_difficulty_label("easy") }}</option>
+                    <option value="medium">{{ question_difficulty_label("medium") }}</option>
+                    <option value="hard">{{ question_difficulty_label("hard") }}</option>
+                    <option value="unknown">{{ question_difficulty_label("unknown") }}</option>
+                </select>
+
+                <button class="segmented-button" type="button" id="bookmarks-only" aria-pressed="false">
+                    <span class="button-label">Само маркирани</span>
+                </button>
+
+                <button class="segmented-button" type="button" id="shuffle-questions">
+                    <span class="button-label">Разбъркай</span>
+                </button>
+
+                <button class="icon-button" type="button" id="reset-view" title="Нулирай изгледа">Нулирай</button>
+
+                <div class="shortcuts-wrap">
+                    <button class="icon-button" type="button" id="shortcuts-button" title="Клавишни комбинации">?</button>
+                    <div class="shortcuts-popover" id="shortcuts-popover" hidden>
+                        <div><kbd>/</kbd> търсене</div>
+                        <div><kbd>s</kbd> разбъркай</div>
+                        <div><kbd>h</kbd> покажи/скрий отговорите</div>
+                        <div><kbd>Esc</kbd> изчисти</div>
+                    </div>
+                </div>
+            </div>
+        </details>
+
+        <div class="toolbar-meta">
+            <span id="filter-summary">Показани: {{ question_count }} от {{ question_count }}</span>
+            <span id="bookmark-summary">Маркирани: 0</span>
+        </div>
+    </section>
+{% endmacro %}
+
+{% macro section_tools_script() %}
+    <script src="{{ url_for('static', filename='js/section-tools.js') }}"></script>
+{% endmacro %}

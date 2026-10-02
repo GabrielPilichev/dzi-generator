@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% from "_question_cards.html" import question_cards with context %}
+{% from "_section_toolbar.html" import review_banner, section_toolbar, section_tools_script with context %}
+
+{% block title %}{{ subject.title }} — {{ grade }}. клас — {{ topic.topic_title }}{% endblock %}
+
+{% block body_class %}content-browse-page{% endblock %}
+
+{% block breadcrumb %}
+    <a href="{{ url_for('index') }}">Начало</a>
+    <a href="{{ subject_url(subject) }}">{{ subject.title }}</a>
+    <a href="{{ subject_class_url(subject, grade) }}">{{ grade }}. клас</a>
+    <a href="{{ subject_section_url(subject, grade, section) }}">{{ section.section_title }}</a>
+    <span>{{ topic.topic_title }}</span>
+{% endblock %}
+
+{% block content %}
+<section class="hero subject-hero" data-motion="intro">
+    <p class="eyebrow">{{ subject.title }} — {{ grade }}. клас — {{ section.section_title }}</p>
+    <h1 data-motion-item="headline">{{ topic.topic_title }}</h1>
+    {% if topic.topic_description %}
+        <p class="subtitle" data-motion-item="description">{{ topic.topic_description }}</p>
+    {% endif %}
+    <div class="subject-meta">
+        <span class="pill">Тема</span>
+        <span>{% if questions %}{{ questions|length }} въпрос{{ '' if questions|length == 1 else 'а' }} по темата{% else %}Въпросите по темата са в подготовка{% endif %}</span>
+    </div>
+</section>
+
+{% if questions %}
+    {{ review_banner(
+        subject_create_test_url(subject, section),
+        "Преглеждаш въпросите по темата със скрити отговори. Тестът се създава от целия раздел „" ~ section.section_title ~ "“."
+    ) }}
+    {{ section_toolbar(section.section_slug ~ "/" ~ topic.topic_slug, questions|length) }}
+    {{ question_cards(questions) }}
+    {{ section_tools_script() }}
+{% else %}
+<p class="empty-state">По тази тема още няма публикувани въпроси.</p>
+{% endif %}
+
+<div class="actions">
+    {% if section_question_count and not questions %}
+        <a class="button" href="{{ subject_create_test_url(subject, section) }}">Създай тест от раздела</a>
+    {% endif %}
+    <a class="button secondary" href="{{ subject_section_url(subject, grade, section) }}">Към раздела „{{ section.section_title }}“</a>
+    <a class="button secondary" href="{{ subject_class_url(subject, grade) }}">Всички раздели за {{ grade }}. клас</a>
+</div>
+{% endblock %}

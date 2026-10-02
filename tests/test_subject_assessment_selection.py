@@ -4,6 +4,9 @@ import json
 
 from src.generate_dzi_training_set import get_pool
 from src.subject_assessment import AssessmentScope
+from tests.subject_fixtures import (
+    add_curriculum, add_membership, add_question, add_section, add_topic, four_options,
+)
 from tests.support import IsolatedAppTestCase, web_app
 
 
@@ -14,20 +17,19 @@ class SubjectAssessmentSelectionTest(IsolatedAppTestCase):
         cls.app = web_app.app
         conn = web_app.quiz_db()
         try:
-            it_curriculum = cls._curriculum(conn, "IT", "f3-it")
-            physics_curriculum = cls._curriculum(conn, "physics", "f3-physics")
-            physics12_curriculum = cls._curriculum(conn, "physics", "f3-physics-12", grade=12)
-            cls.it_section = cls._section(conn, it_curriculum, "f3-it-8", "F3 IT раздел")
-            cls.physics_section = cls._section(
-                conn, physics_curriculum, "f3-physics-8", "F3 Физика раздел"
+            it_curriculum = add_curriculum(conn, "IT", 8, "f3-it")
+            physics_curriculum = add_curriculum(conn, "physics", 8, "f3-physics")
+            physics12_curriculum = add_curriculum(conn, "physics", 12, "f3-physics-12")
+            cls.it_section = add_section(conn, it_curriculum, "f3-it-8", "F3 IT раздел", grade=8)
+            cls.physics_section = add_section(
+                conn, physics_curriculum, "f3-physics-8", "F3 Физика раздел", grade=8
             )
-            physics12_section = cls._section(
-                conn, physics12_curriculum, "f3-physics-12", "F3 Физика 12 раздел",
-                grade=12,
+            physics12_section = add_section(
+                conn, physics12_curriculum, "f3-physics-12", "F3 Физика 12 раздел", grade=12
             )
-            it_topic = cls._topic(conn, cls.it_section, "f3-it-topic")
-            physics_topic = cls._topic(conn, cls.physics_section, "f3-physics-topic")
-            physics12_topic = cls._topic(
+            it_topic = add_topic(conn, cls.it_section, "f3-it-topic", grade=8)
+            physics_topic = add_topic(conn, cls.physics_section, "f3-physics-topic", grade=8)
+            physics12_topic = add_topic(
                 conn, physics12_section, "f3-physics-12-topic", grade=12
             )
             cls.it_mc = cls._question(conn, it_topic, "IT", "multiple_choice", 1)
@@ -37,11 +39,8 @@ class SubjectAssessmentSelectionTest(IsolatedAppTestCase):
             cls.wrong_subject = cls._question(conn, physics_topic, "IT", "multiple_choice", 5)
             cls.unknown = cls._question(conn, physics_topic, "not-a-subject", "multiple_choice", 6)
             cls.unclassified = cls._question(conn, physics_topic, None, "multiple_choice", 7)
-            cross_topic = cls._topic(conn, cls.physics_section, "f3-cross-topic")
-            conn.execute(
-                "INSERT INTO topic_section_assignments (topic_id, section_id) VALUES (?, ?)",
-                (cross_topic, cls.it_section),
-            )
+            cross_topic = add_topic(conn, cls.physics_section, "f3-cross-topic", grade=8)
+            add_membership(conn, cross_topic, cls.it_section)
             cls.cross_membership = cls._question(
                 conn, cross_topic, "physics", "multiple_choice", 8
             )
@@ -53,73 +52,14 @@ class SubjectAssessmentSelectionTest(IsolatedAppTestCase):
             conn.close()
 
     @staticmethod
-    def _curriculum(conn, subject, education_type, *, grade=8):
-        return int(conn.execute(
-            """
-            INSERT INTO curricula (grade, subject, education_type, title_bg)
-            VALUES (?, ?, ?, 'F3 synthetic curriculum')
-            """, (grade, subject, education_type),
-        ).lastrowid)
-
-    @staticmethod
-    def _section(conn, curriculum_id, slug, title, *, grade=8):
-        return int(conn.execute(
-            """
-            INSERT INTO curriculum_sections
-                (curriculum_id, section_slug, title_bg, class, section_type)
-            VALUES (?, ?, ?, ?, 'content')
-            """, (curriculum_id, slug, title, grade),
-        ).lastrowid)
-
-    @staticmethod
-    def _topic(conn, section_id, slug, *, grade=8):
-        topic_id = int(conn.execute(
-            "INSERT INTO curriculum_topics (section_id, topic_slug, title_bg) VALUES (?, ?, ?)",
-            (section_id, slug, slug),
-        ).lastrowid)
-        conn.execute(
-            """
-            INSERT INTO topic_section_assignments (topic_id, section_id, is_primary)
-            VALUES (?, ?, 1)
-            """, (topic_id, section_id),
-        )
-        conn.execute("INSERT INTO topic_classes (topic_id, class) VALUES (?, ?)", (topic_id, grade))
-        return topic_id
-
-    @staticmethod
     def _question(conn, topic_id, subject, kind, number):
-        question_id = int(conn.execute(
-            """
-            INSERT INTO questions
-                (source_exam, source_number, subject, topic_id, question_type, points, prompt)
-            VALUES ('f3-synthetic', ?, ?, ?, ?, 1, ?)
-            """, (number, subject, topic_id, kind, f"F3 question {number}"),
-        ).lastrowid)
-        if kind == "multiple_choice":
-            for letter in "ABCD":
-                conn.execute(
-                    """
-                    INSERT INTO multiple_choice_options
-                        (question_id, option_letter, option_text, is_correct)
-                    VALUES (?, ?, ?, ?)
-                    """, (question_id, letter, f"F3 option {letter}", int(letter == "A")),
-                )
-        else:
-            conn.execute(
-                """
-                INSERT INTO fill_in_subquestions
-                    (question_id, subquestion_number, correct_answer)
-                VALUES (?, 1, 'text answer')
-                """, (question_id,),
-            )
-        conn.execute(
-            """
-            INSERT INTO question_topic_assignments
-                (question_id, topic_id, assignment_type, is_active)
-            VALUES (?, ?, 'test', 1)
-            """, (question_id, topic_id),
+        multiple_choice = kind == "multiple_choice"
+        return add_question(
+            conn, topic_id, subject, number, source="f3-synthetic", kind=kind,
+            prompt=f"F3 question {number}", link_topic=True,
+            options=four_options("F3 option") if multiple_choice else None,
+            accepted_answer=None if multiple_choice else "text answer",
         )
-        return question_id
 
     def setUp(self):
         self.client = self.app.test_client()
