@@ -224,5 +224,7 @@ questions to one section and topic per batch and never changes the order. Both
 are dry-run by default, reject conflicts instead of overwriting, and are run
 against production only as a deliberate step after a fresh backup.
 
-No real curriculum is included: the repository ships no structure file, and no
-Physics or other curriculum decisions are made by this architecture.
+This architecture makes no curriculum decisions. Curricula come from reviewed
+structure files tracked under `data/subject_structures/`, each with a review
+record in `docs/reviews/` (`docs/SUBJECT_STRUCTURE_IMPORT.md`, "Structure files
+in the repository"). A tracked file changes no database until it is imported.

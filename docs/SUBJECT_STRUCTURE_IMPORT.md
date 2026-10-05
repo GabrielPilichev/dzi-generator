@@ -7,7 +7,8 @@ or independently of, its question bank.
 
 It is a controlled import of a reviewed file, not an editor: it adds rows and
 sets their order. It never deletes, never renames, and never touches questions.
-No real curriculum ships with the repository; the example below is synthetic.
+The example below is synthetic; reviewed files for real curricula are listed
+under "Structure files in the repository".
 
 ## Registry versus structure
 
@@ -192,6 +193,22 @@ by questions.
 
 The opposite order also works: a structure file may list a section and topic
 that a question batch created earlier; the import then only sets their order.
+
+## Structure files in the repository
+
+Reviewed structure files are tracked under
+`data/subject_structures/<subject id>/grade-<n>.json`, one file per curriculum
+(add the education type to the name if a grade ever has more than one). Each has
+a review record under `docs/reviews/` that names the official source, says which
+wording is official and which is LearnPilot's own, and records the provenance
+this format cannot hold (it stores only the curriculum `source_url`).
+
+| File | Curriculum | Review record |
+|---|---|---|
+| `data/subject_structures/physics/grade-8.json` | Physics, grade 8, general education | `docs/reviews/physics_g8_curriculum_structure_review.md` |
+
+A tracked file is not an imported one. Neither the seed database nor production
+changes until someone runs the importer with `--apply` on that database.
 
 ## Production
 

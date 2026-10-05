@@ -1,0 +1,34 @@
+{
+  "format_version": 1,
+  "subject": "physics",
+  "grade": 8,
+  "curriculum": {
+    "education_type": "general",
+    "title": "Физика и астрономия, 8. клас — общообразователна подготовка",
+    "source_url": "https://www.mon.bg/nfs/2023/12/up_viii_fa.pdf"
+  },
+  "sections": [
+    {
+      "slug": "physics-g8-mechanics",
+      "title": "Механика",
+      "topics": [
+        {"slug": "physics-g8-non-uniform-motion", "title": "Неравномерно движение"},
+        {"slug": "physics-g8-principles-of-mechanics", "title": "Принципи на механиката"},
+        {"slug": "physics-g8-equilibrium-of-bodies", "title": "Равновесие на телата"},
+        {"slug": "physics-g8-work-power-energy", "title": "Механична работа, мощност и енергия"},
+        {"slug": "physics-g8-fluid-mechanics", "title": "Механика на течности и газове"}
+      ]
+    },
+    {
+      "slug": "physics-g8-thermal-phenomena",
+      "title": "Топлинни явления",
+      "topics": [
+        {"slug": "physics-g8-thermal-motion", "title": "Топлинно движение"},
+        {"slug": "physics-g8-heat-exchange-phase-transitions", "title": "Топлообмен. Преходи между състоянията на веществата"},
+        {"slug": "physics-g8-first-law-of-thermodynamics", "title": "Първи принцип на термодинамиката"},
+        {"slug": "physics-g8-ideal-gas-processes", "title": "Процеси с идеален газ"},
+        {"slug": "physics-g8-heat-engines", "title": "Топлинни машини"}
+      ]
+    }
+  ]
+}
