@@ -107,6 +107,13 @@ class AssignmentDuplicateTest(IsolatedAppTestCase):
         finally:
             conn.close()
 
+    def _assignment_count(self):
+        conn = web_app.quiz_db()
+        try:
+            return conn.execute("SELECT COUNT(*) FROM quiz_assignments").fetchone()[0]
+        finally:
+            conn.close()
+
     def _attempts_for(self, assignment_id):
         conn = web_app.quiz_db()
         try:
@@ -127,12 +134,22 @@ class AssignmentDuplicateTest(IsolatedAppTestCase):
         finally:
             conn.close()
 
-    @staticmethod
-    def _mixed_plan(*, combined_score=False):
+    def _mixed_plan(self, *, combined_score=False):
+        conn = web_app.quiz_db()
+        try:
+            self.section = conn.execute(
+                "SELECT id, title_bg FROM curriculum_sections WHERE section_type = 'dzi_training'"
+            ).fetchone()
+            closed_id = web_app.quiz_section_question_ids(conn, self.section["id"])[0]
+            open_ids = [q["question_id"] for q in web_app.fetch_open_question_candidates(
+                conn, section_id=self.section["id"]
+            )[:2]]
+        finally:
+            conn.close()
         return json.dumps({
             "mixed_open_enabled": True,
-            "question_ids": [11, 22, 33],
-            "open_question_ids": [22, 33],
+            "question_ids": [closed_id, *open_ids],
+            "open_question_ids": open_ids,
             "include_open_answers_in_final_score": combined_score,
         })
 
@@ -197,8 +214,8 @@ class AssignmentDuplicateTest(IsolatedAppTestCase):
             self.assertEqual(copy["question_plan_json"], plan)
             parsed = web_app.quiz_parse_assignment_question_plan(copy["question_plan_json"])
             self.assertIsNotNone(parsed)
-            self.assertEqual(parsed["question_ids"], [11, 22, 33])
-            self.assertEqual(parsed["open_question_ids"], [22, 33])
+            self.assertEqual(parsed["question_ids"], json.loads(plan)["question_ids"])
+            self.assertEqual(parsed["open_question_ids"], json.loads(plan)["open_question_ids"])
             self.assertTrue(parsed["include_open_answers_in_final_score"])
         finally:
             if new_id is not None:
@@ -222,21 +239,15 @@ class AssignmentDuplicateTest(IsolatedAppTestCase):
                 self._delete_assignment(new_id)
             self._delete_assignment(source_id)
 
-    def test_duplicate_malformed_plan_is_copied_verbatim(self):
+    def test_duplicate_malformed_plan_is_rejected(self):
         self._login_admin()
-        broken = "{not valid json"
-        source_id = self._create_assignment(question_plan_json=broken, title="Broken Source")
-        new_id = None
+        source_id = self._create_assignment(question_plan_json="{broken-json")
         try:
+            before = self._assignment_count()
             response = self.client.post(f"/teacher/assignment/{source_id}/duplicate")
-            new_id = self._new_id_from_redirect(response)
-
-            copy = self._fetch_assignment(new_id)
-            self.assertEqual(copy["question_plan_json"], broken)
-            self.assertIsNone(web_app.quiz_parse_assignment_question_plan(copy["question_plan_json"]))
+            self.assertEqual(response.status_code, 400)
+            self.assertEqual(self._assignment_count(), before)
         finally:
-            if new_id is not None:
-                self._delete_assignment(new_id)
             self._delete_assignment(source_id)
 
     def test_duplicate_missing_source_returns_404(self):

@@ -67,6 +67,10 @@
                     value="{{ s.id }}"
                     data-count="{{ s.question_count }}"
                     data-grade="{{ s.class }}"
+                    data-dzi-context="{{ 'true' if s.allows_dzi_content else 'false' }}"
+                    data-open-applicable="{{ 'true' if s.allows_dzi_open_questions else 'false' }}"
+                    data-open-count="{{ s.open.count }}"
+                    data-open-sources='{{ s.open.sources|tojson }}'
                     {% if preselected_section_id and s.id == preselected_section_id %}selected{% endif %}
                 >
                     {{ selected_subject_title }} — {{ s.class }}. клас — {{ s.title_bg }} ({{ s.question_count }} въпроса)
@@ -106,14 +110,17 @@
         </div>
     </section>
 
-    <div class="open-question-panel">
+    {% if any_dzi_sections %}
+    {% set open_available = selected_open_available %}
+    <div class="open-question-panel" id="open-question-panel"{% if not selected_open_applicable %} hidden{% endif %}>
         <label class="open-question-toggle" for="include_open_questions">
             <input
                 id="include_open_questions"
                 type="checkbox"
                 name="include_open_questions"
                 value="1"
-                {% if form_values.include_open_questions %}checked{% endif %}
+                {% if not selected_open_applicable or not open_available %}disabled{% endif %}
+                {% if form_values.include_open_questions and open_available %}checked{% endif %}
             >
             <span class="open-question-toggle-copy">
                 <span class="open-question-toggle-title">Включи отворени въпроси</span>
@@ -123,33 +130,38 @@
             </span>
         </label>
 
-        <div class="open-question-controls">
+        <p class="help" id="open-question-empty"{% if open_available or not selected_section_open %} hidden{% endif %}>Няма налични отворени въпроси за избрания материал.</p>
+
+        <div class="open-question-controls" id="open-question-controls">
             <div class="open-question-count">
                 <label for="open_count">Брой отворени въпроси</label>
-                <input id="open_count" name="open_count" type="number" min="0" value="{{ form_values.open_count }}">
+                <input id="open_count" name="open_count" type="number" min="0" max="{{ open_available }}" value="{{ form_values.open_count if open_available else 0 }}"{% if not selected_open_applicable or not open_available %} disabled{% endif %}>
                 <div class="help">0 запазва текущия MC-only поток.</div>
             </div>
 
             <div class="open-question-availability" aria-label="Налични отворени въпроси">
                 <span class="label">Налични кандидати</span>
-                <strong>{{ total_open_candidates }}</strong>
-                <span>отворени въпроси с примерни/приети отговори</span>
+                <strong id="open-question-available">{{ open_available }}</strong>
+                <span>отворени ДЗИ въпроси с примерни/приети отговори</span>
             </div>
         </div>
+
+        <div id="open-question-source">
+            <label for="source_slug">{{ 'ДЗИ източник' if selected_subject_dzi else 'Източник' }} за отворени въпроси</label>
+            <select id="source_slug" name="source_slug" data-selected="{{ form_values.source_slug }}"{% if not selected_open_applicable or not open_available %} disabled{% endif %}>
+                <option value="">Всички налични източници</option>
+                {% for source in (selected_section_open.sources if selected_section_open else []) %}
+                    <option value="{{ source.source_slug }}" {% if form_values.source_slug == source.source_slug %}selected{% endif %}>
+                        {{ source.source_slug }} ({{ source.count }} отворени)
+                    </option>
+                {% endfor %}
+            </select>
+            <div class="help">Показват се само ДЗИ източници с готови отворени въпроси. Използват се само кандидати с примерни/приети отговори; автоматичната проверка е ориентир, не финална оценка.</div>
+        </div>
     </div>
+    {% endif %}
 
-    <label for="source_slug">{{ 'ДЗИ източник' if selected_subject_dzi else 'Източник' }} за отворени въпроси</label>
-    <select id="source_slug" name="source_slug">
-        <option value="">Всички налични източници</option>
-        {% for source in open_source_options %}
-            <option value="{{ source.source_slug }}" {% if form_values.source_slug == source.source_slug %}selected{% endif %}>
-                {{ source.source_slug }} ({{ source.count }} отворени)
-            </option>
-        {% endfor %}
-    </select>
-    <div class="help">Използват се само кандидати с примерни/приети отговори; автоматичната проверка е ориентир, не финална оценка.</div>
-
-    {% if selected_subject_dzi %}
+    {% macro dzi_practical_panel() %}
     <section class="practical-assignment-panel" aria-labelledby="practical-assignment-title">
         <div>
             <p class="eyebrow">Практически задачи 26–28</p>
@@ -179,6 +191,13 @@
             <p class="empty-state">Няма налични практически ресурси за показване в момента.</p>
         {% endif %}
     </section>
+    {% endmacro %}
+    {% if any_dzi_sections %}
+    {# Inert until a server-authorized DZI section is selected. #}
+    <template id="dzi-practical-panel-template">{{ dzi_practical_panel() }}</template>
+    <div id="dzi-practical-panel-slot">
+        {% if selected_dzi_context %}{{ dzi_practical_panel() }}{% endif %}
+    </div>
     {% endif %}
 
     {% if mixed_planning_result %}
@@ -255,6 +274,77 @@
     section.addEventListener("change", updateHelp);
     count.addEventListener("input", updateHelp);
     updateHelp();
+
+    // The stored section type authorizes DZI opens; POST enforces it again.
+    const openToggle = document.getElementById("include_open_questions");
+    if (!openToggle) {
+        return;
+    }
+    const openCount = document.getElementById("open_count");
+    const openAvailable = document.getElementById("open-question-available");
+    const openEmpty = document.getElementById("open-question-empty");
+    const openControls = document.getElementById("open-question-controls");
+    const openSourceBlock = document.getElementById("open-question-source");
+    const openSource = document.getElementById("source_slug");
+    const openPanel = document.getElementById("open-question-panel");
+    const practicalSlot = document.getElementById("dzi-practical-panel-slot");
+    const practicalTemplate = document.getElementById("dzi-practical-panel-template");
+
+    function updateOpenQuestions() {
+        const selected = section.options[section.selectedIndex];
+        const chosen = Boolean(selected && selected.value);
+        const applicable = chosen && selected.dataset.openApplicable === "true";
+        if (practicalSlot && practicalTemplate) {
+            practicalSlot.replaceChildren();
+            if (chosen && selected.dataset.dziContext === "true") {
+                practicalSlot.appendChild(practicalTemplate.content.cloneNode(true));
+            }
+        }
+        const available = chosen ? parseInt(selected.dataset.openCount || "0", 10) : 0;
+        let sources = [];
+        try {
+            sources = chosen ? JSON.parse(selected.dataset.openSources || "[]") : [];
+        } catch (error) {
+            sources = [];
+        }
+        const wanted = openSource.value || openSource.dataset.selected || "";
+
+        openSource.length = 1;
+        sources.forEach(function (source) {
+            const option = document.createElement("option");
+            option.value = source.source_slug;
+            option.textContent = `${source.source_slug} (${source.count} отворени)`;
+            option.selected = source.source_slug === wanted;
+            openSource.appendChild(option);
+        });
+        openSource.dataset.selected = "";
+
+        const usable = applicable && available > 0;
+        const picked = openSource.options[openSource.selectedIndex];
+        const sourceLimit = picked && picked.value
+            ? (sources.find(function (source) { return source.source_slug === picked.value; }) || {count: 0}).count
+            : available;
+
+        openAvailable.textContent = String(sourceLimit);
+        openPanel.hidden = !applicable;
+        openEmpty.hidden = !chosen || usable;
+        openControls.hidden = chosen && !usable;
+        openSourceBlock.hidden = chosen && !usable;
+        openToggle.disabled = !usable;
+        openCount.disabled = !usable;
+        openSource.disabled = !usable;
+        openCount.max = String(sourceLimit);
+        if (!usable) {
+            openToggle.checked = false;
+            openCount.value = "0";
+        } else if (parseInt(openCount.value || "0", 10) > sourceLimit) {
+            openCount.value = String(sourceLimit);
+        }
+    }
+
+    section.addEventListener("change", updateOpenQuestions);
+    openSource.addEventListener("change", updateOpenQuestions);
+    updateOpenQuestions();
 })();
 </script>
 {% endblock %}

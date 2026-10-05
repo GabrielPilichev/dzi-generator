@@ -17,7 +17,7 @@ from src.subject_browsing import SubjectContentBrowser, subject_content_grades
 from src.subject_registry import (
     IT, PHYSICS, PLATFORM_GRADES, SUBJECTS, SubjectDefinition, all_subjects,
     get_subject, resolve_subject_identifier, subject_for_route_slug,
-    subject_supports_grade, validate_registry,
+    grade_paths, subject_supports_grade, validate_registry,
 )
 from tests.support import ROOT, copy_seed_database
 
@@ -32,7 +32,8 @@ EXPECTED_ORDER = [
 
 
 def _definition(**overrides):
-    fields = dict(id="alpha", route_slug="alpha", title="Алфа", description="d", search_terms="s")
+    fields = dict(id="alpha", route_slug="alpha", title="Алфа", description="d", search_terms="s",
+                  grade_paths=grade_paths(general=PLATFORM_GRADES))
     fields.update(overrides)
     return SubjectDefinition(**fields)
 
@@ -99,15 +100,14 @@ class RegistryIdentityTests(unittest.TestCase):
 
 
 class RegistryCapabilityTests(unittest.TestCase):
-    def test_only_it_is_dzi_and_uses_legacy_grade_routes(self):
+    def test_only_it_is_dzi(self):
         self.assertEqual([s.id for s in SUBJECTS if s.dzi], ["it"])
-        self.assertEqual([s.id for s in SUBJECTS if s.legacy_grade_routes], ["it"])
 
     def test_placeholder_groups_exist_only_for_physics_in_declared_grades(self):
         for subject in SUBJECTS:
             with self.subTest(subject=subject.id):
                 if subject.id == PHYSICS:
-                    self.assertEqual(set(subject.placeholder_topic_groups), set(PLATFORM_GRADES))
+                    self.assertEqual(set(subject.placeholder_topic_groups), {8, 9, 10})
                     self.assertTrue(all(
                         group["status"] == "in_preparation"
                         for groups in subject.placeholder_topic_groups.values()
@@ -117,10 +117,16 @@ class RegistryCapabilityTests(unittest.TestCase):
                     self.assertEqual(dict(subject.placeholder_topic_groups), {})
                 self.assertLessEqual(set(subject.placeholder_topic_groups), set(subject.grades))
 
-    def test_every_subject_currently_declares_the_platform_grades(self):
-        for subject in SUBJECTS:
-            with self.subTest(subject=subject.id):
-                self.assertEqual(subject.grades, (8, 9, 10, 11, 12))
+    def test_supported_grades_per_subject(self):
+        expected = {
+            "it": (8, 9, 10, 11, 12),
+            "physics": (8, 9, 10),
+            "informatics": (8,),
+            "biology": (8, 9, 10),
+            "mathematics": (8, 9, 10, 11, 12),
+            "chemistry": (8, 9, 10),
+        }
+        self.assertEqual({subject.id: subject.grades for subject in SUBJECTS}, expected)
 
     def test_it_alone_has_an_explicit_active_description(self):
         self.assertIsNotNone(get_subject(IT).active_description)
@@ -131,7 +137,7 @@ class RegistryCapabilityTests(unittest.TestCase):
     def test_grade_support_is_strict(self):
         for subject in SUBJECTS:
             for grade in PLATFORM_GRADES:
-                self.assertTrue(subject_supports_grade(subject.id, grade))
+                self.assertEqual(subject_supports_grade(subject.id, grade), grade in subject.grades)
             for grade in (0, 7, 13, -8, 8.0, "8", None, True, False):
                 with self.subTest(subject=subject.id, grade=grade):
                     self.assertFalse(subject_supports_grade(subject.id, grade))

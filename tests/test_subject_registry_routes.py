@@ -188,11 +188,11 @@ class SeedSubjectRoutesTest(_RouteTestCase):
             self.assertTrue(response.headers["Location"].endswith(canonical), legacy)
         self.html("/physics/grade/7", 404)
 
-    def test_it_class_links_use_the_legacy_grade_routes(self):
+    def test_it_class_links_use_the_canonical_subject_routes(self):
         hrefs = _HTMLProbe(self.html("/")).hrefs()
         for grade in PLATFORM_GRADES:
-            self.assertIn(f"/grade/{grade}", hrefs)
-            self.assertNotIn(f"/subjects/information-technologies/{grade}", hrefs)
+            self.assertIn(f"/subjects/information-technologies/{grade}", hrefs)
+            self.assertNotIn(f"/grade/{grade}", hrefs)
 
     def test_teacher_form_defaults_to_it_with_dzi_features(self):
         self.login()
@@ -216,7 +216,10 @@ class SeedSubjectRoutesTest(_RouteTestCase):
                 )
                 self.assertNotIn("practical-assignment-panel", html)
                 self.assertNotIn("ДЗИ източник", html)
-                self.assertIn("Източник за отворени въпроси", html)
+                # DZI assessment controls/notices do not apply to this subject.
+                self.assertNotIn("Източник за отворени въпроси", html)
+                self.assertNotIn('name="open_count"', html)
+                self.assertNotIn("Няма налични отворени въпроси за избрания материал.", html)
                 # The selected subject stays reachable; other preparation subjects do not.
                 hrefs = _HTMLProbe(html).hrefs()
                 self.assertIn(f"/teacher/new?subject={subject.route_slug}", hrefs)
@@ -329,11 +332,15 @@ class SyntheticBiologySubjectTest(_RouteTestCase):
 
     def test_legacy_it_routes_do_not_expose_biology(self):
         self.html(f"/section/{self.section_slug}", 404)
-        for path in ("/grade/8", "/subjects/information-technologies/8", "/subjects/physics/8"):
+        for path in ("/subjects/information-technologies/8", "/subjects/physics/8"):
             with self.subTest(path=path):
                 html = self.html(path)
                 self.assertNotIn("Synthetic biology", html)
                 self.assertNotIn("/subjects/biology/8", _HTMLProbe(html).hrefs())
+        # The grade overview links every supported subject, but shows no sections.
+        overview = self.html("/grade/8")
+        self.assertNotIn("Synthetic biology", overview)
+        self.assertIn("/subjects/biology/8", _HTMLProbe(overview).hrefs())
 
     def test_teacher_form_lists_biology_only_for_biology(self):
         self.login()

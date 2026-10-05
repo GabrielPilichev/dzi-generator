@@ -1,9 +1,9 @@
 """Canonical registry of LearnPilot subjects.
 
 One list of static product metadata: identity, route slug, Bulgarian copy,
-display order, declared grades and feature flags. Availability of content is
-never stored here; it is derived from the curriculum records (see
-``src.subject_browsing.subject_content_grades``).
+display order, declared grades, the educational paths of each grade and feature
+flags. Availability of content is never stored here; it is derived from the
+curriculum records (see ``src.subject_browsing.subject_content_grades``).
 
 Lives in ``src/`` so importer tooling can use it without importing ``web.app``.
 """
@@ -19,9 +19,36 @@ PHYSICS = "physics"
 
 PLATFORM_GRADES = (8, 9, 10, 11, 12)
 
+# Educational paths of a grade in the official МОН curriculum. A grade may have
+# both; a platform grade without any is one where the subject is not studied.
+GENERAL = "general"    # общообразователна подготовка
+PROFILED = "profiled"  # профилирана подготовка (XI-XII клас)
+GRADE_PATHS = (GENERAL, PROFILED)
+
 
 def _empty_groups() -> Mapping[int, tuple[dict, ...]]:
     return MappingProxyType({})
+
+
+def _empty_paths() -> Mapping[int, tuple[str, ...]]:
+    return MappingProxyType({})
+
+
+def _empty_supported_paths() -> Mapping[int, str]:
+    return MappingProxyType({})
+
+
+def grade_paths(general: Iterable[int] = (),
+                profiled: Iterable[int] = ()) -> Mapping[int, tuple[str, ...]]:
+    """Read-only grade -> educational paths map, in ascending grade order.
+
+    A grade named in both arguments has both paths, general first.
+    """
+    paths: dict[int, tuple[str, ...]] = {}
+    for path, grades in ((GENERAL, general), (PROFILED, profiled)):
+        for grade in grades:
+            paths[grade] = (*paths.get(grade, ()), path)
+    return MappingProxyType(dict(sorted(paths.items())))
 
 
 @dataclass(frozen=True)
@@ -31,13 +58,42 @@ class SubjectDefinition:
     title: str
     description: str
     search_terms: str
+    # Grades LearnPilot supports: they have routes and accept imported content.
     grades: tuple[int, ...] = PLATFORM_GRADES
+    # Official educational paths of each grade the subject is studied in. This
+    # is not content availability: a general grade may still have no content,
+    # and a profiled path may be supported (IT) or outside LearnPilot's scope.
+    grade_paths: Mapping[int, tuple[str, ...]] = field(default_factory=_empty_paths)
+    # Which path LearnPilot supports, only for supported grades with several.
+    supported_paths: Mapping[int, str] = field(default_factory=_empty_supported_paths)
+    # Grades whose general education exists only under some framework plans.
+    framework_plan_dependent_grades: tuple[int, ...] = ()
     legacy_aliases: tuple[str, ...] = ()
     active_description: str | None = None
     dzi: bool = False
-    legacy_grade_routes: bool = False
     # Navigation-only placeholders for grades that have no database content yet.
     placeholder_topic_groups: Mapping[int, tuple[dict, ...]] = field(default_factory=_empty_groups)
+
+    def paths_for(self, grade: object) -> tuple[str, ...]:
+        """Every educational path of a grade; empty when the subject is not studied in it."""
+        return tuple(self.grade_paths.get(grade, ())) if type(grade) is int else ()
+
+    def supported_path(self, grade: object) -> str | None:
+        """The path LearnPilot supports in a grade; None for an unsupported grade."""
+        if type(grade) is not int or grade not in self.grades:
+            return None
+        paths = self.paths_for(grade)
+        if len(paths) == 1:
+            return paths[0]
+        return self.supported_paths.get(grade)
+
+    @property
+    def profiled_grades_outside_scope(self) -> tuple[int, ...]:
+        """Grades with a profiled path that LearnPilot does not support."""
+        return tuple(
+            grade for grade, paths in self.grade_paths.items()
+            if PROFILED in paths and self.supported_path(grade) != PROFILED
+        )
 
 
 _PHYSICS_TOPIC_GROUPS_BY_GRADE = MappingProxyType({
@@ -59,18 +115,6 @@ _PHYSICS_TOPIC_GROUPS_BY_GRADE = MappingProxyType({
         {"slug": "electric-phenomena", "title": "Електрични явления", "status": "in_preparation"},
         {"slug": "magnetic-phenomena", "title": "Магнитни явления", "status": "in_preparation"},
     ),
-    11: (
-        {"slug": "electromagnetism", "title": "Електромагнетизъм", "status": "in_preparation"},
-        {"slug": "geometric-optics", "title": "Геометрична оптика", "status": "in_preparation"},
-        {"slug": "wave-optics", "title": "Вълнова оптика", "status": "in_preparation"},
-        {"slug": "quantum-phenomena", "title": "Квантови явления", "status": "in_preparation"},
-    ),
-    12: (
-        {"slug": "atomic-physics", "title": "Атомна физика", "status": "in_preparation"},
-        {"slug": "nuclear-physics", "title": "Ядрена физика", "status": "in_preparation"},
-        {"slug": "elementary-particles", "title": "Елементарни частици", "status": "in_preparation"},
-        {"slug": "astrophysics", "title": "Астрофизика", "status": "in_preparation"},
-    ),
 })
 
 
@@ -85,8 +129,9 @@ SUBJECTS: tuple[SubjectDefinition, ...] = (
         # "informatika_it" is legacy IT/DZI data, never the Informatics subject.
         legacy_aliases=("IT", "informatika_it", "Информационни технологии"),
         active_description="Текущото съдържание с класове, теми, въпроси и тренировъчни тестове.",
+        # Profiled 11-12 is in scope: the existing IT/ДЗИ content lives there.
+        grade_paths=grade_paths(general=(8, 9, 10), profiled=(11, 12)),
         dzi=True,
-        legacy_grade_routes=True,
     ),
     SubjectDefinition(
         id=PHYSICS,
@@ -94,6 +139,9 @@ SUBJECTS: tuple[SubjectDefinition, ...] = (
         title="Физика",
         description="Раздел по класове за бъдещи теми, упражнения и тестове по физика.",
         search_terms="physics fizika природни науки",
+        grades=(8, 9, 10),
+        grade_paths=grade_paths(general=(8, 9, 10), profiled=(11, 12)),
+        framework_plan_dependent_grades=(8,),
         placeholder_topic_groups=_PHYSICS_TOPIC_GROUPS_BY_GRADE,
     ),
     SubjectDefinition(
@@ -102,6 +150,11 @@ SUBJECTS: tuple[SubjectDefinition, ...] = (
         title="Информатика",
         description="Бъдещ раздел за алгоритми, програмиране и задачи по информатика.",
         search_terms="informatika алгоритми програмиране",
+        # General-education Informatics exists for VIII клас only, and only under
+        # some framework plans; IX-X have no programme.
+        grades=(8,),
+        grade_paths=grade_paths(general=(8,), profiled=(11, 12)),
+        framework_plan_dependent_grades=(8,),
     ),
     SubjectDefinition(
         id="biology",
@@ -109,6 +162,9 @@ SUBJECTS: tuple[SubjectDefinition, ...] = (
         title="Биология",
         description="Бъдещ раздел по класове за теми и упражнения по биология.",
         search_terms="biologiya природни науки",
+        grades=(8, 9, 10),
+        grade_paths=grade_paths(general=(8, 9, 10), profiled=(11, 12)),
+        framework_plan_dependent_grades=(8,),
     ),
     SubjectDefinition(
         id="mathematics",
@@ -116,6 +172,9 @@ SUBJECTS: tuple[SubjectDefinition, ...] = (
         title="Математика",
         description="Бъдещ раздел по класове за задачи, теми и тестове по математика.",
         search_terms="matematika алгебра геометрия",
+        # XI-XII have both paths; LearnPilot supports the general one.
+        grade_paths=grade_paths(general=PLATFORM_GRADES, profiled=(11, 12)),
+        supported_paths=MappingProxyType({11: GENERAL, 12: GENERAL}),
     ),
     SubjectDefinition(
         id="chemistry",
@@ -123,6 +182,9 @@ SUBJECTS: tuple[SubjectDefinition, ...] = (
         title="Химия",
         description="Бъдещ раздел по класове за теми и упражнения по химия.",
         search_terms="himiya природни науки",
+        grades=(8, 9, 10),
+        grade_paths=grade_paths(general=(8, 9, 10), profiled=(11, 12)),
+        framework_plan_dependent_grades=(8,),
     ),
 )
 
@@ -148,6 +210,32 @@ def validate_registry(subjects: Iterable[SubjectDefinition]) -> None:
             raise ValueError(f"{subject.id!r} declares a grade outside {PLATFORM_GRADES}")
         if list(grades) != sorted(set(grades)):
             raise ValueError(f"{subject.id!r} grades must be unique and ascending")
+        for grade, paths in subject.grade_paths.items():
+            if type(grade) is not int or grade not in PLATFORM_GRADES:
+                raise ValueError(f"{subject.id!r} has paths for a grade outside {PLATFORM_GRADES}")
+            if (not isinstance(paths, tuple) or not paths or len(set(paths)) != len(paths)
+                    or any(path not in GRADE_PATHS for path in paths)):
+                raise ValueError(f"{subject.id!r} grade {grade} has invalid paths {paths!r}")
+        for grade in grades:
+            paths = subject.grade_paths.get(grade)
+            if not paths:
+                raise ValueError(
+                    f"{subject.id!r} supports grade {grade} without an educational path"
+                )
+            if len(paths) > 1 and subject.supported_paths.get(grade) not in paths:
+                raise ValueError(
+                    f"{subject.id!r} grade {grade} has several paths; declare the supported one"
+                )
+        for grade, path in subject.supported_paths.items():
+            if grade not in grades or path not in subject.grade_paths.get(grade, ()):
+                raise ValueError(
+                    f"{subject.id!r} supported path {path!r} does not fit grade {grade}"
+                )
+        for grade in subject.framework_plan_dependent_grades:
+            if GENERAL not in subject.grade_paths.get(grade, ()):
+                raise ValueError(
+                    f"{subject.id!r} grade {grade} is framework-plan dependent without a general path"
+                )
         for grade in subject.placeholder_topic_groups:
             if grade not in grades:
                 raise ValueError(
@@ -200,3 +288,9 @@ def resolve_subject_identifier(value: object) -> str | None:
 def subject_supports_grade(subject_id: object, grade: object) -> bool:
     subject = get_subject(subject_id)
     return subject is not None and type(grade) is int and grade in subject.grades
+
+
+def subject_grade_paths(subject_id: object, grade: object) -> tuple[str, ...]:
+    """Educational paths of a grade; empty for an unknown subject or a grade it is not studied in."""
+    subject = get_subject(subject_id)
+    return subject.paths_for(grade) if subject is not None else ()

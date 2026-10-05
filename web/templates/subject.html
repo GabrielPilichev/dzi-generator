@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "_subject_states.html" import status_panel, empty_note %}
+{% from "_subject_states.html" import status_panel, empty_note, grade_path_labels, profiled_scope_note %}
 
 {% block title %}{{ subject.title }} — LearnPilot{% endblock %}
 
@@ -30,7 +30,7 @@
             <p class="eyebrow">Класове</p>
             <h2 id="subject-classes-title">Избери клас</h2>
         </div>
-        <span class="pill">{{ subject.available_classes|length }} класа</span>
+        <span class="pill">{{ subject.available_classes|length }} {{ "клас" if subject.available_classes|length == 1 else "класа" }}</span>
     </div>
 
     <div class="cards subject-class-grid" data-motion="stagger">
@@ -39,11 +39,13 @@
             {% set grade_topic_groups = subject_topic_groups(subject, grade) %}
             {% set grade_has_content = grade in content_grades %}
             {% set grade_question_count = grade_row.question_count if grade_row else 0 %}
-            <a class="card subject-class-card {% if grade_has_content %}subject-class-card--active{% endif %}"
+            {% set grade_path = subject.supported_grade_paths.get(grade) %}
+            <a class="card subject-class-card{% if grade_path %} subject-class-card--{{ grade_path }}{% endif %}{% if grade_has_content %} subject-class-card--active{% endif %}"
                href="{{ subject_class_url(subject, grade) }}">
                 <span class="subject-class-number">{{ grade }}</span>
                 <div data-motion-item>
                     <h2><span data-motion-accent>{{ grade }}. клас</span></h2>
+                    {{ grade_path_labels(grade_path, grade in subject.framework_plan_dependent_grades) }}
                     {% if grade_has_content and grade_question_count %}
                         <p class="subtitle">
                             Към текущите раздели, въпроси и тестове за {{ grade }}. клас.
@@ -72,6 +74,11 @@
             </a>
         {% endfor %}
     </div>
+
+    {{ profiled_scope_note(
+        grade_list_label(subject.profiled_grades_outside_scope),
+        "Профилираната подготовка по предмета в тези класове не е включена в LearnPilot."
+    ) }}
 </section>
 
 {% if structure_only %}

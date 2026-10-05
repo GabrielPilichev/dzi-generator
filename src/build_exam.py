@@ -15,6 +15,9 @@ import json
 from pathlib import Path
 from datetime import datetime
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from src.dzi_open_questions import fetch_dzi_open_questions
+
 from docx import Document
 from docx.shared import Pt, Cm, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
@@ -30,7 +33,7 @@ def get_questions_pool(db_path: str) -> dict:
     Зарежда всички въпроси от DB, групирани по тип.
     Връща dict с keys: 'multiple_choice', 'fill_in'
     """
-    conn = sqlite3.connect(db_path)
+    conn = sqlite3.connect(Path(db_path).resolve().as_uri() + "?mode=ro", uri=True)
     conn.row_factory = sqlite3.Row
     
     pool = {"multiple_choice": [], "fill_in": []}
@@ -58,29 +61,15 @@ def get_questions_pool(db_path: str) -> dict:
                 "options": options,
             })
     
-    # Fill-in
-    cursor = conn.execute("""
-        SELECT q.id, q.source_exam, q.source_number, q.topic, q.points, q.prompt
-        FROM questions q
-        WHERE q.question_type = 'fill_in'
-    """)
-    for row in cursor:
-        # Зареждаме подзадачите
-        subs_cursor = conn.execute("""
+    # DZI open questions use the same ownership/readiness pool as web tests.
+    for row in fetch_dzi_open_questions(conn):
+        subquestions = [dict(sub) for sub in conn.execute("""
             SELECT subquestion_number, correct_answer, points
-            FROM fill_in_subquestions
-            WHERE question_id = ?
+            FROM fill_in_subquestions WHERE question_id = ?
             ORDER BY subquestion_number
-        """, (row["id"],))
-        subquestions = [dict(s) for s in subs_cursor]
-        
-        # Само въпроси с поне 1 подотговор
-        if len(subquestions) > 0:
-            pool["fill_in"].append({
-                **dict(row),
-                "subquestions": subquestions,
-            })
-    
+        """, (row["id"],))]
+        pool["fill_in"].append({**row, "subquestions": subquestions})
+
     conn.close()
     return pool
 

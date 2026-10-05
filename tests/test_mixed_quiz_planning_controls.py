@@ -121,7 +121,7 @@ class MixedQuizPlanningControlsTest(IsolatedAppTestCase):
 
     def test_get_shows_practical_task_links_as_manual_review_option(self):
         self._login_tester()
-        response = self.client.get("/teacher/new")
+        response = self.client.get("/teacher/new", query_string={"section": self.section["section_slug"]})
 
         self.assertEqual(response.status_code, 200)
         self.assertIn("Практически задачи 26–28".encode("utf-8"), response.data)

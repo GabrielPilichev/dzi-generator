@@ -142,7 +142,7 @@ class HomepageSearchTest(IsolatedAppTestCase):
         self.assertIn("home-subject-section", _classes(section))
         self.assertEqual(section.get("data-home-search-group"), "subjects")
         for grade in (8, 9, 10, 11, 12):
-            self.assertIn(f"/grade/{grade}", parsed.hrefs())
+            self.assertIn(f"/subjects/information-technologies/{grade}", parsed.hrefs())
         for slug in (
             "information-technologies",
             "physics",
@@ -196,16 +196,18 @@ class HomepageSearchTest(IsolatedAppTestCase):
         )
         self.assertTrue(
             any(
-                all(token in attrs.get("data-search-text", "") for token in ("Физика", "8. клас", "12. клас"))
+                all(token in attrs.get("data-search-text", "") for token in ("Физика", "8. клас", "10. клас"))
+                and "12. клас" not in attrs.get("data-search-text", "")
                 for attrs in physics_items
             )
         )
+        # Search text lists the grades LearnPilot supports, per subject.
+        last_supported_grade = {"Информатика": 8, "Биология": 10, "Математика": 12, "Химия": 10}
         for subject, items in future_subject_items.items():
+            tokens = (subject, "8. клас", f"{last_supported_grade[subject]}. клас", "в подготовка")
             self.assertTrue(
-                any(
-                    all(token in attrs.get("data-search-text", "") for token in (subject, "8. клас", "12. клас", "в подготовка"))
-                    for attrs in items
-                )
+                any(all(token in attrs.get("data-search-text", "") for token in tokens) for attrs in items),
+                subject,
             )
 
     def test_physics_subject_page_renders_class_first_framework(self):
@@ -218,10 +220,13 @@ class HomepageSearchTest(IsolatedAppTestCase):
         self.assertIn("Съдържанието идва скоро", parsed.text)
         self.assertIn("Избери клас", parsed.text)
         self.assertLess(parsed.text.index("Избери клас"), parsed.text.index("Съдържанието идва скоро"))
-        for grade in (8, 9, 10, 11, 12):
+        for grade in (8, 9, 10):
             self.assertIn(f"{grade}. клас", parsed.text)
             self.assertIn(f"/subjects/physics/{grade}", parsed.hrefs())
             self.assertIn(f"4 тематични групи в подготовка за {grade}. клас", parsed.text)
+        for grade in (11, 12):
+            self.assertNotIn(f"/subjects/physics/{grade}", parsed.hrefs())
+        self.assertIn("11.–12. клас — профилирана подготовка", parsed.text)
         self.assertNotIn("Теми за 8. клас", parsed.text)
         self.assertNotIn("Движение и сили", parsed.text)
         self.assertIn("все още няма реални въпроси", parsed.text)
@@ -231,12 +236,15 @@ class HomepageSearchTest(IsolatedAppTestCase):
         self.assertEqual(response.status_code, 301)
         self.assertEqual(urlparse(response.headers["Location"]).path, "/subjects/physics")
 
-        for grade in (8, 9, 10, 11, 12):
+        for grade in (8, 9, 10):
             response = self.client.get(f"/physics/grade/{grade}")
             self.assertEqual(response.status_code, 301)
             self.assertEqual(
                 urlparse(response.headers["Location"]).path, f"/subjects/physics/{grade}"
             )
+        # Profiled grades are outside LearnPilot's scope: no redirect, no page.
+        for grade in (11, 12):
+            self.assertEqual(self.client.get(f"/physics/grade/{grade}").status_code, 404)
 
         response = self.client.get("/physics/grade/8", follow_redirects=True)
         self.assertEqual(response.status_code, 200)
@@ -320,7 +328,7 @@ class HomepageSearchTest(IsolatedAppTestCase):
         self.assertIn("Съдържанието вече е налично", parsed.text)
         for grade in (8, 9, 10, 11, 12):
             self.assertIn(f"{grade}. клас", parsed.text)
-            self.assertIn(f"/grade/{grade}", parsed.hrefs())
+            self.assertIn(f"/subjects/information-technologies/{grade}", parsed.hrefs())
 
     def test_future_subject_page_renders_placeholder_state(self):
         response = self.client.get("/subjects/biology")
@@ -330,8 +338,12 @@ class HomepageSearchTest(IsolatedAppTestCase):
         self.assertIn("Биология", parsed.text)
         self.assertIn("Съдържанието идва скоро", parsed.text)
         self.assertIn("В подготовка", parsed.text)
-        for grade in (8, 9, 10, 11, 12):
+        for grade in (8, 9, 10):
             self.assertIn(f"/subjects/biology/{grade}", parsed.hrefs())
+        # Profiled grades are explained, never linked.
+        for grade in (11, 12):
+            self.assertNotIn(f"/subjects/biology/{grade}", parsed.hrefs())
+        self.assertIn("11.–12. клас — профилирана подготовка", parsed.text)
 
     def test_future_subject_class_page_renders_placeholder_state(self):
         response = self.client.get("/subjects/biology/8")
@@ -424,11 +436,13 @@ class HomepageSearchTest(IsolatedAppTestCase):
         self.assertTrue(searchable_items)
         self.assertTrue(all(attrs.get("data-search-text") for attrs in searchable_items))
 
-    def test_it_subject_card_links_to_existing_grade_routes(self):
+    def test_it_subject_card_links_to_its_canonical_grade_pages(self):
         html = self._get_home_html()
         hrefs = _HTMLProbe(html).hrefs()
         for grade in (8, 9, 10, 11, 12):
-            self.assertIn(f"/grade/{grade}", hrefs)
+            self.assertIn(f"/subjects/information-technologies/{grade}", hrefs)
+            # /grade/<n> is the subject overview of a grade, not an IT page.
+            self.assertNotIn(f"/grade/{grade}", hrefs)
 
     def test_homepage_no_longer_lists_topic_titles(self):
         html = self._get_home_html()

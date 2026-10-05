@@ -32,6 +32,9 @@
     <p class="eyebrow">{{ subject.title }}</p>
     <h1 data-motion-item="headline">{{ grade }}. клас</h1>
     <p class="subtitle" data-motion-item="description">Избери раздел за преговор по {{ subject.title|lower }}.</p>
+    {% if grade in subject.framework_plan_dependent_grades %}
+        <p class="subject-grade-scope-note">Предметът се изучава в {{ grade }}. клас само при определени учебни планове.</p>
+    {% endif %}
 </section>
 
 {% if section_groups %}
@@ -126,6 +129,10 @@
             {% endfor %}
         </div>
     </section>
+{% endif %}
+
+{% if grade in subject.framework_plan_dependent_grades %}
+    <p class="subject-grade-scope-note">Предметът се изучава в {{ grade }}. клас само при определени учебни планове.</p>
 {% endif %}
 
 <div class="actions">

@@ -69,16 +69,19 @@ class SubjectScopedBrowsingTest(IsolatedAppTestCase):
         self.assertIn("/subjects/physics/8/f2-physics-grade8", class_page.hrefs())
         self.assertNotIn("/grade/8", class_page.hrefs())
 
-    def test_it_legacy_and_generic_grade_pages_remain_it_only(self):
-        for path in ("/grade/8", "/subjects/information-technologies/8"):
-            with self.subTest(path=path):
-                response, page = self._page(path)
-                self.assertEqual(response.status_code, 200)
-                self.assertIn("F2 IT раздел", page.text)
-                self.assertNotIn("F2 Физика раздел", page.text)
-        self.assertIn(
-            "/section/f2-it-grade8", self._page("/grade/8")[1].hrefs()
-        )
+    def test_it_grade_page_remains_it_only_and_grade_overview_lists_subjects(self):
+        response, page = self._page("/subjects/information-technologies/8")
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("F2 IT раздел", page.text)
+        self.assertNotIn("F2 Физика раздел", page.text)
+        # /grade/8 shows subjects, never one subject's sections.
+        response, overview = self._page("/grade/8")
+        self.assertEqual(response.status_code, 200)
+        for path in ("/subjects/information-technologies/8", "/subjects/physics/8"):
+            self.assertIn(path, overview.hrefs())
+        self.assertNotIn("F2 IT раздел", overview.text)
+        self.assertNotIn("F2 Физика раздел", overview.text)
+        self.assertNotIn("/section/f2-it-grade8", overview.hrefs())
 
     def test_physics_group_shows_only_its_owned_topics_questions_and_options(self):
         response, page = self._page("/subjects/physics/8/f2-physics-grade8")
@@ -163,7 +166,7 @@ class SubjectScopedBrowsingTest(IsolatedAppTestCase):
         self.assertIn("F2 Физика тема", physics_search)
         self.assertNotIn("F2 IT раздел", physics_search)
         self.assertNotIn("F2 конфликтна тема", physics_search)
-        self.assertIn("/grade/8", page.hrefs())
+        self.assertIn("/subjects/information-technologies/8", page.hrefs())
         self.assertIn("/subjects/physics/8", page.hrefs())
         self.assertNotIn("/section/f2-physics-grade8", page.hrefs())
 

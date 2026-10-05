@@ -60,7 +60,7 @@
                   {% for file in submission.files %}
                     <li class="option-row">
                       <span>
-                        {{ file.original_filename }}
+                        <span class="machine-text">{{ file.original_filename }}</span>
                         {% if file.size_bytes %}
                           <span class="subtitle"> · {{ file.size_bytes }} байта</span>
                         {% endif %}

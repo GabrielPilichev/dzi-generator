@@ -8,6 +8,7 @@ from tests.subject_fixtures import (
     add_curriculum, add_membership, add_question, add_section, add_topic, four_options,
 )
 from tests.support import IsolatedAppTestCase, web_app
+from tests.dzi_open_fixtures import mark_dzi_question
 
 
 class SubjectAssessmentSelectionTest(IsolatedAppTestCase):
@@ -34,6 +35,11 @@ class SubjectAssessmentSelectionTest(IsolatedAppTestCase):
             )
             cls.it_mc = cls._question(conn, it_topic, "IT", "multiple_choice", 1)
             cls.it_open = cls._question(conn, it_topic, "informatika_it", "fill_in", 2)
+            mark_dzi_question(conn, cls.it_open)
+            it12 = add_curriculum(conn, "IT", 12, "f3-it-dzi")
+            cls.it_dzi_section = add_section(conn, it12, "f3-dzi", "F3 DZI", grade=12,
+                                            section_type="dzi_training")
+            add_membership(conn, it_topic, cls.it_dzi_section)
             cls.physics_mc = cls._question(conn, physics_topic, "physics", "multiple_choice", 3)
             cls.physics_open = cls._question(conn, physics_topic, "physics", "fill_in", 4)
             cls.wrong_subject = cls._question(conn, physics_topic, "IT", "multiple_choice", 5)
@@ -121,22 +127,24 @@ class SubjectAssessmentSelectionTest(IsolatedAppTestCase):
         self.assertIn(self.it_mc, it_mc)
         self.assertNotIn(self.physics_mc, it_mc)
         self.assertEqual(physics_mc, [self.physics_mc])
-        self.assertEqual([item["question_id"] for item in it_open], [self.it_open])
-        self.assertEqual([item["question_id"] for item in physics_open], [self.physics_open])
+        self.assertEqual(it_open, [])
+        self.assertEqual(physics_open, [])
         self.assertEqual(
             [item["question_id"] for item in physics_plan["closed_questions"]],
             [self.physics_mc],
         )
         self.assertEqual(
             [item["question_id"] for item in physics_plan["open_questions"]],
-            [self.physics_open],
+            [],
         )
 
     def test_plan_validation_rejects_wrong_unknown_unclassified_and_conflicting_ids(self):
         conn = web_app.quiz_db()
         try:
             scope = AssessmentScope(conn, self.physics_section)
-            scope.validate_plan([self.physics_mc, self.physics_open], [self.physics_open])
+            scope.validate_plan([self.physics_mc], [])
+            with self.assertRaises(ValueError):
+                scope.validate_plan([self.physics_mc, self.physics_open], [self.physics_open])
             for bad_id in (
                 self.it_mc, self.it_open, self.wrong_subject,
                 self.unknown, self.unclassified, self.cross_membership,
@@ -206,18 +214,16 @@ class SubjectAssessmentSelectionTest(IsolatedAppTestCase):
 
     def test_existing_it_creation_and_physics_mixed_plan_are_separate(self):
         it_id = self._create(self.it_section, "it")
-        physics_id = self._create(
-            self.physics_section, "physics", count=2, open_count=1, source="f3-synthetic"
-        )
         self.assertIsNone(self._assignment(it_id)["question_plan_json"])
-        plan = json.loads(self._assignment(physics_id)["question_plan_json"])
-        self.assertEqual(set(plan["question_ids"]), {self.physics_mc, self.physics_open})
-        self.assertEqual(plan["open_question_ids"], [self.physics_open])
-        self.assertNotIn(self.it_open, plan["question_ids"])
+        response = self.client.post("/teacher/new", data={
+            "section_id": self.physics_section, "subject": "physics",
+            "question_count": "2", "open_count": "1", "source_slug": "f3-synthetic",
+        })
+        self.assertEqual(response.status_code, 400)
 
     def test_existing_plan_and_started_snapshot_are_not_reselected_by_edit_or_duplicate(self):
         assignment_id = self._create(
-            self.physics_section, "physics", count=2, open_count=1, source="f3-synthetic"
+            self.it_dzi_section, "it", count=2, open_count=1, source="f3-synthetic"
         )
         plan_before = self._assignment(assignment_id)["question_plan_json"]
         started = self.client.post(

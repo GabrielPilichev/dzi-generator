@@ -74,7 +74,7 @@
                         <ul class="practical-resource-list">
                             {% for resource in task.resources %}
                                 <li class="practical-resource-item">
-                                    <span class="practical-resource-title">
+                                    <span class="practical-resource-title{% if not resource.label_bg %} machine-text{% endif %}">
                                         {{ resource.label_bg or resource.original_filename or "resource" }}
                                     </span>
                                     <span class="practical-resource-meta">
@@ -173,7 +173,7 @@
                                 <ul class="practical-output-list">
                                     {% for uploaded_file in task.uploaded_files %}
                                         <li class="practical-output-item">
-                                            <span>{{ uploaded_file.original_filename }}</span>
+                                            <span class="machine-text">{{ uploaded_file.original_filename }}</span>
                                             {% if uploaded_file.size_bytes %}
                                                 <span class="practical-resource-meta">{{ uploaded_file.size_bytes }} байта</span>
                                             {% endif %}

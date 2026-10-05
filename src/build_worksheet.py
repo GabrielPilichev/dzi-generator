@@ -43,7 +43,9 @@ SECTION_SIZE = 13
 def fetch_questions(conn, *, topic_slugs, area_ids, class_num,
                     types, difficulty, count, seed):
     """Return up to `count` approved questions matching filters, randomised."""
-    where = ["(q.is_ai_generated = 0 OR q.quality_score >= 1.0)"]
+    # This is an ordinary topical/class worksheet, not a DZI assessment context.
+    where = ["(q.is_ai_generated = 0 OR q.quality_score >= 1.0)",
+             "q.question_type NOT IN ('fill_in', 'short_answer', 'free_response')"]
     params: list = []
 
     if topic_slugs:

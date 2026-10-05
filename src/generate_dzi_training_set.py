@@ -12,6 +12,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from src.subject_assessment import question_belongs_to_subject
 from src.subject_content import IT, section_ownership, topic_ownership
+from src.dzi_open_questions import fetch_dzi_open_questions
 
 DB_PATH = Path("data/questions.db")
 CONFIG_PATH = Path("deploy/dzi-training-class-mix.json")
@@ -99,6 +100,7 @@ def allocate_counts(total_count, mix):
 
 
 def get_pool(con, classes):
+    ready_open_ids = {row["id"] for row in fetch_dzi_open_questions(con)}
     class_placeholders = ",".join("?" for _ in classes)
 
     query = f"""
@@ -119,14 +121,18 @@ def get_pool(con, classes):
         WHERE {APPROVED_FILTER}
           AND cs.class IN ({class_placeholders})
     )
-    SELECT class, question_id, mapped_topic_id, section_id
-    FROM question_classes
+    SELECT qc.class, qc.question_id, qc.mapped_topic_id, qc.section_id, q.question_type
+    FROM question_classes qc
+    JOIN questions q ON q.id = qc.question_id
     ORDER BY class, question_id;
     """
 
     pools = defaultdict(list)
     for row in con.execute(query, tuple(classes)):
         question_id = int(row["question_id"])
+        if (row["question_type"] in {"fill_in", "short_answer", "free_response"}
+                and question_id not in ready_open_ids):
+            continue
         mapped_topic = topic_ownership(con, int(row["mapped_topic_id"]))
         section = section_ownership(con, int(row["section_id"]))
         if not question_belongs_to_subject(con, question_id, IT):

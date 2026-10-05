@@ -5,7 +5,7 @@ LearnPilot — Web app, Phase 1.
 
 Структура:
   /                   → начална страница, списък с класове 8-12
-  /grade/<n>          → секции за избран клас, групирани по модул
+  /grade/<n>          → предметите за избран клас
   /section/<slug>     → въпроси в избрана секция
 
 Зависимости:
@@ -38,9 +38,15 @@ from werkzeug.exceptions import RequestEntityTooLarge
 from src.subject_browsing import public_slug, stored_slug_candidates, subject_content_grades
 from src.subject_browse_cache import CachedSubjectBrowser
 from src.subject_assessment import AssessmentScope, question_belongs_to_subject
+from src.dzi_open_questions import (
+    VISUAL_DEPENDENT_PATTERNS as QUIZ_VISUAL_DEPENDENT_PATTERNS,
+    answer_values as _quiz_answer_values,
+    fetch_dzi_open_questions,
+    is_open_question_generation_ready as is_fill_in_question_auto_gradable,
+)
 from src.subject_content import IT, canonical_subject, section_ownership
 from src.subject_registry import (
-    all_subjects, get_subject, subject_for_route_slug, subject_supports_grade,
+    PLATFORM_GRADES, all_subjects, get_subject, subject_for_route_slug, subject_supports_grade,
 )
 from src.practical_resource_resolution import (
     ResourceResolutionError,
@@ -235,12 +241,17 @@ def subject_catalog() -> tuple[dict, ...]:
             or f"Съдържание по класове, раздели и въпроси по {definition.title.lower()}.",
             "status": "active" if grades else "in_preparation",
             "available_classes": definition.grades,
+            "grade_paths": dict(definition.grade_paths),
+            "supported_grade_paths": {
+                grade: definition.supported_path(grade) for grade in definition.grades
+            },
+            "framework_plan_dependent_grades": definition.framework_plan_dependent_grades,
+            "profiled_grades_outside_scope": definition.profiled_grades_outside_scope,
             "has_real_content": bool(grades),
             "content_grades": grades,
             "search_terms": definition.search_terms,
             "topic_groups_by_grade": definition.placeholder_topic_groups,
             "dzi": definition.dzi,
-            "legacy_grade_routes": definition.legacy_grade_routes,
         })
     g.subject_catalog = tuple(catalog)
     return g.subject_catalog
@@ -281,6 +292,20 @@ def subject_class_range_label(subject: dict) -> str:
     if len(classes) == 1:
         return f"{classes[0]}. клас"
     return f"{min(classes)}.–{max(classes)}. клас"
+
+
+def grade_list_label(grades) -> str:
+    """Bulgarian label for a set of grades: consecutive runs become ranges ("11.–12. клас")."""
+    runs: list[list[int]] = []
+    for grade in sorted(set(grades)):
+        if runs and grade == runs[-1][-1] + 1:
+            runs[-1].append(grade)
+        else:
+            runs.append([grade])
+    if not runs:
+        return ""
+    parts = [f"{run[0]}." if len(run) == 1 else f"{run[0]}.–{run[-1]}." for run in runs]
+    return f"{', '.join(parts)} клас"
 
 
 def subject_search_text(subject: dict) -> str:
@@ -417,8 +442,6 @@ def inject_subject_navigation():
         return url_for("subject_view", subject_slug=subject["slug"])
 
     def subject_class_url(subject: dict, grade: int) -> str:
-        if subject["legacy_grade_routes"]:
-            return url_for("grade_view", grade=grade)
         return url_for("subject_grade_view", subject_slug=subject["slug"], grade=grade)
 
     def subject_topic_group_url(subject: dict, grade: int, topic_group: dict) -> str:
@@ -460,6 +483,7 @@ def inject_subject_navigation():
         "subject_topic_groups": subject_topic_groups,
         "subject_status_label": subject_status_label,
         "subject_class_range_label": subject_class_range_label,
+        "grade_list_label": grade_list_label,
         "subject_search_text": subject_search_text,
     }
 
@@ -702,11 +726,6 @@ def subject_browser(subject_id: str = IT) -> CachedSubjectBrowser:
 def fetch_grades_with_counts() -> list[dict]:
     """Legacy IT grade counts; other subjects use their own browsing scope."""
     return subject_browser().grade_counts()
-
-
-def fetch_sections_for_grade(grade: int) -> list[dict]:
-    """Legacy IT sections, grouped by module."""
-    return subject_browser().sections_for_grade(grade)
 
 
 def fetch_section(slug: str) -> dict | None:
@@ -1022,7 +1041,11 @@ def fetch_practical_resource_count(exam_id: int) -> int:
     return int(row[0] or 0)
 
 
-def fetch_practical_assignment_options(conn: sqlite3.Connection) -> list[dict]:
+def fetch_practical_assignment_options(
+    conn: sqlite3.Connection, *, scope: AssessmentScope
+) -> list[dict]:
+    if not scope.allows_dzi_content:
+        return []
     required_tables = ("exams", "exam_tasks", "practical_task_resources")
     if not all(sqlite_table_exists(conn, table) for table in required_tables):
         return []
@@ -1039,7 +1062,7 @@ def fetch_practical_assignment_options(conn: sqlite3.Connection) -> list[dict]:
          AND et.task_kind LIKE 'practical_%'
         JOIN practical_task_resources ptr
           ON ptr.exam_task_id = et.id
-        WHERE e.format_version = ?
+        WHERE e.format_version = ? AND e.level = 'DZI'
         GROUP BY e.id
         HAVING resource_count > 0
         ORDER BY e.year DESC, e.session, e.variant
@@ -1047,6 +1070,8 @@ def fetch_practical_assignment_options(conn: sqlite3.Connection) -> list[dict]:
 
     options = []
     for row in rows:
+        if canonical_subject(row["subject"]) != IT:
+            continue
         option = dict(row)
         option["source_slug"] = dzi_source_slug(row)
         option["title"] = dzi_source_title(row)
@@ -1869,34 +1894,44 @@ def healthz():
     )
 
 
+def grade_subject_entries(grade: int) -> list[dict]:
+    """Subjects LearnPilot supports in a grade, in registry order, with content state.
+
+    Membership comes from the registry (``grades``); counts come from the
+    database. A supported subject without content is listed as in preparation.
+    """
+    entries = []
+    for subject in subject_catalog():
+        if grade not in subject["available_classes"]:
+            continue
+        row = None
+        browser = _subject_browser(subject)
+        if browser is not None:
+            row = next(
+                (row for row in browser.grade_counts() if int(row["grade"]) == grade), None
+            )
+        entries.append({
+            "subject": subject,
+            "path": subject["supported_grade_paths"].get(grade),
+            "framework_plan_dependent": grade in subject["framework_plan_dependent_grades"],
+            "has_content": grade in subject["content_grades"],
+            "question_count": int(row["question_count"] or 0) if row else 0,
+        })
+    return entries
+
+
 @app.route("/grade/<int:grade>")
 def grade_view(grade: int):
-    if not 8 <= grade <= 12:
+    if grade not in PLATFORM_GRADES:
         abort(404)
-    sections = fetch_sections_for_grade(grade)
-
-    # Group by module for display
-    modules: dict[str, dict] = {}
-    for s in sections:
-        key = s["module_slug"]
-        if key not in modules:
-            modules[key] = {
-                "module_slug": key,
-                "module_title": s["module_title"],
-                "module_number": s["module_number"],
-                "sections": [],
-            }
-        modules[key]["sections"].append(s)
-
-    modules_list = sorted(
-        modules.values(),
-        key=lambda m: (m["module_number"] or 99, m["module_title"] or ""),
-    )
-
     return render_template(
         "grade.html",
         grade=grade,
-        modules=modules_list,
+        entries=grade_subject_entries(grade),
+        profiled_outside_scope=[
+            subject for subject in subject_catalog()
+            if grade in subject["profiled_grades_outside_scope"]
+        ],
     )
 
 
@@ -1910,6 +1945,7 @@ def section_view(slug: str):
         "section.html",
         section=section,
         questions=questions,
+        section_subject=next(subject for subject in subject_catalog() if subject["id"] == IT),
     )
 
 
@@ -2346,27 +2382,6 @@ def quiz_fetch_assignment(conn, assignment_id: int):
     """, (assignment_id,)).fetchone()
 
 
-QUIZ_VISUAL_DEPENDENT_PATTERNS = (
-    "изображението",
-    "на изображението",
-    "даденото изображение",
-    "следното изображение",
-    "показаното изображение",
-    "диаграмата",
-    "диаграма е представена",
-    "графиката",
-    "разгледайте графиката",
-    "таблицата по-долу",
-    "фигурата",
-    "в диаграмата",
-    "показана диаграма",
-    "показаната таблица",
-    "показаната диаграма",
-    "дадената таблица",
-    "даден е фрагмент от електронна таблица",
-)
-
-
 def quiz_clean_answer_text(value: object) -> str:
     return str(value or "").strip()
 
@@ -2407,57 +2422,6 @@ def _quiz_int_value(value: object) -> int | None:
         return None
 
 
-def _quiz_answer_values(value: object) -> list[str]:
-    if value is None:
-        return []
-    if isinstance(value, (list, tuple, set)):
-        return [str(item) for item in value if quiz_answer_text_is_real(item)]
-
-    text = str(value).strip()
-    if not text:
-        return []
-
-    try:
-        parsed = _quiz_json.loads(text)
-    except (TypeError, ValueError):
-        return [text] if quiz_answer_text_is_real(text) else []
-
-    if isinstance(parsed, (list, tuple, set)):
-        return [str(item) for item in parsed if quiz_answer_text_is_real(item)]
-    if quiz_answer_text_is_real(parsed):
-        return [str(parsed)]
-    return []
-
-
-def is_fill_in_question_auto_gradable(question, subquestions) -> bool:
-    question_type = _quiz_mapping_get(question, "question_type")
-    if question_type not in {"fill_in", "short_answer"}:
-        return False
-
-    source_number = _quiz_int_value(_quiz_mapping_get(question, "source_number"))
-    task_number = _quiz_int_value(_quiz_mapping_get(question, "task_number"))
-    if question_type == "practical" or source_number in {26, 27, 28} or task_number in {26, 27, 28}:
-        return False
-
-    if quiz_prompt_needs_visual(_quiz_mapping_get(question, "prompt", "")):
-        return False
-
-    rows = list(subquestions or [])
-    if not rows:
-        return False
-
-    for row in rows:
-        accepted = []
-        accepted.extend(_quiz_answer_values(_quiz_mapping_get(row, "accepted_answers")))
-        accepted.extend(_quiz_answer_values(_quiz_mapping_get(row, "correct_answers")))
-        accepted.extend(_quiz_answer_values(_quiz_mapping_get(row, "correct_answer")))
-        accepted.extend(_quiz_answer_values(_quiz_mapping_get(row, "answer_alternatives")))
-        if not accepted:
-            return False
-
-    return True
-
-
 def _quiz_subquestion_accepted_answers(subquestion) -> list[str]:
     accepted = []
     accepted.extend(_quiz_answer_values(_quiz_mapping_get(subquestion, "accepted_answers")))
@@ -2486,68 +2450,48 @@ def fetch_open_question_candidates(
     subject: str | None = None,
     scope: AssessmentScope | None = None,
 ) -> list[dict]:
+    """DZI-ready candidates; a curriculum caller needs a stored DZI section.
+
+    Calls without a section are for explicit DZI generation/audit contexts.
+    They still enforce the same exam ownership and readiness boundary.
+    """
     if scope is not None and section_id != scope.section_id:
         raise ValueError("Open-question scope must match its section")
-    params = []
-    source_filter = ""
-    if source_slug is not None:
-        source_filter = "AND q.source_exam = ?"
-        params.append(source_slug)
-    section_join = ""
-    section_filter = ""
     if section_id is not None:
-        section_join = "JOIN topic_section_assignments tsa ON tsa.topic_id = q.topic_id"
-        section_filter = "AND tsa.section_id = ?"
-        params.append(section_id)
-
-    # SAFE: optional SQL fragments are static; values still use ? params.
-    question_rows = conn.execute(f"""
-        SELECT DISTINCT
-            q.id,
-            q.source_exam,
-            q.source_number,
-            q.question_type,
-            q.prompt,
-            q.has_image,
-            q.image_path
-        FROM questions q
-        {section_join}
-        WHERE q.question_type IN ('fill_in', 'short_answer')
-          {source_filter}
-          {section_filter}
-        ORDER BY q.source_exam, q.source_number, q.id
-    """, params).fetchall()
-
+        scope = scope or AssessmentScope(conn, section_id)
+        if not scope.allows_dzi_open_questions:
+            return []
+    if subject is not None and canonical_subject(subject) != IT:
+        return []
     candidates = []
-    for question in question_rows:
-        if scope is not None and not scope.accepts(int(question["id"])):
-            continue
-        if subject is not None and not question_belongs_to_subject(conn, int(question["id"]), subject):
-            continue
-        subquestions = [
-            dict(row)
-            for row in conn.execute("""
-                SELECT id, subquestion_number, correct_answer, answer_alternatives
-                FROM fill_in_subquestions
-                WHERE question_id = ?
-                ORDER BY subquestion_number
-            """, (question["id"],)).fetchall()
-        ]
-        question_dict = dict(question)
-        if not is_fill_in_question_auto_gradable(question_dict, subquestions):
-            continue
+    for question in fetch_dzi_open_questions(conn, source_slug=source_slug):
         candidates.append({
             "question_id": int(question["id"]),
             "source_slug": question["source_exam"],
             "task_number": question["source_number"],
-            "grading_mode": _quiz_candidate_grading_mode(subquestions),
-            "subquestion_count": len(subquestions),
+            "grading_mode": _quiz_candidate_grading_mode(question["subquestions"]),
+            "subquestion_count": len(question["subquestions"]),
         })
         if limit is not None and len(candidates) >= limit:
             break
-
     attach_question_image_indicators(conn, candidates)
     return candidates
+
+
+def open_question_scope_summary(conn, section_id: int, scope: AssessmentScope) -> dict:
+    """DZI-ready count and sources; ordinary curriculum sections return zero."""
+    source_counts: dict[str, int] = {}
+    candidates = fetch_open_question_candidates(conn, section_id=section_id, scope=scope)
+    for candidate in candidates:
+        source_slug = candidate.get("source_slug") or "unknown"
+        source_counts[source_slug] = source_counts.get(source_slug, 0) + 1
+    return {
+        "count": len(candidates),
+        "sources": [
+            {"source_slug": source_slug, "count": count}
+            for source_slug, count in sorted(source_counts.items())
+        ],
+    }
 
 
 def build_mixed_quiz_plan(
@@ -4359,6 +4303,9 @@ def teacher_new():
             else:
                 if scope.subject != selected_subject:
                     teacher_new_error = "subject_mismatch"
+                elif open_count > 0 and not scope.allows_dzi_open_questions:
+                    teacher_new_error = "insufficient_open_questions"
+                    preselected_section_id = section_id
 
         if teacher_new_error is None:
             form_values = {
@@ -4459,6 +4406,7 @@ def teacher_new():
     """).fetchall()
 
     sections = []
+    practical_source_options = None
     for row in section_rows:
         section = dict(row)
         try:
@@ -4473,6 +4421,11 @@ def teacher_new():
         if eligible_count <= 0:
             continue
         section["question_count"] = eligible_count
+        section["open"] = open_question_scope_summary(conn, int(section["id"]), section_scope)
+        section["allows_dzi_open_questions"] = section_scope.allows_dzi_open_questions
+        section["allows_dzi_content"] = section_scope.allows_dzi_content
+        if section_scope.allows_dzi_content and practical_source_options is None:
+            practical_source_options = fetch_practical_assignment_options(conn, scope=section_scope)
         sections.append(section)
 
     section_slug = (_quiz_request.args.get("section") or "").strip()
@@ -4485,18 +4438,11 @@ def teacher_new():
         if preselected and any(int(row["id"]) == int(preselected["id"]) for row in sections):
             preselected_section_id = int(preselected["id"])
 
-    open_candidates = fetch_open_question_candidates(conn, subject=selected_subject)
-    open_source_counts: dict[str, int] = {}
-    for candidate in open_candidates:
-        source_slug = candidate.get("source_slug") or "unknown"
-        open_source_counts[source_slug] = open_source_counts.get(source_slug, 0) + 1
-    open_source_options = [
-        {"source_slug": source_slug, "count": count}
-        for source_slug, count in sorted(open_source_counts.items())
-    ]
-    practical_source_options = (
-        fetch_practical_assignment_options(conn) if selected_definition.dzi else []
+    # Only a server-loaded DZI-training section authorizes the DZI open pool.
+    selected_section = next(
+        (row for row in sections if int(row["id"]) == preselected_section_id), None
     )
+    practical_source_options = practical_source_options or []
 
     conn.close()
 
@@ -4517,8 +4463,14 @@ def teacher_new():
         teacher_new_error=teacher_new_error,
         quiz_time_limit_max_minutes=QUIZ_TIME_LIMIT_MAX_MINUTES,
         mixed_planning_result=mixed_planning_result,
-        open_source_options=open_source_options,
-        total_open_candidates=len(open_candidates),
+        selected_section_open=selected_section["open"] if selected_section else None,
+        any_dzi_sections=any(row["allows_dzi_open_questions"] for row in sections),
+        selected_open_applicable=bool(selected_section and selected_section["allows_dzi_open_questions"]),
+        selected_dzi_context=bool(selected_section and selected_section["allows_dzi_content"]),
+        selected_open_available=next((source["count"] for source in selected_section["open"]["sources"]
+                                     if source["source_slug"] == form_values["source_slug"]), 0)
+            if selected_section and form_values["source_slug"]
+            else selected_section["open"]["count"] if selected_section else 0,
         practical_source_options=practical_source_options,
     ), 400 if teacher_new_error else 200
 
@@ -4631,6 +4583,18 @@ def teacher_assignment_duplicate(assignment_id):
     if not source:
         conn.close()
         _quiz_abort(404)
+
+    if source["question_plan_json"]:
+        plan = quiz_parse_assignment_question_plan(source["question_plan_json"])
+        try:
+            if plan is None:
+                raise ValueError("Invalid mixed plan")
+            AssessmentScope(conn, source["section_id"]).validate_plan(
+                plan["question_ids"], plan["open_question_ids"]
+            )
+        except ValueError:
+            conn.close()
+            _quiz_abort(400)
 
     cur = conn.execute("""
         INSERT INTO quiz_assignments (

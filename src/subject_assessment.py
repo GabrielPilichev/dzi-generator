@@ -1,14 +1,15 @@
 """Subject ownership checks for newly selected assessment questions.
 
-Existing persisted plans and attempt snapshots are deliberately not interpreted
-here. A new selection inherits its subject from its chosen curriculum section.
+New selections and assignment copies inherit their context from the stored
+curriculum section. Started attempt snapshots are deliberately not reselected.
 """
 
 from __future__ import annotations
 
 import sqlite3
 
-from src.subject_content import canonical_subject, question_ownership, section_ownership
+from src.subject_content import IT, canonical_subject, question_ownership, section_ownership
+from src.dzi_open_questions import fetch_dzi_open_questions
 
 
 def question_belongs_to_subject(conn: sqlite3.Connection, question_id: int, subject: str) -> bool:
@@ -25,6 +26,17 @@ class AssessmentScope:
         if not owner.is_consistent:
             raise ValueError(f"Section {section_id} has no known subject: {owner.detail}")
         self.subject = owner.subject
+        self.section_type = conn.execute(
+            "SELECT section_type FROM curriculum_sections WHERE id = ?", (self.section_id,)
+        ).fetchone()[0]
+
+    @property
+    def allows_dzi_content(self) -> bool:
+        return self.section_type == "dzi_training" and self.subject == IT
+
+    @property
+    def allows_dzi_open_questions(self) -> bool:
+        return self.allows_dzi_content
 
     def accepts(self, question_id: int) -> bool:
         row = self.conn.execute(
@@ -51,16 +63,22 @@ class AssessmentScope:
         open_ids = set(open_question_ids)
         if not open_ids.issubset(question_ids):
             raise ValueError("Open question is not in the plan")
+        eligible_open_ids = set()
+        if open_ids and self.allows_dzi_open_questions:
+            eligible_open_ids = {
+                row["id"] for row in fetch_dzi_open_questions(
+                    self.conn, source_slug=open_source_slug
+                )
+            }
         for question_id in question_ids:
+            if question_id in open_ids:
+                if question_id not in eligible_open_ids:
+                    raise ValueError("Open question is not generation-ready in this DZI context")
+                continue
             if not self.accepts(question_id):
                 raise ValueError(f"Question {question_id} does not belong to this section and subject")
             row = self.conn.execute(
                 "SELECT question_type, source_exam FROM questions WHERE id = ?", (question_id,)
             ).fetchone()
-            if question_id in open_ids:
-                if row[0] not in {"fill_in", "short_answer"}:
-                    raise ValueError("Invalid open question type")
-                if open_source_slug is not None and row[1] != open_source_slug:
-                    raise ValueError("Open question does not match the requested source")
-            elif row[0] != "multiple_choice":
+            if row[0] != "multiple_choice":
                 raise ValueError("Invalid closed question type")
