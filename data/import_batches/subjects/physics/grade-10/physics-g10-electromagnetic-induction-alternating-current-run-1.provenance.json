@@ -1,0 +1,768 @@
+{
+  "format_version": 1,
+  "kind": "question_candidate_provenance",
+  "run": {
+    "id": "physics-g10-electromagnetic-induction-alternating-current-run-1",
+    "started_at": "2026-10-05T14:00:00Z",
+    "finished_at": "2026-10-05T14:20:00Z",
+    "subject": "physics",
+    "grade": 10,
+    "curriculum": {
+      "education_type": "general",
+      "title": "Физика и астрономия, 10. клас — общообразователна подготовка"
+    },
+    "targets": [
+      {
+        "section": {
+          "slug": "physics-g10-electromagnetic-phenomena",
+          "title": "Електромагнитни явления"
+        },
+        "topics": [
+          {
+            "slug": "physics-g10-electromagnetic-induction-alternating-current",
+            "title": "Електромагнитна индукция. Променлив ток"
+          }
+        ]
+      }
+    ],
+    "limits": {
+      "max_topics": 1,
+      "max_pages": 15,
+      "max_candidates": 30,
+      "max_candidates_per_source": 30,
+      "max_runtime_minutes": 30
+    },
+    "pages_inspected": 1,
+    "stop_reason": "topic_complete",
+    "collector": "claude-sonnet-5-5-collector",
+    "notes": "Обхват: само тема 1.4 Електромагнитна индукция. Променлив ток – групи опити за индуциран ток, определение на явлението, качествен закон на Фарадей (без правилото на Ленц), генератор, период/честота/амплитуда по графика, ефективни стойности и средна мощност, трансформатор, пренос на електроенергия. Извън обхвата: правило на Ленц, магнитен поток като формула, самоиндукция, импеданс/реактивни съпротивления, електромагнитни вълни, електромотор и сили върху токове (тема 1.2)."
+  },
+  "not_stored_in_database": [
+    "candidate id",
+    "source type",
+    "source url",
+    "source title",
+    "source publisher",
+    "source retrieved_at",
+    "transformation",
+    "source_ref",
+    "research",
+    "reuse_exception",
+    "explanation",
+    "difficulty",
+    "review (reviewer, reviewed_at, notes)",
+    "run manifest"
+  ],
+  "batches": [
+    {
+      "file": "physics-g10-electromagnetic-induction-alternating-current-run-1.electromagnetic-induction-alternating-current.json",
+      "source": "reviewed:physics:physics-g10-electromagnetic-induction-alternating-current-run-1.electromagnetic-induction-alternating-current",
+      "topic_slug": "physics-g10-electromagnetic-induction-alternating-current",
+      "questions": [
+        {
+          "number": 1,
+          "candidate_id": "physics-g10-electromagnetic-induction-alternating-current-run-1-001",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:00:00Z",
+            "notes": "Определя обхвата на тема 1.4 (очаквани резултати, нови понятия, формули I = Imax/√2, U = Umax/√2, U1/U2 = N1/N2, I2/I1 = N1/N2). Прочетено чрез извадката в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са нови."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Определение на явлението електромагнитна индукция",
+            "skill": "Разпознаване на определение"
+          },
+          "explanation": "Електромагнитната индукция е възникването на индуцирана ЕДН (и индуциран ток в затворена верига) при промяна на магнитното поле, пронизващо контура. Първият отговор е опитът на Оерстед, вторият – действието на електромотора.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 2,
+          "candidate_id": "physics-g10-electromagnetic-induction-alternating-current-run-1-002",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:00:00Z",
+            "notes": "Определя обхвата на тема 1.4 (очаквани резултати, нови понятия, формули I = Imax/√2, U = Umax/√2, U1/U2 = N1/N2, I2/I1 = N1/N2). Прочетено чрез извадката в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са нови."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Групи опити за получаване на индуциран ток: магнит и бобина",
+            "skill": "Анализ на опит"
+          },
+          "explanation": "Токът възниква само когато магнитното поле през бобината се променя, а веригата е затворена. При неподвижен магнит няма промяна, а при откачен галванометър веригата не е затворена (ЕДН има, но ток няма).",
+          "difficulty": "easy"
+        },
+        {
+          "number": 3,
+          "candidate_id": "physics-g10-electromagnetic-induction-alternating-current-run-1-003",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:00:00Z",
+            "notes": "Определя обхвата на тема 1.4 (очаквани резултати, нови понятия, формули I = Imax/√2, U = Umax/√2, U1/U2 = N1/N2, I2/I1 = N1/N2). Прочетено чрез извадката в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са нови."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Качествен закон на Фарадей: скорост на промяна на полето",
+            "skill": "Качествено обяснение"
+          },
+          "explanation": "Според закона на Фарадей индуцираната ЕДН е толкова по-голяма, колкото по-бързо се променя магнитното поле, пронизващо бобината. По-голямата ЕДН води до по-голям ток в същата верига.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 4,
+          "candidate_id": "physics-g10-electromagnetic-induction-alternating-current-run-1-004",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:00:00Z",
+            "notes": "Определя обхвата на тема 1.4 (очаквани резултати, нови понятия, формули I = Imax/√2, U = Umax/√2, U1/U2 = N1/N2, I2/I1 = N1/N2). Прочетено чрез извадката в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са нови."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Качествен закон на Фарадей: брой навивки",
+            "skill": "Сравнение на ситуации"
+          },
+          "explanation": "Всяка навивка е част от веригата, в която полето се променя по един и същ начин, и индуцираните в тях ЕДН се събират. При повече навивки общата индуцирана ЕДН е по-голяма. Равномерното движение на магнита не пречи на промяната на полето през бобината.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 5,
+          "candidate_id": "physics-g10-electromagnetic-induction-alternating-current-run-1-005",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:00:00Z",
+            "notes": "Определя обхвата на тема 1.4 (очаквани резултати, нови понятия, формули I = Imax/√2, U = Umax/√2, U1/U2 = N1/N2, I2/I1 = N1/N2). Прочетено чрез извадката в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са нови."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Индукция при включване/изключване на ток във втора бобина",
+            "skill": "Анализ на опит"
+          },
+          "explanation": "Стрелката се отклонява само докато токът (а с него и магнитното поле) в първата бобина се променя – при включване и изключване. При установен постоянен ток полето не се променя и индуцирана ЕДН не възниква.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 6,
+          "candidate_id": "physics-g10-electromagnetic-induction-alternating-current-run-1-006",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:00:00Z",
+            "notes": "Определя обхвата на тема 1.4 (очаквани резултати, нови понятия, формули I = Imax/√2, U = Umax/√2, U1/U2 = N1/N2, I2/I1 = N1/N2). Прочетено чрез извадката в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са нови."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Индуцирана ЕДН в отворена верига",
+            "skill": "Различаване на ЕДН и ток"
+          },
+          "explanation": "Движението на проводника в магнитно поле поражда индуцирана ЕДН между краищата му независимо дали веригата е затворена. Ток протича само в затворена верига.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 7,
+          "candidate_id": "physics-g10-electromagnetic-induction-alternating-current-run-1-007",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:00:00Z",
+            "notes": "Определя обхвата на тема 1.4 (очаквани резултати, нови понятия, формули I = Imax/√2, U = Umax/√2, U1/U2 = N1/N2, I2/I1 = N1/N2). Прочетено чрез извадката в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са нови."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Преобразуване на енергия в генератор",
+            "skill": "Разпознаване на процес"
+          },
+          "explanation": "В генератора рамка (или магнит) се върти и магнитното поле през нея се променя, поради което се индуцира ЕДН. Механичната енергия на въртенето се преобразува в електрична. Обратният процес е в електромотора.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 8,
+          "candidate_id": "physics-g10-electromagnetic-induction-alternating-current-run-1-008",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:00:00Z",
+            "notes": "Определя обхвата на тема 1.4 (очаквани резултати, нови понятия, формули I = Imax/√2, U = Umax/√2, U1/U2 = N1/N2, I2/I1 = N1/N2). Прочетено чрез извадката в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са нови."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Определяне на честота от графика на променливо напрежение",
+            "skill": "Работа с графика"
+          },
+          "explanation": "Периодът е T = 4 ms = 0,004 s, затова f = 1/T = 1/0,004 s = 250 Hz.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 9,
+          "candidate_id": "physics-g10-electromagnetic-induction-alternating-current-run-1-009",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:00:00Z",
+            "notes": "Определя обхвата на тема 1.4 (очаквани резултати, нови понятия, формули I = Imax/√2, U = Umax/√2, U1/U2 = N1/N2, I2/I1 = N1/N2). Прочетено чрез извадката в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са нови."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Определяне на амплитуда, период и честота от графика",
+            "skill": "Работа с графика"
+          },
+          "explanation": "Амплитудата е най-голямата абсолютна стойност на напрежението – 170 V. Честотата е f = 1/T = 1/0,02 s = 50 Hz.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 10,
+          "candidate_id": "physics-g10-electromagnetic-induction-alternating-current-run-1-010",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:00:00Z",
+            "notes": "Определя обхвата на тема 1.4 (очаквани резултати, нови понятия, формули I = Imax/√2, U = Umax/√2, U1/U2 = N1/N2, I2/I1 = N1/N2). Прочетено чрез извадката в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са нови."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Смяна на посоката на променливия ток",
+            "skill": "Приложение на честота"
+          },
+          "explanation": "За един период токът променя посоката си два пъти. При 50 периода за секунда посоката се сменя 2 · 50 = 100 пъти за секунда.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 11,
+          "candidate_id": "physics-g10-electromagnetic-induction-alternating-current-run-1-011",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:00:00Z",
+            "notes": "Определя обхвата на тема 1.4 (очаквани резултати, нови понятия, формули I = Imax/√2, U = Umax/√2, U1/U2 = N1/N2, I2/I1 = N1/N2). Прочетено чрез извадката в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са нови."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Физичен смисъл на ефективната стойност",
+            "skill": "Интерпретация на понятие"
+          },
+          "explanation": "Ефективната стойност се определя чрез топлинното действие: променливият ток със стойност I = Imax/√2 отделя в резистор същата топлина като постоянен ток със същата стойност I. Средната стойност на синусоидален ток за период е нула.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 12,
+          "candidate_id": "physics-g10-electromagnetic-induction-alternating-current-run-1-012",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:00:00Z",
+            "notes": "Определя обхвата на тема 1.4 (очаквани резултати, нови понятия, формули I = Imax/√2, U = Umax/√2, U1/U2 = N1/N2, I2/I1 = N1/N2). Прочетено чрез извадката в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са нови."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Амплитуда по ефективна стойност (мрежово напрежение)",
+            "skill": "Изчисление по формула"
+          },
+          "explanation": "Umax = U·√2 = 230 V · 1,414 ≈ 325 V.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 13,
+          "candidate_id": "physics-g10-electromagnetic-induction-alternating-current-run-1-013",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:00:00Z",
+            "notes": "Определя обхвата на тема 1.4 (очаквани резултати, нови понятия, формули I = Imax/√2, U = Umax/√2, U1/U2 = N1/N2, I2/I1 = N1/N2). Прочетено чрез извадката в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са нови."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Средна мощност на променлив ток през резистор",
+            "skill": "Изчисление"
+          },
+          "explanation": "Ефективният ток е I = Imax/√2 = 2,0 A/1,414 ≈ 1,41 A. Средната мощност е P = I²R = (Imax²/2)·R = (4,0 A²/2) · 50 Ω = 100 W.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 14,
+          "candidate_id": "physics-g10-electromagnetic-induction-alternating-current-run-1-014",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:00:00Z",
+            "notes": "Определя обхвата на тема 1.4 (очаквани резултати, нови понятия, формули I = Imax/√2, U = Umax/√2, U1/U2 = N1/N2, I2/I1 = N1/N2). Прочетено чрез извадката в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са нови."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Ефективен ток на нагревател",
+            "skill": "Изчисление в реална ситуация"
+          },
+          "explanation": "За резистор P = U·I, където U и I са ефективни стойности. I = P/U = 1200 W / 230 V ≈ 5,2 A. Стойността 7,4 A е амплитудата на тока.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 15,
+          "candidate_id": "physics-g10-electromagnetic-induction-alternating-current-run-1-015",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:00:00Z",
+            "notes": "Определя обхвата на тема 1.4 (очаквани резултати, нови понятия, формули I = Imax/√2, U = Umax/√2, U1/U2 = N1/N2, I2/I1 = N1/N2). Прочетено чрез извадката в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са нови."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Защо средната мощност на променлив ток не е нула",
+            "skill": "Физическа интерпретация"
+          },
+          "explanation": "Топлинната мощност е пропорционална на квадрата на тока и затова е положителна и при двете посоки на тока. Средната ѝ стойност е P = I²R с ефективен ток I = Imax/√2.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 16,
+          "candidate_id": "physics-g10-electromagnetic-induction-alternating-current-run-1-016",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:00:00Z",
+            "notes": "Определя обхвата на тема 1.4 (очаквани резултати, нови понятия, формули I = Imax/√2, U = Umax/√2, U1/U2 = N1/N2, I2/I1 = N1/N2). Прочетено чрез извадката в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са нови."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Принцип на действие на трансформатор: работа с постоянно напрежение",
+            "skill": "Обяснение на явление"
+          },
+          "explanation": "Във вторичната намотка се индуцира ЕДН само при промяна на магнитното поле. Затова трансформаторът работи при променлив ток, който създава променливо магнитно поле в сърцевината.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 17,
+          "candidate_id": "physics-g10-electromagnetic-induction-alternating-current-run-1-017",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:00:00Z",
+            "notes": "Определя обхвата на тема 1.4 (очаквани резултати, нови понятия, формули I = Imax/√2, U = Umax/√2, U1/U2 = N1/N2, I2/I1 = N1/N2). Прочетено чрез извадката в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са нови."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Съотношение на напреженията и навивките в трансформатор",
+            "skill": "Изчисление по формула"
+          },
+          "explanation": "U1/U2 = N1/N2, откъдето U2 = U1·N2/N1 = 220 V · 55/1100 = 11 V. Това е понижаващ трансформатор.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 18,
+          "candidate_id": "physics-g10-electromagnetic-induction-alternating-current-run-1-018",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:00:00Z",
+            "notes": "Определя обхвата на тема 1.4 (очаквани резултати, нови понятия, формули I = Imax/√2, U = Umax/√2, U1/U2 = N1/N2, I2/I1 = N1/N2). Прочетено чрез извадката в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са нови."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Токове в идеален трансформатор",
+            "skill": "Изчисление по закона за запазване на енергията"
+          },
+          "explanation": "При идеален трансформатор мощностите са равни: U1·I1 = U2·I2. I1 = U2·I2/U1 = 23 V · 5 A / 230 V = 0,5 A. Същото следва от I2/I1 = N1/N2 = U1/U2 = 10.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 19,
+          "candidate_id": "physics-g10-electromagnetic-induction-alternating-current-run-1-019",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:00:00Z",
+            "notes": "Определя обхвата на тема 1.4 (очаквани резултати, нови понятия, формули I = Imax/√2, U = Umax/√2, U1/U2 = N1/N2, I2/I1 = N1/N2). Прочетено чрез извадката в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са нови."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Идеален повишаващ трансформатор",
+            "skill": "Сравнение на характеристики"
+          },
+          "explanation": "При повишаващ трансформатор N2 > N1, затова U2 > U1. Мощностите са равни, затова токът във вторичната намотка е по-малък: I2 < I1 (I2/I1 = N1/N2 < 1).",
+          "difficulty": "medium"
+        },
+        {
+          "number": 20,
+          "candidate_id": "physics-g10-electromagnetic-induction-alternating-current-run-1-020",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:00:00Z",
+            "notes": "Определя обхвата на тема 1.4 (очаквани резултати, нови понятия, формули I = Imax/√2, U = Umax/√2, U1/U2 = N1/N2, I2/I1 = N1/N2). Прочетено чрез извадката в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са нови."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Защо електроенергията се пренася при високо напрежение",
+            "skill": "Обяснение на приложение"
+          },
+          "explanation": "Преносимата мощност е P = UI. При по-голямо U същата мощност се пренася с по-малък ток I. Загубите в проводниците са I²R и стават много по-малки.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 21,
+          "candidate_id": "physics-g10-electromagnetic-induction-alternating-current-run-1-021",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:00:00Z",
+            "notes": "Определя обхвата на тема 1.4 (очаквани резултати, нови понятия, формули I = Imax/√2, U = Umax/√2, U1/U2 = N1/N2, I2/I1 = N1/N2). Прочетено чрез извадката в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са нови."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Количествена оценка на загубите при пренос",
+            "skill": "Приложение на връзката мощност–напрежение–ток"
+          },
+          "explanation": "При същата мощност токът намалява 10 пъти (I = P/U). Загубите са I²R, затова намаляват 10² = 100 пъти.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 22,
+          "candidate_id": "physics-g10-electromagnetic-induction-alternating-current-run-1-022",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:00:00Z",
+            "notes": "Определя обхвата на тема 1.4 (очаквани резултати, нови понятия, формули I = Imax/√2, U = Umax/√2, U1/U2 = N1/N2, I2/I1 = N1/N2). Прочетено чрез извадката в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са нови."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Електропреносна мрежа по схема",
+            "skill": "Подреждане на елементи на схема"
+          },
+          "explanation": "Напрежението на генератора се повишава в електроцентралата, за да се пренася с малък ток по далекопровода. Близо до потребителите то се понижава до безопасните стойности.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 23,
+          "candidate_id": "physics-g10-electromagnetic-induction-alternating-current-run-1-023",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:00:00Z",
+            "notes": "Определя обхвата на тема 1.4 (очаквани резултати, нови понятия, формули I = Imax/√2, U = Umax/√2, U1/U2 = N1/N2, I2/I1 = N1/N2). Прочетено чрез извадката в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са нови."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Реален трансформатор: загуби",
+            "skill": "Анализ на лабораторен резултат"
+          },
+          "explanation": "Реалният трансформатор има загуби – нагряване на проводниците и сърцевината и разсейване на магнитното поле, затова U2 е малко по-малко от идеалната стойност. Ако волтметърът отчиташе амплитудата, показанието щеше да е по-голямо, а не по-малко.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 24,
+          "candidate_id": "physics-g10-electromagnetic-induction-alternating-current-run-1-024",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:00:00Z",
+            "notes": "Определя обхвата на тема 1.4 (очаквани резултати, нови понятия, формули I = Imax/√2, U = Umax/√2, U1/U2 = N1/N2, I2/I1 = N1/N2). Прочетено чрез извадката в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са нови."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Мощност във вторичната верига при промяна на навивките",
+            "skill": "Многостъпково разсъждение"
+          },
+          "explanation": "U2 = U1·N2/N1 нараства 2 пъти. Мощността в резистора е P = U2²/R, затова нараства 2² = 4 пъти.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 25,
+          "candidate_id": "physics-g10-electromagnetic-induction-alternating-current-run-1-025",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:00:00Z",
+            "notes": "Определя обхвата на тема 1.4 (очаквани резултати, нови понятия, формули I = Imax/√2, U = Umax/√2, U1/U2 = N1/N2, I2/I1 = N1/N2). Прочетено чрез извадката в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са нови."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Генератор: положение на рамката и индуцирана ЕДН",
+            "skill": "Анализ на процес"
+          },
+          "explanation": "Когато равнината на рамката е успоредна на линиите, страните ѝ се движат перпендикулярно на тях и магнитното поле през рамката се променя най-бързо – ЕДН е максимална. При перпендикулярно положение страните се движат по линиите и ЕДН е нула.",
+          "difficulty": "hard"
+        },
+        {
+          "number": 26,
+          "candidate_id": "physics-g10-electromagnetic-induction-alternating-current-run-1-026",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:00:00Z",
+            "notes": "Определя обхвата на тема 1.4 (очаквани резултати, нови понятия, формули I = Imax/√2, U = Umax/√2, U1/U2 = N1/N2, I2/I1 = N1/N2). Прочетено чрез извадката в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са нови."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Генератор: влияние на честотата на въртене",
+            "skill": "Качествено разсъждение"
+          },
+          "explanation": "Честотата на напрежението е равна на честотата на въртене на рамката, затова се удвоява. При по-бързо въртене магнитното поле през рамката се променя по-бързо и според закона на Фарадей амплитудата на ЕДН също расте (в случая се удвоява).",
+          "difficulty": "medium"
+        }
+      ]
+    }
+  ],
+  "not_exported": []
+}

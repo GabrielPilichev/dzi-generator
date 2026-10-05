@@ -1,0 +1,714 @@
+{
+  "format_version": 1,
+  "kind": "question_candidate_provenance",
+  "run": {
+    "id": "physics-g10-magnetic-field-run-1",
+    "started_at": "2026-10-05T14:05:00Z",
+    "finished_at": "2026-10-05T14:11:10Z",
+    "collector": "claude-sonnet-5-5-collector",
+    "subject": "physics",
+    "grade": 10,
+    "curriculum": {
+      "education_type": "general",
+      "title": "Физика и астрономия, 10. клас — общообразователна подготовка"
+    },
+    "targets": [
+      {
+        "section": {
+          "slug": "physics-g10-electromagnetic-phenomena",
+          "title": "Електромагнитни явления"
+        },
+        "topics": [
+          {
+            "slug": "physics-g10-magnetic-field",
+            "title": "Магнитно поле"
+          }
+        ]
+      }
+    ],
+    "limits": {
+      "max_topics": 1,
+      "max_pages": 5,
+      "max_candidates": 25,
+      "max_candidates_per_source": 25,
+      "max_runtime_minutes": 30
+    },
+    "pages_inspected": 2,
+    "stop_reason": "topic_complete",
+    "notes": "Обхват: само тема 1.2 „Магнитно поле“ от програмата за 10. клас (индукционни линии на прав магнит, опит на Оерстед, поле на праволинеен проводник, кръгов проводник и соленоид – качествено, магнитна индукция и тесла, Fmax = qvB, Fmax = IℓB, електромотор, диа-, пара- и феромагнетизъм, температура на Кюри, приложения). Извън обхвата: траектории и радиус на движение на частици в магнитно поле, земното магнитно поле като защита (тема 1.3), електромагнитна индукция, закон на Фарадей, генератор, трансформатор (тема 1.4), формули за полето на проводник, сила между успоредни проводници, момент на сила върху рамка. Общоприетите физични факти (напр. посока по правилото на лявата/десната ръка, класификация на материалите) се подкрепят от програмата; външен източник не е ползван."
+  },
+  "not_stored_in_database": [
+    "candidate id",
+    "source type",
+    "source url",
+    "source title",
+    "source publisher",
+    "source retrieved_at",
+    "transformation",
+    "source_ref",
+    "research",
+    "reuse_exception",
+    "explanation",
+    "difficulty",
+    "review (reviewer, reviewed_at, notes)",
+    "run manifest"
+  ],
+  "batches": [
+    {
+      "file": "physics-g10-magnetic-field-run-1.magnetic-field.json",
+      "source": "reviewed:physics:physics-g10-magnetic-field-run-1.magnetic-field",
+      "topic_slug": "physics-g10-magnetic-field",
+      "questions": [
+        {
+          "number": 1,
+          "candidate_id": "physics-g10-magnetic-field-run-1-001",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:06:00Z",
+            "notes": "Авторитет за обхвата на тема 1.2 „Магнитно поле“ (очаквани резултати, ключови понятия, формули Fmax = qvB и Fmax = IℓB). Не съдържа въпроси; всички въпроси са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Посока на индукционните линии на полето на прав магнит",
+            "skill": "Разпознаване на схема"
+          },
+          "explanation": "Индукционните линии са затворени криви. Извън магнита излизат от северния полюс и влизат в южния, а вътре в магнита продължават от южния към северния полюс, така че линията се затваря.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 2,
+          "candidate_id": "physics-g10-magnetic-field-run-1-002",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:06:00Z",
+            "notes": "Авторитет за обхвата на тема 1.2 „Магнитно поле“ (очаквани резултати, ключови понятия, формули Fmax = qvB и Fmax = IℓB). Не съдържа въпроси; всички въпроси са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Фактори, увеличаващи магнитното поле на соленоид; приложение на феромагнетици (електромагнит)",
+            "skill": "Прилагане на знания"
+          },
+          "explanation": "Феромагнитната сърцевина силно усилва полето. Намаляването на тока или разредената намотка го отслабват, а смяната на посоката на тока обръща полето, без да променя големината му.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 3,
+          "candidate_id": "physics-g10-magnetic-field-run-1-003",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:06:00Z",
+            "notes": "Авторитет за обхвата на тема 1.2 „Магнитно поле“ (очаквани резултати, ключови понятия, формули Fmax = qvB и Fmax = IℓB). Не съдържа въпроси; всички въпроси са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Опитът на Оерстед: токът създава магнитно поле",
+            "skill": "Извод от опит"
+          },
+          "explanation": "Стрелката се отклонява само докато тече токът, значи движещите се заряди (токът) създават магнитно поле. Това е основното откритие на Оерстед.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 4,
+          "candidate_id": "physics-g10-magnetic-field-run-1-004",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:06:00Z",
+            "notes": "Авторитет за обхвата на тема 1.2 „Магнитно поле“ (очаквани резултати, ключови понятия, формули Fmax = qvB и Fmax = IℓB). Не съдържа въпроси; всички въпроси са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Посока на полето на праволинеен проводник с ток от двете му страни",
+            "skill": "Обяснение на наблюдение"
+          },
+          "explanation": "Индукционните линии на проводника са окръжности около него. Над и под проводника допирателните към тях са хоризонтални, перпендикулярни на проводника и с противоположна посока. Стрелките се ориентират по линиите, затова сочат в противоположни посоки.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 5,
+          "candidate_id": "physics-g10-magnetic-field-run-1-005",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:06:00Z",
+            "notes": "Авторитет за обхвата на тема 1.2 „Магнитно поле“ (очаквани резултати, ключови понятия, формули Fmax = qvB и Fmax = IℓB). Не съдържа въпроси; всички въпроси са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "От какво зависи магнитното поле на праволинеен проводник с ток (качествено)",
+            "skill": "Качествен анализ"
+          },
+          "explanation": "Полето е най-силно близо до проводника и отслабва с разстоянието; по-силен ток създава по-силно поле. Затова при по-голям ток и по-малко разстояние индукцията е по-голяма.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 6,
+          "candidate_id": "physics-g10-magnetic-field-run-1-006",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:06:00Z",
+            "notes": "Авторитет за обхвата на тема 1.2 „Магнитно поле“ (очаквани резултати, ключови понятия, формули Fmax = qvB и Fmax = IℓB). Не съдържа въпроси; всички въпроси са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Индукционни линии на полето на праволинеен проводник с ток",
+            "skill": "Разпознаване на схема"
+          },
+          "explanation": "Линиите на полето на прав проводник са затворени окръжности около него, в равнини, перпендикулярни на тока. Според правилото на десния винт (десния палец по тока) при ток към наблюдателя те се обикалят обратно на часовниковата стрелка.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 7,
+          "candidate_id": "physics-g10-magnetic-field-run-1-007",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:06:00Z",
+            "notes": "Авторитет за обхвата на тема 1.2 „Магнитно поле“ (очаквани резултати, ключови понятия, формули Fmax = qvB и Fmax = IℓB). Не съдържа въпроси; всички въпроси са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Посока на полето в центъра на кръгов проводник с ток",
+            "skill": "Прилагане на правило"
+          },
+          "explanation": "Ако пръстите на дясната ръка следват тока (обратно на часовниковата стрелка при поглед отгоре), палецът сочи нагоре. Така в центъра на контура индукцията е насочена вертикално нагоре.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 8,
+          "candidate_id": "physics-g10-magnetic-field-run-1-008",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:06:00Z",
+            "notes": "Авторитет за обхвата на тема 1.2 „Магнитно поле“ (очаквани резултати, ключови понятия, формули Fmax = qvB и Fmax = IℓB). Не съдържа въпроси; всички въпроси са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Полюси и посока на полето в соленоид",
+            "skill": "Прилагане на правило"
+          },
+          "explanation": "При ток по часовниковата стрелка (поглед отдясно) палецът на дясната ръка сочи надалеч от наблюдателя, т.е. наляво: така е насочено полето вътре. Линиите излизат през левия край, който е северен, и влизат през десния, който е южен.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 9,
+          "candidate_id": "physics-g10-magnetic-field-run-1-009",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:06:00Z",
+            "notes": "Авторитет за обхвата на тема 1.2 „Магнитно поле“ (очаквани резултати, ключови понятия, формули Fmax = qvB и Fmax = IℓB). Не съдържа въпроси; всички въпроси са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Ориентация на магнитна стрелка вътре в соленоид (полето вътре е от южния към северния полюс)",
+            "skill": "Прилагане и анализ"
+          },
+          "explanation": "Обратно на часовниковата стрелка (поглед отляво) означава, че палецът сочи към наблюдателя, т.е. наляво: вътре индукцията е насочена наляво, а левият край е северният полюс на соленоида. Северният полюс на стрелката сочи по посоката на полето вътре, т.е. към левия край. Вътре в соленоида линиите вървят от южния към северния му полюс, затова стрелката не сочи към южния полюс, както става извън магнита.",
+          "difficulty": "hard"
+        },
+        {
+          "number": 10,
+          "candidate_id": "physics-g10-magnetic-field-run-1-010",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:06:00Z",
+            "notes": "Авторитет за обхвата на тема 1.2 „Магнитно поле“ (очаквани резултати, ключови понятия, формули Fmax = qvB и Fmax = IℓB). Не съдържа въпроси; всички въпроси са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Дефиниция на магнитната индукция чрез максималната магнитна сила върху пробен заряд",
+            "skill": "Познаване на понятие"
+          },
+          "explanation": "Върху неподвижен заряд магнитното поле не действа със сила. Затова индукцията се определя чрез максималната сила върху пробен заряд q със скорост v: B = Fmax/(qv). Мерна единица е тесла.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 11,
+          "candidate_id": "physics-g10-magnetic-field-run-1-011",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:06:00Z",
+            "notes": "Авторитет за обхвата на тема 1.2 „Магнитно поле“ (очаквани резултати, ключови понятия, формули Fmax = qvB и Fmax = IℓB). Не съдържа въпроси; всички въпроси са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Единицата тесла и връзката й със силата върху проводник с ток",
+            "skill": "Работа с единици"
+          },
+          "explanation": "От Fmax = IℓB получаваме B = Fmax/(Iℓ). Тогава 1 T = 1 N/(A·m). Същата единица следва и от B = Fmax/(qv): 1 T = 1 N·s/(C·m).",
+          "difficulty": "medium"
+        },
+        {
+          "number": 12,
+          "candidate_id": "physics-g10-magnetic-field-run-1-012",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:06:00Z",
+            "notes": "Авторитет за обхвата на тема 1.2 „Магнитно поле“ (очаквани резултати, ключови понятия, формули Fmax = qvB и Fmax = IℓB). Не съдържа въпроси; всички въпроси са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Сила върху движещ се заряд: Fmax = qvB",
+            "skill": "Пресмятане"
+          },
+          "explanation": "Скоростта е перпендикулярна на полето, затова силата е максимална: F = qvB = 2,0·10⁻⁶ C · 3,0·10³ m/s · 0,50 T = 3,0·10⁻³ N.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 13,
+          "candidate_id": "physics-g10-magnetic-field-run-1-013",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:06:00Z",
+            "notes": "Авторитет за обхвата на тема 1.2 „Магнитно поле“ (очаквани резултати, ключови понятия, формули Fmax = qvB и Fmax = IℓB). Не съдържа въпроси; всички въпроси са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Свойства на магнитната сила върху движеща се заредена частица",
+            "skill": "Анализ на твърдения"
+          },
+          "explanation": "Магнитната сила е Fmax = qvB при скорост, перпендикулярна на полето; при v = 0 тя е нула. Силата е перпендикулярна на скоростта, нулева е при движение по линиите на полето и е с противоположна посока за заряди с различен знак.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 14,
+          "candidate_id": "physics-g10-magnetic-field-run-1-014",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:06:00Z",
+            "notes": "Авторитет за обхвата на тема 1.2 „Магнитно поле“ (очаквани резултати, ключови понятия, формули Fmax = qvB и Fmax = IℓB). Не съдържа въпроси; всички въпроси са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Посока на магнитната сила върху отрицателен заряд",
+            "skill": "Прилагане на правило"
+          },
+          "explanation": "За положителен заряд със същата скорост по правилото на лявата ръка силата би била нагоре. Електронът е отрицателен, затова силата е с противоположна посока — надолу.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 15,
+          "candidate_id": "physics-g10-magnetic-field-run-1-015",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:06:00Z",
+            "notes": "Авторитет за обхвата на тема 1.2 „Магнитно поле“ (очаквани резултати, ключови понятия, формули Fmax = qvB и Fmax = IℓB). Не съдържа въпроси; всички въпроси са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Сила върху проводник с ток: Fmax = IℓB",
+            "skill": "Пресмятане"
+          },
+          "explanation": "Проводникът е перпендикулярен на полето, затова F = IℓB = 5,0 A · 0,40 m · 0,20 T = 0,40 N.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 16,
+          "candidate_id": "physics-g10-magnetic-field-run-1-017",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:06:00Z",
+            "notes": "Авторитет за обхвата на тема 1.2 „Магнитно поле“ (очаквани резултати, ключови понятия, формули Fmax = qvB и Fmax = IℓB). Не съдържа въпроси; всички въпроси са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Анализ на таблица: силата върху проводник е пропорционална на тока; определяне на B",
+            "skill": "Работа с данни"
+          },
+          "explanation": "Силата е пропорционална на тока, а отношението F/I е постоянно: 20 mN / 1,0 A = 0,020 N/A. Тогава B = F/(Iℓ) = 0,020 N / (1,0 A · 0,25 m) = 0,080 T. Същото се получава от всяка колона на таблицата.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 17,
+          "candidate_id": "physics-g10-magnetic-field-run-1-018",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:06:00Z",
+            "notes": "Авторитет за обхвата на тема 1.2 „Магнитно поле“ (очаквани резултати, ключови понятия, формули Fmax = qvB и Fmax = IℓB). Не съдържа въпроси; всички въпроси са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Равновесие на проводник с ток в магнитно поле: магнитна сила и тежест",
+            "skill": "Многостъпкова задача"
+          },
+          "explanation": "Условие: IℓB = mg. Тогава I = mg/(ℓB) = 0,030 kg · 10 m/s² / (0,50 m · 0,60 T) = 0,30 N / 0,30 T·m = 1,0 A. Масата трябва да е в килограми.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 18,
+          "candidate_id": "physics-g10-magnetic-field-run-1-019",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:06:00Z",
+            "notes": "Авторитет за обхвата на тема 1.2 „Магнитно поле“ (очаквани резултати, ключови понятия, формули Fmax = qvB и Fmax = IℓB). Не съдържа въпроси; всички въпроси са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Магнитната сила върху движещ се заряд в полето на праволинеен проводник с ток",
+            "skill": "Комбиниране на две правила"
+          },
+          "explanation": "Над проводника с ток надясно индукцията на неговото поле е насочена към наблюдателя (правило на десния винт). За положителен заряд, движещ се надясно, силата по правилото на лявата ръка би била надолу. Електронът е отрицателен, затова силата е нагоре — встрани от проводника.",
+          "difficulty": "hard"
+        },
+        {
+          "number": 19,
+          "candidate_id": "physics-g10-magnetic-field-run-1-020",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:06:00Z",
+            "notes": "Авторитет за обхвата на тема 1.2 „Магнитно поле“ (очаквани резултати, ключови понятия, формули Fmax = qvB и Fmax = IℓB). Не съдържа въпроси; всички въпроси са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Пропорционалност на силата към заряда и скоростта (F = qvB)",
+            "skill": "Качествено-количествено разсъждение"
+          },
+          "explanation": "При перпендикулярна скорост F = qvB, т.е. силата е пропорционална на произведението qv. За втората частица qv е 3·2 = 6 пъти по-голямо, а B е същото, така че силата е 6 пъти по-голяма.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 20,
+          "candidate_id": "physics-g10-magnetic-field-run-1-021",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:06:00Z",
+            "notes": "Авторитет за обхвата на тема 1.2 „Магнитно поле“ (очаквани резултати, ключови понятия, формули Fmax = qvB и Fmax = IℓB). Не съдържа въпроси; всички въпроси са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Принцип на действие на електромотора",
+            "skill": "Познаване на принцип"
+          },
+          "explanation": "Върху страните на рамка с ток в магнитно поле действат сили, които създават въртящ момент. Така електрическата енергия се превръща в механична. Възникването на ток при въртене на рамка е принцип на генератора, а не на мотора.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 21,
+          "candidate_id": "physics-g10-magnetic-field-run-1-022",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:06:00Z",
+            "notes": "Авторитет за обхвата на тема 1.2 „Магнитно поле“ (очаквани резултати, ключови понятия, формули Fmax = qvB и Fmax = IℓB). Не съдържа въпроси; всички въпроси са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Роля на колектора в електромотор",
+            "skill": "Обяснение на устройство"
+          },
+          "explanation": "Без колектор силите върху рамката биха я завъртали само до равновесното положение. Колекторът обръща тока в рамката на всеки половин оборот, така че силите продължават да я въртят в една и съща посока.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 22,
+          "candidate_id": "physics-g10-magnetic-field-run-1-023",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:06:00Z",
+            "notes": "Авторитет за обхвата на тема 1.2 „Магнитно поле“ (очаквани резултати, ключови понятия, формули Fmax = qvB и Fmax = IℓB). Не съдържа въпроси; всички въпроси са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Класификация на материалите: диа-, пара- и феромагнетици",
+            "skill": "Класифициране"
+          },
+          "explanation": "Желязото е феромагнетик (силно привличан и запазва намагнитване). Алуминият е парамагнетик (много слабо привличан), а медта е диамагнетик (много слабо отблъсквана от магнитно поле).",
+          "difficulty": "easy"
+        },
+        {
+          "number": 23,
+          "candidate_id": "physics-g10-magnetic-field-run-1-024",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:06:00Z",
+            "notes": "Авторитет за обхвата на тема 1.2 „Магнитно поле“ (очаквани резултати, ключови понятия, формули Fmax = qvB и Fmax = IℓB). Не съдържа въпроси; всички въпроси са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Феромагнетиците над определена температура стават парамагнитни",
+            "skill": "Прилагане на знание"
+          },
+          "explanation": "Над определена температура (точка на Кюри) феромагнитните материали губят подредбата на магнитните си области и преминават в парамагнитно състояние. Това е слабо привличане, а не отблъскване.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 24,
+          "candidate_id": "physics-g10-magnetic-field-run-1-025",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-up2-11-3",
+            "type": "third_party",
+            "url": "https://openstax.org/books/university-physics-volume-2/pages/11-3-motion-of-a-charged-particle-in-a-magnetic-field",
+            "title": "University Physics Volume 2, 11.3 Motion of a Charged Particle in a Magnetic Field",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T14:02:00Z",
+            "notes": "Само изследване: окръжно и винтово движение, магнитната сила не извършва работа, радиационни пояси и полярни сияния. Формулировките не са ползвани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Посока на магнитната сила върху положителна частица",
+            "skill": "Приложение"
+          },
+          "explanation": "По правилото на лявата ръка (линиите влизат в дланта, пръстите са по посока на скоростта на положителния заряд) палецът сочи надолу. Силата е перпендикулярна както на скоростта, така и на индукционните линии.",
+          "difficulty": "medium"
+        }
+      ]
+    }
+  ],
+  "not_exported": []
+}

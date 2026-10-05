@@ -1,0 +1,633 @@
+{
+  "format_version": 1,
+  "kind": "question_candidate_provenance",
+  "run": {
+    "id": "physics-g10-particles-run-1",
+    "started_at": "2026-10-05T14:40:00Z",
+    "finished_at": "2026-10-05T14:58:00Z",
+    "collector": "claude-sonnet-5-5-collector",
+    "subject": "physics",
+    "grade": 10,
+    "curriculum": {
+      "education_type": "general",
+      "title": "Физика и астрономия, 10. клас — общообразователна подготовка"
+    },
+    "targets": [
+      {
+        "section": {
+          "slug": "physics-g10-from-atom-to-cosmos",
+          "title": "От атома до Космоса"
+        },
+        "topics": [
+          {
+            "slug": "physics-g10-particles",
+            "title": "Частици"
+          }
+        ]
+      }
+    ],
+    "limits": {
+      "max_topics": 1,
+      "max_pages": 5,
+      "max_candidates": 25,
+      "max_candidates_per_source": 25,
+      "max_runtime_minutes": 30
+    },
+    "pages_inspected": 1,
+    "stop_reason": "topic_complete",
+    "notes": "Обхват: само тема 3.4 „Частици“ от програмата за 10. клас — елементарни частици (лептони и кварки), античастици, адрони (бариони и мезони) като съставни частици от кварки, четирите фундаментални взаимодействия, техните носители и подреждането им по сила. Кварковият състав и зарядите +2e/3 и −e/3 се ползват само за примерите протон, неутрон, π⁺ и антинеутрон. Извън обхвата: поколения кварки, квантови числа, диаграми на Файнман, допълнителни закони за запазване, подробности за калибровъчните бозони, Стандартен модел (университетско ниво); β-разпадът и ядрените сили като такива (тема 3.2), ядрените реакции (тема 3.3), атомни преходи и фотони (теми 2.3, 3.1). Няма изчислителни въпроси по програма; има един качествен въпрос със сбор на кваркови заряди."
+  },
+  "not_stored_in_database": [
+    "candidate id",
+    "source type",
+    "source url",
+    "source title",
+    "source publisher",
+    "source retrieved_at",
+    "transformation",
+    "source_ref",
+    "research",
+    "reuse_exception",
+    "explanation",
+    "difficulty",
+    "review (reviewer, reviewed_at, notes)",
+    "run manifest"
+  ],
+  "batches": [
+    {
+      "file": "physics-g10-particles-run-1.particles.json",
+      "source": "reviewed:physics:physics-g10-particles-run-1.particles",
+      "topic_slug": "physics-g10-particles",
+      "questions": [
+        {
+          "number": 1,
+          "candidate_id": "physics-g10-particles-run-1-001",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:40:00Z",
+            "notes": "Авторитет за обхвата на тема 3.4 „Частици“ (очаквани резултати и нови понятия), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от общоприети физични факти и стандартна терминология."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Групи елементарни частици",
+            "skill": "Познаване на класификацията"
+          },
+          "explanation": "Елементарните частици на материята се делят на лептони (например електрон, мюон, неутрино) и кварки. Бариони и мезони са групи съставни частици (адрони), изградени от кварки; протонът и неутронът са само два конкретни бариона.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 2,
+          "candidate_id": "physics-g10-particles-run-1-002",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:40:00Z",
+            "notes": "Авторитет за обхвата на тема 3.4 „Частици“ (очаквани резултати и нови понятия), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от общоприети физични факти и стандартна терминология."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Лептони",
+            "skill": "Класифициране на частица по свойства"
+          },
+          "explanation": "Частиците, които не участват в силното взаимодействие, са лептони (електрон, мюон, тау-частица и съответните им неутрина). Кварките, барионите и мезоните участват в силното взаимодействие.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 3,
+          "candidate_id": "physics-g10-particles-run-1-003",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:40:00Z",
+            "notes": "Авторитет за обхвата на тема 3.4 „Частици“ (очаквани резултати и нови понятия), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от общоприети физични факти и стандартна терминология."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Елементарни и съставни частици",
+            "skill": "Разграничаване на елементарна от съставна частица"
+          },
+          "explanation": "Електронът е лептон и е елементарна частица. Протонът и неутронът са изградени от по три кварка, а α-частицата (ядро на хелий-4) се състои от два протона и два неутрона.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 4,
+          "candidate_id": "physics-g10-particles-run-1-004",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:40:00Z",
+            "notes": "Авторитет за обхвата на тема 3.4 „Частици“ (очаквани резултати и нови понятия), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от общоприети физични факти и стандартна терминология."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Античастици",
+            "skill": "Посочване на античастица"
+          },
+          "explanation": "Античастицата на електрона е позитронът – има същата маса като електрона, но противоположен по знак електричен заряд (+e). Протонът също има заряд +e, но е много по-тежък и не е античастица на електрона.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 5,
+          "candidate_id": "physics-g10-particles-run-1-005",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:40:00Z",
+            "notes": "Авторитет за обхвата на тема 3.4 „Частици“ (очаквани резултати и нови понятия), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от общоприети физични факти и стандартна терминология."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Анихилация",
+            "skill": "Предвиждане на резултат от среща на частица и античастица"
+          },
+          "explanation": "Частица и нейната античастица могат да анихилират – изчезват като частици, а енергията им се освобождава най-често във вид на два фотона. Общият електричен заряд е нула и преди, и след процеса. Те взаимодействат (електрично се привличат), а не се сливат в нова частица.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 6,
+          "candidate_id": "physics-g10-particles-run-1-006",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:40:00Z",
+            "notes": "Авторитет за обхвата на тема 3.4 „Частици“ (очаквани резултати и нови понятия), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от общоприети физични факти и стандартна терминология."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Фундаментални взаимодействия",
+            "skill": "Изброяване на фундаменталните взаимодействия"
+          },
+          "explanation": "Фундаменталните взаимодействия са четири: гравитационно, електромагнитно, слабо и силно. Електричното и магнитното взаимодействие са проявления на едно – електромагнитното.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 7,
+          "candidate_id": "physics-g10-particles-run-1-007",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:40:00Z",
+            "notes": "Авторитет за обхвата на тема 3.4 „Частици“ (очаквани резултати и нови понятия), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от общоприети физични факти и стандартна терминология."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Сила на взаимодействията",
+            "skill": "Подреждане по сила"
+          },
+          "explanation": "Приблизително: силното е най-силно, следва електромагнитното, после слабото и накрая гравитационното, което е с много порядъци по-слабо от останалите.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 8,
+          "candidate_id": "physics-g10-particles-run-1-008",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:40:00Z",
+            "notes": "Авторитет за обхвата на тема 3.4 „Частици“ (очаквани резултати и нови понятия), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от общоприети физични факти и стандартна терминология."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Носители на взаимодействията",
+            "skill": "Свързване на взаимодействие и носител"
+          },
+          "explanation": "Носител на електромагнитното взаимодействие е фотонът, на силното – глуоните, на слабото – W⁺, W⁻ и Z⁰ бозоните. За гравитационното взаимодействие се предполага носител гравитон.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 9,
+          "candidate_id": "physics-g10-particles-run-1-009",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:40:00Z",
+            "notes": "Авторитет за обхвата на тема 3.4 „Частици“ (очаквани резултати и нови понятия), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от общоприети физични факти и стандартна терминология."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Силно взаимодействие",
+            "skill": "Прилагане към структурата на протона"
+          },
+          "explanation": "Кварките се свързват помежду си със силното взаимодействие, чиито носители са глуоните. То е най-силното от четирите фундаментални взаимодействия.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 10,
+          "candidate_id": "physics-g10-particles-run-1-010",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:40:00Z",
+            "notes": "Авторитет за обхвата на тема 3.4 „Частици“ (очаквани резултати и нови понятия), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от общоприети физични факти и стандартна терминология."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Слабо взаимодействие",
+            "skill": "Определяне на взаимодействие по процес"
+          },
+          "explanation": "β-разпадът е проява на слабото взаимодействие – единственото, при което се променя видът на кварките (неутронът се превръща в протон). Затова процесът е бавен в сравнение с процесите, причинени от силното или електромагнитното взаимодействие.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 11,
+          "candidate_id": "physics-g10-particles-run-1-011",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:40:00Z",
+            "notes": "Авторитет за обхвата на тема 3.4 „Частици“ (очаквани резултати и нови понятия), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от общоприети физични факти и стандартна терминология."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Гравитационно взаимодействие",
+            "skill": "Познаване на носителя на гравитацията"
+          },
+          "explanation": "Гравитонът е предполагаемият носител на гравитационното взаимодействие, но досега не е наблюдаван. Глуоните са носители на силното, фотоните – на електромагнитното, а W и Z бозоните – на слабото взаимодействие.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 12,
+          "candidate_id": "physics-g10-particles-run-1-012",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:40:00Z",
+            "notes": "Авторитет за обхвата на тема 3.4 „Частици“ (очаквани резултати и нови понятия), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от общоприети физични факти и стандартна терминология."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Участие на частиците във взаимодействията",
+            "skill": "Определяне на частица, неучастваща в силното взаимодействие"
+          },
+          "explanation": "Лептоните (като електрона) не участват в силното взаимодействие. Протонът, неутронът и пионите са адрони – изградени са от кварки и участват в силното взаимодействие.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 13,
+          "candidate_id": "physics-g10-particles-run-1-013",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:40:00Z",
+            "notes": "Авторитет за обхвата на тема 3.4 „Частици“ (очаквани резултати и нови понятия), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от общоприети физични факти и стандартна терминология."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Неутрино",
+            "skill": "Обяснение на наблюдаван факт"
+          },
+          "explanation": "Неутриното е електрично неутрално, не участва в силното взаимодействие и взаимодейства само чрез слабото (и пренебрежимо слабото гравитационно). Затова вероятността да взаимодейства с веществото е изключително малка. Електроните например взаимодействат електромагнитно с веществото.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 14,
+          "candidate_id": "physics-g10-particles-run-1-014",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:40:00Z",
+            "notes": "Авторитет за обхвата на тема 3.4 „Частици“ (очаквани резултати и нови понятия), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от общоприети физични факти и стандартна терминология."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Протонът – съставна частица",
+            "skill": "Оценяване на твърдения за структурата на частица"
+          },
+          "explanation": "Протонът е барион – съставна частица от три кварка (u, u, d). Той не е лептон. Двойката кварк–антикварк е характерна за мезоните.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 15,
+          "candidate_id": "physics-g10-particles-run-1-015",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:40:00Z",
+            "notes": "Авторитет за обхвата на тема 3.4 „Частици“ (очаквани резултати и нови понятия), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от общоприети физични факти и стандартна терминология."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Структура на неутрона",
+            "skill": "Обяснение на неутралност на съставна частица"
+          },
+          "explanation": "Неутронът е изграден от един кварк u (заряд +2e/3) и два кварка d (заряд −e/3 всеки): 2/3 − 1/3 − 1/3 = 0. Той не се състои от протон и електрон; електронът се ражда при β⁻-разпад.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 16,
+          "candidate_id": "physics-g10-particles-run-1-016",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:40:00Z",
+            "notes": "Авторитет за обхвата на тема 3.4 „Частици“ (очаквани резултати и нови понятия), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от общоприети физични факти и стандартна терминология."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Адрони",
+            "skill": "Класифициране на списък от частици"
+          },
+          "explanation": "Адрони са частиците, изградени от кварки и участващи в силното взаимодействие: бариони (протон, неутрон) и мезони (π⁺). Електронът, позитронът, мюонът и неутриното са лептони.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 17,
+          "candidate_id": "physics-g10-particles-run-1-017",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:40:00Z",
+            "notes": "Авторитет за обхвата на тема 3.4 „Частици“ (очаквани резултати и нови понятия), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от общоприети физични факти и стандартна терминология."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Мезони",
+            "skill": "Познаване на структурата на мезоните"
+          },
+          "explanation": "Мезоните (например пионите) са адрони от кварк и антикварк. Барионите са изградени от три кварка, а антибарионите – от три антикварка. Лептони в състава на адроните няма.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 18,
+          "candidate_id": "physics-g10-particles-run-1-018",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:40:00Z",
+            "notes": "Авторитет за обхвата на тема 3.4 „Частици“ (очаквани резултати и нови понятия), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от общоприети физични факти и стандартна терминология."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Заряд на мезон",
+            "skill": "Изчисляване на заряд по състав"
+          },
+          "explanation": "Антикварките имат противоположни заряди на кварките, така че зарядът на d̄ е +e/3. Зарядът на π⁺ е 2e/3 + e/3 = +e. Ако d̄ се замени с d, би се получило +e/3.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 19,
+          "candidate_id": "physics-g10-particles-run-1-019",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:40:00Z",
+            "notes": "Авторитет за обхвата на тема 3.4 „Частици“ (очаквани резултати и нови понятия), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от общоприети физични факти и стандартна терминология."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Антинеутрон",
+            "skill": "Разграничаване на неутрална частица от неутрална античастица"
+          },
+          "explanation": "Неутронът е udd, а антинеутронът – ūd̄d̄. Зарядът и на двете е нулев (−2/3 + 1/3 + 1/3 = 0), но антинеутронът е античастица на неутрона и те могат да анихилират. Електричната неутралност не означава, че частицата е своя собствена античастица.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 20,
+          "candidate_id": "physics-g10-particles-run-1-020",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:40:00Z",
+            "notes": "Авторитет за обхвата на тема 3.4 „Частици“ (очаквани резултати и нови понятия), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от общоприети физични факти и стандартна терминология."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Гравитация в космически мащаб",
+            "skill": "Обяснение на роля на най-слабо взаимодействие"
+          },
+          "explanation": "Гравитацията е най-слабото взаимодействие, но е дългодействащо и винаги привлича, затова сумарното ѝ действие на големите маси е голямо. Небесните тела са общо почти електрично неутрални, така че електромагнитните сили между тях са пренебрежими. Затова гравитацията определя движението им.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 21,
+          "candidate_id": "physics-g10-particles-run-1-022",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:40:00Z",
+            "notes": "Авторитет за обхвата на тема 3.4 „Частици“ (очаквани резултати и нови понятия), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от общоприети физични факти и стандартна терминология."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Електромагнитно взаимодействие",
+            "skill": "Определяне на взаимодействие в атома"
+          },
+          "explanation": "Електроните са отрицателно заредени, а ядрото – положително, затова ги свързва електромагнитното взаимодействие (носител – фотонът). Електроните са лептони и не участват в силното взаимодействие.",
+          "difficulty": "easy"
+        }
+      ]
+    }
+  ],
+  "not_exported": []
+}

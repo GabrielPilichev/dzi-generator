@@ -1,0 +1,714 @@
+{
+  "format_version": 1,
+  "kind": "question_candidate_provenance",
+  "run": {
+    "id": "physics-g10-light-propagation-run-1",
+    "started_at": "2026-10-05T15:00:00Z",
+    "finished_at": "2026-10-05T15:25:00Z",
+    "collector": "claude-sonnet-5-5-collector",
+    "subject": "physics",
+    "grade": 10,
+    "curriculum": {
+      "education_type": "general",
+      "title": "Физика и астрономия, 10. клас — общообразователна подготовка"
+    },
+    "targets": [
+      {
+        "section": {
+          "slug": "physics-g10-light",
+          "title": "Светлина"
+        },
+        "topics": [
+          {
+            "slug": "physics-g10-light-propagation",
+            "title": "Разпространение на светлината"
+          }
+        ]
+      }
+    ],
+    "limits": {
+      "max_topics": 1,
+      "max_pages": 5,
+      "max_candidates": 25,
+      "max_candidates_per_source": 25,
+      "max_runtime_minutes": 30
+    },
+    "pages_inspected": 1,
+    "stop_reason": "topic_complete",
+    "notes": "Обхват: само тема 2.1 „Разпространение на светлината“ от програмата за 10. клас (светлината като електромагнитна вълна и видим интервал, скорост на светлината в среда и показател на пречупване n = c/u, постоянна честота и променяща се дължина на вълната при преход между среди, закон за отражение, закон на Снелиус, пълно вътрешно отражение и граничен ъгъл, оптично влакно, дисперсия – призма и небесна дъга). Извън обхвата: интерференция, дифракция, поляризация и други вълнови свойства (тема 2.2), фотони, фотоефект и квантови свойства (тема 2.3), електромагнитният спектър като цяло (тема 1.5), построяване на образи в огледала и лещи, оптични уреди (не са посочени в очакваните резултати на темата). Всички въпроси са текстови и самодостатъчни, без чертежи. Външен източник не е ползван: законите и стойностите (n на вода, стъкло, видим интервал) са общоприети и подкрепени от програмата."
+  },
+  "not_stored_in_database": [
+    "candidate id",
+    "source type",
+    "source url",
+    "source title",
+    "source publisher",
+    "source retrieved_at",
+    "transformation",
+    "source_ref",
+    "research",
+    "reuse_exception",
+    "explanation",
+    "difficulty",
+    "review (reviewer, reviewed_at, notes)",
+    "run manifest"
+  ],
+  "batches": [
+    {
+      "file": "physics-g10-light-propagation-run-1.light-propagation.json",
+      "source": "reviewed:physics:physics-g10-light-propagation-run-1.light-propagation",
+      "topic_slug": "physics-g10-light-propagation",
+      "questions": [
+        {
+          "number": 1,
+          "candidate_id": "physics-g10-light-propagation-run-1-001",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:02:00Z",
+            "notes": "Авторитет за обхвата на тема 2.1 „Разпространение на светлината“ (очаквани резултати, нови понятия, формули n = c/u; α₁ = α₁′; n₁·sinα₁ = n₂·sinα₂). Не съдържа въпроси; всички въпроси са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Видима светлина като електромагнитна вълна",
+            "skill": "Знание"
+          },
+          "explanation": "Видимата светлина е електромагнитна вълна с дължини на вълната от около 380 nm (виолетова) до около 760 nm (червена). По-късите вълни са ултравиолетови, а по-дългите – инфрачервени.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 2,
+          "candidate_id": "physics-g10-light-propagation-run-1-002",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:02:00Z",
+            "notes": "Авторитет за обхвата на тема 2.1 „Разпространение на светлината“ (очаквани резултати, нови понятия, формули n = c/u; α₁ = α₁′; n₁·sinα₁ = n₂·sinα₂). Не съдържа въпроси; всички въпроси са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Определение на абсолютния показател на пречупване",
+            "skill": "Разбиране"
+          },
+          "explanation": "По дефиниция n = c/u, където c е скоростта във вакуум, а u – в средата. Затова n ≥ 1. Честотата не се променя при прехода, а дължината на вълната в средата е по-малка (λ = λ₀/n).",
+          "difficulty": "easy"
+        },
+        {
+          "number": 3,
+          "candidate_id": "physics-g10-light-propagation-run-1-003",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:02:00Z",
+            "notes": "Авторитет за обхвата на тема 2.1 „Разпространение на светлината“ (очаквани резултати, нови понятия, формули n = c/u; α₁ = α₁′; n₁·sinα₁ = n₂·sinα₂). Не съдържа въпроси; всички въпроси са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Изчисляване на n по скоростта на светлината в средата",
+            "skill": "Изчисление"
+          },
+          "explanation": "n = c/u = (3,0·10⁸ m/s)/(2,0·10⁸ m/s) = 1,5. Стойността 0,67 е получена при обърната дроб, а показателят на пречупване на прозрачна среда не е по-малък от 1.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 4,
+          "candidate_id": "physics-g10-light-propagation-run-1-004",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:02:00Z",
+            "notes": "Авторитет за обхвата на тема 2.1 „Разпространение на светлината“ (очаквани резултати, нови понятия, формули n = c/u; α₁ = α₁′; n₁·sinα₁ = n₂·sinα₂). Не съдържа въпроси; всички въпроси са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Време за преминаване през среда със скорост c/n",
+            "skill": "Изчисление"
+          },
+          "explanation": "Скоростта в стъклото е u = c/n = 2,0·10⁸ m/s. Времето е t = d/u = 0,060 m/(2,0·10⁸ m/s) = 3,0·10⁻¹⁰ s. Стойността 2,0·10⁻¹⁰ s е времето във вакуум (d/c).",
+          "difficulty": "medium"
+        },
+        {
+          "number": 5,
+          "candidate_id": "physics-g10-light-propagation-run-1-005",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:02:00Z",
+            "notes": "Авторитет за обхвата на тема 2.1 „Разпространение на светлината“ (очаквани резултати, нови понятия, формули n = c/u; α₁ = α₁′; n₁·sinα₁ = n₂·sinα₂). Не съдържа въпроси; всички въпроси са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Честотата е постоянна при преминаване между среди",
+            "skill": "Разбиране"
+          },
+          "explanation": "Честотата се определя от източника и не се променя при прехода между среди. В стъклото скоростта е по-малка (u = c/n), а от u = λν следва, че и дължината на вълната е по-малка.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 6,
+          "candidate_id": "physics-g10-light-propagation-run-1-006",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:02:00Z",
+            "notes": "Авторитет за обхвата на тема 2.1 „Разпространение на светлината“ (очаквани резултати, нови понятия, формули n = c/u; α₁ = α₁′; n₁·sinα₁ = n₂·sinα₂). Не съдържа въпроси; всички въпроси са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Дължина на вълната в среда по честота и показател на пречупване",
+            "skill": "Изчисление"
+          },
+          "explanation": "Скоростта в стъклото е u = c/n = 2,0·10⁸ m/s. От u = λν следва λ = u/ν = 2,0·10⁸/6,0·10¹⁴ m ≈ 3,33·10⁻⁷ m = 333 nm. Във вакуум дължината би била 500 nm.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 7,
+          "candidate_id": "physics-g10-light-propagation-run-1-007",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:02:00Z",
+            "notes": "Авторитет за обхвата на тема 2.1 „Разпространение на светлината“ (очаквани резултати, нови понятия, формули n = c/u; α₁ = α₁′; n₁·sinα₁ = n₂·sinα₂). Не съдържа въпроси; всички въпроси са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Закон за отражение; ъгъл на падане се мери от нормалата",
+            "skill": "Прилагане на закон"
+          },
+          "explanation": "Ъглите се мерят от нормалата, а не от повърхността. Ъгълът на падане е 90° − 25° = 65°. Ъгълът на отражение също е 65°, затова между падащия и отразения лъч е 65° + 65° = 130°.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 8,
+          "candidate_id": "physics-g10-light-propagation-run-1-008",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:02:00Z",
+            "notes": "Авторитет за обхвата на тема 2.1 „Разпространение на светлината“ (очаквани резултати, нови понятия, формули n = c/u; α₁ = α₁′; n₁·sinα₁ = n₂·sinα₂). Не съдържа въпроси; всички въпроси са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Завъртане на огледало и отразен лъч",
+            "skill": "Прилагане на закон"
+          },
+          "explanation": "Ъгълът между падащия и отразения лъч е 2α. Той нараства от 2·20° = 40° на 2·30° = 60°, а падащият лъч е неподвижен, така че отразеният се завърта на 20° – два пъти повече от огледалото.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 9,
+          "candidate_id": "physics-g10-light-propagation-run-1-009",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:02:00Z",
+            "notes": "Авторитет за обхвата на тема 2.1 „Разпространение на светлината“ (очаквани резултати, нови понятия, формули n = c/u; α₁ = α₁′; n₁·sinα₁ = n₂·sinα₂). Не съдържа въпроси; всички въпроси са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Пречупване от въздух във вода",
+            "skill": "Разбиране"
+          },
+          "explanation": "При преминаване към среда с по-голям показател на пречупване (по-малка скорост) ъгълът на пречупване е по-малък от ъгъла на падане: лъчът се приближава към нормалата. Честотата не се променя, но това не означава, че посоката се запазва.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 10,
+          "candidate_id": "physics-g10-light-propagation-run-1-010",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:02:00Z",
+            "notes": "Авторитет за обхвата на тема 2.1 „Разпространение на светлината“ (очаквани резултати, нови понятия, формули n = c/u; α₁ = α₁′; n₁·sinα₁ = n₂·sinα₂). Не съдържа въпроси; всички въпроси са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Закон на Снелиус при преминаване въздух – среда",
+            "skill": "Изчисление"
+          },
+          "explanation": "Законът на Снелиус: n₁·sin α₁ = n₂·sin α₂. При n₁ = 1: sin α₂ = 0,866/1,73 = 0,50, откъдето α₂ = 30°.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 11,
+          "candidate_id": "physics-g10-light-propagation-run-1-011",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:02:00Z",
+            "notes": "Авторитет за обхвата на тема 2.1 „Разпространение на светлината“ (очаквани резултати, нови понятия, формули n = c/u; α₁ = α₁′; n₁·sinα₁ = n₂·sinα₂). Не съдържа въпроси; всички въпроси са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Пречупване от стъкло във въздух",
+            "skill": "Изчисление"
+          },
+          "explanation": "От n₁·sin α₁ = n₂·sin α₂ следва sin α₂ = 1,5·0,40/1,0 = 0,60. Лъчът преминава в среда с по-малък показател на пречупване и се отклонява от нормалата, затова sin α₂ > sin α₁.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 12,
+          "candidate_id": "physics-g10-light-propagation-run-1-012",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:02:00Z",
+            "notes": "Авторитет за обхвата на тема 2.1 „Разпространение на светлината“ (очаквани резултати, нови понятия, формули n = c/u; α₁ = α₁′; n₁·sinα₁ = n₂·sinα₂). Не съдържа въпроси; всички въпроси са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Условия за пълно вътрешно отражение",
+            "skill": "Знание"
+          },
+          "explanation": "Необходими са две условия: светлината да върви от оптично по-плътна към оптично по-рядка среда (n₁ > n₂) и ъгълът на падане да надхвърля граничния ъгъл.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 13,
+          "candidate_id": "physics-g10-light-propagation-run-1-013",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:02:00Z",
+            "notes": "Авторитет за обхвата на тема 2.1 „Разпространение на светлината“ (очаквани резултати, нови понятия, формули n = c/u; α₁ = α₁′; n₁·sinα₁ = n₂·sinα₂). Не съдържа въпроси; всички въпроси са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Граничен ъгъл за кристал във въздух",
+            "skill": "Изчисление"
+          },
+          "explanation": "Граничният ъгъл се определя от sin α_гр = n₂/n₁ = 1/2,0 = 0,50, откъдето α_гр = 30°.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 14,
+          "candidate_id": "physics-g10-light-propagation-run-1-014",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:02:00Z",
+            "notes": "Авторитет за обхвата на тема 2.1 „Разпространение на светлината“ (очаквани резултати, нови понятия, формули n = c/u; α₁ = α₁′; n₁·sinα₁ = n₂·sinα₂). Не съдържа въпроси; всички въпроси са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Лъч във вода, падащ върху границата с въздуха под ъгъл по-малък от граничния",
+            "skill": "Прилагане на закон"
+          },
+          "explanation": "sin α_гр = 1/1,33 ≈ 0,75, откъдето α_гр ≈ 49°. Ъгълът на падане 45° е по-малък от граничния, затова няма пълно вътрешно отражение: светлината се пречупва във въздуха (sin α₂ = 1,33·0,707 ≈ 0,94, α₂ ≈ 70°). Част от нея се отразява. Посоката на лъча при пречупване се променя.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 15,
+          "candidate_id": "physics-g10-light-propagation-run-1-016",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:02:00Z",
+            "notes": "Авторитет за обхвата на тема 2.1 „Разпространение на светлината“ (очаквани резултати, нови понятия, формули n = c/u; α₁ = α₁′; n₁·sinα₁ = n₂·sinα₂). Не съдържа въпроси; всички въпроси са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Приложение на пълното вътрешно отражение – оптично влакно",
+            "skill": "Знание"
+          },
+          "explanation": "В оптичното влакно светлината се разпространява чрез многократно пълно вътрешно отражение на границата между сърцевината и обвивката, затова загубите са малки и сигналът може да бъде пренесен на големи разстояния.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 16,
+          "candidate_id": "physics-g10-light-propagation-run-1-017",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:02:00Z",
+            "notes": "Авторитет за обхвата на тема 2.1 „Разпространение на светлината“ (очаквани резултати, нови понятия, формули n = c/u; α₁ = α₁′; n₁·sinα₁ = n₂·sinα₂). Не съдържа въпроси; всички въпроси са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Защо сърцевината на оптичното влакно има по-голям показател на пречупване",
+            "skill": "Разбиране"
+          },
+          "explanation": "За пълно вътрешно отражение на границата сърцевина – обвивка е нужно n(сърцевина) > n(обвивка). Тогава скоростта в сърцевината е по-малка, а не по-голяма. Честотата не се променя при отражение.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 17,
+          "candidate_id": "physics-g10-light-propagation-run-1-018",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:02:00Z",
+            "notes": "Авторитет за обхвата на тема 2.1 „Разпространение на светлината“ (очаквани резултати, нови понятия, формули n = c/u; α₁ = α₁′; n₁·sinα₁ = n₂·sinα₂). Не съдържа въпроси; всички въпроси са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Граничен ъгъл в оптично влакно",
+            "skill": "Прилагане на закон"
+          },
+          "explanation": "sin α_гр = 1,44/1,50 = 0,96, откъдето α_гр ≈ 74°. Лъчът под 80° надхвърля граничния ъгъл и се отразява напълно, а лъчът под 65° е под него и частично преминава в обвивката.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 18,
+          "candidate_id": "physics-g10-light-propagation-run-1-019",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:02:00Z",
+            "notes": "Авторитет за обхвата на тема 2.1 „Разпространение на светлината“ (очаквани резултати, нови понятия, формули n = c/u; α₁ = α₁′; n₁·sinα₁ = n₂·sinα₂). Не съдържа въпроси; всички въпроси са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Дисперсия – причина за разлагане на светлината с призма",
+            "skill": "Разбиране"
+          },
+          "explanation": "Това е дисперсия: n зависи от дължината на вълната (честотата). Затова вълни с различна дължина се пречупват под различни ъгли. Във вакуум всички цветове имат една и съща скорост, а честотата при прехода не се променя.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 19,
+          "candidate_id": "physics-g10-light-propagation-run-1-020",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:02:00Z",
+            "notes": "Авторитет за обхвата на тема 2.1 „Разпространение на светлината“ (очаквани резултати, нови понятия, формули n = c/u; α₁ = α₁′; n₁·sinα₁ = n₂·sinα₂). Не съдържа въпроси; всички въпроси са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Нормална дисперсия – виолетовата светлина се отклонява най-силно",
+            "skill": "Разбиране"
+          },
+          "explanation": "В стъклото показателят на пречупване нараства с намаляване на дължината на вълната. Виолетовата светлина има най-малка дължина на вълната и най-голям n, затова се отклонява най-силно, а червената – най-слабо.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 20,
+          "candidate_id": "physics-g10-light-propagation-run-1-021",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:02:00Z",
+            "notes": "Авторитет за обхвата на тема 2.1 „Разпространение на светлината“ (очаквани резултати, нови понятия, формули n = c/u; α₁ = α₁′; n₁·sinα₁ = n₂·sinα₂). Не съдържа въпроси; всички въпроси са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Небесна дъга – пречупване, отражение и дисперсия във водни капки",
+            "skill": "Разбиране"
+          },
+          "explanation": "Всяка капка действа като малка призма: светлината се пречупва при влизане, отразява се вътре и се пречупва при излизане. Дисперсията води до различни ъгли на излизане за различните дължини на вълната.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 21,
+          "candidate_id": "physics-g10-light-propagation-run-1-022",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:02:00Z",
+            "notes": "Авторитет за обхвата на тема 2.1 „Разпространение на светлината“ (очаквани резултати, нови понятия, формули n = c/u; α₁ = α₁′; n₁·sinα₁ = n₂·sinα₂). Не съдържа въпроси; всички въпроси са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Дължина на вълната при преминаване между две среди",
+            "skill": "Изчисление"
+          },
+          "explanation": "Честотата е една и съща в двете среди: ν = u₁/λ₁ = u₂/λ₂. Тъй като u = c/n, следва λ₁·n₁ = λ₂·n₂, откъдето λ₂ = 500 nm·1,20/1,50 = 400 nm.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 22,
+          "candidate_id": "physics-g10-light-propagation-run-1-023",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:02:00Z",
+            "notes": "Авторитет за обхвата на тема 2.1 „Разпространение на светлината“ (очаквани резултати, нови понятия, формули n = c/u; α₁ = α₁′; n₁·sinα₁ = n₂·sinα₂). Не съдържа въпроси; всички въпроси са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Пречупване през плоскопаралелна пластина",
+            "skill": "Прилагане на закон"
+          },
+          "explanation": "При влизането sin 40° = 1,5·sin β, т.е. β ≈ 25°. Вътре в пластината този ъгъл е равен на ъгъла на падане върху срещуположната стена (стените са успоредни). При излизането 1,5·sin 25° = sin α, т.е. α = 40°. Излязлият лъч е успореден на падащия, само е изместен.",
+          "difficulty": "hard"
+        },
+        {
+          "number": 23,
+          "candidate_id": "physics-g10-light-propagation-run-1-024",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:02:00Z",
+            "notes": "Авторитет за обхвата на тема 2.1 „Разпространение на светлината“ (очаквани резултати, нови понятия, формули n = c/u; α₁ = α₁′; n₁·sinα₁ = n₂·sinα₂). Не съдържа въпроси; всички въпроси са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Пълно вътрешно отражение в правоъгълна призма",
+            "skill": "Прилагане на закон"
+          },
+          "explanation": "Върху катета лъчът не се пречупва, а върху хипотенузата пада под 45°. Пълно отражение има, ако 45° е по-голям от граничния ъгъл, т.е. sin 45° > 1/n, откъдето n > 1/0,707 ≈ 1,41. От дадените стойности го удовлетворява само 1,60.",
+          "difficulty": "hard"
+        },
+        {
+          "number": 24,
+          "candidate_id": "physics-g10-light-propagation-run-1-025",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:02:00Z",
+            "notes": "Авторитет за обхвата на тема 2.1 „Разпространение на светлината“ (очаквани резултати, нови понятия, формули n = c/u; α₁ = α₁′; n₁·sinα₁ = n₂·sinα₂). Не съдържа въпроси; всички въпроси са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Определяне на показателя на пречупване от опитни данни",
+            "skill": "Експеримент"
+          },
+          "explanation": "Според закона на Снелиус sin α₁/sin α₂ = n. Отношенията са 0,34/0,23 ≈ 1,48; 0,64/0,43 ≈ 1,49; 0,87/0,58 = 1,50, така че n ≈ 1,5. Стойността 0,67 се получава при обърнато отношение.",
+          "difficulty": "medium"
+        }
+      ]
+    }
+  ],
+  "not_exported": []
+}
