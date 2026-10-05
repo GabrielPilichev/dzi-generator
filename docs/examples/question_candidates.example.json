@@ -1,0 +1,125 @@
+{
+  "format_version": 1,
+  "kind": "question_candidates",
+  "run": {
+    "id": "physics-g8-example-run",
+    "started_at": "2026-01-10T09:00:00Z",
+    "finished_at": "2026-01-10T09:20:00Z",
+    "collector": "example-collector",
+    "subject": "physics",
+    "grade": 8,
+    "curriculum": {
+      "education_type": "synthetic-example",
+      "title": "Synthetic physics curriculum, grade 8"
+    },
+    "targets": [
+      {
+        "section": {"slug": "physics-g8-first-section", "title": "Synthetic first section"},
+        "topics": [
+          {"slug": "physics-g8-first-topic", "title": "Synthetic first topic"},
+          {"slug": "physics-g8-second-topic", "title": "Synthetic second topic"}
+        ]
+      }
+    ],
+    "limits": {
+      "max_topics": 3,
+      "max_pages": 40,
+      "max_candidates": 100,
+      "max_candidates_per_source": 20,
+      "max_runtime_minutes": 30
+    },
+    "pages_inspected": 2,
+    "stop_reason": "topic_complete"
+  },
+  "sources": [
+    {
+      "id": "official-example-paper",
+      "type": "official",
+      "url": "https://authority.example.invalid/exams/2025/paper.pdf",
+      "title": "Synthetic official exam paper",
+      "publisher": "Synthetic public authority",
+      "retrieved_at": "2026-01-10T09:02:00Z"
+    },
+    {
+      "id": "third-party-example-site",
+      "type": "third_party",
+      "url": "https://lessons.example.invalid/grade-8/first-topic",
+      "title": "Synthetic third-party lesson page",
+      "retrieved_at": "2026-01-10T09:10:00Z"
+    }
+  ],
+  "candidates": [
+    {
+      "id": "physics-g8-example-run-001",
+      "section_slug": "physics-g8-first-section",
+      "topic_slug": "physics-g8-first-topic",
+      "source_id": "official-example-paper",
+      "transformation": "extracted",
+      "source_ref": {"exam_session": "synthetic-2025", "question_number": 4, "page": 2},
+      "type": "multiple_choice",
+      "prompt": "Synthetic example: which option is listed first?",
+      "options": {"A": "The first", "B": "The second", "C": "The third", "D": "The fourth"},
+      "correct": "A",
+      "difficulty": "easy",
+      "review": {
+        "status": "approved",
+        "reviewer": "Example Reviewer",
+        "reviewed_at": "2026-01-11T08:00:00Z",
+        "notes": "Checked against the source document."
+      }
+    },
+    {
+      "id": "physics-g8-example-run-002",
+      "section_slug": "physics-g8-first-section",
+      "topic_slug": "physics-g8-first-topic",
+      "source_id": "third-party-example-site",
+      "transformation": "original_from_research",
+      "research": {
+        "concept": "Synthetic concept the page explains",
+        "skill": "Recall",
+        "notes": "The page covers the concept with a worked example; the question below is newly written."
+      },
+      "type": "multiple_choice",
+      "prompt": "Synthetic example: which statement was written for LearnPilot?",
+      "options": {"A": "Statement one", "B": "Statement two", "C": "Statement three", "D": "Statement four"},
+      "correct": "C",
+      "explanation": "Synthetic rationale for the correct statement.",
+      "difficulty": "medium",
+      "review": {"status": "pending", "reviewer": null, "reviewed_at": null, "notes": ""}
+    },
+    {
+      "id": "physics-g8-example-run-003",
+      "section_slug": "physics-g8-first-section",
+      "topic_slug": "physics-g8-second-topic",
+      "source_id": "third-party-example-site",
+      "transformation": "original_from_research",
+      "research": {"concept": "Synthetic second concept"},
+      "type": "true_false",
+      "prompt": "Synthetic example: this statement is marked as true.",
+      "correct": true,
+      "review": {
+        "status": "needs_revision",
+        "reviewer": "Example Reviewer",
+        "reviewed_at": "2026-01-11T08:05:00Z",
+        "notes": "Reword as a multiple-choice question."
+      }
+    },
+    {
+      "id": "physics-g8-example-run-004",
+      "section_slug": "physics-g8-first-section",
+      "topic_slug": "physics-g8-second-topic",
+      "source_id": "official-example-paper",
+      "transformation": "adapted",
+      "source_ref": {"document_title": "Synthetic official exam paper", "question_number": 9},
+      "type": "short_answer",
+      "prompt": "Synthetic example: write the word that completes the sentence.",
+      "accepted_answers": ["sample", "a sample"],
+      "review": {
+        "status": "rejected",
+        "reviewer": "Example Reviewer",
+        "reviewed_at": "2026-01-11T08:10:00Z",
+        "notes": "Outside the topic."
+      }
+    }
+  ]
+}
