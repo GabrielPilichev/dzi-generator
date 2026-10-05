@@ -1,0 +1,30 @@
+{
+  "format_version": 1,
+  "subject": "physics",
+  "grade": 9,
+  "curriculum": {
+    "education_type": "general",
+    "title": "Физика и астрономия, 9. клас — общообразователна подготовка",
+    "source_url": "https://www.mon.bg/nfs/2023/12/up_ix_fa_pril9-36.pdf"
+  },
+  "sections": [
+    {
+      "slug": "physics-g9-electric-current",
+      "title": "Електричен ток",
+      "topics": [
+        {"slug": "physics-g9-electric-circuits", "title": "Електрически вериги"},
+        {"slug": "physics-g9-electrical-energy", "title": "Електрична енергия"},
+        {"slug": "physics-g9-current-in-metals-and-semiconductors", "title": "Ток в метали и полупроводници"}
+      ]
+    },
+    {
+      "slug": "physics-g9-mechanical-motion",
+      "title": "Механично движение",
+      "topics": [
+        {"slug": "physics-g9-oscillations", "title": "Трептения"},
+        {"slug": "physics-g9-mechanical-waves", "title": "Механични вълни"},
+        {"slug": "physics-g9-sound", "title": "Звук"}
+      ]
+    }
+  ]
+}
