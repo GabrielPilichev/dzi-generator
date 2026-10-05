@@ -1,0 +1,687 @@
+{
+  "format_version": 1,
+  "kind": "question_candidate_provenance",
+  "run": {
+    "id": "physics-g9-oscillations-run-1",
+    "started_at": "2026-10-05T12:22:52Z",
+    "finished_at": "2026-10-05T12:25:06Z",
+    "subject": "physics",
+    "grade": 9,
+    "curriculum": {
+      "education_type": "general",
+      "title": "Физика и астрономия, 9. клас — общообразователна подготовка"
+    },
+    "targets": [
+      {
+        "section": {
+          "slug": "physics-g9-mechanical-motion",
+          "title": "Механично движение"
+        },
+        "topics": [
+          {
+            "slug": "physics-g9-oscillations",
+            "title": "Трептения"
+          }
+        ]
+      }
+    ],
+    "limits": {
+      "max_topics": 1,
+      "max_pages": 12,
+      "max_candidates": 25,
+      "max_candidates_per_source": 25,
+      "max_runtime_minutes": 40
+    },
+    "pages_inspected": 4,
+    "stop_reason": "topic_complete",
+    "collector": "claude-sonnet-5-5-collector",
+    "notes": "4 fetch attempts: official МОН Grade 9 programme (scope read from the locally extracted PDF text), bg.wikipedia 'Хармонично трептене' (HTTP 404, not used), 'Махало' and 'Резонанс' (used for concepts only). All candidates were newly written by the collector and are pending. Source retrieved_at values are set when the file was built."
+  },
+  "not_stored_in_database": [
+    "candidate id",
+    "source type",
+    "source url",
+    "source title",
+    "source publisher",
+    "source retrieved_at",
+    "transformation",
+    "source_ref",
+    "research",
+    "reuse_exception",
+    "explanation",
+    "difficulty",
+    "review (reviewer, reviewed_at, notes)",
+    "run manifest"
+  ],
+  "batches": [
+    {
+      "file": "physics-g9-oscillations-run-1.oscillations.json",
+      "source": "reviewed:physics:physics-g9-oscillations-run-1.oscillations",
+      "topic_slug": "physics-g9-oscillations",
+      "questions": [
+        {
+          "number": 1,
+          "candidate_id": "physics-g9-oscillations-run-1-01",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-ix-36h",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_fa_pril9-36.pdf",
+            "title": "Учебна програма по физика и астрономия за IX клас (общообразователна подготовка), Приложение № 9",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T12:25:06Z",
+            "notes": "Scope authority for sub-theme 2.1 Трептения: harmonic oscillation and restoring force, graph of a harmonic oscillation, period and frequency, spring and mathematical pendulum, kinetic and potential energy, energy conservation in undamped oscillations, cause of damping, natural/damped/forced oscillations, resonance (useful and harmful); formulas F = kx, T = 2*pi*sqrt(m/k), T = 2*pi*sqrt(l/g), W = kx^2/2; lab lessons on g with a mathematical pendulum and on the spring pendulum. Contains no questions."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Restoring force of a spring pendulum is directed toward equilibrium",
+            "skill": "identify direction of the restoring force"
+          },
+          "explanation": "Връщащата сила (силата на еластичност на пружината) винаги е насочена към равновесното положение, т.е. срещу отклонението x. Затова тя връща тялото обратно.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 2,
+          "candidate_id": "physics-g9-oscillations-run-1-02",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-ix-36h",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_fa_pril9-36.pdf",
+            "title": "Учебна програма по физика и астрономия за IX клас (общообразователна подготовка), Приложение № 9",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T12:25:06Z",
+            "notes": "Scope authority for sub-theme 2.1 Трептения: harmonic oscillation and restoring force, graph of a harmonic oscillation, period and frequency, spring and mathematical pendulum, kinetic and potential energy, energy conservation in undamped oscillations, cause of damping, natural/damped/forced oscillations, resonance (useful and harmful); formulas F = kx, T = 2*pi*sqrt(m/k), T = 2*pi*sqrt(l/g), W = kx^2/2; lab lessons on g with a mathematical pendulum and on the spring pendulum. Contains no questions."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Restoring force of a spring is proportional to the displacement (F = kx)",
+            "skill": "apply proportionality"
+          },
+          "explanation": "Връщащата сила е F = kx, т.е. правопропорционална на отклонението. Утрояването на x утроява F.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 3,
+          "candidate_id": "physics-g9-oscillations-run-1-03",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-ix-36h",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_fa_pril9-36.pdf",
+            "title": "Учебна програма по физика и астрономия за IX клас (общообразователна подготовка), Приложение № 9",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T12:25:06Z",
+            "notes": "Scope authority for sub-theme 2.1 Трептения: harmonic oscillation and restoring force, graph of a harmonic oscillation, period and frequency, spring and mathematical pendulum, kinetic and potential energy, energy conservation in undamped oscillations, cause of damping, natural/damped/forced oscillations, resonance (useful and harmful); formulas F = kx, T = 2*pi*sqrt(m/k), T = 2*pi*sqrt(l/g), W = kx^2/2; lab lessons on g with a mathematical pendulum and on the spring pendulum. Contains no questions."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Period and frequency from counting oscillations",
+            "skill": "calculate T and f"
+          },
+          "explanation": "Честотата е броят трептения за единица време: f = 20/10 s = 2 Hz. Периодът е времето за едно трептене: T = 1/f = 0,5 s.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 4,
+          "candidate_id": "physics-g9-oscillations-run-1-04",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-ix-36h",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_fa_pril9-36.pdf",
+            "title": "Учебна програма по физика и астрономия за IX клас (общообразователна подготовка), Приложение № 9",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T12:25:06Z",
+            "notes": "Scope authority for sub-theme 2.1 Трептения: harmonic oscillation and restoring force, graph of a harmonic oscillation, period and frequency, spring and mathematical pendulum, kinetic and potential energy, energy conservation in undamped oscillations, cause of damping, natural/damped/forced oscillations, resonance (useful and harmful); formulas F = kx, T = 2*pi*sqrt(m/k), T = 2*pi*sqrt(l/g), W = kx^2/2; lab lessons on g with a mathematical pendulum and on the spring pendulum. Contains no questions."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Total mechanical energy of an oscillator is proportional to amplitude squared",
+            "skill": "reason about energy and amplitude"
+          },
+          "explanation": "В крайното положение цялата енергия е потенциална: W = kA²/2. Енергията е пропорционална на квадрата на амплитудата, затова при удвояване на A тя нараства 4 пъти.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 5,
+          "candidate_id": "physics-g9-oscillations-run-1-05",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-ix-36h",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_fa_pril9-36.pdf",
+            "title": "Учебна програма по физика и астрономия за IX клас (общообразователна подготовка), Приложение № 9",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T12:25:06Z",
+            "notes": "Scope authority for sub-theme 2.1 Трептения: harmonic oscillation and restoring force, graph of a harmonic oscillation, period and frequency, spring and mathematical pendulum, kinetic and potential energy, energy conservation in undamped oscillations, cause of damping, natural/damped/forced oscillations, resonance (useful and harmful); formulas F = kx, T = 2*pi*sqrt(m/k), T = 2*pi*sqrt(l/g), W = kx^2/2; lab lessons on g with a mathematical pendulum and on the spring pendulum. Contains no questions."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Graph of a harmonic oscillation: displacement versus time",
+            "skill": "recognise graph shape"
+          },
+          "explanation": "Хармоничното трептене е периодично движение и графиката му x(t) е синусоида (косинусоида). Правата през началото би отговаряла на равномерно движение.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 6,
+          "candidate_id": "physics-g9-oscillations-run-1-06",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-ix-36h",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_fa_pril9-36.pdf",
+            "title": "Учебна програма по физика и астрономия за IX клас (общообразователна подготовка), Приложение № 9",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T12:25:06Z",
+            "notes": "Scope authority for sub-theme 2.1 Трептения: harmonic oscillation and restoring force, graph of a harmonic oscillation, period and frequency, spring and mathematical pendulum, kinetic and potential energy, energy conservation in undamped oscillations, cause of damping, natural/damped/forced oscillations, resonance (useful and harmful); formulas F = kx, T = 2*pi*sqrt(m/k), T = 2*pi*sqrt(l/g), W = kx^2/2; lab lessons on g with a mathematical pendulum and on the spring pendulum. Contains no questions."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Reading amplitude and period from a described x(t) graph",
+            "skill": "interpret a graph"
+          },
+          "explanation": "Амплитудата е максималното отклонение от равновесното положение – 4 cm (8 cm е размахът между двата екстремума). Периодът е времето между два последователни максимума: 2,5 s – 0,5 s = 2 s.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 7,
+          "candidate_id": "physics-g9-oscillations-run-1-07",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-ix-36h",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_fa_pril9-36.pdf",
+            "title": "Учебна програма по физика и астрономия за IX клас (общообразователна подготовка), Приложение № 9",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T12:25:06Z",
+            "notes": "Scope authority for sub-theme 2.1 Трептения: harmonic oscillation and restoring force, graph of a harmonic oscillation, period and frequency, spring and mathematical pendulum, kinetic and potential energy, energy conservation in undamped oscillations, cause of damping, natural/damped/forced oscillations, resonance (useful and harmful); formulas F = kx, T = 2*pi*sqrt(m/k), T = 2*pi*sqrt(l/g), W = kx^2/2; lab lessons on g with a mathematical pendulum and on the spring pendulum. Contains no questions."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Energy of a spring pendulum at the extreme position",
+            "skill": "identify energy forms at a position"
+          },
+          "explanation": "В крайното положение тялото за миг спира (v = 0), затова Ек = 0, а пружината е максимално деформирана и Ep е най-голяма.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 8,
+          "candidate_id": "physics-g9-oscillations-run-1-08",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-ix-36h",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_fa_pril9-36.pdf",
+            "title": "Учебна програма по физика и астрономия за IX клас (общообразователна подготовка), Приложение № 9",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T12:25:06Z",
+            "notes": "Scope authority for sub-theme 2.1 Трептения: harmonic oscillation and restoring force, graph of a harmonic oscillation, period and frequency, spring and mathematical pendulum, kinetic and potential energy, energy conservation in undamped oscillations, cause of damping, natural/damped/forced oscillations, resonance (useful and harmful); formulas F = kx, T = 2*pi*sqrt(m/k), T = 2*pi*sqrt(l/g), W = kx^2/2; lab lessons on g with a mathematical pendulum and on the spring pendulum. Contains no questions."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Conservation of mechanical energy in undamped oscillations",
+            "skill": "interpret energy exchange"
+          },
+          "explanation": "Когато няма триене, механичната енергия се запазва: потенциалната енергия се преобразува в кинетична и сумата Ек + Ep остава постоянна.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 9,
+          "candidate_id": "physics-g9-oscillations-run-1-09",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-ix-36h",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_fa_pril9-36.pdf",
+            "title": "Учебна програма по физика и астрономия за IX клас (общообразователна подготовка), Приложение № 9",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T12:25:06Z",
+            "notes": "Scope authority for sub-theme 2.1 Трептения: harmonic oscillation and restoring force, graph of a harmonic oscillation, period and frequency, spring and mathematical pendulum, kinetic and potential energy, energy conservation in undamped oscillations, cause of damping, natural/damped/forced oscillations, resonance (useful and harmful); formulas F = kx, T = 2*pi*sqrt(m/k), T = 2*pi*sqrt(l/g), W = kx^2/2; lab lessons on g with a mathematical pendulum and on the spring pendulum. Contains no questions."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Period of a spring pendulum (T = 2*pi*sqrt(m/k))",
+            "skill": "calculation with units"
+          },
+          "explanation": "T = 2π√(m/k) = 2π√(0,1/10) s = 2π · 0,1 s ≈ 0,63 s. Стойността 0,10 s се получава без множителя 2π, а 63 s – при размяна на m и k.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 10,
+          "candidate_id": "physics-g9-oscillations-run-1-10",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-ix-36h",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_fa_pril9-36.pdf",
+            "title": "Учебна програма по физика и астрономия за IX клас (общообразователна подготовка), Приложение № 9",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T12:25:06Z",
+            "notes": "Scope authority for sub-theme 2.1 Трептения: harmonic oscillation and restoring force, graph of a harmonic oscillation, period and frequency, spring and mathematical pendulum, kinetic and potential energy, energy conservation in undamped oscillations, cause of damping, natural/damped/forced oscillations, resonance (useful and harmful); formulas F = kx, T = 2*pi*sqrt(m/k), T = 2*pi*sqrt(l/g), W = kx^2/2; lab lessons on g with a mathematical pendulum and on the spring pendulum. Contains no questions."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Dependence of the spring-pendulum period on mass",
+            "skill": "proportional reasoning"
+          },
+          "explanation": "Периодът е T = 2π√(m/k), т.е. пропорционален на корен квадратен от масата. При 4 пъти по-голяма маса √4 = 2, затова T нараства 2 пъти.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 11,
+          "candidate_id": "physics-g9-oscillations-run-1-11",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "bg-wikipedia-pendulum",
+            "type": "third_party",
+            "url": "https://bg.wikipedia.org/wiki/Махало",
+            "title": "Махало — Уикипедия",
+            "publisher": "Wikimedia Foundation",
+            "retrieved_at": "2026-10-05T12:25:06Z",
+            "notes": "Background on the mathematical, spring and physical pendulum; period depends on length and g, not on mass or (small) amplitude; Bulgarian terminology. Concepts only; no question text used."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Period of a mathematical pendulum does not depend on the bob's mass",
+            "skill": "apply the period formula qualitatively"
+          },
+          "explanation": "Периодът на математичното махало е T = 2π√(l/g) и не съдържа масата. При еднаква дължина и еднакво g периодите са равни.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 12,
+          "candidate_id": "physics-g9-oscillations-run-1-12",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "bg-wikipedia-pendulum",
+            "type": "third_party",
+            "url": "https://bg.wikipedia.org/wiki/Махало",
+            "title": "Махало — Уикипедия",
+            "publisher": "Wikimedia Foundation",
+            "retrieved_at": "2026-10-05T12:25:06Z",
+            "notes": "Background on the mathematical, spring and physical pendulum; period depends on length and g, not on mass or (small) amplitude; Bulgarian terminology. Concepts only; no question text used."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Dependence of the pendulum period on length",
+            "skill": "inverse proportional reasoning"
+          },
+          "explanation": "T = 2π√(l/g) е пропорционален на √l. За да нарасне T два пъти, трябва √l да нарасне два пъти, т.е. l да нарасне 4 пъти.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 13,
+          "candidate_id": "physics-g9-oscillations-run-1-13",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "bg-wikipedia-pendulum",
+            "type": "third_party",
+            "url": "https://bg.wikipedia.org/wiki/Махало",
+            "title": "Махало — Уикипедия",
+            "publisher": "Wikimedia Foundation",
+            "retrieved_at": "2026-10-05T12:25:06Z",
+            "notes": "Background on the mathematical, spring and physical pendulum; period depends on length and g, not on mass or (small) amplitude; Bulgarian terminology. Concepts only; no question text used."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Period of a mathematical pendulum (T = 2*pi*sqrt(l/g))",
+            "skill": "calculation with units"
+          },
+          "explanation": "T = 2π√(l/g) = 2π√(0,98/9,8) s = 2π√0,1 s ≈ 2 · 3,14 · 0,316 s ≈ 2,0 s. Стойността 0,32 s се получава без 2π, а 20 s – при размяна на l и g.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 14,
+          "candidate_id": "physics-g9-oscillations-run-1-14",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "bg-wikipedia-pendulum",
+            "type": "third_party",
+            "url": "https://bg.wikipedia.org/wiki/Махало",
+            "title": "Махало — Уикипедия",
+            "publisher": "Wikimedia Foundation",
+            "retrieved_at": "2026-10-05T12:25:06Z",
+            "notes": "Background on the mathematical, spring and physical pendulum; period depends on length and g, not on mass or (small) amplitude; Bulgarian terminology. Concepts only; no question text used."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Determining g with a mathematical pendulum (lab lesson)",
+            "skill": "interpret experimental data"
+          },
+          "explanation": "T = 40 s / 20 = 2 s. От T = 2π√(l/g) следва g = 4π²l/T² = 4 · 9,86 · 1 / 4 m/s² ≈ 9,9 m/s². Ако за период се вземе цялото време (40 s), се получава 0,025 m/s².",
+          "difficulty": "medium"
+        },
+        {
+          "number": 15,
+          "candidate_id": "physics-g9-oscillations-run-1-15",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-ix-36h",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_fa_pril9-36.pdf",
+            "title": "Учебна програма по физика и астрономия за IX клас (общообразователна подготовка), Приложение № 9",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T12:25:06Z",
+            "notes": "Scope authority for sub-theme 2.1 Трептения: harmonic oscillation and restoring force, graph of a harmonic oscillation, period and frequency, spring and mathematical pendulum, kinetic and potential energy, energy conservation in undamped oscillations, cause of damping, natural/damped/forced oscillations, resonance (useful and harmful); formulas F = kx, T = 2*pi*sqrt(m/k), T = 2*pi*sqrt(l/g), W = kx^2/2; lab lessons on g with a mathematical pendulum and on the spring pendulum. Contains no questions."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Potential energy of a deformed spring (W = k x^2 / 2)",
+            "skill": "calculation with units"
+          },
+          "explanation": "x = 0,05 m. W = kx²/2 = 200 · 0,0025 / 2 J = 0,25 J. Стойността 0,50 J е пропуснато делението на 2, а 10 J е произведението kx.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 16,
+          "candidate_id": "physics-g9-oscillations-run-1-16",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-ix-36h",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_fa_pril9-36.pdf",
+            "title": "Учебна програма по физика и астрономия за IX клас (общообразователна подготовка), Приложение № 9",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T12:25:06Z",
+            "notes": "Scope authority for sub-theme 2.1 Трептения: harmonic oscillation and restoring force, graph of a harmonic oscillation, period and frequency, spring and mathematical pendulum, kinetic and potential energy, energy conservation in undamped oscillations, cause of damping, natural/damped/forced oscillations, resonance (useful and harmful); formulas F = kx, T = 2*pi*sqrt(m/k), T = 2*pi*sqrt(l/g), W = kx^2/2; lab lessons on g with a mathematical pendulum and on the spring pendulum. Contains no questions."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Cause of damping in real oscillating systems",
+            "skill": "explain damping with energy"
+          },
+          "explanation": "Съпротивителните сили извършват работа, която преобразува механична енергия във вътрешна (топлина). Енергията не изчезва – запазва се общо, но амплитудата намалява.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 17,
+          "candidate_id": "physics-g9-oscillations-run-1-17",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-ix-36h",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_fa_pril9-36.pdf",
+            "title": "Учебна програма по физика и астрономия за IX клас (общообразователна подготовка), Приложение № 9",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T12:25:06Z",
+            "notes": "Scope authority for sub-theme 2.1 Трептения: harmonic oscillation and restoring force, graph of a harmonic oscillation, period and frequency, spring and mathematical pendulum, kinetic and potential energy, energy conservation in undamped oscillations, cause of damping, natural/damped/forced oscillations, resonance (useful and harmful); formulas F = kx, T = 2*pi*sqrt(m/k), T = 2*pi*sqrt(l/g), W = kx^2/2; lab lessons on g with a mathematical pendulum and on the spring pendulum. Contains no questions."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Forced oscillations are driven by an external periodic force",
+            "skill": "classify oscillations"
+          },
+          "explanation": "Принудените трептения се поддържат от външна периодична сила – тук променливият ток действа на мембраната. В останалите случаи системата трепти със собствена честота след еднократно възбуждане.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 18,
+          "candidate_id": "physics-g9-oscillations-run-1-18",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-ix-36h",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_fa_pril9-36.pdf",
+            "title": "Учебна програма по физика и астрономия за IX клас (общообразователна подготовка), Приложение № 9",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T12:25:06Z",
+            "notes": "Scope authority for sub-theme 2.1 Трептения: harmonic oscillation and restoring force, graph of a harmonic oscillation, period and frequency, spring and mathematical pendulum, kinetic and potential energy, energy conservation in undamped oscillations, cause of damping, natural/damped/forced oscillations, resonance (useful and harmful); formulas F = kx, T = 2*pi*sqrt(m/k), T = 2*pi*sqrt(l/g), W = kx^2/2; lab lessons on g with a mathematical pendulum and on the spring pendulum. Contains no questions."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Natural frequency depends on the parameters of the system",
+            "skill": "recognise what sets the natural frequency"
+          },
+          "explanation": "Собствената честота се определя от параметрите на самата система: f = (1/2π)√(k/m). Не зависи от начина, по който трептенето е възбудено, нито от външна сила.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 19,
+          "candidate_id": "physics-g9-oscillations-run-1-19",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "bg-wikipedia-resonance",
+            "type": "third_party",
+            "url": "https://bg.wikipedia.org/wiki/Резонанс",
+            "title": "Резонанс — Уикипедия",
+            "publisher": "Wikimedia Foundation",
+            "retrieved_at": "2026-10-05T12:25:06Z",
+            "notes": "Background on resonance of forced oscillations, swing example, harmful and useful resonance; Bulgarian terminology. Concepts only; no question text used."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Condition for resonance",
+            "skill": "state the resonance condition"
+          },
+          "explanation": "Резонансът е рязко увеличаване на амплитудата, когато честотата на външното въздействие съвпада (е близка) със собствената честота на системата.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 20,
+          "candidate_id": "physics-g9-oscillations-run-1-20",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "bg-wikipedia-resonance",
+            "type": "third_party",
+            "url": "https://bg.wikipedia.org/wiki/Резонанс",
+            "title": "Резонанс — Уикипедия",
+            "publisher": "Wikimedia Foundation",
+            "retrieved_at": "2026-10-05T12:25:06Z",
+            "notes": "Background on resonance of forced oscillations, swing example, harmful and useful resonance; Bulgarian terminology. Concepts only; no question text used."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Resonance applied: pushing a swing",
+            "skill": "apply resonance to a real situation"
+          },
+          "explanation": "Най-голям ефект има периодичното въздействие с честота, равна на собствената честота на люлката. Тогава тласъкът винаги е в такт с движението и енергията нараства при всеки период.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 21,
+          "candidate_id": "physics-g9-oscillations-run-1-21",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "bg-wikipedia-resonance",
+            "type": "third_party",
+            "url": "https://bg.wikipedia.org/wiki/Резонанс",
+            "title": "Резонанс — Уикипедия",
+            "publisher": "Wikimedia Foundation",
+            "retrieved_at": "2026-10-05T12:25:06Z",
+            "notes": "Background on resonance of forced oscillations, swing example, harmful and useful resonance; Bulgarian terminology. Concepts only; no question text used."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Harmful resonance in structures",
+            "skill": "identify harmful resonance"
+          },
+          "explanation": "Маршируването в крачка действа на моста с честота, близка до собствената му честота. Амплитудата нараства силно и конструкцията може да се повреди. В останалите примери резонансът е полезен или безвреден.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 22,
+          "candidate_id": "physics-g9-oscillations-run-1-23",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "bg-wikipedia-pendulum",
+            "type": "third_party",
+            "url": "https://bg.wikipedia.org/wiki/Махало",
+            "title": "Махало — Уикипедия",
+            "publisher": "Wikimedia Foundation",
+            "retrieved_at": "2026-10-05T12:25:06Z",
+            "notes": "Background on the mathematical, spring and physical pendulum; period depends on length and g, not on mass or (small) amplitude; Bulgarian terminology. Concepts only; no question text used."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Dependence of spring and mathematical pendulum periods on gravity",
+            "skill": "compare two oscillators in a different environment"
+          },
+          "explanation": "T = 2π√(l/g) зависи от g, затова при по-малко g периодът на математичното махало нараства. Периодът на пружинното махало T = 2π√(m/k) зависи само от m и k, а те не се променят.",
+          "difficulty": "hard"
+        },
+        {
+          "number": 23,
+          "candidate_id": "physics-g9-oscillations-run-1-24",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-ix-36h",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_fa_pril9-36.pdf",
+            "title": "Учебна програма по физика и астрономия за IX клас (общообразователна подготовка), Приложение № 9",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T12:25:06Z",
+            "notes": "Scope authority for sub-theme 2.1 Трептения: harmonic oscillation and restoring force, graph of a harmonic oscillation, period and frequency, spring and mathematical pendulum, kinetic and potential energy, energy conservation in undamped oscillations, cause of damping, natural/damped/forced oscillations, resonance (useful and harmful); formulas F = kx, T = 2*pi*sqrt(m/k), T = 2*pi*sqrt(l/g), W = kx^2/2; lab lessons on g with a mathematical pendulum and on the spring pendulum. Contains no questions."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Period of a spring pendulum depends on the ratio m/k",
+            "skill": "combine two changes in the period formula"
+          },
+          "explanation": "T = 2π√(m/k). Съотношението m/k остава същото, защото и масата, и коефициентът на еластичност се увеличават 4 пъти, затова периодът не се променя.",
+          "difficulty": "medium"
+        }
+      ]
+    }
+  ],
+  "not_exported": []
+}
