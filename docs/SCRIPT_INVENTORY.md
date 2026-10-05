@@ -25,6 +25,11 @@ Status is conservative:
 | `src/manage_migrations.py` | Numbered SQLite migration planner/runner with dry-run and baseline support; covered by migration tests. It is also the only production schema-change step (`docs/DEPLOYMENT.md`). |
 | `src/backup_sqlite.py` | WAL-safe online SQLite backup with `PRAGMA quick_check` verification; explicit source/destination, never overwrites or writes inside the checkout. Covered by `tests/test_backup_sqlite.py`. |
 | `src/import_subject_structure.py` | Imports a reviewed curriculum structure (ordered sections and topics, no questions) for a registered subject; dry run by default, atomic `--apply`, rejects conflicts. See `docs/SUBJECT_STRUCTURE_IMPORT.md`; covered by `tests/test_import_subject_structure.py`. |
+| `src/question_collection_limits.py` | Hard limits and absolute ceilings of one question-collection run, plus the page/candidate/runtime budget counter; no network or database access. See `docs/QUESTION_COLLECTION_PIPELINE.md`; covered by `tests/test_question_candidates.py`. |
+| `src/question_candidates.py` | Question-candidate dataset format: validation, source policy, review states, duplicate and quality flags, optional strictly read-only database checks. Never writes a database. |
+| `src/start_question_collection.py` | Writes the empty, bounded candidate dataset for a collection run from explicit subject, grade, topics and limits; creates one JSON file only. |
+| `src/validate_question_candidates.py` | Read-only validator for a candidate dataset; optional `--db` (read-only) and `--annotate` copy with flags. |
+| `src/export_approved_question_candidates.py` | Converts only approved candidates into reviewed import batches plus a provenance file; JSON output only, the reviewed importer stays the database boundary. Covered by `tests/test_export_approved_question_candidates.py`. |
 | `src/validate_question_batch.py` | Read-only dry-run validator for prepared question batch JSON files before import. |
 | `src/import_dzi_questions_json.py` | Imports reviewed official DZI Part 1 question JSON into the current schema; used by the validator path. |
 | `src/validate_practical_task_batch.py` | Dry-run validator for reviewed DZI practical-task batch JSON and resource references. |

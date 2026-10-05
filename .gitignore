@@ -55,6 +55,10 @@ data/*.log
 data/dzi_relevance_audit.csv
 data/dzi_relevance_audit.txt
 
+# Question-collection run output (unreviewed candidate datasets);
+# see docs/QUESTION_COLLECTION_PIPELINE.md
+data/question_candidates/
+
 # Obsidian local UI state
 vault/.obsidian/workspace.json
 vault/.obsidian/workspace-mobile.json

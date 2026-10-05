@@ -95,6 +95,22 @@ the ordered topics; add it to the structure file and re-import the structure to
 place it. The structure importer treats a stored topic that its file does not
 list as a conflict, so the structure file stays the complete, ordered record.
 
+## Batches exported from reviewed candidates
+
+Questions collected from the web do not reach this importer directly. They are
+first candidates in a collection-run dataset, are validated and reviewed there,
+and only the approved ones are exported as batches in the format above by
+`src.export_approved_question_candidates`
+(`docs/QUESTION_COLLECTION_PIPELINE.md`). The format and this importer are
+unchanged; it remains the only tool that writes such questions to a database.
+
+An exported batch has the `source`
+`reviewed:<canonical-subject>:<run id>.<topic>`. Its questions' source URL,
+source type, transformation, review record and other provenance cannot be
+stored by this format; they are kept in the `<run id>.provenance.json` file
+written beside the batch, keyed by the same `source` and question `number`.
+Keep the two files together.
+
 Importing into production is a separate, deliberate operational action: take a
 fresh application snapshot first (`docs/DEPLOYMENT.md`), dry-run, read the
 summary, and only then `--apply`.
