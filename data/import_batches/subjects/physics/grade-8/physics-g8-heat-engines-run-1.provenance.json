@@ -1,0 +1,579 @@
+{
+  "format_version": 1,
+  "kind": "question_candidate_provenance",
+  "run": {
+    "id": "physics-g8-heat-engines-run-1",
+    "started_at": "2026-10-05T10:31:13Z",
+    "finished_at": "2026-10-05T10:34:42Z",
+    "subject": "physics",
+    "grade": 8,
+    "curriculum": {
+      "education_type": "general",
+      "title": "Физика и астрономия, 8. клас — общообразователна подготовка"
+    },
+    "targets": [
+      {
+        "section": {
+          "slug": "physics-g8-thermal-phenomena",
+          "title": "Топлинни явления"
+        },
+        "topics": [
+          {
+            "slug": "physics-g8-heat-engines",
+            "title": "Топлинни машини"
+          }
+        ]
+      }
+    ],
+    "limits": {
+      "max_topics": 3,
+      "max_pages": 10,
+      "max_candidates": 25,
+      "max_candidates_per_source": 22,
+      "max_runtime_minutes": 30
+    },
+    "pages_inspected": 5,
+    "stop_reason": "topic_complete",
+    "collector": "Claude Sonnet 5.5",
+    "notes": "Обхват (МОН 2.5): принцип на действие на топлинна машина по схема; примери и КПД (η = 1 − Q2/Q1); четиритактов двигател на Ото по схема; екологични проблеми (отработени газове, топлинно замърсяване). Извън обхвата: теорема и КПД на Карно, ентропия, цикли в p–V диаграма, дизелов цикъл, хладилници и термопомпи, конструктивни подробности, химия на горенето. Неуспешен опит: openstax.org/books/physics/pages/12-3 (HTTP 404, не е броен). Търсене в мрежата за български уроци върна само руски страници, които не са отваряни. Първият опит за зареждане на страниците беше прекъснат от лимит на сесията; времената на извличане са приблизителни до минута."
+  },
+  "not_stored_in_database": [
+    "candidate id",
+    "source type",
+    "source url",
+    "source title",
+    "source publisher",
+    "source retrieved_at",
+    "transformation",
+    "source_ref",
+    "research",
+    "reuse_exception",
+    "explanation",
+    "difficulty",
+    "review (reviewer, reviewed_at, notes)",
+    "run manifest"
+  ],
+  "batches": [
+    {
+      "file": "physics-g8-heat-engines-run-1.heat-engines.json",
+      "source": "reviewed:physics:physics-g8-heat-engines-run-1.heat-engines",
+      "topic_slug": "physics-g8-heat-engines",
+      "questions": [
+        {
+          "number": 1,
+          "candidate_id": "physics-g8-heat-engines-run-1-001",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-cp2e-15-5-applications",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics-2e/pages/15-5-applications-of-thermodynamics-heat-pumps-and-refrigerators",
+            "title": "College Physics 2e, 15.5 Applications of Thermodynamics: Heat Pumps and Refrigerators",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T10:30:00Z",
+            "notes": "Само концепции: определение на топлинна машина, енергиен поток, защо КПД е под 100%, реални загуби. Хладилници и термопомпи (основният материал на страницата) са извън програмата и не са използвани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-sonnet-5-5-final-approval",
+            "reviewed_at": "2026-10-05T11:51:43Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Предназначение на топлинната машина: част от енергията от нагревателя става механична работа",
+            "skill": "Разбиране на принципа"
+          },
+          "explanation": "Топлинната машина получава енергия от нагревателя и превръща само част от нея в полезна механична работа; останалата част предава на охладителя. Тя не създава енергия (закон за запазване на енергията). Пренасянето на топлина от студено към топло тяло е действие на хладилник – друго устройство.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 2,
+          "candidate_id": "physics-g8-heat-engines-run-1-002",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-cp2e-15-4-heat-engine",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics-2e/pages/15-4-carnots-perfect-heat-engine-the-second-law-of-thermodynamics-restated",
+            "title": "College Physics 2e, 15.4 Carnot's Perfect Heat Engine: The Second Law of Thermodynamics Restated",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T10:30:00Z",
+            "notes": "Само концепции: машина между два резервоара; топлина от горещия резервоар, работа, топлина към студения резервоар; баланс Qh − Qc = W; КПД като работа/получена топлина. Формулата на Карно от страницата НЕ е използвана (извън програмата за 8. клас)."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-sonnet-5-5-final-approval",
+            "reviewed_at": "2026-10-05T11:51:43Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Три енергийни потока: Q1 от нагревателя, A полезна работа, Q2 към охладителя",
+            "skill": "Разпознаване на енергийните потоци по текстово описание"
+          },
+          "explanation": "В записа η = 1 − Q2/Q1 величината Q1 е енергията, получена от нагревателя, а Q2 – енергията, която машината предава на охладителя. Полезната механична работа е A, а енергийният баланс е Q1 = A + Q2.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 3,
+          "candidate_id": "physics-g8-heat-engines-run-1-003",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-cp2e-15-4-heat-engine",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics-2e/pages/15-4-carnots-perfect-heat-engine-the-second-law-of-thermodynamics-restated",
+            "title": "College Physics 2e, 15.4 Carnot's Perfect Heat Engine: The Second Law of Thermodynamics Restated",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T10:30:00Z",
+            "notes": "Само концепции: машина между два резервоара; топлина от горещия резервоар, работа, топлина към студения резервоар; баланс Qh − Qc = W; КПД като работа/получена топлина. Формулата на Карно от страницата НЕ е използвана (извън програмата за 8. клас)."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-sonnet-5-5-final-approval",
+            "reviewed_at": "2026-10-05T11:51:43Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Охладител: тяло/среда с по-ниска температура, към което се предава Q2; студът не е вещество",
+            "skill": "Идентифициране на компонент"
+          },
+          "explanation": "Охладителят е тяло или околна среда с по-ниска температура. Към него машината предава енергията Q2. „Студът“ не е вещество и не се влива в машината: става дума за предаване на енергия към по-студено тяло.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 4,
+          "candidate_id": "physics-g8-heat-engines-run-1-004",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-cp2e-15-5-applications",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics-2e/pages/15-5-applications-of-thermodynamics-heat-pumps-and-refrigerators",
+            "title": "College Physics 2e, 15.5 Applications of Thermodynamics: Heat Pumps and Refrigerators",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T10:30:00Z",
+            "notes": "Само концепции: определение на топлинна машина, енергиен поток, защо КПД е под 100%, реални загуби. Хладилници и термопомпи (основният материал на страницата) са извън програмата и не са използвани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-sonnet-5-5-final-approval",
+            "reviewed_at": "2026-10-05T11:51:43Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Смисъл на КПД като дял от получената енергия, станал полезна работа",
+            "skill": "Тълкуване на величина"
+          },
+          "explanation": "КПД е отношението на полезната работа към енергията, получена от нагревателя. При η = 30% полезна работа е 30% от Q1, а останалите 70% от Q1 се предават на охладителя (Q1 = A + Q2). Не става дума за време на работа.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 5,
+          "candidate_id": "physics-g8-heat-engines-run-1-005",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-cp2e-15-4-heat-engine",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics-2e/pages/15-4-carnots-perfect-heat-engine-the-second-law-of-thermodynamics-restated",
+            "title": "College Physics 2e, 15.4 Carnot's Perfect Heat Engine: The Second Law of Thermodynamics Restated",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T10:30:00Z",
+            "notes": "Само концепции: машина между два резервоара; топлина от горещия резервоар, работа, топлина към студения резервоар; баланс Qh − Qc = W; КПД като работа/получена топлина. Формулата на Карно от страницата НЕ е използвана (извън програмата за 8. клас)."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-sonnet-5-5-final-approval",
+            "reviewed_at": "2026-10-05T11:51:43Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Енергиен баланс на топлинната машина за един цикъл: Q1 = A + Q2",
+            "skill": "Енергиен баланс"
+          },
+          "explanation": "Получената енергия се разпределя между полезната работа и енергията към охладителя: Q1 = A + Q2. Затова Q2 = Q1 − A = 800 J − 200 J = 600 J.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 6,
+          "candidate_id": "physics-g8-heat-engines-run-1-006",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T10:30:00Z",
+            "notes": "Определя обхвата на подтема 2.5: описание по схема на принципа на действие на топлинна машина; примери и КПД; четиритактов двигател на Ото по схема; екологични проблеми (отработени газове, топлинно замърсяване); формула η = 1 − Q2/Q1. Не съдържа въпроси. SHA-256 на изтегления файл съвпада със записания в docs/reviews/physics_g8_curriculum_structure_review.md."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-sonnet-5-5-final-approval",
+            "reviewed_at": "2026-10-05T11:51:43Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "КПД по формулата η = 1 − Q2/Q1",
+            "skill": "Пресмятане на КПД по програмната формула"
+          },
+          "explanation": "η = 1 − Q2/Q1 = 1 − 1500 J / 2000 J = 1 − 0,75 = 0,25, т.е. 25%. Стойността 75% е делът на енергията към охладителя (Q2/Q1), 33% е A/Q2 (500/1500), а КПД не може да надвишава 100%.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 7,
+          "candidate_id": "physics-g8-heat-engines-run-1-007",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-cp2e-15-5-applications",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics-2e/pages/15-5-applications-of-thermodynamics-heat-pumps-and-refrigerators",
+            "title": "College Physics 2e, 15.5 Applications of Thermodynamics: Heat Pumps and Refrigerators",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T10:30:00Z",
+            "notes": "Само концепции: определение на топлинна машина, енергиен поток, защо КПД е под 100%, реални загуби. Хладилници и термопомпи (основният материал на страницата) са извън програмата и не са използвани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-sonnet-5-5-final-approval",
+            "reviewed_at": "2026-10-05T11:51:43Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Обратна задача: получена енергия от полезна работа и КПД",
+            "skill": "Намиране на Q1 при дадени A и η"
+          },
+          "explanation": "Полезната работа е 25% от Q1, т.е. A = ηQ1, откъдето Q1 = A/η = 600 J / 0,25 = 2400 J. Числото 1800 J е енергията към охладителя (Q2 = Q1 − A = 1800 J), а 150 J се получава при умножение вместо деление.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 8,
+          "candidate_id": "physics-g8-heat-engines-run-1-008",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-cp2e-15-4-heat-engine",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics-2e/pages/15-4-carnots-perfect-heat-engine-the-second-law-of-thermodynamics-restated",
+            "title": "College Physics 2e, 15.4 Carnot's Perfect Heat Engine: The Second Law of Thermodynamics Restated",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T10:30:00Z",
+            "notes": "Само концепции: машина между два резервоара; топлина от горещия резервоар, работа, топлина към студения резервоар; баланс Qh − Qc = W; КПД като работа/получена топлина. Формулата на Карно от страницата НЕ е използвана (извън програмата за 8. клас)."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-sonnet-5-5-final-approval",
+            "reviewed_at": "2026-10-05T11:51:43Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Обратна задача на две стъпки: Q2 от A и η",
+            "skill": "Намиране на Q2 при дадени A и η"
+          },
+          "explanation": "Първо Q1 = A/η = 50 kJ / 0,20 = 250 kJ. После Q2 = Q1 − A = 250 kJ − 50 kJ = 200 kJ. Проверка: η = 1 − 200/250 = 0,20. 250 kJ е получената енергия Q1. Стойностите 10 kJ = η·A = 0,20 · 50 kJ и 40 kJ = (1 − η)·A = 0,80 · 50 kJ се получават, когато дяловете η и 1 − η погрешно се приложат към полезната работа вместо към получената от нагревателя енергия.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 9,
+          "candidate_id": "physics-g8-heat-engines-run-1-010",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T10:30:00Z",
+            "notes": "Определя обхвата на подтема 2.5: описание по схема на принципа на действие на топлинна машина; примери и КПД; четиритактов двигател на Ото по схема; екологични проблеми (отработени газове, топлинно замърсяване); формула η = 1 − Q2/Q1. Не съдържа въпроси. SHA-256 на изтегления файл съвпада със записания в docs/reviews/physics_g8_curriculum_structure_review.md."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-sonnet-5-5-final-approval",
+            "reviewed_at": "2026-10-05T11:51:43Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Примери за топлинни машини",
+            "skill": "Разпознаване на топлинна машина"
+          },
+          "explanation": "Топлинната машина превръща част от енергията, получена при топлообмен (например при изгаряне на гориво), в механична работа, а останалата част предава на охладител. Паросиловата установка като цяло прави точно това: в котела водата получава енергия и става пара, парната турбина е частта, която извлича механична работа от парата, а в охладителя отработената пара отдава енергия. Електрическият двигател получава електрическа енергия, хидравличната преса работи по закона на Паскал, а вятърната турбина използва движението на въздуха.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 10,
+          "candidate_id": "physics-g8-heat-engines-run-1-011",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T10:30:00Z",
+            "notes": "Определя обхвата на подтема 2.5: описание по схема на принципа на действие на топлинна машина; примери и КПД; четиритактов двигател на Ото по схема; екологични проблеми (отработени газове, топлинно замърсяване); формула η = 1 − Q2/Q1. Не съдържа въпроси. SHA-256 на изтегления файл съвпада със записания в docs/reviews/physics_g8_curriculum_structure_review.md."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-sonnet-5-5-final-approval",
+            "reviewed_at": "2026-10-05T11:51:43Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Роли на нагревател и охладител в реална топлинна машина",
+            "skill": "Прилагане на схемата към пример"
+          },
+          "explanation": "Нагревателят е източникът, от който машината получава енергия Q1 – тук горящото гориво в котела. Охладителят е тялото с по-ниска температура, към което се предава Q2 – тук речната вода. Парата е работното тяло, а турбината извършва механичната работа.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 11,
+          "candidate_id": "physics-g8-heat-engines-run-1-012",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "wikipedia-four-stroke-engine",
+            "type": "third_party",
+            "url": "https://en.wikipedia.org/wiki/Four-stroke_engine",
+            "title": "Four-stroke engine",
+            "publisher": "Wikipedia",
+            "retrieved_at": "2026-10-05T10:32:00Z",
+            "notes": "Само ред на тактовете (всмукване, сгъстяване, работен ход, изпускане), че само работният такт дава работа, положение на клапаните. Дизеловият двигател не е използван."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-sonnet-5-5-final-approval",
+            "reviewed_at": "2026-10-05T11:51:43Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Редът на тактовете на четиритактовия двигател на Ото",
+            "skill": "Разпознаване на последователността на четирите такта по текст."
+          },
+          "explanation": "Първо в цилиндъра навлиза горивната смес (всмукване), после тя се сгъстява, запалва се и газът избутва буталото (работен ход), накрая отработените газове се изхвърлят (изпускане).",
+          "difficulty": "easy"
+        },
+        {
+          "number": 12,
+          "candidate_id": "physics-g8-heat-engines-run-1-013",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "wikipedia-four-stroke-engine",
+            "type": "third_party",
+            "url": "https://en.wikipedia.org/wiki/Four-stroke_engine",
+            "title": "Four-stroke engine",
+            "publisher": "Wikipedia",
+            "retrieved_at": "2026-10-05T10:32:00Z",
+            "notes": "Само ред на тактовете (всмукване, сгъстяване, работен ход, изпускане), че само работният такт дава работа, положение на клапаните. Дизеловият двигател не е използван."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-sonnet-5-5-final-approval",
+            "reviewed_at": "2026-10-05T11:51:43Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Работният такт: газът извършва работа върху буталото; при сгъстяване работа се извършва върху газа",
+            "skill": "Енергетичен анализ на такт"
+          },
+          "explanation": "При работния ход горивната смес е запалена и горещият газ се разширява и избутва буталото – газът извършва работа. При сгъстяването е обратното: буталото извършва работа върху газа. Останалите два такта (всмукване и изпускане) не дават полезна работа.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 13,
+          "candidate_id": "physics-g8-heat-engines-run-1-014",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "wikipedia-four-stroke-engine",
+            "type": "third_party",
+            "url": "https://en.wikipedia.org/wiki/Four-stroke_engine",
+            "title": "Four-stroke engine",
+            "publisher": "Wikipedia",
+            "retrieved_at": "2026-10-05T10:32:00Z",
+            "notes": "Само ред на тактовете (всмукване, сгъстяване, работен ход, изпускане), че само работният такт дава работа, положение на клапаните. Дизеловият двигател не е използван."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-sonnet-5-5-final-approval",
+            "reviewed_at": "2026-10-05T11:51:43Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Изпускането на отработените газове отнася част от неизползваната енергия към околната среда",
+            "skill": "Връзка между схемата на двигателя и Q2"
+          },
+          "explanation": "Горещите отработени газове изнасят със себе си част от енергията, която не е превърната в полезна работа. Енергия към околната среда се предава и при охлаждането на двигателя. В опростения общ енергиен баланс на двигателя двете могат да се обединят като енергия, предадена на околната среда. Тази енергия не изчезва и не се връща в цилиндъра.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 14,
+          "candidate_id": "physics-g8-heat-engines-run-1-015",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "wikipedia-thermal-pollution",
+            "type": "third_party",
+            "url": "https://en.wikipedia.org/wiki/Thermal_pollution",
+            "title": "Thermal pollution",
+            "publisher": "Wikipedia",
+            "retrieved_at": "2026-10-05T10:33:00Z",
+            "notes": "Само понятието топлинно замърсяване: основен източник е охлаждащата вода от електроцентрали, изпускана във води; ефект върху водните организми."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-sonnet-5-5-final-approval",
+            "reviewed_at": "2026-10-05T11:51:43Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Топлинно замърсяване като отделен вид екологичен проблем",
+            "skill": "Разграничаване на видове замърсяване"
+          },
+          "explanation": "Топлинното замърсяване е нежелано повишаване на температурата на околната среда, например на река, в която е изпусната затоплена охлаждаща вода от електроцентрала. Саждите и газовете от ауспуха са замърсяване с отработени газове, а нефтът и шумът са други видове замърсяване.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 15,
+          "candidate_id": "physics-g8-heat-engines-run-1-016",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-cp2e-15-4-heat-engine",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics-2e/pages/15-4-carnots-perfect-heat-engine-the-second-law-of-thermodynamics-restated",
+            "title": "College Physics 2e, 15.4 Carnot's Perfect Heat Engine: The Second Law of Thermodynamics Restated",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T10:30:00Z",
+            "notes": "Само концепции: машина между два резервоара; топлина от горещия резервоар, работа, топлина към студения резервоар; баланс Qh − Qc = W; КПД като работа/получена топлина. Формулата на Карно от страницата НЕ е използвана (извън програмата за 8. клас)."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-sonnet-5-5-final-approval",
+            "reviewed_at": "2026-10-05T11:51:43Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Висок КПД означава по-малко енергия към околната среда при същата полезна работа",
+            "skill": "Екологично разсъждение с количествена основа"
+          },
+          "explanation": "Първи двигател: Q1 = 60/0,20 = 300 MJ, Q2 = 300 − 60 = 240 MJ. Втори двигател: Q1 = 60/0,40 = 150 MJ, Q2 = 150 − 60 = 90 MJ. Разликата е 240 − 90 = 150 MJ. При една и съща полезна работа двигателят с по-голям КПД получава по-малко енергия от нагревателя и предава по-малко енергия на охладителя.",
+          "difficulty": "hard"
+        },
+        {
+          "number": 16,
+          "candidate_id": "physics-g8-heat-engines-run-1-017",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T10:30:00Z",
+            "notes": "Определя обхвата на подтема 2.5: описание по схема на принципа на действие на топлинна машина; примери и КПД; четиритактов двигател на Ото по схема; екологични проблеми (отработени газове, топлинно замърсяване); формула η = 1 − Q2/Q1. Не съдържа въпроси. SHA-256 на изтегления файл съвпада със записания в docs/reviews/physics_g8_curriculum_structure_review.md."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-sonnet-5-5-final-approval",
+            "reviewed_at": "2026-10-05T11:51:43Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Сравняване на КПД по таблица: делът Q2/Q1 е решаващ, а не абсолютните стойности",
+            "skill": "Сравняване по данни от таблица"
+          },
+          "explanation": "η = 1 − Q2/Q1: А – 1 − 600/900 ≈ 33%; Б – 1 − 300/500 = 40%; В – 1 − 800/1200 ≈ 33%; Г – 1 − 200/300 ≈ 33%. Най-голям КПД има Б. Машина Г има най-малко Q2, а В извършва най-много работа (400 J), но КПД зависи от отношението Q2/Q1.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 17,
+          "candidate_id": "physics-g8-heat-engines-run-1-018",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T10:30:00Z",
+            "notes": "Определя обхвата на подтема 2.5: описание по схема на принципа на действие на топлинна машина; примери и КПД; четиритактов двигател на Ото по схема; екологични проблеми (отработени газове, топлинно замърсяване); формула η = 1 − Q2/Q1. Не съдържа въпроси. SHA-256 на изтегления файл съвпада със записания в docs/reviews/physics_g8_curriculum_structure_review.md."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-sonnet-5-5-final-approval",
+            "reviewed_at": "2026-10-05T11:51:43Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Влияние на Q2 върху КПД чрез η = 1 − Q2/Q1",
+            "skill": "Качествено разсъждение с формулата"
+          },
+          "explanation": "От η = 1 − Q2/Q1 следва, че КПД се определя от отношението Q2/Q1. При същото Q1 и по-малко Q2 отношението намалява и КПД расте – по-голяма част от Q1 става полезна работа (A = Q1 − Q2); при по-голямо Q2 КПД намалява. Ако Q1 и Q2 се удвоят, отношението Q2/Q1 не се променя и КПД е същият. Повече цикли за минута увеличават работата за единица време, но не променят отношението Q2/Q1 за един цикъл, затова КПД остава същият.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 18,
+          "candidate_id": "physics-g8-heat-engines-run-1-020",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-cp2e-15-5-applications",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics-2e/pages/15-5-applications-of-thermodynamics-heat-pumps-and-refrigerators",
+            "title": "College Physics 2e, 15.5 Applications of Thermodynamics: Heat Pumps and Refrigerators",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T10:30:00Z",
+            "notes": "Само концепции: определение на топлинна машина, енергиен поток, защо КПД е под 100%, реални загуби. Хладилници и термопомпи (основният материал на страницата) са извън програмата и не са използвани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-sonnet-5-5-final-approval",
+            "reviewed_at": "2026-10-05T11:51:43Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Q2 не изчезва: запазване на енергията в топлинната машина",
+            "skill": "Диагностика на погрешно схващане"
+          },
+          "explanation": "Енергията се запазва: Q1 = A + Q2. Енергията Q2 е предадена на охладителя и околната среда, където затопля тела – не е унищожена. Тя не се връща към нагревателя и не става работа сама.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 19,
+          "candidate_id": "physics-g8-heat-engines-run-1-021",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T10:30:00Z",
+            "notes": "Определя обхвата на подтема 2.5: описание по схема на принципа на действие на топлинна машина; примери и КПД; четиритактов двигател на Ото по схема; екологични проблеми (отработени газове, топлинно замърсяване); формула η = 1 − Q2/Q1. Не съдържа въпроси. SHA-256 на изтегления файл съвпада със записания в docs/reviews/physics_g8_curriculum_structure_review.md."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-sonnet-5-5-final-approval",
+            "reviewed_at": "2026-10-05T11:51:43Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Съгласуваност на данни с енергийния баланс Q1 = A + Q2 и с определените посоки на пренасяне",
+            "skill": "Проверка за съгласуваност на данни"
+          },
+          "explanation": "Енергийният баланс е Q1 = A + Q2. Записът с Q2 = 300 J не го удовлетворява (200 + 300 = 500 ≠ 600), записът с A = 250 J и Q2 = 250 J също (500 ≠ 400). При A = 450 J и Q2 = −50 J равенството формално е изпълнено (450 − 50 = 400), но Q2 е отрицателно, което противоречи на определението на Q2 като положително количество енергия, предадено от машината на охладителя. Записът Q1 = 600 J, A = 200 J, Q2 = 400 J удовлетворява и баланса (200 + 400 = 600), и определените посоки.",
+          "difficulty": "medium"
+        }
+      ]
+    }
+  ],
+  "not_exported": []
+}
