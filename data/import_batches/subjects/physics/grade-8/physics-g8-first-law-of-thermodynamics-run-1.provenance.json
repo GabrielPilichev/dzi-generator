@@ -1,0 +1,498 @@
+{
+  "format_version": 1,
+  "kind": "question_candidate_provenance",
+  "run": {
+    "id": "physics-g8-first-law-of-thermodynamics-run-1",
+    "started_at": "2026-10-05T09:32:13Z",
+    "finished_at": "2026-10-05T10:00:00Z",
+    "subject": "physics",
+    "grade": 8,
+    "curriculum": {
+      "education_type": "general",
+      "title": "Физика и астрономия, 8. клас — общообразователна подготовка"
+    },
+    "targets": [
+      {
+        "section": {
+          "slug": "physics-g8-thermal-phenomena",
+          "title": "Топлинни явления"
+        },
+        "topics": [
+          {
+            "slug": "physics-g8-first-law-of-thermodynamics",
+            "title": "Първи принцип на термодинамиката"
+          }
+        ]
+      }
+    ],
+    "limits": {
+      "max_topics": 3,
+      "max_pages": 15,
+      "max_candidates": 30,
+      "max_candidates_per_source": 25,
+      "max_runtime_minutes": 30
+    },
+    "pages_inspected": 3,
+    "stop_reason": "topic_complete",
+    "collector": "Claude Sonnet 5.5",
+    "notes": "Обхват (МОН 2.3): работа при изменение на обема на газ (A = pΔV и A = −pΔV), вътрешна енергия чрез работа и топлообмен, ΔU = Q + A като запазване на енергията, невъзможност на вечния двигател. Конвенция: A е работата на външните сили ВЪРХУ газа; във всеки въпрос е зададена изрично. Програмата не определя знака на ΔV в A = pΔV, затова въпросите дават обемите или ΔV = V2 − V1. Извън обхвата: именувани газови процеси (2.4), КПД и цикли (2.5), Q = cmΔt и латентни топлини (2.2), ентропия, Cp/Cv. Неуспешни опити (не са броени като инспектирани страници): openstax UP2 3.2 (404), openstax UP2 3.1 (лимит на сесията). Източниците на OpenStax ползват ΔU = Q − W; тук е използвана конвенцията на МОН. Времената са приблизителни."
+  },
+  "not_stored_in_database": [
+    "candidate id",
+    "source type",
+    "source url",
+    "source title",
+    "source publisher",
+    "source retrieved_at",
+    "transformation",
+    "source_ref",
+    "research",
+    "reuse_exception",
+    "explanation",
+    "difficulty",
+    "review (reviewer, reviewed_at, notes)",
+    "run manifest"
+  ],
+  "batches": [
+    {
+      "file": "physics-g8-first-law-of-thermodynamics-run-1.first-law-of-thermodynamics.json",
+      "source": "reviewed:physics:physics-g8-first-law-of-thermodynamics-run-1.first-law-of-thermodynamics",
+      "topic_slug": "physics-g8-first-law-of-thermodynamics",
+      "questions": [
+        {
+          "number": 1,
+          "candidate_id": "physics-g8-first-law-of-thermodynamics-run-1-001",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T09:40:00Z",
+            "notes": "Тема 2.3: работа при изменение на обема на газ (A = pΔV и A = −pΔV), ΔU = Q + A, вътрешна енергия чрез работа и топлообмен, запазване на енергията, невъзможност на вечния двигател. Не съдържа въпроси."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-sonnet-5-5-final-approval",
+            "reviewed_at": "2026-10-05T11:51:43Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Вътрешната енергия се променя чрез работа и чрез топлообмен",
+            "skill": "Назоваване на начините за изменение на U"
+          },
+          "explanation": "Вътрешната енергия се променя чрез работа (например при свиване на газ) и чрез топлообмен. Изменението на положението на тялото променя неговата потенциална, а не вътрешната му енергия.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 2,
+          "candidate_id": "physics-g8-first-law-of-thermodynamics-run-1-002",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T09:40:00Z",
+            "notes": "Тема 2.3: работа при изменение на обема на газ (A = pΔV и A = −pΔV), ΔU = Q + A, вътрешна енергия чрез работа и топлообмен, запазване на енергията, невъзможност на вечния двигател. Не съдържа въпроси."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-sonnet-5-5-final-approval",
+            "reviewed_at": "2026-10-05T11:51:43Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Първи принцип ΔU = Q + A като закон за запазване на енергията",
+            "skill": "Разпознаване на формулировка на закона"
+          },
+          "explanation": "Първият принцип изразява запазването на енергията: ΔU = Q + A – вътрешната енергия се променя със сбора на получената топлина Q и работата A на външните сили. Ако ΔU = 0, то Q = −A. Ако с W се означи работата, извършена от газа, то W = −A и тогава при ΔU = 0 се получава Q = W.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 3,
+          "candidate_id": "physics-g8-first-law-of-thermodynamics-run-1-004",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T09:40:00Z",
+            "notes": "Тема 2.3: работа при изменение на обема на газ (A = pΔV и A = −pΔV), ΔU = Q + A, вътрешна енергия чрез работа и топлообмен, запазване на енергията, невъзможност на вечния двигател. Не съдържа въпроси."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-sonnet-5-5-final-approval",
+            "reviewed_at": "2026-10-05T11:51:43Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "ΔU зависи от началното и крайното състояние, а не от начина (работа или топлообмен)",
+            "skill": "Сравняване на два начина за промяна на вътрешната енергия"
+          },
+          "explanation": "Вътрешната енергия зависи от състоянието на тялото. При еднакви начално и крайно състояние ΔU е еднаква, независимо дали е предизвикана от топлообмен или от работа.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 4,
+          "candidate_id": "physics-g8-first-law-of-thermodynamics-run-1-005",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T09:40:00Z",
+            "notes": "Тема 2.3: работа при изменение на обема на газ (A = pΔV и A = −pΔV), ΔU = Q + A, вътрешна енергия чрез работа и топлообмен, запазване на енергията, невъзможност на вечния двигател. Не съдържа въпроси."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-sonnet-5-5-final-approval",
+            "reviewed_at": "2026-10-05T11:51:43Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Прилагане на ΔU = Q + A с положителни Q и A",
+            "skill": "Просто пресмятане на ΔU"
+          },
+          "explanation": "Според ΔU = Q + A: ΔU = 300 J + 200 J = 500 J. И топлината, и работата на външните сили увеличават вътрешната енергия.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 5,
+          "candidate_id": "physics-g8-first-law-of-thermodynamics-run-1-007",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T09:40:00Z",
+            "notes": "Тема 2.3: работа при изменение на обема на газ (A = pΔV и A = −pΔV), ΔU = Q + A, вътрешна енергия чрез работа и топлообмен, запазване на енергията, невъзможност на вечния двигател. Не съдържа въпроси."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-sonnet-5-5-final-approval",
+            "reviewed_at": "2026-10-05T11:51:43Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Знак на A при разширяване и ΔU = Q + A",
+            "skill": "Пресмятане на ΔU при получена топлина и извършена от газа работа"
+          },
+          "explanation": "Газът извършва работа върху околните тела, затова работата на външните сили върху газа е A = −400 J. Тогава ΔU = Q + A = 400 J − 400 J = 0.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 6,
+          "candidate_id": "physics-g8-first-law-of-thermodynamics-run-1-008",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T09:40:00Z",
+            "notes": "Тема 2.3: работа при изменение на обема на газ (A = pΔV и A = −pΔV), ΔU = Q + A, вътрешна енергия чрез работа и топлообмен, запазване на енергията, невъзможност на вечния двигател. Не съдържа въпроси."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-sonnet-5-5-final-approval",
+            "reviewed_at": "2026-10-05T11:51:43Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Знак на работата на външните сили при разширяване на газ (A = −pΔV)",
+            "skill": "Тълкуване на формулата A = −pΔV"
+          },
+          "explanation": "При разширяване V₂ > V₁, ΔV > 0 и A = −pΔV < 0. Газът извършва работа върху околните тела и отдава енергия, затова работата на външните сили върху него е отрицателна.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 7,
+          "candidate_id": "physics-g8-first-law-of-thermodynamics-run-1-009",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T09:40:00Z",
+            "notes": "Тема 2.3: работа при изменение на обема на газ (A = pΔV и A = −pΔV), ΔU = Q + A, вътрешна енергия чрез работа и топлообмен, запазване на енергията, невъзможност на вечния двигател. Не съдържа въпроси."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-sonnet-5-5-final-approval",
+            "reviewed_at": "2026-10-05T11:51:43Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Работа на външните сили при свиване на газ",
+            "skill": "Записване на A = −pΔV с обеми V₁ и V₂"
+          },
+          "explanation": "A = −pΔV = −p·(V₂ − V₁) = p·(V₁ − V₂). Тъй като V₂ < V₁, работата е положителна: външните сили предават енергия на газа.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 8,
+          "candidate_id": "physics-g8-first-law-of-thermodynamics-run-1-010",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T09:40:00Z",
+            "notes": "Тема 2.3: работа при изменение на обема на газ (A = pΔV и A = −pΔV), ΔU = Q + A, вътрешна енергия чрез работа и топлообмен, запазване на енергията, невъзможност на вечния двигател. Не съдържа въпроси."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-sonnet-5-5-final-approval",
+            "reviewed_at": "2026-10-05T11:51:43Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Пресмятане на работата при разширяване на газ при постоянно налягане",
+            "skill": "Пресмятане с превръщане на единици и знак"
+          },
+          "explanation": "ΔV = 1,5 L = 1,5·10⁻³ m³. A = −pΔV = −1,0·10⁵ Pa · 1,5·10⁻³ m³ = −150 J. Отрицателният знак показва, че газът извършва работа. Стойност 150 000 J се получава при пропуснато превръщане на литрите в m³, а 350 J – при използване само на крайния обем.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 9,
+          "candidate_id": "physics-g8-first-law-of-thermodynamics-run-1-011",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T09:40:00Z",
+            "notes": "Тема 2.3: работа при изменение на обема на газ (A = pΔV и A = −pΔV), ΔU = Q + A, вътрешна енергия чрез работа и топлообмен, запазване на енергията, невъзможност на вечния двигател. Не съдържа въпроси."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-sonnet-5-5-final-approval",
+            "reviewed_at": "2026-10-05T11:51:43Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Комбинирано прилагане на A = −pΔV и ΔU = Q + A със знаци на Q и A",
+            "skill": "Многостъпково пресмятане със знаци"
+          },
+          "explanation": "Изменението на обема е ΔV = V2 − V1 = (1,0 − 3,0)·10⁻³ m³ = −2,0·10⁻³ m³. Работата на външните сили е A = −pΔV = −2,0·10⁵ Pa · (−2,0·10⁻³ m³) = +400 J. Газът отдава топлина, затова Q = −1000 J. Тогава ΔU = Q + A = −1000 J + 400 J = −600 J. Вътрешната енергия намалява, защото газът отдава като топлина повече енергия, отколкото получава чрез работа.",
+          "difficulty": "hard"
+        },
+        {
+          "number": 10,
+          "candidate_id": "physics-g8-first-law-of-thermodynamics-run-1-013",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T09:40:00Z",
+            "notes": "Тема 2.3: работа при изменение на обема на газ (A = pΔV и A = −pΔV), ΔU = Q + A, вътрешна енергия чрез работа и топлообмен, запазване на енергията, невъзможност на вечния двигател. Не съдържа въпроси."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-sonnet-5-5-final-approval",
+            "reviewed_at": "2026-10-05T11:51:43Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Q и A са пренесена енергия, U е свойство на състоянието",
+            "skill": "Диагностика на заблуди за топлина и работа"
+          },
+          "explanation": "Топлината и работата са начини за пренос на енергия при процес и не се съдържат в тялото. Вътрешната енергия е енергия на частиците на тялото в дадено негово състояние. Тя не е същото като температурата.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 11,
+          "candidate_id": "physics-g8-first-law-of-thermodynamics-run-1-014",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T09:40:00Z",
+            "notes": "Тема 2.3: работа при изменение на обема на газ (A = pΔV и A = −pΔV), ΔU = Q + A, вътрешна енергия чрез работа и топлообмен, запазване на енергията, невъзможност на вечния двигател. Не съдържа въпроси."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-sonnet-5-5-final-approval",
+            "reviewed_at": "2026-10-05T11:51:43Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "ΔU е еднаква при едни и същи начално и крайно състояние, а Q и A зависят от процеса",
+            "skill": "Използване на ΔU = Q + A при два процеса"
+          },
+          "explanation": "При първия процес ΔU = 300 J + 100 J = 400 J. Началното и крайното състояние са еднакви, затова и при втория ΔU = 400 J. От ΔU = Q + A следва A = 400 J − 250 J = 150 J.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 12,
+          "candidate_id": "physics-g8-first-law-of-thermodynamics-run-1-015",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T09:40:00Z",
+            "notes": "Тема 2.3: работа при изменение на обема на газ (A = pΔV и A = −pΔV), ΔU = Q + A, вътрешна енергия чрез работа и топлообмен, запазване на енергията, невъзможност на вечния двигател. Не съдържа въпроси."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-sonnet-5-5-final-approval",
+            "reviewed_at": "2026-10-05T11:51:43Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Невъзможност на вечния двигател",
+            "skill": "Обосноваване чрез запазване на енергията"
+          },
+          "explanation": "Работата, която машината извършва, би била енергия от нищото, а това нарушава закона за запазване на енергията (първия принцип): ΔU = Q + A. Невъзможността не се дължи на триене или износване.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 13,
+          "candidate_id": "physics-g8-first-law-of-thermodynamics-run-1-017",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T09:40:00Z",
+            "notes": "Тема 2.3: работа при изменение на обема на газ (A = pΔV и A = −pΔV), ΔU = Q + A, вътрешна енергия чрез работа и топлообмен, запазване на енергията, невъзможност на вечния двигател. Не съдържа въпроси."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-sonnet-5-5-final-approval",
+            "reviewed_at": "2026-10-05T11:51:43Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Намиране на A от ΔU и Q със знак",
+            "skill": "Обратна задача с ΔU = Q + A"
+          },
+          "explanation": "Газът отдава топлина, затова Q = −100 J. От ΔU = Q + A следва A = ΔU − Q = 250 J + 100 J = 350 J. Работата е положителна – външните сили предават енергия на газа.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 14,
+          "candidate_id": "physics-g8-first-law-of-thermodynamics-run-1-018",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T09:40:00Z",
+            "notes": "Тема 2.3: работа при изменение на обема на газ (A = pΔV и A = −pΔV), ΔU = Q + A, вътрешна енергия чрез работа и топлообмен, запазване на енергията, невъзможност на вечния двигател. Не съдържа въпроси."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-sonnet-5-5-final-approval",
+            "reviewed_at": "2026-10-05T11:51:43Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Сравняване на ΔU при различни комбинации от Q и A",
+            "skill": "Тълкуване на данни за Q и A"
+          },
+          "explanation": "Според ΔU = Q + A: процес 1 – +100 J; процес 2 – +150 J; процес 3 – +200 J; процес 4 – −300 J. Най-голямо нарастване има в процес 3, въпреки че газът отдава топлина. Най-голямата получена топлина (процес 2) не определя сама промяната на U.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 15,
+          "candidate_id": "physics-g8-first-law-of-thermodynamics-run-1-019",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T09:40:00Z",
+            "notes": "Тема 2.3: работа при изменение на обема на газ (A = pΔV и A = −pΔV), ΔU = Q + A, вътрешна енергия чрез работа и топлообмен, запазване на енергията, невъзможност на вечния двигател. Не съдържа въпроси."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-sonnet-5-5-final-approval",
+            "reviewed_at": "2026-10-05T11:51:43Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Положителна работа на външните сили при свиване на газ",
+            "skill": "Разпознаване на знака на работата в ситуации"
+          },
+          "explanation": "Работата на външните сили върху газа е положителна при свиване на газа (A = −pΔV > 0 при ΔV < 0). При разширяване работата е отрицателна, а при постоянен обем е нула.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 16,
+          "candidate_id": "physics-g8-first-law-of-thermodynamics-run-1-021",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T09:40:00Z",
+            "notes": "Тема 2.3: работа при изменение на обема на газ (A = pΔV и A = −pΔV), ΔU = Q + A, вътрешна енергия чрез работа и топлообмен, запазване на енергията, невъзможност на вечния двигател. Не съдържа въпроси."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-sonnet-5-5-final-approval",
+            "reviewed_at": "2026-10-05T11:51:43Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Вътрешната енергия може да расте при постоянна температура",
+            "skill": "Прилагане на ΔU = Q + A при топене"
+          },
+          "explanation": "При A ≈ 0 от ΔU = Q + A следва ΔU ≈ Q > 0: вътрешната енергия нараства със стойността на получената топлина, макар температурата да е постоянна. Вътрешната енергия и температурата не са едно и също.",
+          "difficulty": "medium"
+        }
+      ]
+    }
+  ],
+  "not_exported": []
+}
