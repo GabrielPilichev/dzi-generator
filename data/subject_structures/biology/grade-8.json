@@ -1,0 +1,54 @@
+{
+  "format_version": 1,
+  "subject": "biology",
+  "grade": 8,
+  "curriculum": {
+    "education_type": "general",
+    "title": "Биология и здравно образование, 8. клас — общообразователна подготовка",
+    "source_url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf"
+  },
+  "sections": [
+    {
+      "slug": "biology-g8-structural-organisation-of-the-human-body",
+      "title": "Структурна организация на човешкия организъм",
+      "topics": [
+        {"slug": "biology-g8-cell-and-tissues", "title": "Клетка и тъкани"}
+      ]
+    },
+    {
+      "slug": "biology-g8-metabolism",
+      "title": "Обмяна на веществата",
+      "topics": [
+        {"slug": "biology-g8-digestive-system", "title": "Храносмилателна система"},
+        {"slug": "biology-g8-respiratory-system", "title": "Дихателна система"},
+        {"slug": "biology-g8-excretory-system", "title": "Отделителна система"},
+        {"slug": "biology-g8-cardiovascular-system", "title": "Сърдечно-съдова система"}
+      ]
+    },
+    {
+      "slug": "biology-g8-movement-and-support-of-the-body",
+      "title": "Движение и опора на тялото",
+      "topics": [
+        {"slug": "biology-g8-musculoskeletal-system", "title": "Опорно-двигателна система – скелет и скелетни мускули"}
+      ]
+    },
+    {
+      "slug": "biology-g8-reproduction-growth-and-development",
+      "title": "Размножаване, растеж и развитие",
+      "topics": [
+        {"slug": "biology-g8-reproductive-system", "title": "Полова система"},
+        {"slug": "biology-g8-embryonic-and-postembryonic-development", "title": "Зародишно и следзародишно развитие"}
+      ]
+    },
+    {
+      "slug": "biology-g8-regulation-and-homeostasis",
+      "title": "Регулация и хомеостаза",
+      "topics": [
+        {"slug": "biology-g8-nervous-system", "title": "Нервна система"},
+        {"slug": "biology-g8-endocrine-system", "title": "Ендокринна система"},
+        {"slug": "biology-g8-sensory-systems", "title": "Сетивни системи"},
+        {"slug": "biology-g8-skin", "title": "Кожа"}
+      ]
+    }
+  ]
+}

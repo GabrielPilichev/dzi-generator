@@ -1,0 +1,47 @@
+{
+  "format_version": 1,
+  "subject": "biology",
+  "grade": 9,
+  "curriculum": {
+    "education_type": "general",
+    "title": "Биология и здравно образование, 9. клас — общообразователна подготовка",
+    "source_url": "https://www.mon.bg/nfs/2023/12/up_ix_bio_pril11-36.pdf"
+  },
+  "sections": [
+    {
+      "slug": "biology-g9-chemical-composition-of-living-matter",
+      "title": "Химичен състав на живата материя",
+      "topics": [
+        {"slug": "biology-g9-chemical-composition-of-living-matter", "title": "Химичен състав на живата материя"}
+      ]
+    },
+    {
+      "slug": "biology-g9-supramolecular-complexes",
+      "title": "Надмолекулни комплекси",
+      "topics": [
+        {"slug": "biology-g9-supramolecular-complexes", "title": "Надмолекулни комплекси"}
+      ]
+    },
+    {
+      "slug": "biology-g9-cell-structure-and-processes",
+      "title": "Структура и процеси в клетката",
+      "topics": [
+        {"slug": "biology-g9-cell-structure-and-processes", "title": "Структура и процеси в клетката"}
+      ]
+    },
+    {
+      "slug": "biology-g9-cell-reproduction",
+      "title": "Възпроизводство на клетката",
+      "topics": [
+        {"slug": "biology-g9-cell-reproduction", "title": "Възпроизводство на клетката"}
+      ]
+    },
+    {
+      "slug": "biology-g9-application-of-cell-knowledge",
+      "title": "Приложение на знанията за клетката",
+      "topics": [
+        {"slug": "biology-g9-application-of-cell-knowledge", "title": "Приложение на знанията за клетката"}
+      ]
+    }
+  ]
+}

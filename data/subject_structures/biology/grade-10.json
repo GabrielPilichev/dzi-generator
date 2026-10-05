@@ -1,0 +1,37 @@
+{
+  "format_version": 1,
+  "subject": "biology",
+  "grade": 10,
+  "curriculum": {
+    "education_type": "general",
+    "title": "Биология и здравно образование, 10. клас — общообразователна подготовка",
+    "source_url": "https://www.mon.bg/nfs/2023/12/up_x_bio.pdf"
+  },
+  "sections": [
+    {
+      "slug": "biology-g10-multicellular-organism",
+      "title": "Многоклетъчен организъм",
+      "topics": [
+        {"slug": "biology-g10-heredity-and-variation", "title": "Наследственост и изменчивост"},
+        {"slug": "biology-g10-reproduction-growth-and-individual-development", "title": "Размножаване, растеж и индивидуално развитие"}
+      ]
+    },
+    {
+      "slug": "biology-g10-biosphere",
+      "title": "Биосфера",
+      "topics": [
+        {"slug": "biology-g10-population-biocenosis-ecosystem", "title": "Популация, биоценоза, екосистема"},
+        {"slug": "biology-g10-ecological-factors", "title": "Екологични фактори"}
+      ]
+    },
+    {
+      "slug": "biology-g10-biological-evolution",
+      "title": "Биологична еволюция",
+      "topics": [
+        {"slug": "biology-g10-origin-and-development-of-living-matter", "title": "Произход и развитие на живата материя"},
+        {"slug": "biology-g10-origin-and-evolution-of-humans", "title": "Произход и еволюция на човека"},
+        {"slug": "biology-g10-evidence-for-biological-evolution", "title": "Доказателства за биологичната еволюция"}
+      ]
+    }
+  ]
+}
