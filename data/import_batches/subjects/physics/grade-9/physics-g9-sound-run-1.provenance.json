@@ -1,0 +1,633 @@
+{
+  "format_version": 1,
+  "kind": "question_candidate_provenance",
+  "run": {
+    "id": "physics-g9-sound-run-1",
+    "started_at": "2026-10-05T12:26:58Z",
+    "finished_at": "2026-10-05T12:28:21Z",
+    "subject": "physics",
+    "grade": 9,
+    "curriculum": {
+      "education_type": "general",
+      "title": "Физика и астрономия, 9. клас — общообразователна подготовка"
+    },
+    "targets": [
+      {
+        "section": {
+          "slug": "physics-g9-mechanical-motion",
+          "title": "Механично движение"
+        },
+        "topics": [
+          {
+            "slug": "physics-g9-sound",
+            "title": "Звук"
+          }
+        ]
+      }
+    ],
+    "limits": {
+      "max_topics": 3,
+      "max_pages": 10,
+      "max_candidates": 25,
+      "max_candidates_per_source": 25,
+      "max_runtime_minutes": 30
+    },
+    "pages_inspected": 5,
+    "stop_reason": "topic_complete",
+    "collector": "claude-sonnet-5-5-collector",
+    "notes": "Обхват: само тема 2.3 „Звук“ от програмата за 9. клас (звукът като механична вълна, източници, скорост в различни среди, u=λν, интензитет I=E/(St), ниво на интензитета в dB — качествено, височина и тембър, ухо, инфразвук и ултразвук, хигиена на слуха, приложения на ултразвука). Извън обхвата: логаритмично пресмятане на нивото в dB, ефект на Доплер, стоящи вълни в тръби, ударни вълни. Фактите за ухото, тембъра и резонансната кутия са общоприети и се подкрепят от програмата; външен източник не е ползван за тях. Времената на извличане са приблизителни."
+  },
+  "not_stored_in_database": [
+    "candidate id",
+    "source type",
+    "source url",
+    "source title",
+    "source publisher",
+    "source retrieved_at",
+    "transformation",
+    "source_ref",
+    "research",
+    "reuse_exception",
+    "explanation",
+    "difficulty",
+    "review (reviewer, reviewed_at, notes)",
+    "run manifest"
+  ],
+  "batches": [
+    {
+      "file": "physics-g9-sound-run-1.sound.json",
+      "source": "reviewed:physics:physics-g9-sound-run-1.sound",
+      "topic_slug": "physics-g9-sound",
+      "questions": [
+        {
+          "number": 1,
+          "candidate_id": "physics-g9-sound-run-1-001",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_fa_pril9-36.pdf",
+            "title": "Учебна програма по физика и астрономия за IX клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T12:18:58Z",
+            "notes": "Авторитет за обхвата на тема 2.3 „Звук“ (обективни и субективни характеристики, източници, ухо, ултразвук и инфразвук, хигиена, приложения; формула I=E/(St)). Не съдържа въпроси; въпросите са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Звукът е механична вълна и се разпространява само в материална среда",
+            "skill": "Обяснение на явление"
+          },
+          "explanation": "Звукът е механична вълна: трептенията се предават от частица на частица. Във вакуум няма частици, затова няма среда, през която да се разпространява звукът.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 2,
+          "candidate_id": "physics-g9-sound-run-1-002",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_fa_pril9-36.pdf",
+            "title": "Учебна програма по физика и астрономия за IX клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T12:18:58Z",
+            "notes": "Авторитет за обхвата на тема 2.3 „Звук“ (обективни и субективни характеристики, източници, ухо, ултразвук и инфразвук, хигиена, приложения; формула I=E/(St)). Не съдържа въпроси; въпросите са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Източници на звук — трептящи тела",
+            "skill": "Обобщаване на примери"
+          },
+          "explanation": "Всеки източник на звук е трептящо тяло. Трептенията му предизвикват трептене на частиците на околната среда, т.е. звукова вълна.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 3,
+          "candidate_id": "physics-g9-sound-run-1-003",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-cp2e-17-2-speed-of-sound",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics-2e/pages/17-2-speed-of-sound-frequency-and-wavelength",
+            "title": "College Physics 2e, 17.2 Speed of Sound, Frequency, and Wavelength",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T12:20:58Z",
+            "notes": "Изследване: скорост на звука в различни среди, u=λν, честотата се запазва между среди. Само концепции; няма копирани въпроси."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Скорост на звука в различни среди: газ < течност < твърдо тяло",
+            "skill": "Сравняване на среди"
+          },
+          "explanation": "Скоростта на звука е най-малка в газовете (във въздуха около 340 m/s), по-голяма в течностите (във водата около 1500 m/s) и най-голяма в твърдите тела (в стоманата — около 5000 m/s). Във вакуум звук няма.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 4,
+          "candidate_id": "physics-g9-sound-run-1-004",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-cp2e-17-7-ultrasound",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics-2e/pages/17-7-ultrasound",
+            "title": "College Physics 2e, 17.7 Ultrasound",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T12:22:58Z",
+            "notes": "Изследване: определение на ултразвук, чуваем диапазон, ехография, сонар, ехолокация. Само концепции; няма копирани въпроси."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Чуваем диапазон на човека: приблизително 20 Hz – 20 kHz",
+            "skill": "Припомняне"
+          },
+          "explanation": "Човешкото ухо чува звукове с честота приблизително между 20 Hz и 20 kHz. Под тази граница е инфразвукът, а над нея — ултразвукът.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 5,
+          "candidate_id": "physics-g9-sound-run-1-005",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "wikipedia-infrasound",
+            "type": "third_party",
+            "url": "https://en.wikipedia.org/wiki/Infrasound",
+            "title": "Infrasound",
+            "publisher": "Wikipedia",
+            "retrieved_at": "2026-10-05T12:23:58Z",
+            "notes": "Изследване: честотен диапазон на инфразвука, естествени и изкуствени източници. Само концепции; няма копирани въпроси."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Инфразвук — честота под границата на чуваемост (около 20 Hz)",
+            "skill": "Класифициране по честота"
+          },
+          "explanation": "Звуци с честота под около 20 Hz се наричат инфразвук и не се възприемат от човешкото ухо. Ултразвукът е над около 20 kHz.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 6,
+          "candidate_id": "physics-g9-sound-run-1-006",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-cp2e-17-7-ultrasound",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics-2e/pages/17-7-ultrasound",
+            "title": "College Physics 2e, 17.7 Ultrasound",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T12:22:58Z",
+            "notes": "Изследване: определение на ултразвук, чуваем диапазон, ехография, сонар, ехолокация. Само концепции; няма копирани въпроси."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Приложение на ултразвука в медицината — ехография",
+            "skill": "Разпознаване на приложение"
+          },
+          "explanation": "При ехографията ултразвукови импулси се насочват към тялото и отразените от границите между тъканите вълни се използват за получаване на образ. Рентгенографията ползва рентгеново лъчение, не звук.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 7,
+          "candidate_id": "physics-g9-sound-run-1-007",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-cp2e-17-3-intensity-and-level",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics-2e/pages/17-3-sound-intensity-and-sound-level",
+            "title": "College Physics 2e, 17.3 Sound Intensity and Sound Level",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T12:21:58Z",
+            "notes": "Изследване: интензитет, ниво на интензитета в децибели, типични нива, увреждане на слуха. Само концепции; няма копирани въпроси."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Интензитет на звука I = E/(S·t) и неговата единица W/m²",
+            "skill": "Мерни единици"
+          },
+          "explanation": "Интензитетът е енергията, преминаваща за единица време през единица площ: I = E/(S·t), т.е. J/(m²·s) = W/m². Децибелът е единица за нивото на интензитета, херцът — за честота, а m/s — за скорост.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 8,
+          "candidate_id": "physics-g9-sound-run-1-008",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-cp2e-17-3-intensity-and-level",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics-2e/pages/17-3-sound-intensity-and-sound-level",
+            "title": "College Physics 2e, 17.3 Sound Intensity and Sound Level",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T12:21:58Z",
+            "notes": "Изследване: интензитет, ниво на интензитета в децибели, типични нива, увреждане на слуха. Само концепции; няма копирани въпроси."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Хигиена на слуха — предпазване от шум",
+            "skill": "Прилагане на правила"
+          },
+          "explanation": "Продължителното въздействие на силен шум уврежда слуха. Най-добре е интензитетът на звука, достигащ до ухото, да се намали със защитни наушници или тапи. Силната музика само добавя още вредно въздействие.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 9,
+          "candidate_id": "physics-g9-sound-run-1-009",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-cp2e-17-2-speed-of-sound",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics-2e/pages/17-2-speed-of-sound-frequency-and-wavelength",
+            "title": "College Physics 2e, 17.2 Speed of Sound, Frequency, and Wavelength",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T12:20:58Z",
+            "notes": "Изследване: скорост на звука в различни среди, u=λν, честотата се запазва между среди. Само концепции; няма копирани въпроси."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Скорост на светлината много по-голяма от скоростта на звука (светкавица и гръмотевица)",
+            "skill": "Обяснение на явление"
+          },
+          "explanation": "Светкавицата и гръмотевицата възникват едновременно. Светлината стига до нас почти мигновено, а звукът се движи с около 340 m/s и затова закъснява.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 10,
+          "candidate_id": "physics-g9-sound-run-1-011",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-cp2e-17-2-speed-of-sound",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics-2e/pages/17-2-speed-of-sound-frequency-and-wavelength",
+            "title": "College Physics 2e, 17.2 Speed of Sound, Frequency, and Wavelength",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T12:20:58Z",
+            "notes": "Изследване: скорост на звука в различни среди, u=λν, честотата се запазва между среди. Само концепции; няма копирани въпроси."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Връзка между скорост, честота и дължина на вълната u = λν",
+            "skill": "Пресмятане"
+          },
+          "explanation": "От u = λν следва λ = u/ν = 340 m/s / 680 Hz = 0,5 m.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 11,
+          "candidate_id": "physics-g9-sound-run-1-013",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-cp2e-17-2-speed-of-sound",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics-2e/pages/17-2-speed-of-sound-frequency-and-wavelength",
+            "title": "College Physics 2e, 17.2 Speed of Sound, Frequency, and Wavelength",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T12:20:58Z",
+            "notes": "Изследване: скорост на звука в различни среди, u=λν, честотата се запазва между среди. Само концепции; няма копирани въпроси."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Скоростта на звука в дадена среда не зависи от височината и силата на звука",
+            "skill": "Преодоляване на заблуда"
+          },
+          "explanation": "В дадена среда скоростта на звука зависи от свойствата на средата (и от температурата), но не и от честотата или силата на звука. И двата звука пристигат едновременно.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 12,
+          "candidate_id": "physics-g9-sound-run-1-014",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_fa_pril9-36.pdf",
+            "title": "Учебна програма по физика и астрономия за IX клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T12:18:58Z",
+            "notes": "Авторитет за обхвата на тема 2.3 „Звук“ (обективни и субективни характеристики, източници, ухо, ултразвук и инфразвук, хигиена, приложения; формула I=E/(St)). Не съдържа въпроси; въпросите са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "pitch is determined by frequency, read from an oscilloscope trace",
+            "skill": "Интерпретиране на опит"
+          },
+          "explanation": "Повече трептения за едно и също време означават по-голяма честота, а по-голямата честота се възприема като по-висок тон.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 13,
+          "candidate_id": "physics-g9-sound-run-1-015",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_fa_pril9-36.pdf",
+            "title": "Учебна програма по физика и астрономия за IX клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T12:18:58Z",
+            "notes": "Авторитет за обхвата на тема 2.3 „Звук“ (обективни и субективни характеристики, източници, ухо, ултразвук и инфразвук, хигиена, приложения; формула I=E/(St)). Не съдържа въпроси; въпросите са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Тембър — субективна характеристика, зависеща от формата на звуковата вълна",
+            "skill": "Прилагане на понятие"
+          },
+          "explanation": "Височината (честотата) и интензитетът са еднакви, а скоростта на звука във въздуха е една и съща. Инструментите се различават по тембър — той зависи от формата на звуковата вълна, т.е. от съставящите я допълнителни тонове.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 14,
+          "candidate_id": "physics-g9-sound-run-1-016",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-cp2e-17-3-intensity-and-level",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics-2e/pages/17-3-sound-intensity-and-sound-level",
+            "title": "College Physics 2e, 17.3 Sound Intensity and Sound Level",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T12:21:58Z",
+            "notes": "Изследване: интензитет, ниво на интензитета в децибели, типични нива, увреждане на слуха. Само концепции; няма копирани въпроси."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Намаляване на интензитета с разстоянието — разпределение на енергията върху по-голяма площ",
+            "skill": "Обяснение на явление"
+          },
+          "explanation": "От I = E/(S·t) следва, че когато същата енергия се разпределя върху по-голяма повърхност S, интензитетът намалява. Честотата и скоростта на звука не се променят.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 15,
+          "candidate_id": "physics-g9-sound-run-1-017",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-cp2e-17-3-intensity-and-level",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics-2e/pages/17-3-sound-intensity-and-sound-level",
+            "title": "College Physics 2e, 17.3 Sound Intensity and Sound Level",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T12:21:58Z",
+            "notes": "Изследване: интензитет, ниво на интензитета в децибели, типични нива, увреждане на слуха. Само концепции; няма копирани въпроси."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Ниво на интензитета (dB) и вредно въздействие на силни звуци",
+            "skill": "Сравняване и извод"
+          },
+          "explanation": "По-голямото ниво на интензитета означава много по-голям интензитет на звука. Нива над около 85 dB при продължително въздействие увреждат слуха. Нивото в dB не е височина на тона.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 16,
+          "candidate_id": "physics-g9-sound-run-1-018",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_fa_pril9-36.pdf",
+            "title": "Учебна програма по физика и астрономия за IX клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T12:18:58Z",
+            "notes": "Авторитет за обхвата на тема 2.3 „Звук“ (обективни и субективни характеристики, източници, ухо, ултразвук и инфразвук, хигиена, приложения; формула I=E/(St)). Не съдържа въпроси; въпросите са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Възприемане на звука от ухото — път на звука",
+            "skill": "Подреждане на последователност"
+          },
+          "explanation": "Звуковата вълна кара тъпанчето да трепти; трептенето се предава през слуховите костици към охлюва (кохлеята), където се превръща в нервни сигнали, предавани по слуховия нерв към мозъка.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 17,
+          "candidate_id": "physics-g9-sound-run-1-019",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-cp2e-17-7-ultrasound",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics-2e/pages/17-7-ultrasound",
+            "title": "College Physics 2e, 17.7 Ultrasound",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T12:22:58Z",
+            "notes": "Изследване: определение на ултразвук, чуваем диапазон, ехография, сонар, ехолокация. Само концепции; няма копирани въпроси."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Ултразвуков сонар — измерване на дълбочина по закъснението на ехото",
+            "skill": "Пресмятане в приложна ситуация"
+          },
+          "explanation": "Импулсът изминава пътя до дъното и обратно, т.е. 2h = u·t = 1500 m/s · 0,8 s = 1200 m. Оттук h = 600 m.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 18,
+          "candidate_id": "physics-g9-sound-run-1-020",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-cp2e-17-7-ultrasound",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics-2e/pages/17-7-ultrasound",
+            "title": "College Physics 2e, 17.7 Ultrasound",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T12:22:58Z",
+            "notes": "Изследване: определение на ултразвук, чуваем диапазон, ехография, сонар, ехолокация. Само концепции; няма копирани въпроси."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Ехолокация при животните — използване на ултразвук",
+            "skill": "Описание на приложение"
+          },
+          "explanation": "Прилепите излъчват ултразвукови импулси. Отразените от предметите вълни (ехо) се връщат и по закъснението и посоката им прилепът определя положението на препятствията и насекомите.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 19,
+          "candidate_id": "physics-g9-sound-run-1-021",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_fa_pril9-36.pdf",
+            "title": "Учебна програма по физика и астрономия за IX клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T12:18:58Z",
+            "notes": "Авторитет за обхвата на тема 2.3 „Звук“ (обективни и субективни характеристики, източници, ухо, ултразвук и инфразвук, хигиена, приложения; формула I=E/(St)). Не съдържа въпроси; въпросите са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Източници на звук и резонанс — резонансна кутия на струнни инструменти",
+            "skill": "Прилагане на понятие в ситуация"
+          },
+          "explanation": "Самата струна е тънка и излъчва слаб звук. Корпусът е принуден да трепти със същата честота (резонанс) и излъчва много по-голяма звукова енергия. Честотата на тона се определя от струната и не се променя.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 20,
+          "candidate_id": "physics-g9-sound-run-1-022",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-cp2e-17-2-speed-of-sound",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics-2e/pages/17-2-speed-of-sound-frequency-and-wavelength",
+            "title": "College Physics 2e, 17.2 Speed of Sound, Frequency, and Wavelength",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T12:20:58Z",
+            "notes": "Изследване: скорост на звука в различни среди, u=λν, честотата се запазва между среди. Само концепции; няма копирани въпроси."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Различна скорост на звука в твърдо тяло и във въздух — пресмятане на закъснение",
+            "skill": "Многостъпково пресмятане"
+          },
+          "explanation": "Във въздуха: t₁ = 340 m / 340 m/s = 1,00 s. В стоманата: t₂ = 340 m / 5100 m/s ≈ 0,067 s. Интервалът е Δt = t₁ − t₂ ≈ 0,93 s.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 21,
+          "candidate_id": "physics-g9-sound-run-1-023",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-cp2e-17-3-intensity-and-level",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics-2e/pages/17-3-sound-intensity-and-sound-level",
+            "title": "College Physics 2e, 17.3 Sound Intensity and Sound Level",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T12:21:58Z",
+            "notes": "Изследване: интензитет, ниво на интензитета в децибели, типични нива, увреждане на слуха. Само концепции; няма копирани въпроси."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Интензитет I = E/(S·t) — намиране на енергията с превръщане на единици",
+            "skill": "Пресмятане с превръщане на единици"
+          },
+          "explanation": "От I = E/(S·t) следва E = I·S·t. S = 0,5 cm² = 0,5·10⁻⁴ m² = 5·10⁻⁵ m². E = 2·10⁻⁴ W/m² · 5·10⁻⁵ m² · 10 s = 1·10⁻⁷ J.",
+          "difficulty": "medium"
+        }
+      ]
+    }
+  ],
+  "not_exported": []
+}

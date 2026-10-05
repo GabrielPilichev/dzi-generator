@@ -1,0 +1,660 @@
+{
+  "format_version": 1,
+  "kind": "question_candidate_provenance",
+  "run": {
+    "id": "physics-g9-electrical-energy-run-1",
+    "started_at": "2026-10-05T12:22:45Z",
+    "finished_at": "2026-10-05T12:40:00Z",
+    "subject": "physics",
+    "grade": 9,
+    "curriculum": {
+      "education_type": "general",
+      "title": "Физика и астрономия, 9. клас — общообразователна подготовка"
+    },
+    "targets": [
+      {
+        "section": {
+          "slug": "physics-g9-electric-current",
+          "title": "Електричен ток"
+        },
+        "topics": [
+          {
+            "slug": "physics-g9-electrical-energy",
+            "title": "Електрична енергия"
+          }
+        ]
+      }
+    ],
+    "limits": {
+      "max_topics": 3,
+      "max_pages": 15,
+      "max_candidates": 25,
+      "max_candidates_per_source": 12,
+      "max_runtime_minutes": 30
+    },
+    "pages_inspected": 3,
+    "stop_reason": "topic_complete",
+    "collector": "claude-sonnet-5-5-collector",
+    "notes": "Обхват: само тема 1.2 Електрична енергия (A=qU=UIt, P=UI, енергия и мощност, източници и преобразуване на енергия, ЕДН, вътрешно съпротивление, закон на Ом за цялата верига, мощност в вериги с два консуматора). Извън обхвата: киловатчас, електрично поле, закон на Джаул–Ленц по име, сложни разклонени вериги. Страницата на МОН е прочетена от локално запазено копие на PDF."
+  },
+  "not_stored_in_database": [
+    "candidate id",
+    "source type",
+    "source url",
+    "source title",
+    "source publisher",
+    "source retrieved_at",
+    "transformation",
+    "source_ref",
+    "research",
+    "reuse_exception",
+    "explanation",
+    "difficulty",
+    "review (reviewer, reviewed_at, notes)",
+    "run manifest"
+  ],
+  "batches": [
+    {
+      "file": "physics-g9-electrical-energy-run-1.electrical-energy.json",
+      "source": "reviewed:physics:physics-g9-electrical-energy-run-1.electrical-energy",
+      "topic_slug": "physics-g9-electrical-energy",
+      "questions": [
+        {
+          "number": 1,
+          "candidate_id": "physics-g9-electrical-energy-run-1-001",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_fa_pril9-36.pdf",
+            "title": "Учебна програма по физика и астрономия за IX клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T12:22:30Z",
+            "notes": "Определя обхвата на тема 1.2 Електрична енергия: работа и мощност на тока, източници, ЕДН, вътрешно съпротивление, закон на Ом за цялата верига. Не съдържа въпроси; всички въпроси са нови."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Определение на работа на електричния ток: A = qU",
+            "skill": "Дефиниция"
+          },
+          "explanation": "Работата на тока е A = qU: произведение на пренесения заряд и напрежението върху консуматора.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 2,
+          "candidate_id": "physics-g9-electrical-energy-run-1-002",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_fa_pril9-36.pdf",
+            "title": "Учебна програма по физика и астрономия за IX клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T12:22:30Z",
+            "notes": "Определя обхвата на тема 1.2 Електрична енергия: работа и мощност на тока, източници, ЕДН, вътрешно съпротивление, закон на Ом за цялата верига. Не съдържа въпроси; всички въпроси са нови."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Пресмятане на работа A = qU",
+            "skill": "Пресмятане"
+          },
+          "explanation": "A = qU = 4 C · 6 V = 24 J.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 3,
+          "candidate_id": "physics-g9-electrical-energy-run-1-003",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-cp-20-4",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics/pages/20-4-electric-power-and-energy",
+            "title": "College Physics, 20.4 Electric Power and Energy",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T12:24:00Z",
+            "notes": "Само изследване: P = IV, P = V²/R, P = I²R, E = Pt, сравнение на лампи. Обхватът на киловатчаса не е ползван."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Смисъл на електрическа мощност и ват",
+            "skill": "Смисъл на физична величина"
+          },
+          "explanation": "Мощността е преобразувана енергия за единица време: 1 W = 1 J/s, затова 2000 W са 2000 J за секунда.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 4,
+          "candidate_id": "physics-g9-electrical-energy-run-1-004",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-cp-20-4",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics/pages/20-4-electric-power-and-energy",
+            "title": "College Physics, 20.4 Electric Power and Energy",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T12:24:00Z",
+            "notes": "Само изследване: P = IV, P = V²/R, P = I²R, E = Pt, сравнение на лампи. Обхватът на киловатчаса не е ползван."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Мощност на тока P = UI",
+            "skill": "Пресмятане"
+          },
+          "explanation": "P = UI = 230 V · 5 A = 1150 W.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 5,
+          "candidate_id": "physics-g9-electrical-energy-run-1-005",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-cp-20-4",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics/pages/20-4-electric-power-and-energy",
+            "title": "College Physics, 20.4 Electric Power and Energy",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T12:24:00Z",
+            "notes": "Само изследване: P = IV, P = V²/R, P = I²R, E = Pt, сравнение на лампи. Обхватът на киловатчаса не е ползван."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Електрична енергия като произведение на мощност и време, превръщане на минути в секунди",
+            "skill": "Пресмятане с мерни единици"
+          },
+          "explanation": "A = Pt = 1500 W · 1200 s = 1 800 000 J = 1,8 MJ. Времето трябва да се изрази в секунди.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 6,
+          "candidate_id": "physics-g9-electrical-energy-run-1-006",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_fa_pril9-36.pdf",
+            "title": "Учебна програма по физика и астрономия за IX клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T12:22:30Z",
+            "notes": "Определя обхвата на тема 1.2 Електрична енергия: работа и мощност на тока, източници, ЕДН, вътрешно съпротивление, закон на Ом за цялата верига. Не съдържа въпроси; всички въпроси са нови."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Източници на електрична енергия и преобразуваните в тях видове енергия",
+            "skill": "Класификация"
+          },
+          "explanation": "Динамото се върти и механичната енергия на въртенето се преобразува в електрична. Батерията използва химична енергия, слънчевата клетка – светлинна.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 7,
+          "candidate_id": "physics-g9-electrical-energy-run-1-007",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_fa_pril9-36.pdf",
+            "title": "Учебна програма по физика и астрономия за IX клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T12:22:30Z",
+            "notes": "Определя обхвата на тема 1.2 Електрична енергия: работа и мощност на тока, източници, ЕДН, вътрешно съпротивление, закон на Ом за цялата верига. Не съдържа въпроси; всички въпроси са нови."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Електродвижещо напрежение: ε = A_стр / q",
+            "skill": "Дефиниция"
+          },
+          "explanation": "ε = A_стр / q: работа на страничните (неелектрични) сили върху единица заряд при пренасянето му през източника.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 8,
+          "candidate_id": "physics-g9-electrical-energy-run-1-008",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_fa_pril9-36.pdf",
+            "title": "Учебна програма по физика и астрономия за IX клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T12:22:30Z",
+            "notes": "Определя обхвата на тема 1.2 Електрична енергия: работа и мощност на тока, източници, ЕДН, вътрешно съпротивление, закон на Ом за цялата верига. Не съдържа въпроси; всички въпроси са нови."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Преобразуване на енергия във верига с източник и консуматор",
+            "skill": "Описание на процес"
+          },
+          "explanation": "Батерията преобразува химична енергия в електрична, а електродвигателят – електрична в механична; част от енергията се губи като топлина.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 9,
+          "candidate_id": "physics-g9-electrical-energy-run-1-009",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_fa_pril9-36.pdf",
+            "title": "Учебна програма по физика и астрономия за IX клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T12:22:30Z",
+            "notes": "Определя обхвата на тема 1.2 Електрична енергия: работа и мощност на тока, източници, ЕДН, вътрешно съпротивление, закон на Ом за цялата верига. Не съдържа въпроси; всички въпроси са нови."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Закон на Ом за цялата верига: I = ε/(R + r)",
+            "skill": "Пресмятане"
+          },
+          "explanation": "I = ε/(R + r) = 12 V / (5 Ω + 1 Ω) = 2 A.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 10,
+          "candidate_id": "physics-g9-electrical-energy-run-1-010",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-cp2e-21-2",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics-2e/pages/21-2-electromotive-force-terminal-voltage",
+            "title": "College Physics 2e, 21.2 Electromotive Force: Terminal Voltage",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T12:24:30Z",
+            "notes": "Само изследване: ЕДН, вътрешно съпротивление, напрежение между изводите под товар, късо съединение."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Късо съединение: токът се ограничава от вътрешното съпротивление на източника",
+            "skill": "Обяснение на явление"
+          },
+          "explanation": "При R ≈ 0 законът на Ом за цялата верига дава I ≈ ε/r. Токът е голям, но краен и се определя от r; напрежението между изводите е почти нула.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 11,
+          "candidate_id": "physics-g9-electrical-energy-run-1-011",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-cp2e-21-2",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics-2e/pages/21-2-electromotive-force-terminal-voltage",
+            "title": "College Physics 2e, 21.2 Electromotive Force: Terminal Voltage",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T12:24:30Z",
+            "notes": "Само изследване: ЕДН, вътрешно съпротивление, напрежение между изводите под товар, късо съединение."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Вътрешно съпротивление на източник и работа под товар",
+            "skill": "Обяснение на явление"
+          },
+          "explanation": "I = ε/(R + r): при същите ε и R по-големият r означава по-малък ток. Остарялата батерия има по-голямо вътрешно съпротивление.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 12,
+          "candidate_id": "physics-g9-electrical-energy-run-1-012",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-cp2e-21-2",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics-2e/pages/21-2-electromotive-force-terminal-voltage",
+            "title": "College Physics 2e, 21.2 Electromotive Force: Terminal Voltage",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T12:24:30Z",
+            "notes": "Само изследване: ЕДН, вътрешно съпротивление, напрежение между изводите под товар, късо съединение."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Напрежение между изводите на източник под товар: U = ε − Ir",
+            "skill": "Пресмятане"
+          },
+          "explanation": "Във вътрешното съпротивление пада напрежение Ir = 2 A · 0,5 Ω = 1 V, затова U = ε − Ir = 9 V − 1 V = 8 V.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 13,
+          "candidate_id": "physics-g9-electrical-energy-run-1-014",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-cp-20-4",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics/pages/20-4-electric-power-and-energy",
+            "title": "College Physics, 20.4 Electric Power and Energy",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T12:24:00Z",
+            "notes": "Само изследване: P = IV, P = V²/R, P = I²R, E = Pt, сравнение на лампи. Обхватът на киловатчаса не е ползван."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Обща мощност при успоредно свързани консуматори",
+            "skill": "Пресмятане"
+          },
+          "explanation": "P₁ = U²/R₁ = 144/6 = 24 W; P₂ = 144/12 = 12 W. Общата мощност е 24 W + 12 W = 36 W.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 14,
+          "candidate_id": "physics-g9-electrical-energy-run-1-015",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-cp-20-4",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics/pages/20-4-electric-power-and-energy",
+            "title": "College Physics, 20.4 Electric Power and Energy",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T12:24:00Z",
+            "notes": "Само изследване: P = IV, P = V²/R, P = I²R, E = Pt, сравнение на лампи. Обхватът на киловатчаса не е ползван."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Мощност на лампи при последователно свързване: по-голямо съпротивление = по-голяма мощност",
+            "skill": "Анализ на ситуация"
+          },
+          "explanation": "R = U²/P, затова лампата 60 W има по-голямо съпротивление (≈807 Ω срещу ≈484 Ω). При един и същ ток P = I²R е по-голяма за нея.",
+          "difficulty": "hard"
+        },
+        {
+          "number": 15,
+          "candidate_id": "physics-g9-electrical-energy-run-1-016",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-cp2e-21-2",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics-2e/pages/21-2-electromotive-force-terminal-voltage",
+            "title": "College Physics 2e, 21.2 Electromotive Force: Terminal Voltage",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T12:24:30Z",
+            "notes": "Само изследване: ЕДН, вътрешно съпротивление, напрежение между изводите под товар, късо съединение."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Енергиен баланс във веригата: загуби във вътрешното съпротивление",
+            "skill": "Пресмятане"
+          },
+          "explanation": "I = 6 / (2,5 + 0,5) = 2 A. Във вътрешното съпротивление P = I²r = 4 · 0,5 = 2 W (при 12 W обща и 10 W във външния консуматор).",
+          "difficulty": "medium"
+        },
+        {
+          "number": 16,
+          "candidate_id": "physics-g9-electrical-energy-run-1-017",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_fa_pril9-36.pdf",
+            "title": "Учебна програма по физика и астрономия за IX клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T12:22:30Z",
+            "notes": "Определя обхвата на тема 1.2 Електрична енергия: работа и мощност на тока, източници, ЕДН, вътрешно съпротивление, закон на Ом за цялата верига. Не съдържа въпроси; всички въпроси са нови."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Определяне на ЕДН и вътрешно съпротивление от измервания",
+            "skill": "Анализ на данни от опит"
+          },
+          "explanation": "ε = I(R + r): 2(2 + r) = 1(5 + r) дава r = 1 Ω, следователно ε = 2 · 3 = 6 V.",
+          "difficulty": "hard"
+        },
+        {
+          "number": 17,
+          "candidate_id": "physics-g9-electrical-energy-run-1-019",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_fa_pril9-36.pdf",
+            "title": "Учебна програма по физика и астрономия за IX клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T12:22:30Z",
+            "notes": "Определя обхвата на тема 1.2 Електрична енергия: работа и мощност на тока, източници, ЕДН, вътрешно съпротивление, закон на Ом за цялата верига. Не съдържа въпроси; всички въпроси са нови."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Работа на тока A = UIt, използване на секунди",
+            "skill": "Пресмятане"
+          },
+          "explanation": "A = UIt = 6 V · 0,5 A · 120 s = 360 J.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 18,
+          "candidate_id": "physics-g9-electrical-energy-run-1-020",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-cp-20-4",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics/pages/20-4-electric-power-and-energy",
+            "title": "College Physics, 20.4 Electric Power and Energy",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T12:24:00Z",
+            "notes": "Само изследване: P = IV, P = V²/R, P = I²R, E = Pt, сравнение на лампи. Обхватът на киловатчаса не е ползван."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Едновременно включване на уреди и предпазител",
+            "skill": "Приложение в реална ситуация"
+          },
+          "explanation": "Допустимата обща мощност е 230 V · 16 A = 3680 W. Само 2200 W + 1800 W = 4000 W (≈17,4 A) я надвишава; останалите са 2500 W, 2800 W и 2700 W.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 19,
+          "candidate_id": "physics-g9-electrical-energy-run-1-021",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_fa_pril9-36.pdf",
+            "title": "Учебна програма по физика и астрономия за IX клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T12:22:30Z",
+            "notes": "Определя обхвата на тема 1.2 Електрична енергия: работа и мощност на тока, източници, ЕДН, вътрешно съпротивление, закон на Ом за цялата верига. Не съдържа въпроси; всички въпроси са нови."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Единица за работа на тока: 1 J = 1 V·A·s",
+            "skill": "Мерни единици"
+          },
+          "explanation": "От A = UIt следва 1 J = 1 V·A·s. V·A е ват (мощност), A·s е кулон (заряд), V/A е ом (съпротивление).",
+          "difficulty": "easy"
+        },
+        {
+          "number": 20,
+          "candidate_id": "physics-g9-electrical-energy-run-1-022",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-cp-20-4",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics/pages/20-4-electric-power-and-energy",
+            "title": "College Physics, 20.4 Electric Power and Energy",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T12:24:00Z",
+            "notes": "Само изследване: P = IV, P = V²/R, P = I²R, E = Pt, сравнение на лампи. Обхватът на киловатчаса не е ползван."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Зависимост на мощността от напрежението при постоянно съпротивление: P = U²/R",
+            "skill": "Прилагане на връзка"
+          },
+          "explanation": "При постоянно R мощността е пропорционална на U². Напрежението е наполовина, затова P = 100 W / 4 = 25 W.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 21,
+          "candidate_id": "physics-g9-electrical-energy-run-1-023",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-cp-20-4",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics/pages/20-4-electric-power-and-energy",
+            "title": "College Physics, 20.4 Electric Power and Energy",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T12:24:00Z",
+            "notes": "Само изследване: P = IV, P = V²/R, P = I²R, E = Pt, сравнение на лампи. Обхватът на киловатчаса не е ползван."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Зависимост на мощността от тока при постоянно съпротивление: P = I²R",
+            "skill": "Количествено разсъждение"
+          },
+          "explanation": "P = I²R: при удвоен ток и постоянно R мощността става 2² = 4 пъти по-голяма.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 22,
+          "candidate_id": "physics-g9-electrical-energy-run-1-024",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-cp2e-21-2",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics-2e/pages/21-2-electromotive-force-terminal-voltage",
+            "title": "College Physics 2e, 21.2 Electromotive Force: Terminal Voltage",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T12:24:30Z",
+            "notes": "Само изследване: ЕДН, вътрешно съпротивление, напрежение между изводите под товар, късо съединение."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Промяна на тока и напрежението между изводите при промяна на външното съпротивление",
+            "skill": "Качествено разсъждение"
+          },
+          "explanation": "I = ε/(R + r) намалява при растящо R, а U = ε − Ir расте и се приближава до ε.",
+          "difficulty": "medium"
+        }
+      ]
+    }
+  ],
+  "not_exported": []
+}

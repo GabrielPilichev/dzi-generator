@@ -1,0 +1,606 @@
+{
+  "format_version": 1,
+  "kind": "question_candidate_provenance",
+  "run": {
+    "id": "physics-g9-current-in-metals-and-semiconductors-run-1",
+    "started_at": "2026-10-05T12:20:13Z",
+    "finished_at": "2026-10-05T12:23:13Z",
+    "subject": "physics",
+    "grade": 9,
+    "curriculum": {
+      "education_type": "general",
+      "title": "Физика и астрономия, 9. клас — общообразователна подготовка"
+    },
+    "targets": [
+      {
+        "section": {
+          "slug": "physics-g9-electric-current",
+          "title": "Електричен ток"
+        },
+        "topics": [
+          {
+            "slug": "physics-g9-current-in-metals-and-semiconductors",
+            "title": "Ток в метали и полупроводници"
+          }
+        ]
+      }
+    ],
+    "limits": {
+      "max_topics": 3,
+      "max_pages": 10,
+      "max_candidates": 25,
+      "max_candidates_per_source": 25,
+      "max_runtime_minutes": 30
+    },
+    "pages_inspected": 4,
+    "stop_reason": "topic_complete",
+    "collector": "claude-sonnet-5-5-collector",
+    "notes": "Обхват: само тема 1.3 от програмата за 9. клас (токови носители в метали и полупроводници, температурна и светлинна зависимост на съпротивлението, легиране, донори/акцептори, p-n преход, диод, светодиод, транзистор, термистор, фоторезистор, свръхпроводимост). Извън обхвата: зонна теория, формула R=R0(1+αΔT), токово-напреженови характеристики на диода, работа на транзистора. Не е следван пренасочен URL към непроверен хост (bigenc.ru). Времената на извличане са приблизителни."
+  },
+  "not_stored_in_database": [
+    "candidate id",
+    "source type",
+    "source url",
+    "source title",
+    "source publisher",
+    "source retrieved_at",
+    "transformation",
+    "source_ref",
+    "research",
+    "reuse_exception",
+    "explanation",
+    "difficulty",
+    "review (reviewer, reviewed_at, notes)",
+    "run manifest"
+  ],
+  "batches": [
+    {
+      "file": "physics-g9-current-in-metals-and-semiconductors-run-1.current-in-metals-and-semiconductors.json",
+      "source": "reviewed:physics:physics-g9-current-in-metals-and-semiconductors-run-1.current-in-metals-and-semiconductors",
+      "topic_slug": "physics-g9-current-in-metals-and-semiconductors",
+      "questions": [
+        {
+          "number": 1,
+          "candidate_id": "physics-g9-current-in-metals-and-semiconductors-run-1-001",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_fa_pril9-36.pdf",
+            "title": "Учебна програма по физика и астрономия за IX клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T12:16:13Z",
+            "notes": "Авторитет за обхвата на тема 1.3 „Ток в метали и полупроводници“: очаквани резултати, нови понятия, лабораторна работа 4. Не съдържа въпроси; въпросите са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Токови носители в металите — свободни електрони",
+            "skill": "Припомняне"
+          },
+          "explanation": "В металите йоните са здраво закрепени в кристалната решетка, а токът се създава от свободните електрони. Дупки като токови носители има в полупроводниците.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 2,
+          "candidate_id": "physics-g9-current-in-metals-and-semiconductors-run-1-002",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-cp2e-20-3-resistivity",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics-2e/pages/20-3-resistance-and-resistivity",
+            "title": "College Physics 2e, 20.3 Resistance and Resistivity",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T12:17:13Z",
+            "notes": "Изследване: температурна зависимост на съпротивлението на метали и полупроводници, термистор. Само за проверка на физиката; няма копирани въпроси."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Температурна зависимост на съпротивлението на металите",
+            "skill": "Обяснение на зависимост"
+          },
+          "explanation": "При метали броят на свободните електрони почти не се променя, но с нагряването йоните трептят по-силно и пречат повече на насоченото движение на електроните. Съпротивлението нараства.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 3,
+          "candidate_id": "physics-g9-current-in-metals-and-semiconductors-run-1-003",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-cp2e-20-3-resistivity",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics-2e/pages/20-3-resistance-and-resistivity",
+            "title": "College Physics 2e, 20.3 Resistance and Resistivity",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T12:17:13Z",
+            "notes": "Изследване: температурна зависимост на съпротивлението на метали и полупроводници, термистор. Само за проверка на физиката; няма копирани въпроси."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Специфично съпротивление на полупроводниците намалява при нагряване",
+            "skill": "Обяснение на зависимост"
+          },
+          "explanation": "При нагряване в полупроводника се освобождават допълнителни електрони (и се образуват дупки). Увеличеният брой токови носители намалява специфичното му съпротивление — обратно на металите.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 4,
+          "candidate_id": "physics-g9-current-in-metals-and-semiconductors-run-1-004",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_fa_pril9-36.pdf",
+            "title": "Учебна програма по физика и астрономия за IX клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T12:16:13Z",
+            "notes": "Авторитет за обхвата на тема 1.3 „Ток в метали и полупроводници“: очаквани резултати, нови понятия, лабораторна работа 4. Не съдържа въпроси; въпросите са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Типични полупроводници — германий и силиций",
+            "skill": "Припомняне"
+          },
+          "explanation": "Германият и силицият са основните полупроводникови елементи. Медта, среброто, желязото, алуминият, оловото и цинкът са метали.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 5,
+          "candidate_id": "physics-g9-current-in-metals-and-semiconductors-run-1-005",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_fa_pril9-36.pdf",
+            "title": "Учебна програма по физика и астрономия за IX клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T12:16:13Z",
+            "notes": "Авторитет за обхвата на тема 1.3 „Ток в метали и полупроводници“: очаквани резултати, нови понятия, лабораторна работа 4. Не съдържа въпроси; въпросите са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Фоторезистор — полупроводников елемент, чието съпротивление намалява при осветяване",
+            "skill": "Разпознаване на елемент"
+          },
+          "explanation": "Фоторезисторът е полупроводников елемент: светлината освобождава допълнителни токови носители и съпротивлението му намалява. Термисторът реагира основно на температурата, а реостатът и металният резистор не зависят от осветеността.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 6,
+          "candidate_id": "physics-g9-current-in-metals-and-semiconductors-run-1-006",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_fa_pril9-36.pdf",
+            "title": "Учебна програма по физика и астрономия за IX клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T12:16:13Z",
+            "notes": "Авторитет за обхвата на тема 1.3 „Ток в метали и полупроводници“: очаквани резултати, нови понятия, лабораторна работа 4. Не съдържа въпроси; въпросите са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Свръхпроводимост — нулево съпротивление под критична температура",
+            "skill": "Припомняне"
+          },
+          "explanation": "Свръхпроводимостта е състояние, при което под критична температура съпротивлението на материала рязко пада до нула.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 7,
+          "candidate_id": "physics-g9-current-in-metals-and-semiconductors-run-1-007",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "wikipedia-diode",
+            "type": "third_party",
+            "url": "https://en.wikipedia.org/wiki/Diode",
+            "title": "Diode",
+            "publisher": "Wikipedia",
+            "retrieved_at": "2026-10-05T12:19:13Z",
+            "notes": "Изследване: еднопосочна проводимост, права/обратна посока, светодиоди, фотодиоди. Само концепции; няма копирани въпроси."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Полупроводников диод — пропуска ток в една посока",
+            "skill": "Припомняне"
+          },
+          "explanation": "Диодът има p-n преход и води добре тока в права посока, а в обратна посока практически го блокира. Усилването на сигнал е свойство на транзистора.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 8,
+          "candidate_id": "physics-g9-current-in-metals-and-semiconductors-run-1-008",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "wikipedia-diode",
+            "type": "third_party",
+            "url": "https://en.wikipedia.org/wiki/Diode",
+            "title": "Diode",
+            "publisher": "Wikipedia",
+            "retrieved_at": "2026-10-05T12:19:13Z",
+            "notes": "Изследване: еднопосочна проводимост, права/обратна посока, светодиоди, фотодиоди. Само концепции; няма копирани въпроси."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Светодиод — полупроводниково устройство с p-n преход, излъчващо светлина",
+            "skill": "Разпознаване на приложение"
+          },
+          "explanation": "Светодиодът е полупроводников диод, който преобразува електрична енергия в светлина. Крушката с нажежаема жичка свети от нагряване, а нагревателят и реостатът са метални елементи без p-n преход.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 9,
+          "candidate_id": "physics-g9-current-in-metals-and-semiconductors-run-1-009",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_fa_pril9-36.pdf",
+            "title": "Учебна програма по физика и астрономия за IX клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T12:16:13Z",
+            "notes": "Авторитет за обхвата на тема 1.3 „Ток в метали и полупроводници“: очаквани резултати, нови понятия, лабораторна работа 4. Не съдържа въпроси; въпросите са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Транзисторите като полупроводникови устройства с p-n преходи — усилване на сигнал",
+            "skill": "Разпознаване на приложение"
+          },
+          "explanation": "Транзисторът е основният усилващ и превключващ елемент в съвременната електроника, включително в интегралните схеми. Светодиодът излъчва светлина, а термисторът и фоторезисторът променят съпротивлението си при нагряване или осветяване.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 10,
+          "candidate_id": "physics-g9-current-in-metals-and-semiconductors-run-1-010",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_fa_pril9-36.pdf",
+            "title": "Учебна програма по физика и астрономия за IX клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T12:16:13Z",
+            "notes": "Авторитет за обхвата на тема 1.3 „Ток в метали и полупроводници“: очаквани резултати, нови понятия, лабораторна работа 4. Не съдържа въпроси; въпросите са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Насочено движение на свободните електрони при приложено напрежение",
+            "skill": "Описание на механизъм"
+          },
+          "explanation": "Свободните електрони продължават хаотичното си топлинно движение, а към него се добавя бавно насочено движение към положителния полюс. Именно то образува електричния ток.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 11,
+          "candidate_id": "physics-g9-current-in-metals-and-semiconductors-run-1-011",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "wikipedia-extrinsic-semiconductor",
+            "type": "third_party",
+            "url": "https://en.wikipedia.org/wiki/Extrinsic_semiconductor",
+            "title": "Extrinsic semiconductor",
+            "publisher": "Wikipedia",
+            "retrieved_at": "2026-10-05T12:18:13Z",
+            "notes": "Изследване: донори, акцептори, n- и p-тип, дупки, легиране. Само концепции; няма копирани въпроси."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Полупроводник от p-тип: акцепторен примес и дупки като основни носители",
+            "skill": "Анализ на твърдения"
+          },
+          "explanation": "Акцепторният примес създава липсващи електрони (дупки), които стават основни носители — полупроводник от p-тип. Донорният примес дава излишни електрони и води до n-тип.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 12,
+          "candidate_id": "physics-g9-current-in-metals-and-semiconductors-run-1-012",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "wikipedia-extrinsic-semiconductor",
+            "type": "third_party",
+            "url": "https://en.wikipedia.org/wiki/Extrinsic_semiconductor",
+            "title": "Extrinsic semiconductor",
+            "publisher": "Wikipedia",
+            "retrieved_at": "2026-10-05T12:18:13Z",
+            "notes": "Изследване: донори, акцептори, n- и p-тип, дупки, легиране. Само концепции; няма копирани въпроси."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Понятие дупка в полупроводник",
+            "skill": "Разбиране на понятие"
+          },
+          "explanation": "Когато електрон напусне връзка между атомите, остава свободно място — дупка. Съседни електрони го заемат и дупката се премества, като се държи като подвижен положителен заряд.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 13,
+          "candidate_id": "physics-g9-current-in-metals-and-semiconductors-run-1-013",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "wikipedia-extrinsic-semiconductor",
+            "type": "third_party",
+            "url": "https://en.wikipedia.org/wiki/Extrinsic_semiconductor",
+            "title": "Extrinsic semiconductor",
+            "publisher": "Wikipedia",
+            "retrieved_at": "2026-10-05T12:18:13Z",
+            "notes": "Изследване: донори, акцептори, n- и p-тип, дупки, легиране. Само концепции; няма копирани въпроси."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Равен брой електрони и дупки в чист полупроводник",
+            "skill": "Разбиране на понятие"
+          },
+          "explanation": "В чист полупроводник всеки електрон, освободен от връзка, оставя след себе си дупка. Затова електроните и дупките са в равен брой.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 14,
+          "candidate_id": "physics-g9-current-in-metals-and-semiconductors-run-1-014",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-cp2e-20-3-resistivity",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics-2e/pages/20-3-resistance-and-resistivity",
+            "title": "College Physics 2e, 20.3 Resistance and Resistivity",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T12:17:13Z",
+            "notes": "Изследване: температурна зависимост на съпротивлението на метали и полупроводници, термистор. Само за проверка на физиката; няма копирани въпроси."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Разграничаване на метал и полупроводник по температурната зависимост на съпротивлението",
+            "skill": "Интерпретиране на данни"
+          },
+          "explanation": "При нагряване съпротивлението на образец 1 нараства (както при метал), а на образец 2 намалява (както при полупроводник).",
+          "difficulty": "medium"
+        },
+        {
+          "number": 15,
+          "candidate_id": "physics-g9-current-in-metals-and-semiconductors-run-1-015",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_fa_pril9-36.pdf",
+            "title": "Учебна програма по физика и астрономия за IX клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T12:16:13Z",
+            "notes": "Авторитет за обхвата на тема 1.3 „Ток в метали и полупроводници“: очаквани резултати, нови понятия, лабораторна работа 4. Не съдържа въпроси; въпросите са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Разграничаване на метали, полупроводници и изолатори по специфичното съпротивление",
+            "skill": "Класифициране по числови данни"
+          },
+          "explanation": "Металите имат най-малко специфично съпротивление (около 10⁻⁸ Ω·m), полупроводниците — междинно (за чист силиций около 10³ Ω·m), а изолаторите — извънредно голямо.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 16,
+          "candidate_id": "physics-g9-current-in-metals-and-semiconductors-run-1-017",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "wikipedia-diode",
+            "type": "third_party",
+            "url": "https://en.wikipedia.org/wiki/Diode",
+            "title": "Diode",
+            "publisher": "Wikipedia",
+            "retrieved_at": "2026-10-05T12:19:13Z",
+            "notes": "Изследване: еднопосочна проводимост, права/обратна посока, светодиоди, фотодиоди. Само концепции; няма копирани въпроси."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Диод в електрическа верига — обръщане на полярността",
+            "skill": "Прилагане в ситуация"
+          },
+          "explanation": "При обърната полярност диодът е включен в обратна посока и практически не пропуска ток, така че през веригата тече пренебрежимо малък ток и лампата не свети.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 17,
+          "candidate_id": "physics-g9-current-in-metals-and-semiconductors-run-1-018",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-cp2e-20-3-resistivity",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics-2e/pages/20-3-resistance-and-resistivity",
+            "title": "College Physics 2e, 20.3 Resistance and Resistivity",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T12:17:13Z",
+            "notes": "Изследване: температурна зависимост на съпротивлението на метали и полупроводници, термистор. Само за проверка на физиката; няма копирани въпроси."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Температурна зависимост на съпротивлението на метал в реална ситуация (волфрамова нишка)",
+            "skill": "Прилагане в ситуация"
+          },
+          "explanation": "Волфрамът е метал: при нагряване йоните трептят по-силно, съпротивлението нараства и при същото напрежение токът намалява. Затова студената нишка пропуска по-голям ток.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 18,
+          "candidate_id": "physics-g9-current-in-metals-and-semiconductors-run-1-020",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-cp2e-20-3-resistivity",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics-2e/pages/20-3-resistance-and-resistivity",
+            "title": "College Physics 2e, 20.3 Resistance and Resistivity",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T12:17:13Z",
+            "notes": "Изследване: температурна зависимост на съпротивлението на метали и полупроводници, термистор. Само за проверка на физиката; няма копирани въпроси."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Термистор: пресмятане на съпротивление по закона на Ом при нагряване",
+            "skill": "Пресмятане"
+          },
+          "explanation": "R = U/I = 6 V / 0,030 A = 200 Ω. (При 20 °C съпротивлението е 6 V / 0,012 A = 500 Ω, т.е. при нагряване то намалява, както е при полупроводник.)",
+          "difficulty": "easy"
+        },
+        {
+          "number": 19,
+          "candidate_id": "physics-g9-current-in-metals-and-semiconductors-run-1-022",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-cp2e-20-3-resistivity",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics-2e/pages/20-3-resistance-and-resistivity",
+            "title": "College Physics 2e, 20.3 Resistance and Resistivity",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T12:17:13Z",
+            "notes": "Изследване: температурна зависимост на съпротивлението на метали и полупроводници, термистор. Само за проверка на физиката; няма копирани въпроси."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Термистор във верига с постоянен резистор: влияние на температурата върху ток и напрежения",
+            "skill": "Многостъпково разсъждение"
+          },
+          "explanation": "При нагряване съпротивлението на термистора намалява, общото съпротивление на веригата намалява и токът нараства. Напрежението върху постоянния резистор (U = IR) се увеличава, а тъй като сборът от напреженията е равен на напрежението на източника, върху термистора то намалява.",
+          "difficulty": "hard"
+        },
+        {
+          "number": 20,
+          "candidate_id": "physics-g9-current-in-metals-and-semiconductors-run-1-023",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "wikipedia-extrinsic-semiconductor",
+            "type": "third_party",
+            "url": "https://en.wikipedia.org/wiki/Extrinsic_semiconductor",
+            "title": "Extrinsic semiconductor",
+            "publisher": "Wikipedia",
+            "retrieved_at": "2026-10-05T12:18:13Z",
+            "notes": "Изследване: донори, акцептори, n- и p-тип, дупки, легиране. Само концепции; няма копирани въпроси."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Легиран полупроводник е електрично неутрален (донорни йони и свободни електрони)",
+            "skill": "Преодоляване на заблуда"
+          },
+          "explanation": "Донорният атом отдава електрон и става положителен йон, закрепен в решетката. Свободният електрон и йонът имат равни по големина и противоположни заряди, затова кристалът е електрично неутрален, въпреки че основните носители са електрони.",
+          "difficulty": "hard"
+        }
+      ]
+    }
+  ],
+  "not_exported": []
+}

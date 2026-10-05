@@ -1,0 +1,660 @@
+{
+  "format_version": 1,
+  "kind": "question_candidate_provenance",
+  "run": {
+    "id": "physics-g9-electric-circuits-run-1",
+    "started_at": "2026-10-05T12:18:39Z",
+    "finished_at": "2026-10-05T12:21:07Z",
+    "subject": "physics",
+    "grade": 9,
+    "curriculum": {
+      "education_type": "general",
+      "title": "Физика и астрономия, 9. клас — общообразователна подготовка"
+    },
+    "targets": [
+      {
+        "section": {
+          "slug": "physics-g9-electric-current",
+          "title": "Електричен ток"
+        },
+        "topics": [
+          {
+            "slug": "physics-g9-electric-circuits",
+            "title": "Електрически вериги"
+          }
+        ]
+      }
+    ],
+    "limits": {
+      "max_topics": 1,
+      "max_pages": 12,
+      "max_candidates": 25,
+      "max_candidates_per_source": 25,
+      "max_runtime_minutes": 40
+    },
+    "pages_inspected": 3,
+    "stop_reason": "topic_complete",
+    "collector": "claude-sonnet-5-5-collector",
+    "notes": "3 inspections: official МОН Grade 9 programme (read as full extracted text of the PDF; a WebFetch summary of it was discarded as unreliable), bg.wikipedia 'Закон на Ом', and one web search on series/parallel resistor connection whose result pages were not opened or cited. All candidates were newly written by the collector and are pending. Source retrieved_at values are set when the file was built."
+  },
+  "not_stored_in_database": [
+    "candidate id",
+    "source type",
+    "source url",
+    "source title",
+    "source publisher",
+    "source retrieved_at",
+    "transformation",
+    "source_ref",
+    "research",
+    "reuse_exception",
+    "explanation",
+    "difficulty",
+    "review (reviewer, reviewed_at, notes)",
+    "run manifest"
+  ],
+  "batches": [
+    {
+      "file": "physics-g9-electric-circuits-run-1.electric-circuits.json",
+      "source": "reviewed:physics:physics-g9-electric-circuits-run-1.electric-circuits",
+      "topic_slug": "physics-g9-electric-circuits",
+      "questions": [
+        {
+          "number": 1,
+          "candidate_id": "physics-g9-electric-circuits-run-1-01",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "bg-wikipedia-ohm-law",
+            "type": "third_party",
+            "url": "https://bg.wikipedia.org/wiki/Закон_на_Ом",
+            "title": "Закон на Ом — Уикипедия",
+            "publisher": "Wikimedia Foundation",
+            "retrieved_at": "2026-10-05T12:21:07Z",
+            "notes": "Background on Ohm's law, linear versus non-linear conductors and the linear I-U graph, and on Bulgarian terminology. No question text taken; used only for concepts."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Ohm's law for a circuit section: current proportional to voltage at constant resistance",
+            "skill": "predict change of current"
+          },
+          "explanation": "При постоянна температура съпротивлението на металния проводник е постоянно. От закона на Ом I = U/R токът е правопропорционален на напрежението, затова удвояването на U удвоява I.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 2,
+          "candidate_id": "physics-g9-electric-circuits-run-1-03",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-ix-36h",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_fa_pril9-36.pdf",
+            "title": "Учебна програма по физика и астрономия за IX клас (общообразователна подготовка), Приложение № 9",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T12:21:07Z",
+            "notes": "Scope authority for sub-theme 1.1 Електрически вериги: Ohm's law for a circuit section, I-U graph of an ohmic conductor, resistivity as a property of the material, resistance and resistivity calculations, series/parallel/mixed connection, distribution of currents and voltages, equivalent resistance; formulas I = U/R, rho = RS/l, series and parallel equivalent resistance; lab lessons on Ohm's law, resistivity of a metal wire, series and parallel resistors. Contains no questions. Power, EMF and the whole-circuit law belong to 1.2 and are not used."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Ohm's law for a circuit section: calculating voltage from current and resistance",
+            "skill": "simple calculation"
+          },
+          "explanation": "U = I·R = 0,5 A · 20 Ω = 10 V. Отговорът 40 V се получава при деление R/I, а 0,025 V – при деление I/R.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 3,
+          "candidate_id": "physics-g9-electric-circuits-run-1-04",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-ix-36h",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_fa_pril9-36.pdf",
+            "title": "Учебна програма по физика и астрономия за IX клас (общообразователна подготовка), Приложение № 9",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T12:21:07Z",
+            "notes": "Scope authority for sub-theme 1.1 Електрически вериги: Ohm's law for a circuit section, I-U graph of an ohmic conductor, resistivity as a property of the material, resistance and resistivity calculations, series/parallel/mixed connection, distribution of currents and voltages, equivalent resistance; formulas I = U/R, rho = RS/l, series and parallel equivalent resistance; lab lessons on Ohm's law, resistivity of a metal wire, series and parallel resistors. Contains no questions. Power, EMF and the whole-circuit law belong to 1.2 and are not used."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Current-voltage graph of an ohmic conductor",
+            "skill": "recognise graph shape"
+          },
+          "explanation": "За омов проводник I = U/R с постоянно R, т.е. токът е правопропорционален на напрежението. Това е права през началото. Правата, успоредна на оста U, би означавала ток, който не зависи от напрежението.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 4,
+          "candidate_id": "physics-g9-electric-circuits-run-1-05",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-ix-36h",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_fa_pril9-36.pdf",
+            "title": "Учебна програма по физика и астрономия за IX клас (общообразователна подготовка), Приложение № 9",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T12:21:07Z",
+            "notes": "Scope authority for sub-theme 1.1 Електрически вериги: Ohm's law for a circuit section, I-U graph of an ohmic conductor, resistivity as a property of the material, resistance and resistivity calculations, series/parallel/mixed connection, distribution of currents and voltages, equivalent resistance; formulas I = U/R, rho = RS/l, series and parallel equivalent resistance; lab lessons on Ohm's law, resistivity of a metal wire, series and parallel resistors. Contains no questions. Power, EMF and the whole-circuit law belong to 1.2 and are not used."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Series connection: the same current through all consumers",
+            "skill": "apply the series rule"
+          },
+          "explanation": "При последователно свързване няма разклонения, затова зарядът, преминаващ през едно сечение за дадено време, е еднакъв във всички сечения и токът е един и същ през всички крушки.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 5,
+          "candidate_id": "physics-g9-electric-circuits-run-1-06",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-ix-36h",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_fa_pril9-36.pdf",
+            "title": "Учебна програма по физика и астрономия за IX клас (общообразователна подготовка), Приложение № 9",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T12:21:07Z",
+            "notes": "Scope authority for sub-theme 1.1 Електрически вериги: Ohm's law for a circuit section, I-U graph of an ohmic conductor, resistivity as a property of the material, resistance and resistivity calculations, series/parallel/mixed connection, distribution of currents and voltages, equivalent resistance; formulas I = U/R, rho = RS/l, series and parallel equivalent resistance; lab lessons on Ohm's law, resistivity of a metal wire, series and parallel resistors. Contains no questions. Power, EMF and the whole-circuit law belong to 1.2 and are not used."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Parallel connection: the same voltage across all branches",
+            "skill": "apply the parallel rule"
+          },
+          "explanation": "Успоредно свързаните консуматори са включени между едни и същи две точки на веригата, затова напрежението върху тях е едно и също. Сумирането на напреженията е правило за последователно свързване.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 6,
+          "candidate_id": "physics-g9-electric-circuits-run-1-07",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-ix-36h",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_fa_pril9-36.pdf",
+            "title": "Учебна програма по физика и астрономия за IX клас (общообразователна подготовка), Приложение № 9",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T12:21:07Z",
+            "notes": "Scope authority for sub-theme 1.1 Електрически вериги: Ohm's law for a circuit section, I-U graph of an ohmic conductor, resistivity as a property of the material, resistance and resistivity calculations, series/parallel/mixed connection, distribution of currents and voltages, equivalent resistance; formulas I = U/R, rho = RS/l, series and parallel equivalent resistance; lab lessons on Ohm's law, resistivity of a metal wire, series and parallel resistors. Contains no questions. Power, EMF and the whole-circuit law belong to 1.2 and are not used."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Resistivity is a characteristic of the material",
+            "skill": "recall what resistivity depends on"
+          },
+          "explanation": "Специфичното съпротивление ρ е величина, характерна за веществото (при дадена температура). Дължината и сечението определят съпротивлението R на конкретния проводник, но не и ρ.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 7,
+          "candidate_id": "physics-g9-electric-circuits-run-1-08",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-ix-36h",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_fa_pril9-36.pdf",
+            "title": "Учебна програма по физика и астрономия за IX клас (общообразователна подготовка), Приложение № 9",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T12:21:07Z",
+            "notes": "Scope authority for sub-theme 1.1 Електрически вериги: Ohm's law for a circuit section, I-U graph of an ohmic conductor, resistivity as a property of the material, resistance and resistivity calculations, series/parallel/mixed connection, distribution of currents and voltages, equivalent resistance; formulas I = U/R, rho = RS/l, series and parallel equivalent resistance; lab lessons on Ohm's law, resistivity of a metal wire, series and parallel resistors. Contains no questions. Power, EMF and the whole-circuit law belong to 1.2 and are not used."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Measuring current and voltage: ammeter in series, voltmeter in parallel",
+            "skill": "interpret experimental set-up"
+          },
+          "explanation": "Токът се измерва, като се пропуска през амперметъра, затова той се включва последователно. Напрежението се измерва между краищата на резистора, затова волтметърът се включва успоредно на него.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 8,
+          "candidate_id": "physics-g9-electric-circuits-run-1-10",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-ix-36h",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_fa_pril9-36.pdf",
+            "title": "Учебна програма по физика и астрономия за IX клас (общообразователна подготовка), Приложение № 9",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T12:21:07Z",
+            "notes": "Scope authority for sub-theme 1.1 Електрически вериги: Ohm's law for a circuit section, I-U graph of an ohmic conductor, resistivity as a property of the material, resistance and resistivity calculations, series/parallel/mixed connection, distribution of currents and voltages, equivalent resistance; formulas I = U/R, rho = RS/l, series and parallel equivalent resistance; lab lessons on Ohm's law, resistivity of a metal wire, series and parallel resistors. Contains no questions. Power, EMF and the whole-circuit law belong to 1.2 and are not used."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Equivalent resistance of two resistors in parallel",
+            "skill": "calculation with the parallel formula"
+          },
+          "explanation": "1/R = 1/12 + 1/4 = 1/12 + 3/12 = 4/12 = 1/3, откъдето R = 3 Ω. Числото 8 Ω е средното аритметично, 16 Ω – сумата, а 48 Ω – произведението на двете съпротивления.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 9,
+          "candidate_id": "physics-g9-electric-circuits-run-1-11",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-ix-36h",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_fa_pril9-36.pdf",
+            "title": "Учебна програма по физика и астрономия за IX клас (общообразователна подготовка), Приложение № 9",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T12:21:07Z",
+            "notes": "Scope authority for sub-theme 1.1 Електрически вериги: Ohm's law for a circuit section, I-U graph of an ohmic conductor, resistivity as a property of the material, resistance and resistivity calculations, series/parallel/mixed connection, distribution of currents and voltages, equivalent resistance; formulas I = U/R, rho = RS/l, series and parallel equivalent resistance; lab lessons on Ohm's law, resistivity of a metal wire, series and parallel resistors. Contains no questions. Power, EMF and the whole-circuit law belong to 1.2 and are not used."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Parallel connection: equivalent resistance is smaller than the smallest branch",
+            "skill": "reason about magnitude without calculation"
+          },
+          "explanation": "Втората клонка добавя още един път за тока, затова общият ток при същото напрежение нараства и еквивалентното съпротивление става по-малко от най-малкото от съпротивленията (тук ≈ 91 Ω).",
+          "difficulty": "medium"
+        },
+        {
+          "number": 10,
+          "candidate_id": "physics-g9-electric-circuits-run-1-12",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-ix-36h",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_fa_pril9-36.pdf",
+            "title": "Учебна програма по физика и астрономия за IX клас (общообразователна подготовка), Приложение № 9",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T12:21:07Z",
+            "notes": "Scope authority for sub-theme 1.1 Електрически вериги: Ohm's law for a circuit section, I-U graph of an ohmic conductor, resistivity as a property of the material, resistance and resistivity calculations, series/parallel/mixed connection, distribution of currents and voltages, equivalent resistance; formulas I = U/R, rho = RS/l, series and parallel equivalent resistance; lab lessons on Ohm's law, resistivity of a metal wire, series and parallel resistors. Contains no questions. Power, EMF and the whole-circuit law belong to 1.2 and are not used."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Series connection: voltage divides in proportion to resistance",
+            "skill": "multi-step calculation"
+          },
+          "explanation": "Общото съпротивление е 80 Ω, токът е I = 40 V / 80 Ω = 0,5 A, а U₂ = I·R₂ = 0,5 A · 60 Ω = 30 V. Напрежението 10 V е върху резистора 20 Ω.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 11,
+          "candidate_id": "physics-g9-electric-circuits-run-1-13",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-ix-36h",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_fa_pril9-36.pdf",
+            "title": "Учебна програма по физика и астрономия за IX клас (общообразователна подготовка), Приложение № 9",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T12:21:07Z",
+            "notes": "Scope authority for sub-theme 1.1 Електрически вериги: Ohm's law for a circuit section, I-U graph of an ohmic conductor, resistivity as a property of the material, resistance and resistivity calculations, series/parallel/mixed connection, distribution of currents and voltages, equivalent resistance; formulas I = U/R, rho = RS/l, series and parallel equivalent resistance; lab lessons on Ohm's law, resistivity of a metal wire, series and parallel resistors. Contains no questions. Power, EMF and the whole-circuit law belong to 1.2 and are not used."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Parallel connection: currents in branches add up to the total current",
+            "skill": "multi-step calculation"
+          },
+          "explanation": "Токовете през клонките са I₁ = 12/30 = 0,4 A и I₂ = 12/60 = 0,2 A. Общият ток е I = I₁ + I₂ = 0,6 A. Стойността 0,13 A се получава, ако погрешно се събират съпротивленията.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 12,
+          "candidate_id": "physics-g9-electric-circuits-run-1-14",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-ix-36h",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_fa_pril9-36.pdf",
+            "title": "Учебна програма по физика и астрономия за IX клас (общообразователна подготовка), Приложение № 9",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T12:21:07Z",
+            "notes": "Scope authority for sub-theme 1.1 Електрически вериги: Ohm's law for a circuit section, I-U graph of an ohmic conductor, resistivity as a property of the material, resistance and resistivity calculations, series/parallel/mixed connection, distribution of currents and voltages, equivalent resistance; formulas I = U/R, rho = RS/l, series and parallel equivalent resistance; lab lessons on Ohm's law, resistivity of a metal wire, series and parallel resistors. Contains no questions. Power, EMF and the whole-circuit law belong to 1.2 and are not used."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Dependence of resistance on cross-section area (R = ρl/S)",
+            "skill": "proportional reasoning"
+          },
+          "explanation": "R = ρ·l/S. При еднакви ρ и l съпротивлението е обратнопропорционално на сечението S, затова удвояването на S намалява R два пъти.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 13,
+          "candidate_id": "physics-g9-electric-circuits-run-1-15",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-ix-36h",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_fa_pril9-36.pdf",
+            "title": "Учебна програма по физика и астрономия за IX клас (общообразователна подготовка), Приложение № 9",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T12:21:07Z",
+            "notes": "Scope authority for sub-theme 1.1 Електрически вериги: Ohm's law for a circuit section, I-U graph of an ohmic conductor, resistivity as a property of the material, resistance and resistivity calculations, series/parallel/mixed connection, distribution of currents and voltages, equivalent resistance; formulas I = U/R, rho = RS/l, series and parallel equivalent resistance; lab lessons on Ohm's law, resistivity of a metal wire, series and parallel resistors. Contains no questions. Power, EMF and the whole-circuit law belong to 1.2 and are not used."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Cutting a wire and reconnecting the pieces in parallel (R ~ l, parallel rule)",
+            "skill": "combine resistivity and parallel-connection ideas"
+          },
+          "explanation": "Съпротивлението е правопропорционално на дължината, затова всяка част е 8 Ω / 4 = 2 Ω. Четири еднакви резистора по 2 Ω, свързани успоредно, дават 2 Ω / 4 = 0,5 Ω.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 14,
+          "candidate_id": "physics-g9-electric-circuits-run-1-16",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-ix-36h",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_fa_pril9-36.pdf",
+            "title": "Учебна програма по физика и астрономия за IX клас (общообразователна подготовка), Приложение № 9",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T12:21:07Z",
+            "notes": "Scope authority for sub-theme 1.1 Електрически вериги: Ohm's law for a circuit section, I-U graph of an ohmic conductor, resistivity as a property of the material, resistance and resistivity calculations, series/parallel/mixed connection, distribution of currents and voltages, equivalent resistance; formulas I = U/R, rho = RS/l, series and parallel equivalent resistance; lab lessons on Ohm's law, resistivity of a metal wire, series and parallel resistors. Contains no questions. Power, EMF and the whole-circuit law belong to 1.2 and are not used."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Calculating resistivity from measured resistance and dimensions (rho = RS/l)",
+            "skill": "calculation with units"
+          },
+          "explanation": "ρ = R·S/l = 0,8 Ω · 0,5 mm² / 2 m = 0,2 Ω·mm²/m. Стойността 3,2 се получава при формулата R·l/S, а 5 – при l/(R·S).",
+          "difficulty": "medium"
+        },
+        {
+          "number": 15,
+          "candidate_id": "physics-g9-electric-circuits-run-1-17",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "bg-wikipedia-ohm-law",
+            "type": "third_party",
+            "url": "https://bg.wikipedia.org/wiki/Закон_на_Ом",
+            "title": "Закон на Ом — Уикипедия",
+            "publisher": "Wikimedia Foundation",
+            "retrieved_at": "2026-10-05T12:21:07Z",
+            "notes": "Background on Ohm's law, linear versus non-linear conductors and the linear I-U graph, and on Bulgarian terminology. No question text taken; used only for concepts."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Reading current-voltage graphs of two ohmic conductors",
+            "skill": "compare resistances from graph descriptions"
+          },
+          "explanation": "От R = U/I при еднакво U по-големият ток означава по-малко съпротивление. На графиката по-стръмната права съответства на по-малкото R.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 16,
+          "candidate_id": "physics-g9-electric-circuits-run-1-18",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "bg-wikipedia-ohm-law",
+            "type": "third_party",
+            "url": "https://bg.wikipedia.org/wiki/Закон_на_Ом",
+            "title": "Закон на Ом — Уикипедия",
+            "publisher": "Wikimedia Foundation",
+            "retrieved_at": "2026-10-05T12:21:07Z",
+            "notes": "Background on Ohm's law, linear versus non-linear conductors and the linear I-U graph, and on Bulgarian terminology. No question text taken; used only for concepts."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Interpreting measured I-U data: ohmic behaviour and resistance value",
+            "skill": "interpret experimental data"
+          },
+          "explanation": "Отношението U/I е 20 Ω във всички измервания, т.е. токът е правопропорционален на напрежението и съпротивлението е постоянно – резисторът е омов. Стойността 0,05 Ω е обратната величина I/U.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 17,
+          "candidate_id": "physics-g9-electric-circuits-run-1-19",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-ix-36h",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_fa_pril9-36.pdf",
+            "title": "Учебна програма по физика и астрономия за IX клас (общообразователна подготовка), Приложение № 9",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T12:21:07Z",
+            "notes": "Scope authority for sub-theme 1.1 Електрически вериги: Ohm's law for a circuit section, I-U graph of an ohmic conductor, resistivity as a property of the material, resistance and resistivity calculations, series/parallel/mixed connection, distribution of currents and voltages, equivalent resistance; formulas I = U/R, rho = RS/l, series and parallel equivalent resistance; lab lessons on Ohm's law, resistivity of a metal wire, series and parallel resistors. Contains no questions. Power, EMF and the whole-circuit law belong to 1.2 and are not used."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Mixed connection: equivalent resistance",
+            "skill": "reduce a mixed circuit step by step"
+          },
+          "explanation": "Двата резистора по 30 Ω успоредно дават 15 Ω. Към тях последователно е 10 Ω, затова R = 10 Ω + 15 Ω = 25 Ω. Стойността 70 Ω е при пълно последователно свързване, а 6 Ω – при пълно успоредно.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 18,
+          "candidate_id": "physics-g9-electric-circuits-run-1-20",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-ix-36h",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_fa_pril9-36.pdf",
+            "title": "Учебна програма по физика и астрономия за IX клас (общообразователна подготовка), Приложение № 9",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T12:21:07Z",
+            "notes": "Scope authority for sub-theme 1.1 Електрически вериги: Ohm's law for a circuit section, I-U graph of an ohmic conductor, resistivity as a property of the material, resistance and resistivity calculations, series/parallel/mixed connection, distribution of currents and voltages, equivalent resistance; formulas I = U/R, rho = RS/l, series and parallel equivalent resistance; lab lessons on Ohm's law, resistivity of a metal wire, series and parallel resistors. Contains no questions. Power, EMF and the whole-circuit law belong to 1.2 and are not used."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Mixed connection: current distribution and voltage distribution",
+            "skill": "multi-step circuit analysis"
+          },
+          "explanation": "Успоредната двойка 12 Ω и 12 Ω е 6 Ω, общото съпротивление е 10 Ω и общият ток е 24 V / 10 Ω = 2,4 A. Той се разделя поравно между двата еднакви резистора: 1,2 A през всеки.",
+          "difficulty": "hard"
+        },
+        {
+          "number": 19,
+          "candidate_id": "physics-g9-electric-circuits-run-1-21",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-ix-36h",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_fa_pril9-36.pdf",
+            "title": "Учебна програма по физика и астрономия за IX клас (общообразователна подготовка), Приложение № 9",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T12:21:07Z",
+            "notes": "Scope authority for sub-theme 1.1 Електрически вериги: Ohm's law for a circuit section, I-U graph of an ohmic conductor, resistivity as a property of the material, resistance and resistivity calculations, series/parallel/mixed connection, distribution of currents and voltages, equivalent resistance; formulas I = U/R, rho = RS/l, series and parallel equivalent resistance; lab lessons on Ohm's law, resistivity of a metal wire, series and parallel resistors. Contains no questions. Power, EMF and the whole-circuit law belong to 1.2 and are not used."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Household appliances are connected in parallel",
+            "skill": "explain a real application"
+          },
+          "explanation": "При успоредно свързване върху всеки уред е приложено пълното напрежение на мрежата, а изключването на един уред не прекъсва тока през другите. При последователно свързване напрежението би се разпределяло между уредите и те не биха работили независимо.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 20,
+          "candidate_id": "physics-g9-electric-circuits-run-1-22",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-ix-36h",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_fa_pril9-36.pdf",
+            "title": "Учебна програма по физика и астрономия за IX клас (общообразователна подготовка), Приложение № 9",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T12:21:07Z",
+            "notes": "Scope authority for sub-theme 1.1 Електрически вериги: Ohm's law for a circuit section, I-U graph of an ohmic conductor, resistivity as a property of the material, resistance and resistivity calculations, series/parallel/mixed connection, distribution of currents and voltages, equivalent resistance; formulas I = U/R, rho = RS/l, series and parallel equivalent resistance; lab lessons on Ohm's law, resistivity of a metal wire, series and parallel resistors. Contains no questions. Power, EMF and the whole-circuit law belong to 1.2 and are not used."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Series connection: a break in one element opens the whole circuit",
+            "skill": "predict behaviour of a series circuit"
+          },
+          "explanation": "При последователно свързване има само един път за тока. Скъсаната нишка прекъсва веригата, токът става нула и другата крушка не свети.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 21,
+          "candidate_id": "physics-g9-electric-circuits-run-1-23",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-ix-36h",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_fa_pril9-36.pdf",
+            "title": "Учебна програма по физика и астрономия за IX клас (общообразователна подготовка), Приложение № 9",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T12:21:07Z",
+            "notes": "Scope authority for sub-theme 1.1 Електрически вериги: Ohm's law for a circuit section, I-U graph of an ohmic conductor, resistivity as a property of the material, resistance and resistivity calculations, series/parallel/mixed connection, distribution of currents and voltages, equivalent resistance; formulas I = U/R, rho = RS/l, series and parallel equivalent resistance; lab lessons on Ohm's law, resistivity of a metal wire, series and parallel resistors. Contains no questions. Power, EMF and the whole-circuit law belong to 1.2 and are not used."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Adding a branch in parallel lowers the equivalent resistance and raises the source current",
+            "skill": "predict the effect of changing a circuit"
+          },
+          "explanation": "Новата клонка е допълнителен път за тока, затова еквивалентното съпротивление е по-малко от съпротивлението на всяка клонка. Напрежението на идеалния източник е същото, затова общият ток I = U/R нараства.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 22,
+          "candidate_id": "physics-g9-electric-circuits-run-1-24",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-ix-36h",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_fa_pril9-36.pdf",
+            "title": "Учебна програма по физика и астрономия за IX клас (общообразователна подготовка), Приложение № 9",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T12:21:07Z",
+            "notes": "Scope authority for sub-theme 1.1 Електрически вериги: Ohm's law for a circuit section, I-U graph of an ohmic conductor, resistivity as a property of the material, resistance and resistivity calculations, series/parallel/mixed connection, distribution of currents and voltages, equivalent resistance; formulas I = U/R, rho = RS/l, series and parallel equivalent resistance; lab lessons on Ohm's law, resistivity of a metal wire, series and parallel resistors. Contains no questions. Power, EMF and the whole-circuit law belong to 1.2 and are not used."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Resistance of wires of the same material: R proportional to length and inversely to area (d squared)",
+            "skill": "proportional reasoning with two changing quantities"
+          },
+          "explanation": "R = ρ·l/S, а S е пропорционална на d². Дължината се удвоява (R ×2), а сечението става 4 пъти по-голямо (R ÷4). Така R₂ = R₁ · 2/4 = R₁/2.",
+          "difficulty": "hard"
+        }
+      ]
+    }
+  ],
+  "not_exported": []
+}

@@ -1,0 +1,606 @@
+{
+  "format_version": 1,
+  "kind": "question_candidate_provenance",
+  "run": {
+    "id": "physics-g9-mechanical-waves-run-1",
+    "started_at": "2026-10-05T12:26:30Z",
+    "finished_at": "2026-10-05T12:27:18Z",
+    "subject": "physics",
+    "grade": 9,
+    "curriculum": {
+      "education_type": "general",
+      "title": "Физика и астрономия, 9. клас — общообразователна подготовка"
+    },
+    "targets": [
+      {
+        "section": {
+          "slug": "physics-g9-mechanical-motion",
+          "title": "Механично движение"
+        },
+        "topics": [
+          {
+            "slug": "physics-g9-mechanical-waves",
+            "title": "Механични вълни"
+          }
+        ]
+      }
+    ],
+    "limits": {
+      "max_topics": 3,
+      "max_pages": 15,
+      "max_candidates": 25,
+      "max_candidates_per_source": 12,
+      "max_runtime_minutes": 30
+    },
+    "pages_inspected": 4,
+    "stop_reason": "topic_complete",
+    "collector": "claude-sonnet-5-5-collector",
+    "notes": "Обхват: само тема 2.2 Механични вълни (вълнов процес, пренос на енергия, скорост на вълната и на частиците, u=λν, надлъжни и напречни вълни, вълнов фронт и лъч, сеизмични вълни, поведение при земетресение). Извън обхвата: звук, интензитет, интерференция, стоящи вълни, отражение и пречупване."
+  },
+  "not_stored_in_database": [
+    "candidate id",
+    "source type",
+    "source url",
+    "source title",
+    "source publisher",
+    "source retrieved_at",
+    "transformation",
+    "source_ref",
+    "research",
+    "reuse_exception",
+    "explanation",
+    "difficulty",
+    "review (reviewer, reviewed_at, notes)",
+    "run manifest"
+  ],
+  "batches": [
+    {
+      "file": "physics-g9-mechanical-waves-run-1.mechanical-waves.json",
+      "source": "reviewed:physics:physics-g9-mechanical-waves-run-1.mechanical-waves",
+      "topic_slug": "physics-g9-mechanical-waves",
+      "questions": [
+        {
+          "number": 1,
+          "candidate_id": "physics-g9-mechanical-waves-run-1-001",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_fa_pril9-36.pdf",
+            "title": "Учебна програма по физика и астрономия за IX клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T12:27:30Z",
+            "notes": "Определя обхвата на тема 2.2 Механични вълни: вълнов процес, пренос на енергия, u, T, ν, A, λ, напречни и надлъжни вълни, вълнов фронт, лъч, сеизмични вълни, поведение при земетресение. Не съдържа въпроси; всички въпроси са нови."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Вълновият процес като разпространение на механични трептения в материална среда",
+            "skill": "Дефиниция"
+          },
+          "explanation": "Механичната вълна е разпространение на механични трептения в материална среда.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 2,
+          "candidate_id": "physics-g9-mechanical-waves-run-1-002",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_fa_pril9-36.pdf",
+            "title": "Учебна програма по физика и астрономия за IX клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T12:27:30Z",
+            "notes": "Определя обхвата на тема 2.2 Механични вълни: вълнов процес, пренос на енергия, u, T, ν, A, λ, напречни и надлъжни вълни, вълнов фронт, лъч, сеизмични вълни, поведение при земетресение. Не съдържа въпроси; всички въпроси са нови."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Вълните пренасят енергия, а не вещество",
+            "skill": "Прилагане в реална ситуация"
+          },
+          "explanation": "Вълната пренася енергия, а не вещество: частиците на водата, а с тях и тапата, трептят около равновесното си положение.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 3,
+          "candidate_id": "physics-g9-mechanical-waves-run-1-003",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-cp2e-16-9",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics-2e/pages/16-9-waves",
+            "title": "College Physics 2e, 16.9 Waves",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T12:28:30Z",
+            "notes": "Само изследване: определение на вълна, напречни и надлъжни вълни, v = fλ, пренос на енергия без пренос на вещество, независимост на скоростта от амплитудата."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Надлъжни вълни: трептене на частиците по посока на разпространението",
+            "skill": "Разграничаване"
+          },
+          "explanation": "При надлъжната вълна трептенето на частиците е успоредно на посоката на разпространение (сгъстявания и разреждания).",
+          "difficulty": "easy"
+        },
+        {
+          "number": 4,
+          "candidate_id": "physics-g9-mechanical-waves-run-1-004",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-cp2e-16-9",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics-2e/pages/16-9-waves",
+            "title": "College Physics 2e, 16.9 Waves",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T12:28:30Z",
+            "notes": "Само изследване: определение на вълна, напречни и надлъжни вълни, v = fλ, пренос на енергия без пренос на вещество, независимост на скоростта от амплитудата."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Напречни и надлъжни вълни: примери",
+            "skill": "Класификация"
+          },
+          "explanation": "По връвта частиците трептят перпендикулярно на посоката на разпространение – напречна вълна. Звукът и сгъстяванията по пружината са надлъжни вълни.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 5,
+          "candidate_id": "physics-g9-mechanical-waves-run-1-006",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_fa_pril9-36.pdf",
+            "title": "Учебна програма по физика и астрономия за IX клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T12:27:30Z",
+            "notes": "Определя обхвата на тема 2.2 Механични вълни: вълнов процес, пренос на енергия, u, T, ν, A, λ, напречни и надлъжни вълни, вълнов фронт, лъч, сеизмични вълни, поведение при земетресение. Не съдържа въпроси; всички въпроси са нови."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Връзка между скорост, честота и дължина на вълната: u = λν",
+            "skill": "Пресмятане"
+          },
+          "explanation": "u = λν = 2 m · 5 Hz = 10 m/s.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 6,
+          "candidate_id": "physics-g9-mechanical-waves-run-1-007",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_fa_pril9-36.pdf",
+            "title": "Учебна програма по физика и астрономия за IX клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T12:27:30Z",
+            "notes": "Определя обхвата на тема 2.2 Механични вълни: вълнов процес, пренос на енергия, u, T, ν, A, λ, напречни и надлъжни вълни, вълнов фронт, лъч, сеизмични вълни, поведение при земетресение. Не съдържа въпроси; всички въпроси са нови."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Дължина на вълната",
+            "skill": "Дефиниция"
+          },
+          "explanation": "Дължината на вълната λ е разстоянието между две най-близки точки, които трептят по един и същ начин, например между два съседни гребена.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 7,
+          "candidate_id": "physics-g9-mechanical-waves-run-1-008",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_fa_pril9-36.pdf",
+            "title": "Учебна програма по физика и астрономия за IX клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T12:27:30Z",
+            "notes": "Определя обхвата на тема 2.2 Механични вълни: вълнов процес, пренос на енергия, u, T, ν, A, λ, напречни и надлъжни вълни, вълнов фронт, лъч, сеизмични вълни, поведение при земетресение. Не съдържа въпроси; всички въпроси са нови."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Амплитуда на хармонична вълна",
+            "skill": "Дефиниция"
+          },
+          "explanation": "Амплитудата A е максималното отклонение на трептящите частици от равновесното им положение.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 8,
+          "candidate_id": "physics-g9-mechanical-waves-run-1-009",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-cp2e-16-9",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics-2e/pages/16-9-waves",
+            "title": "College Physics 2e, 16.9 Waves",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T12:28:30Z",
+            "notes": "Само изследване: определение на вълна, напречни и надлъжни вълни, v = fλ, пренос на енергия без пренос на вещество, независимост на скоростта от амплитудата."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Разпространение на надлъжни вълни в газ",
+            "skill": "Описание на разпространението в различни среди"
+          },
+          "explanation": "Във въздуха (газ) се разпространяват надлъжни вълни: областите на сгъстяване и разреждане се движат от източника.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 9,
+          "candidate_id": "physics-g9-mechanical-waves-run-1-010",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "nesebar-zemetresenia",
+            "type": "official",
+            "url": "https://www.nesebar.bg/safety/Земетресения.pdf",
+            "title": "Земетресения (памфлет за безопасност)",
+            "publisher": "Община Несебър",
+            "retrieved_at": "2026-10-05T12:30:30Z",
+            "notes": "Общински публичен документ с правила за поведение преди, по време и след земетресение; PDF прочетен от локално запазено копие. Използван само за фактите; въпросите са нови."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Правила на поведение по време на земетресение",
+            "skill": "Безопасно поведение"
+          },
+          "explanation": "Препоръчва се спокойствие, закрила на главата и скривалище под здрава маса или до вътрешна стена. Асансьорите, стълбищата и балконите са най-опасни.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 10,
+          "candidate_id": "physics-g9-mechanical-waves-run-1-011",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_fa_pril9-36.pdf",
+            "title": "Учебна програма по физика и астрономия за IX клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T12:27:30Z",
+            "notes": "Определя обхвата на тема 2.2 Механични вълни: вълнов процес, пренос на енергия, u, T, ν, A, λ, напречни и надлъжни вълни, вълнов фронт, лъч, сеизмични вълни, поведение при земетресение. Не съдържа въпроси; всички въпроси са нови."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Скорост на вълната и скорост на движение на частиците",
+            "skill": "Разграничаване на понятия"
+          },
+          "explanation": "Частиците трептят около равновесните си положения със скорост, която се променя във времето. Скоростта на вълната е скоростта, с която се разпространява трептенето.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 11,
+          "candidate_id": "physics-g9-mechanical-waves-run-1-012",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-cp2e-16-9",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics-2e/pages/16-9-waves",
+            "title": "College Physics 2e, 16.9 Waves",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T12:28:30Z",
+            "notes": "Само изследване: определение на вълна, напречни и надлъжни вълни, v = fλ, пренос на енергия без пренос на вещество, независимост на скоростта от амплитудата."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Честотата се определя от източника и не се променя при смяна на средата",
+            "skill": "Сравнение и разсъждение"
+          },
+          "explanation": "Честотата се задава от източника и не се променя. Скоростта зависи от средата, а λ = u/ν се променя заедно с нея.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 12,
+          "candidate_id": "physics-g9-mechanical-waves-run-1-013",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-cp2e-16-9",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics-2e/pages/16-9-waves",
+            "title": "College Physics 2e, 16.9 Waves",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T12:28:30Z",
+            "notes": "Само изследване: определение на вълна, напречни и надлъжни вълни, v = fλ, пренос на енергия без пренос на вещество, независимост на скоростта от амплитудата."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "При постоянна скорост дължината на вълната е обратно пропорционална на честотата",
+            "skill": "Анализ на опит"
+          },
+          "explanation": "Скоростта зависи от връвта и опъването ѝ и не се променя. От λ = u/ν при двойно по-голяма честота дължината намалява 2 пъти.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 13,
+          "candidate_id": "physics-g9-mechanical-waves-run-1-014",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-cp2e-16-9",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics-2e/pages/16-9-waves",
+            "title": "College Physics 2e, 16.9 Waves",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T12:28:30Z",
+            "notes": "Само изследване: определение на вълна, напречни и надлъжни вълни, v = fλ, пренос на енергия без пренос на вещество, независимост на скоростта от амплитудата."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Определяне на скоростта на вълна от наблюдение: u = λν",
+            "skill": "Интерпретация на наблюдение"
+          },
+          "explanation": "Честотата е ν = 2 Hz, λ = 0,3 m, откъдето u = λν = 0,3 m · 2 Hz = 0,6 m/s.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 14,
+          "candidate_id": "physics-g9-mechanical-waves-run-1-015",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "wikipedia-seismic-wave",
+            "type": "third_party",
+            "url": "https://en.wikipedia.org/wiki/Seismic_wave",
+            "title": "Seismic wave",
+            "publisher": "Wikipedia",
+            "retrieved_at": "2026-10-05T12:29:30Z",
+            "notes": "Само изследване: надлъжни (P) и напречни (S) сеизмични вълни, P пристигат първи. Скоростите в задачите са опростени за учебни цели."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Надлъжни (P) и напречни (S) сеизмични вълни с различна скорост",
+            "skill": "Многоетапно пресмятане"
+          },
+          "explanation": "Надлъжните вълни пристигат за 180 km / 6 km/s = 30 s, напречните – за 180 km / 3 km/s = 60 s. Разликата е 30 s.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 15,
+          "candidate_id": "physics-g9-mechanical-waves-run-1-016",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_fa_pril9-36.pdf",
+            "title": "Учебна програма по физика и астрономия за IX клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T12:27:30Z",
+            "notes": "Определя обхвата на тема 2.2 Механични вълни: вълнов процес, пренос на енергия, u, T, ν, A, λ, напречни и надлъжни вълни, вълнов фронт, лъч, сеизмични вълни, поведение при земетресение. Не съдържа въпроси; всички въпроси са нови."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Вълнов фронт и лъч",
+            "skill": "Модел на разпространение"
+          },
+          "explanation": "Вълновият фронт е линията от точки, до които вълната е стигнала едновременно. При вълна от точков източник на повърхността той е окръжност, а лъчът показва посоката на разпространение и е перпендикулярен на фронта.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 16,
+          "candidate_id": "physics-g9-mechanical-waves-run-1-018",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-cp2e-16-9",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics-2e/pages/16-9-waves",
+            "title": "College Physics 2e, 16.9 Waves",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T12:28:30Z",
+            "notes": "Само изследване: определение на вълна, напречни и надлъжни вълни, v = fλ, пренос на енергия без пренос на вещество, независимост на скоростта от амплитудата."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Скоростта на вълната не зависи от амплитудата",
+            "skill": "Сравнение и разсъждение"
+          },
+          "explanation": "Скоростта се определя от връвта и опъването ѝ, а λ = u/ν – от скоростта и честотата. Амплитудата не влияе на нито една от двете.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 17,
+          "candidate_id": "physics-g9-mechanical-waves-run-1-019",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_fa_pril9-36.pdf",
+            "title": "Учебна програма по физика и астрономия за IX клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T12:27:30Z",
+            "notes": "Определя обхвата на тема 2.2 Механични вълни: вълнов процес, пренос на енергия, u, T, ν, A, λ, напречни и надлъжни вълни, вълнов фронт, лъч, сеизмични вълни, поведение при земетресение. Не съдържа въпроси; всички въпроси са нови."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Вълната изминава разстояние λ за един период: λ = uT",
+            "skill": "Концептуално разбиране"
+          },
+          "explanation": "От u = λ/T следва λ = uT: за един период вълната изминава точно една дължина на вълната.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 18,
+          "candidate_id": "physics-g9-mechanical-waves-run-1-021",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_fa_pril9-36.pdf",
+            "title": "Учебна програма по физика и астрономия за IX клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T12:27:30Z",
+            "notes": "Определя обхвата на тема 2.2 Механични вълни: вълнов процес, пренос на енергия, u, T, ν, A, λ, напречни и надлъжни вълни, вълнов фронт, лъч, сеизмични вълни, поведение при земетресение. Не съдържа въпроси; всички въпроси са нови."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Връзка u = λν и скорост на разпространение на импулс",
+            "skill": "Многоетапно пресмятане"
+          },
+          "explanation": "Скоростта на вълната е u = 12 m / 3 s = 4 m/s. Тогава λ = u/ν = 4 m/s / 2 Hz = 2 m.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 19,
+          "candidate_id": "physics-g9-mechanical-waves-run-1-022",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-cp2e-16-9",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics-2e/pages/16-9-waves",
+            "title": "College Physics 2e, 16.9 Waves",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T12:28:30Z",
+            "notes": "Само изследване: определение на вълна, напречни и надлъжни вълни, v = fλ, пренос на енергия без пренос на вещество, независимост на скоростта от амплитудата."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Промяна на дължината на вълната при смяна на средата при запазена честота",
+            "skill": "Многоетапно пресмятане"
+          },
+          "explanation": "Честотата не се променя (500 Hz), затова λ = u/ν = 1500 m/s / 500 Hz = 3 m.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 20,
+          "candidate_id": "physics-g9-mechanical-waves-run-1-023",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "wikipedia-seismic-wave",
+            "type": "third_party",
+            "url": "https://en.wikipedia.org/wiki/Seismic_wave",
+            "title": "Seismic wave",
+            "publisher": "Wikipedia",
+            "retrieved_at": "2026-10-05T12:29:30Z",
+            "notes": "Само изследване: надлъжни (P) и напречни (S) сеизмични вълни, P пристигат първи. Скоростите в задачите са опростени за учебни цели."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T13:01:31Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Закъснение между P и S вълни нараства с разстоянието до огнището",
+            "skill": "Качествено разсъждение"
+          },
+          "explanation": "Двете вълни тръгват едновременно, но се движат с различна скорост. Колкото е по-голямо разстоянието, толкова повече бързата вълна изпреварва бавната.",
+          "difficulty": "medium"
+        }
+      ]
+    }
+  ],
+  "not_exported": []
+}
