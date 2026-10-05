@@ -1,0 +1,579 @@
+{
+  "format_version": 1,
+  "kind": "question_candidate_provenance",
+  "run": {
+    "id": "physics-g8-fluid-mechanics-run-1",
+    "started_at": "2026-10-05T07:29:16Z",
+    "finished_at": "2026-10-05T07:30:18Z",
+    "subject": "physics",
+    "grade": 8,
+    "curriculum": {
+      "education_type": "general",
+      "title": "Физика и астрономия, 8. клас — общообразователна подготовка"
+    },
+    "targets": [
+      {
+        "section": {
+          "slug": "physics-g8-mechanics",
+          "title": "Механика"
+        },
+        "topics": [
+          {
+            "slug": "physics-g8-fluid-mechanics",
+            "title": "Механика на течности и газове"
+          }
+        ]
+      }
+    ],
+    "limits": {
+      "max_topics": 1,
+      "max_pages": 15,
+      "max_candidates": 30,
+      "max_candidates_per_source": 8,
+      "max_runtime_minutes": 20
+    },
+    "pages_inspected": 11,
+    "stop_reason": "topic_complete",
+    "collector": "claude-sonnet-5-5",
+    "notes": "11 fetch attempts: 9 pages recorded as sources, OpenStax chapter 11 intro inspected but not cited, bg.wikipedia 'Скачени съдове' returned HTTP 404. Source retrieved_at values are set when the file was built, not at the exact fetch time. All candidates pending."
+  },
+  "not_stored_in_database": [
+    "candidate id",
+    "source type",
+    "source url",
+    "source title",
+    "source publisher",
+    "source retrieved_at",
+    "transformation",
+    "source_ref",
+    "research",
+    "reuse_exception",
+    "explanation",
+    "difficulty",
+    "review (reviewer, reviewed_at, notes)",
+    "run manifest"
+  ],
+  "batches": [
+    {
+      "file": "physics-g8-fluid-mechanics-run-1.fluid-mechanics.json",
+      "source": "reviewed:physics:physics-g8-fluid-mechanics-run-1.fluid-mechanics",
+      "topic_slug": "physics-g8-fluid-mechanics",
+      "questions": [
+        {
+          "number": 1,
+          "candidate_id": "physics-g8-fluid-mechanics-run-1-01",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T07:30:18Z",
+            "notes": "Re-fetched and read for topic 1.5: expected results (general properties of liquids and gases; Pascal's law and hydrostatic pressure for hydraulic machines, communicating vessels, water manometer, mercury barometer; Archimedes' law), formulas p = rho*g*h and FA = rho*V*g, lab lesson 5 on Archimedes' law. Contains no questions."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-final-review",
+            "reviewed_at": "2026-10-05T08:36:55Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "general properties of liquids and gases: own volume versus filling the container",
+            "skill": "compare properties of states"
+          },
+          "explanation": "Течностите са практически несвиваеми и имат собствен обем, затова водата заема само част от по-големия съд. Газовете нямат собствен обем и заемат целия обем на съда, в който се намират.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 2,
+          "candidate_id": "physics-g8-fluid-mechanics-run-1-02",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "bgwiki-pascal",
+            "type": "third_party",
+            "url": "https://bg.wikipedia.org/wiki/Закон_на_Паскал",
+            "title": "Закон на Паскал — Уикипедия",
+            "publisher": "Уикипедия (български)",
+            "retrieved_at": "2026-10-05T07:30:18Z",
+            "notes": "Bulgarian wording of Pascal's law and the hydraulic press/brake application; Bulgarian terminology."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-final-review",
+            "reviewed_at": "2026-10-05T08:36:55Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "hydraulic machines: Pascal's law and incompressibility of liquids",
+            "skill": "explain a technological application"
+          },
+          "explanation": "Течността почти не се свива при натиск и предава повишението на налягането, което позволява ефективно действие на хидравличните спирачки. Попадналият в системата въздух би се свил значително и би поел част от хода на педала. Газовете също предават повишение на налягането; разликата тук е в свиваемостта.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 3,
+          "candidate_id": "physics-g8-fluid-mechanics-run-1-03",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-fluid-statics-depth",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics/pages/11-4-variation-of-pressure-with-depth-in-a-fluid",
+            "title": "11.4 Variation of Pressure with Depth in a Fluid (OpenStax College Physics)",
+            "publisher": "OpenStax",
+            "retrieved_at": "2026-10-05T07:30:18Z",
+            "notes": "Pressure depends on depth and density, not on container width or shape; atmospheric pressure adds to the pressure at depth."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-final-review",
+            "reviewed_at": "2026-10-05T08:36:55Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "hydrostatic pressure depends on depth and density, not on vessel shape or amount of liquid",
+            "skill": "detect a misconception about pressure at the bottom"
+          },
+          "explanation": "Хидростатичното налягане p = ρgh зависи само от плътността на течността и от дълбочината, а не от формата на съда и не от количеството вода. Затова на еднаква дълбочина налягането е еднакво.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 4,
+          "candidate_id": "physics-g8-fluid-mechanics-run-1-04",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-fluid-statics-depth",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics/pages/11-4-variation-of-pressure-with-depth-in-a-fluid",
+            "title": "11.4 Variation of Pressure with Depth in a Fluid (OpenStax College Physics)",
+            "publisher": "OpenStax",
+            "retrieved_at": "2026-10-05T07:30:18Z",
+            "notes": "Pressure depends on depth and density, not on container width or shape; atmospheric pressure adds to the pressure at depth."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-final-review",
+            "reviewed_at": "2026-10-05T08:36:55Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "combining density and depth in p = rho*g*h: equal mass in identical cylinders",
+            "skill": "reason with two competing factors"
+          },
+          "explanation": "Масите и площите на дъната са равни, затова ρ·h е еднакво: по-ниското ниво на водата се компенсира от по-голямата ѝ плътност. Следователно p = ρgh е еднакво (теглото на течността, разпределено върху същата площ, също е еднакво).",
+          "difficulty": "medium"
+        },
+        {
+          "number": 5,
+          "candidate_id": "physics-g8-fluid-mechanics-run-1-05",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T07:30:18Z",
+            "notes": "Re-fetched and read for topic 1.5: expected results (general properties of liquids and gases; Pascal's law and hydrostatic pressure for hydraulic machines, communicating vessels, water manometer, mercury barometer; Archimedes' law), formulas p = rho*g*h and FA = rho*V*g, lab lesson 5 on Archimedes' law. Contains no questions."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-final-review",
+            "reviewed_at": "2026-10-05T08:36:55Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "communicating vessels: one liquid at rest has equal levels",
+            "skill": "explain an application"
+          },
+          "explanation": "Маркучът е система от скачени съдове. Когато течността е една и е в покой, налягането на едно и също ниво е еднакво, затова свободните ѝ повърхности са на еднаква височина. Атмосферното налягане над двата отворени края е еднакво.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 6,
+          "candidate_id": "physics-g8-fluid-mechanics-run-1-06",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T07:30:18Z",
+            "notes": "Re-fetched and read for topic 1.5: expected results (general properties of liquids and gases; Pascal's law and hydrostatic pressure for hydraulic machines, communicating vessels, water manometer, mercury barometer; Archimedes' law), formulas p = rho*g*h and FA = rho*V*g, lab lesson 5 on Archimedes' law. Contains no questions."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-final-review",
+            "reviewed_at": "2026-10-05T08:36:55Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "communicating vessels with two liquids: equal pressure at the same level, p = rho*g*h",
+            "skill": "apply hydrostatic pressure to two liquids"
+          },
+          "explanation": "На нивото на границата олио–вода налягането в двете рамена е равно: ρолио·g·hолио = ρвода·g·hвода. Затова hолио = 1000·20/800 = 25 cm. По-малко плътната течност има по-висок стълб.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 7,
+          "candidate_id": "physics-g8-fluid-mechanics-run-1-07",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-gauge-pressure",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics/pages/11-6-gauge-pressure-absolute-pressure-and-pressure-measurement",
+            "title": "11.6 Gauge Pressure, Absolute Pressure, and Pressure Measurement (OpenStax College Physics)",
+            "publisher": "OpenStax",
+            "retrieved_at": "2026-10-05T07:30:18Z",
+            "notes": "Open-tube manometer reads pressure difference as rho*g*h; mercury barometer height does not depend on tube width or angle."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-final-review",
+            "reviewed_at": "2026-10-05T08:36:55Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "water manometer: level difference gives the pressure difference rho*g*h",
+            "skill": "read a manometer"
+          },
+          "explanation": "Газът притиска водата надолу в своето рамо, значи налягането му е по-голямо от атмосферното. Разликата е ρgh = 1000·10·0,15 = 1500 Pa = 1,5 kPa.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 8,
+          "candidate_id": "physics-g8-fluid-mechanics-run-1-09",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "bgwiki-barometer",
+            "type": "third_party",
+            "url": "https://bg.wikipedia.org/wiki/Барометър",
+            "title": "Барометър — Уикипедия",
+            "publisher": "Уикипедия (български)",
+            "retrieved_at": "2026-10-05T07:30:18Z",
+            "notes": "Mercury barometer: atmospheric pressure balanced by the hydrostatic pressure of a mercury column (Torricelli); aneroid barometer."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-final-review",
+            "reviewed_at": "2026-10-05T08:36:55Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "why mercury is used in barometers: p = rho*g*h with a different liquid",
+            "skill": "calculate the height of a liquid column"
+          },
+          "explanation": "h = p/(ρg) = 100 000/(1000·10) = 10 m. Живакът е около 13,6 пъти по-плътен, затова стълбът му е толкова пъти по-нисък и барометърът е удобен.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 9,
+          "candidate_id": "physics-g8-fluid-mechanics-run-1-10",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "bgwiki-pascal",
+            "type": "third_party",
+            "url": "https://bg.wikipedia.org/wiki/Закон_на_Паскал",
+            "title": "Закон на Паскал — Уикипедия",
+            "publisher": "Уикипедия (български)",
+            "retrieved_at": "2026-10-05T07:30:18Z",
+            "notes": "Bulgarian wording of Pascal's law and the hydraulic press/brake application; Bulgarian terminology."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-final-review",
+            "reviewed_at": "2026-10-05T08:36:55Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Pascal's law: an additional pressure increment in an enclosed liquid is transmitted undiminished throughout the liquid",
+            "skill": "state the law in a situation"
+          },
+          "explanation": "Според закона на Паскал допълнителното налягане, създадено чрез буталото, се предава без изменение във всички точки и посоки в затворената течност след установяване на равновесие. Общото налягане може да е различно на различни дълбочини; еднакво е неговото увеличение.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 10,
+          "candidate_id": "physics-g8-fluid-mechanics-run-1-11",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-pascal",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics/pages/11-5-pascals-principle",
+            "title": "11.5 Pascal's Principle (OpenStax College Physics)",
+            "publisher": "OpenStax",
+            "retrieved_at": "2026-10-05T07:30:18Z",
+            "notes": "Pressure change in an enclosed fluid is transmitted undiminished; hydraulic systems; smaller output distance for a larger output force."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-final-review",
+            "reviewed_at": "2026-10-05T08:36:55Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "hydraulic machine: an equal additional pressure under pistons at the same height gives a useful force ratio equal to the area ratio",
+            "skill": "apply Pascal's law to a hydraulic machine"
+          },
+          "explanation": "Допълнителното налягане е Δp = F₁/S₁ и се предава без изменение до голямото бутало. Полезната сила, създадена от това увеличение на налягането, е F₂ = Δp·S₂ = F₁·S₂/S₁ = 30·120/4 = 900 N. Еднаквото външно атмосферно налягане не добавя полезна сила; теглата на буталата и триенето са пренебрегнати.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 11,
+          "candidate_id": "physics-g8-fluid-mechanics-run-1-12",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-pascal",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics/pages/11-5-pascals-principle",
+            "title": "11.5 Pascal's Principle (OpenStax College Physics)",
+            "publisher": "OpenStax",
+            "retrieved_at": "2026-10-05T07:30:18Z",
+            "notes": "Pressure change in an enclosed fluid is transmitted undiminished; hydraulic systems; smaller output distance for a larger output force."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-final-review",
+            "reviewed_at": "2026-10-05T08:36:55Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "hydraulic machine: equal volumes displaced under pistons of different areas",
+            "skill": "explain the trade-off in a hydraulic jack"
+          },
+          "explanation": "Течността е несвиваема: обемът, изместен под малкото бутало, е равен на обема, с който се надига голямото. При по-голяма площ е достатъчно по-малко преместване. Печалбата в сила се плаща със загуба в ход.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 12,
+          "candidate_id": "physics-g8-fluid-mechanics-run-1-13",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "sofia-archimedes-paradox",
+            "type": "third_party",
+            "url": "https://phys.uni-sofia.bg/~cpopov/Almanah-pdf/I%20chast/3%20paradoksi/04%20Arhimed%20paradoks.pdf",
+            "title": "Парадокс на Архимед, или може ли крайцер да плува в кофа вода",
+            "publisher": "Софийски университет, Физически факултет (Хр. Попов, алманах)",
+            "retrieved_at": "2026-10-05T07:30:18Z",
+            "notes": "Wording of Archimedes' law (изтласкваща сила = теглото на изместената течност); the force does not depend on how much liquid surrounds the body. The paradox itself is beyond Grade 8 and is not used."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-final-review",
+            "reviewed_at": "2026-10-05T08:36:55Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Archimedes' law: FA = rho*V*g depends on liquid density and displaced volume",
+            "skill": "identify the quantities in the law"
+          },
+          "explanation": "Според закона на Архимед изтласкващата сила е равна на теглото на изместената течност: FA = ρVg. При пълно потапяне V е обемът на тялото. Силата не зависи от дълбочината, докато плътността на течността и изместеният обем остават непроменени.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 13,
+          "candidate_id": "physics-g8-fluid-mechanics-run-1-14",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "sofia-archimedes-pascal",
+            "type": "third_party",
+            "url": "https://phys.uni-sofia.bg/~cpopov/Almanah-pdf/I%20chast/2%20zadachi-eseta/59%20Arhimed%20i%20Paskal.pdf",
+            "title": "Отново Архимед, но и Паскал",
+            "publisher": "Софийски университет, Физически факултет (Хр. Попов, алманах)",
+            "retrieved_at": "2026-10-05T07:30:18Z",
+            "notes": "Floating bodies, depth of immersion (газене), buoyant force as the sum of fluid pressure differences. Its own problems (oak plank in water and alcohol; ships without atmosphere) are NOT used; only terminology and the floating-body idea."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-final-review",
+            "reviewed_at": "2026-10-05T08:36:55Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "buoyant force depends on volume, not mass; equal masses give different volumes",
+            "skill": "reason about buoyancy of equal masses"
+          },
+          "explanation": "При равни маси по-малко плътният алуминий има по-голям обем (V = m/ρ). Изтласкващата сила FA = ρводаVg расте с обема, затова е по-голяма върху алуминиевата топка.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 14,
+          "candidate_id": "physics-g8-fluid-mechanics-run-1-15",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T07:30:18Z",
+            "notes": "Re-fetched and read for topic 1.5: expected results (general properties of liquids and gases; Pascal's law and hydrostatic pressure for hydraulic machines, communicating vessels, water manometer, mercury barometer; Archimedes' law), formulas p = rho*g*h and FA = rho*V*g, lab lesson 5 on Archimedes' law. Contains no questions."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-final-review",
+            "reviewed_at": "2026-10-05T08:36:55Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "lab lesson on Archimedes' law: buoyant force from dynamometer readings, then volume",
+            "skill": "combine measurement and FA = rho*V*g"
+          },
+          "explanation": "Изтласкващата сила е разликата в показанията: FA = 5,0 − 3,8 = 1,2 N. От FA = ρVg: V = 1,2/(1000·10) = 1,2·10⁻⁴ m³ = 120 cm³.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 15,
+          "candidate_id": "physics-g8-fluid-mechanics-run-1-16",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "bgwiki-archimedes",
+            "type": "third_party",
+            "url": "https://bg.wikipedia.org/wiki/Закон_на_Архимед",
+            "title": "Закон на Архимед — Уикипедия",
+            "publisher": "Уикипедия (български)",
+            "retrieved_at": "2026-10-05T07:30:18Z",
+            "notes": "Bulgarian wording of Archimedes' law, F = rho*g*V, floating/sinking comparison with weight, extension to gases (balloons)."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-final-review",
+            "reviewed_at": "2026-10-05T08:36:55Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "floating body: buoyant force equals weight, so the submerged fraction equals the density ratio",
+            "skill": "apply Archimedes' law to a floating body"
+          },
+          "explanation": "При плаване изтласкващата сила е равна на силата на тежестта: ρвода·(3/4 V)·g = ρдърво·V·g. Следователно ρдърво = 3/4·1000 = 750 kg/m³.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 16,
+          "candidate_id": "physics-g8-fluid-mechanics-run-1-17",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "sofia-archimedes-pascal",
+            "type": "third_party",
+            "url": "https://phys.uni-sofia.bg/~cpopov/Almanah-pdf/I%20chast/2%20zadachi-eseta/59%20Arhimed%20i%20Paskal.pdf",
+            "title": "Отново Архимед, но и Паскал",
+            "publisher": "Софийски университет, Физически факултет (Хр. Попов, алманах)",
+            "retrieved_at": "2026-10-05T07:30:18Z",
+            "notes": "Floating bodies, depth of immersion (газене), buoyant force as the sum of fluid pressure differences. Its own problems (oak plank in water and alcohol; ships without atmosphere) are NOT used; only terminology and the floating-body idea."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-final-review",
+            "reviewed_at": "2026-10-05T08:36:55Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "floating body: constant buoyant force, immersed volume depends on liquid density",
+            "skill": "predict a change in immersion"
+          },
+          "explanation": "В двете установени състояния на плаване изтласкващата сила е равна на силата на тежестта на кораба с товара. Общата маса е непроменена, затова и тези сили не се променят. В по-плътната морска вода същата изтласкваща сила се получава при по-малък изместен обем, затова газенето намалява.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 17,
+          "candidate_id": "physics-g8-fluid-mechanics-run-1-18",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "bgwiki-archimedes",
+            "type": "third_party",
+            "url": "https://bg.wikipedia.org/wiki/Закон_на_Архимед",
+            "title": "Закон на Архимед — Уикипедия",
+            "publisher": "Уикипедия (български)",
+            "retrieved_at": "2026-10-05T07:30:18Z",
+            "notes": "Bulgarian wording of Archimedes' law, F = rho*g*V, floating/sinking comparison with weight, extension to gases (balloons)."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-final-review",
+            "reviewed_at": "2026-10-05T08:36:55Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Archimedes' law applies to gases: buoyancy in air",
+            "skill": "apply buoyancy in a gas"
+          },
+          "explanation": "Изтласкващата сила е равна на теглото на изместения въздух. За да започне системата да се ускорява нагоре, тази сила трябва да надвишава силата на тежестта на хелия, обвивката и прикрепения товар, взети заедно. При пренебрежимо въздушно съпротивление резултантната сила тогава е насочена нагоре.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 18,
+          "candidate_id": "physics-g8-fluid-mechanics-run-1-20",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T07:30:18Z",
+            "notes": "Re-fetched and read for topic 1.5: expected results (general properties of liquids and gases; Pascal's law and hydrostatic pressure for hydraulic machines, communicating vessels, water manometer, mercury barometer; Archimedes' law), formulas p = rho*g*h and FA = rho*V*g, lab lesson 5 on Archimedes' law. Contains no questions."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-final-review",
+            "reviewed_at": "2026-10-05T08:36:55Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "hydrostatic pressure p = rho*g*h plus atmospheric pressure at depth",
+            "skill": "calculate total pressure at depth"
+          },
+          "explanation": "Налягането на водата на 20 m е ρgh = 1000·10·20 = 200 000 Pa = 200 kPa. Върху повърхността на водата действа и атмосферното налягане, затова общото е 100 + 200 = 300 kPa.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 19,
+          "candidate_id": "physics-g8-fluid-mechanics-run-1-21",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T07:30:18Z",
+            "notes": "Re-fetched and read for topic 1.5: expected results (general properties of liquids and gases; Pascal's law and hydrostatic pressure for hydraulic machines, communicating vessels, water manometer, mercury barometer; Archimedes' law), formulas p = rho*g*h and FA = rho*V*g, lab lesson 5 on Archimedes' law. Contains no questions."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-final-review",
+            "reviewed_at": "2026-10-05T08:36:55Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "hydrostatic pressure acts equally in all directions at a given depth",
+            "skill": "detect a misconception (pressure only downward)"
+          },
+          "explanation": "В дадена точка на течност в покой налягането е еднакво във всички посоки. Центърът на датчика остава на същата дълбочина, а изменението на налягането по малката му повърхност е пренебрегнато, затова завъртането не променя показанието.",
+          "difficulty": "easy"
+        }
+      ]
+    }
+  ],
+  "not_exported": []
+}

@@ -1,0 +1,718 @@
+{
+  "format_version": 1,
+  "kind": "question_candidate_provenance",
+  "run": {
+    "id": "physics-g8-non-uniform-motion-pilot-1",
+    "started_at": "2026-10-05T06:17:00Z",
+    "finished_at": "2026-10-05T06:24:10Z",
+    "subject": "physics",
+    "grade": 8,
+    "curriculum": {
+      "education_type": "general",
+      "title": "Физика и астрономия, 8. клас — общообразователна подготовка"
+    },
+    "targets": [
+      {
+        "section": {
+          "slug": "physics-g8-mechanics",
+          "title": "Механика"
+        },
+        "topics": [
+          {
+            "slug": "physics-g8-non-uniform-motion",
+            "title": "Неравномерно движение"
+          }
+        ]
+      }
+    ],
+    "limits": {
+      "max_topics": 1,
+      "max_pages": 15,
+      "max_candidates": 30,
+      "max_candidates_per_source": 8,
+      "max_runtime_minutes": 20
+    },
+    "pages_inspected": 7,
+    "stop_reason": "topic_complete",
+    "collector": "claude-sonnet-5-5"
+  },
+  "not_stored_in_database": [
+    "candidate id",
+    "source type",
+    "source url",
+    "source title",
+    "source publisher",
+    "source retrieved_at",
+    "transformation",
+    "source_ref",
+    "research",
+    "reuse_exception",
+    "explanation",
+    "difficulty",
+    "review (reviewer, reviewed_at, notes)",
+    "run manifest"
+  ],
+  "batches": [
+    {
+      "file": "physics-g8-non-uniform-motion-pilot-1.non-uniform-motion.json",
+      "source": "reviewed:physics:physics-g8-non-uniform-motion-pilot-1.non-uniform-motion",
+      "topic_slug": "physics-g8-non-uniform-motion",
+      "questions": [
+        {
+          "number": 1,
+          "candidate_id": "physics-g8-non-uniform-motion-pilot-1-001",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T06:01:10Z",
+            "notes": "Fetched earlier, in the curriculum-structure task (docs/reviews/physics_g8_curriculum_structure_review.md). Used for the scope of topic 1.1 and its expected results. The programme contains no assessment questions: every candidate from this source is newly written."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "source_ref": {
+            "document_title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "page": 3
+          },
+          "research": {
+            "concept": "Относителен характер на движението; отправно тяло",
+            "skill": "Разпознава в покой и в движение спрямо различни отправни тела"
+          },
+          "explanation": "Пътникът не променя положението си спрямо седалката, но го променя спрямо гарата, перона, дърветата и насрещния влак.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 2,
+          "candidate_id": "physics-g8-non-uniform-motion-pilot-1-002",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T06:01:10Z",
+            "notes": "Fetched earlier, in the curriculum-structure task (docs/reviews/physics_g8_curriculum_structure_review.md). Used for the scope of topic 1.1 and its expected results. The programme contains no assessment questions: every candidate from this source is newly written."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "source_ref": {
+            "document_title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "page": 3
+          },
+          "research": {
+            "concept": "Относителен характер на движението",
+            "skill": "Формулира смисъла на относителността на движението"
+          },
+          "explanation": "Едно и също тяло може да е в покой спрямо едно отправно тяло и да се движи спрямо друго, с различна скорост.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 3,
+          "candidate_id": "physics-g8-non-uniform-motion-pilot-1-003",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T06:01:10Z",
+            "notes": "Fetched earlier, in the curriculum-structure task (docs/reviews/physics_g8_curriculum_structure_review.md). Used for the scope of topic 1.1 and its expected results. The programme contains no assessment questions: every candidate from this source is newly written."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "source_ref": {
+            "document_title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "page": 3
+          },
+          "research": {
+            "concept": "Относителен характер на движението; отправно тяло",
+            "skill": "Прилага относителността на движението към житейска ситуация"
+          },
+          "explanation": "Двете коли не променят разстоянието помежду си, затова спрямо колата А колата Б е в покой.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 4,
+          "candidate_id": "physics-g8-non-uniform-motion-pilot-1-004",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "domashno-bulvest-speed-acceleration",
+            "type": "third_party",
+            "url": "https://domashno.bg/fizika/8/bulvest-2023/skorost-i-uskorenie",
+            "title": "Скорост и ускорение",
+            "publisher": "domashno.bg (Булвест 2023, 8. клас)",
+            "retrieved_at": "2026-10-05T06:19:26Z",
+            "notes": "Commercial educational portal, secondary source. It also contains content beyond the programme (limits, normal acceleration), which is not used."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Моментна скорост и средна скорост",
+            "skill": "Различава моментна от средна скорост"
+          },
+          "explanation": "Скоростомерът показва скоростта в конкретния момент – моментната скорост.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 5,
+          "candidate_id": "physics-g8-non-uniform-motion-pilot-1-005",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T06:01:10Z",
+            "notes": "Fetched earlier, in the curriculum-structure task (docs/reviews/physics_g8_curriculum_structure_review.md). Used for the scope of topic 1.1 and its expected results. The programme contains no assessment questions: every candidate from this source is newly written."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "source_ref": {
+            "document_title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "page": 3
+          },
+          "research": {
+            "concept": "Средна скорост v = Δs/Δt",
+            "skill": "Пресмята средна скорост"
+          },
+          "explanation": "v = Δs/Δt = 18 km : 1,5 h = 12 km/h.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 6,
+          "candidate_id": "physics-g8-non-uniform-motion-pilot-1-006",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "sofia-physics-average-speed",
+            "type": "third_party",
+            "url": "https://www.phys.uni-sofia.bg/~cpopov/Almanah-pdf/I%20chast/1%20metodika/10%20sredna%20skorost.pdf",
+            "title": "Една задача, която би могла да спомогне за развиване способност за интуитивна оценка на средната скорост",
+            "publisher": "Физически факултет, Софийски университет „Св. Климент Охридски“ (Алманах, част I)",
+            "retrieved_at": "2026-10-05T06:18:40Z",
+            "notes": "Advanced teacher material. Used for the concept that average speed is weighted by time, not a mean of speeds."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Средната скорост се определя от целия път и цялото време, а не като средно аритметично на скоростите",
+            "skill": "Пресмята средна скорост при два участъка с равни пътища"
+          },
+          "explanation": "Ако цялото разстояние е 120 km, двете половини отнемат 60 : 30 = 2 h и 60 : 60 = 1 h. Средната скорост е 120 km : 3 h = 40 km/h, а не средното аритметично 45 km/h.",
+          "difficulty": "hard"
+        },
+        {
+          "number": 7,
+          "candidate_id": "physics-g8-non-uniform-motion-pilot-1-007",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "sofia-physics-average-speed",
+            "type": "third_party",
+            "url": "https://www.phys.uni-sofia.bg/~cpopov/Almanah-pdf/I%20chast/1%20metodika/10%20sredna%20skorost.pdf",
+            "title": "Една задача, която би могла да спомогне за развиване способност за интуитивна оценка на средната скорост",
+            "publisher": "Физически факултет, Софийски университет „Св. Климент Охридски“ (Алманах, част I)",
+            "retrieved_at": "2026-10-05T06:18:40Z",
+            "notes": "Advanced teacher material. Used for the concept that average speed is weighted by time, not a mean of speeds."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Средната скорост е най-близка до скоростта, с която тялото се движи по-дълго време",
+            "skill": "Оценява и пресмята средна скорост при участъци с различно време"
+          },
+          "explanation": "Целият път е 90 km/h · 2 h + 40 km/h · 0,5 h = 200 km, а цялото време е 2,5 h. Средната скорост е 200 km : 2,5 h = 80 km/h. Тя е по-близо до 90 km/h, защото автомобилът се движи по-дълго с тази скорост; средното аритметично 65 km/h е грешно.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 8,
+          "candidate_id": "physics-g8-non-uniform-motion-pilot-1-008",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "domashno-bulvest-speed-acceleration",
+            "type": "third_party",
+            "url": "https://domashno.bg/fizika/8/bulvest-2023/skorost-i-uskorenie",
+            "title": "Скорост и ускорение",
+            "publisher": "domashno.bg (Булвест 2023, 8. клас)",
+            "retrieved_at": "2026-10-05T06:19:26Z",
+            "notes": "Commercial educational portal, secondary source. It also contains content beyond the programme (limits, normal acceleration), which is not used."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Разлика между средна и моментна скорост при неравномерно движение",
+            "skill": "Тълкува средна и моментна скорост в една ситуация"
+          },
+          "explanation": "Средната скорост е 210 km : 3 h = 70 km/h. Показанието на скоростомера е моментната скорост в един конкретен момент и може да се различава от средната.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 9,
+          "candidate_id": "physics-g8-non-uniform-motion-pilot-1-009",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "domashno-bulvest-free-fall",
+            "type": "third_party",
+            "url": "https://domashno.bg/fizika/8/bulvest-2023/svobodno-padane",
+            "title": "Свободно падане",
+            "publisher": "domashno.bg (Булвест 2023, 8. клас)",
+            "retrieved_at": "2026-10-05T06:19:34Z",
+            "notes": "Commercial educational portal, secondary source; g ≈ 10 m/s² school convention and air-resistance explanation cross-checked against OpenStax."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Земно ускорение g",
+            "skill": "Назовава земното ускорение"
+          },
+          "explanation": "Ускорението при свободно падане се нарича земно ускорение и се означава с g.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 10,
+          "candidate_id": "physics-g8-non-uniform-motion-pilot-1-010",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T06:01:10Z",
+            "notes": "Fetched earlier, in the curriculum-structure task (docs/reviews/physics_g8_curriculum_structure_review.md). Used for the scope of topic 1.1 and its expected results. The programme contains no assessment questions: every candidate from this source is newly written."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "source_ref": {
+            "document_title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "page": 3
+          },
+          "research": {
+            "concept": "Ускорение a = Δv/Δt",
+            "skill": "Пресмята ускорение"
+          },
+          "explanation": "a = Δv/Δt = (20 m/s − 0) : 5 s = 4 m/s².",
+          "difficulty": "easy"
+        },
+        {
+          "number": 11,
+          "candidate_id": "physics-g8-non-uniform-motion-pilot-1-011",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "domashno-bulvest-speed-acceleration",
+            "type": "third_party",
+            "url": "https://domashno.bg/fizika/8/bulvest-2023/skorost-i-uskorenie",
+            "title": "Скорост и ускорение",
+            "publisher": "domashno.bg (Булвест 2023, 8. клас)",
+            "retrieved_at": "2026-10-05T06:19:26Z",
+            "notes": "Commercial educational portal, secondary source. It also contains content beyond the programme (limits, normal acceleration), which is not used."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Ускорение a = Δv/Δt; превръщане на мерни единици",
+            "skill": "Пресмята ускорение след превръщане на единици"
+          },
+          "explanation": "72 km/h = 20 m/s, 36 km/h = 10 m/s. |a| = |Δv|/Δt = 10 m/s : 5 s = 2 m/s².",
+          "difficulty": "medium"
+        },
+        {
+          "number": 12,
+          "candidate_id": "physics-g8-non-uniform-motion-pilot-1-012",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T06:01:10Z",
+            "notes": "Fetched earlier, in the curriculum-structure task (docs/reviews/physics_g8_curriculum_structure_review.md). Used for the scope of topic 1.1 and its expected results. The programme contains no assessment questions: every candidate from this source is newly written."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "source_ref": {
+            "document_title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "page": 3
+          },
+          "research": {
+            "concept": "Праволинейни равнопроменливи движения",
+            "skill": "Разпознава равнозакъснително движение"
+          },
+          "explanation": "Скоростта намалява с еднаква стойност за равни интервали от време – праволинейно равнозакъснително движение.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 13,
+          "candidate_id": "physics-g8-non-uniform-motion-pilot-1-013",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "domashno-bulvest-speed-acceleration",
+            "type": "third_party",
+            "url": "https://domashno.bg/fizika/8/bulvest-2023/skorost-i-uskorenie",
+            "title": "Скорост и ускорение",
+            "publisher": "domashno.bg (Булвест 2023, 8. клас)",
+            "retrieved_at": "2026-10-05T06:19:26Z",
+            "notes": "Commercial educational portal, secondary source. It also contains content beyond the programme (limits, normal acceleration), which is not used."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Смисъл на ускорението и неговата мерна единица",
+            "skill": "Тълкува числова стойност на ускорение"
+          },
+          "explanation": "Ускорението показва с колко се променя скоростта за единица време; m/s² означава „m/s за всяка секунда“.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 14,
+          "candidate_id": "physics-g8-non-uniform-motion-pilot-1-015",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "domashno-prosveta-uniform-variable-motion",
+            "type": "third_party",
+            "url": "https://domashno.bg/fizika/8/prosveta-2023/ravnopromenlivi-dvizheniya-reshavane-na-zadachi",
+            "title": "Равнопроменливи движения (решаване на задачи)",
+            "publisher": "domashno.bg (Просвета 2023, 8. клас)",
+            "retrieved_at": "2026-10-05T06:19:30Z",
+            "notes": "Commercial educational portal, secondary source; formulas cross-checked against the МОН programme."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Закон за пътя s = v₀t + at²/2",
+            "skill": "Прилага закона за пътя без начална скорост"
+          },
+          "explanation": "s = at²/2 = 1 m/s² · (6 s)² : 2 = 18 m.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 15,
+          "candidate_id": "physics-g8-non-uniform-motion-pilot-1-016",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "domashno-prosveta-uniform-variable-motion",
+            "type": "third_party",
+            "url": "https://domashno.bg/fizika/8/prosveta-2023/ravnopromenlivi-dvizheniya-reshavane-na-zadachi",
+            "title": "Равнопроменливи движения (решаване на задачи)",
+            "publisher": "domashno.bg (Просвета 2023, 8. клас)",
+            "retrieved_at": "2026-10-05T06:19:30Z",
+            "notes": "Commercial educational portal, secondary source; formulas cross-checked against the МОН programme."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Закон за скоростта v = v₀ + at",
+            "skill": "Прилага закона за скоростта с начална скорост"
+          },
+          "explanation": "v = v₀ + at = 10 m/s + 2 m/s² · 5 s = 20 m/s.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 16,
+          "candidate_id": "physics-g8-non-uniform-motion-pilot-1-017",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "domashno-prosveta-uniform-variable-motion",
+            "type": "third_party",
+            "url": "https://domashno.bg/fizika/8/prosveta-2023/ravnopromenlivi-dvizheniya-reshavane-na-zadachi",
+            "title": "Равнопроменливи движения (решаване на задачи)",
+            "publisher": "domashno.bg (Просвета 2023, 8. клас)",
+            "retrieved_at": "2026-10-05T06:19:30Z",
+            "notes": "Commercial educational portal, secondary source; formulas cross-checked against the МОН programme."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Спирачен път при равнозакъснително движение (транспорт)",
+            "skill": "Пресмята спирачен път"
+          },
+          "explanation": "Времето до спиране е t = v₀/a = 4 s. s = v₀t − at²/2 = 20·4 − 5·16/2 = 80 − 40 = 40 m.",
+          "difficulty": "hard"
+        },
+        {
+          "number": 17,
+          "candidate_id": "physics-g8-non-uniform-motion-pilot-1-018",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-constant-acceleration",
+            "type": "third_party",
+            "url": "https://openstax.org/books/university-physics-volume-1/pages/3-4-motion-with-constant-acceleration",
+            "title": "3.4 Motion with Constant Acceleration – University Physics Volume 1",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T06:20:07Z",
+            "notes": "Reputable open textbook; used to verify the physics of stopping distance."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Спирачният път расте по-бързо от началната скорост (безопасност на движението)",
+            "skill": "Разсъждава за зависимостта на спирачния път от скоростта"
+          },
+          "explanation": "При начална скорост v₀ времето за спиране е t = v₀/a, а пътят s = v₀t − at²/2 = v₀²/(2a). При 2v₀ пътят е (2v₀)²/(2a) = 4 пъти по-голям. Затова при по-висока скорост е нужна много по-голяма дистанция.",
+          "difficulty": "hard"
+        },
+        {
+          "number": 18,
+          "candidate_id": "physics-g8-non-uniform-motion-pilot-1-019",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "domashno-bulvest-free-fall",
+            "type": "third_party",
+            "url": "https://domashno.bg/fizika/8/bulvest-2023/svobodno-padane",
+            "title": "Свободно падане",
+            "publisher": "domashno.bg (Булвест 2023, 8. клас)",
+            "retrieved_at": "2026-10-05T06:19:34Z",
+            "notes": "Commercial educational portal, secondary source; g ≈ 10 m/s² school convention and air-resistance explanation cross-checked against OpenStax."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Свободно падане: v = gt",
+            "skill": "Прилага закона за скоростта при свободно падане"
+          },
+          "explanation": "v = gt = 10 m/s² · 3 s = 30 m/s.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 19,
+          "candidate_id": "physics-g8-non-uniform-motion-pilot-1-020",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "domashno-bulvest-free-fall",
+            "type": "third_party",
+            "url": "https://domashno.bg/fizika/8/bulvest-2023/svobodno-padane",
+            "title": "Свободно падане",
+            "publisher": "domashno.bg (Булвест 2023, 8. клас)",
+            "retrieved_at": "2026-10-05T06:19:34Z",
+            "notes": "Commercial educational portal, secondary source; g ≈ 10 m/s² school convention and air-resistance explanation cross-checked against OpenStax."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Свободно падане: s = gt²/2",
+            "skill": "Намира времето на падане от височината"
+          },
+          "explanation": "h = gt²/2, затова t² = 2h/g = 2·80 : 10 = 16 s², t = 4 s.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 20,
+          "candidate_id": "physics-g8-non-uniform-motion-pilot-1-021",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "domashno-bulvest-free-fall",
+            "type": "third_party",
+            "url": "https://domashno.bg/fizika/8/bulvest-2023/svobodno-padane",
+            "title": "Свободно падане",
+            "publisher": "domashno.bg (Булвест 2023, 8. клас)",
+            "retrieved_at": "2026-10-05T06:19:34Z",
+            "notes": "Commercial educational portal, secondary source; g ≈ 10 m/s² school convention and air-resistance explanation cross-checked against OpenStax."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Свободно падане във вакуум; влияние на съпротивлението на въздуха",
+            "skill": "Разпознава условията на свободно падане"
+          },
+          "explanation": "Без въздух няма съпротивление на въздуха и всички тела падат със земното ускорение, независимо от масата си.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 21,
+          "candidate_id": "physics-g8-non-uniform-motion-pilot-1-022",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T06:01:10Z",
+            "notes": "Fetched earlier, in the curriculum-structure task (docs/reviews/physics_g8_curriculum_structure_review.md). Used for the scope of topic 1.1 and its expected results. The programme contains no assessment questions: every candidate from this source is newly written."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "source_ref": {
+            "document_title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "page": 3
+          },
+          "research": {
+            "concept": "Разчитане на графиката на закона за скоростта",
+            "skill": "Разчита ускорение от графика на скоростта"
+          },
+          "explanation": "От графиката: Δv = 20 − 5 = 15 m/s за Δt = 5 s, затова a = 15 m/s : 5 s = 3 m/s².",
+          "difficulty": "medium"
+        },
+        {
+          "number": 22,
+          "candidate_id": "physics-g8-non-uniform-motion-pilot-1-023",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T06:01:10Z",
+            "notes": "Fetched earlier, in the curriculum-structure task (docs/reviews/physics_g8_curriculum_structure_review.md). Used for the scope of topic 1.1 and its expected results. The programme contains no assessment questions: every candidate from this source is newly written."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "source_ref": {
+            "document_title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "page": 3
+          },
+          "research": {
+            "concept": "Разчитане на графиката на закона за скоростта",
+            "skill": "Разпознава вида движение по графика на скоростта"
+          },
+          "explanation": "Хоризонтална графика означава, че скоростта не се променя – ускорението е нула и движението е равномерно.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 23,
+          "candidate_id": "physics-g8-non-uniform-motion-pilot-1-024",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "sofia-physics-acceleration-graph",
+            "type": "third_party",
+            "url": "https://phys.uni-sofia.bg/~cpopov/Almanah-pdf/I%20chast/2%20zadachi-eseta/03%20uskorenie-pat.pdf",
+            "title": "Силата на графичния метод",
+            "publisher": "Физически факултет, Софийски университет „Св. Климент Охридски“ (Алманах, част I)",
+            "retrieved_at": "2026-10-05T06:18:44Z",
+            "notes": "Advanced teacher material. Used only for reading acceleration from a velocity graph; its area-under-graph method is stated there to be outside the Grade 8 programme and is not used."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Разчитане на графиката на закона за скоростта; наклонът показва промяната на скоростта за единица време",
+            "skill": "Тълкува графика на скоростта"
+          },
+          "explanation": "Скоростта намалява от 20 m/s до 0 за 8 s, затова движението е равнозакъснително. Големината на ускорението е 20 m/s : 8 s = 2,5 m/s²; 0,4 се получава при грешното деление 8 : 20.",
+          "difficulty": "medium"
+        }
+      ]
+    }
+  ],
+  "not_exported": []
+}

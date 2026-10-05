@@ -1,0 +1,369 @@
+{
+  "format_version": 1,
+  "subject": "physics",
+  "grade": 8,
+  "source": "reviewed:physics:physics-g8-non-uniform-motion-pilot-1.non-uniform-motion",
+  "curriculum": {
+    "subject": "physics",
+    "grade": 8,
+    "education_type": "general",
+    "title": "Физика и астрономия, 8. клас — общообразователна подготовка"
+  },
+  "section": {
+    "slug": "physics-g8-mechanics",
+    "title": "Механика",
+    "grade": 8
+  },
+  "topic": {
+    "slug": "physics-g8-non-uniform-motion",
+    "title": "Неравномерно движение",
+    "grade": 8
+  },
+  "questions": [
+    {
+      "number": 1,
+      "subject": "physics",
+      "grade": 8,
+      "topic_slug": "physics-g8-non-uniform-motion",
+      "type": "multiple_choice",
+      "prompt": "Пътник седи на седалка във влак, който се движи спрямо гарата. Спрямо кое от изброените тела пътникът е в покой?",
+      "options": {
+        "A": "Спрямо перона на гарата",
+        "B": "Спрямо дърветата край релсите",
+        "C": "Спрямо седалката, на която седи",
+        "D": "Спрямо влака, който се движи насреща"
+      },
+      "correct": "C"
+    },
+    {
+      "number": 2,
+      "subject": "physics",
+      "grade": 8,
+      "topic_slug": "physics-g8-non-uniform-motion",
+      "type": "multiple_choice",
+      "prompt": "Какво означава, че движението има относителен характер?",
+      "options": {
+        "A": "Скоростта на тялото е една и съща спрямо всички отправни тела",
+        "B": "Видът на движението и скоростта на тялото зависят от избраното отправно тяло",
+        "C": "Тялото се движи с различна скорост във всеки момент от времето",
+        "D": "Само неравномерното движение може да се описва спрямо отправно тяло"
+      },
+      "correct": "B"
+    },
+    {
+      "number": 3,
+      "subject": "physics",
+      "grade": 8,
+      "topic_slug": "physics-g8-non-uniform-motion",
+      "type": "multiple_choice",
+      "prompt": "По права магистрала две коли, А и Б, се движат в една и съща посока с еднаква скорост спрямо пътя. Как изглежда движението на колата Б за пътник в колата А?",
+      "options": {
+        "A": "Колата Б се отдалечава от пътника със скорост, равна на сумата от двете скорости",
+        "B": "Колата Б се приближава към пътника с постоянно ускорение",
+        "C": "Колата Б се движи със същата скорост спрямо пътника, както спрямо пътя",
+        "D": "Колата Б е в покой спрямо пътника"
+      },
+      "correct": "D"
+    },
+    {
+      "number": 4,
+      "subject": "physics",
+      "grade": 8,
+      "topic_slug": "physics-g8-non-uniform-motion",
+      "type": "multiple_choice",
+      "prompt": "Какво показва скоростомерът на движещ се автомобил?",
+      "options": {
+        "A": "Моментната скорост на автомобила в дадения момент",
+        "B": "Средната скорост на автомобила за цялото пътуване",
+        "C": "Пътя, изминат от автомобила за последния час",
+        "D": "Ускорението на автомобила в дадения момент"
+      },
+      "correct": "A"
+    },
+    {
+      "number": 5,
+      "subject": "physics",
+      "grade": 8,
+      "topic_slug": "physics-g8-non-uniform-motion",
+      "type": "multiple_choice",
+      "prompt": "Колоездач изминава 18 km за 1,5 h. Колко е средната му скорост?",
+      "options": {
+        "A": "27 km/h",
+        "B": "12 km/h",
+        "C": "16,5 km/h",
+        "D": "9 km/h"
+      },
+      "correct": "B"
+    },
+    {
+      "number": 6,
+      "subject": "physics",
+      "grade": 8,
+      "topic_slug": "physics-g8-non-uniform-motion",
+      "type": "multiple_choice",
+      "prompt": "Влак изминава първата половина от разстоянието между две гари със скорост 30 km/h, а втората половина – със скорост 60 km/h. Колко е средната скорост на влака за цялото разстояние?",
+      "options": {
+        "A": "45 km/h",
+        "B": "90 km/h",
+        "C": "40 km/h",
+        "D": "35 km/h"
+      },
+      "correct": "C"
+    },
+    {
+      "number": 7,
+      "subject": "physics",
+      "grade": 8,
+      "topic_slug": "physics-g8-non-uniform-motion",
+      "type": "multiple_choice",
+      "prompt": "Автомобил се движи 2 h със скорост 90 km/h, след което 30 min със скорост 40 km/h. Колко е средната му скорост за цялото движение?",
+      "options": {
+        "A": "65 km/h",
+        "B": "72 km/h",
+        "C": "100 km/h",
+        "D": "80 km/h"
+      },
+      "correct": "D"
+    },
+    {
+      "number": 8,
+      "subject": "physics",
+      "grade": 8,
+      "topic_slug": "physics-g8-non-uniform-motion",
+      "type": "multiple_choice",
+      "prompt": "Автобус изминава 210 km за 3 h. В един момент от пътуването скоростомерът му показва 90 km/h. Кое твърдение е вярно?",
+      "options": {
+        "A": "Средната скорост е 70 km/h, а 90 km/h е моментната скорост в онзи момент",
+        "B": "Средната скорост на автобуса е 90 km/h, защото това показва скоростомерът",
+        "C": "Автобусът се е движел със 70 km/h във всеки момент от пътуването",
+        "D": "Моментната скорост на автобуса е била 70 km/h, а средната – 90 km/h"
+      },
+      "correct": "A"
+    },
+    {
+      "number": 9,
+      "subject": "physics",
+      "grade": 8,
+      "topic_slug": "physics-g8-non-uniform-motion",
+      "type": "multiple_choice",
+      "prompt": "Как се нарича ускорението, с което всички тела падат свободно, когато съпротивлението на въздуха се пренебрегва?",
+      "options": {
+        "A": "Средно ускорение",
+        "B": "Земно ускорение",
+        "C": "Моментно ускорение",
+        "D": "Равномерно ускорение"
+      },
+      "correct": "B"
+    },
+    {
+      "number": 10,
+      "subject": "physics",
+      "grade": 8,
+      "topic_slug": "physics-g8-non-uniform-motion",
+      "type": "multiple_choice",
+      "prompt": "Автомобил увеличава скоростта си от 0 до 20 m/s за 5 s с постоянно ускорение. Колко е ускорението му?",
+      "options": {
+        "A": "100 m/s²",
+        "B": "0,25 m/s²",
+        "C": "4 m/s²",
+        "D": "15 m/s²"
+      },
+      "correct": "C"
+    },
+    {
+      "number": 11,
+      "subject": "physics",
+      "grade": 8,
+      "topic_slug": "physics-g8-non-uniform-motion",
+      "type": "multiple_choice",
+      "prompt": "Влак намалява скоростта си от 72 km/h до 36 km/h за 5 s. Колко е големината на ускорението му?",
+      "options": {
+        "A": "2 m/s²",
+        "B": "7,2 m/s²",
+        "C": "10 m/s²",
+        "D": "0,5 m/s²"
+      },
+      "correct": "A"
+    },
+    {
+      "number": 12,
+      "subject": "physics",
+      "grade": 8,
+      "topic_slug": "physics-g8-non-uniform-motion",
+      "type": "multiple_choice",
+      "prompt": "Скоростта на тяло, което се движи праволинейно, намалява с по 3 m/s за всяка секунда. Как се нарича такова движение?",
+      "options": {
+        "A": "Равномерно",
+        "B": "Равноускорително",
+        "C": "Свободно падане",
+        "D": "Равнозакъснително"
+      },
+      "correct": "D"
+    },
+    {
+      "number": 13,
+      "subject": "physics",
+      "grade": 8,
+      "topic_slug": "physics-g8-non-uniform-motion",
+      "type": "multiple_choice",
+      "prompt": "Тяло се движи праволинейно с ускорение 2 m/s². Кое твърдение е вярно?",
+      "options": {
+        "A": "Скоростта на тялото се удвоява за всяка секунда",
+        "B": "Скоростта на тялото се променя с 2 m/s за всяка секунда",
+        "C": "Тялото изминава по 2 m за всяка секунда",
+        "D": "Тялото се движи равномерно със скорост 2 m/s"
+      },
+      "correct": "B"
+    },
+    {
+      "number": 14,
+      "subject": "physics",
+      "grade": 8,
+      "topic_slug": "physics-g8-non-uniform-motion",
+      "type": "multiple_choice",
+      "prompt": "Колоездач тръгва от покой и се движи праволинейно с постоянно ускорение 1 m/s². Колко метра изминава за първите 6 s?",
+      "options": {
+        "A": "18 m",
+        "B": "6 m",
+        "C": "36 m",
+        "D": "12 m"
+      },
+      "correct": "A"
+    },
+    {
+      "number": 15,
+      "subject": "physics",
+      "grade": 8,
+      "topic_slug": "physics-g8-non-uniform-motion",
+      "type": "multiple_choice",
+      "prompt": "Мотоциклетист се движи праволинейно със скорост 10 m/s и започва да ускорява с постоянно ускорение 2 m/s². Колко е скоростта му 5 s след началото на ускоряването?",
+      "options": {
+        "A": "12 m/s",
+        "B": "15 m/s",
+        "C": "10 m/s",
+        "D": "20 m/s"
+      },
+      "correct": "D"
+    },
+    {
+      "number": 16,
+      "subject": "physics",
+      "grade": 8,
+      "topic_slug": "physics-g8-non-uniform-motion",
+      "type": "multiple_choice",
+      "prompt": "Автомобил се движи със скорост 20 m/s и започва да спира с постоянно по големина ускорение 5 m/s². Колко метра е спирачният му път?",
+      "options": {
+        "A": "80 m",
+        "B": "40 m",
+        "C": "100 m",
+        "D": "160 m"
+      },
+      "correct": "B"
+    },
+    {
+      "number": 17,
+      "subject": "physics",
+      "grade": 8,
+      "topic_slug": "physics-g8-non-uniform-motion",
+      "type": "multiple_choice",
+      "prompt": "Автомобил спира с постоянно по големина ускорение. Колко пъти се увеличава спирачният му път, ако началната му скорост стане два пъти по-голяма (ускорението е същото)?",
+      "options": {
+        "A": "2 пъти",
+        "B": "3 пъти",
+        "C": "4 пъти",
+        "D": "8 пъти"
+      },
+      "correct": "C"
+    },
+    {
+      "number": 18,
+      "subject": "physics",
+      "grade": 8,
+      "topic_slug": "physics-g8-non-uniform-motion",
+      "type": "multiple_choice",
+      "prompt": "Камък пада свободно от покой. Колко е скоростта му 3 s след началото на падането? (g = 10 m/s², съпротивлението на въздуха се пренебрегва)",
+      "options": {
+        "A": "30 m/s",
+        "B": "15 m/s",
+        "C": "45 m/s",
+        "D": "90 m/s"
+      },
+      "correct": "A"
+    },
+    {
+      "number": 19,
+      "subject": "physics",
+      "grade": 8,
+      "topic_slug": "physics-g8-non-uniform-motion",
+      "type": "multiple_choice",
+      "prompt": "Топка пада свободно от покой от височина 80 m. След колко време достига земята? (g = 10 m/s², съпротивлението на въздуха се пренебрегва)",
+      "options": {
+        "A": "8 s",
+        "B": "16 s",
+        "C": "2,8 s",
+        "D": "4 s"
+      },
+      "correct": "D"
+    },
+    {
+      "number": 20,
+      "subject": "physics",
+      "grade": 8,
+      "topic_slug": "physics-g8-non-uniform-motion",
+      "type": "multiple_choice",
+      "prompt": "В голяма камера, от която е изпомпан въздухът, едновременно и от една и съща височина се пускат стоманено топче и малко пухче. Какво ще се наблюдава?",
+      "options": {
+        "A": "Топчето достига дъното първо, защото е по-тежко",
+        "B": "Топчето и пухчето достигат дъното едновременно",
+        "C": "Пухчето достига дъното първо, защото е по-леко",
+        "D": "Пухчето не пада, защото е твърде леко"
+      },
+      "correct": "B"
+    },
+    {
+      "number": 21,
+      "subject": "physics",
+      "grade": 8,
+      "topic_slug": "physics-g8-non-uniform-motion",
+      "type": "multiple_choice",
+      "prompt": "Графиката на скоростта на тяло, което се движи праволинейно, е права линия през точките (0 s; 5 m/s) и (5 s; 20 m/s). Колко е ускорението на тялото?",
+      "options": {
+        "A": "4 m/s²",
+        "B": "15 m/s²",
+        "C": "3 m/s²",
+        "D": "25 m/s²"
+      },
+      "correct": "C"
+    },
+    {
+      "number": 22,
+      "subject": "physics",
+      "grade": 8,
+      "topic_slug": "physics-g8-non-uniform-motion",
+      "type": "multiple_choice",
+      "prompt": "Графиката на скоростта на тяло, което се движи праволинейно, е хоризонтална права линия на ниво 8 m/s. Какво е движението на тялото?",
+      "options": {
+        "A": "Равноускорително движение с ускорение 8 m/s²",
+        "B": "Равнозакъснително движение до спиране",
+        "C": "Тялото е в покой",
+        "D": "Равномерно движение със скорост 8 m/s"
+      },
+      "correct": "D"
+    },
+    {
+      "number": 23,
+      "subject": "physics",
+      "grade": 8,
+      "topic_slug": "physics-g8-non-uniform-motion",
+      "type": "multiple_choice",
+      "prompt": "Графиката на скоростта на автомобил, който се движи праволинейно, е права линия от точка (0 s; 20 m/s) до точка (8 s; 0 m/s). Какво е движението на автомобила?",
+      "options": {
+        "A": "Равнозакъснително с ускорение 2,5 m/s²",
+        "B": "Равноускорително с ускорение 2,5 m/s²",
+        "C": "Равнозакъснително с ускорение 0,4 m/s²",
+        "D": "Равноускорително с ускорение 0,4 m/s²"
+      },
+      "correct": "A"
+    }
+  ]
+}
