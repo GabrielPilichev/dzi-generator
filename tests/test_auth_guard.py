@@ -263,12 +263,11 @@ class AuthGuardTest(IsolatedAppTestCase):
         self.assertIn(f'href="/teacher/assignment/{assignment_id}"', body)
         self.assertIn(f'href="/teacher/assignment/{assignment_id}/results"', body)
 
-    def test_grade_section_rows_have_whole_row_click_target(self):
+    def test_grade_subject_cards_are_whole_card_links(self):
         response = self.client.get(f"/grade/{self.section['class'] if 'class' in self.section.keys() else 8}")
         self.assertEqual(response.status_code, 200)
         body = response.get_data(as_text=True)
-        self.assertIn('class="section-item"', body)
-        self.assertIn('class="stretched-link"', body)
+        self.assertRegex(body, r'<a class="card subject-class-card[^"]*"\s+href="/subjects/')
 
     def test_current_grade_nav_item_is_link_with_aria_current(self):
         self._login_tester()

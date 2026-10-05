@@ -156,13 +156,21 @@ class TesterFlowSmokeTest(IsolatedAppTestCase):
         self.assertIn('href="/admin/login?next=/"', html)
 
     def test_grade_page_renders_content_cards_and_primary_links(self):
-        response = self.client.get(f"/grade/{self.section['class']}")
+        grade = self.section["class"]
+        response = self.client.get(f"/grade/{grade}")
 
         self.assertEqual(response.status_code, 200)
         html = response.get_data(as_text=True)
-        self.assertIn('class="section-item"', html)
-        self.assertIn('class="stretched-link"', html)
-        self.assertIn(f'href="/section/{self.section["section_slug"]}"', html)
+        self.assertIn("subject-class-card", html)
+        subject_grade = f"/subjects/information-technologies/{grade}"
+        self.assertIn(f'href="{subject_grade}"', html)
+
+        response = self.client.get(subject_grade)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(
+            f'href="{subject_grade}/{self.section["section_slug"]}"',
+            response.get_data(as_text=True),
+        )
 
     def test_section_review_page_renders_reveal_copy_and_filter_controls(self):
         response = self.client.get(f"/section/{self.section['section_slug']}")

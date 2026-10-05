@@ -3,6 +3,7 @@ from pathlib import Path
 
 
 from tests.support import IsolatedAppTestCase, web_app
+from tests.dzi_open_fixtures import mark_dzi_question
 
 
 def _register_dzi_default_denied_test_route(app):
@@ -52,6 +53,7 @@ class OpenQuestionCandidatesPageTest(IsolatedAppTestCase):
                 "Отворен кандидат със справочен материал.",
             ))
             question_id = int(cur.lastrowid)
+            mark_dzi_question(conn, question_id)
             conn.execute("""
                 INSERT INTO fill_in_subquestions (
                     question_id, subquestion_number, correct_answer, answer_alternatives

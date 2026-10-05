@@ -288,7 +288,8 @@ class SharedSectionComponentsTest(_PageTestCase):
         _, legacy = self.page(f"/section/{self.SLUG}")
         _, generic = self.page(f"/subjects/information-technologies/8/{self.SLUG}")
         self.assertIn(f"/teacher/new?section={self.SLUG}", legacy.hrefs())
-        self.assertIn("/grade/8", legacy.hrefs())
+        self.assertIn("/subjects/information-technologies/8", legacy.hrefs())
+        self.assertNotIn("/grade/8", legacy.hrefs())
         self.assertIn(
             f"/teacher/new?subject=information-technologies&section={self.SLUG}", generic.hrefs()
         )
@@ -457,9 +458,10 @@ class GradeModuleGroupingTest(_PageTestCase):
         html, grade8 = self.page("/subjects/information-technologies/8")
         self.assertIn("Съдържание за 8. клас", grade8.text)
         self.assertEqual(html.count('data-motion="stagger"'), 1)
-        # The legacy IT grade page keeps its own module presentation.
-        _, legacy = self.page("/grade/11")
-        self.assertIn("Обработка и анализ на данни", legacy.text)
+        # /grade/<n> is the subject overview and leads to the page above.
+        _, overview = self.page("/grade/11")
+        self.assertIn("/subjects/information-technologies/11", overview.hrefs())
+        self.assertNotIn("Обработка и анализ на данни", overview.text)
 
 
 if __name__ == "__main__":

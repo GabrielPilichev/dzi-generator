@@ -27,3 +27,26 @@
 {% macro empty_note(text) %}
 <p class="empty-state subject-empty-state">{{ text }}</p>
 {% endmacro %}
+
+{# Path labels on a grade or subject card. Both come from registry values; the
+   colour of the card itself is the path class set by the caller. #}
+{% macro grade_path_labels(path, framework_plan_dependent) %}
+{% if path == "profiled" %}
+    <p class="subject-grade-path">Профилирана подготовка</p>
+{% endif %}
+{% if framework_plan_dependent %}
+    <p class="subject-grade-scope-note">Изучава се в зависимост от учебния план</p>
+{% endif %}
+{% endmacro %}
+
+{# Informational only: a profiled path LearnPilot does not cover. Never a link.
+   The caller passes what the note is about (grades or subjects, built from the
+   registry) and the sentence; an empty label renders nothing. #}
+{% macro profiled_scope_note(label, text) %}
+{% if label %}
+<aside class="subject-grade-status-note" aria-label="Профилирана подготовка извън LearnPilot">
+    <p class="subject-grade-status-title">{{ label }} — профилирана подготовка</p>
+    <p class="subject-grade-status-text">{{ text }}</p>
+</aside>
+{% endif %}
+{% endmacro %}

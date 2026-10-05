@@ -9,7 +9,9 @@
 {% block breadcrumb %}
     <a href="{{ url_for('index') }}">Начало</a>
     <span>›</span>
-    <a href="{{ url_for('grade_view', grade=section.grade) }}">{{ section.grade }}. клас</a>
+    <a href="{{ subject_url(section_subject) }}">{{ section_subject.title }}</a>
+    <span>›</span>
+    <a href="{{ subject_class_url(section_subject, section.grade) }}">{{ section.grade }}. клас</a>
     <span>›</span>
     {{ section.section_title }}
 {% endblock %}
@@ -25,7 +27,7 @@
 </section>
 
 <div class="question-toolbar">
-    <a class="button secondary back-link" href="{{ url_for('grade_view', grade=section.grade) }}">Към {{ section.grade }}. клас</a>
+    <a class="button secondary back-link" href="{{ subject_class_url(section_subject, section.grade) }}">Към {{ section.grade }}. клас</a>
     <span class="pill">{{ questions|length }} въпрос{{ '' if questions|length == 1 else 'а' }}</span>
 </div>
 

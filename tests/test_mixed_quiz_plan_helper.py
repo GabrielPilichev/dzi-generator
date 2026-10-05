@@ -13,8 +13,14 @@ class MixedQuizPlanHelperTest(unittest.TestCase):
         self.conn = sqlite3.connect(":memory:")
         self.conn.row_factory = sqlite3.Row
         self.conn.executescript("""
+            CREATE TABLE exams (id INTEGER PRIMARY KEY, subject TEXT, level TEXT, year INTEGER);
+            INSERT INTO exams VALUES (1, 'informatika_it', 'DZI', 2090);
             CREATE TABLE questions (
                 id INTEGER PRIMARY KEY,
+                exam_id INTEGER DEFAULT 1,
+                subject TEXT DEFAULT 'informatika_it',
+                level TEXT DEFAULT 'DZI',
+                year INTEGER DEFAULT 2090,
                 source_exam TEXT NOT NULL,
                 source_number INTEGER,
                 question_type TEXT NOT NULL,

@@ -51,10 +51,11 @@ class BrowsingMotionTest(IsolatedAppTestCase):
         )
         _, grade = self._page("/grade/12")
         self.assertIsNotNone(grade.first("h1", **{"data-motion-item": "headline"}))
-        self.assertFalse(any("data-motion" in attrs for _, attrs in grade.elements("li")))
-        self.assertFalse(any("data-motion" in attrs for _, attrs in grade.elements("section")
-                             if "module-card" in (attrs.get("class") or "")))
-        self.assertIn('class="pinned-grid" data-motion="stagger"',
+        self.assertEqual(
+            len([1 for _, attrs in grade.elements() if attrs.get("data-motion") == "stagger"]),
+            1,
+        )
+        self.assertIn('class="cards subject-class-grid" data-motion="stagger"',
                       (TEMPLATES / "grade.html").read_text(encoding="utf-8"))
 
     def test_topic_and_section_questions_remain_static_with_native_answers(self):

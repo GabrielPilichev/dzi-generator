@@ -10,7 +10,7 @@ from contextlib import ExitStack
 
 from src.import_reviewed_subject_questions import import_batch
 from src.subject_assessment import AssessmentScope
-from src.subject_registry import SUBJECTS, SubjectDefinition
+from src.subject_registry import SUBJECTS, SubjectDefinition, grade_paths
 from tests.subject_fixtures import registered_subject
 from tests.support import ROOT, IsolatedAppTestCase, web_app
 from tests.test_homepage_search import _HTMLProbe
@@ -22,6 +22,7 @@ EXTRA = SubjectDefinition(
     description="Synthetic subject registered only inside the test suite.",
     search_terms="testologiya synthetic",
     grades=(11, 12),
+    grade_paths=grade_paths(profiled=(11, 12)),
 )
 SECTION_SLUG = "testology-g11-basics"
 TOPIC_SLUG = "testology-g11-first-topic"
