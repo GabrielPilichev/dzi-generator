@@ -1,0 +1,687 @@
+{
+  "format_version": 1,
+  "kind": "question_candidate_provenance",
+  "run": {
+    "id": "physics-g10-nuclear-reactions-run-1",
+    "started_at": "2026-10-05T15:00:00Z",
+    "finished_at": "2026-10-05T15:25:00Z",
+    "collector": "claude-sonnet-5-5-collector",
+    "subject": "physics",
+    "grade": 10,
+    "curriculum": {
+      "education_type": "general",
+      "title": "Физика и астрономия, 10. клас — общообразователна подготовка"
+    },
+    "targets": [
+      {
+        "section": {
+          "slug": "physics-g10-from-atom-to-cosmos",
+          "title": "От атома до Космоса"
+        },
+        "topics": [
+          {
+            "slug": "physics-g10-nuclear-reactions",
+            "title": "Ядрени реакции"
+          }
+        ]
+      }
+    ],
+    "limits": {
+      "max_topics": 1,
+      "max_pages": 5,
+      "max_candidates": 25,
+      "max_candidates_per_source": 25,
+      "max_runtime_minutes": 30
+    },
+    "pages_inspected": 1,
+    "stop_reason": "topic_complete",
+    "notes": "Обхват: само тема 3.3 „Ядрени реакции“ от програмата за 10. клас — примери за ядрени реакции и запазване на заряда и нуклонното число, реакция на делене на урана, верижна реакция, критична маса, обогатен уран, принцип на действие на ядрен реактор (активна зона, забавител, управляващи пръти, топлоносител), радиационна защита на атомна електроцентрала, синтез на леки ядра (защо се отделя енергия), условия, проблеми и перспективи на управляемия термоядрен синтез. Разграничението ядрена реакция — радиоактивен разпад е дадено само на понятийно равнище. Извън обхвата (тема 3.2 „Атомно ядро“): алфа-, бета- и гама-разпад, период на полуразпадане, дози и биологично действие на излъчванията, датиране, дефиниране на масов дефект и енергия на връзката; те се ползват само като предварително знание (ΔE = Δm·c², специфична енергия на връзката). Извън обхвата (тема 3.4 „Частици“ и 3.5 „Звезди, галактики, Вселена“): лептони, кварки, неутрино, синтез в звездите. Числените въпроси задават константите (1 u ↔ 931,5 MeV, 1 MeV = 1,6·10⁻¹³ J, NA, моларна маса, топлина на изгаряне). Всички пет ядрени уравнения са проверени за запазване на заряда и нуклонното число."
+  },
+  "not_stored_in_database": [
+    "candidate id",
+    "source type",
+    "source url",
+    "source title",
+    "source publisher",
+    "source retrieved_at",
+    "transformation",
+    "source_ref",
+    "research",
+    "reuse_exception",
+    "explanation",
+    "difficulty",
+    "review (reviewer, reviewed_at, notes)",
+    "run manifest"
+  ],
+  "batches": [
+    {
+      "file": "physics-g10-nuclear-reactions-run-1.nuclear-reactions.json",
+      "source": "reviewed:physics:physics-g10-nuclear-reactions-run-1.nuclear-reactions",
+      "topic_slug": "physics-g10-nuclear-reactions",
+      "questions": [
+        {
+          "number": 1,
+          "candidate_id": "physics-g10-nuclear-reactions-run-1-001",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:00:00Z",
+            "notes": "Авторитет за обхвата на тема 3.3 (очаквани резултати, нови понятия), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости и данни (E = mc², ~200 MeV на делене на ²³⁵U, 17,6 MeV за D+T)."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Ядрена реакция и радиоактивен разпад",
+            "skill": "Разграничаване на понятия"
+          },
+          "explanation": "Ядрената реакция е превръщане на ядрата при взаимодействие — със (свободен) нуклон, друго ядро, алфа-частица или фотон. Радиоактивният разпад е самопроизволен и не се предизвиква отвън. И в двата процеса се запазват електричният заряд и нуклонното число. Ядрените реакции са много повече от деленето на уран и променят ядрата, а не електронната обвивка.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 2,
+          "candidate_id": "physics-g10-nuclear-reactions-run-1-002",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:00:00Z",
+            "notes": "Авторитет за обхвата на тема 3.3 (очаквани резултати, нови понятия), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости и данни (E = mc², ~200 MeV на делене на ²³⁵U, 17,6 MeV за D+T)."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Пример за ядрена реакция — превръщане на азот в кислород",
+            "skill": "Допълване на ядрена реакция със запазване на заряда и нуклонното число"
+          },
+          "explanation": "Нуклонно число: 14 + 4 = 18 = 17 + A, т.е. A = 1. Заряд: 7 + 2 = 9 = 8 + Z, т.е. Z = 1. Частица с A = 1 и Z = 1 е протонът ¹₁H. Неутронът би имал Z = 0, електронът — Z = −1, а алфа-частицата — A = 4.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 3,
+          "candidate_id": "physics-g10-nuclear-reactions-run-1-003",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:00:00Z",
+            "notes": "Авторитет за обхвата на тема 3.3 (очаквани резултати, нови понятия), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости и данни (E = mc², ~200 MeV на делене на ²³⁵U, 17,6 MeV за D+T)."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Реакция на делене на урана — брой освободени неутрони",
+            "skill": "Определяне на неизвестен брой частици от запазването на нуклонното число"
+          },
+          "explanation": "Нуклонно число: 235 + 1 = 236 = 140 + 94 + k, откъдето k = 2. Проверка на заряда: 92 = 54 + 38, т.е. зарядът е запазен. В различните актове на делене на уран се освобождават по 2 или 3 неутрона, като средната стойност е около 2,4.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 4,
+          "candidate_id": "physics-g10-nuclear-reactions-run-1-004",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:00:00Z",
+            "notes": "Авторитет за обхвата на тема 3.3 (очаквани резултати, нови понятия), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости и данни (E = mc², ~200 MeV на делене на ²³⁵U, 17,6 MeV за D+T)."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Реакция на делене на урана — определяне на фрагмент",
+            "skill": "Определяне на неизвестно ядро от двата закона на запазване"
+          },
+          "explanation": "Нуклонно число: 235 + 1 = 236 = 144 + A + 3, т.е. A = 89. Заряд: 92 = 56 + Z, т.е. Z = 36 (криптон). Ядрото е ⁸⁹₃₆Kr. ⁹²₃₆Kr има вярно Z, но грешно A; ⁸⁹₃₈Sr има вярно A, но грешно Z (56 + 38 = 94 ≠ 92).",
+          "difficulty": "medium"
+        },
+        {
+          "number": 5,
+          "candidate_id": "physics-g10-nuclear-reactions-run-1-005",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:00:00Z",
+            "notes": "Авторитет за обхвата на тема 3.3 (очаквани резултати, нови понятия), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости и данни (E = mc², ~200 MeV на делене на ²³⁵U, 17,6 MeV за D+T)."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Запазване на заряда и нуклонното число в ядрените реакции",
+            "skill": "Откриване на реакция, която нарушава законите за запазване"
+          },
+          "explanation": "В първата реакция нуклонното число отляво е 235 + 1 = 236, а отдясно 139 + 94 + 2 = 235, затова реакцията не е възможна (при 3 неутрона би била вярна). Останалите: 2 + 3 = 4 + 1 и 1 + 1 = 2 + 0; 9 + 4 = 12 + 1 и 4 + 2 = 6 + 0; 7 + 1 = 2·4 и 3 + 1 = 2·2.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 6,
+          "candidate_id": "physics-g10-nuclear-reactions-run-1-007",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:00:00Z",
+            "notes": "Авторитет за обхвата на тема 3.3 (очаквани резултати, нови понятия), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости и данни (E = mc², ~200 MeV на делене на ²³⁵U, 17,6 MeV за D+T)."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Защо при делене се отделя енергия",
+            "skill": "Обяснение на енергийния изход чрез специфичната енергия на връзката"
+          },
+          "explanation": "Тежките ядра имат по-малка специфична енергия на връзката (около 7,6 MeV на нуклон) от ядрата със средно нуклонно число (около 8,5 MeV на нуклон). Фрагментите са по-силно свързани, масата им е по-малка и според ΔE = Δm·c² разликата се отделя. Нуклоните не изчезват — нуклонното число се запазва.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 7,
+          "candidate_id": "physics-g10-nuclear-reactions-run-1-008",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:00:00Z",
+            "notes": "Авторитет за обхвата на тема 3.3 (очаквани резултати, нови понятия), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости и данни (E = mc², ~200 MeV на делене на ²³⁵U, 17,6 MeV за D+T)."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Защо при синтез на леки ядра се отделя енергия",
+            "skill": "Обяснение на енергийния изход чрез специфичната енергия на връзката"
+          },
+          "explanation": "Специфичната енергия на връзката при леките ядра расте бързо с нуклонното число; ядрото на ⁴He е много по-силно свързано от изотопите на водорода. Сумата от масите намалява, а разликата се отделя по ΔE = Δm·c². Електричното отблъскване не освобождава енергия — то трябва да бъде преодоляно.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 8,
+          "candidate_id": "physics-g10-nuclear-reactions-run-1-009",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:00:00Z",
+            "notes": "Авторитет за обхвата на тема 3.3 (очаквани резултати, нови понятия), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости и данни (E = mc², ~200 MeV на делене на ²³⁵U, 17,6 MeV за D+T)."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Условия за синтез — кулоново отблъскване",
+            "skill": "Обясняване на нуждата от висока температура"
+          },
+          "explanation": "Ядрата са положително заредени и се отблъскват. Само при много висока температура, когато средната им кинетична енергия е голяма, те могат да се доближат на около 10⁻¹⁵ m, където ядрените сили надделяват. Критичната маса се отнася за делене, а при сливането ядрата не стават неутрални.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 9,
+          "candidate_id": "physics-g10-nuclear-reactions-run-1-010",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:00:00Z",
+            "notes": "Авторитет за обхвата на тема 3.3 (очаквани резултати, нови понятия), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости и данни (E = mc², ~200 MeV на делене на ²³⁵U, 17,6 MeV за D+T)."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Условия за управляем термоядрен синтез",
+            "skill": "Избор на най-важните условия"
+          },
+          "explanation": "За да се осъществява синтез, горивото трябва да е плазма с температура от порядъка на 10⁸ K, с достатъчна плътност (за достатъчно често сблъскване на ядрата), и тя трябва да се задържи достатъчно дълго. Другите набори са свързани с делителна верижна реакция или противоречат на условията.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 10,
+          "candidate_id": "physics-g10-nuclear-reactions-run-1-011",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:00:00Z",
+            "notes": "Авторитет за обхвата на тема 3.3 (очаквани резултати, нови понятия), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости и данни (E = mc², ~200 MeV на делене на ²³⁵U, 17,6 MeV за D+T)."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Задържане на плазмата с магнитно поле",
+            "skill": "Приложение на знания за заредените частици в магнитно поле"
+          },
+          "explanation": "Плазмата е съставена от заредени частици (йони и електрони). В магнитно поле те се движат по спирали около силовите линии и се задържат встрани от стените. Допирът със студена стена би охладил плазмата и би повредил стената.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 11,
+          "candidate_id": "physics-g10-nuclear-reactions-run-1-012",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:00:00Z",
+            "notes": "Авторитет за обхвата на тема 3.3 (очаквани резултати, нови понятия), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости и данни (E = mc², ~200 MeV на делене на ²³⁵U, 17,6 MeV за D+T)."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Роля на забавителя в ядрен реактор",
+            "skill": "Описание на функциите на елементите на реактора"
+          },
+          "explanation": "Неутроните, които се освобождават при делене, са бързи. Ядрата ²³⁵U се делят с много по-голяма вероятност от бавни (топлинни) неутрони. Забавителят (например вода) ги забавя при сблъсъци. Поглъщането на неутрони е роля на управляващите пръти, отвеждането на топлината — на топлоносителя, а задържането — на защитните обвивки.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 12,
+          "candidate_id": "physics-g10-nuclear-reactions-run-1-013",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:00:00Z",
+            "notes": "Авторитет за обхвата на тема 3.3 (очаквани резултати, нови понятия), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости и данни (E = mc², ~200 MeV на делене на ²³⁵U, 17,6 MeV за D+T)."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Роля на управляващите пръти",
+            "skill": "Описание на регулирането на реактора"
+          },
+          "explanation": "Прътите поглъщат неутрони, които иначе биха предизвикали ново делене. По-малко делене означава по-малко отделена топлина, т.е. мощността на реактора намалява. Изваждането на прътите увеличава мощността. Горивото не се променя — реакцията може да се възобнови, ако прътите бъдат извадени.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 13,
+          "candidate_id": "physics-g10-nuclear-reactions-run-1-014",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:00:00Z",
+            "notes": "Авторитет за обхвата на тема 3.3 (очаквани резултати, нови понятия), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости и данни (E = mc², ~200 MeV на делене на ²³⁵U, 17,6 MeV за D+T)."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Преобразуване на енергията в атомна електроцентрала",
+            "skill": "Подреждане на енергийните преобразувания"
+          },
+          "explanation": "Деленето на ядрата освобождава енергия, която се превръща в топлина на горивото и на топлоносителя. Топлината образува пара, която върти турбината, а генераторът превръща механичната енергия в електрическа. Съвременните атомни електроцентрали използват делене, а не синтез, и енергията на урана не е химична.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 14,
+          "candidate_id": "physics-g10-nuclear-reactions-run-1-015",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:00:00Z",
+            "notes": "Авторитет за обхвата на тема 3.3 (очаквани резултати, нови понятия), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости и данни (E = mc², ~200 MeV на делене на ²³⁵U, 17,6 MeV за D+T)."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Критична маса",
+            "skill": "Обяснение на понятието критична маса"
+          },
+          "explanation": "Броят на неутроните при всяко делене е свойство на ядрата и не зависи от масата на образеца. Но при малък образец много неутрони излизат през повърхността. Ако средно по-малко от един неутрон от акта предизвиква ново делене, реакцията затихва. Критичната маса е минималната маса, при която реакцията се самоподдържа.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 15,
+          "candidate_id": "physics-g10-nuclear-reactions-run-1-016",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:00:00Z",
+            "notes": "Авторитет за обхвата на тема 3.3 (очаквани резултати, нови понятия), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости и данни (E = mc², ~200 MeV на делене на ²³⁵U, 17,6 MeV за D+T)."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Обогатен уран",
+            "skill": "Тълкуване на понятието обогатен уран"
+          },
+          "explanation": "Само ²³⁵U се дели лесно от бавни неутрони. Затова в горивото за реакторите делът му се увеличава (обогатява) до няколко процента. Обратното — уран, от който ²³⁵U е отстранен — се нарича обеднен.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 16,
+          "candidate_id": "physics-g10-nuclear-reactions-run-1-017",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:00:00Z",
+            "notes": "Авторитет за обхвата на тема 3.3 (очаквани резултати, нови понятия), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости и данни (E = mc², ~200 MeV на делене на ²³⁵U, 17,6 MeV за D+T)."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Радиационна защита на атомна електроцентрала",
+            "skill": "Избор на мерки за радиационна защита"
+          },
+          "explanation": "Радиационната защита е многостепенна: херметични обвивки на горивните елементи, реакторен съд, защитна обвивка (контейнмънт) и дебела бетонна биологична защита, както и затворен първи контур. Непрекъснатото охлаждане и управляващите пръти са необходими за безопасна работа, а отработеното гориво се съхранява контролирано.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 17,
+          "candidate_id": "physics-g10-nuclear-reactions-run-1-018",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:00:00Z",
+            "notes": "Авторитет за обхвата на тема 3.3 (очаквани резултати, нови понятия), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости и данни (E = mc², ~200 MeV на делене на ²³⁵U, 17,6 MeV за D+T)."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Верижна реакция — постоянна мощност",
+            "skill": "Разсъждение за средния брой неутрони, предизвикващи ново делене"
+          },
+          "explanation": "Постоянна мощност означава постоянен брой деления за секунда, т.е. всяко делене средно води точно до едно ново делене. Останалите 1,4 неутрона се поглъщат (от забавителя, управляващите пръти, примесите, ²³⁸U) или напускат активната зона. Ако средно повече от един неутрон предизвиква делене, мощността расте, а при по-малко от един — намалява.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 18,
+          "candidate_id": "physics-g10-nuclear-reactions-run-1-019",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:00:00Z",
+            "notes": "Авторитет за обхвата на тема 3.3 (очаквани резултати, нови понятия), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости и данни (E = mc², ~200 MeV на делене на ²³⁵U, 17,6 MeV за D+T)."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Енергия на реакция на синтез от масов дефект",
+            "skill": "Преобразуване на разлика в маси в енергия"
+          },
+          "explanation": "ΔE = Δm·c² = 0,0189 u · 931,5 MeV/u ≈ 17,6 MeV. Тази енергия се разпределя главно между неутрона (около 14 MeV) и ядрото на хелия.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 19,
+          "candidate_id": "physics-g10-nuclear-reactions-run-1-020",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:00:00Z",
+            "notes": "Авторитет за обхвата на тема 3.3 (очаквани резултати, нови понятия), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости и данни (E = mc², ~200 MeV на делене на ²³⁵U, 17,6 MeV за D+T)."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Брой деления при зададена мощност на реактор",
+            "skill": "Изчисляване на скорост на деленията от мощността"
+          },
+          "explanation": "Енергия на едно делене: 200 · 1,6·10⁻¹³ J = 3,2·10⁻¹¹ J. Енергия за 1 s: 10⁹ W · 1 s = 10⁹ J. Брой деления: 10⁹ / 3,2·10⁻¹¹ ≈ 3,1·10¹⁹. Отговорът 3,1·10²⁵ се получава при грешка 1 MeV = 1,6·10⁻¹⁹ J (това е стойността за 1 eV).",
+          "difficulty": "medium"
+        },
+        {
+          "number": 20,
+          "candidate_id": "physics-g10-nuclear-reactions-run-1-021",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:00:00Z",
+            "notes": "Авторитет за обхвата на тема 3.3 (очаквани резултати, нови понятия), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости и данни (E = mc², ~200 MeV на делене на ²³⁵U, 17,6 MeV за D+T)."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Енергия от делене на 1 g уран",
+            "skill": "Многостъпково изчисление на енергия и сравнение с въглища"
+          },
+          "explanation": "Брой ядра: 6,0·10²³ / 235 ≈ 2,55·10²¹. Енергия: 2,55·10²¹ · 200 · 1,6·10⁻¹³ J ≈ 8,2·10¹⁰ J. Маса въглища: 8,2·10¹⁰ J / 2,9·10⁷ J/kg ≈ 2,8·10³ kg, т.е. около 2,8 t.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 21,
+          "candidate_id": "physics-g10-nuclear-reactions-run-1-022",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:00:00Z",
+            "notes": "Авторитет за обхвата на тема 3.3 (очаквани резултати, нови понятия), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости и данни (E = mc², ~200 MeV на делене на ²³⁵U, 17,6 MeV за D+T)."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Сравнение на делене и синтез по енергия на единица маса гориво",
+            "skill": "Сравняване на енергийния добив при делене и синтез"
+          },
+          "explanation": "Сравнява се енергията на единица маса. Делене: 200 MeV / 235 нуклона ≈ 0,85 MeV на нуклон. Синтез: 17,6 MeV / 5 нуклона ≈ 3,5 MeV на нуклон. Отношението е около 4,1. Сравнение само на енергията на един акт (200 / 17,6 ≈ 11) е подвеждащо, защото при синтеза участват 5 нуклона, а при деленето — 235.",
+          "difficulty": "hard"
+        },
+        {
+          "number": 22,
+          "candidate_id": "physics-g10-nuclear-reactions-run-1-023",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:00:00Z",
+            "notes": "Авторитет за обхвата на тема 3.3 (очаквани резултати, нови понятия), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости и данни (E = mc², ~200 MeV на делене на ²³⁵U, 17,6 MeV за D+T)."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Енергия на деленето от специфичните енергии на връзката",
+            "skill": "Определяне на отделената енергия като разлика на пълните енергии на връзката"
+          },
+          "explanation": "Пълна енергия на връзката на ²³⁵U: 235 · 7,6 = 1786 MeV. На продуктите: 141 · 8,4 + 92 · 8,6 = 1184 + 791 = 1975 MeV. Отделената енергия е разликата: 1975 − 1786 ≈ 190 MeV. Числото 0,9 MeV е разликата на нуклон, а не за цялото ядро; 1980 и 1790 MeV са пълните енергии на връзката на продуктите и на урана.",
+          "difficulty": "hard"
+        },
+        {
+          "number": 23,
+          "candidate_id": "physics-g10-nuclear-reactions-run-1-024",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:00:00Z",
+            "notes": "Авторитет за обхвата на тема 3.3 (очаквани резултати, нови понятия), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости и данни (E = mc², ~200 MeV на делене на ²³⁵U, 17,6 MeV за D+T)."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Перспективи и проблеми пред термоядрената енергетика",
+            "skill": "Преценка на твърдения за термоядрената енергетика"
+          },
+          "explanation": "Деутерият е около 0,015 % от водородните атоми във водата. Синтезът изисква специални условия (температура, плътност, задържане) и спира, ако те бъдат нарушени, тъй като няма верижна реакция. Основните проблеми са достигане и поддържане на условията, материалите на стените и тритият; неутроните от D+T синтеза правят материалите радиоактивни, затова защита е необходима.",
+          "difficulty": "medium"
+        }
+      ]
+    }
+  ],
+  "not_exported": []
+}

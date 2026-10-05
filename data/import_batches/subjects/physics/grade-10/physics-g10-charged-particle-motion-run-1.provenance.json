@@ -1,0 +1,633 @@
+{
+  "format_version": 1,
+  "kind": "question_candidate_provenance",
+  "run": {
+    "id": "physics-g10-charged-particle-motion-run-1",
+    "started_at": "2026-10-05T13:58:00Z",
+    "finished_at": "2026-10-05T14:30:00Z",
+    "subject": "physics",
+    "grade": 10,
+    "curriculum": {
+      "education_type": "general",
+      "title": "Физика и астрономия, 10. клас — общообразователна подготовка"
+    },
+    "targets": [
+      {
+        "section": {
+          "slug": "physics-g10-electromagnetic-phenomena",
+          "title": "Електромагнитни явления"
+        },
+        "topics": [
+          {
+            "slug": "physics-g10-charged-particle-motion",
+            "title": "Движение на заредени частици в електрично и в магнитно поле"
+          }
+        ]
+      }
+    ],
+    "limits": {
+      "max_topics": 3,
+      "max_pages": 15,
+      "max_candidates": 25,
+      "max_candidates_per_source": 12,
+      "max_runtime_minutes": 60
+    },
+    "pages_inspected": 3,
+    "stop_reason": "topic_complete",
+    "collector": "claude-sonnet-5-5-collector",
+    "notes": "Обхват: само тема 1.3 (енергетично описание в електрично поле, eV, качествено движение в еднородно магнитно поле, посока на силата, ускорители, земно магнитно поле). Извън обхвата: закон на Кулон, потенциал и напрежение като самостоятелни понятия, магнитна индукция и сила върху проводник с ток, ЕМ индукция. Формулата за радиуса на окръжността е използвана само като обяснение, не като изчислителна задача."
+  },
+  "not_stored_in_database": [
+    "candidate id",
+    "source type",
+    "source url",
+    "source title",
+    "source publisher",
+    "source retrieved_at",
+    "transformation",
+    "source_ref",
+    "research",
+    "reuse_exception",
+    "explanation",
+    "difficulty",
+    "review (reviewer, reviewed_at, notes)",
+    "run manifest"
+  ],
+  "batches": [
+    {
+      "file": "physics-g10-charged-particle-motion-run-1.charged-particle-motion.json",
+      "source": "reviewed:physics:physics-g10-charged-particle-motion-run-1.charged-particle-motion",
+      "topic_slug": "physics-g10-charged-particle-motion",
+      "questions": [
+        {
+          "number": 1,
+          "candidate_id": "physics-g10-charged-particle-motion-run-1-001",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:00:00Z",
+            "notes": "Определя обхвата на тема 1.3: енергетично описание на движението в електрично поле, качествено описание в еднородно магнитно поле, приложения на ускорени частици, значение на земното магнитно поле; нов термин eV. Прочетено чрез преглед на програмата в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са нови."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Електронволтът като единица за енергия",
+            "skill": "Дефиниция"
+          },
+          "explanation": "1 eV е енергията, която елементарен заряд получава при преминаване през разлика на потенциалите 1 V: 1 eV = e·1 V ≈ 1,6·10⁻¹⁹ J.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 2,
+          "candidate_id": "physics-g10-charged-particle-motion-run-1-002",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-up2-7-2",
+            "type": "third_party",
+            "url": "https://openstax.org/books/university-physics-volume-2/pages/7-2-electric-potential-and-potential-difference",
+            "title": "University Physics Volume 2, 7.2 Electric Potential and Potential Difference",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T14:04:00Z",
+            "notes": "Само изследване: qΔV = ΔEk за ускорен заряд, определение и стойност на електронволта. Формулировките не са ползвани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Кинетична енергия на ускорена частица в джаули: Ek = qU",
+            "skill": "Пресмятане"
+          },
+          "explanation": "Работата на полето е равна на нарастването на кинетичната енергия: Ek = eU = 1,6·10⁻¹⁹ C · 200 V = 3,2·10⁻¹⁷ J (200 eV).",
+          "difficulty": "easy"
+        },
+        {
+          "number": 3,
+          "candidate_id": "physics-g10-charged-particle-motion-run-1-003",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-up2-11-3",
+            "type": "third_party",
+            "url": "https://openstax.org/books/university-physics-volume-2/pages/11-3-motion-of-a-charged-particle-in-a-magnetic-field",
+            "title": "University Physics Volume 2, 11.3 Motion of a Charged Particle in a Magnetic Field",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T14:02:00Z",
+            "notes": "Само изследване: окръжно и винтово движение, магнитната сила не извършва работа, радиационни пояси и полярни сияния. Формулировките не са ползвани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Магнитната сила не променя кинетичната енергия на частица",
+            "skill": "Качествено разсъждение"
+          },
+          "explanation": "Магнитната сила е перпендикулярна на скоростта във всеки момент, затова не извършва работа. Големината на скоростта и кинетичната енергия остават постоянни, променя се само посоката на скоростта.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 4,
+          "candidate_id": "physics-g10-charged-particle-motion-run-1-004",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-up2-11-3",
+            "type": "third_party",
+            "url": "https://openstax.org/books/university-physics-volume-2/pages/11-3-motion-of-a-charged-particle-in-a-magnetic-field",
+            "title": "University Physics Volume 2, 11.3 Motion of a Charged Particle in a Magnetic Field",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T14:02:00Z",
+            "notes": "Само изследване: окръжно и винтово движение, магнитната сила не извършва работа, радиационни пояси и полярни сияния. Формулировките не са ползвани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Движение на заредена частица по посока на индукционните линии",
+            "skill": "Качествено разсъждение"
+          },
+          "explanation": "Магнитната сила върху частица, движеща се успоредно на индукционните линии, е нула. Протонът запазва скоростта си и се движи праволинейно и равномерно.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 5,
+          "candidate_id": "physics-g10-charged-particle-motion-run-1-005",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-up2-11-3",
+            "type": "third_party",
+            "url": "https://openstax.org/books/university-physics-volume-2/pages/11-3-motion-of-a-charged-particle-in-a-magnetic-field",
+            "title": "University Physics Volume 2, 11.3 Motion of a Charged Particle in a Magnetic Field",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T14:02:00Z",
+            "notes": "Само изследване: окръжно и винтово движение, магнитната сила не извършва работа, радиационни пояси и полярни сияния. Формулировките не са ползвани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Траектория при скорост, перпендикулярна на еднородно магнитно поле",
+            "skill": "Разпознаване"
+          },
+          "explanation": "Магнитната сила е перпендикулярна на скоростта и има постоянна големина. Тя играе ролята на центростремителна сила, затова електронът се движи равномерно по окръжност.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 6,
+          "candidate_id": "physics-g10-charged-particle-motion-run-1-006",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-up2-7-2",
+            "type": "third_party",
+            "url": "https://openstax.org/books/university-physics-volume-2/pages/7-2-electric-potential-and-potential-difference",
+            "title": "University Physics Volume 2, 7.2 Electric Potential and Potential Difference",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T14:04:00Z",
+            "notes": "Само изследване: qΔV = ΔEk за ускорен заряд, определение и стойност на електронволта. Формулировките не са ползвани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Движение на електрон, пуснат от покой в електрично поле",
+            "skill": "Качествено разсъждение"
+          },
+          "explanation": "Върху отрицателен заряд силата е с посока, обратна на интензитета. Силата е постоянна и насочена надолу, затова електронът започва равноускорително движение надолу.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 7,
+          "candidate_id": "physics-g10-charged-particle-motion-run-1-007",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-up2-7-2",
+            "type": "third_party",
+            "url": "https://openstax.org/books/university-physics-volume-2/pages/7-2-electric-potential-and-potential-difference",
+            "title": "University Physics Volume 2, 7.2 Electric Potential and Potential Difference",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T14:04:00Z",
+            "notes": "Само изследване: qΔV = ΔEk за ускорен заряд, определение и стойност на електронволта. Формулировките не са ползвани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Положителна частица, движеща се към по-нисък потенциал, увеличава кинетичната си енергия",
+            "skill": "Пресмятане"
+          },
+          "explanation": "Работата на полето е A = e(φ₁ − φ₂) = e·200 V = 200 eV. Положителният заряд се движи към по-нисък потенциал, затова енергията му нараства: 50 eV + 200 eV = 250 eV.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 8,
+          "candidate_id": "physics-g10-charged-particle-motion-run-1-008",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-up2-7-2",
+            "type": "third_party",
+            "url": "https://openstax.org/books/university-physics-volume-2/pages/7-2-electric-potential-and-potential-difference",
+            "title": "University Physics Volume 2, 7.2 Electric Potential and Potential Difference",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T14:04:00Z",
+            "notes": "Само изследване: qΔV = ΔEk за ускорен заряд, определение и стойност на електронволта. Формулировките не са ползвани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Електрон, движещ се към по-висок потенциал, увеличава кинетичната си енергия",
+            "skill": "Пресмятане"
+          },
+          "explanation": "За електрона q = −e, затова A = q(φ₁ − φ₂) = (−e)(100 V − 400 V) = +300 eV. Отрицателният заряд се ускорява към по-висок потенциал: 20 eV + 300 eV = 320 eV.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 9,
+          "candidate_id": "physics-g10-charged-particle-motion-run-1-009",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-up2-7-2",
+            "type": "third_party",
+            "url": "https://openstax.org/books/university-physics-volume-2/pages/7-2-electric-potential-and-potential-difference",
+            "title": "University Physics Volume 2, 7.2 Electric Potential and Potential Difference",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T14:04:00Z",
+            "notes": "Само изследване: qΔV = ΔEk за ускорен заряд, определение и стойност на електронволта. Формулировките не са ползвани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Скорост на електрон след ускоряване: eU = mv²/2",
+            "skill": "Пресмятане"
+          },
+          "explanation": "От eU = mv²/2 следва v = √(2eU/m) = √(2·1,6·10⁻¹⁹·100 / 9,1·10⁻³¹) ≈ 5,9·10⁶ m/s.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 10,
+          "candidate_id": "physics-g10-charged-particle-motion-run-1-010",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-up2-7-2",
+            "type": "third_party",
+            "url": "https://openstax.org/books/university-physics-volume-2/pages/7-2-electric-potential-and-potential-difference",
+            "title": "University Physics Volume 2, 7.2 Electric Potential and Potential Difference",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T14:04:00Z",
+            "notes": "Само изследване: qΔV = ΔEk за ускорен заряд, определение и стойност на електронволта. Формулировките не са ползвани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Сравнение на скоростите на електрон и протон, ускорени от еднакво напрежение",
+            "skill": "Сравнение"
+          },
+          "explanation": "Зарядите са равни по големина, затова получават еднаква кинетична енергия eU. От mv²/2 = eU следва v ~ 1/√m, т.е. vₑ/vₚ = √1840 ≈ 43.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 11,
+          "candidate_id": "physics-g10-charged-particle-motion-run-1-011",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-up2-7-2",
+            "type": "third_party",
+            "url": "https://openstax.org/books/university-physics-volume-2/pages/7-2-electric-potential-and-potential-difference",
+            "title": "University Physics Volume 2, 7.2 Electric Potential and Potential Difference",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T14:04:00Z",
+            "notes": "Само изследване: qΔV = ΔEk за ускорен заряд, определение и стойност на електронволта. Формулировките не са ползвани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Сравнение на скоростите на протон и α-частица след еднакво напрежение",
+            "skill": "Сравнение"
+          },
+          "explanation": "Ek = qU, затова Ek на α-частицата е 2 пъти по-голяма. От v = √(2qU/m) получаваме vα/vp = √((2e/4m)/(e/m)) = √(1/2) ≈ 0,71.",
+          "difficulty": "hard"
+        },
+        {
+          "number": 12,
+          "candidate_id": "physics-g10-charged-particle-motion-run-1-012",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-up2-7-2",
+            "type": "third_party",
+            "url": "https://openstax.org/books/university-physics-volume-2/pages/7-2-electric-potential-and-potential-difference",
+            "title": "University Physics Volume 2, 7.2 Electric Potential and Potential Difference",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T14:04:00Z",
+            "notes": "Само изследване: qΔV = ΔEk за ускорен заряд, определение и стойност на електронволта. Формулировките не са ползвани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Ускоряване в еднородно поле: U = E·d и Ek = eU",
+            "skill": "Пресмятане"
+          },
+          "explanation": "Напрежението между двете точки е U = E·d = 5000 V/m · 0,03 m = 150 V. Тогава Ek = eU = 150 eV.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 13,
+          "candidate_id": "physics-g10-charged-particle-motion-run-1-013",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-up2-7-2",
+            "type": "third_party",
+            "url": "https://openstax.org/books/university-physics-volume-2/pages/7-2-electric-potential-and-potential-difference",
+            "title": "University Physics Volume 2, 7.2 Electric Potential and Potential Difference",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T14:04:00Z",
+            "notes": "Само изследване: qΔV = ΔEk за ускорен заряд, определение и стойност на електронволта. Формулировките не са ползвани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Спиране на α-частица в еднородно електрично поле (енергетичен подход)",
+            "skill": "Пресмятане"
+          },
+          "explanation": "Кинетичната енергия 600 eV се превръща в работа срещу полето: 2e·E·d = 600 eV. Следователно d = 600 eV/(2e·1000 V/m) = 300 V/(1000 V/m) = 0,30 m.",
+          "difficulty": "hard"
+        },
+        {
+          "number": 14,
+          "candidate_id": "physics-g10-charged-particle-motion-run-1-016",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-up2-11-3",
+            "type": "third_party",
+            "url": "https://openstax.org/books/university-physics-volume-2/pages/11-3-motion-of-a-charged-particle-in-a-magnetic-field",
+            "title": "University Physics Volume 2, 11.3 Motion of a Charged Particle in a Magnetic Field",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T14:02:00Z",
+            "notes": "Само изследване: окръжно и винтово движение, магнитната сила не извършва работа, радиационни пояси и полярни сияния. Формулировките не са ползвани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Посока на въртене на частици с противоположни знаци на заряда",
+            "skill": "Сравнение"
+          },
+          "explanation": "И на двете частици магнитната сила е перпендикулярна на скоростта и ги движи по окръжности. Зарядите са с противоположни знаци, затова силите са с противоположни посоки и частиците се въртят в противоположни посоки.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 15,
+          "candidate_id": "physics-g10-charged-particle-motion-run-1-017",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-up2-11-3",
+            "type": "third_party",
+            "url": "https://openstax.org/books/university-physics-volume-2/pages/11-3-motion-of-a-charged-particle-in-a-magnetic-field",
+            "title": "University Physics Volume 2, 11.3 Motion of a Charged Particle in a Magnetic Field",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T14:02:00Z",
+            "notes": "Само изследване: окръжно и винтово движение, магнитната сила не извършва работа, радиационни пояси и полярни сияния. Формулировките не са ползвани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Радиусът на окръжността нараства с нарастване на скоростта",
+            "skill": "Качествено разсъждение"
+          },
+          "explanation": "Магнитната сила qvB осигурява центростремителното ускорение mv²/r. От това следва r = mv/(qB): при по-голяма скорост радиусът е по-голям (по-бързата частица се отклонява по-слабо).",
+          "difficulty": "medium"
+        },
+        {
+          "number": 16,
+          "candidate_id": "physics-g10-charged-particle-motion-run-1-018",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-up2-11-3",
+            "type": "third_party",
+            "url": "https://openstax.org/books/university-physics-volume-2/pages/11-3-motion-of-a-charged-particle-in-a-magnetic-field",
+            "title": "University Physics Volume 2, 11.3 Motion of a Charged Particle in a Magnetic Field",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T14:02:00Z",
+            "notes": "Само изследване: окръжно и винтово движение, магнитната сила не извършва работа, радиационни пояси и полярни сияния. Формулировките не са ползвани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Движение под ъгъл към индукционните линии — винтова траектория",
+            "skill": "Разпознаване"
+          },
+          "explanation": "Съставящата на скоростта, успоредна на полето, не се променя. Съставящата, перпендикулярна на полето, води до въртене. Двете заедно дават винтова траектория около индукционна линия.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 17,
+          "candidate_id": "physics-g10-charged-particle-motion-run-1-019",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:00:00Z",
+            "notes": "Определя обхвата на тема 1.3: енергетично описание на движението в електрично поле, качествено описание в еднородно магнитно поле, приложения на ускорени частици, значение на земното магнитно поле; нов термин eV. Прочетено чрез преглед на програмата в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са нови."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Приложение на снопове ускорени заредени частици",
+            "skill": "Разпознаване"
+          },
+          "explanation": "Ускорителите създават снопове частици с голяма кинетична енергия. Те се използват за изследвания във физиката и в медицината (лъчетерапия). Останалите устройства не работят със снопове ускорени частици.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 18,
+          "candidate_id": "physics-g10-charged-particle-motion-run-1-020",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:00:00Z",
+            "notes": "Определя обхвата на тема 1.3: енергетично описание на движението в електрично поле, качествено описание в еднородно магнитно поле, приложения на ускорени частици, значение на земното магнитно поле; нов термин eV. Прочетено чрез преглед на програмата в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са нови."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Роля на електричното и на магнитното поле в циклотрон",
+            "skill": "Приложение"
+          },
+          "explanation": "Електричното поле извършва работа и увеличава кинетичната енергия на частиците. Магнитната сила не извършва работа — тя само променя посоката на скоростта и ги движи по окръжност.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 19,
+          "candidate_id": "physics-g10-charged-particle-motion-run-1-021",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:00:00Z",
+            "notes": "Определя обхвата на тема 1.3: енергетично описание на движението в електрично поле, качествено описание в еднородно магнитно поле, приложения на ускорени частици, значение на земното магнитно поле; нов термин eV. Прочетено чрез преглед на програмата в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са нови."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Земното магнитно поле като защита от космически лъчения",
+            "skill": "Приложение"
+          },
+          "explanation": "Магнитното поле действа със сила върху заредените частици от космическите лъчения и слънчевия вятър и ги отклонява. Така голяма част от тях не достигат земната повърхност.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 20,
+          "candidate_id": "physics-g10-charged-particle-motion-run-1-022",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-up2-11-3",
+            "type": "third_party",
+            "url": "https://openstax.org/books/university-physics-volume-2/pages/11-3-motion-of-a-charged-particle-in-a-magnetic-field",
+            "title": "University Physics Volume 2, 11.3 Motion of a Charged Particle in a Magnetic Field",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T14:02:00Z",
+            "notes": "Само изследване: окръжно и винтово движение, магнитната сила не извършва работа, радиационни пояси и полярни сияния. Формулировките не са ползвани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Полярни сияния: спирално движение на частици по линиите на земното поле",
+            "skill": "Приложение"
+          },
+          "explanation": "Заредените частици се движат по винтови траектории около линиите на земното магнитно поле. Линиите навлизат към повърхността в околополюсните области, където частиците се сблъскват с атмосферните атоми и ги карат да светят.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 21,
+          "candidate_id": "physics-g10-charged-particle-motion-run-1-023",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-up2-7-2",
+            "type": "third_party",
+            "url": "https://openstax.org/books/university-physics-volume-2/pages/7-2-electric-potential-and-potential-difference",
+            "title": "University Physics Volume 2, 7.2 Electric Potential and Potential Difference",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T14:04:00Z",
+            "notes": "Само изследване: qΔV = ΔEk за ускорен заряд, определение и стойност на електронволта. Формулировките не са ползвани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Отклонение на електрон от електрично поле между две плочи",
+            "skill": "Приложение"
+          },
+          "explanation": "Върху електрона действа сила към положителната плоча. Електричната сила извършва положителна работа, затова кинетичната енергия нараства, а траекторията се огъва към горната плоча.",
+          "difficulty": "medium"
+        }
+      ]
+    }
+  ],
+  "not_exported": []
+}

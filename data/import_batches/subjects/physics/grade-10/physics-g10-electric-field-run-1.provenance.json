@@ -1,0 +1,660 @@
+{
+  "format_version": 1,
+  "kind": "question_candidate_provenance",
+  "run": {
+    "id": "physics-g10-electric-field-run-1",
+    "started_at": "2026-10-05T13:44:10Z",
+    "finished_at": "2026-10-05T14:09:10Z",
+    "subject": "physics",
+    "grade": 10,
+    "curriculum": {
+      "education_type": "general",
+      "title": "Физика и астрономия, 10. клас — общообразователна подготовка"
+    },
+    "targets": [
+      {
+        "section": {
+          "slug": "physics-g10-electromagnetic-phenomena",
+          "title": "Електромагнитни явления"
+        },
+        "topics": [
+          {
+            "slug": "physics-g10-electric-field",
+            "title": "Електрично поле"
+          }
+        ]
+      }
+    ],
+    "limits": {
+      "max_topics": 1,
+      "max_pages": 12,
+      "max_candidates": 25,
+      "max_candidates_per_source": 25,
+      "max_runtime_minutes": 40
+    },
+    "pages_inspected": 1,
+    "stop_reason": "topic_complete",
+    "collector": "claude-sonnet-5-5-collector",
+    "notes": "1 inspection: official МОН Grade 10 programme (Приложение № 8), read as the full extracted text of the PDF (SHA-256 3cc86591…193de1). All candidates were newly written by the collector from standard physical relationships and the programme scope for sub-theme 1.1; no third-party question text was consulted. All candidates are pending."
+  },
+  "not_stored_in_database": [
+    "candidate id",
+    "source type",
+    "source url",
+    "source title",
+    "source publisher",
+    "source retrieved_at",
+    "transformation",
+    "source_ref",
+    "research",
+    "reuse_exception",
+    "explanation",
+    "difficulty",
+    "review (reviewer, reviewed_at, notes)",
+    "run manifest"
+  ],
+  "batches": [
+    {
+      "file": "physics-g10-electric-field-run-1.electric-field.json",
+      "source": "reviewed:physics:physics-g10-electric-field-run-1.electric-field",
+      "topic_slug": "physics-g10-electric-field",
+      "questions": [
+        {
+          "number": 1,
+          "candidate_id": "physics-g10-electric-field-run-1-01",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-x",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка), Приложение № 8",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:09:10Z",
+            "notes": "Scope authority for sub-theme 1.1 Електрично поле: Coulomb's law for two point charges; field as mediator; intensity and potential; intensity of a point charge; voltage as potential difference; force and potential energy of a charge in a field; field lines of a point charge and a uniform field; E = U/d along a field line; electrostatic induction and screening; capacitors and capacitance C = q/U, farad; polarization of dielectrics. Contains no questions."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Coulomb's law: force inversely proportional to the square of the distance",
+            "skill": "scale a force with distance"
+          },
+          "explanation": "Според закона на Кулон F = k·q1·q2/r², т.е. силата е обратно пропорционална на квадрата на разстоянието. При 3 пъти по-голямо r силата намалява 3² = 9 пъти.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 2,
+          "candidate_id": "physics-g10-electric-field-run-1-02",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-x",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка), Приложение № 8",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:09:10Z",
+            "notes": "Scope authority for sub-theme 1.1 Електрично поле: Coulomb's law for two point charges; field as mediator; intensity and potential; intensity of a point charge; voltage as potential difference; force and potential energy of a charge in a field; field lines of a point charge and a uniform field; E = U/d along a field line; electrostatic induction and screening; capacitors and capacitance C = q/U, farad; polarization of dielectrics. Contains no questions."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Coulomb's law for two point charges",
+            "skill": "calculate Coulomb force with unit conversion"
+          },
+          "explanation": "F = k·q1·q2/r² = 9·10⁹·2·10⁻⁶·3·10⁻⁶ / (0,3)² = 0,054 / 0,09 = 0,6 N. Другите отговори се получават при неотчитане на квадрата на r, при пропуснато деление на r² или при r = 3 cm вместо 30 cm.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 3,
+          "candidate_id": "physics-g10-electric-field-run-1-03",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-x",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка), Приложение № 8",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:09:10Z",
+            "notes": "Scope authority for sub-theme 1.1 Електрично поле: Coulomb's law for two point charges; field as mediator; intensity and potential; intensity of a point charge; voltage as potential difference; force and potential energy of a charge in a field; field lines of a point charge and a uniform field; E = U/d along a field line; electrostatic induction and screening; capacitors and capacitance C = q/U, farad; polarization of dielectrics. Contains no questions."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Electric field as the mediator of electric interaction",
+            "skill": "choose the physical explanation"
+          },
+          "explanation": "Електричното поле е посредникът на взаимодействието: всеки заряд го създава в околното пространство и то действа със сила върху всеки друг заряд, който попадне в него. Взаимодействието не изисква допир и не е гравитационно.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 4,
+          "candidate_id": "physics-g10-electric-field-run-1-04",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-x",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка), Приложение № 8",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:09:10Z",
+            "notes": "Scope authority for sub-theme 1.1 Електрично поле: Coulomb's law for two point charges; field as mediator; intensity and potential; intensity of a point charge; voltage as potential difference; force and potential energy of a charge in a field; field lines of a point charge and a uniform field; E = U/d along a field line; electrostatic induction and screening; capacitors and capacitance C = q/U, farad; polarization of dielectrics. Contains no questions."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Definition of intensity E = F/q0",
+            "skill": "calculate intensity from force on a test charge"
+          },
+          "explanation": "Интензитетът е E = F/q0 = 6·10⁻⁶ N / 2·10⁻⁹ C = 3·10³ N/C. Отговорът 3·10² N/C се получава при погрешно преобразуване на nC.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 5,
+          "candidate_id": "physics-g10-electric-field-run-1-05",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-x",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка), Приложение № 8",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:09:10Z",
+            "notes": "Scope authority for sub-theme 1.1 Електрично поле: Coulomb's law for two point charges; field as mediator; intensity and potential; intensity of a point charge; voltage as potential difference; force and potential energy of a charge in a field; field lines of a point charge and a uniform field; E = U/d along a field line; electrostatic induction and screening; capacitors and capacitance C = q/U, farad; polarization of dielectrics. Contains no questions."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Intensity is a property of the field, independent of the test charge",
+            "skill": "interpret a field characteristic"
+          },
+          "explanation": "Интензитетът E = F/q0 е характеристика на полето в дадената точка. Ако q0 се удвои, силата F също се удвоява, а отношението F/q0 остава същото.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 6,
+          "candidate_id": "physics-g10-electric-field-run-1-06",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-x",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка), Приложение № 8",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:09:10Z",
+            "notes": "Scope authority for sub-theme 1.1 Електрично поле: Coulomb's law for two point charges; field as mediator; intensity and potential; intensity of a point charge; voltage as potential difference; force and potential energy of a charge in a field; field lines of a point charge and a uniform field; E = U/d along a field line; electrostatic induction and screening; capacitors and capacitance C = q/U, farad; polarization of dielectrics. Contains no questions."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Intensity of the field of a point charge E = kq/r²",
+            "skill": "calculate field of a point charge"
+          },
+          "explanation": "E = k·q/r² = 9·10⁹·5·10⁻⁹ / (0,03)² = 45 / (9·10⁻⁴) = 5·10⁴ N/C. Останалите стойности се получават при r = 30 cm, при неотчетен квадрат на r или при r = 3 m.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 7,
+          "candidate_id": "physics-g10-electric-field-run-1-07",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-x",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка), Приложение № 8",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:09:10Z",
+            "notes": "Scope authority for sub-theme 1.1 Електрично поле: Coulomb's law for two point charges; field as mediator; intensity and potential; intensity of a point charge; voltage as potential difference; force and potential energy of a charge in a field; field lines of a point charge and a uniform field; E = U/d along a field line; electrostatic induction and screening; capacitors and capacitance C = q/U, farad; polarization of dielectrics. Contains no questions."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Distance dependence of the field of a point charge",
+            "skill": "scale intensity with distance"
+          },
+          "explanation": "E е обратно пропорционален на r². Разстоянието нараства 3 пъти, затова E намалява 3² = 9 пъти: 90 N/C : 9 = 10 N/C.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 8,
+          "candidate_id": "physics-g10-electric-field-run-1-08",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-x",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка), Приложение № 8",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:09:10Z",
+            "notes": "Scope authority for sub-theme 1.1 Електрично поле: Coulomb's law for two point charges; field as mediator; intensity and potential; intensity of a point charge; voltage as potential difference; force and potential energy of a charge in a field; field lines of a point charge and a uniform field; E = U/d along a field line; electrostatic induction and screening; capacitors and capacitance C = q/U, farad; polarization of dielectrics. Contains no questions."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Field lines of a point charge",
+            "skill": "recognise the field-line picture"
+          },
+          "explanation": "Силовите линии показват посоката на силата върху положителен пробен заряд. Около положителен точков заряд тя е навън, затова линиите излизат радиално от заряда. Силовите линии на електростатично поле не са затворени.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 9,
+          "candidate_id": "physics-g10-electric-field-run-1-09",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-x",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка), Приложение № 8",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:09:10Z",
+            "notes": "Scope authority for sub-theme 1.1 Електрично поле: Coulomb's law for two point charges; field as mediator; intensity and potential; intensity of a point charge; voltage as potential difference; force and potential energy of a charge in a field; field lines of a point charge and a uniform field; E = U/d along a field line; electrostatic induction and screening; capacitors and capacitance C = q/U, farad; polarization of dielectrics. Contains no questions."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Field lines of a uniform field",
+            "skill": "recognise the field-line picture"
+          },
+          "explanation": "Еднородното поле има еднакъв интензитет и посока във всички точки. Затова силовите му линии са успоредни прави с постоянна гъстота.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 10,
+          "candidate_id": "physics-g10-electric-field-run-1-11",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-x",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка), Приложение № 8",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:09:10Z",
+            "notes": "Scope authority for sub-theme 1.1 Електрично поле: Coulomb's law for two point charges; field as mediator; intensity and potential; intensity of a point charge; voltage as potential difference; force and potential energy of a charge in a field; field lines of a point charge and a uniform field; E = U/d along a field line; electrostatic induction and screening; capacitors and capacitance C = q/U, farad; polarization of dielectrics. Contains no questions."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Force on a point charge in a uniform field",
+            "skill": "calculate force and direction"
+          },
+          "explanation": "F = |q|·E = 4·10⁻⁶·2,5·10³ = 1·10⁻² N. Зарядът е отрицателен, затова силата е противоположна на посоката на полето.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 11,
+          "candidate_id": "physics-g10-electric-field-run-1-12",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-x",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка), Приложение № 8",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:09:10Z",
+            "notes": "Scope authority for sub-theme 1.1 Електрично поле: Coulomb's law for two point charges; field as mediator; intensity and potential; intensity of a point charge; voltage as potential difference; force and potential energy of a charge in a field; field lines of a point charge and a uniform field; E = U/d along a field line; electrostatic induction and screening; capacitors and capacitance C = q/U, farad; polarization of dielectrics. Contains no questions."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Force on a charge in a field combined with equilibrium",
+            "skill": "combine F = qE with weight and sign reasoning"
+          },
+          "explanation": "За равновесие електричната сила трябва да е насочена нагоре, т.е. противоположна на E – зарядът е отрицателен. От |q|·E = mg: |q| = mg/E = 5·10⁻⁴·10 / 2·10⁴ = 2,5·10⁻⁷ C = 0,25 μC.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 12,
+          "candidate_id": "physics-g10-electric-field-run-1-13",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-x",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка), Приложение № 8",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:09:10Z",
+            "notes": "Scope authority for sub-theme 1.1 Електрично поле: Coulomb's law for two point charges; field as mediator; intensity and potential; intensity of a point charge; voltage as potential difference; force and potential energy of a charge in a field; field lines of a point charge and a uniform field; E = U/d along a field line; electrostatic induction and screening; capacitors and capacitance C = q/U, farad; polarization of dielectrics. Contains no questions."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Definition of potential φ = W/q0",
+            "skill": "distinguish potential from intensity"
+          },
+          "explanation": "Потенциалът е φ = W/q0, където W е потенциалната енергия на пробния заряд в дадената точка (спрямо избрано нулево ниво). Силата, разделена на заряда, е интензитетът, а не потенциалът.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 13,
+          "candidate_id": "physics-g10-electric-field-run-1-14",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-x",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка), Приложение № 8",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:09:10Z",
+            "notes": "Scope authority for sub-theme 1.1 Електрично поле: Coulomb's law for two point charges; field as mediator; intensity and potential; intensity of a point charge; voltage as potential difference; force and potential energy of a charge in a field; field lines of a point charge and a uniform field; E = U/d along a field line; electrostatic induction and screening; capacitors and capacitance C = q/U, farad; polarization of dielectrics. Contains no questions."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Potential energy of a charge W = qφ",
+            "skill": "calculate potential energy with unit conversion"
+          },
+          "explanation": "От φ = W/q0 следва W = q·φ = 3·10⁻⁹ C · 200 V = 6·10⁻⁷ J.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 14,
+          "candidate_id": "physics-g10-electric-field-run-1-15",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-x",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка), Приложение № 8",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:09:10Z",
+            "notes": "Scope authority for sub-theme 1.1 Електрично поле: Coulomb's law for two point charges; field as mediator; intensity and potential; intensity of a point charge; voltage as potential difference; force and potential energy of a charge in a field; field lines of a point charge and a uniform field; E = U/d along a field line; electrostatic induction and screening; capacitors and capacitance C = q/U, farad; polarization of dielectrics. Contains no questions."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Relation between intensity and voltage in a uniform field E = U/d",
+            "skill": "calculate E from U and d"
+          },
+          "explanation": "В еднородно поле E = U/d = 400 V / 0,02 m = 2·10⁴ V/m. Отговорът 2·10² V/m се получава, ако разстоянието не е преобразувано в метри.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 15,
+          "candidate_id": "physics-g10-electric-field-run-1-16",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-x",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка), Приложение № 8",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:09:10Z",
+            "notes": "Scope authority for sub-theme 1.1 Електрично поле: Coulomb's law for two point charges; field as mediator; intensity and potential; intensity of a point charge; voltage as potential difference; force and potential energy of a charge in a field; field lines of a point charge and a uniform field; E = U/d along a field line; electrostatic induction and screening; capacitors and capacitance C = q/U, farad; polarization of dielectrics. Contains no questions."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Combining E = U/d and F = qE",
+            "skill": "two-step calculation in a uniform field"
+          },
+          "explanation": "Интензитетът е E = U/d = 500 / 0,05 = 1·10⁴ V/m. Силата е F = qE = 2·10⁻⁶·1·10⁴ = 2·10⁻² N.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 16,
+          "candidate_id": "physics-g10-electric-field-run-1-17",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-x",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка), Приложение № 8",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:09:10Z",
+            "notes": "Scope authority for sub-theme 1.1 Електрично поле: Coulomb's law for two point charges; field as mediator; intensity and potential; intensity of a point charge; voltage as potential difference; force and potential energy of a charge in a field; field lines of a point charge and a uniform field; E = U/d along a field line; electrostatic induction and screening; capacitors and capacitance C = q/U, farad; polarization of dielectrics. Contains no questions."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Electrostatic induction",
+            "skill": "predict charge redistribution in a conductor"
+          },
+          "explanation": "Свободните електрони в метала се привличат от положителната пръчка и се насочват към ближния край. Това е електростатична индукция: ближният край става отрицателен, далечният – положителен, а общият заряд на тялото остава нула.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 17,
+          "candidate_id": "physics-g10-electric-field-run-1-18",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-x",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка), Приложение № 8",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:09:10Z",
+            "notes": "Scope authority for sub-theme 1.1 Електрично поле: Coulomb's law for two point charges; field as mediator; intensity and potential; intensity of a point charge; voltage as potential difference; force and potential energy of a charge in a field; field lines of a point charge and a uniform field; E = U/d along a field line; electrostatic induction and screening; capacitors and capacitance C = q/U, farad; polarization of dielectrics. Contains no questions."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Electrostatic screening and its application",
+            "skill": "identify a phenomenon in an application"
+          },
+          "explanation": "Свободните заряди на металната обвивка се преразпределят така, че индуцираните заряди компенсират външното поле във вътрешността. Това е електростатично екраниране.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 18,
+          "candidate_id": "physics-g10-electric-field-run-1-19",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-x",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка), Приложение № 8",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:09:10Z",
+            "notes": "Scope authority for sub-theme 1.1 Електрично поле: Coulomb's law for two point charges; field as mediator; intensity and potential; intensity of a point charge; voltage as potential difference; force and potential energy of a charge in a field; field lines of a point charge and a uniform field; E = U/d along a field line; electrostatic induction and screening; capacitors and capacitance C = q/U, farad; polarization of dielectrics. Contains no questions."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Capacitance C = q/U, farad",
+            "skill": "calculate capacitance"
+          },
+          "explanation": "Капацитетът е C = q/U = 36 μC / 12 V = 3 μC/V = 3 μF. Отговорът 3 F се получава при пропуснат префикс μ.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 19,
+          "candidate_id": "physics-g10-electric-field-run-1-20",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-x",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка), Приложение № 8",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:09:10Z",
+            "notes": "Scope authority for sub-theme 1.1 Електрично поле: Coulomb's law for two point charges; field as mediator; intensity and potential; intensity of a point charge; voltage as potential difference; force and potential energy of a charge in a field; field lines of a point charge and a uniform field; E = U/d along a field line; electrostatic induction and screening; capacitors and capacitance C = q/U, farad; polarization of dielectrics. Contains no questions."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Capacitance is a property of the capacitor; charge is proportional to voltage",
+            "skill": "distinguish a constant property from a varying quantity"
+          },
+          "explanation": "Капацитетът е характеристика на кондензатора и не се променя при смяна на напрежението. Зарядът е q = C·U и при удвоено напрежение става 4 μF·20 V = 80 μC (преди това е бил 40 μC).",
+          "difficulty": "medium"
+        },
+        {
+          "number": 20,
+          "candidate_id": "physics-g10-electric-field-run-1-21",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-x",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка), Приложение № 8",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:09:10Z",
+            "notes": "Scope authority for sub-theme 1.1 Електрично поле: Coulomb's law for two point charges; field as mediator; intensity and potential; intensity of a point charge; voltage as potential difference; force and potential energy of a charge in a field; field lines of a point charge and a uniform field; E = U/d along a field line; electrostatic induction and screening; capacitors and capacitance C = q/U, farad; polarization of dielectrics. Contains no questions."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Interpreting tabulated data for the field of a point charge",
+            "skill": "identify a relationship from a table"
+          },
+          "explanation": "Произведението E·r² е постоянно: 900·1² = 225·2² = 100·3² = 900 (в единици от 10 cm). Така E ~ 1/r², както при E = kq/r². Произведението E·r не е постоянно (900, 450, 300).",
+          "difficulty": "medium"
+        },
+        {
+          "number": 21,
+          "candidate_id": "physics-g10-electric-field-run-1-22",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-x",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка), Приложение № 8",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:09:10Z",
+            "notes": "Scope authority for sub-theme 1.1 Електрично поле: Coulomb's law for two point charges; field as mediator; intensity and potential; intensity of a point charge; voltage as potential difference; force and potential energy of a charge in a field; field lines of a point charge and a uniform field; E = U/d along a field line; electrostatic induction and screening; capacitors and capacitance C = q/U, farad; polarization of dielectrics. Contains no questions."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Polarization of dielectrics and its observation",
+            "skill": "explain an everyday observation"
+          },
+          "explanation": "Хартията е диелектрик. В полето на линийката зарядите в нея се изместват (поляризация) и ближната повърхност придобива заряд с противоположен знак. Тъй като полето е по-силно близо до линийката, привличането е по-голямо от отблъскването.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 22,
+          "candidate_id": "physics-g10-electric-field-run-1-24",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-x",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка), Приложение № 8",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:09:10Z",
+            "notes": "Scope authority for sub-theme 1.1 Електрично поле: Coulomb's law for two point charges; field as mediator; intensity and potential; intensity of a point charge; voltage as potential difference; force and potential energy of a charge in a field; field lines of a point charge and a uniform field; E = U/d along a field line; electrostatic induction and screening; capacitors and capacitance C = q/U, farad; polarization of dielectrics. Contains no questions."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Coulomb's law combined with charge sharing between identical conductors",
+            "skill": "combine charge conservation with Coulomb's law"
+          },
+          "explanation": "При допир общият заряд +4 μC се разпределя поравно: по +2 μC. Преди допира |q1·q2| = 12 μC², след това 4 μC². Силата е 3 пъти по-малка и, тъй като двата заряда са положителни, е отблъскваща.",
+          "difficulty": "hard"
+        }
+      ]
+    }
+  ],
+  "not_exported": []
+}

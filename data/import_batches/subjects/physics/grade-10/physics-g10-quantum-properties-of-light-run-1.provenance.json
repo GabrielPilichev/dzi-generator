@@ -1,0 +1,687 @@
+{
+  "format_version": 1,
+  "kind": "question_candidate_provenance",
+  "run": {
+    "id": "physics-g10-quantum-properties-of-light-run-1",
+    "started_at": "2026-10-05T14:20:00Z",
+    "finished_at": "2026-10-05T14:45:00Z",
+    "collector": "claude-sonnet-5-5-collector",
+    "subject": "physics",
+    "grade": 10,
+    "curriculum": {
+      "education_type": "general",
+      "title": "Физика и астрономия, 10. клас — общообразователна подготовка"
+    },
+    "targets": [
+      {
+        "section": {
+          "slug": "physics-g10-light",
+          "title": "Светлина"
+        },
+        "topics": [
+          {
+            "slug": "physics-g10-quantum-properties-of-light",
+            "title": "Квантови свойства на светлината"
+          }
+        ]
+      }
+    ],
+    "limits": {
+      "max_topics": 1,
+      "max_pages": 5,
+      "max_candidates": 25,
+      "max_candidates_per_source": 25,
+      "max_runtime_minutes": 30
+    },
+    "pages_inspected": 1,
+    "stop_reason": "topic_complete",
+    "notes": "Обхват: само тема 2.3 „Квантови свойства на светлината“ от програмата за 10. клас — спектър на топлинно излъчване на абсолютно черно тяло, закон на Стефан P = σST⁴, закон на Вин λmax·T = const, светлинни кванти (фотони) и E = hν, фотоефект (закономерности, приложения), отделителна работа и уравнение на Айнщайн hν = Ae + Ek,max. Извън обхвата: интерференция и дифракция (тема 2.2), отражение и пречупване (тема 2.1), енергетични нива и атомни преходи, спектри на атомите, лазери, луминесценция и вълни на Дьо Бройл (тема 3.1). Запиращото напрежение е ползвано само в един въпрос (18), като връзката eU = Ek,max е зададена в условието. Числените въпроси задават нужните константи (h, c, σ, константата на Вин)."
+  },
+  "not_stored_in_database": [
+    "candidate id",
+    "source type",
+    "source url",
+    "source title",
+    "source publisher",
+    "source retrieved_at",
+    "transformation",
+    "source_ref",
+    "research",
+    "reuse_exception",
+    "explanation",
+    "difficulty",
+    "review (reviewer, reviewed_at, notes)",
+    "run manifest"
+  ],
+  "batches": [
+    {
+      "file": "physics-g10-quantum-properties-of-light-run-1.quantum-properties-of-light.json",
+      "source": "reviewed:physics:physics-g10-quantum-properties-of-light-run-1.quantum-properties-of-light",
+      "topic_slug": "physics-g10-quantum-properties-of-light",
+      "questions": [
+        {
+          "number": 1,
+          "candidate_id": "physics-g10-quantum-properties-of-light-run-1-001",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:20:00Z",
+            "notes": "Авторитет за обхвата на тема 2.3 (очаквани резултати, нови понятия, формули P = σST⁴, λmax·T = const, E = hν, hν = Ae + Ek,max), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Абсолютно черно тяло",
+            "skill": "Тълкуване на понятие"
+          },
+          "explanation": "Абсолютно черното тяло е идеален модел: то поглъща цялото падащо лъчение, без да го отразява. При дадена температура то излъчва най-много топлинно лъчение, затова със своя спектър служи като еталон. Черният цвят не означава, че тялото не излъчва.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 2,
+          "candidate_id": "physics-g10-quantum-properties-of-light-run-1-002",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:20:00Z",
+            "notes": "Авторитет за обхвата на тема 2.3 (очаквани резултати, нови понятия, формули P = σST⁴, λmax·T = const, E = hν, hν = Ae + Ek,max), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Спектър на топлинно излъчване на абсолютно черно тяло при различни температури",
+            "skill": "Описание на графика"
+          },
+          "explanation": "При по-висока температура максимумът в спектъра е при по-къса дължина на вълната (закон на Вин), а излъчваната мощност, т.е. площта под кривата, нараства (закон на Стефан).",
+          "difficulty": "easy"
+        },
+        {
+          "number": 3,
+          "candidate_id": "physics-g10-quantum-properties-of-light-run-1-003",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:20:00Z",
+            "notes": "Авторитет за обхвата на тема 2.3 (очаквани резултати, нови понятия, формули P = σST⁴, λmax·T = const, E = hν, hν = Ae + Ek,max), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Закон на Вин",
+            "skill": "Пресмятане на температура"
+          },
+          "explanation": "T = 2,9·10⁻³ m·K / (5,0·10⁻⁷ m) = 5,8·10³ K. Отговорът 580 K се получава при грешка в степента на десет при преобразуването на nm в m.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 4,
+          "candidate_id": "physics-g10-quantum-properties-of-light-run-1-004",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:20:00Z",
+            "notes": "Авторитет за обхвата на тема 2.3 (очаквани резултати, нови понятия, формули P = σST⁴, λmax·T = const, E = hν, hν = Ae + Ek,max), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Закон на Стефан",
+            "skill": "Зависимост от четвърта степен"
+          },
+          "explanation": "Според закона на Стефан P = σ·S·T⁴. При удвояване на T мощността нараства 2⁴ = 16 пъти.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 5,
+          "candidate_id": "physics-g10-quantum-properties-of-light-run-1-005",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:20:00Z",
+            "notes": "Авторитет за обхвата на тема 2.3 (очаквани резултати, нови понятия, формули P = σST⁴, λmax·T = const, E = hν, hν = Ae + Ek,max), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Закон на Стефан",
+            "skill": "Пресмятане на излъчена мощност"
+          },
+          "explanation": "P = σ·S·T⁴ = 5,67·10⁻⁸ · 0,50 · (10³)⁴ W ≈ 2,8·10⁴ W = 28 kW. Отговорът 57 kW се получава, ако се пропусне множителят S.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 6,
+          "candidate_id": "physics-g10-quantum-properties-of-light-run-1-006",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:20:00Z",
+            "notes": "Авторитет за обхвата на тема 2.3 (очаквани резултати, нови понятия, формули P = σST⁴, λmax·T = const, E = hν, hν = Ae + Ek,max), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Комбинирано прилагане на законите на Вин и Стефан",
+            "skill": "Разсъждение с няколко зависимости"
+          },
+          "explanation": "Според закона на Вин температурата нараства 1200/800 = 1,5 пъти. Според закона на Стефан P = σ·S·T⁴ със S = 4πR². Повърхността намалява 1,5² = 2,25 пъти, а T⁴ нараства 1,5⁴ ≈ 5,06 пъти. Мощността се променя 1,5⁴/1,5² = 1,5² = 2,25 пъти, т.е. нараства.",
+          "difficulty": "hard"
+        },
+        {
+          "number": 7,
+          "candidate_id": "physics-g10-quantum-properties-of-light-run-1-007",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:20:00Z",
+            "notes": "Авторитет за обхвата на тема 2.3 (очаквани резултати, нови понятия, формули P = σST⁴, λmax·T = const, E = hν, hν = Ae + Ek,max), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Енергия на фотона E = hν",
+            "skill": "Сравняване на фотони"
+          },
+          "explanation": "Енергията на фотона е E = hν и расте с честотата. Виолетовата светлина има по-голяма честота (по-къса дължина на вълната) от червената. Скоростта на всички фотони във вакуум е c.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 8,
+          "candidate_id": "physics-g10-quantum-properties-of-light-run-1-008",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:20:00Z",
+            "notes": "Авторитет за обхвата на тема 2.3 (очаквани резултати, нови понятия, формули P = σST⁴, λmax·T = const, E = hν, hν = Ae + Ek,max), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Енергия на фотона E = hν = hc/λ",
+            "skill": "Пресмятане на енергия на фотон"
+          },
+          "explanation": "Честотата е ν = c/λ = 6,0·10¹⁴ Hz, а E = hν = hc/λ = 6,63·10⁻³⁴ · 3,00·10⁸ / 5,00·10⁻⁷ J ≈ 4,0·10⁻¹⁹ J. Стойността 1,3·10⁻²⁷ J е резултат от h/λ, т.е. от пропуснато c.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 9,
+          "candidate_id": "physics-g10-quantum-properties-of-light-run-1-009",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:20:00Z",
+            "notes": "Авторитет за обхвата на тема 2.3 (очаквани резултати, нови понятия, формули P = σST⁴, λmax·T = const, E = hν, hν = Ae + Ek,max), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Фотони и мощност на светлинен лъч",
+            "skill": "Брой фотони за единица време"
+          },
+          "explanation": "Енергията на един фотон е E = hc/λ ≈ 3,3·10⁻¹⁹ J. Броят фотони за секунда е N = P·t/E = 1,0·10⁻³ J / 3,3·10⁻¹⁹ J ≈ 3,0·10¹⁵. Отговорът 3,0·10¹⁸ се получава, ако мощността се вземе 1 W вместо 1 mW.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 10,
+          "candidate_id": "physics-g10-quantum-properties-of-light-run-1-010",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:20:00Z",
+            "notes": "Авторитет за обхвата на тема 2.3 (очаквани резултати, нови понятия, формули P = σST⁴, λmax·T = const, E = hν, hν = Ae + Ek,max), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Приложения на фотоефекта",
+            "skill": "Разпознаване на приложение"
+          },
+          "explanation": "Във фотоклетката падащите фотони избиват електрони от метала и възниква ток. Оптичното влакно (пълно вътрешно отражение), решетката (дифракция и интерференция) и призмата (дисперсия) използват вълновите свойства на светлината и закона за пречупване.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 11,
+          "candidate_id": "physics-g10-quantum-properties-of-light-run-1-011",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:20:00Z",
+            "notes": "Авторитет за обхвата на тема 2.3 (очаквани резултати, нови понятия, формули P = σST⁴, λmax·T = const, E = hν, hν = Ae + Ek,max), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Прагова честота при фотоефекта",
+            "skill": "Прилагане на закономерност"
+          },
+          "explanation": "Фотоефект настъпва само ако честотата на светлината е по-голяма от праговата за метала, т.е. енергията на фотона надвишава отделителната работа. Интензитетът, времето и осветената площ не променят енергията на отделния фотон. Фотоните на ултравиолетовата светлина са по-енергични.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 12,
+          "candidate_id": "physics-g10-quantum-properties-of-light-run-1-012",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:20:00Z",
+            "notes": "Авторитет за обхвата на тема 2.3 (очаквани резултати, нови понятия, формули P = σST⁴, λmax·T = const, E = hν, hν = Ae + Ek,max), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Закономерности при фотоефекта: интензитет и енергия на фотоелектроните",
+            "skill": "Предвиждане на промяна"
+          },
+          "explanation": "По-големият интензитет означава повече фотони за секунда, а те избиват съответно повече електрони. Енергията на всеки фотон е hν и зависи само от честотата, затова Ek,max = hν − Ae не се променя.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 13,
+          "candidate_id": "physics-g10-quantum-properties-of-light-run-1-013",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:20:00Z",
+            "notes": "Авторитет за обхвата на тема 2.3 (очаквани резултати, нови понятия, формули P = σST⁴, λmax·T = const, E = hν, hν = Ae + Ek,max), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Уравнение на Айнщайн за фотоефекта",
+            "skill": "Пресмятане на Ek,max"
+          },
+          "explanation": "Енергията на фотона е hν = hc/λ = 6,63·10⁻¹⁹ J. От hν = Ae + Ek,max следва Ek,max = 6,63·10⁻¹⁹ J − 4,0·10⁻¹⁹ J ≈ 2,6·10⁻¹⁹ J. Стойността 6,6·10⁻¹⁹ J е енергията на фотона, а 1,1·10⁻¹⁸ J се получава при събиране вместо изваждане.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 14,
+          "candidate_id": "physics-g10-quantum-properties-of-light-run-1-014",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:20:00Z",
+            "notes": "Авторитет за обхвата на тема 2.3 (очаквани резултати, нови понятия, формули P = σST⁴, λmax·T = const, E = hν, hν = Ae + Ek,max), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Отделителна работа и прагова дължина на вълната",
+            "skill": "Пресмятане на граница на фотоефекта"
+          },
+          "explanation": "На границата на фотоефекта Ek,max = 0 и hc/λmax = Ae. Следователно λmax = hc/Ae = 6,63·10⁻³⁴ · 3,00·10⁸ / 3,3·10⁻¹⁹ m ≈ 6,0·10⁻⁷ m = 600 nm. За по-големи дължини на вълната енергията на фотона е по-малка от Ae.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 15,
+          "candidate_id": "physics-g10-quantum-properties-of-light-run-1-015",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:20:00Z",
+            "notes": "Авторитет за обхвата на тема 2.3 (очаквани резултати, нови понятия, формули P = σST⁴, λmax·T = const, E = hν, hν = Ae + Ek,max), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Условие за фотоефект hν > Ae",
+            "skill": "Сравняване на енергия на фотона с отделителна работа"
+          },
+          "explanation": "Фотоефект настъпва, когато енергията на фотона е по-голяма от отделителната работа. Това е изпълнено за цезия (3,0 > 2,1) и за натрия (3,0 > 2,3), но не за цинка и платината. Достатъчно е фотонът да е по-енергичен от Ae; не е нужно да е най-малкото Ae.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 16,
+          "candidate_id": "physics-g10-quantum-properties-of-light-run-1-016",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:20:00Z",
+            "notes": "Авторитет за обхвата на тема 2.3 (очаквани резултати, нови понятия, формули P = σST⁴, λmax·T = const, E = hν, hν = Ae + Ek,max), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Графика на Ek,max в зависимост от честотата",
+            "skill": "Тълкуване на наклона"
+          },
+          "explanation": "От уравнението Ek,max = hν − Ae следва линейна зависимост от ν. Наклонът ѝ е h и не зависи от метала. Отделителната работа определя отместването на правата (пресечната точка с ординатната ос е −Ae, а с абсцисната — праговата честота).",
+          "difficulty": "medium"
+        },
+        {
+          "number": 17,
+          "candidate_id": "physics-g10-quantum-properties-of-light-run-1-017",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:20:00Z",
+            "notes": "Авторитет за обхвата на тема 2.3 (очаквани резултати, нови понятия, формули P = σST⁴, λmax·T = const, E = hν, hν = Ae + Ek,max), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Графики на Ek,max(ν) за различни метали",
+            "skill": "Сравняване на два метала по графика"
+          },
+          "explanation": "Успоредните прави имат един и същ наклон h, затова константата на Планк е еднаква за двата метала. Пресечната точка с абсцисната ос е праговата честота ν0 = Ae/h. По-голяма прагова честота означава по-голяма отделителна работа.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 18,
+          "candidate_id": "physics-g10-quantum-properties-of-light-run-1-018",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:20:00Z",
+            "notes": "Авторитет за обхвата на тема 2.3 (очаквани резултати, нови понятия, формули P = σST⁴, λmax·T = const, E = hν, hν = Ae + Ek,max), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Уравнение на Айнщайн и запиращо напрежение",
+            "skill": "Пресмятане на запиращо напрежение"
+          },
+          "explanation": "Ek,max = hν − Ae = 5,2 eV − 3,7 eV = 1,5 eV. Електрон с енергия 1,5 eV се спира от напрежение U = 1,5 V. Стойностите 5,2 V и 8,9 V се получават при пропускане на Ae или при събиране вместо изваждане.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 19,
+          "candidate_id": "physics-g10-quantum-properties-of-light-run-1-019",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:20:00Z",
+            "notes": "Авторитет за обхвата на тема 2.3 (очаквани резултати, нови понятия, формули P = σST⁴, λmax·T = const, E = hν, hν = Ae + Ek,max), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Корпускулно-вълнови разбирания: противоречие на вълновата теория с опита",
+            "skill": "Анализ на наблюдения"
+          },
+          "explanation": "Според вълновата теория достатъчно интензивна светлина с каквато и да е честота би предала на електрона нужната енергия, макар и след известно време. Опитът показва, че под праговата честота няма фотоефект, а над нея електроните се излъчват практически мигновено. Това се обяснява с фотони с енергия hν. Останалите три наблюдения не противоречат на вълновата теория.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 20,
+          "candidate_id": "physics-g10-quantum-properties-of-light-run-1-020",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:20:00Z",
+            "notes": "Авторитет за обхвата на тема 2.3 (очаквани резултати, нови понятия, формули P = σST⁴, λmax·T = const, E = hν, hν = Ae + Ek,max), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Светлинните кванти: брой фотони и енергия",
+            "skill": "Качествено сравняване на фотонни потоци"
+          },
+          "explanation": "Мощността е P = N·hν/t, където N/t е броят на фотоните за секунда. При равни мощности по-малката енергия на фотона (червена светлина) означава по-голям брой фотони за секунда. Скоростта на фотоните във вакуум е една и съща.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 21,
+          "candidate_id": "physics-g10-quantum-properties-of-light-run-1-021",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:20:00Z",
+            "notes": "Авторитет за обхвата на тема 2.3 (очаквани резултати, нови понятия, формули P = σST⁴, λmax·T = const, E = hν, hν = Ae + Ek,max), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Уравнение на Айнщайн за фотоефекта",
+            "skill": "Намиране на отделителна работа от две измервания"
+          },
+          "explanation": "Записват се две уравнения: hν = Ae + 1,2 eV и 2hν = Ae + 4,0 eV. Умножава се първото по 2 и се изважда от второто: 0 = −Ae + 4,0 eV − 2,4 eV, откъдето Ae = 1,6 eV (тогава hν = 2,8 eV). Стойността 2,8 eV е енергията на фотона при честота ν.",
+          "difficulty": "hard"
+        },
+        {
+          "number": 22,
+          "candidate_id": "physics-g10-quantum-properties-of-light-run-1-022",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:20:00Z",
+            "notes": "Авторитет за обхвата на тема 2.3 (очаквани резултати, нови понятия, формули P = σST⁴, λmax·T = const, E = hν, hν = Ae + Ek,max), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Приложение на фотоефекта: фотоклетка",
+            "skill": "Обяснение на устройство"
+          },
+          "explanation": "Токът във фотоклетката се създава от електрони, получили енергия от фотони с hν > Ae. Когато фотоните спрат да падат, електроните не напускат металния електрод и токът прекъсва. Отделителната работа е свойство на метала и не зависи от осветеността.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 23,
+          "candidate_id": "physics-g10-quantum-properties-of-light-run-1-023",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:20:00Z",
+            "notes": "Авторитет за обхвата на тема 2.3 (очаквани резултати, нови понятия, формули P = σST⁴, λmax·T = const, E = hν, hν = Ae + Ek,max), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Закон на Вин: цвят на нагрято тяло",
+            "skill": "Обяснение на реална ситуация"
+          },
+          "explanation": "Нагретият прът излъчва като тяло с топлинен спектър. Според закона на Вин λmax·T = const, затова при по-висока температура максимумът се премества към по-къси вълни и във видимия спектър се добавят жълти, зелени и сини компоненти, докато цветът в целия спектър става жълтобял. Енергията на излъчваните фотони се променя, а не само броят им.",
+          "difficulty": "medium"
+        }
+      ]
+    }
+  ],
+  "not_exported": []
+}

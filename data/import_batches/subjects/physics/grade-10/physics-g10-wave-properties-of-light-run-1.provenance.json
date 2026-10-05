@@ -1,0 +1,660 @@
+{
+  "format_version": 1,
+  "kind": "question_candidate_provenance",
+  "run": {
+    "id": "physics-g10-wave-properties-of-light-run-1",
+    "started_at": "2026-10-05T14:11:00Z",
+    "finished_at": "2026-10-05T14:21:33Z",
+    "subject": "physics",
+    "grade": 10,
+    "curriculum": {
+      "education_type": "general",
+      "title": "Физика и астрономия, 10. клас — общообразователна подготовка"
+    },
+    "targets": [
+      {
+        "section": {
+          "slug": "physics-g10-light",
+          "title": "Светлина"
+        },
+        "topics": [
+          {
+            "slug": "physics-g10-wave-properties-of-light",
+            "title": "Вълнови свойства на светлината"
+          }
+        ]
+      }
+    ],
+    "limits": {
+      "max_topics": 1,
+      "max_pages": 12,
+      "max_candidates": 25,
+      "max_candidates_per_source": 25,
+      "max_runtime_minutes": 40
+    },
+    "pages_inspected": 1,
+    "stop_reason": "topic_complete",
+    "collector": "claude-sonnet-5-5-collector",
+    "notes": "1 inspection: official МОН Grade 10 programme (Приложение № 8), downloaded and read as extracted text (SHA-256 3cc86591…193de1), sub-theme 2.2. All candidates were newly written by the collector from standard physical relationships and the programme scope; no third-party question text was consulted. All candidates are pending."
+  },
+  "not_stored_in_database": [
+    "candidate id",
+    "source type",
+    "source url",
+    "source title",
+    "source publisher",
+    "source retrieved_at",
+    "transformation",
+    "source_ref",
+    "research",
+    "reuse_exception",
+    "explanation",
+    "difficulty",
+    "review (reviewer, reviewed_at, notes)",
+    "run manifest"
+  ],
+  "batches": [
+    {
+      "file": "physics-g10-wave-properties-of-light-run-1.wave-properties-of-light.json",
+      "source": "reviewed:physics:physics-g10-wave-properties-of-light-run-1.wave-properties-of-light",
+      "topic_slug": "physics-g10-wave-properties-of-light",
+      "questions": [
+        {
+          "number": 1,
+          "candidate_id": "physics-g10-wave-properties-of-light-run-1-01",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-x",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка), Приложение № 8",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:21:33Z",
+            "notes": "Scope authority for sub-theme 2.2 Вълнови свойства на светлината: definitions of interference and diffraction; diffraction of all waves when obstacle or slit is comparable to the wavelength; Huygens principle; Young's experiment by scheme; conditions for interference maximum (Δr = mλ) and minimum (Δr = (m + 1/2)λ) without the concept of coherence; diffraction grating without a formula, its applications and the diffraction spectrum. Contains no questions."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Interference of light: definition",
+            "skill": "recognise the phenomenon"
+          },
+          "explanation": "Интерференция е наслагването на вълни, при което резултатната интензивност не е просто сума от интензивностите: на едни места светлината се усилва (максимуми), на други – отслабва (минимуми). Огъването около препятствия е дифракция, смяната на посоката е пречупване, а разлагането на цветове – дисперсия.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 2,
+          "candidate_id": "physics-g10-wave-properties-of-light-run-1-02",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-x",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка), Приложение № 8",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:21:33Z",
+            "notes": "Scope authority for sub-theme 2.2 Вълнови свойства на светлината: definitions of interference and diffraction; diffraction of all waves when obstacle or slit is comparable to the wavelength; Huygens principle; Young's experiment by scheme; conditions for interference maximum (Δr = mλ) and minimum (Δr = (m + 1/2)λ) without the concept of coherence; diffraction grating without a formula, its applications and the diffraction spectrum. Contains no questions."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Diffraction of light: definition",
+            "skill": "recognise the phenomenon from its description"
+          },
+          "explanation": "Дифракция на светлината е огъването ѝ около краищата на препятствия и процепи, при което тя навлиза в областта на геометричната сянка. Дисперсията е зависимост на показателя на пречупване от дължината на вълната, а пълното вътрешно отражение се наблюдава на границата между две среди при големи ъгли на падане.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 3,
+          "candidate_id": "physics-g10-wave-properties-of-light-run-1-03",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-x",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка), Приложение № 8",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:21:33Z",
+            "notes": "Scope authority for sub-theme 2.2 Вълнови свойства на светлината: definitions of interference and diffraction; diffraction of all waves when obstacle or slit is comparable to the wavelength; Huygens principle; Young's experiment by scheme; conditions for interference maximum (Δr = mλ) and minimum (Δr = (m + 1/2)λ) without the concept of coherence; diffraction grating without a formula, its applications and the diffraction spectrum. Contains no questions."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Physical meaning of the minimum condition",
+            "skill": "explain destructive interference by phase"
+          },
+          "explanation": "При Δr = (m + 1/2)λ едната вълна изостава спрямо другата с нечетен брой половини дължини на вълната, т.е. те са в противофаза: гребенът на едната пада върху падината на другата и вълните се гасят. Когато Δr е цяло число дължини на вълната, те са във фаза и се получава максимум.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 4,
+          "candidate_id": "physics-g10-wave-properties-of-light-run-1-04",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-x",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка), Приложение № 8",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:21:33Z",
+            "notes": "Scope authority for sub-theme 2.2 Вълнови свойства на светлината: definitions of interference and diffraction; diffraction of all waves when obstacle or slit is comparable to the wavelength; Huygens principle; Young's experiment by scheme; conditions for interference maximum (Δr = mλ) and minimum (Δr = (m + 1/2)λ) without the concept of coherence; diffraction grating without a formula, its applications and the diffraction spectrum. Contains no questions."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Maximum condition Δr = mλ",
+            "skill": "apply the maximum condition"
+          },
+          "explanation": "Δr/λ = 1500 nm / 500 nm = 3, т.е. Δr = mλ с m = 3 – условието за максимум. За минимум би трябвало Δr да е равна на (m + 1/2)λ, например 2,5λ или 3,5λ.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 5,
+          "candidate_id": "physics-g10-wave-properties-of-light-run-1-05",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-x",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка), Приложение № 8",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:21:33Z",
+            "notes": "Scope authority for sub-theme 2.2 Вълнови свойства на светлината: definitions of interference and diffraction; diffraction of all waves when obstacle or slit is comparable to the wavelength; Huygens principle; Young's experiment by scheme; conditions for interference maximum (Δr = mλ) and minimum (Δr = (m + 1/2)λ) without the concept of coherence; diffraction grating without a formula, its applications and the diffraction spectrum. Contains no questions."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Interference conditions with wavelength from frequency",
+            "skill": "compute λ = c/f and classify the point"
+          },
+          "explanation": "λ = c/f = 3,0·10⁸ / 5,0·10¹⁴ = 6,0·10⁻⁷ m = 600 nm. Тогава Δr/λ = 1500 nm / 600 nm = 2,5, т.е. Δr = (m + 1/2)λ с m = 2 – условие за минимум.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 6,
+          "candidate_id": "physics-g10-wave-properties-of-light-run-1-07",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-x",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка), Приложение № 8",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:21:33Z",
+            "notes": "Scope authority for sub-theme 2.2 Вълнови свойства на светлината: definitions of interference and diffraction; diffraction of all waves when obstacle or slit is comparable to the wavelength; Huygens principle; Young's experiment by scheme; conditions for interference maximum (Δr = mλ) and minimum (Δr = (m + 1/2)λ) without the concept of coherence; diffraction grating without a formula, its applications and the diffraction spectrum. Contains no questions."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Young's experiment: observed pattern",
+            "skill": "predict the pattern on the screen"
+          },
+          "explanation": "Зад двата процепа светлината се огъва и вълните от тях се застъпват. На места разликата в пътищата е Δr = mλ (светли ивици – максимуми), а на други Δr = (m + 1/2)λ (тъмни ивици – минимуми), затова на екрана се редуват светли и тъмни ивици. Две ивици срещу процепите би дал праволинейно разпространяващ се лъч без интерференция.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 7,
+          "candidate_id": "physics-g10-wave-properties-of-light-run-1-08",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-x",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка), Приложение № 8",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:21:33Z",
+            "notes": "Scope authority for sub-theme 2.2 Вълнови свойства на светлината: definitions of interference and diffraction; diffraction of all waves when obstacle or slit is comparable to the wavelength; Huygens principle; Young's experiment by scheme; conditions for interference maximum (Δr = mλ) and minimum (Δr = (m + 1/2)λ) without the concept of coherence; diffraction grating without a formula, its applications and the diffraction spectrum. Contains no questions."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Young's experiment: scheme of the set-up",
+            "skill": "recognise the elements of the set-up"
+          },
+          "explanation": "В опита на Юнг светлина от източник пада върху непрозрачна преграда с два тесни близки процепа, а зад нея е поставен екран, на който се наблюдава интерференчната картина. Призмата и лещите са части от други оптични уреди, а един широк отвор не дава интерференчна картина.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 8,
+          "candidate_id": "physics-g10-wave-properties-of-light-run-1-09",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-x",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка), Приложение № 8",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:21:33Z",
+            "notes": "Scope authority for sub-theme 2.2 Вълнови свойства на светлината: definitions of interference and diffraction; diffraction of all waves when obstacle or slit is comparable to the wavelength; Huygens principle; Young's experiment by scheme; conditions for interference maximum (Δr = mλ) and minimum (Δr = (m + 1/2)λ) without the concept of coherence; diffraction grating without a formula, its applications and the diffraction spectrum. Contains no questions."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Young's experiment: central maximum",
+            "skill": "apply Δr = 0 to the symmetric point"
+          },
+          "explanation": "Точка на еднакво разстояние от процепите има Δr = 0 = 0·λ, т.е. условието Δr = mλ е изпълнено с m = 0 – централният максимум. Нулата е цяло число, затова случаят също е максимум. Ъгълът между лъчите няма отношение към фазовата разлика.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 9,
+          "candidate_id": "physics-g10-wave-properties-of-light-run-1-10",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-x",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка), Приложение № 8",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:21:33Z",
+            "notes": "Scope authority for sub-theme 2.2 Вълнови свойства на светлината: definitions of interference and diffraction; diffraction of all waves when obstacle or slit is comparable to the wavelength; Huygens principle; Young's experiment by scheme; conditions for interference maximum (Δr = mλ) and minimum (Δr = (m + 1/2)λ) without the concept of coherence; diffraction grating without a formula, its applications and the diffraction spectrum. Contains no questions."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Young's experiment: role of narrow slits (diffraction)",
+            "skill": "link diffraction to the overlap of waves"
+          },
+          "explanation": "Тесният процеп е съпоставим с дължината на вълната, затова зад него светлината се огъва (дифракция) и се разпространява в широк ъгъл. Така вълните от двата процепа се застъпват в една и съща област на екрана и могат да интерферират. При широки процепи светлината би останала в тесни праволинейни лъчи, които не се застъпват.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 10,
+          "candidate_id": "physics-g10-wave-properties-of-light-run-1-11",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-x",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка), Приложение № 8",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:21:33Z",
+            "notes": "Scope authority for sub-theme 2.2 Вълнови свойства на светлината: definitions of interference and diffraction; diffraction of all waves when obstacle or slit is comparable to the wavelength; Huygens principle; Young's experiment by scheme; conditions for interference maximum (Δr = mλ) and minimum (Δr = (m + 1/2)λ) without the concept of coherence; diffraction grating without a formula, its applications and the diffraction spectrum. Contains no questions."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Young's experiment: covering one slit",
+            "skill": "reason why a dark point becomes lit"
+          },
+          "explanation": "Тъмнината в P се дължи на взаимното гасене на две вълни. След закриването на единия процеп остава само една вълна, няма с какво да бъде погасена и в P светлина вече има. Интерференцията не унищожава светлинната енергия, а я преразпределя по екрана.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 11,
+          "candidate_id": "physics-g10-wave-properties-of-light-run-1-12",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-x",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка), Приложение № 8",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:21:33Z",
+            "notes": "Scope authority for sub-theme 2.2 Вълнови свойства на светлината: definitions of interference and diffraction; diffraction of all waves when obstacle or slit is comparable to the wavelength; Huygens principle; Young's experiment by scheme; conditions for interference maximum (Δr = mλ) and minimum (Δr = (m + 1/2)λ) without the concept of coherence; diffraction grating without a formula, its applications and the diffraction spectrum. Contains no questions."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Young's experiment with white light",
+            "skill": "use Δr = mλ to order colours"
+          },
+          "explanation": "Колкото по-далеч от централната точка е една точка на екрана, толкова по-голяма е разликата в пътищата Δr. Условието Δr = λ се изпълнява при по-малко Δr за по-късата дължина на вълната, затова виолетовата светлина (най-къса λ) има максимум най-близо до центъра, а червената (най-дълга λ) – най-далеч.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 12,
+          "candidate_id": "physics-g10-wave-properties-of-light-run-1-13",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-x",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка), Приложение № 8",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:21:33Z",
+            "notes": "Scope authority for sub-theme 2.2 Вълнови свойства на светлината: definitions of interference and diffraction; diffraction of all waves when obstacle or slit is comparable to the wavelength; Huygens principle; Young's experiment by scheme; conditions for interference maximum (Δr = mλ) and minimum (Δr = (m + 1/2)λ) without the concept of coherence; diffraction grating without a formula, its applications and the diffraction spectrum. Contains no questions."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Diffraction of all waves; condition on obstacle size",
+            "skill": "judge a statement about diffraction"
+          },
+          "explanation": "Дифракцията е общо свойство на вълните: наблюдава се при светлина, звук, вълни по водна повърхност и др., когато размерът на преградата или процепа е съпоставим с дължината на вълната. Тя не зависи от това дали вълната е напречна или надлъжна.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 13,
+          "candidate_id": "physics-g10-wave-properties-of-light-run-1-14",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-x",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка), Приложение № 8",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:21:33Z",
+            "notes": "Scope authority for sub-theme 2.2 Вълнови свойства на светлината: definitions of interference and diffraction; diffraction of all waves when obstacle or slit is comparable to the wavelength; Huygens principle; Young's experiment by scheme; conditions for interference maximum (Δr = mλ) and minimum (Δr = (m + 1/2)λ) without the concept of coherence; diffraction grating without a formula, its applications and the diffraction spectrum. Contains no questions."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Diffraction depends on wavelength relative to obstacle size",
+            "skill": "compare wavelengths with an opening"
+          },
+          "explanation": "Дължината на звуковата вълна е λ = v/f = 340/440 ≈ 0,77 m, което е съпоставимо с 0,9 m – звукът се огъва и се чува извън правата линия през вратата. Дължината на светлинната вълна (0,58 μm) е около един милион пъти по-малка от отвора, затова при светлината дифракцията е пренебрежимо малка и тя се разпространява приблизително праволинейно.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 14,
+          "candidate_id": "physics-g10-wave-properties-of-light-run-1-15",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-x",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка), Приложение № 8",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:21:33Z",
+            "notes": "Scope authority for sub-theme 2.2 Вълнови свойства на светлината: definitions of interference and diffraction; diffraction of all waves when obstacle or slit is comparable to the wavelength; Huygens principle; Young's experiment by scheme; conditions for interference maximum (Δr = mλ) and minimum (Δr = (m + 1/2)λ) without the concept of coherence; diffraction grating without a formula, its applications and the diffraction spectrum. Contains no questions."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Huygens principle: statement",
+            "skill": "recognise the principle"
+          },
+          "explanation": "Според Хюйгенс всяка точка от вълновия фронт се явява източник на вторични сферични вълни; положението на фронта след време t е обвивката на тези вторични вълни. Другите твърдения са праволинейното разпространение, законът за отражение и условието за интерференчен максимум.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 15,
+          "candidate_id": "physics-g10-wave-properties-of-light-run-1-16",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-x",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка), Приложение № 8",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:21:33Z",
+            "notes": "Scope authority for sub-theme 2.2 Вълнови свойства на светлината: definitions of interference and diffraction; diffraction of all waves when obstacle or slit is comparable to the wavelength; Huygens principle; Young's experiment by scheme; conditions for interference maximum (Δr = mλ) and minimum (Δr = (m + 1/2)λ) without the concept of coherence; diffraction grating without a formula, its applications and the diffraction spectrum. Contains no questions."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Huygens principle: explanation of diffraction",
+            "skill": "apply Huygens principle to a slit"
+          },
+          "explanation": "Всяка точка от процепа, до която стига вълната, излъчва вторични вълни във всички посоки напред. Преградата пропуска само вторичните вълни от процепа, но те се разпространяват и встрани от правата посока – светлина достига до областта на геометричната сянка. Честотата на светлината не се променя при преминаването през процепа.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 16,
+          "candidate_id": "physics-g10-wave-properties-of-light-run-1-17",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-x",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка), Приложение № 8",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:21:33Z",
+            "notes": "Scope authority for sub-theme 2.2 Вълнови свойства на светлината: definitions of interference and diffraction; diffraction of all waves when obstacle or slit is comparable to the wavelength; Huygens principle; Young's experiment by scheme; conditions for interference maximum (Δr = mλ) and minimum (Δr = (m + 1/2)λ) without the concept of coherence; diffraction grating without a formula, its applications and the diffraction spectrum. Contains no questions."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Diffraction at a narrowing slit",
+            "skill": "predict how diffraction depends on slit width"
+          },
+          "explanation": "Колкото по-близък е размерът на процепа до дължината на вълната, толкова по-силно е огъването на светлината. Затова при стесняване на процепа лъчът зад него се разпростира в по-широк ъгъл и петното на екрана се разширява (макар процепът да е по-тесен от лъча). Процепът от 0,05 mm е много по-широк от 650 nm, така че светлина преминава свободно.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 17,
+          "candidate_id": "physics-g10-wave-properties-of-light-run-1-18",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-x",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка), Приложение № 8",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:21:33Z",
+            "notes": "Scope authority for sub-theme 2.2 Вълнови свойства на светлината: definitions of interference and diffraction; diffraction of all waves when obstacle or slit is comparable to the wavelength; Huygens principle; Young's experiment by scheme; conditions for interference maximum (Δr = mλ) and minimum (Δr = (m + 1/2)λ) without the concept of coherence; diffraction grating without a formula, its applications and the diffraction spectrum. Contains no questions."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Diffraction grating: principle of action",
+            "skill": "recognise structure and principle of a grating"
+          },
+          "explanation": "Дифракционната решетка е прозрачна или отразяваща плоча с множество много тесни успоредни процепи (или черти) на равни разстояния. Светлината се огъва във всеки процеп (дифракция), а вълните от всички процепи интерферират и дават резки максимуми в определени посоки. Призмата действа чрез пречупване и дисперсия.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 18,
+          "candidate_id": "physics-g10-wave-properties-of-light-run-1-19",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-x",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка), Приложение № 8",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:21:33Z",
+            "notes": "Scope authority for sub-theme 2.2 Вълнови свойства на светлината: definitions of interference and diffraction; diffraction of all waves when obstacle or slit is comparable to the wavelength; Huygens principle; Young's experiment by scheme; conditions for interference maximum (Δr = mλ) and minimum (Δr = (m + 1/2)λ) without the concept of coherence; diffraction grating without a formula, its applications and the diffraction spectrum. Contains no questions."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Diffraction grating with white light: central maximum and spectra",
+            "skill": "explain why the central maximum is white"
+          },
+          "explanation": "В посоката на падащия лъч Δr между съседните процепи е 0 за всяка дължина на вълната (условие Δr = mλ с m = 0) – всички цветове дават максимум на едно и също място и се смесват в бяло. В другите посоки Δr = mλ се изпълнява при различен ъгъл за всяка дължина на вълната, така се получават дифракционни спектри: те се образуват от интерференция, а не от пречупване или поглъщане.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 19,
+          "candidate_id": "physics-g10-wave-properties-of-light-run-1-20",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-x",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка), Приложение № 8",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:21:33Z",
+            "notes": "Scope authority for sub-theme 2.2 Вълнови свойства на светлината: definitions of interference and diffraction; diffraction of all waves when obstacle or slit is comparable to the wavelength; Huygens principle; Young's experiment by scheme; conditions for interference maximum (Δr = mλ) and minimum (Δr = (m + 1/2)λ) without the concept of coherence; diffraction grating without a formula, its applications and the diffraction spectrum. Contains no questions."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Application of diffraction gratings in spectral instruments",
+            "skill": "name the use of a grating"
+          },
+          "explanation": "Дифракционната решетка отклонява светлината с различна дължина на вълната под различни ъгли и така я разлага в дифракционен спектър. Това позволява да се определи от какви дължини на вълната се състои светлината на даден източник. Решетката не усилва яркостта, не поляризира светлината и не я фокусира като леща.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 20,
+          "candidate_id": "physics-g10-wave-properties-of-light-run-1-21",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-x",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка), Приложение № 8",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:21:33Z",
+            "notes": "Scope authority for sub-theme 2.2 Вълнови свойства на светлината: definitions of interference and diffraction; diffraction of all waves when obstacle or slit is comparable to the wavelength; Huygens principle; Young's experiment by scheme; conditions for interference maximum (Δr = mλ) and minimum (Δr = (m + 1/2)λ) without the concept of coherence; diffraction grating without a formula, its applications and the diffraction spectrum. Contains no questions."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Diffraction grating in everyday life: compact disc",
+            "skill": "interpret a real observation with a grating"
+          },
+          "explanation": "Информационните пътечки на диска са разположени на разстояния от порядъка на микрометър, съпоставими с дължината на вълната. Те действат като отражателна дифракционна решетка: за всяка дължина на вълната максимумите се получават в различни посоки, затова от различен ъгъл се виждат различни цветове. Плоскопаралелен слой не разлага светлината като призма.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 21,
+          "candidate_id": "physics-g10-wave-properties-of-light-run-1-22",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-x",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка), Приложение № 8",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:21:33Z",
+            "notes": "Scope authority for sub-theme 2.2 Вълнови свойства на светлината: definitions of interference and diffraction; diffraction of all waves when obstacle or slit is comparable to the wavelength; Huygens principle; Young's experiment by scheme; conditions for interference maximum (Δr = mλ) and minimum (Δr = (m + 1/2)λ) without the concept of coherence; diffraction grating without a formula, its applications and the diffraction spectrum. Contains no questions."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Interference conditions applied to white light",
+            "skill": "evaluate both conditions for a range of wavelengths"
+          },
+          "explanation": "Максимум: Δr = mλ, λ = 1200 nm/m → 600 nm (m = 2) и 400 nm (m = 3). Минимум: λ = 1200 nm/(m + 1/2) → 800 nm (m = 1), 480 nm (m = 2), 343 nm (m = 3); в интервала 400–700 nm попада само 480 nm. При λ = 500 nm Δr/λ = 2,4 – нито максимум, нито минимум.",
+          "difficulty": "hard"
+        },
+        {
+          "number": 22,
+          "candidate_id": "physics-g10-wave-properties-of-light-run-1-23",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme-x",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка), Приложение № 8",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:21:33Z",
+            "notes": "Scope authority for sub-theme 2.2 Вълнови свойства на светлината: definitions of interference and diffraction; diffraction of all waves when obstacle or slit is comparable to the wavelength; Huygens principle; Young's experiment by scheme; conditions for interference maximum (Δr = mλ) and minimum (Δr = (m + 1/2)λ) without the concept of coherence; diffraction grating without a formula, its applications and the diffraction spectrum. Contains no questions."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Interference pattern in a medium: wavelength changes, frequency does not",
+            "skill": "predict fringe spacing when wavelength shortens"
+          },
+          "explanation": "При преминаване във вода честотата на светлината не се променя, но скоростта и дължината на вълната намаляват: λ_вода = λ/n = λ/1,33. Максимумите отговарят на Δr = mλ_вода, т.е. за всяко m е нужна по-малка разлика в пътищата, а Δr расте с отдалечаването от центъра на екрана – ивиците се доближават една до друга. Условието Δr = mλ се отнася за дължината на вълната в съответната среда.",
+          "difficulty": "hard"
+        }
+      ]
+    }
+  ],
+  "not_exported": []
+}

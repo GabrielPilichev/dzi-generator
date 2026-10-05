@@ -1,0 +1,687 @@
+{
+  "format_version": 1,
+  "kind": "question_candidate_provenance",
+  "run": {
+    "id": "physics-g10-atomic-nucleus-run-1",
+    "started_at": "2026-10-05T14:15:50Z",
+    "finished_at": "2026-10-05T14:27:50Z",
+    "collector": "claude-sonnet-5-5-collector",
+    "subject": "physics",
+    "grade": 10,
+    "curriculum": {
+      "education_type": "general",
+      "title": "Физика и астрономия, 10. клас — общообразователна подготовка"
+    },
+    "targets": [
+      {
+        "section": {
+          "slug": "physics-g10-from-atom-to-cosmos",
+          "title": "От атома до Космоса"
+        },
+        "topics": [
+          {
+            "slug": "physics-g10-atomic-nucleus",
+            "title": "Атомно ядро"
+          }
+        ]
+      }
+    ],
+    "limits": {
+      "max_topics": 1,
+      "max_pages": 5,
+      "max_candidates": 25,
+      "max_candidates_per_source": 25,
+      "max_runtime_minutes": 30
+    },
+    "pages_inspected": 1,
+    "stop_reason": "topic_complete",
+    "notes": "Обхват: само тема 3.2 „Атомно ядро“ от програмата за 10. клас — състав на ядрото (протони, неутрони, нуклони, изотопи), основни характеристики и свойства на ядрените сили, енергия на връзката, масов дефект и ΔE = Δm·c², специфична енергия на връзката, период на полуразпадане и определянето му от таблица/графика (без закона за радиоактивното разпадане), α-, β- и γ-разпадане, неутрино и антинеутрино, биологично действие на йонизиращите лъчения, погълната (Gy) и еквивалентна (Sv) доза, приложения на радиоактивни изотопи (медицина, датиране). Извън обхвата: деление, синтез, ядрен реактор и радиационна защита на централи (тема 3.3), класификация на елементарните частици и кварки (тема 3.4), атомни преходи и спектри (тема 3.1). Числените въпроси задават нужните константи (1 u ≙ 931,5 MeV, T½ на ¹⁴C). Формулата H = w·D не се ползва; еквивалентната доза е само качествена."
+  },
+  "not_stored_in_database": [
+    "candidate id",
+    "source type",
+    "source url",
+    "source title",
+    "source publisher",
+    "source retrieved_at",
+    "transformation",
+    "source_ref",
+    "research",
+    "reuse_exception",
+    "explanation",
+    "difficulty",
+    "review (reviewer, reviewed_at, notes)",
+    "run manifest"
+  ],
+  "batches": [
+    {
+      "file": "physics-g10-atomic-nucleus-run-1.atomic-nucleus.json",
+      "source": "reviewed:physics:physics-g10-atomic-nucleus-run-1.atomic-nucleus",
+      "topic_slug": "physics-g10-atomic-nucleus",
+      "questions": [
+        {
+          "number": 1,
+          "candidate_id": "physics-g10-atomic-nucleus-run-1-001",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:15:50Z",
+            "notes": "Авторитет за обхвата на тема 3.2 (очаквани резултати, нови понятия, формула ΔE = Δm·c²), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости и общоприети данни."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Състав на ядрото",
+            "skill": "Определяне на брой частици"
+          },
+          "explanation": "Масовото число A = 238 е общият брой на нуклоните, а зарядовото число Z = 92 е броят на протоните. Броят на неутроните е N = A − Z = 238 − 92 = 146.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 2,
+          "candidate_id": "physics-g10-atomic-nucleus-run-1-002",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:15:50Z",
+            "notes": "Авторитет за обхвата на тема 3.2 (очаквани резултати, нови понятия, формула ΔE = Δm·c²), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости и общоприети данни."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Изотопи",
+            "skill": "Разпознаване по означение"
+          },
+          "explanation": "Изотопите имат еднакъв брой протони (еднакво Z), но различен брой неутрони. ¹²₆C и ¹⁴₆C имат по 6 протона, а неутроните им са съответно 6 и 8. Останалите двойки са ядра с различно Z, т.е. на различни елементи.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 3,
+          "candidate_id": "physics-g10-atomic-nucleus-run-1-003",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:15:50Z",
+            "notes": "Авторитет за обхвата на тема 3.2 (очаквани резултати, нови понятия, формула ΔE = Δm·c²), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости и общоприети данни."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Ядрени сили",
+            "skill": "Тълкуване на свойства"
+          },
+          "explanation": "Ядрените сили са силни, краткодействащи сили на привличане. Действат само на разстояния от порядъка на 10⁻¹⁵ m и не зависят от електричния заряд – привличат се протон с протон, неутрон с неутрон и протон с неутрон.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 4,
+          "candidate_id": "physics-g10-atomic-nucleus-run-1-004",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:15:50Z",
+            "notes": "Авторитет за обхвата на тема 3.2 (очаквани резултати, нови понятия, формула ΔE = Δm·c²), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости и общоприети данни."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Устойчивост на ядрото",
+            "skill": "Обяснение на явление"
+          },
+          "explanation": "Електричното отблъскване между протоните действа и в ядрото, но на разстояния около 10⁻¹⁵ m ядрените сили на привличане са по-силни. Електроните в обвивката не задържат ядрото, а гравитацията между нуклоните е пренебрежимо малка.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 5,
+          "candidate_id": "physics-g10-atomic-nucleus-run-1-005",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:15:50Z",
+            "notes": "Авторитет за обхвата на тема 3.2 (очаквани резултати, нови понятия, формула ΔE = Δm·c²), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости и общоприети данни."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Неутрони и протони в ядрата",
+            "skill": "Качествено обяснение"
+          },
+          "explanation": "С нарастване на броя на протоните електричното отблъскване между тях расте бързо. Неутроните участват в ядреното привличане, но не добавят електрично отблъскване, затова тежките устойчиви ядра имат повече неутрони. Неутронът е електронеутрален и малко по-тежък от протона.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 6,
+          "candidate_id": "physics-g10-atomic-nucleus-run-1-006",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:15:50Z",
+            "notes": "Авторитет за обхвата на тема 3.2 (очаквани резултати, нови понятия, формула ΔE = Δm·c²), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости и общоприети данни."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Насищане на ядрените сили",
+            "skill": "Следствие от свойство"
+          },
+          "explanation": "Ако всеки нуклон взаимодейства само с ограничен брой съседи, добавянето на нуклон добавя приблизително еднаква енергия на връзката. Затова общата енергия е приблизително пропорционална на A, а специфичната е почти постоянна. Ако всеки нуклон взаимодействаше с всички останали, енергията щеше да расте като A².",
+          "difficulty": "hard"
+        },
+        {
+          "number": 7,
+          "candidate_id": "physics-g10-atomic-nucleus-run-1-007",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:15:50Z",
+            "notes": "Авторитет за обхвата на тема 3.2 (очаквани резултати, нови понятия, формула ΔE = Δm·c²), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости и общоприети данни."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Масов дефект",
+            "skill": "Дефиниране на понятие"
+          },
+          "explanation": "Масата на ядрото е по-малка от сбора от масите на нуклоните, от които то е изградено. Тази разлика Δm е масовият дефект. Тя съответства на енергията на връзката ΔE = Δm·c².",
+          "difficulty": "easy"
+        },
+        {
+          "number": 8,
+          "candidate_id": "physics-g10-atomic-nucleus-run-1-009",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:15:50Z",
+            "notes": "Авторитет за обхвата на тема 3.2 (очаквани резултати, нови понятия, формула ΔE = Δm·c²), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости и общоприети данни."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Специфична енергия на връзката",
+            "skill": "Двустъпково пресмятане"
+          },
+          "explanation": "Енергията на връзката е ΔE = 0,1370 u · 931,5 MeV/u ≈ 127,6 MeV. Специфичната енергия е ΔE/A, като A = 16 е броят на всички нуклони: 127,6/16 ≈ 7,98 MeV/нуклон. Делене на 8 (само протоните) би дало 16,0 MeV.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 9,
+          "candidate_id": "physics-g10-atomic-nucleus-run-1-010",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:15:50Z",
+            "notes": "Авторитет за обхвата на тема 3.2 (очаквани резултати, нови понятия, формула ΔE = Δm·c²), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости и общоприети данни."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Зависимост на специфичната енергия от A",
+            "skill": "Тълкуване на графика"
+          },
+          "explanation": "Кривата на специфичната енергия на връзката има максимум около A ≈ 56 (⁵⁶Fe, ⁵⁸Ni). Ядрата в тази област са най-здраво свързани. Водородът-1 е един протон и няма енергия на връзката, а при най-тежките ядра стойността е по-ниска (около 7,6 MeV/нуклон за урана).",
+          "difficulty": "easy"
+        },
+        {
+          "number": 10,
+          "candidate_id": "physics-g10-atomic-nucleus-run-1-011",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:15:50Z",
+            "notes": "Авторитет за обхвата на тема 3.2 (очаквани резултати, нови понятия, формула ΔE = Δm·c²), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости и общоприети данни."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Обща и специфична енергия на връзката",
+            "skill": "Сравнение на характеристики"
+          },
+          "explanation": "Общата енергия е специфичната енергия, умножена по броя на нуклоните: за ⁴₂He ≈ 7,1·4 ≈ 28 MeV, за ⁷₃Li ≈ 5,6·7 ≈ 39 MeV. Здравината на свързване се оценява със специфичната енергия: тя е по-голяма при ⁴₂He.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 11,
+          "candidate_id": "physics-g10-atomic-nucleus-run-1-012",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:15:50Z",
+            "notes": "Авторитет за обхвата на тема 3.2 (очаквани резултати, нови понятия, формула ΔE = Δm·c²), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости и общоприети данни."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Алфа-разпадане",
+            "skill": "Определяне на дъщерно ядро"
+          },
+          "explanation": "α-частицата е ядро на хелий ⁴₂He. При α-разпадане масовото число намалява с 4, а зарядовото – с 2: A = 226 − 4 = 222, Z = 88 − 2 = 86. Ядрото със Z = 86 е радон: ²²²₈₆Rn.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 12,
+          "candidate_id": "physics-g10-atomic-nucleus-run-1-013",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:15:50Z",
+            "notes": "Авторитет за обхвата на тема 3.2 (очаквани резултати, нови понятия, формула ΔE = Δm·c²), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости и общоприети данни."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Бета-разпадане",
+            "skill": "Определяне на дъщерно ядро и частици"
+          },
+          "explanation": "При β⁻-разпадане масовото число не се променя, а зарядовото нараства с 1: Z = 6 + 1 = 7 (азот), A = 14. Излъчват се електрон и антинеутрино; неутрино се излъчва при β⁺-разпадане, заедно с позитрон.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 13,
+          "candidate_id": "physics-g10-atomic-nucleus-run-1-014",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:15:50Z",
+            "notes": "Авторитет за обхвата на тема 3.2 (очаквани резултати, нови понятия, формула ΔE = Δm·c²), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости и общоприети данни."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Гама-излъчване",
+            "skill": "Описание на промяна в ядрото"
+          },
+          "explanation": "γ-квантът е електромагнитно лъчение, което се излъчва при преход на ядрото от възбудено към по-ниско енергетично състояние. Съставът на ядрото (A и Z) остава същият, затова ядрото остава ядро на същия елемент.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 14,
+          "candidate_id": "physics-g10-atomic-nucleus-run-1-015",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:15:50Z",
+            "notes": "Авторитет за обхвата на тема 3.2 (очаквани резултати, нови понятия, формула ΔE = Δm·c²), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости и общоприети данни."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Радиоактивни редици",
+            "skill": "Последователно прилагане на правила"
+          },
+          "explanation": "α-разпад: ²³⁸₉₂U → ²³⁴₉₀Th. Всеки β⁻-разпад увеличава Z с 1 при непроменено A: ²³⁴₉₀Th → ²³⁴₉₁Pa → ²³⁴₉₂U. Крайният резултат е ²³⁴₉₂U – ядро на същия елемент, но с по-малко неутрони.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 15,
+          "candidate_id": "physics-g10-atomic-nucleus-run-1-016",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:15:50Z",
+            "notes": "Авторитет за обхвата на тема 3.2 (очаквани резултати, нови понятия, формула ΔE = Δm·c²), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости и общоприети данни."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Произход на електрона при β⁻-разпад",
+            "skill": "Обяснение на процес"
+          },
+          "explanation": "При β⁻-разпад един неутрон се превръща в протон, електрон и антинеутрино: n → p + e⁻ + ν̄. Електричният заряд се запазва, а зарядовото число на ядрото нараства с 1. Електронът се ражда в процеса; той не съществува предварително в ядрото.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 16,
+          "candidate_id": "physics-g10-atomic-nucleus-run-1-017",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:15:50Z",
+            "notes": "Авторитет за обхвата на тема 3.2 (очаквани резултати, нови понятия, формула ΔE = Δm·c²), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости и общоприети данни."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Биологично действие на йонизиращите лъчения",
+            "skill": "Обяснение на механизъм"
+          },
+          "explanation": "Йонизиращото лъчение предава енергия на тъканта, йонизира атоми и молекули и може да увреди важни молекули като ДНК. Ефектът зависи от дозата и вида на лъчението: малките дози рядко водят до остра лъчева болест. Облъчването само по себе си не прави тялото радиоактивно.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 17,
+          "candidate_id": "physics-g10-atomic-nucleus-run-1-018",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:15:50Z",
+            "notes": "Авторитет за обхвата на тема 3.2 (очаквани резултати, нови понятия, формула ΔE = Δm·c²), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости и общоприети данни."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Погълната доза",
+            "skill": "Приложение на мерната единица"
+          },
+          "explanation": "Погълнатата доза е енергията, погълната от единица маса: 1 Gy = 1 J/kg. Затова E = D·m = 2,0·10⁻³ J/kg · 70 kg = 0,14 J.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 18,
+          "candidate_id": "physics-g10-atomic-nucleus-run-1-019",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:15:50Z",
+            "notes": "Авторитет за обхвата на тема 3.2 (очаквани резултати, нови понятия, формула ΔE = Δm·c²), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости и общоприети данни."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Погълната и еквивалентна доза",
+            "skill": "Разграничаване на понятия"
+          },
+          "explanation": "Погълнатата доза (Gy) измерва погълнатата енергия на единица маса, а еквивалентната доза (Sv) отчита и биологичното действие на вида лъчение. α-частиците йонизират много гъсто, затова при еднаква погълната доза еквивалентната им доза е по-голяма. Проникването влияе върху това колко лъчение достига тъканта, а не върху съотношението при вече погълната доза.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 19,
+          "candidate_id": "physics-g10-atomic-nucleus-run-1-020",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:15:50Z",
+            "notes": "Авторитет за обхвата на тема 3.2 (очаквани резултати, нови понятия, формула ΔE = Δm·c²), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости и общоприети данни."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Период на полуразпадане от таблица",
+            "skill": "Четене на данни"
+          },
+          "explanation": "Периодът на полуразпадане е времето, за което активността (и броят на неразпадналите се ядра) намалява наполовина. Тук активността намалява два пъти на всеки 3 h: 960 → 480 → 240 → 120 Bq. Следователно T½ = 3 h.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 20,
+          "candidate_id": "physics-g10-atomic-nucleus-run-1-021",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:15:50Z",
+            "notes": "Авторитет за обхвата на тема 3.2 (очаквани резултати, нови понятия, формула ΔE = Δm·c²), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости и общоприети данни."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Период на полуразпадане от графика",
+            "skill": "Определяне от точки на графика"
+          },
+          "explanation": "От 80 000 до 10 000 броят е намалял 8 пъти = 2³, т.е. са изминали 3 периода на полуразпадане. Те траят 8 h − 2 h = 6 h, затова T½ = 6 h / 3 = 2 h. Не е нужно графиката да започва от t = 0.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 21,
+          "candidate_id": "physics-g10-atomic-nucleus-run-1-022",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:15:50Z",
+            "notes": "Авторитет за обхвата на тема 3.2 (очаквани резултати, нови понятия, формула ΔE = Δm·c²), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости и общоприети данни."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Смисъл на периода на полуразпадане",
+            "skill": "Анализ на проба"
+          },
+          "explanation": "10 дни са два периода на полуразпадане: половината ядра остават след 5 дни, а една четвърт – след 10 дни. Радиоактивният изотоп е 8,0 g / 4 = 2,0 g. Разпадналите се ядра обаче се превръщат в дъщерни ядра със същата маса, затова общата маса на пробата остава около 8,0 g.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 22,
+          "candidate_id": "physics-g10-atomic-nucleus-run-1-023",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:15:50Z",
+            "notes": "Авторитет за обхвата на тема 3.2 (очаквани резултати, нови понятия, формула ΔE = Δm·c²), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости и общоприети данни."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Приложение в медицината",
+            "skill": "Избор на радиоизотоп"
+          },
+          "explanation": "γ-лъчението има голяма проникваща способност и излиза от тялото, където може да бъде регистрирано. Кратък период на полуразпадане (няколко часа) означава, че активността бързо намалява и облъчването на пациента е малко. α- и β-частиците се поглъщат в тялото и не стигат до детектора. Много дълъг период би дал малка активност и дълго облъчване.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 23,
+          "candidate_id": "physics-g10-atomic-nucleus-run-1-024",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:15:50Z",
+            "notes": "Авторитет за обхвата на тема 3.2 (очаквани резултати, нови понятия, формула ΔE = Δm·c²), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости и общоприети данни."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Радиовъглеродно датиране",
+            "skill": "Определяне на възраст"
+          },
+          "explanation": "Една четвърт е (1/2)², т.е. изминали са два периода на полуразпадане. Възрастта е 2 · 5730 години = 11 460 години. Стойността 22 920 години е 4 периода, а 5730 години е само един.",
+          "difficulty": "medium"
+        }
+      ]
+    }
+  ],
+  "not_exported": []
+}

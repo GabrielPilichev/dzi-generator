@@ -1,0 +1,579 @@
+{
+  "format_version": 1,
+  "kind": "question_candidate_provenance",
+  "run": {
+    "id": "physics-g10-electromagnetic-waves-run-1",
+    "started_at": "2026-10-05T14:10:00Z",
+    "finished_at": "2026-10-05T14:17:52Z",
+    "subject": "physics",
+    "grade": 10,
+    "curriculum": {
+      "education_type": "general",
+      "title": "Физика и астрономия, 10. клас — общообразователна подготовка"
+    },
+    "targets": [
+      {
+        "section": {
+          "slug": "physics-g10-electromagnetic-phenomena",
+          "title": "Електромагнитни явления"
+        },
+        "topics": [
+          {
+            "slug": "physics-g10-electromagnetic-waves",
+            "title": "Електромагнитни вълни"
+          }
+        ]
+      }
+    ],
+    "limits": {
+      "max_topics": 1,
+      "max_pages": 15,
+      "max_candidates": 30,
+      "max_candidates_per_source": 30,
+      "max_runtime_minutes": 30
+    },
+    "pages_inspected": 1,
+    "stop_reason": "topic_complete",
+    "collector": "claude-sonnet-5-5-collector",
+    "notes": "Обхват: само тема 1.5 Електромагнитни вълни – взаимно пораждане на променливите E и B, напречен характер, скорост във вакуум и независимост от честотата, c = λν = λ/T, диапазони на спектъра и характерни източници, приложения на радио- и микровълните (радар, микровълнова печка, Wi-Fi/мобилна връзка). Извън обхвата: електромагнитна индукция и променлив ток (тема 1.4), геометрична оптика и вълнови свойства на светлината (раздел Светлина), фотонна енергия E = hν, механични вълни и звук (Клас 9)."
+  },
+  "not_stored_in_database": [
+    "candidate id",
+    "source type",
+    "source url",
+    "source title",
+    "source publisher",
+    "source retrieved_at",
+    "transformation",
+    "source_ref",
+    "research",
+    "reuse_exception",
+    "explanation",
+    "difficulty",
+    "review (reviewer, reviewed_at, notes)",
+    "run manifest"
+  ],
+  "batches": [
+    {
+      "file": "physics-g10-electromagnetic-waves-run-1.electromagnetic-waves.json",
+      "source": "reviewed:physics:physics-g10-electromagnetic-waves-run-1.electromagnetic-waves",
+      "topic_slug": "physics-g10-electromagnetic-waves",
+      "questions": [
+        {
+          "number": 1,
+          "candidate_id": "physics-g10-electromagnetic-waves-run-1-001",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:10:00Z",
+            "notes": "Определя обхвата на тема 1.5 (очаквани резултати, нови понятия, формула c = λν = λ/T). Прочетено чрез извадката в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са нови, а фактите (скорост на светлината, честоти и източници по диапазони) са стандартни физични знания."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Връзка между променливите електрично и магнитно поле",
+            "skill": "Интерпретация на механизма"
+          },
+          "explanation": "Променливото електрично поле създава променливо магнитно поле и обратно. Тази верига от взаимно пораждане се разпространява като електромагнитна вълна. Отговор D описва механична (надлъжна) вълна, а при вълната не се пренасят заряди от източника до приемника.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 2,
+          "candidate_id": "physics-g10-electromagnetic-waves-run-1-002",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:10:00Z",
+            "notes": "Определя обхвата на тема 1.5 (очаквани резултати, нови понятия, формула c = λν = λ/T). Прочетено чрез извадката в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са нови, а фактите (скорост на светлината, честоти и източници по диапазони) са стандартни физични знания."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Напречен характер на електромагнитната вълна",
+            "skill": "Разбиране на понятие"
+          },
+          "explanation": "При напречна вълна трептенията (в случая на полетата E и B) са перпендикулярни на посоката, в която се разпространява вълната. Отговор D описва надлъжна вълна, например звук във въздух.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 3,
+          "candidate_id": "physics-g10-electromagnetic-waves-run-1-003",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:10:00Z",
+            "notes": "Определя обхвата на тема 1.5 (очаквани резултати, нови понятия, формула c = λν = λ/T). Прочетено чрез извадката в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са нови, а фактите (скорост на светлината, честоти и източници по диапазони) са стандартни физични знания."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Разпространение във вакуум – разлика от механичните вълни",
+            "skill": "Прилагане на знание в ситуация"
+          },
+          "explanation": "Радиовълните са електромагнитни, а не звукови. Те се образуват от свързани променливи полета и не изискват среда. Във вакуум скоростта им е максималната възможна – c ≈ 3·10⁸ m/s.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 4,
+          "candidate_id": "physics-g10-electromagnetic-waves-run-1-004",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:10:00Z",
+            "notes": "Определя обхвата на тема 1.5 (очаквани резултати, нови понятия, формула c = λν = λ/T). Прочетено чрез извадката в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са нови, а фактите (скорост на светлината, честоти и източници по диапазони) са стандартни физични знания."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Скорост на електромагнитните вълни във вакуум",
+            "skill": "Сравнение на величини"
+          },
+          "explanation": "Във вакуум всички електромагнитни вълни се движат с една и съща скорост c ≈ 3·10⁸ m/s, независимо от честотата и дължината на вълната. Различават се по честота и дължина на вълната, а не по скорост.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 5,
+          "candidate_id": "physics-g10-electromagnetic-waves-run-1-005",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:10:00Z",
+            "notes": "Определя обхвата на тема 1.5 (очаквани резултати, нови понятия, формула c = λν = λ/T). Прочетено чрез извадката в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са нови, а фактите (скорост на светлината, честоти и източници по диапазони) са стандартни физични знания."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Източник на радиовълни – променлив ток в антена",
+            "skill": "Разпознаване на причина"
+          },
+          "explanation": "Радиовълни се излъчват, когато токът в антената бързо се мени – зарядите в нея трептят и полетата около нея се променят. Постоянният ток, неподвижните заряди и неподвижният магнит създават постоянни полета, които не се отделят като вълна.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 6,
+          "candidate_id": "physics-g10-electromagnetic-waves-run-1-006",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:10:00Z",
+            "notes": "Определя обхвата на тема 1.5 (очаквани резултати, нови понятия, формула c = λν = λ/T). Прочетено чрез извадката в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са нови, а фактите (скорост на светлината, честоти и източници по диапазони) са стандартни физични знания."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Подреждане на диапазоните на електромагнитния спектър",
+            "skill": "Подреждане по честота"
+          },
+          "explanation": "От радиовълните към гама-лъчите честотата расте, а дължината на вълната намалява. Редът е: радиовълни, микровълни, инфрачервени, видима светлина, ултравиолетови, рентгенови, гама-лъчи.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 7,
+          "candidate_id": "physics-g10-electromagnetic-waves-run-1-007",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:10:00Z",
+            "notes": "Определя обхвата на тема 1.5 (очаквани резултати, нови понятия, формула c = λν = λ/T). Прочетено чрез извадката в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са нови, а фактите (скорост на светлината, честоти и източници по диапазони) са стандартни физични знания."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Промяна на честота, дължина на вълната и скорост по спектъра",
+            "skill": "Качествено разсъждение върху c = λν"
+          },
+          "explanation": "Рентгеновите лъчи имат много по-голяма честота и много по-малка дължина на вълната от радиовълните. Скоростта във вакуум е една и съща за всички електромагнитни вълни: c = λν, затова при растяща честота дължината намалява.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 8,
+          "candidate_id": "physics-g10-electromagnetic-waves-run-1-009",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:10:00Z",
+            "notes": "Определя обхвата на тема 1.5 (очаквани резултати, нови понятия, формула c = λν = λ/T). Прочетено чрез извадката в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са нови, а фактите (скорост на светлината, честоти и източници по диапазони) са стандартни физични знания."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Инфрачервено лъчение – характерен източник",
+            "skill": "Свързване на лъчение с източник"
+          },
+          "explanation": "Телата, нагрети до умерени температури, излъчват главно инфрачервено лъчение. Рентгеновата тръба дава рентгенови лъчи, радиопредавателят – радиовълни, магнетронът – микровълни.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 9,
+          "candidate_id": "physics-g10-electromagnetic-waves-run-1-010",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:10:00Z",
+            "notes": "Определя обхвата на тема 1.5 (очаквани резултати, нови понятия, формула c = λν = λ/T). Прочетено чрез извадката в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са нови, а фактите (скорост на светлината, честоти и източници по диапазони) са стандартни физични знания."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Ултравиолетово лъчение – действие и източник",
+            "skill": "Разпознаване на лъчение по действие"
+          },
+          "explanation": "Слънцето излъчва в широк диапазон на спектъра, а загарът и изгарянето се дължат на ултравиолетовите лъчи. Инфрачервените усещаме като топлина, а радиовълните и микровълните не увреждат кожата по този начин.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 10,
+          "candidate_id": "physics-g10-electromagnetic-waves-run-1-011",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:10:00Z",
+            "notes": "Определя обхвата на тема 1.5 (очаквани резултати, нови понятия, формула c = λν = λ/T). Прочетено чрез извадката в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са нови, а фактите (скорост на светлината, честоти и източници по диапазони) са стандартни физични знания."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Приложение на микровълните – микровълнова печка",
+            "skill": "Обяснение на приложение"
+          },
+          "explanation": "Печката излъчва микровълни с честота около 2,45 GHz. Те се поглъщат от храната (особено от водните молекули) и енергията им се превръща във вътрешна енергия, затова храната се нагрява.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 11,
+          "candidate_id": "physics-g10-electromagnetic-waves-run-1-012",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:10:00Z",
+            "notes": "Определя обхвата на тема 1.5 (очаквани резултати, нови понятия, формула c = λν = λ/T). Прочетено чрез извадката в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са нови, а фактите (скорост на светлината, честоти и източници по диапазони) са стандартни физични знания."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Приложение на радиовълните и микровълните – радар",
+            "skill": "Обяснение на приложение"
+          },
+          "explanation": "Радарът излъчва импулс, който се отразява от целта и се връща. Тъй като скоростта на вълната c е известна, разстоянието е d = c·t/2, където t е времето за двата пътя.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 12,
+          "candidate_id": "physics-g10-electromagnetic-waves-run-1-013",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:10:00Z",
+            "notes": "Определя обхвата на тема 1.5 (очаквани резултати, нови понятия, формула c = λν = λ/T). Прочетено чрез извадката в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са нови, а фактите (скорост на светлината, честоти и източници по диапазони) са стандартни физични знания."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Съвременни приложения на радио- и микровълните",
+            "skill": "Класификация на приложения"
+          },
+          "explanation": "Радарът, мобилният телефон и Wi-Fi рутерът предават и приемат информация чрез радио- или микровълни. Рентгеновият апарат използва рентгенови лъчи, които имат много по-голяма честота и принадлежат на друг диапазон.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 13,
+          "candidate_id": "physics-g10-electromagnetic-waves-run-1-014",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:10:00Z",
+            "notes": "Определя обхвата на тема 1.5 (очаквани резултати, нови понятия, формула c = λν = λ/T). Прочетено чрез извадката в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са нови, а фактите (скорост на светлината, честоти и източници по диапазони) са стандартни физични знания."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Взаимна ориентация на E, B и посоката на разпространение",
+            "skill": "Прилагане на свойствата на плоска вълна"
+          },
+          "explanation": "В плоска електромагнитна вълна E, B и посоката на разпространение са взаимно перпендикулярни. Щом вълната върви по x, а E е по y, векторът B трепти по третата ос – z.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 14,
+          "candidate_id": "physics-g10-electromagnetic-waves-run-1-015",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:10:00Z",
+            "notes": "Определя обхвата на тема 1.5 (очаквани резултати, нови понятия, формула c = λν = λ/T). Прочетено чрез извадката в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са нови, а фактите (скорост на светлината, честоти и източници по диапазони) са стандартни физични знания."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Връзка между дължина на вълната и период",
+            "skill": "Концептуално разбиране на c = λ/T"
+          },
+          "explanation": "От c = λ/T следва, че λ = c·T, т.е. вълната изминава една дължина на вълната точно за един период. Това важи за всяка честота.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 15,
+          "candidate_id": "physics-g10-electromagnetic-waves-run-1-016",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:10:00Z",
+            "notes": "Определя обхвата на тема 1.5 (очаквани резултати, нови понятия, формула c = λν = λ/T). Прочетено чрез извадката в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са нови, а фактите (скорост на светлината, честоти и източници по диапазони) са стандартни физични знания."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Изчисляване на дължина на вълната по честота",
+            "skill": "Директно прилагане на c = λν"
+          },
+          "explanation": "λ = c/ν = 3·10⁸ m/s / 10⁸ Hz = 3 m.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 16,
+          "candidate_id": "physics-g10-electromagnetic-waves-run-1-017",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:10:00Z",
+            "notes": "Определя обхвата на тема 1.5 (очаквани резултати, нови понятия, формула c = λν = λ/T). Прочетено чрез извадката в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са нови, а фактите (скорост на светлината, честоти и източници по диапазони) са стандартни физични знания."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Изчисляване на честота по дължина на вълната",
+            "skill": "Обратно прилагане на c = λν"
+          },
+          "explanation": "ν = c/λ = 3·10⁸ m/s / 30 m = 1·10⁷ Hz = 10 MHz.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 17,
+          "candidate_id": "physics-g10-electromagnetic-waves-run-1-019",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:10:00Z",
+            "notes": "Определя обхвата на тема 1.5 (очаквани резултати, нови понятия, формула c = λν = λ/T). Прочетено чрез извадката в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са нови, а фактите (скорост на светлината, честоти и източници по диапазони) са стандартни физични знания."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Дължина на вълната по период",
+            "skill": "Прилагане на c = λ/T"
+          },
+          "explanation": "λ = c·T = 3·10⁸ m/s · 2,0·10⁻⁶ s = 600 m.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 18,
+          "candidate_id": "physics-g10-electromagnetic-waves-run-1-020",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:10:00Z",
+            "notes": "Определя обхвата на тема 1.5 (очаквани резултати, нови понятия, формула c = λν = λ/T). Прочетено чрез извадката в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са нови, а фактите (скорост на светлината, честоти и източници по диапазони) са стандартни физични знания."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Радар – разстояние по времето на ехото",
+            "skill": "Изчисление с отразен сигнал"
+          },
+          "explanation": "Импулсът изминава пътя до целта и обратно, т.е. 2d = c·t. Следователно d = c·t/2 = 3·10⁸ · 200·10⁻⁶ / 2 = 3·10⁴ m = 30 km.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 19,
+          "candidate_id": "physics-g10-electromagnetic-waves-run-1-022",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T14:10:00Z",
+            "notes": "Определя обхвата на тема 1.5 (очаквани резултати, нови понятия, формула c = λν = λ/T). Прочетено чрез извадката в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са нови, а фактите (скорост на светлината, честоти и източници по диапазони) са стандартни физични знания."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Сравнение на електромагнитна и звукова вълна със същата честота",
+            "skill": "Сравнение на видове вълни с u = λν"
+          },
+          "explanation": "При една и съща честота λ е пропорционална на скоростта: λ = v/ν. Следователно λрадио/λзвук = c/v = 3·10⁸/340 ≈ 9·10⁵. Звуковата вълна е с дължина 0,34 m, а радиовълната – 3·10⁵ m.",
+          "difficulty": "medium"
+        }
+      ]
+    }
+  ],
+  "not_exported": []
+}

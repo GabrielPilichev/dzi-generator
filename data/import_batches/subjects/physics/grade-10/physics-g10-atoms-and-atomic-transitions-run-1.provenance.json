@@ -1,0 +1,687 @@
+{
+  "format_version": 1,
+  "kind": "question_candidate_provenance",
+  "run": {
+    "id": "physics-g10-atoms-and-atomic-transitions-run-1",
+    "started_at": "2026-10-05T15:00:00Z",
+    "finished_at": "2026-10-05T15:30:00Z",
+    "collector": "claude-sonnet-5-5-collector",
+    "subject": "physics",
+    "grade": 10,
+    "curriculum": {
+      "education_type": "general",
+      "title": "Физика и астрономия, 10. клас — общообразователна подготовка"
+    },
+    "targets": [
+      {
+        "section": {
+          "slug": "physics-g10-from-atom-to-cosmos",
+          "title": "От атома до Космоса"
+        },
+        "topics": [
+          {
+            "slug": "physics-g10-atoms-and-atomic-transitions",
+            "title": "Атоми и атомни преходи"
+          }
+        ]
+      }
+    ],
+    "limits": {
+      "max_topics": 1,
+      "max_pages": 5,
+      "max_candidates": 25,
+      "max_candidates_per_source": 25,
+      "max_runtime_minutes": 30
+    },
+    "pages_inspected": 1,
+    "stop_reason": "topic_complete",
+    "notes": "Обхват: само тема 3.1 „Атоми и атомни преходи“ от програмата за 10. клас — вълна на Дьо Бройл λ = h/(mv) и дифракция на електрони; качествено описание на електронната обвивка и енергетичните нива; енергия на фотона при атомен преход (разлика на енергии); линеен спектър, спектрален анализ и абсорбционни линии; луминесценция; спонтанно и стимулирано излъчване, инверсна населеност и приложения на лазерите; рентгенова тръба, спирачно и характеристично рентгеново лъчение и приложения. Извън обхвата: фотони, фотоефект, закони на Стефан и Вин (тема 2.3, ползвани само като предварителни знания: E = hν = hc/λ), дифракция на светлина (тема 2.2), атомно ядро, радиоактивност и ядрени реакции (теми 3.2 и 3.3), модел на Бор с радиуси на орбитите и квантови числа. Числените въпроси задават нужните константи; нивата на водорода E_n = −13,6/n² eV са дадени в условията. Въпрос 23 (λmin = hc/eU) е единственият, който надхвърля чисто качественото описание на рентгеновото лъчение; ползва само енергиен баланс и E = hc/λ от тема 2.3. Въпрос 25 ползва възбуждане чрез електронен удар (газов разряд) като приложение на дискретните нива."
+  },
+  "not_stored_in_database": [
+    "candidate id",
+    "source type",
+    "source url",
+    "source title",
+    "source publisher",
+    "source retrieved_at",
+    "transformation",
+    "source_ref",
+    "research",
+    "reuse_exception",
+    "explanation",
+    "difficulty",
+    "review (reviewer, reviewed_at, notes)",
+    "run manifest"
+  ],
+  "batches": [
+    {
+      "file": "physics-g10-atoms-and-atomic-transitions-run-1.atoms-and-atomic-transitions.json",
+      "source": "reviewed:physics:physics-g10-atoms-and-atomic-transitions-run-1.atoms-and-atomic-transitions",
+      "topic_slug": "physics-g10-atoms-and-atomic-transitions",
+      "questions": [
+        {
+          "number": 1,
+          "candidate_id": "physics-g10-atoms-and-atomic-transitions-run-1-001",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:00:00Z",
+            "notes": "Авторитет за обхвата на тема 3.1 (очаквани резултати, нови понятия, формула λ = h/(mv)), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Вълна на Дьо Бройл",
+            "skill": "Прилагане на λ = h/(mv)"
+          },
+          "explanation": "Дължината на вълната на Дьо Бройл е λ = h/(mv). При еднаква скорост λ е обратно пропорционална на масата, а електронът има много по-малка маса от протона, затова неговата λ е по-голяма. Зарядът не участва във формулата.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 2,
+          "candidate_id": "physics-g10-atoms-and-atomic-transitions-run-1-002",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:00:00Z",
+            "notes": "Авторитет за обхвата на тема 3.1 (очаквани резултати, нови понятия, формула λ = h/(mv)), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Вълнови свойства на макроскопични тела",
+            "skill": "Изчисление и физична интерпретация"
+          },
+          "explanation": "λ = h/(mv) = 6,63·10⁻³⁴ / (0,40·5,0) ≈ 3,3·10⁻³⁴ m. Тази стойност е неизмеримо по-малка от размера на всякакви препятствия и процепи, затова дифракция и интерференция на макроскопични тела не се наблюдават.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 3,
+          "candidate_id": "physics-g10-atoms-and-atomic-transitions-run-1-003",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:00:00Z",
+            "notes": "Авторитет за обхвата на тема 3.1 (очаквани резултати, нови понятия, формула λ = h/(mv)), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Дифракция на електрони",
+            "skill": "Експериментално доказателство"
+          },
+          "explanation": "Дифракцията е вълново явление. Дифракционна картина от електрони, преминали през кристал, показва, че на електроните съответства вълна с дължина λ = h/(mv). Отклонението в магнитно поле показва заряд, фотоефектът — квантовите свойства на светлината, а опитът на Ръдърфорд — наличието на ядро.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 4,
+          "candidate_id": "physics-g10-atoms-and-atomic-transitions-run-1-004",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:00:00Z",
+            "notes": "Авторитет за обхвата на тема 3.1 (очаквани резултати, нови понятия, формула λ = h/(mv)), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Вълна на Дьо Бройл при ускоряване от напрежение",
+            "skill": "Съотношение на дължини на вълни"
+          },
+          "explanation": "И двете частици получават една и съща кинетична енергия Ek = |q|U. От Ek = p²/(2m) следва p = √(2mEk), т.е. λ = h/p ∝ 1/√m. Следователно λe/λp = √(mp/me) ≈ √1840 ≈ 43. Отговорът 1840 би бил верен при равни скорости, а не при равни кинетични енергии.",
+          "difficulty": "hard"
+        },
+        {
+          "number": 5,
+          "candidate_id": "physics-g10-atoms-and-atomic-transitions-run-1-005",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:00:00Z",
+            "notes": "Авторитет за обхвата на тема 3.1 (очаквани резултати, нови понятия, формула λ = h/(mv)), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Вълна на Дьо Бройл на ускорен електрон",
+            "skill": "Многостъпково изчисление"
+          },
+          "explanation": "eU = mv²/2, откъдето mv = √(2meU) = √(2·9,11·10⁻³¹·1,60·10⁻¹⁹·150) ≈ 6,61·10⁻²⁴ kg·m/s. Тогава λ = h/(mv) = 6,63·10⁻³⁴ / 6,61·10⁻²⁴ ≈ 1,0·10⁻¹⁰ m = 0,10 nm. Това е съпоставимо с разстоянията между атомите в кристал, затова електроните се дифрактират от кристали.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 6,
+          "candidate_id": "physics-g10-atoms-and-atomic-transitions-run-1-006",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:00:00Z",
+            "notes": "Авторитет за обхвата на тема 3.1 (очаквани резултати, нови понятия, формула λ = h/(mv)), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Квантови състояния на електроните в атома",
+            "skill": "Качествено описание"
+          },
+          "explanation": "Свързаните електрони в атома могат да имат само определени дискретни стойности на енергията — квантови състояния (енергетични нива). Наборът от нива е различен за различните елементи и именно той определя техните спектри.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 7,
+          "candidate_id": "physics-g10-atoms-and-atomic-transitions-run-1-007",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:00:00Z",
+            "notes": "Авторитет за обхвата на тема 3.1 (очаквани резултати, нови понятия, формула λ = h/(mv)), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Излъчване на фотон при атомен преход",
+            "skill": "Енергия на фотона като разлика на енергии"
+          },
+          "explanation": "Енергията на излъчения фотон е равна на разликата на енергиите на началното и крайното състояние: hν = E₃ − E₂ = −1,51 eV − (−3,40 eV) = 1,89 eV.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 8,
+          "candidate_id": "physics-g10-atoms-and-atomic-transitions-run-1-008",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:00:00Z",
+            "notes": "Авторитет за обхвата на тема 3.1 (очаквани резултати, нови понятия, формула λ = h/(mv)), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Дължина на вълната при атомен преход",
+            "skill": "Изчисление с E = hc/λ"
+          },
+          "explanation": "ΔE = −0,85 − (−3,40) = 2,55 eV = 4,08·10⁻¹⁹ J. От ΔE = hc/λ получаваме λ = hc/ΔE = (6,63·10⁻³⁴·3,00·10⁸)/(4,08·10⁻¹⁹) ≈ 4,87·10⁻⁷ m ≈ 487 nm — видима (синьо-зелена) светлина.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 9,
+          "candidate_id": "physics-g10-atoms-and-atomic-transitions-run-1-009",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:00:00Z",
+            "notes": "Авторитет за обхвата на тема 3.1 (очаквани резултати, нови понятия, формула λ = h/(mv)), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Поглъщане на фотони от атом",
+            "skill": "Избор на подходящ фотон"
+          },
+          "explanation": "Атомът поглъща фотон само ако енергията му е равна на разлика между две енергетични нива. От основното състояние са възможни преходи с енергии 10,2 eV (до n = 2), 12,09 eV (до n = 3), 12,75 eV (до n = 4) и още по-големи към по-високите състояния. От предложените стойности само 10,2 eV съвпада с такава разлика; 12,5 eV попада между 12,09 eV и 12,75 eV и не отговаря на никой преход.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 10,
+          "candidate_id": "physics-g10-atoms-and-atomic-transitions-run-1-010",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:00:00Z",
+            "notes": "Авторитет за обхвата на тема 3.1 (очаквани резултати, нови понятия, формула λ = h/(mv)), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Брой спектрални линии",
+            "skill": "Комбиниране на възможни преходи"
+          },
+          "explanation": "Всеки преход между две различни нива дава фотон със своя енергия, т.е. линия. От E₄ са възможни преходи към E₃, E₂, E₁ (3), от E₃ — към E₂, E₁ (2) и от E₂ — към E₁ (1). Общо 3 + 2 + 1 = 6 линии. Броят 3 би бил верен само за преходи от E₄ към по-ниските нива.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 11,
+          "candidate_id": "physics-g10-atoms-and-atomic-transitions-run-1-011",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:00:00Z",
+            "notes": "Авторитет за обхвата на тема 3.1 (очаквани резултати, нови понятия, формула λ = h/(mv)), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Линеен спектър на атомите",
+            "skill": "Обяснение на явление"
+          },
+          "explanation": "Енергетичните нива на атома са дискретни, затова енергиите на излъчваните фотони hν = Eначално − Екрайно могат да имат само определени стойности. Така се получават линии с определени дължини на вълните.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 12,
+          "candidate_id": "physics-g10-atoms-and-atomic-transitions-run-1-012",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:00:00Z",
+            "notes": "Авторитет за обхвата на тема 3.1 (очаквани резултати, нови понятия, формула λ = h/(mv)), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Спектрален анализ",
+            "skill": "Определяне на вещество по линиен спектър"
+          },
+          "explanation": "Всеки химичен елемент има свой характерен линеен спектър. Наблюдаваните линии съвпадат точно с линиите на хелия и не съдържат нито една от линиите на водорода (410, 434, 486, 656 nm) или на натрия (589 nm). Затова лампата съдържа хелий.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 13,
+          "candidate_id": "physics-g10-atoms-and-atomic-transitions-run-1-013",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:00:00Z",
+            "notes": "Авторитет за обхвата на тема 3.1 (очаквани резултати, нови понятия, формула λ = h/(mv)), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Абсорбционен спектър",
+            "skill": "Тълкуване на наблюдение"
+          },
+          "explanation": "Атомите на студения газ поглъщат фотони точно с енергии, равни на разликите между техните нива, и после ги излъчват във всички посоки. Затова в посоката на лъча липсват фотони с тези дължини на вълните — получават се тъмни линии, разположени там, където са светлите линии на излъчвателния спектър на същия газ. Така се обясняват линиите в спектъра на Слънцето.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 14,
+          "candidate_id": "physics-g10-atoms-and-atomic-transitions-run-1-014",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:00:00Z",
+            "notes": "Авторитет за обхвата на тема 3.1 (очаквани резултати, нови понятия, формула λ = h/(mv)), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Луминесценция",
+            "skill": "Разпознаване на явление"
+          },
+          "explanation": "Луминесценцията е излъчване на светлина, което не се дължи само на нагряването на тялото, а на предварително възбудени атоми (например от лъчение или от електрически ток). Светенето на нажежени тела е топлинно излъчване, а Луната само отразява светлина.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 15,
+          "candidate_id": "physics-g10-atoms-and-atomic-transitions-run-1-015",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:00:00Z",
+            "notes": "Авторитет за обхвата на тема 3.1 (очаквани резултати, нови понятия, формула λ = h/(mv)), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Луминесценция и енергия на фотона",
+            "skill": "Енергиен анализ"
+          },
+          "explanation": "Фотон с дължина на вълната 300 nm има енергия E = hc/λ. При луминесценцията част от погълнатата енергия обикновено се превръща в топлина, затова излъченият фотон има енергия не по-голяма от тази на погълнатия, т.е. λизл ≥ 300 nm. От предложените стойности това е само 520 nm (видима светлина). Така работят луминесцентните лампи.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 16,
+          "candidate_id": "physics-g10-atoms-and-atomic-transitions-run-1-016",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:00:00Z",
+            "notes": "Авторитет за обхвата на тема 3.1 (очаквани резултати, нови понятия, формула λ = h/(mv)), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Инверсна населеност",
+            "skill": "Дефиниция на понятие"
+          },
+          "explanation": "При обичайно (равновесно) разпределение по-ниските нива са по-населени от по-високите. Инверсната населеност е обратното състояние — във възбуденото ниво е по-голям броят на атомите, отколкото в по-ниското.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 17,
+          "candidate_id": "physics-g10-atoms-and-atomic-transitions-run-1-017",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:00:00Z",
+            "notes": "Авторитет за обхвата на тема 3.1 (очаквани резултати, нови понятия, формула λ = h/(mv)), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Стимулирано излъчване",
+            "skill": "Сравнение на видове излъчване"
+          },
+          "explanation": "При стимулираното излъчване фотон с енергия, равна на разликата между две нива, принуждава възбуден атом да премине в по-ниското ниво. Новият фотон е тъждествен на първия — същата енергия, посока, фаза и поляризация. Това усилва светлината и осигурява кохерентността на лазерното лъчение. Вторият отговор описва спонтанното излъчване, а третият — поглъщането.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 18,
+          "candidate_id": "physics-g10-atoms-and-atomic-transitions-run-1-018",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:00:00Z",
+            "notes": "Авторитет за обхвата на тема 3.1 (очаквани резултати, нови понятия, формула λ = h/(mv)), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Условия за лазерно действие",
+            "skill": "Обяснение на необходимо условие"
+          },
+          "explanation": "Когато по-ниските нива са по-населени, падащите фотони се поглъщат по-често, отколкото предизвикват стимулирано излъчване, и светлината отслабва. При инверсна населеност стимулираните преходи преобладават и всеки фотон предизвиква лавинообразно размножаване на тъждествени фотони. Енергията на фотона се определя от разстоянието между нивата, а не от инверсията.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 19,
+          "candidate_id": "physics-g10-atoms-and-atomic-transitions-run-1-019",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:00:00Z",
+            "notes": "Авторитет за обхвата на тема 3.1 (очаквани резултати, нови понятия, формула λ = h/(mv)), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Свойства и приложения на лазерите",
+            "skill": "Връзка между свойство и приложение"
+          },
+          "explanation": "Лазерното лъчение е силно насочено, с много малка ъглова разходимост, и затова се разпространява на огромни разстояния без съществено разширяване. Скоростта му е същата като на останалата светлина във вакуум, а излъчването е стимулирано и почти едноцветно.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 20,
+          "candidate_id": "physics-g10-atoms-and-atomic-transitions-run-1-021",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:00:00Z",
+            "notes": "Авторитет за обхвата на тема 3.1 (очаквани резултати, нови понятия, формула λ = h/(mv)), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Рентгенова тръба",
+            "skill": "Принцип на действие"
+          },
+          "explanation": "В рентгеновата тръба електроните, излъчени от нажежения катод, се ускоряват от високо напрежение между катода и анода. При удара в анода те се забавят (спирачно лъчение) и възбуждат вътрешните електронни състояния на атомите му (характеристично лъчение). Ядрените процеси не участват.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 21,
+          "candidate_id": "physics-g10-atoms-and-atomic-transitions-run-1-022",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:00:00Z",
+            "notes": "Авторитет за обхвата на тема 3.1 (очаквани резултати, нови понятия, формула λ = h/(mv)), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Спирачно и характеристично рентгеново лъчение",
+            "skill": "Анализ на промяна на режима"
+          },
+          "explanation": "Характеристичните линии се определят от енергетичните нива на атомите на анода и не зависят от напрежението. Спирачното лъчение е непрекъснато; най-енергичният фотон има енергия най-много eU, затова с нарастване на напрежението късовълновата граница λmin = hc/(eU) се измества към по-къси вълни.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 22,
+          "candidate_id": "physics-g10-atoms-and-atomic-transitions-run-1-024",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:00:00Z",
+            "notes": "Авторитет за обхвата на тема 3.1 (очаквани резултати, нови понятия, формула λ = h/(mv)), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Приложения на рентгеновото лъчение",
+            "skill": "Обяснение на приложение"
+          },
+          "explanation": "Различните вещества поглъщат рентгеновото лъчение в различна степен: костите, съдържащи по-тежки елементи като калций, го поглъщат повече от меките тъкани. Затова зад костите попада по-малко лъчение и те се виждат като по-светли области на снимката.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 23,
+          "candidate_id": "physics-g10-atoms-and-atomic-transitions-run-1-025",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-x-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за X клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T15:00:00Z",
+            "notes": "Авторитет за обхвата на тема 3.1 (очаквани резултати, нови понятия, формула λ = h/(mv)), както е цитирана в docs/reviews/physics_g10_curriculum_structure_review.md. Не съдържа въпроси; всички въпроси са новонаписани от стандартни физични зависимости."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-post-independent-review-final-approval",
+            "reviewed_at": "2026-10-05T16:35:03Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Възбуждане на атом чрез електронен удар",
+            "skill": "Разграничаване на механизми на възбуждане"
+          },
+          "explanation": "При сблъсък с електрон атомът може да приеме само част от енергията му, която е равна на разлика между нива, а електронът запазва остатъка. Тук са достъпни само 10,2 eV (преход 1 → 2); преходът 1 → 3 изисква 12,09 eV > 11,0 eV. От n = 2 атомът може да премине само към n = 1, излъчвайки 10,2 eV. Условието за точно съвпадение на енергиите важи за поглъщането на фотони, а не за сблъсък с частица.",
+          "difficulty": "hard"
+        }
+      ]
+    }
+  ],
+  "not_exported": []
+}
