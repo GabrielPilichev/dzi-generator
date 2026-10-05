@@ -206,6 +206,7 @@ this format cannot hold (it stores only the curriculum `source_url`).
 | File | Curriculum | Review record |
 |---|---|---|
 | `data/subject_structures/physics/grade-8.json` | Physics, grade 8, general education | `docs/reviews/physics_g8_curriculum_structure_review.md` |
+| `data/subject_structures/physics/grade-9.json` | Physics, grade 9, general education | `docs/reviews/physics_g9_curriculum_structure_review.md` |
 
 A tracked file is not an imported one. Neither the seed database nor production
 changes until someone runs the importer with `--apply` on that database.
