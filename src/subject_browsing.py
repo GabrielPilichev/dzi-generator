@@ -6,6 +6,7 @@ appear. A class number or a question's declared subject alone is insufficient.
 
 from __future__ import annotations
 
+import re
 import sqlite3
 
 from src.subject_content import (
@@ -18,9 +19,18 @@ from src.subject_content import (
 from src.subject_registry import all_subjects, get_subject
 
 
+STORED_SLUG = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+
+
 def namespaced_slug_prefix(subject_id: str, grade: int) -> str:
-    """Namespace the reviewed importer requires for new section/topic slugs."""
+    """Namespace the importers require for new section/topic slugs."""
     return f"{subject_id}-g{int(grade)}-"
+
+
+def is_namespaced_slug(subject_id: str, grade: int, slug: object) -> bool:
+    """A valid new stored slug: lowercase, hyphenated, ``<subject>-g<grade>-...``."""
+    return (isinstance(slug, str) and bool(STORED_SLUG.fullmatch(slug))
+            and slug.startswith(namespaced_slug_prefix(subject_id, grade)))
 
 
 def public_slug(subject_id: str, grade: int, stored_slug: str) -> str:
@@ -46,6 +56,17 @@ def public_description(value: object) -> str | None:
         return None
     text = value.strip()
     return text if text and "[[" not in text else None
+
+
+def has_topic_order(conn: sqlite3.Connection) -> bool:
+    """Whether ``topic_section_assignments.display_order`` (migration 010) exists.
+
+    One plain SELECT on the stored table definition, which ADD COLUMN keeps current.
+    """
+    row = conn.execute(
+        "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'topic_section_assignments'"
+    ).fetchone()
+    return row is not None and "display_order" in (row[0] or "")
 
 
 def subject_content_grades(conn: sqlite3.Connection) -> dict[str, frozenset[int]]:
@@ -83,6 +104,21 @@ class SubjectContentBrowser:
         self._section_owners = {}
         self._topic_owners = {}
         self._question_owners = {}
+        self._topic_order = None
+
+    def _explicit_topic_order(self) -> str:
+        """ORDER BY terms placing explicitly ordered topics first, in their order.
+
+        Rows without an explicit order follow in the legacy order of each query.
+        Production always has the column (startup refuses a pending migration);
+        a development database still awaiting migration 010 has no explicit order.
+        """
+        if self._topic_order is None:
+            self._topic_order = (
+                "tsa.display_order IS NULL, tsa.display_order, "
+                if has_topic_order(self.conn) else ""
+            )
+        return self._topic_order
 
     def _section_owner(self, section_id: int):
         if section_id not in self._section_owners:
@@ -216,14 +252,15 @@ class SubjectContentBrowser:
     def topics_in_section(self, section_id: int) -> list[dict]:
         if not self.owns_section(section_id):
             return []
+        # SAFE: the interpolated ORDER BY terms are a static fragment.
         rows = self.conn.execute(
-            """
+            f"""
             SELECT t.id AS topic_id, t.topic_slug, t.title_bg AS topic_title,
                    t.description AS topic_description
             FROM topic_section_assignments tsa
             JOIN curriculum_topics t ON t.id = tsa.topic_id
             WHERE tsa.section_id = ?
-            ORDER BY t.title_bg, t.id
+            ORDER BY {self._explicit_topic_order()}t.title_bg, t.id
             """,
             (section_id,),
         ).fetchall()
@@ -239,8 +276,10 @@ class SubjectContentBrowser:
     def questions_in_section(self, section_id: int) -> list[dict]:
         if not self.owns_section(section_id):
             return []
+        # SAFE: the interpolated ORDER BY terms are a static fragment. A topic has
+        # one assignment per section, so they do not affect DISTINCT.
         rows = self.conn.execute(
-            """
+            f"""
             SELECT DISTINCT q.id AS question_id, q.topic_id, q.prompt,
                    q.question_type, q.difficulty,
                    t.topic_slug, t.title_bg AS topic_title
@@ -249,7 +288,7 @@ class SubjectContentBrowser:
             JOIN questions q ON q.topic_id = t.id
             WHERE tsa.section_id = ?
               AND (q.is_ai_generated = 0 OR q.quality_score >= 1.0)
-            ORDER BY t.topic_slug, q.id
+            ORDER BY {self._explicit_topic_order()}t.topic_slug, q.id
             """,
             (section_id,),
         ).fetchall()

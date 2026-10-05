@@ -6,12 +6,29 @@ here opens the repository database or decides a subject's real curriculum.
 
 from __future__ import annotations
 
+import io
 import sqlite3
 from contextlib import contextmanager
+from pathlib import Path
 from unittest.mock import patch
 
 from src import subject_registry
+from src.manage_migrations import apply_migrations
 from src.subject_registry import SubjectDefinition, validate_registry
+from tests.support import ROOT
+
+
+def apply_pending_migrations(db_path) -> None:
+    """Bring a temporary database copy up to the current schema with the real runner.
+
+    The seed copy may predate the newest migration; a no-op once it does not.
+    Never call this with the repository database.
+    """
+    path = Path(db_path).resolve()
+    if path == (ROOT / "data" / "questions.db").resolve():
+        raise AssertionError("refusing to migrate the repository database from a test")
+    if apply_migrations(path, ROOT / "web" / "migrations", out=io.StringIO()) != 0:
+        raise AssertionError("migrations failed on the temporary database")
 
 
 def add_curriculum(conn: sqlite3.Connection, subject: str, grade: int,
@@ -54,6 +71,15 @@ def add_membership(conn: sqlite3.Connection, topic_id: int, section_id: int, *,
     conn.execute(
         "INSERT INTO topic_section_assignments (topic_id, section_id, is_primary) VALUES (?, ?, ?)",
         (topic_id, section_id, int(primary)),
+    )
+
+
+def set_topic_order(conn: sqlite3.Connection, topic_id: int, section_id: int,
+                    display_order: int | None) -> None:
+    """Explicit order of a topic in a section (needs migration 010)."""
+    conn.execute(
+        "UPDATE topic_section_assignments SET display_order = ? WHERE topic_id = ? AND section_id = ?",
+        (display_order, topic_id, section_id),
     )
 
 
