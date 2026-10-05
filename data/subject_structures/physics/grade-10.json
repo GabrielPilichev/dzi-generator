@@ -1,0 +1,43 @@
+{
+  "format_version": 1,
+  "subject": "physics",
+  "grade": 10,
+  "curriculum": {
+    "education_type": "general",
+    "title": "Физика и астрономия, 10. клас — общообразователна подготовка",
+    "source_url": "https://www.mon.bg/nfs/2023/12/up_x_fa.pdf"
+  },
+  "sections": [
+    {
+      "slug": "physics-g10-electromagnetic-phenomena",
+      "title": "Електромагнитни явления",
+      "topics": [
+        {"slug": "physics-g10-electric-field", "title": "Електрично поле"},
+        {"slug": "physics-g10-magnetic-field", "title": "Магнитно поле"},
+        {"slug": "physics-g10-charged-particle-motion", "title": "Движение на заредени частици в електрично и в магнитно поле"},
+        {"slug": "physics-g10-electromagnetic-induction-alternating-current", "title": "Електромагнитна индукция. Променлив ток"},
+        {"slug": "physics-g10-electromagnetic-waves", "title": "Електромагнитни вълни"}
+      ]
+    },
+    {
+      "slug": "physics-g10-light",
+      "title": "Светлина",
+      "topics": [
+        {"slug": "physics-g10-light-propagation", "title": "Разпространение на светлината"},
+        {"slug": "physics-g10-wave-properties-of-light", "title": "Вълнови свойства на светлината"},
+        {"slug": "physics-g10-quantum-properties-of-light", "title": "Квантови свойства на светлината"}
+      ]
+    },
+    {
+      "slug": "physics-g10-from-atom-to-cosmos",
+      "title": "От атома до Космоса",
+      "topics": [
+        {"slug": "physics-g10-atoms-and-atomic-transitions", "title": "Атоми и атомни преходи"},
+        {"slug": "physics-g10-atomic-nucleus", "title": "Атомно ядро"},
+        {"slug": "physics-g10-nuclear-reactions", "title": "Ядрени реакции"},
+        {"slug": "physics-g10-particles", "title": "Частици"},
+        {"slug": "physics-g10-stars-galaxies-universe", "title": "Звезди, галактики, Вселена"}
+      ]
+    }
+  ]
+}
