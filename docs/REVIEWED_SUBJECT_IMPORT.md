@@ -50,7 +50,8 @@ that subject's declared grades in `src/subject_registry.py`; a subject or grade
 outside the registry is rejected. Registration alone adds no content.
 
 The section and topic slugs must be stable and namespaced
-`<canonical-subject>-g<grade>-...`. The `source` is a stable
+`<canonical-subject>-g<grade>-...` (the same rule as the structure importer;
+public URLs drop the namespace). The `source` is a stable
 `reviewed:<canonical-subject>:<batch>` identifier. Each positive `number` is
 unique within that source; the pair maps to the existing
 `questions(source_exam, source_number)` unique index. `source_exam` is a
@@ -71,4 +72,29 @@ options so F2 browsing and F3 assessment can consume the batch.
 Images, lessons, open/fill-in answers, numerical/unit/symbolic grading,
 practical tasks, DZI metadata, and multi-section/multi-topic batches are not
 supported in F4. No curriculum or real Physics content is implied by the
-synthetic example. Actual academic structure and content review belong to F5.
+synthetic example.
+
+## Structure first, questions afterwards
+
+Curriculum structure — every section and topic of a grade, in order, without
+questions — is imported separately with `src.import_subject_structure`
+(`docs/SUBJECT_STRUCTURE_IMPORT.md`). The normal sequence for a subject is:
+
+1. import the structure of a grade;
+2. import question batches into its sections and topics with this tool.
+
+A batch then *reuses* the imported rows instead of creating them. For that, its
+`curriculum.education_type` and `curriculum.title`, its `section.slug` and
+`section.title`, and its `topic.slug` and `topic.title` must equal the imported
+structure exactly; any difference is rejected as a conflict, as before. The
+dry-run summary shows `reused: 1` for the curriculum, section and topic.
+
+This tool never sets or changes section or topic order. A topic it creates itself
+(one that is not in the structure yet) has no explicit order and is listed after
+the ordered topics; add it to the structure file and re-import the structure to
+place it. The structure importer treats a stored topic that its file does not
+list as a conflict, so the structure file stays the complete, ordered record.
+
+Importing into production is a separate, deliberate operational action: take a
+fresh application snapshot first (`docs/DEPLOYMENT.md`), dry-run, read the
+summary, and only then `--apply`.

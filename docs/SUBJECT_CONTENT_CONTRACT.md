@@ -53,8 +53,12 @@ tables; there is no `subjects` table and no per-subject schema.
   needs none.
 - `curriculum_topics.section_id` is a topic's primary section;
   `topic_section_assignments` lists every section it appears in.
-  `topic_slug` is globally unique. Topics have no stored order inside a section
-  and are listed by title.
+  `topic_slug` is globally unique.
+- `topic_section_assignments.display_order` (migration 010) is a topic's
+  explicit position in a section. It is optional: topics with an order come
+  first, in that order; topics without one follow in the earlier order, by
+  title. Questions on a section page follow the same topic order. No existing
+  IT row has an explicit order, so IT content is listed exactly as before.
 - `questions.topic_id` and `questions.subject` attach a question.
 
 Each subject declares the grades it supports (currently 8-12 for all six). A
@@ -202,16 +206,23 @@ sections are the structure.
 
 1. Add one `SubjectDefinition` to `SUBJECTS` in `src/subject_registry.py` (id,
    route slug, title, description, search terms, declared grades).
-2. Load its curriculum rows and reviewed questions into the database.
+2. Import its curriculum structure for each grade from a reviewed file:
+   `src/import_subject_structure.py` (`docs/SUBJECT_STRUCTURE_IMPORT.md`). The
+   subject is then browsable as structure, with questions shown as in preparation.
+3. Import reviewed questions into that structure:
+   `src/import_reviewed_subject_questions.py` (`docs/REVIEWED_SUBJECT_IMPORT.md`).
 
 No route, template, stylesheet or controller change is needed;
 `tests/test_subject_generic_flow.py` registers a synthetic subject and walks it
 through the homepage, navigation, subject, grade, section and topic pages and
 the teacher flow to keep that true.
 
-Content tooling today: `src/import_reviewed_subject_questions.py`
-(`docs/REVIEWED_SUBJECT_IMPORT.md`) imports one curriculum, one section, one
-topic and text-only multiple-choice questions per batch. Importing curriculum
-structure without questions, and a stored topic order within a section, are
-future work. No Physics or other curriculum decisions are made by this
-architecture.
+The registry says which subjects exist; the database says what they contain.
+The structure importer writes sections and topics in file order and never
+creates questions; the question importer adds text-only multiple-choice
+questions to one section and topic per batch and never changes the order. Both
+are dry-run by default, reject conflicts instead of overwriting, and are run
+against production only as a deliberate step after a fresh backup.
+
+No real curriculum is included: the repository ships no structure file, and no
+Physics or other curriculum decisions are made by this architecture.

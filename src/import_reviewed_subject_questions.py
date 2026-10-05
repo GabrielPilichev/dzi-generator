@@ -8,12 +8,12 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
 import sqlite3
 from pathlib import Path
 from urllib.parse import quote
 
 from src.subject_assessment import AssessmentScope
+from src.subject_browsing import is_namespaced_slug
 from src.subject_content import (
     canonical_subject, curriculum_ownership, question_ownership,
     section_ownership, topic_ownership,
@@ -22,7 +22,6 @@ from src.subject_registry import get_subject, subject_supports_grade
 
 
 LETTERS = ("A", "B", "C", "D")
-SLUG = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 
 
 def _keys(value, required, label):
@@ -64,7 +63,7 @@ def validate_batch(batch):
     _keys(topic, ("slug", "title", "grade"), "topic")
     for label, item in (("section", section), ("topic", topic)):
         slug = _text(item["slug"], f"{label} slug")
-        if not SLUG.fullmatch(slug) or not slug.startswith(f"{subject}-g{grade}-"):
+        if not is_namespaced_slug(subject, grade, slug):
             raise ValueError(f"{label} slug must be namespaced {subject}-g{grade}-...")
         _text(item["title"], f"{label} title")
         if type(item["grade"]) is not int or item["grade"] != grade:
