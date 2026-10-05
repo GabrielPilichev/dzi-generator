@@ -1,0 +1,687 @@
+{
+  "format_version": 1,
+  "kind": "question_candidate_provenance",
+  "run": {
+    "id": "physics-g8-work-power-energy-run-1",
+    "started_at": "2026-10-05T06:28:25Z",
+    "finished_at": "2026-10-05T06:35:00Z",
+    "subject": "physics",
+    "grade": 8,
+    "curriculum": {
+      "education_type": "general",
+      "title": "Физика и астрономия, 8. клас — общообразователна подготовка"
+    },
+    "targets": [
+      {
+        "section": {
+          "slug": "physics-g8-mechanics",
+          "title": "Механика"
+        },
+        "topics": [
+          {
+            "slug": "physics-g8-work-power-energy",
+            "title": "Механична работа, мощност и енергия"
+          }
+        ]
+      }
+    ],
+    "limits": {
+      "max_topics": 3,
+      "max_pages": 15,
+      "max_candidates": 30,
+      "max_candidates_per_source": 8,
+      "max_runtime_minutes": 20
+    },
+    "pages_inspected": 8,
+    "stop_reason": "topic_complete",
+    "collector": "Claude Sonnet 5.5 (Collector Agent C)",
+    "notes": "Обхват: само тема 1.4 (A=Fs, A=-Fs, P=A/t, Eк=mv²/2, Eп=mgh, запазване на механичната енергия, запазване на енергията като закон). Извън обхвата: работа под ъгъл, теорема за работата и енергията, P=Fv, КПД, kW·h, еластична енергия. Опити за зареждане, които не успяха и не са броени като инспектирани страници: physicsclassroom.com (HTTP 403, не е заобикаляно), web.uni-plovdiv.bg и hyperphysics.phy-astr.gsu.edu (TLS сертификат), hyperphysics.gsu.edu (404). Времената на извличане са приблизителни до минута."
+  },
+  "not_stored_in_database": [
+    "candidate id",
+    "source type",
+    "source url",
+    "source title",
+    "source publisher",
+    "source retrieved_at",
+    "transformation",
+    "source_ref",
+    "research",
+    "reuse_exception",
+    "explanation",
+    "difficulty",
+    "review (reviewer, reviewed_at, notes)",
+    "run manifest"
+  ],
+  "batches": [
+    {
+      "file": "physics-g8-work-power-energy-run-1.work-power-energy.json",
+      "source": "reviewed:physics:physics-g8-work-power-energy-run-1.work-power-energy",
+      "topic_slug": "physics-g8-work-power-energy",
+      "questions": [
+        {
+          "number": 1,
+          "candidate_id": "physics-g8-work-power-energy-run-1-001",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-cp2e-7-1-work",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics-2e/pages/7-1-work-the-scientific-definition",
+            "title": "College Physics 2e, 7.1 Work: The Scientific Definition",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T06:31:00Z",
+            "notes": "Международен учебник; работа, знак на работата, джаул, случаи без преместване."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Единица за работа: 1 J = 1 N·m",
+            "skill": "Мерни единици"
+          },
+          "explanation": "От A = Fs следва, че единицата за работа е единицата за сила, умножена по единицата за път: 1 J = 1 N·m.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 2,
+          "candidate_id": "physics-g8-work-power-energy-run-1-002",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-cp2e-7-1-work",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics-2e/pages/7-1-work-the-scientific-definition",
+            "title": "College Physics 2e, 7.1 Work: The Scientific Definition",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T06:31:00Z",
+            "notes": "Международен учебник; работа, знак на работата, джаул, случаи без преместване."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Без преместване няма механична работа (A = Fs при s = 0)",
+            "skill": "Интерпретиране на ситуация"
+          },
+          "explanation": "Работата е A = Fs. Когато щангата не се премества (s = 0), A = 0, въпреки че мускулите се уморяват. В останалите случаи има преместване по посока на силата.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 3,
+          "candidate_id": "physics-g8-work-power-energy-run-1-003",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "tu-sofia-energia",
+            "type": "third_party",
+            "url": "http://phys.tu-sofia.bg/ef/Phys%20FA/Lektzii/Mehanika/Energia.pdf",
+            "title": "Механична енергия. Работа на постоянна и променлива сила. Мощност. Кинетична енергия",
+            "publisher": "Технически университет – София, катедра Приложна физика",
+            "retrieved_at": "2026-10-05T06:31:00Z",
+            "notes": "Университетска лекция; използвана за знака на работата, мощност, запазване на енергията и триене. Над нивото на 8. клас, ползвана само за проверка на физиката."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Работа на постоянна сила по посока на движението: A = Fs, с преобразуване на kN в N",
+            "skill": "Изчисление с преобразуване на единици"
+          },
+          "explanation": "F = 1,5 kN = 1 500 N. A = Fs = 1 500 N · 200 m = 300 000 J = 300 kJ.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 4,
+          "candidate_id": "physics-g8-work-power-energy-run-1-004",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T06:29:00Z",
+            "notes": "Определя обхвата на тема 1.4: резултати, понятия и формули. Не съдържа въпроси."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Отрицателна работа при сила, противоположна на преместването: A = –Fs",
+            "skill": "Изчисление със знак"
+          },
+          "explanation": "Силата на триене е противоположна на преместването, затова A = –Fs = –15 N · 4 m = –60 J.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 5,
+          "candidate_id": "physics-g8-work-power-energy-run-1-005",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-cp2e-7-1-work",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics-2e/pages/7-1-work-the-scientific-definition",
+            "title": "College Physics 2e, 7.1 Work: The Scientific Definition",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T06:31:00Z",
+            "notes": "Международен учебник; работа, знак на работата, джаул, случаи без преместване."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Знак на работата на две различни сили при едно и също преместване",
+            "skill": "Сравнение на работата на сили"
+          },
+          "explanation": "При равномерно движение силата на ръката е равна на силата на тежестта – 40 N. Ръката е по посока на преместването: A = +40 N · 1,5 m = +60 J. Силата на тежестта е противоположна на преместването: A = –60 J. Равномерното движение не означава нулева работа на всяка отделна сила.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 6,
+          "candidate_id": "physics-g8-work-power-energy-run-1-006",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T06:29:00Z",
+            "notes": "Определя обхвата на тема 1.4: резултати, понятия и формули. Не съдържа въпроси."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Смисъл на мощност: P = A/t, единица ват",
+            "skill": "Смисъл на физична величина"
+          },
+          "explanation": "Мощността е работа за единица време: P = A/t. 1 W = 1 J/s, затова 500 W означава 500 J работа за секунда.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 7,
+          "candidate_id": "physics-g8-work-power-energy-run-1-007",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-cp2e-7-7-power",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics-2e/pages/7-7-power",
+            "title": "College Physics 2e, 7.7 Power",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T06:32:00Z",
+            "notes": "Мощност като скорост на извършване на работа, ват, сравнение при еднаква работа."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Мощност при повдигане на товар: комбинация A = Fs (F = mg) и P = A/t",
+            "skill": "Многостъпково изчисление"
+          },
+          "explanation": "F = mg = 300 kg · 10 m/s² = 3 000 N. A = Fs = 3 000 N · 10 m = 30 000 J. P = A/t = 30 000 J / 15 s = 2 000 W.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 8,
+          "candidate_id": "physics-g8-work-power-energy-run-1-008",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-cp2e-7-7-power",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics-2e/pages/7-7-power",
+            "title": "College Physics 2e, 7.7 Power",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T06:32:00Z",
+            "notes": "Мощност като скорост на извършване на работа, ват, сравнение при еднаква работа."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Сравнение на мощности: еднаква работа за различно време",
+            "skill": "Разсъждение със сравнение"
+          },
+          "explanation": "A1 = 100·10·6 = 6 000 J, A2 = 200·10·3 = 6 000 J – работата е еднаква. P1 = 6 000/12 = 500 W, P2 = 6 000/10 = 600 W. При еднаква работа по-голяма е мощността на двигателя, който я извършва за по-кратко време.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 9,
+          "candidate_id": "physics-g8-work-power-energy-run-1-009",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "ucha-se-kinetic-energy",
+            "type": "third_party",
+            "url": "https://ucha.se/watch/2279/Kinetichna-energiya",
+            "title": "Кинетична енергия. Физика 8. клас",
+            "publisher": "ucha.se",
+            "retrieved_at": "2026-10-05T06:31:00Z",
+            "notes": "Българска образователна платформа (вторичен източник); понятие за кинетична енергия и зависимост от скоростта."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Кинетичната енергия е пропорционална на квадрата на скоростта",
+            "skill": "Разсъждение за зависимост"
+          },
+          "explanation": "Eк = mv²/2 е пропорционална на v². При 3 пъти по-голяма скорост Eк нараства 3² = 9 пъти.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 10,
+          "candidate_id": "physics-g8-work-power-energy-run-1-010",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "ucha-se-kinetic-energy",
+            "type": "third_party",
+            "url": "https://ucha.se/watch/2279/Kinetichna-energiya",
+            "title": "Кинетична енергия. Физика 8. клас",
+            "publisher": "ucha.se",
+            "retrieved_at": "2026-10-05T06:31:00Z",
+            "notes": "Българска образователна платформа (вторичен източник); понятие за кинетична енергия и зависимост от скоростта."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Изчисляване на Eк = mv²/2 с преобразуване от km/h в m/s",
+            "skill": "Изчисление с преобразуване на единици"
+          },
+          "explanation": "72 km/h = 20 m/s. Eк = mv²/2 = 900 kg · (20 m/s)² / 2 = 180 000 J = 180 kJ.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 11,
+          "candidate_id": "physics-g8-work-power-energy-run-1-011",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "ucha-se-kinetic-energy",
+            "type": "third_party",
+            "url": "https://ucha.se/watch/2279/Kinetichna-energiya",
+            "title": "Кинетична енергия. Физика 8. клас",
+            "publisher": "ucha.se",
+            "retrieved_at": "2026-10-05T06:31:00Z",
+            "notes": "Българска образователна платформа (вторичен източник); понятие за кинетична енергия и зависимост от скоростта."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Сравнение на кинетични енергии при различни маси и скорости",
+            "skill": "Разсъждение със сравнение"
+          },
+          "explanation": "Eк(камион) = 4 000 · 10² / 2 = 200 kJ. Eк(автомобил) = 1 000 · 20² / 2 = 200 kJ. Скоростта влиза на квадрат: 2² = 4 компенсира 4-кратната разлика в масите.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 12,
+          "candidate_id": "physics-g8-work-power-energy-run-1-012",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "ucha-se-kinetic-energy",
+            "type": "third_party",
+            "url": "https://ucha.se/watch/2279/Kinetichna-energiya",
+            "title": "Кинетична енергия. Физика 8. клас",
+            "publisher": "ucha.se",
+            "retrieved_at": "2026-10-05T06:31:00Z",
+            "notes": "Българска образователна платформа (вторичен източник); понятие за кинетична енергия и зависимост от скоростта."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Кинетичната енергия зависи от масата и големината на скоростта, не от посоката",
+            "skill": "Разграничаване на величини"
+          },
+          "explanation": "Eк = mv²/2 = 0,2 kg · (5 m/s)² : 2 = 2,5 J за всяка топка. Кинетичната енергия зависи от масата и от големината на скоростта, не от посоката, и не може да е отрицателна. 5 J се получава, ако се пропусне деленето на 2.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 13,
+          "candidate_id": "physics-g8-work-power-energy-run-1-013",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "tu-sofia-energia",
+            "type": "third_party",
+            "url": "http://phys.tu-sofia.bg/ef/Phys%20FA/Lektzii/Mehanika/Energia.pdf",
+            "title": "Механична енергия. Работа на постоянна и променлива сила. Мощност. Кинетична енергия",
+            "publisher": "Технически университет – София, катедра Приложна физика",
+            "retrieved_at": "2026-10-05T06:31:00Z",
+            "notes": "Университетска лекция; използвана за знака на работата, мощност, запазване на енергията и триене. Над нивото на 8. клас, ползвана само за проверка на физиката."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Потенциална енергия Eп = mgh",
+            "skill": "Просто изчисление"
+          },
+          "explanation": "Eп = mgh = 2 kg · 10 m/s² · 5 m = 100 J.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 14,
+          "candidate_id": "physics-g8-work-power-energy-run-1-014",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-cp2e-7-4-potential",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics-2e/pages/7-4-conservative-forces-and-potential-energy",
+            "title": "College Physics 2e, 7.4 Conservative Forces and Potential Energy",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T06:32:00Z",
+            "notes": "Потенциална енергия, независимост от пътя, нулево ниво, триене."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Промяната на потенциалната енергия не зависи от избора на нулево ниво",
+            "skill": "Разбиране на понятие и изчисление"
+          },
+          "explanation": "Височината се променя с 2 m – 0,8 m = 1,2 m. ΔEп = mgΔh = 0,5 · 10 · 1,2 = 6 J. Нулевото ниво се избира свободно, но разликата във височините – а с нея и промяната на Eп – е една и съща.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 15,
+          "candidate_id": "physics-g8-work-power-energy-run-1-015",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-cp2e-7-4-potential",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics-2e/pages/7-4-conservative-forces-and-potential-energy",
+            "title": "College Physics 2e, 7.4 Conservative Forces and Potential Energy",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T06:32:00Z",
+            "notes": "Потенциална енергия, независимост от пътя, нулево ниво, триене."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Потенциалната енергия зависи от височината, а не от изминатия път",
+            "skill": "Преодоляване на заблуда"
+          },
+          "explanation": "Eп = mgh зависи от масата и от височината над нулевото ниво. Двамата имат еднаква маса и стигат до една и съща височина, затова промяната на Eп е еднаква, независимо от дължината на пътя и времето.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 16,
+          "candidate_id": "physics-g8-work-power-energy-run-1-016",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T06:29:00Z",
+            "notes": "Определя обхвата на тема 1.4: резултати, понятия и формули. Не съдържа въпроси."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Преобразуване на Eп в Eк при запазване на механичната енергия",
+            "skill": "Качествено разсъждение"
+          },
+          "explanation": "Без триене механичната енергия Eк + Eп се запазва. От I към III височината намалява (Eп намалява), а скоростта расте (Eк расте). В III Eк е най-голяма и Eп най-малка; в I топчето е в покой, затова Eк = 0.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 17,
+          "candidate_id": "physics-g8-work-power-energy-run-1-017",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-cp2e-7-4-potential",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics-2e/pages/7-4-conservative-forces-and-potential-energy",
+            "title": "College Physics 2e, 7.4 Conservative Forces and Potential Energy",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T06:32:00Z",
+            "notes": "Потенциална енергия, независимост от пътя, нулево ниво, триене."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Закон за запазване на механичната енергия при свободно падане: mgh = mv²/2",
+            "skill": "Многостъпково изчисление"
+          },
+          "explanation": "mgh = mv²/2, масата се съкращава: v² = 2gh = 2 · 10 · 45 = 900 m²/s², v = 30 m/s.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 18,
+          "candidate_id": "physics-g8-work-power-energy-run-1-018",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-cp2e-7-4-potential",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics-2e/pages/7-4-conservative-forces-and-potential-energy",
+            "title": "College Physics 2e, 7.4 Conservative Forces and Potential Energy",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T06:32:00Z",
+            "notes": "Потенциална енергия, независимост от пътя, нулево ниво, триене."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Съотношение между Eк и Eп на дадена височина при свободно падане",
+            "skill": "Разсъждение със символи"
+          },
+          "explanation": "Пълната механична енергия е mgH и се запазва. Ако Eк = 3Eп, то Eк + Eп = 4Eп = mgH, откъдето Eп = mgH/4 и h = H/4.",
+          "difficulty": "hard"
+        },
+        {
+          "number": 19,
+          "candidate_id": "physics-g8-work-power-energy-run-1-019",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T06:29:00Z",
+            "notes": "Определя обхвата на тема 1.4: резултати, понятия и формули. Не съдържа въпроси."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Запазването на енергията като основен природен закон",
+            "skill": "Формулиране на закон"
+          },
+          "explanation": "Енергията се запазва като цяло. Механичната енергия може да намалее (например при триене), но тя преминава в други видове енергия, без да изчезва.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 20,
+          "candidate_id": "physics-g8-work-power-energy-run-1-020",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-cp2e-7-4-potential",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics-2e/pages/7-4-conservative-forces-and-potential-energy",
+            "title": "College Physics 2e, 7.4 Conservative Forces and Potential Energy",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T06:32:00Z",
+            "notes": "Потенциална енергия, независимост от пътя, нулево ниво, триене."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Загуба на механична енергия при реален отскок като преминаване в други видове енергия",
+            "skill": "Изчисление чрез разлика на енергии"
+          },
+          "explanation": "Началната механична енергия е Eп = mgh1 = 0,2 · 10 · 5 = 10 J. В най-високата точка след отскока тя е 0,2 · 10 · 3,2 = 6,4 J. Разликата е 10 J – 6,4 J = 3,6 J.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 21,
+          "candidate_id": "physics-g8-work-power-energy-run-1-021",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "tu-sofia-energia",
+            "type": "third_party",
+            "url": "http://phys.tu-sofia.bg/ef/Phys%20FA/Lektzii/Mehanika/Energia.pdf",
+            "title": "Механична енергия. Работа на постоянна и променлива сила. Мощност. Кинетична енергия",
+            "publisher": "Технически университет – София, катедра Приложна физика",
+            "retrieved_at": "2026-10-05T06:31:00Z",
+            "notes": "Университетска лекция; използвана за знака на работата, мощност, запазване на енергията и триене. Над нивото на 8. клас, ползвана само за проверка на физиката."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Триене/съпротивление на въздуха намаляват механичната енергия",
+            "skill": "Анализ на енергията в реална ситуация"
+          },
+          "explanation": "Скоростта е постоянна, затова Eк = mv²/2 е постоянна. Височината намалява, затова Eп = mgh намалява. Механичната енергия Eк + Eп намалява, защото съпротивлението на въздуха преобразува част от нея в други видове енергия.",
+          "difficulty": "hard"
+        },
+        {
+          "number": 22,
+          "candidate_id": "physics-g8-work-power-energy-run-1-022",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-cp2e-7-4-potential",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics-2e/pages/7-4-conservative-forces-and-potential-energy",
+            "title": "College Physics 2e, 7.4 Conservative Forces and Potential Energy",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T06:32:00Z",
+            "notes": "Потенциална енергия, независимост от пътя, нулево ниво, триене."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Запазване на механичната енергия: височината на издигане не зависи от наклона на пътя",
+            "skill": "Качествено разсъждение"
+          },
+          "explanation": "Началната механична енергия е само потенциална: mg·0,4 m. В най-високата точка в дясното рамо топчето за миг е в покой (Eк = 0), така че цялата енергия отново е потенциална и h = 40 cm. Наклонът и масата не влияят.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 23,
+          "candidate_id": "physics-g8-work-power-energy-run-1-023",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "tu-sofia-energia",
+            "type": "third_party",
+            "url": "http://phys.tu-sofia.bg/ef/Phys%20FA/Lektzii/Mehanika/Energia.pdf",
+            "title": "Механична енергия. Работа на постоянна и променлива сила. Мощност. Кинетична енергия",
+            "publisher": "Технически университет – София, катедра Приложна физика",
+            "retrieved_at": "2026-10-05T06:31:00Z",
+            "notes": "Университетска лекция; използвана за знака на работата, мощност, запазване на енергията и триене. Над нивото на 8. клас, ползвана само за проверка на физиката."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Видове механична енергия: тяло, което се движи и е на височина, има Eк и Eп",
+            "skill": "Разпознаване на видове енергия"
+          },
+          "explanation": "Eк има тяло, което се движи (v > 0); Eп има тяло на височина h > 0 над земята. Само самолетът изпълнява и двете условия.",
+          "difficulty": "easy"
+        }
+      ]
+    }
+  ],
+  "not_exported": []
+}

@@ -1,0 +1,634 @@
+{
+  "format_version": 1,
+  "kind": "question_candidate_provenance",
+  "run": {
+    "id": "physics-g8-heat-exchange-phase-transitions-run-1",
+    "started_at": "2026-10-05T07:26:17Z",
+    "finished_at": "2026-10-05T07:32:30Z",
+    "subject": "physics",
+    "grade": 8,
+    "curriculum": {
+      "education_type": "general",
+      "title": "Физика и астрономия, 8. клас — общообразователна подготовка"
+    },
+    "targets": [
+      {
+        "section": {
+          "slug": "physics-g8-thermal-phenomena",
+          "title": "Топлинни явления"
+        },
+        "topics": [
+          {
+            "slug": "physics-g8-heat-exchange-phase-transitions",
+            "title": "Топлообмен. Преходи между състоянията на веществата"
+          }
+        ]
+      }
+    ],
+    "limits": {
+      "max_topics": 3,
+      "max_pages": 15,
+      "max_candidates": 30,
+      "max_candidates_per_source": 8,
+      "max_runtime_minutes": 20
+    },
+    "pages_inspected": 7,
+    "stop_reason": "topic_complete",
+    "collector": "Claude Sonnet 5.5",
+    "notes": "Обхват (МОН 2.2): Q, c, Q=cmΔt, топлообмен между тела и лабораторни работи 7 и 8, преходи между състоянията, λ, r, примери от природата и бита. Извън обхвата, защото програмата за 2.2 не ги изисква: топлопроводност, конвекция, излъчване; графики на нагряване (в таблична форма само един въпрос, вж. кандидат 022); сублимация; вътрешна енергия и ΔU=Q+A (2.3); газови процеси (2.4); КПД и топлинни машини (2.5). Неуспешен опит (не е броен като инспектирана страница): web.uni-plovdiv.bg (TLS сертификат), не е заобиколен. Тестовете на ucha.se не са отваряни. Времената на извличане са приблизителни до минута."
+  },
+  "not_stored_in_database": [
+    "candidate id",
+    "source type",
+    "source url",
+    "source title",
+    "source publisher",
+    "source retrieved_at",
+    "transformation",
+    "source_ref",
+    "research",
+    "reuse_exception",
+    "explanation",
+    "difficulty",
+    "review (reviewer, reviewed_at, notes)",
+    "run manifest"
+  ],
+  "batches": [
+    {
+      "file": "physics-g8-heat-exchange-phase-transitions-run-1.heat-exchange-phase-transitions.json",
+      "source": "reviewed:physics:physics-g8-heat-exchange-phase-transitions-run-1.heat-exchange-phase-transitions",
+      "topic_slug": "physics-g8-heat-exchange-phase-transitions",
+      "questions": [
+        {
+          "number": 1,
+          "candidate_id": "physics-g8-heat-exchange-phase-transitions-run-1-001",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T07:27:00Z",
+            "notes": "Определя обхвата на тема 2.2: Q, c, λ, r, формули c=Q/(mΔt), λ=Q/m, r=Q/m, примери от природата, бита и техниката; лабораторни работи 7 и 8. Не съдържа въпроси."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-final-review",
+            "reviewed_at": "2026-10-05T08:36:55Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Количество топлина Q като енергия, обменена при топлообмен",
+            "skill": "Смисъл на физична величина"
+          },
+          "explanation": "Количеството топлина е енергията, която телата си обменят при топлообмен. То се измерва в джаули (J) и не е температура, нито скорост на нагряване.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 2,
+          "candidate_id": "physics-g8-heat-exchange-phase-transitions-run-1-002",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T07:27:00Z",
+            "notes": "Определя обхвата на тема 2.2: Q, c, λ, r, формули c=Q/(mΔt), λ=Q/m, r=Q/m, примери от природата, бита и техниката; лабораторни работи 7 и 8. Не съдържа въпроси."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-final-review",
+            "reviewed_at": "2026-10-05T08:36:55Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Смисъл на специфичния топлинен капацитет c = Q/(mΔt)",
+            "skill": "Смисъл на физична величина"
+          },
+          "explanation": "От c = Q/(mΔt) следва, че c е топлината, нужна за промяна на температурата на 1 kg вещество с 1 K. Стопяването се описва със специфичната топлина на топене, а секундата не участва в определението.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 3,
+          "candidate_id": "physics-g8-heat-exchange-phase-transitions-run-1-003",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T07:27:00Z",
+            "notes": "Определя обхвата на тема 2.2: Q, c, λ, r, формули c=Q/(mΔt), λ=Q/m, r=Q/m, примери от природата, бита и техниката; лабораторни работи 7 и 8. Не съдържа въпроси."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-final-review",
+            "reviewed_at": "2026-10-05T08:36:55Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Мерни единици на c, λ и r",
+            "skill": "Разграничаване на величини по единици"
+          },
+          "explanation": "От λ = Q/m и r = Q/m следва, че λ и r се измерват в J/kg. Специфичният топлинен капацитет c = Q/(mΔt) се измерва в J/(kg·K), а количеството топлина – в J.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 4,
+          "candidate_id": "physics-g8-heat-exchange-phase-transitions-run-1-004",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-cp2e-14-2-heat-capacity",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics-2e/pages/14-2-temperature-change-and-heat-capacity",
+            "title": "College Physics 2e, 14.2 Temperature Change and Heat Capacity",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T07:27:00Z",
+            "notes": "Q = mcΔT, смисъл на специфичния топлинен капацитет, високият капацитет на водата, принцип на калориметрията. Само концепции."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-final-review",
+            "reviewed_at": "2026-10-05T08:36:55Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Голям специфичен топлинен капацитет на водата и приложението ѝ за охлаждане",
+            "skill": "Приложение в техниката"
+          },
+          "explanation": "При липса на фазов преход Q = cmΔt. За равни маси и едно и също допустимо повишение на температурата по-големият специфичен топлинен капацитет позволява поглъщане на по-голямо количество топлина. За водата c е около 4200 J/(kg·K). Специфичните топлини на топене и изпарение не определят Q в този процес.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 5,
+          "candidate_id": "physics-g8-heat-exchange-phase-transitions-run-1-005",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-cp2e-14-2-heat-capacity",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics-2e/pages/14-2-temperature-change-and-heat-capacity",
+            "title": "College Physics 2e, 14.2 Temperature Change and Heat Capacity",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T07:27:00Z",
+            "notes": "Q = mcΔT, смисъл на специфичния топлинен капацитет, високият капацитет на водата, принцип на калориметрията. Само концепции."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-final-review",
+            "reviewed_at": "2026-10-05T08:36:55Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "При еднаква топлина и маса промяната на температурата е обратно пропорционална на c",
+            "skill": "Сравнение на материали"
+          },
+          "explanation": "От Q = cmΔt следва Δt = Q/(cm). При еднакви Q и m повишението на температурата е обратно пропорционално на c. Затова Δtжелязо/Δtалуминий = 900/450 = 2: повишението на температурата на желязното тяло е 2 пъти по-голямо.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 6,
+          "candidate_id": "physics-g8-heat-exchange-phase-transitions-run-1-006",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-cp2e-14-2-heat-capacity",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics-2e/pages/14-2-temperature-change-and-heat-capacity",
+            "title": "College Physics 2e, 14.2 Temperature Change and Heat Capacity",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T07:27:00Z",
+            "notes": "Q = mcΔT, смисъл на специфичния топлинен капацитет, високият капацитет на водата, принцип на калориметрията. Само концепции."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-final-review",
+            "reviewed_at": "2026-10-05T08:36:55Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Q = cmΔt: използва се промяната на температурата, а не крайната температура",
+            "skill": "Откриване на грешка и коригиране на резултат чрез пропорционална зависимост",
+            "notes": "Източникът е използван за зависимостта Q = cmΔt. При корекционния етап на Wave 2 задачата с тенджера е заменена с независимо формулирана диагностика на грешка по спецификацията на прегледа; не се твърди, че този сценарий е взет от източника."
+          },
+          "explanation": "Във формулата Q = cmΔt трябва да се използва Δt = 50 − 20 = 30 °C, а не крайната температура 50 °C. Произведението cm е същото, затова вярното количество топлина е Q = 15·30/50 = 9 kJ.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 7,
+          "candidate_id": "physics-g8-heat-exchange-phase-transitions-run-1-007",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T07:27:00Z",
+            "notes": "Определя обхвата на тема 2.2: Q, c, λ, r, формули c=Q/(mΔt), λ=Q/m, r=Q/m, примери от природата, бита и техниката; лабораторни работи 7 и 8. Не съдържа въпроси."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-final-review",
+            "reviewed_at": "2026-10-05T08:36:55Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Пропорционалност в Q = cmΔt",
+            "skill": "Разсъждение за зависимости"
+          },
+          "explanation": "Q = cmΔt. Масата се увеличава 3 пъти, а Δt намалява 2 пъти, затова Q се променя 3 : 2 = 1,5 пъти, т.е. необходима е топлина 1,5Q.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 8,
+          "candidate_id": "physics-g8-heat-exchange-phase-transitions-run-1-008",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-cp2e-14-2-heat-capacity",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics-2e/pages/14-2-temperature-change-and-heat-capacity",
+            "title": "College Physics 2e, 14.2 Temperature Change and Heat Capacity",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T07:27:00Z",
+            "notes": "Q = mcΔT, смисъл на специфичния топлинен капацитет, високият капацитет на водата, принцип на калориметрията. Само концепции."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-final-review",
+            "reviewed_at": "2026-10-05T08:36:55Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Топлообмен между тела: отдаденото количество топлина е равно на полученото (без загуби)",
+            "skill": "Преодоляване на заблуда"
+          },
+          "explanation": "При пренебрежим топлинен капацитет на съда и без обмен на енергия с външната среда запазването на енергията дава |Qотдадено| = |Qполучено|. Равенството е за количествата топлина по големина. Промените на температурите не са задължително равни: те зависят от масите и специфичните топлинни капацитети. Топлообменът завършва при равни температури.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 9,
+          "candidate_id": "physics-g8-heat-exchange-phase-transitions-run-1-009",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "tu-sofia-lab-specific-heat",
+            "type": "third_party",
+            "url": "http://phys.tu-sofia.bg/ef/Phys%201/Lab/Topl%20kap%20technost.pdf",
+            "title": "Лабораторно упражнение: определяне на специфичния топлинен капацитет",
+            "publisher": "Технически университет – София, катедра Приложна физика",
+            "retrieved_at": "2026-10-05T07:29:00Z",
+            "notes": "Университетско лабораторно упражнение; калориметричен принцип, източници на грешки. Над нивото на 8. клас, ползвано само за методиката."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-final-review",
+            "reviewed_at": "2026-10-05T08:36:55Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Опитно определяне на c на твърдо тяло чрез топлообмен в калориметър (лабораторна работа 7)",
+            "skill": "Многостъпково изчисление с уравнение за топлообмена"
+          },
+          "explanation": "Водата получава Q = 4200 · 0,45 · (30 – 20) = 18 900 J. Металът отдава същото количество топлина при Δt = 100°C – 30°C = 70°C: c = Q/(mΔt) = 18 900/(0,30 · 70) = 900 J/(kg·K). Стойността 630 се получава при погрешно Δt = 100°C, а 2 100 – при Δt = 30°C.",
+          "difficulty": "hard"
+        },
+        {
+          "number": 10,
+          "candidate_id": "physics-g8-heat-exchange-phase-transitions-run-1-010",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T07:27:00Z",
+            "notes": "Определя обхвата на тема 2.2: Q, c, λ, r, формули c=Q/(mΔt), λ=Q/m, r=Q/m, примери от природата, бита и техниката; лабораторни работи 7 и 8. Не съдържа въпроси."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-final-review",
+            "reviewed_at": "2026-10-05T08:36:55Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Опитно определяне на λ на лед: влиянието на водата по повърхността на леда (лабораторна работа 8)",
+            "skill": "Анализ на експериментална грешка"
+          },
+          "explanation": "Полепналата вода участва в измерената маса и поглъща количество топлина при нагряването от 0 °C до крайната температура, но не се нуждае от топлина на топене. След като се отчете нагряването на цялата добавена маса, оставащото количество топлина е изразходвано само за топене на твърдия лед. Ако то се раздели на общата маса на леда и полепналата вода, вместо само на масата на леда, изчислената λ е по-малка от действителната.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 11,
+          "candidate_id": "physics-g8-heat-exchange-phase-transitions-run-1-011",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "ucha-se-evaporation-boiling",
+            "type": "third_party",
+            "url": "https://ucha.se/watch/2818/Izparenie-i-kipene",
+            "title": "Изпарение и кипене. Кондензация. Физика 8. клас",
+            "publisher": "ucha.se",
+            "retrieved_at": "2026-10-05T07:31:00Z",
+            "notes": "Българска образователна платформа (вторичен източник). Само урочната страница; тестовете на сайта не са ползвани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-final-review",
+            "reviewed_at": "2026-10-05T08:36:55Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Кондензация на водна пара в природата и бита",
+            "skill": "Разпознаване на преход"
+          },
+          "explanation": "При кондензация парата преминава в течност. Водната пара от въздуха в стаята се охлажда при допир със студената чаша и се превръща в капчици вода. Съхненето е изпарение, ледът се образува чрез втвърдяване, а маслото се топи.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 12,
+          "candidate_id": "physics-g8-heat-exchange-phase-transitions-run-1-012",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "ucha-se-latent-heat-vaporization",
+            "type": "third_party",
+            "url": "https://ucha.se/watch/2819/Spetsifichna-toplina-na-izparenie-Kondenzatsiya",
+            "title": "Специфична топлина на изпарение и кондензация. Физика 8. клас",
+            "publisher": "ucha.se",
+            "retrieved_at": "2026-10-05T07:31:00Z",
+            "notes": "Българска образователна платформа (вторичен източник). Само урочната страница; тестовете на сайта не са ползвани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-final-review",
+            "reviewed_at": "2026-10-05T08:36:55Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Кои преходи отделят и кои поемат топлина",
+            "skill": "Описване на преходи между състоянията"
+          },
+          "explanation": "Топенето и изпарението поемат топлина. Обратните преходи – втвърдяване и кондензация – отдават същото количество топлина на 1 kg вещество.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 13,
+          "candidate_id": "physics-g8-heat-exchange-phase-transitions-run-1-013",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "ucha-se-evaporation-boiling",
+            "type": "third_party",
+            "url": "https://ucha.se/watch/2818/Izparenie-i-kipene",
+            "title": "Изпарение и кипене. Кондензация. Физика 8. клас",
+            "publisher": "ucha.se",
+            "retrieved_at": "2026-10-05T07:31:00Z",
+            "notes": "Българска образователна платформа (вторичен източник). Само урочната страница; тестовете на сайта не са ползвани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-final-review",
+            "reviewed_at": "2026-10-05T08:36:55Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Разлика между изпарение и кипене",
+            "skill": "Разграничаване на понятия"
+          },
+          "explanation": "Изпарение протича от повърхността при температурите, при които веществото е в течно състояние. Кипенето обхваща целия обем на течността и за чисто вещество при постоянно налягане протича при определена температура на кипене, която остава постоянна по време на прехода.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 14,
+          "candidate_id": "physics-g8-heat-exchange-phase-transitions-run-1-014",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "ucha-se-evaporation-boiling",
+            "type": "third_party",
+            "url": "https://ucha.se/watch/2818/Izparenie-i-kipene",
+            "title": "Изпарение и кипене. Кондензация. Физика 8. клас",
+            "publisher": "ucha.se",
+            "retrieved_at": "2026-10-05T07:31:00Z",
+            "notes": "Българска образователна платформа (вторичен източник). Само урочната страница; тестовете на сайта не са ползвани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-final-review",
+            "reviewed_at": "2026-10-05T08:36:55Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Скорост на изпарение: влияние на повърхността",
+            "skill": "Обяснение на всекидневно явление"
+          },
+          "explanation": "При еднакви температура на водата, температура и влажност на въздуха и въздушен поток разликата е в свободната повърхност. Тя е по-голяма в чинията и за едно и също време от нея се изпарява повече вода.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 15,
+          "candidate_id": "physics-g8-heat-exchange-phase-transitions-run-1-015",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T07:27:00Z",
+            "notes": "Определя обхвата на тема 2.2: Q, c, λ, r, формули c=Q/(mΔt), λ=Q/m, r=Q/m, примери от природата, бита и техниката; лабораторни работи 7 и 8. Не съдържа въпроси."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-final-review",
+            "reviewed_at": "2026-10-05T08:36:55Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Q = λm при топене с преобразуване на грамове в килограми",
+            "skill": "Изчисление с преобразуване на единици"
+          },
+          "explanation": "m = 40 g = 0,04 kg. Q = λm = 3,3·10⁵ J/kg · 0,04 kg = 13 200 J = 13,2 kJ. Ако не се преобразуват грамовете, се получава 13,2 MJ.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 16,
+          "candidate_id": "physics-g8-heat-exchange-phase-transitions-run-1-016",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "ucha-se-latent-heat-vaporization",
+            "type": "third_party",
+            "url": "https://ucha.se/watch/2819/Spetsifichna-toplina-na-izparenie-Kondenzatsiya",
+            "title": "Специфична топлина на изпарение и кондензация. Физика 8. клас",
+            "publisher": "ucha.se",
+            "retrieved_at": "2026-10-05T07:31:00Z",
+            "notes": "Българска образователна платформа (вторичен източник). Само урочната страница; тестовете на сайта не са ползвани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-final-review",
+            "reviewed_at": "2026-10-05T08:36:55Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Сравнение на специфичната топлина на изпарение и на топене",
+            "skill": "Сравнение на величини с данни"
+          },
+          "explanation": "r/λ = 2,26·10⁶ / 3,3·10⁵ ≈ 6,8 ≈ 7. Изпарението на 1 kg вода изисква около 7 пъти повече топлина от топенето на 1 kg лед. Постоянната температура не означава еднаква топлина.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 17,
+          "candidate_id": "physics-g8-heat-exchange-phase-transitions-run-1-017",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-cp2e-14-3-latent-heat",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics-2e/pages/14-3-phase-change-and-latent-heat",
+            "title": "College Physics 2e, 14.3 Phase Change and Latent Heat",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T07:27:00Z",
+            "notes": "Фазови преходи, латентна топлина, постоянна температура при преход, отделяне на топлина при кондензация и замръзване. Само концепции."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-final-review",
+            "reviewed_at": "2026-10-05T08:36:55Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "При кондензация парата отдава допълнително количество топлина r·m спрямо охлаждането на равна маса течна вода",
+            "skill": "Разграничаване на енергията при фазов преход от тази при охлаждане на течност"
+          },
+          "explanation": "И в двата случая една и съща маса течна вода се охлажда от 100 °C до една и съща крайна температура и отдава еднакво количество топлина при това охлаждане. В случая с парата има и допълнително отдаване на количество топлина Q = rm при пълната ѝ кондензация. Кондензацията отдава, а изпарението поглъща количество топлина.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 18,
+          "candidate_id": "physics-g8-heat-exchange-phase-transitions-run-1-018",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-cp2e-14-3-latent-heat",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics-2e/pages/14-3-phase-change-and-latent-heat",
+            "title": "College Physics 2e, 14.3 Phase Change and Latent Heat",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T07:27:00Z",
+            "notes": "Фазови преходи, латентна топлина, постоянна температура при преход, отделяне на топлина при кондензация и замръзване. Само концепции."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-final-review",
+            "reviewed_at": "2026-10-05T08:36:55Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Общо количество топлина при нагряване и последващо топене",
+            "skill": "Двустъпково изчисление с c и λ"
+          },
+          "explanation": "Първо ледът се нагрява до 0°C: Q1 = 2100 · 0,5 · 10 = 10 500 J. После се топи: Q2 = λm = 3,3·10⁵ · 0,5 = 165 000 J. Общо Q = 175 500 J = 175,5 kJ.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 19,
+          "candidate_id": "physics-g8-heat-exchange-phase-transitions-run-1-019",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-cp2e-14-3-latent-heat",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics-2e/pages/14-3-phase-change-and-latent-heat",
+            "title": "College Physics 2e, 14.3 Phase Change and Latent Heat",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T07:27:00Z",
+            "notes": "Фазови преходи, латентна топлина, постоянна температура при преход, отделяне на топлина при кондензация и замръзване. Само концепции."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-final-review",
+            "reviewed_at": "2026-10-05T08:36:55Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Сравнение на наличната и необходимата топлина при топене",
+            "skill": "Разсъждение със сравнение на количества топлина"
+          },
+          "explanation": "Водата може да отдаде най-много Q = 4200 · 0,20 · 20 = 16 800 J при охлаждане до 0°C. За стопяването на целия лед са нужни 3,3·10⁵ · 0,10 = 33 000 J – повече. Затова се топи само част от леда и равновесието е при 0°C. 13°C се получава, ако се пренебрегне топенето.",
+          "difficulty": "hard"
+        },
+        {
+          "number": 20,
+          "candidate_id": "physics-g8-heat-exchange-phase-transitions-run-1-021",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "ucha-se-evaporation-boiling",
+            "type": "third_party",
+            "url": "https://ucha.se/watch/2818/Izparenie-i-kipene",
+            "title": "Изпарение и кипене. Кондензация. Физика 8. клас",
+            "publisher": "ucha.se",
+            "retrieved_at": "2026-10-05T07:31:00Z",
+            "notes": "Българска образователна платформа (вторичен източник). Само урочната страница; тестовете на сайта не са ползвани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-final-review",
+            "reviewed_at": "2026-10-05T08:36:55Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Вятърът ускорява изпарението, а изпарението поема топлина",
+            "skill": "Обяснение на всекидневно явление"
+          },
+          "explanation": "Вятърът отнася водните пари в близост до кожата и ускорява изпарението. Изпаряващата се вода поглъща количество топлина, което допринася за охлаждането на кожата. Това обяснява усилването на изпарителното охлаждане, без да определя кой е най-големият принос към общото охлаждане.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 21,
+          "candidate_id": "physics-g8-heat-exchange-phase-transitions-run-1-022",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-cp2e-14-3-latent-heat",
+            "type": "third_party",
+            "url": "https://openstax.org/books/college-physics-2e/pages/14-3-phase-change-and-latent-heat",
+            "title": "College Physics 2e, 14.3 Phase Change and Latent Heat",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T07:27:00Z",
+            "notes": "Фазови преходи, латентна топлина, постоянна температура при преход, отделяне на топлина при кондензация и замръзване. Само концепции."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-final-review",
+            "reviewed_at": "2026-10-05T08:36:55Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Интерпретиране на данни: постоянна температура по време на топене",
+            "skill": "Интерпретиране на таблица с измервания"
+          },
+          "explanation": "Нагревателят непрекъснато подава енергия, но през 2–5 мин температурата остава 60 °C. При топене на чисто кристално вещество при постоянно налягане полученото количество топлина причинява фазовия преход без повишаване на температурата. След стопяването температурата на течността отново расте.",
+          "difficulty": "medium"
+        }
+      ]
+    }
+  ],
+  "not_exported": []
+}

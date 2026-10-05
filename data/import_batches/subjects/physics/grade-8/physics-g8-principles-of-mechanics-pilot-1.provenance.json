@@ -1,0 +1,625 @@
+{
+  "format_version": 1,
+  "kind": "question_candidate_provenance",
+  "run": {
+    "id": "physics-g8-principles-of-mechanics-pilot-1",
+    "started_at": "2026-10-05T06:27:55Z",
+    "finished_at": "2026-10-05T06:33:19Z",
+    "subject": "physics",
+    "grade": 8,
+    "curriculum": {
+      "education_type": "general",
+      "title": "Физика и астрономия, 8. клас — общообразователна подготовка"
+    },
+    "targets": [
+      {
+        "section": {
+          "slug": "physics-g8-mechanics",
+          "title": "Механика"
+        },
+        "topics": [
+          {
+            "slug": "physics-g8-principles-of-mechanics",
+            "title": "Принципи на механиката"
+          }
+        ]
+      }
+    ],
+    "limits": {
+      "max_topics": 1,
+      "max_pages": 15,
+      "max_candidates": 30,
+      "max_candidates_per_source": 8,
+      "max_runtime_minutes": 20
+    },
+    "pages_inspected": 6,
+    "stop_reason": "topic_complete",
+    "collector": "claude-sonnet-5-5-collector-a"
+  },
+  "not_stored_in_database": [
+    "candidate id",
+    "source type",
+    "source url",
+    "source title",
+    "source publisher",
+    "source retrieved_at",
+    "transformation",
+    "source_ref",
+    "research",
+    "reuse_exception",
+    "explanation",
+    "difficulty",
+    "review (reviewer, reviewed_at, notes)",
+    "run manifest"
+  ],
+  "batches": [
+    {
+      "file": "physics-g8-principles-of-mechanics-pilot-1.principles-of-mechanics.json",
+      "source": "reviewed:physics:physics-g8-principles-of-mechanics-pilot-1.principles-of-mechanics",
+      "topic_slug": "physics-g8-principles-of-mechanics",
+      "questions": [
+        {
+          "number": 1,
+          "candidate_id": "physics-g8-principles-of-mechanics-pilot-1-001",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T06:01:10Z",
+            "notes": "Fetched earlier, in the curriculum-structure task. Used for the scope of topic 1.2 and its expected results. The programme contains no assessment questions: every candidate from it is newly written."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "source_ref": {
+            "document_title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "page": "3–4"
+          },
+          "research": {
+            "concept": "Инерция: телата запазват състоянието си на покой, когато не взаимодействат с други тела",
+            "skill": "Обяснява ситуация от всекидневието с инерцията"
+          },
+          "explanation": "Пътниците запазват покоя си спрямо земята по инерция, докато подът на автобуса потегля напред; затова спрямо автобуса се накланят назад. Не е нужна сила, която да ги „дърпа“ назад.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 2,
+          "candidate_id": "physics-g8-principles-of-mechanics-pilot-1-002",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-first-law",
+            "type": "third_party",
+            "url": "https://openstax.org/books/physics/pages/4-2-newtons-first-law-of-motion-inertia",
+            "title": "4.2 Newton's First Law of Motion: Inertia – Physics",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T06:28:33Z",
+            "notes": "Reputable open textbook (teacher edition). Used for inertia, the 'moving objects slow down' misconception and kinetic friction. OpenStax defines weight as the gravity force, unlike the Bulgarian programme, so it is not used for the weight/gravity distinction."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Инерция: праволинейно равномерно движение, когато тялото не взаимодейства с други тела",
+            "skill": "Прилага закона за инерцията в космоса"
+          },
+          "explanation": "Когато върху тялото не действат други тела (няма сила), то запазва скоростта си – движи се праволинейно и равномерно. Двигателите са нужни само за промяна на скоростта.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 3,
+          "candidate_id": "physics-g8-principles-of-mechanics-pilot-1-003",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-first-law",
+            "type": "third_party",
+            "url": "https://openstax.org/books/physics/pages/4-2-newtons-first-law-of-motion-inertia",
+            "title": "4.2 Newton's First Law of Motion: Inertia – Physics",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T06:28:33Z",
+            "notes": "Reputable open textbook (teacher edition). Used for inertia, the 'moving objects slow down' misconception and kinetic friction. OpenStax defines weight as the gravity force, unlike the Bulgarian programme, so it is not used for the weight/gravity distinction."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Инерция и сила на триене; разпространено схващане, че движението изисква сила",
+            "skill": "Разпознава причината за забавяне на плъзгащо се тяло"
+          },
+          "explanation": "Телата не спират „сами“: подът действа на кутията със сила на триене срещу движението. Сила не е нужна, за да се поддържа движението; силата на тежестта е вертикална и не забавя хоризонталното движение.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 4,
+          "candidate_id": "physics-g8-principles-of-mechanics-pilot-1-004",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T06:01:10Z",
+            "notes": "Fetched earlier, in the curriculum-structure task. Used for the scope of topic 1.2 and its expected results. The programme contains no assessment questions: every candidate from it is newly written."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "source_ref": {
+            "document_title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "page": "3–4"
+          },
+          "research": {
+            "concept": "Масата е мярка за инертността на телата",
+            "skill": "Назовава мярката за инертност"
+          },
+          "explanation": "Колкото по-голяма е масата на тялото, толкова по-трудно се променя скоростта му. Силата на тежестта зависи и от мястото (на Луната е по-малка), а инертността – не.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 5,
+          "candidate_id": "physics-g8-principles-of-mechanics-pilot-1-005",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T06:01:10Z",
+            "notes": "Fetched earlier, in the curriculum-structure task. Used for the scope of topic 1.2 and its expected results. The programme contains no assessment questions: every candidate from it is newly written."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "source_ref": {
+            "document_title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "page": "3–4"
+          },
+          "research": {
+            "concept": "Разлика между маса (мярка за инертност) и сила на тежестта G = mg",
+            "skill": "Различава маса от сила на тежестта"
+          },
+          "explanation": "Масата е свойство на тялото и не зависи от мястото; инертността се определя от масата. Силата на тежестта G = mg зависи от земното (лунното) ускорение и затова е по-малка.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 6,
+          "candidate_id": "physics-g8-principles-of-mechanics-pilot-1-006",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T06:01:10Z",
+            "notes": "Fetched earlier, in the curriculum-structure task. Used for the scope of topic 1.2 and its expected results. The programme contains no assessment questions: every candidate from it is newly written."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "source_ref": {
+            "document_title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "page": "3–4"
+          },
+          "research": {
+            "concept": "Събиране на сили с еднакви или противоположни посоки; равнодействаща сила",
+            "skill": "Намира равнодействаща на сили по една права"
+          },
+          "explanation": "Равнодействащата на сили по една права е разликата между силите напред и назад: 10 − (4 + 3) = 3 N, насочена напред.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 7,
+          "candidate_id": "physics-g8-principles-of-mechanics-pilot-1-007",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-third-law",
+            "type": "third_party",
+            "url": "https://openstax.org/books/physics/pages/4-4-newtons-third-law-of-motion",
+            "title": "4.4 Newton's Third Law of Motion – Physics",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T06:28:38Z",
+            "notes": "Reputable open textbook (teacher edition). Used for the properties of action–reaction pairs (equal, opposite, on different bodies, simultaneous)."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Действие и противодействие: равни по големина, противоположни, върху различни тела",
+            "skill": "Формулира свойствата на силите на действие и противодействие"
+          },
+          "explanation": "При взаимодействие винаги възникват две сили, равни по големина и противоположни по посока, едновременно и върху различните взаимодействащи тела. Затова те не се уравновесяват.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 8,
+          "candidate_id": "physics-g8-principles-of-mechanics-pilot-1-008",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "nasa-glenn-rocket-principles",
+            "type": "third_party",
+            "url": "https://www.grc.nasa.gov/www/k-12/rocket/TRCRocket/rocket_principles.html",
+            "title": "Rocket Principles",
+            "publisher": "NASA Glenn Research Center (K-12 education page)",
+            "retrieved_at": "2026-10-05T06:29:09Z",
+            "notes": "Public-agency education page. Used for reactive motion and for F = ma / unbalanced force."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Реактивно движение – действие и противодействие; разпространено схващане, че ракетата се отблъсква от въздуха",
+            "skill": "Обяснява реактивното движение"
+          },
+          "explanation": "Ракетата тласка газовете назад; по третия принцип газовете тласкат ракетата напред със сила, равна по големина (реактивно движение). В космоса няма въздух, от който да се отблъсне – не са нужни нито въздух, нито опора.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 9,
+          "candidate_id": "physics-g8-principles-of-mechanics-pilot-1-009",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "sofia-physics-friction-at-rest",
+            "type": "third_party",
+            "url": "https://www.phys.uni-sofia.bg/~cpopov/Almanah-pdf/I%20chast/5%20razni/triene/03%20triene_v_pokoy.pdf",
+            "title": "За изучаване на триенето в покой – кога, къде и как",
+            "publisher": "Физически факултет, Софийски университет „Св. Климент Охридски“ (Алманах, част I; публикувано във „Физика“, 2010, 3)",
+            "retrieved_at": "2026-10-05T06:28:21Z",
+            "notes": "University teacher article. Used for the Bulgarian programme's G / P / N distinction, R = P by the third principle, and the statement that Grade 8 treats only sliding friction f = kN. Its proposal to teach friction at rest is outside the programme and is not used."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Разграничаване на силата на тежестта G, теглото P и реакцията на опората N; R = P по третия принцип",
+            "skill": "Идентифицира двойка действие–противодействие"
+          },
+          "explanation": "Двойката действие–противодействие е силата на реакция на опората N (чинът действа на книгата) и теглото P (книгата действа на чина). Силата на тежестта G и N действат върху едно и също тяло – книгата – и затова не са такава двойка, въпреки че тук са равни по големина.",
+          "difficulty": "hard"
+        },
+        {
+          "number": 10,
+          "candidate_id": "physics-g8-principles-of-mechanics-pilot-1-010",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "sofia-physics-friction-at-rest",
+            "type": "third_party",
+            "url": "https://www.phys.uni-sofia.bg/~cpopov/Almanah-pdf/I%20chast/5%20razni/triene/03%20triene_v_pokoy.pdf",
+            "title": "За изучаване на триенето в покой – кога, къде и как",
+            "publisher": "Физически факултет, Софийски университет „Св. Климент Охридски“ (Алманах, част I; публикувано във „Физика“, 2010, 3)",
+            "retrieved_at": "2026-10-05T06:28:21Z",
+            "notes": "University teacher article. Used for the Bulgarian programme's G / P / N distinction, R = P by the third principle, and the statement that Grade 8 treats only sliding friction f = kN. Its proposal to teach friction at rest is outside the programme and is not used."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Сила на реакция на опората N и сила на тежестта G = mg",
+            "skill": "Пресмята реакцията на опората при покой"
+          },
+          "explanation": "Кутията е в покой, затова силата на реакция на опората уравновесява силата на тежестта: N = G = mg = 6 kg · 10 m/s² = 60 N.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 11,
+          "candidate_id": "physics-g8-principles-of-mechanics-pilot-1-011",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "sofia-physics-friction-at-rest",
+            "type": "third_party",
+            "url": "https://www.phys.uni-sofia.bg/~cpopov/Almanah-pdf/I%20chast/5%20razni/triene/03%20triene_v_pokoy.pdf",
+            "title": "За изучаване на триенето в покой – кога, къде и как",
+            "publisher": "Физически факултет, Софийски университет „Св. Климент Охридски“ (Алманах, част I; публикувано във „Физика“, 2010, 3)",
+            "retrieved_at": "2026-10-05T06:28:21Z",
+            "notes": "University teacher article. Used for the Bulgarian programme's G / P / N distinction, R = P by the third principle, and the statement that Grade 8 treats only sliding friction f = kN. Its proposal to teach friction at rest is outside the programme and is not used."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Сила на триене при хлъзгане f = kN",
+            "skill": "Пресмята сила на триене"
+          },
+          "explanation": "N = G = mg = 8 kg · 10 m/s² = 80 N; f = kN = 0,25 · 80 N = 20 N.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 12,
+          "candidate_id": "physics-g8-principles-of-mechanics-pilot-1-012",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-first-law",
+            "type": "third_party",
+            "url": "https://openstax.org/books/physics/pages/4-2-newtons-first-law-of-motion-inertia",
+            "title": "4.2 Newton's First Law of Motion: Inertia – Physics",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T06:28:33Z",
+            "notes": "Reputable open textbook (teacher edition). Used for inertia, the 'moving objects slow down' misconception and kinetic friction. OpenStax defines weight as the gravity force, unlike the Bulgarian programme, so it is not used for the weight/gravity distinction."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Сила на триене – посока и роля",
+            "skill": "Определя посоката на силата на триене"
+          },
+          "explanation": "Силата на триене при плъзгане е насочена срещу движението на тялото спрямо повърхността и забавя плъзгането.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 13,
+          "candidate_id": "physics-g8-principles-of-mechanics-pilot-1-013",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T06:01:10Z",
+            "notes": "Fetched earlier, in the curriculum-structure task. Used for the scope of topic 1.2 and its expected results. The programme contains no assessment questions: every candidate from it is newly written."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "source_ref": {
+            "document_title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "page": "3–4"
+          },
+          "research": {
+            "concept": "Втори принцип на механиката F = ma",
+            "skill": "Намира масата от сила и ускорение"
+          },
+          "explanation": "От втория принцип F = ma следва m = F/a = 24 N : 3 m/s² = 8 kg.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 14,
+          "candidate_id": "physics-g8-principles-of-mechanics-pilot-1-014",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "domashno-bulvest-principles-of-mechanics",
+            "type": "third_party",
+            "url": "https://domashno.bg/fizika/8/bulvest-2023/printsipi-na-mehanikata-reshavane-na-zadachi",
+            "title": "Принципи на механиката (решаване на задачи)",
+            "publisher": "domashno.bg (Булвест 2023, 8. клас)",
+            "retrieved_at": "2026-10-05T06:29:13Z",
+            "notes": "Commercial homework portal, strictly secondary source; only the net-force and f = kN problem patterns were used, cross-checked with the МОН programme and OpenStax."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Втори принцип на механиката с триене",
+            "skill": "Намира силата на триене от движението на тялото"
+          },
+          "explanation": "Равнодействащата е F − f = ma = 6 kg · 3 m/s² = 18 N, затова f = 30 N − 18 N = 12 N.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 15,
+          "candidate_id": "physics-g8-principles-of-mechanics-pilot-1-015",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "domashno-bulvest-principles-of-mechanics",
+            "type": "third_party",
+            "url": "https://domashno.bg/fizika/8/bulvest-2023/printsipi-na-mehanikata-reshavane-na-zadachi",
+            "title": "Принципи на механиката (решаване на задачи)",
+            "publisher": "domashno.bg (Булвест 2023, 8. клас)",
+            "retrieved_at": "2026-10-05T06:29:13Z",
+            "notes": "Commercial homework portal, strictly secondary source; only the net-force and f = kN problem patterns were used, cross-checked with the МОН programme and OpenStax."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Втори принцип на механиката с триене; f = kN",
+            "skill": "Пресмята ускорение с триене на няколко стъпки"
+          },
+          "explanation": "N = mg = 200 N; f = kN = 0,1 · 200 N = 20 N; равнодействащата е 80 N − 20 N = 60 N; a = F/m = 60 N : 20 kg = 3 m/s².",
+          "difficulty": "hard"
+        },
+        {
+          "number": 16,
+          "candidate_id": "physics-g8-principles-of-mechanics-pilot-1-016",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-first-law",
+            "type": "third_party",
+            "url": "https://openstax.org/books/physics/pages/4-2-newtons-first-law-of-motion-inertia",
+            "title": "4.2 Newton's First Law of Motion: Inertia – Physics",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T06:28:33Z",
+            "notes": "Reputable open textbook (teacher edition). Used for inertia, the 'moving objects slow down' misconception and kinetic friction. OpenStax defines weight as the gravity force, unlike the Bulgarian programme, so it is not used for the weight/gravity distinction."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Втори принцип + сила на триене f = kN; масата се съкращава",
+            "skill": "Разсъждава за зависимостта на спирачния път от масата"
+          },
+          "explanation": "f = kN = kmg, а ускорението при спиране е a = f/m = kg – не зависи от масата. При еднаква начална скорост и еднакво ускорение спирачните пътища са равни: по-голямото триене се компенсира от по-голямата инертност.",
+          "difficulty": "hard"
+        },
+        {
+          "number": 17,
+          "candidate_id": "physics-g8-principles-of-mechanics-pilot-1-017",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "nasa-glenn-rocket-principles",
+            "type": "third_party",
+            "url": "https://www.grc.nasa.gov/www/k-12/rocket/TRCRocket/rocket_principles.html",
+            "title": "Rocket Principles",
+            "publisher": "NASA Glenn Research Center (K-12 education page)",
+            "retrieved_at": "2026-10-05T06:29:09Z",
+            "notes": "Public-agency education page. Used for reactive motion and for F = ma / unbalanced force."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Втори принцип на механиката: ускорението е обратно пропорционално на масата",
+            "skill": "Сравнява ускорения при еднаква сила"
+          },
+          "explanation": "От F = ma ускорението е обратно пропорционално на масата: a₁ : a₂ = m₂ : m₁ = 6 : 2 = 3 : 1.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 18,
+          "candidate_id": "physics-g8-principles-of-mechanics-pilot-1-018",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "nasa-glenn-rocket-principles",
+            "type": "third_party",
+            "url": "https://www.grc.nasa.gov/www/k-12/rocket/TRCRocket/rocket_principles.html",
+            "title": "Rocket Principles",
+            "publisher": "NASA Glenn Research Center (K-12 education page)",
+            "retrieved_at": "2026-10-05T06:29:09Z",
+            "notes": "Public-agency education page. Used for reactive motion and for F = ma / unbalanced force."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Втори принцип: постоянна равнодействаща сила – постоянно ускорение",
+            "skill": "Свързва вид сила с вид движение"
+          },
+          "explanation": "От F = ma постоянната равнодействаща сила дава постоянно ускорение: скоростта расте с еднаква стойност за равни интервали от време (праволинейно равноускорително движение).",
+          "difficulty": "medium"
+        },
+        {
+          "number": 19,
+          "candidate_id": "physics-g8-principles-of-mechanics-pilot-1-019",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "sofia-physics-friction-at-rest",
+            "type": "third_party",
+            "url": "https://www.phys.uni-sofia.bg/~cpopov/Almanah-pdf/I%20chast/5%20razni/triene/03%20triene_v_pokoy.pdf",
+            "title": "За изучаване на триенето в покой – кога, къде и как",
+            "publisher": "Физически факултет, Софийски университет „Св. Климент Охридски“ (Алманах, част I; публикувано във „Физика“, 2010, 3)",
+            "retrieved_at": "2026-10-05T06:28:21Z",
+            "notes": "University teacher article. Used for the Bulgarian programme's G / P / N distinction, R = P by the third principle, and the statement that Grade 8 treats only sliding friction f = kN. Its proposal to teach friction at rest is outside the programme and is not used."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Разграничаване на теглото P от силата на тежестта G и реакцията на опората N",
+            "skill": "Определя понятието тегло"
+          },
+          "explanation": "Теглото P е силата, с която тялото натиска опората, и е приложено върху опората. Силата на тежестта G е силата, с която Земята притегля тялото, а силата на реакция на опората N – силата, с която опората действа на тялото.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 20,
+          "candidate_id": "physics-g8-principles-of-mechanics-pilot-1-020",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-third-law",
+            "type": "third_party",
+            "url": "https://openstax.org/books/physics/pages/4-4-newtons-third-law-of-motion",
+            "title": "4.4 Newton's Third Law of Motion – Physics",
+            "publisher": "OpenStax, Rice University",
+            "retrieved_at": "2026-10-05T06:28:38Z",
+            "notes": "Reputable open textbook (teacher edition). Used for the properties of action–reaction pairs (equal, opposite, on different bodies, simultaneous)."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Комбинация от трети и втори принцип: равни сили, различни ускорения",
+            "skill": "Прилага третия и втория принцип заедно"
+          },
+          "explanation": "По третия принцип кънкьорите действат един на друг със сили, равни по големина и противоположни по посока. Според F = ma при равна сила по-малката маса получава по-голямо ускорение.",
+          "difficulty": "hard"
+        }
+      ]
+    }
+  ],
+  "not_exported": []
+}

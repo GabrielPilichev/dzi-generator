@@ -1,0 +1,561 @@
+{
+  "format_version": 1,
+  "kind": "question_candidate_provenance",
+  "run": {
+    "id": "physics-g8-thermal-motion-run-1",
+    "started_at": "2026-10-05T07:25:33Z",
+    "finished_at": "2026-10-05T07:31:09Z",
+    "subject": "physics",
+    "grade": 8,
+    "curriculum": {
+      "education_type": "general",
+      "title": "Физика и астрономия, 8. клас — общообразователна подготовка"
+    },
+    "targets": [
+      {
+        "section": {
+          "slug": "physics-g8-thermal-phenomena",
+          "title": "Топлинни явления"
+        },
+        "topics": [
+          {
+            "slug": "physics-g8-thermal-motion",
+            "title": "Топлинно движение"
+          }
+        ]
+      }
+    ],
+    "limits": {
+      "max_topics": 3,
+      "max_pages": 15,
+      "max_candidates": 30,
+      "max_candidates_per_source": 8,
+      "max_runtime_minutes": 20
+    },
+    "pages_inspected": 7,
+    "stop_reason": "topic_complete",
+    "collector": "Claude Sonnet 5.5 (Collector)",
+    "notes": "Обхват: само тема 2.1 „Топлинно движение“ (хаотично, масово, непрекъснато движение на частиците; топлинно равновесие и температура; връзка вътрешна енергия – температура – топлинно движение; T = t + 273,15). Извън обхвата, оставено за следващите теми: количество топлина, специфичен топлинен капацитет, преходи между състоянията, работа и първи принцип, идеален газ и изопроцеси, КПД и топлинни машини, топлопроводност/конвекция, кинетична формула за температурата."
+  },
+  "not_stored_in_database": [
+    "candidate id",
+    "source type",
+    "source url",
+    "source title",
+    "source publisher",
+    "source retrieved_at",
+    "transformation",
+    "source_ref",
+    "research",
+    "reuse_exception",
+    "explanation",
+    "difficulty",
+    "review (reviewer, reviewed_at, notes)",
+    "run manifest"
+  ],
+  "batches": [
+    {
+      "file": "physics-g8-thermal-motion-run-1.thermal-motion.json",
+      "source": "reviewed:physics:physics-g8-thermal-motion-run-1.thermal-motion",
+      "topic_slug": "physics-g8-thermal-motion",
+      "questions": [
+        {
+          "number": 1,
+          "candidate_id": "physics-g8-thermal-motion-run-1-001",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T07:23:09Z",
+            "notes": "Определя обхвата на тема 2.1 „Топлинно движение“: резултати, понятия (вътрешна енергия, абсолютна температура, келвин) и формулата T = t + 273,15. Не съдържа въпроси."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-final-review",
+            "reviewed_at": "2026-10-05T08:36:55Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Топлинното движение е хаотично",
+            "skill": "Интерпретация на модела на частиците"
+          },
+          "explanation": "Топлинното движение е хаотично: молекулата непрекъснато се сблъсква с други молекули, при което посоката и скоростта ѝ се променят, а пътят ѝ няма определена посока. Нито праволинейното равномерно движение, нито движението по окръжност описват такова движение.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 2,
+          "candidate_id": "physics-g8-thermal-motion-run-1-002",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T07:23:09Z",
+            "notes": "Определя обхвата на тема 2.1 „Топлинно движение“: резултати, понятия (вътрешна енергия, абсолютна температура, келвин) и формулата T = t + 273,15. Не съдържа въпроси."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-final-review",
+            "reviewed_at": "2026-10-05T08:36:55Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Топлинното движение е масово: в него участват всички градивни частици на тялото",
+            "skill": "Разбиране на понятие от програмата",
+            "notes": "Разграничаване на характеристиките хаотично, масово и непрекъснато; „масово“ означава участие на всички градивни частици."
+          },
+          "explanation": "„Масово“ означава, че в топлинното движение участват всички градивни частици на тялото. В едно макроскопично тяло те са огромен брой. Това не означава общо движение в една посока и не ограничава явлението до газове или до тела с голяма маса.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 3,
+          "candidate_id": "physics-g8-thermal-motion-run-1-003",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "bg-wiki-brownian",
+            "type": "third_party",
+            "url": "https://bg.wikipedia.org/wiki/%D0%91%D1%80%D0%B0%D1%83%D0%BD%D0%BE%D0%B2%D0%BE_%D0%B4%D0%B2%D0%B8%D0%B6%D0%B5%D0%BD%D0%B8%D0%B5",
+            "title": "Брауново движение — Уикипедия",
+            "publisher": "Уикипедия (български раздел)",
+            "retrieved_at": "2026-10-05T07:27:09Z",
+            "notes": "Справка за обяснението на Брауновото движение чрез хаотичното топлинно движение на молекулите. Не е изрично в програмата; ползвано като опитно доказателство за хаотичното движение."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-final-review",
+            "reviewed_at": "2026-10-05T08:36:55Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Брауново движение като опитно проявление на хаотичното топлинно движение на молекулите",
+            "skill": "Обяснение на наблюдение",
+            "notes": "Брауновото движение не е посочено изрично в програмата; ползва се само като доказателство за хаотичност и непрекъснатост."
+          },
+          "explanation": "Молекулите на водата непрекъснато и хаотично се движат и удрят прашинката. Ударите от различните страни не се уравновесяват във всеки момент, затова прашинката се премества по неправилен път. Това наблюдение е опитно потвърждение за хаотичното и непрекъснато топлинно движение.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 4,
+          "candidate_id": "physics-g8-thermal-motion-run-1-004",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "bg-wiki-diffusion",
+            "type": "third_party",
+            "url": "https://bg.wikipedia.org/wiki/%D0%94%D0%B8%D1%84%D1%83%D0%B7%D0%B8%D1%8F",
+            "title": "Дифузия — Уикипедия",
+            "publisher": "Уикипедия (български раздел)",
+            "retrieved_at": "2026-10-05T07:28:09Z",
+            "notes": "Справка за дифузията като следствие от непрекъснатото хаотично движение и зависимостта ѝ от температурата. Не е изрично в програмата за тема 2.1."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-final-review",
+            "reviewed_at": "2026-10-05T08:36:55Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Дифузията като следствие от непрекъснатото хаотично движение на частиците",
+            "skill": "Обяснение на наблюдение",
+            "notes": "Дифузията в програмата за 8. клас се споменава само в междупредметните връзки (биология); тук е само пример за непрекъснато хаотично движение."
+          },
+          "explanation": "Частиците както на водата, така и на мастилото са в непрекъснато хаотично топлинно движение. То води до постепенно смесване чрез дифузия, дори когато няма общ поток на течността. Частиците на мастилото не изчезват, а се разпределят между водните частици.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 5,
+          "candidate_id": "physics-g8-thermal-motion-run-1-006",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T07:23:09Z",
+            "notes": "Определя обхвата на тема 2.1 „Топлинно движение“: резултати, понятия (вътрешна енергия, абсолютна температура, келвин) и формулата T = t + 273,15. Не съдържа въпроси."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-final-review",
+            "reviewed_at": "2026-10-05T08:36:55Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Свързване на температурата с интензивността на топлинното движение",
+            "skill": "Качествено сравнение"
+          },
+          "explanation": "По-високата температура означава по-интензивно топлинно движение – частиците се движат средно по-бързо. Размерът и броят на частиците при равни маси не се променят, а при 20 °C частиците също се движат непрекъснато.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 6,
+          "candidate_id": "physics-g8-thermal-motion-run-1-007",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-up2-temperature",
+            "type": "third_party",
+            "url": "https://openstax.org/books/university-physics-volume-2/pages/1-1-temperature-and-thermal-equilibrium",
+            "title": "Temperature and Thermal Equilibrium (University Physics Volume 2, 1.1)",
+            "publisher": "OpenStax",
+            "retrieved_at": "2026-10-05T07:25:09Z",
+            "notes": "Отворен учебник; използван за различаването на температура и обща енергия и за понятието топлинно равновесие. Над нивото на 8. клас, ползван само за проверка на физиката."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-final-review",
+            "reviewed_at": "2026-10-05T08:36:55Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Температурата не е мярка за общото количество енергия; вътрешната енергия зависи и от броя частици",
+            "skill": "Разграничаване на величини; разсъждение",
+            "notes": "Различаване на температура и вътрешна енергия при еднакво вещество и различно количество. Въпросът не изисква топлообмен."
+          },
+          "explanation": "В двете проби веществото, агрегатното състояние и температурата са еднакви. Във ваната обаче има много повече вода и съответно много повече частици. Вътрешната енергия е сбор от микроскопичните енергии на частиците, затова тя е по-голяма за водата във ваната.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 7,
+          "candidate_id": "physics-g8-thermal-motion-run-1-008",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "bg-wiki-internal-energy",
+            "type": "third_party",
+            "url": "https://bg.wikipedia.org/wiki/%D0%92%D1%8A%D1%82%D1%80%D0%B5%D1%88%D0%BD%D0%B0_%D0%B5%D0%BD%D0%B5%D1%80%D0%B3%D0%B8%D1%8F",
+            "title": "Вътрешна енергия — Уикипедия",
+            "publisher": "Уикипедия (български раздел)",
+            "retrieved_at": "2026-10-05T07:28:09Z",
+            "notes": "Справка за състава на вътрешната енергия и разграничаването ѝ от механичната енергия на тялото като цяло."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-final-review",
+            "reviewed_at": "2026-10-05T08:36:55Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Вътрешна енергия като сбор от кинетична енергия на хаотичното движение и потенциална енергия на взаимодействие на частиците",
+            "skill": "Определяне на понятие",
+            "notes": "Програмата изисква връзка на вътрешната енергия с топлинното движение; изричното споменаване на потенциалната енергия на взаимодействие е уточнено в доклада."
+          },
+          "explanation": "Вътрешната енергия е свързана с частиците на тялото: включва енергията на тяхното хаотично движение и енергията на взаимодействието между тях. Механичната енергия на тялото като цяло (кинетична или потенциална) не е част от нея, а тя не се свежда само до получената при нагряване енергия.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 8,
+          "candidate_id": "physics-g8-thermal-motion-run-1-009",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "bg-wiki-internal-energy",
+            "type": "third_party",
+            "url": "https://bg.wikipedia.org/wiki/%D0%92%D1%8A%D1%82%D1%80%D0%B5%D1%88%D0%BD%D0%B0_%D0%B5%D0%BD%D0%B5%D1%80%D0%B3%D0%B8%D1%8F",
+            "title": "Вътрешна енергия — Уикипедия",
+            "publisher": "Уикипедия (български раздел)",
+            "retrieved_at": "2026-10-05T07:28:09Z",
+            "notes": "Справка за състава на вътрешната енергия и разграничаването ѝ от механичната енергия на тялото като цяло."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-final-review",
+            "reviewed_at": "2026-10-05T08:36:55Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Вътрешната енергия е различна от механичната енергия на тялото като цяло",
+            "skill": "Разграничаване на понятия; откриване на заблуда",
+            "notes": "Граница с темата „Механична работа, мощност и енергия“: използва се само различаването на двата вида енергия, без изчисления."
+          },
+          "explanation": "Микроскопичното състояние е непроменено: енергиите на хаотичното движение и на взаимодействието на частиците са същите. Затова вътрешната енергия е еднаква. Постъпателното движение добавя кинетична енергия на тялото като цяло; тя не се превръща автоматично във вътрешна енергия.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 9,
+          "candidate_id": "physics-g8-thermal-motion-run-1-010",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "bg-wiki-internal-energy",
+            "type": "third_party",
+            "url": "https://bg.wikipedia.org/wiki/%D0%92%D1%8A%D1%82%D1%80%D0%B5%D1%88%D0%BD%D0%B0_%D0%B5%D0%BD%D0%B5%D1%80%D0%B3%D0%B8%D1%8F",
+            "title": "Вътрешна енергия — Уикипедия",
+            "publisher": "Уикипедия (български раздел)",
+            "retrieved_at": "2026-10-05T07:28:09Z",
+            "notes": "Справка за състава на вътрешната енергия и разграничаването ѝ от механичната енергия на тялото като цяло."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-final-review",
+            "reviewed_at": "2026-10-05T08:36:55Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Тяло при ниска температура също има вътрешна енергия; частиците се движат непрекъснато",
+            "skill": "Откриване на заблуда"
+          },
+          "explanation": "Температурата 0 °C е само точка от скалата на Целзий, а не състояние на спрели частици. Частиците на метала са в непрекъснато топлинно движение, затова той има вътрешна енергия. Вътрешната енергия не зависи от това дали тялото се движи като цяло.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 10,
+          "candidate_id": "physics-g8-thermal-motion-run-1-011",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T07:23:09Z",
+            "notes": "Определя обхвата на тема 2.1 „Топлинно движение“: резултати, понятия (вътрешна енергия, абсолютна температура, келвин) и формулата T = t + 273,15. Не съдържа въпроси."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-final-review",
+            "reviewed_at": "2026-10-05T08:36:55Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Топлинното равновесие се характеризира с температурата",
+            "skill": "Разбиране на понятие"
+          },
+          "explanation": "Топлинното равновесие се характеризира с температурата: при равновесие температурите са еднакви. Масите, броят на частиците и вътрешните енергии на телата могат да са различни.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 11,
+          "candidate_id": "physics-g8-thermal-motion-run-1-012",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-physics-zeroth-law",
+            "type": "third_party",
+            "url": "https://openstax.org/books/physics/pages/12-1-zeroth-law-of-thermodynamics-thermal-equilibrium",
+            "title": "Zeroth Law of Thermodynamics: Thermal Equilibrium (Physics, 12.1)",
+            "publisher": "OpenStax",
+            "retrieved_at": "2026-10-05T07:26:09Z",
+            "notes": "Отворен учебник; използван за топлинното равновесие и преходността му (измерване с термометър). Сценариите в кандидатите са собствени."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-final-review",
+            "reviewed_at": "2026-10-05T08:36:55Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Термометърът показва собствената си температура; измерването изисква топлинно равновесие",
+            "skill": "Приложение на понятието за равновесие"
+          },
+          "explanation": "Термометърът показва собствената си температура. Тя съвпада с температурата на чая едва когато термометърът и чаят са в топлинно равновесие, а това настъпва не веднага. При топлинно равновесие градивните частици продължават да се движат. Скалата не се „настройва“ по време на измерването.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 12,
+          "candidate_id": "physics-g8-thermal-motion-run-1-014",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-physics-zeroth-law",
+            "type": "third_party",
+            "url": "https://openstax.org/books/physics/pages/12-1-zeroth-law-of-thermodynamics-thermal-equilibrium",
+            "title": "Zeroth Law of Thermodynamics: Thermal Equilibrium (Physics, 12.1)",
+            "publisher": "OpenStax",
+            "retrieved_at": "2026-10-05T07:26:09Z",
+            "notes": "Отворен учебник; използван за топлинното равновесие и преходността му (измерване с термометър). Сценариите в кандидатите са собствени."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-final-review",
+            "reviewed_at": "2026-10-05T08:36:55Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Сетивата не измерват температура; тела в топлинно равновесие със средата имат еднаква температура",
+            "skill": "Откриване на заблуда; всекидневна ситуация",
+            "notes": "Граница с „Топлообмен“: въпросът проверява само равновесието; обяснението на усещането е умишлено оставено за следващата тема."
+          },
+          "explanation": "Непосредствено преди докосването двете лъжици са в топлинно равновесие със стаята и имат нейната температура. Докосването започва ново топлинно взаимодействие с ръката. Различното усещане при допир не означава различни начални температури.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 13,
+          "candidate_id": "physics-g8-thermal-motion-run-1-015",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "bg-wiki-temperature",
+            "type": "third_party",
+            "url": "https://bg.wikipedia.org/wiki/%D0%A2%D0%B5%D0%BC%D0%BF%D0%B5%D1%80%D0%B0%D1%82%D1%83%D1%80%D0%B0",
+            "title": "Температура — Уикипедия",
+            "publisher": "Уикипедия (български раздел)",
+            "retrieved_at": "2026-10-05T07:27:09Z",
+            "notes": "Справка за българската терминология: термодинамична/абсолютна температура, келвин, абсолютна нула, скали на Целзий и Келвин."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-final-review",
+            "reviewed_at": "2026-10-05T08:36:55Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Превръщане от градуси по Целзий в келвини: T = t + 273,15",
+            "skill": "Пресмятане по формула от програмата"
+          },
+          "explanation": "Използваме T = t + 273,15. При t = 25 °C: T = 25 + 273,15 = 298,15 K.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 14,
+          "candidate_id": "physics-g8-thermal-motion-run-1-016",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-fa",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T07:23:09Z",
+            "notes": "Определя обхвата на тема 2.1 „Топлинно движение“: резултати, понятия (вътрешна енергия, абсолютна температура, келвин) и формулата T = t + 273,15. Не съдържа въпроси."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-final-review",
+            "reviewed_at": "2026-10-05T08:36:55Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Превръщане от келвини в градуси по Целзий: t = T − 273,15",
+            "skill": "Пресмятане по формула от програмата"
+          },
+          "explanation": "От T = t + 273,15 следва t = T − 273,15. При T = 250 K: t = 250 − 273,15 = −23,15 °C.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 15,
+          "candidate_id": "physics-g8-thermal-motion-run-1-017",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "bg-wiki-temperature",
+            "type": "third_party",
+            "url": "https://bg.wikipedia.org/wiki/%D0%A2%D0%B5%D0%BC%D0%BF%D0%B5%D1%80%D0%B0%D1%82%D1%83%D1%80%D0%B0",
+            "title": "Температура — Уикипедия",
+            "publisher": "Уикипедия (български раздел)",
+            "retrieved_at": "2026-10-05T07:27:09Z",
+            "notes": "Справка за българската терминология: термодинамична/абсолютна температура, келвин, абсолютна нула, скали на Целзий и Келвин."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-final-review",
+            "reviewed_at": "2026-10-05T08:36:55Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Промяна на температурата: градусът по Целзий и келвинът са равни по големина",
+            "skill": "Концептуално разсъждение върху скалите"
+          },
+          "explanation": "От T = t + 273,15 следва, че една и съща промяна на температурата се изразява с еднакво число в градуси по Целзий и в келвини: 35 − 20 = 15, т.е. ΔT = 15 K. Числата 20 и 35 са самите показания, а не промяната.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 16,
+          "candidate_id": "physics-g8-thermal-motion-run-1-018",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "bg-wiki-temperature",
+            "type": "third_party",
+            "url": "https://bg.wikipedia.org/wiki/%D0%A2%D0%B5%D0%BC%D0%BF%D0%B5%D1%80%D0%B0%D1%82%D1%83%D1%80%D0%B0",
+            "title": "Температура — Уикипедия",
+            "publisher": "Уикипедия (български раздел)",
+            "retrieved_at": "2026-10-05T07:27:09Z",
+            "notes": "Справка за българската терминология: термодинамична/абсолютна температура, келвин, абсолютна нула, скали на Целзий и Келвин."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-final-review",
+            "reviewed_at": "2026-10-05T08:36:55Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Сравняване на температури, зададени в различни скали",
+            "skill": "Интерпретация на температурни стойности"
+          },
+          "explanation": "Температурите трябва да се сравняват в една и съща скала. 20 °C = 293,15 K, 25 °C = 298,15 K, а 280 K и 290 K са по-ниски. Най-висока е температурата 25 °C, затова там частиците се движат средно най-бързо.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 17,
+          "candidate_id": "physics-g8-thermal-motion-run-1-019",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "bg-wiki-temperature",
+            "type": "third_party",
+            "url": "https://bg.wikipedia.org/wiki/%D0%A2%D0%B5%D0%BC%D0%BF%D0%B5%D1%80%D0%B0%D1%82%D1%83%D1%80%D0%B0",
+            "title": "Температура — Уикипедия",
+            "publisher": "Уикипедия (български раздел)",
+            "retrieved_at": "2026-10-05T07:27:09Z",
+            "notes": "Справка за българската терминология: термодинамична/абсолютна температура, келвин, абсолютна нула, скали на Целзий и Келвин."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-final-review",
+            "reviewed_at": "2026-10-05T08:36:55Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Абсолютната нула (0 K = −273,15 °C) е долната граница на температурата за обикновени тела в топлинно равновесие в училищния модел",
+            "skill": "Интерпретация на скалата на Келвин",
+            "notes": "Абсолютната нула не е изрично в програмата; следва от понятията „абсолютна температура“ и „келвин“ (вж. доклада)."
+          },
+          "explanation": "За разглежданите тела абсолютната температура има долна граница 0 K = −273,15 °C. Стойността −300 °C е под тази граница и е невъзможна в този модел; останалите стойности са над нея. Изводът използва температурната скала и не изисква твърдение, че при 0 K изчезва всяка микроскопична енергия или движение.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 18,
+          "candidate_id": "physics-g8-thermal-motion-run-1-020",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-up2-temperature",
+            "type": "third_party",
+            "url": "https://openstax.org/books/university-physics-volume-2/pages/1-1-temperature-and-thermal-equilibrium",
+            "title": "Temperature and Thermal Equilibrium (University Physics Volume 2, 1.1)",
+            "publisher": "OpenStax",
+            "retrieved_at": "2026-10-05T07:25:09Z",
+            "notes": "Отворен учебник; използван за различаването на температура и обща енергия и за понятието топлинно равновесие. Над нивото на 8. клас, ползван само за проверка на физиката."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "codex-sol-final-review",
+            "reviewed_at": "2026-10-05T08:36:55Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "Съвпадане на измерените температури на чай и стая като данни, съвместими с приблизително топлинно равновесие",
+            "skill": "Интерпретация на данни",
+            "notes": "Избягва се пресмятане на количество топлина и обяснение на механизма на охлаждане (тема „Топлообмен“)."
+          },
+          "explanation": "Първото записано показание, равно на независимо измерените 23 °C в стаята, е на 35-ата минута. Следващите показания също са 23 °C. Данните са съвместими с приблизително топлинно равновесие, но не определят точния момент на установяване на термодинамично равновесие.",
+          "difficulty": "medium"
+        }
+      ]
+    }
+  ],
+  "not_exported": []
+}

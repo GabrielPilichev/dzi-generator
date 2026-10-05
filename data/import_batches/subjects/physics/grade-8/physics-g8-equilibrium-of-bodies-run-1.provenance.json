@@ -1,0 +1,552 @@
+{
+  "format_version": 1,
+  "kind": "question_candidate_provenance",
+  "run": {
+    "id": "physics-g8-equilibrium-of-bodies-run-1",
+    "started_at": "2026-10-05T06:32:46Z",
+    "finished_at": "2026-10-05T06:33:56Z",
+    "subject": "physics",
+    "grade": 8,
+    "curriculum": {
+      "education_type": "general",
+      "title": "Физика и астрономия, 8. клас — общообразователна подготовка"
+    },
+    "targets": [
+      {
+        "section": {
+          "slug": "physics-g8-mechanics",
+          "title": "Механика"
+        },
+        "topics": [
+          {
+            "slug": "physics-g8-equilibrium-of-bodies",
+            "title": "Равновесие на телата"
+          }
+        ]
+      }
+    ],
+    "limits": {
+      "max_topics": 1,
+      "max_pages": 15,
+      "max_candidates": 30,
+      "max_candidates_per_source": 8,
+      "max_runtime_minutes": 20
+    },
+    "pages_inspected": 9,
+    "stop_reason": "topic_complete",
+    "collector": "claude-sonnet-5-5-collector-b",
+    "notes": "Collector B. 9 fetch attempts: 7 pages recorded as sources, 2 returned HTTP 404 (physics.info/equilibrium, imsc.res.in balancing-toy) and are not sources. All candidates pending. Web research and reading of sources happened before the run file was created, so started_at/finished_at and source retrieved_at values (set when the file was built) understate the real elapsed time and are not the exact fetch times."
+  },
+  "not_stored_in_database": [
+    "candidate id",
+    "source type",
+    "source url",
+    "source title",
+    "source publisher",
+    "source retrieved_at",
+    "transformation",
+    "source_ref",
+    "research",
+    "reuse_exception",
+    "explanation",
+    "difficulty",
+    "review (reviewer, reviewed_at, notes)",
+    "run manifest"
+  ],
+  "batches": [
+    {
+      "file": "physics-g8-equilibrium-of-bodies-run-1.equilibrium-of-bodies.json",
+      "source": "reviewed:physics:physics-g8-equilibrium-of-bodies-run-1.equilibrium-of-bodies",
+      "topic_slug": "physics-g8-equilibrium-of-bodies",
+      "questions": [
+        {
+          "number": 1,
+          "candidate_id": "physics-g8-equilibrium-of-bodies-run-1-01",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T06:33:56Z",
+            "notes": "Defines the scope of topic 1.3: stable and unstable equilibrium by centre-of-gravity position, equilibrium on a support, loading platforms, safety on inclined road sections; lab lesson on the centre of gravity of flat plates; no formulas. Contains no questions: every candidate is newly written."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "centre of gravity as the application point of the force of gravity",
+            "skill": "recall a definition"
+          },
+          "explanation": "Силата на тежестта действа върху всички части на тялото, но при решаване на задачи я смятаме за приложена в една точка – центъра на тежестта. Той не винаги е в геометричната среда на тялото и не е точката на допир с опората.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 2,
+          "candidate_id": "physics-g8-equilibrium-of-bodies-run-1-02",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "sofia-cm-ct",
+            "type": "third_party",
+            "url": "https://www.phys.uni-sofia.bg/~cpopov/Almanah-pdf/I%20chast/5%20razni/17%20CM&CT.pdf",
+            "title": "Център на масите и/или център на тежестта",
+            "publisher": "Софийски университет, Физически факултет (Хр. Попов, алманах)",
+            "retrieved_at": "2026-10-05T06:33:56Z",
+            "notes": "Centre of gravity as the application point of the force of gravity; the Grade 8 textbook definition via suspension; centre of gravity and centre of mass practically coincide near the Earth's surface."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "centre of gravity need not lie inside the material of the body",
+            "skill": "locate the centre of gravity of a symmetric body"
+          },
+          "explanation": "За хомогенно симетрично тяло центърът на тежестта е в центъра на симетрията. При пръстена това е точка в отвора – центърът на тежестта може да е извън веществото на тялото.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 3,
+          "candidate_id": "physics-g8-equilibrium-of-bodies-run-1-03",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "sofia-cm-ct",
+            "type": "third_party",
+            "url": "https://www.phys.uni-sofia.bg/~cpopov/Almanah-pdf/I%20chast/5%20razni/17%20CM&CT.pdf",
+            "title": "Център на масите и/или център на тежестта",
+            "publisher": "Софийски университет, Физически факултет (Хр. Попов, алманах)",
+            "retrieved_at": "2026-10-05T06:33:56Z",
+            "notes": "Centre of gravity as the application point of the force of gravity; the Grade 8 textbook definition via suspension; centre of gravity and centre of mass practically coincide near the Earth's surface."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "centre of gravity shifts toward the heavier part of a non-uniform body",
+            "skill": "predict the balance point"
+          },
+          "explanation": "Чукът е в равновесие, когато опората е под центъра му на тежестта. Металната глава е много по-тежка от дървената дръжка, затова центърът на тежестта е близо до главата, а не в средата на дължината.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 4,
+          "candidate_id": "physics-g8-equilibrium-of-bodies-run-1-04",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T06:33:56Z",
+            "notes": "Defines the scope of topic 1.3: stable and unstable equilibrium by centre-of-gravity position, equilibrium on a support, loading platforms, safety on inclined road sections; lab lesson on the centre of gravity of flat plates; no formulas. Contains no questions: every candidate is newly written."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "experimental determination of the centre of gravity of a flat plate by suspension (programme lab lesson)",
+            "skill": "choose a correct experimental procedure"
+          },
+          "explanation": "Окачена пластинка е в покой, когато центърът ѝ на тежестта е на вертикалата през точката на окачване. Две такива вертикали (от различни точки) се пресичат точно в центъра на тежестта.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 5,
+          "candidate_id": "physics-g8-equilibrium-of-bodies-run-1-06",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-stability",
+            "type": "third_party",
+            "url": "https://www.theexpertta.com/book-files/OpenStaxCollegePhysics2e/Chapter9_Section3.pdf",
+            "title": "Stability (OpenStax College Physics 2e, Chapter 9.3)",
+            "publisher": "OpenStax (copy hosted by theexpertta.com)",
+            "retrieved_at": "2026-10-05T06:33:56Z",
+            "notes": "Stable/unstable/neutral equilibrium by the response to displacement; critical point when the centre of gravity leaves the base of support; wider stance and lower centre of gravity for the human body."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "unstable equilibrium: the centre of gravity moves down on displacement",
+            "skill": "classify an equilibrium"
+          },
+          "explanation": "При най-малко отклонение центърът на тежестта на молива се спуска и силата на тежестта го отдалечава още повече от изходното положение – равновесието е неустойчиво. Докато е в равновесие, силата на тежестта и реакцията на опората са равни.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 6,
+          "candidate_id": "physics-g8-equilibrium-of-bodies-run-1-07",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "miniphysics-stability",
+            "type": "third_party",
+            "url": "https://www.miniphysics.com/stability.html",
+            "title": "Stability & States of Equilibrium",
+            "publisher": "Mini Physics",
+            "retrieved_at": "2026-10-05T06:33:56Z",
+            "notes": "Stable/unstable (and neutral) equilibrium by what the centre of gravity does on displacement; tipping when the weight's line of action falls outside the base; low centre of gravity and wide base."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "stable equilibrium: the centre of gravity rises on displacement and gravity restores the position",
+            "skill": "explain a restoring tendency"
+          },
+          "explanation": "Тежкото дъно прави центъра на тежестта много нисък. При накланяне той се издига, а силата на тежестта го връща надолу – равновесието е устойчиво.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 7,
+          "candidate_id": "physics-g8-equilibrium-of-bodies-run-1-08",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "physicslens-cg-stability",
+            "type": "third_party",
+            "url": "https://learn.physicslens.com/turning-effect-of-forces/centre-of-gravity-and-stability.html",
+            "title": "Centre of Gravity and Stability",
+            "publisher": "PhysicsLens (Singapore Ministry of Education)",
+            "retrieved_at": "2026-10-05T06:33:56Z",
+            "notes": "Centre of gravity, stability factors (low CG, wide base), tipping condition, ball in bowl/on hill examples."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "hanging versus balanced above the pivot: stable and unstable equilibrium; rest does not imply stability",
+            "skill": "compare two equilibrium positions"
+          },
+          "explanation": "Ако центърът на тежестта е под пирона, при отклонение той се издига и силата на тежестта връща линийката – устойчиво равновесие. Ако е над пирона, при отклонение се спуска и линийката се обръща. Неподвижността сама не доказва устойчивост.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 8,
+          "candidate_id": "physics-g8-equilibrium-of-bodies-run-1-09",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "sofia-cube-stability",
+            "type": "third_party",
+            "url": "https://phys.uni-sofia.bg/~cpopov/Almanah-pdf/I%20chast/2%20zadachi-eseta/63%20ustoychiv%20kub.pdf",
+            "title": "Устойчивост на куб",
+            "publisher": "Софийски университет, Физически факултет (Хр. Попов, алманах)",
+            "retrieved_at": "2026-10-05T06:33:56Z",
+            "notes": "Stability of a body on a support depends on both the size of the support area and the height of the centre of mass. Only that qualitative statement is used; the energy/torque analysis is above Grade 8."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "stability depends on the size of the support area and the height of the centre of gravity",
+            "skill": "compare orientations of one body"
+          },
+          "explanation": "Устойчивостта на тяло върху опора расте, когато опорната площ е по-голяма и центърът на тежестта е по-ниско. И двете са налице при тухла, легнала на най-голямата стена. Масата не се променя, но не определя устойчивостта сама.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 9,
+          "candidate_id": "physics-g8-equilibrium-of-bodies-run-1-10",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T06:33:56Z",
+            "notes": "Defines the scope of topic 1.3: stable and unstable equilibrium by centre-of-gravity position, equilibrium on a support, loading platforms, safety on inclined road sections; lab lesson on the centre of gravity of flat plates; no formulas. Contains no questions: every candidate is newly written."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "loading platforms: placing heavy loads low keeps the centre of gravity low (programme application)",
+            "skill": "apply to loading"
+          },
+          "explanation": "Тежките товари отдолу държат общия център на тежестта нисък, затова камионът е по-устойчив. Общата маса е еднаква, но положението на центъра на тежестта се променя с подредбата.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 10,
+          "candidate_id": "physics-g8-equilibrium-of-bodies-run-1-11",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T06:33:56Z",
+            "notes": "Defines the scope of topic 1.3: stable and unstable equilibrium by centre-of-gravity position, equilibrium on a support, loading platforms, safety on inclined road sections; lab lesson on the centre of gravity of flat plates; no formulas. Contains no questions: every candidate is newly written."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "loading platforms: keep the common centre of gravity over the middle of the support",
+            "skill": "apply to horizontal placement"
+          },
+          "explanation": "Тежката отливка премества общия център на тежестта към мястото си. В средата вертикалата през него е най-далеч от краищата на опорната площ, затова е нужен най-голям наклон, за да я напусне.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 11,
+          "candidate_id": "physics-g8-equilibrium-of-bodies-run-1-12",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T06:33:56Z",
+            "notes": "Defines the scope of topic 1.3: stable and unstable equilibrium by centre-of-gravity position, equilibrium on a support, loading platforms, safety on inclined road sections; lab lesson on the centre of gravity of flat plates; no formulas. Contains no questions: every candidate is newly written."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "safety on an inclined road section: the vertical through the centre of gravity must stay over the support area",
+            "skill": "state the tipping condition"
+          },
+          "explanation": "Докато вертикалата през центъра на тежестта минава през опорната площ между колелата, автомобилът е в равновесие. Преобръща се, когато наклонът я изкара извън нея. Няма общ за всички автомобили граничен ъгъл: той зависи от височината на центъра на тежестта и от разстоянието между колелата.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 12,
+          "candidate_id": "physics-g8-equilibrium-of-bodies-run-1-14",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "sofia-block-stacking",
+            "type": "third_party",
+            "url": "https://www.phys.uni-sofia.bg/~cpopov/Almanah-pdf/I%20chast/2%20zadachi-eseta/47%20kubcheta%20v%20ravnovesie.pdf",
+            "title": "Кубчета в равновесие",
+            "publisher": "Софийски университет, Физически факултет (Хр. Попов, алманах)",
+            "retrieved_at": "2026-10-05T06:33:56Z",
+            "notes": "A stack stays in equilibrium while the vertical through the centre of mass lies over the support."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "equilibrium on a support: the body stays while its centre of gravity is over the support",
+            "skill": "locate the limit using the centre of gravity of a uniform body"
+          },
+          "explanation": "Центърът на тежестта на хомогенната дъска е в средата ѝ, на 40 cm от всеки край. Дъската остава в равновесие, докато центърът на тежестта е над масата; щом той премине ръба, дъската се преобръща. Затова може да стърчи най-много 40 cm.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 13,
+          "candidate_id": "physics-g8-equilibrium-of-bodies-run-1-15",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-stability",
+            "type": "third_party",
+            "url": "https://www.theexpertta.com/book-files/OpenStaxCollegePhysics2e/Chapter9_Section3.pdf",
+            "title": "Stability (OpenStax College Physics 2e, Chapter 9.3)",
+            "publisher": "OpenStax (copy hosted by theexpertta.com)",
+            "retrieved_at": "2026-10-05T06:33:56Z",
+            "notes": "Stable/unstable/neutral equilibrium by the response to displacement; critical point when the centre of gravity leaves the base of support; wider stance and lower centre of gravity for the human body."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "the common centre of gravity of a body plus load must stay above the base of support",
+            "skill": "apply the support condition to a person with a load"
+          },
+          "explanation": "Раницата измества общия център на тежестта на туриста назад. Като се наклони напред, той връща вертикалата през него над стъпалата. Площта на стъпалата и силата на тежестта не се променят от накланянето.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 14,
+          "candidate_id": "physics-g8-equilibrium-of-bodies-run-1-16",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-stability",
+            "type": "third_party",
+            "url": "https://www.theexpertta.com/book-files/OpenStaxCollegePhysics2e/Chapter9_Section3.pdf",
+            "title": "Stability (OpenStax College Physics 2e, Chapter 9.3)",
+            "publisher": "OpenStax (copy hosted by theexpertta.com)",
+            "retrieved_at": "2026-10-05T06:33:56Z",
+            "notes": "Stable/unstable/neutral equilibrium by the response to displacement; critical point when the centre of gravity leaves the base of support; wider stance and lower centre of gravity for the human body."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "wider base of support increases stability",
+            "skill": "explain an everyday posture"
+          },
+          "explanation": "Разкрачването увеличава площта между краката. Вертикалата през центъра на тежестта трябва да излезе по-далеч, за да загуби пътникът равновесие.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 15,
+          "candidate_id": "physics-g8-equilibrium-of-bodies-run-1-18",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "official-mon-programme",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_fa.pdf",
+            "title": "Учебна програма по физика и астрономия за VIII клас (общообразователна подготовка)",
+            "publisher": "Министерство на образованието и науката",
+            "retrieved_at": "2026-10-05T06:33:56Z",
+            "notes": "Defines the scope of topic 1.3: stable and unstable equilibrium by centre-of-gravity position, equilibrium on a support, loading platforms, safety on inclined road sections; lab lesson on the centre of gravity of flat plates; no formulas. Contains no questions: every candidate is newly written."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "equilibrium on a support is a balance of forces, not an absence of forces",
+            "skill": "detect a misconception"
+          },
+          "explanation": "Равновесието на тяло върху опора не е липса на сили: силата на тежестта и силата на реакция на опората са равни по големина и противоположни по посока. Равнодействащата им е нула и вазата остава в покой.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 16,
+          "candidate_id": "physics-g8-equilibrium-of-bodies-run-1-19",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "sofia-cm-ct",
+            "type": "third_party",
+            "url": "https://www.phys.uni-sofia.bg/~cpopov/Almanah-pdf/I%20chast/5%20razni/17%20CM&CT.pdf",
+            "title": "Център на масите и/или център на тежестта",
+            "publisher": "Софийски университет, Физически факултет (Хр. Попов, алманах)",
+            "retrieved_at": "2026-10-05T06:33:56Z",
+            "notes": "Centre of gravity as the application point of the force of gravity; the Grade 8 textbook definition via suspension; centre of gravity and centre of mass practically coincide near the Earth's surface."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "the centre of gravity shifts away from removed material",
+            "skill": "reason about mass distribution"
+          },
+          "explanation": "С изрязаното вещество се отнема част от масата откъм ъгъла. Остава повече маса от противоположната страна, затова центърът на тежестта се измества в тази посока.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 17,
+          "candidate_id": "physics-g8-equilibrium-of-bodies-run-1-20",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-stability",
+            "type": "third_party",
+            "url": "https://www.theexpertta.com/book-files/OpenStaxCollegePhysics2e/Chapter9_Section3.pdf",
+            "title": "Stability (OpenStax College Physics 2e, Chapter 9.3)",
+            "publisher": "OpenStax (copy hosted by theexpertta.com)",
+            "retrieved_at": "2026-10-05T06:33:56Z",
+            "notes": "Stable/unstable/neutral equilibrium by the response to displacement; critical point when the centre of gravity leaves the base of support; wider stance and lower centre of gravity for the human body."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "operational definition of stable and unstable equilibrium by response to a small displacement",
+            "skill": "design a simple test"
+          },
+          "explanation": "При устойчиво равновесие след малко отклонение тялото се връща в изходното положение; при неустойчиво – се отдалечава от него. Продължителността на покоя и масата не са критерий.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 18,
+          "candidate_id": "physics-g8-equilibrium-of-bodies-run-1-21",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "sofia-cm-ct",
+            "type": "third_party",
+            "url": "https://www.phys.uni-sofia.bg/~cpopov/Almanah-pdf/I%20chast/5%20razni/17%20CM&CT.pdf",
+            "title": "Център на масите и/или център на тежестта",
+            "publisher": "Софийски университет, Физически факултет (Хр. Попов, алманах)",
+            "retrieved_at": "2026-10-05T06:33:56Z",
+            "notes": "Centre of gravity as the application point of the force of gravity; the Grade 8 textbook definition via suspension; centre of gravity and centre of mass practically coincide near the Earth's surface."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "claude-opus-5-5-final-review",
+            "reviewed_at": "2026-10-05T07:16:16Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "the centre of gravity is a fixed point of a rigid body; only its height changes with orientation",
+            "skill": "avoid a misconception"
+          },
+          "explanation": "Положението на центъра на тежестта в тялото зависи от формата и разпределението на масата, а не от ориентацията. Променя се само височината му над масата.",
+          "difficulty": "easy"
+        }
+      ]
+    }
+  ],
+  "not_exported": []
+}
