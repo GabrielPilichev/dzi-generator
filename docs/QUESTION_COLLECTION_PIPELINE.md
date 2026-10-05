@@ -307,6 +307,7 @@ will not export again from this run; revised questions then belong in a new run.
 | What | Where | Git |
 |---|---|---|
 | Format documentation, synthetic example | `docs/QUESTION_COLLECTION_PIPELINE.md`, `docs/examples/` | tracked |
+| Reviewed curriculum structure files (the `--structure` input) | `data/subject_structures/<subject>/grade-<n>.json` | tracked (`docs/SUBJECT_STRUCTURE_IMPORT.md`) |
 | Collection-run datasets (candidates under collection or review) | `data/question_candidates/<subject>/grade-<n>/` | ignored (`.gitignore`) |
 | Exported reviewed batches and their provenance file | `data/import_batches/subjects/<subject>/grade-<n>/` | tracked when a content PR intentionally adds them, like the other reviewed batches in `data/import_batches/` |
 
