@@ -13,9 +13,30 @@ Four separate concerns, deliberately kept apart:
 - **DZI content identity** — `web.services.dzi.is_dzi_question` says which
   questions are official DZI content. It is not an access check.
 
-Roadmap PR D1 added the explicit declarations; `protect_admin_routes()` still
-enforces access, and `tests/test_access_policy.py` asserts the two agree for
-every endpoint as anonymous, tester and admin. PR D2 removes the prefix guard.
+Roadmap PR D1 added the explicit declarations beside the old endpoint-prefix
+guard and proved they agreed for every endpoint. PR D2 made them authoritative
+and removed `protect_admin_routes()`, `TESTER_TEACHER_ENDPOINTS` and
+`PUBLIC_DZI_ENDPOINTS`. There is now one route-level authorization mechanism.
+
+## Enforcement
+
+Every request passes through two independent `before_request` checks, in this
+order:
+
+1. `protect_same_origin_unsafe_methods()` — request integrity. Every
+   POST/PUT/PATCH/DELETE must carry a same-origin `Origin` (or `Referer`), or
+   it gets 403 (only the `TESTING` configuration accepts a request carrying
+   neither header). No route is exempt, and being signed in does not help.
+2. `enforce_access_policy()` — authorization. It looks up the policy declared
+   on the view function Flask resolved for the request and decides with
+   `current_principal()`. A denied request is redirected to the matching login
+   with `next=<path>`: `/tester/login` for `teacher` routes, `/admin/login` for
+   everything else, including undeclared views. A request that matched no
+   route is left to Flask's own 404/405.
+
+Passing one check never implies the other: an admin's cross-origin post is
+refused, and a same-origin post from a session without access is still sent to
+login.
 
 ## Declared Access Policies
 
@@ -32,9 +53,16 @@ a coverage test walks `app.url_map` and fails on any undeclared endpoint.
 | `attempt_owner` | route is reachable; the view checks attempt ownership and answers 404 | `/quiz/attempt/<id>`, `/quiz/attempt/<id>/result`, `/quiz/attempt/<id>/practical/...` |
 | `profile_switch` | `/profile/<profile>`: `admin` needs an admin session, other targets are public | `/profile/<profile>` |
 
+Flask's built-in `static` view cannot be decorated; `web.access` treats it as
+`public` by name.
+
 `signed_in` and `assignment_owner` from the roadmap's vocabulary are not used
 yet: there are no accounts and no assignment ownership. They arrive with the
-accounts phase, not in D1.
+accounts phase.
+
+The tester session satisfies `teacher` exactly as before. Whether a tester
+password should keep standing in for a teacher identity is a deferred product
+question for the accounts phase, not something the access layer decides.
 
 `ui_profile` is a cosmetic display choice. `current_principal()` reads only
 authentication state, so selecting the admin UI profile grants nothing.
@@ -43,21 +71,10 @@ Every route that accepts an unsafe method declares `@integrity_policy(SAME_ORIGI
 `oauth_state` and `provider_signature` are reserved for future external flows
 and are not in use.
 
-## Endpoint Prefix Rules (still enforced in D1, removed in D2)
-
-- `admin*` endpoints are admin-only, except `admin_login`.
-- `dzi*` endpoints are admin-only by default. Intentionally public DZI endpoints
-  must be added to `PUBLIC_DZI_ENDPOINTS`.
-- `teacher*` endpoints are admin-only by default.
-- `TESTER_TEACHER_ENDPOINTS` is the small tester allowlist for normal assignment
-  creation/detail flows. Other teacher endpoints, including assignment lists,
-  results, exports, edits, duplicates, and practical submission review, remain
-  admin-only.
-
 ## Profile Switching
 
-`switch_profile` is allowed through the prefix guard, but it has route-specific
-protection:
+`switch_profile` has the `profile_switch` policy, which depends on its
+argument:
 
 - switching to `tester` is allowed;
 - switching to `admin` redirects to admin login unless the session is already
@@ -66,8 +83,9 @@ protection:
 
 ## Quiz Attempts
 
-Quiz attempt routes use a separate owner-session check instead of endpoint
-prefix auth:
+Quiz attempt routes have the `attempt_owner` policy: the route-level check lets
+every session through, and the view makes the object-level decision with the
+owner-session check, answering 404 (not 403) so attempt ids cannot be probed:
 
 - `/quiz/attempt/<attempt_id>`
 - `/quiz/attempt/<attempt_id>/result`
@@ -81,6 +99,7 @@ with `mark_quiz_attempt_owner(attempt_id)`.
 ## Refactor Note
 
 Blueprint names change Flask endpoint names, but declared policies live on view
-functions, so a rename cannot change a route's access decision. While the prefix
-guard is still active, keep endpoint names or update the guard, the policy
-declarations, the tests and this document together.
+functions, so a rename, a blueprint move or a legacy alias cannot change a
+route's access decision. A new view must declare `@access_policy(...)` (and
+`@integrity_policy(...)` if it accepts unsafe methods); until it does, every
+session is denied and the coverage test in `tests/test_access_policy.py` fails.

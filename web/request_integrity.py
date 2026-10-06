@@ -1,4 +1,4 @@
-"""Request-integrity declarations (roadmap PR D1).
+"""Request-integrity declarations (roadmap PRs D1/D2).
 
 Request integrity answers how an unsafe or external request proves it is
 legitimate. It is not authorization: a route's access policy
@@ -6,8 +6,9 @@ legitimate. It is not authorization: a route's access policy
 mechanism never grants access.
 
 Every view that accepts an unsafe method declares its mechanism here. The
-active same-origin check is still ``protect_same_origin_unsafe_methods`` in
-``web.app``; D1 only declares and tests the policy beside it.
+same-origin check itself is ``protect_same_origin_unsafe_methods`` in
+``web.app``; it applies to every unsafe request, runs before the access check,
+and has no route exemptions.
 
 This module must not import ``web.app``.
 """

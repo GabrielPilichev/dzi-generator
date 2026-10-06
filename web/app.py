@@ -74,6 +74,10 @@ from web.access import (
     PUBLIC,
     TEACHER,
     access_policy,
+    current_principal,
+    denial_login_endpoint,
+    is_route_allowed,
+    policy_for_endpoint,
 )
 from web.request_integrity import SAME_ORIGIN, integrity_policy
 from web.production import warn_if_schema_migrations_pending
@@ -196,7 +200,6 @@ app.config["MAX_CONTENT_LENGTH"] = MAX_REQUEST_BYTES
 # ---------------------------------------------------------------------------
 
 VALID_UI_PROFILES = {"admin", "tester"}
-TESTER_TEACHER_ENDPOINTS = {"teacher_new", "teacher_assignment"}
 QUESTION_DIFFICULTY_LABELS = {
     "1": "много лесен",
     "2": "лесен",
@@ -604,56 +607,31 @@ def inject_admin_auth():
     }
 
 
-PUBLIC_DZI_ENDPOINTS: set[str] = set()
-# DZI endpoints default to admin-only. Add future intentionally public
-# endpoint names here instead of weakening the default-deny guard below.
-
-
 @app.before_request
-def protect_admin_routes():
-    # Route access contract:
-    # - endpoint names starting with "admin" are admin-only, except admin_login.
-    # - endpoint names starting with "dzi" are admin-only unless explicitly listed
-    #   in PUBLIC_DZI_ENDPOINTS.
-    # - endpoint names starting with "teacher" are admin-only, except the
-    #   TESTER_TEACHER_ENDPOINTS allowlist used for tester assignment creation/detail.
-    # - switch_profile is public only for switching to tester; switching to admin
-    #   redirects to admin login unless the session is already admin-authenticated.
-    # - quiz attempt routes do not use endpoint prefixes for ownership; they call
-    #   require_quiz_attempt_access(attempt_id) inside each attempt route.
-    # Future blueprint extraction must preserve these endpoint names or update this
-    # guard and docs/AUTH_ROUTE_CONTRACT.md together.
-    # Each view also declares an explicit policy (web.access). This guard still
-    # enforces access; tests/test_access_policy.py asserts both agree, and
-    # roadmap PR D2 replaces this guard with the declared policies.
-    endpoint = request.endpoint or ""
+def enforce_access_policy():
+    # Route-level authorization follows the policy declared on the resolved view
+    # function (web.access), never the endpoint name, so aliases and blueprint
+    # endpoint names share one decision. A view without a declared policy is
+    # denied. Same-origin request integrity is a separate check that runs first
+    # (protect_same_origin_unsafe_methods); passing one never implies the other.
+    # attempt_owner routes pass here and keep their own owner check (404) inside
+    # the view. The contract is documented in docs/AUTH_ROUTE_CONTRACT.md.
+    if request.routing_exception is not None:
+        return  # No view matched; Flask answers with its own 404/405/redirect.
 
-    if endpoint in {"static", "admin_login", "tester_login", "switch_profile"}:
-        # /profile/admin is handled below inside switch_profile route protection.
-        if endpoint != "switch_profile":
-            return
-
-    if endpoint == "switch_profile":
-        profile = (request.view_args or {}).get("profile")
-        if profile == "admin" and not is_admin_authenticated():
-            next_url = safe_redirect_target(
-                request.args.get("next") or request.referrer,
-                "index",
-            )
-            return redirect(url_for("admin_login", next=next_url))
+    view_args = request.view_args or {}
+    level = policy_for_endpoint(app, request.endpoint)
+    if is_route_allowed(level, current_principal(), view_args):
         return
 
-    if endpoint.startswith("admin") and endpoint != "admin_login" and not is_admin_authenticated():
-        return redirect(url_for("admin_login", next=request.path))
-
-    if endpoint.startswith("dzi") and endpoint not in PUBLIC_DZI_ENDPOINTS and not is_admin_authenticated():
-        return redirect(url_for("admin_login", next=request.path))
-
-    if endpoint in TESTER_TEACHER_ENDPOINTS and not can_generate_tests():
-        return redirect(url_for("tester_login", next=request.path))
-
-    if endpoint.startswith("teacher") and endpoint not in TESTER_TEACHER_ENDPOINTS and not is_admin_authenticated():
-        return redirect(url_for("admin_login", next=request.path))
+    if level == PROFILE_SWITCH:
+        next_url = safe_redirect_target(
+            request.args.get("next") or request.referrer,
+            "index",
+        )
+    else:
+        next_url = request.path
+    return redirect(url_for(denial_login_endpoint(level, view_args), next=next_url))
 
 
 @app.route("/admin/login", methods=["GET", "POST"])

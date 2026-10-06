@@ -1,8 +1,11 @@
-"""Roadmap PR D1 — explicit access and request-integrity policies.
+"""Roadmap PRs D1/D2 — explicit access and request-integrity policies.
 
-The declared policies in ``web.access`` must agree with the prefix guard that
-still enforces access (``protect_admin_routes``), cover every endpoint, and
-stay independent of cosmetic session state and of DZI content identity.
+The declared policies in ``web.access`` are the only route-level authorization
+(``enforce_access_policy`` in ``web.app``; the endpoint-prefix guard is gone).
+They must cover every endpoint, keep the D1 access matrix, deny undeclared
+views, follow the view function rather than its endpoint name, and stay
+independent of cosmetic session state, of request integrity and of DZI content
+identity.
 """
 
 import ast
@@ -15,16 +18,69 @@ from pathlib import Path
 from tests.support import ROOT, IsolatedAppTestCase, web_app
 from web import access, request_integrity
 
-# Test-only routes other test modules register on the shared app to exercise
-# the old guard's DZI default-deny. They are not part of the application's
-# route map and deliberately carry no declared policy.
+# Test-only routes test modules register on the shared app to exercise the
+# enforcement path (some deliberately undeclared). They are not part of the
+# application's route map.
 TEST_ONLY_RULE_PREFIX = "/__test__/"
+
+# The D1 access matrix: the behavioral contract D2 enforces. Legacy quiz
+# aliases (quiz_start, quiz_attempt, quiz_result) and their blueprint endpoints
+# are separate url_map rules sharing one view each.
+EXPECTED_ACCESS_MATRIX = {
+    "static": access.PUBLIC,
+    "index": access.PUBLIC,
+    "grade_view": access.PUBLIC,
+    "section_view": access.PUBLIC,
+    "subject_view": access.PUBLIC,
+    "subject_grade_view": access.PUBLIC,
+    "subject_topic_group_view": access.PUBLIC,
+    "subject_topic_view": access.PUBLIC,
+    "physics": access.PUBLIC,
+    "physics_grade": access.PUBLIC,
+    "tester_home": access.PUBLIC,
+    "healthz": access.PUBLIC,
+    "favicon": access.PUBLIC,
+    "admin_login": access.PUBLIC,
+    "tester_login": access.PUBLIC,
+    "tester_logout": access.PUBLIC,
+    "quiz_start": access.PUBLIC,
+    "quiz.quiz_start": access.PUBLIC,
+    "teacher_new": access.TEACHER,
+    "teacher_assignment": access.TEACHER,
+    "admin_logout": access.ADMIN,
+    "admin_open_question_candidates": access.ADMIN,
+    "dzi_index": access.ADMIN,
+    "dzi_source_view": access.ADMIN,
+    "dzi_practical_source": access.ADMIN,
+    "dzi_practical_resource_download": access.ADMIN,
+    "teacher_dashboard": access.ADMIN,
+    "teacher_assignments": access.ADMIN,
+    "teacher_dzi_training": access.ADMIN,
+    "teacher_assignment_results": access.ADMIN,
+    "teacher_assignment_results_export": access.ADMIN,
+    "teacher_assignment_edit": access.ADMIN,
+    "teacher_assignment_duplicate": access.ADMIN,
+    "teacher_practical_submissions": access.ADMIN,
+    "teacher_practical_submission_file_download": access.ADMIN,
+    "quiz_attempt": access.ATTEMPT_OWNER,
+    "quiz.quiz_attempt": access.ATTEMPT_OWNER,
+    "quiz_result": access.ATTEMPT_OWNER,
+    "quiz.quiz_result": access.ATTEMPT_OWNER,
+    "quiz_practical_attempt": access.ATTEMPT_OWNER,
+    "quiz_practical_upload": access.ATTEMPT_OWNER,
+    "switch_profile": access.PROFILE_SWITCH,
+}
 
 PRINCIPAL_SESSIONS = {
     "anonymous": {},
+    "cosmetic_admin_profile": {"ui_profile": "admin"},
     "tester": {"tester_authenticated": True, "ui_profile": "tester"},
+    "tester_with_admin_profile": {"tester_authenticated": True, "ui_profile": "admin"},
     "admin": {"admin_authenticated": True, "ui_profile": "admin"},
 }
+# Who the D1 matrix lets through, written out independently of web.access.
+TEACHER_PRINCIPALS = {"tester", "tester_with_admin_profile", "admin"}
+ADMIN_PRINCIPALS = {"admin"}
 
 SAMPLE_VIEW_ARGS = {
     "profile": "tester",
@@ -229,8 +285,23 @@ class AccessPolicyCoverageTest(unittest.TestCase):
         }
         self.assertNotIn("is_dzi_question", called)
 
-class AccessPolicyAgreementTest(IsolatedAppTestCase):
-    """D1 keeps the old guard in place; the declared policies must agree with it."""
+def expected_decision(policy, principal_name, view_args, path):
+    """(allowed, login redirect) per the D1 matrix, without consulting web.access."""
+    if policy == access.PROFILE_SWITCH:
+        if view_args.get("profile") != "admin" or principal_name in ADMIN_PRINCIPALS:
+            return True, None
+        return False, "/admin/login?next=/"
+    if policy in (access.PUBLIC, access.ATTEMPT_OWNER):
+        return True, None
+    if policy == access.TEACHER:
+        allowed = principal_name in TEACHER_PRINCIPALS
+        return allowed, None if allowed else f"/tester/login?next={path}"
+    allowed = policy == access.ADMIN and principal_name in ADMIN_PRINCIPALS
+    return allowed, None if allowed else f"/admin/login?next={path}"
+
+
+class AccessEnforcementMatrixTest(IsolatedAppTestCase):
+    """The declared policy is the enforcement path and keeps the D1 matrix."""
 
     @classmethod
     def setUpClass(cls):
@@ -238,49 +309,141 @@ class AccessPolicyAgreementTest(IsolatedAppTestCase):
         cls.app = web_app.app
         cls.app.config.update(TESTING=True)
 
-    def _old_guard_allows(self, rule, session_state, view_args):
-        with self.app.test_request_context("/"):
-            from flask import request, session as flask_session
+    def _enforce(self, path, method, session_state):
+        """Run the app's before_request chain for a same-origin request."""
+        headers = {"Origin": "http://localhost"} if method in request_integrity.UNSAFE_METHODS else {}
+        with self.app.test_request_context(path, method=method, headers=headers):
+            from flask import session as flask_session
 
             flask_session.update(session_state)
-            request.url_rule = rule
-            request.view_args = dict(view_args)
-            return web_app.protect_admin_routes() is None
+            return self.app.preprocess_request()
 
-    def test_declared_policy_agrees_with_the_prefix_guard(self):
+    def test_route_map_policies_match_the_d1_access_matrix(self):
+        actual = {
+            rule.endpoint: access.policy_for_endpoint(self.app, rule.endpoint)
+            for rule in application_rules(self.app)
+        }
+        self.assertEqual(actual, EXPECTED_ACCESS_MATRIX)
+
+    def test_prefix_guard_is_gone_and_one_access_hook_enforces(self):
+        self.assertFalse(hasattr(web_app, "protect_admin_routes"))
+        self.assertFalse(hasattr(web_app, "TESTER_TEACHER_ENDPOINTS"))
+        self.assertFalse(hasattr(web_app, "PUBLIC_DZI_ENDPOINTS"))
+        hooks = [func.__name__ for func in self.app.before_request_funcs[None]]
+        self.assertEqual(hooks.count("enforce_access_policy"), 1)
+        # Integrity runs before, and separately from, authorization.
+        self.assertLess(
+            hooks.index("protect_same_origin_unsafe_methods"),
+            hooks.index("enforce_access_policy"),
+        )
+
+    def test_enforcement_matches_the_d1_matrix_for_every_route(self):
         for rule in application_rules(self.app):
-            if rule.endpoint == access.STATIC_ENDPOINT:
-                continue
-            policy = access.policy_for_endpoint(self.app, rule.endpoint)
+            policy = EXPECTED_ACCESS_MATRIX[rule.endpoint]
+            method = "GET" if "GET" in rule.methods else "POST"
             profile_targets = ("tester", "admin") if "profile" in rule.arguments else (None,)
             for target in profile_targets:
-                overrides = {"profile": target} if target else None
-                view_args = view_args_for(rule, overrides)
-                for name, session_state in PRINCIPAL_SESSIONS.items():
-                    principal = access.principal_from_session(session_state)
-                    with self.subTest(endpoint=rule.endpoint, principal=name, profile=target):
-                        self.assertEqual(
-                            access.is_route_allowed(policy, principal, view_args),
-                            self._old_guard_allows(rule, session_state, view_args),
-                        )
-
-    def test_guard_and_policy_send_denials_to_the_same_login(self):
-        for endpoint, expected in (("teacher_new", "/tester/login"), ("dzi_index", "/admin/login")):
-            rule = next(r for r in application_rules(self.app) if r.endpoint == endpoint)
-            policy = access.policy_for_endpoint(self.app, endpoint)
-            with self.subTest(endpoint=endpoint):
+                view_args = view_args_for(rule, {"profile": target} if target else None)
                 with self.app.test_request_context("/"):
-                    from flask import request, url_for
+                    from flask import url_for
 
-                    request.url_rule = rule
-                    request.view_args = view_args_for(rule)
-                    response = web_app.protect_admin_routes()
-                    self.assertIsNotNone(response)
-                    self.assertIn(expected, response.headers["Location"])
-                    self.assertIn(
-                        expected,
-                        url_for(access.denial_login_endpoint(policy, request.view_args)),
-                    )
+                    path = url_for(rule.endpoint, **view_args)
+                for name, session_state in PRINCIPAL_SESSIONS.items():
+                    allowed, login = expected_decision(policy, name, view_args, path)
+                    with self.subTest(endpoint=rule.endpoint, principal=name, profile=target):
+                        response = self._enforce(path, method, session_state)
+                        if allowed:
+                            self.assertIsNone(response)
+                        else:
+                            self.assertIsNotNone(response)
+                            self.assertEqual(response.status_code, 302)
+                            self.assertEqual(response.headers["Location"], login)
+
+    def test_unmatched_urls_keep_flask_404(self):
+        # No view resolves, so there is no policy to apply; Flask answers 404
+        # exactly as before instead of a login redirect.
+        client = self.app.test_client()
+        for path in ("/no/such/route", "/teacher/no-such-page", "/dzi/no/such/page"):
+            with self.subTest(path=path):
+                self.assertEqual(client.get(path).status_code, 404)
+
+
+def _undeclared_view():
+    return "undeclared view body"
+
+
+def _declared_admin_view():
+    return "declared admin view body"
+
+
+class AccessEnforcementBypassTest(IsolatedAppTestCase):
+    """Authorization attaches to the view, not to an endpoint string.
+
+    Every case here would have been wrong under the removed prefix guard: an
+    undeclared or public-looking endpoint name was public unless it started
+    with admin/dzi/teacher, and an alias name decided access for the view.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.app = web_app.app
+        cls.app.config.update(TESTING=True)
+        rules = (
+            # A new view someone forgot to declare, with an innocent name.
+            ("/__test__/undeclared-report", "reports_overview", _undeclared_view),
+            # A declared admin view whose endpoint name says nothing about admin.
+            ("/__test__/declared-admin", "public_summary",
+             access.access_policy(access.ADMIN)(_declared_admin_view)),
+            # Aliases registering existing views under misleading names.
+            ("/__test__/alias/dashboard", "public_dashboard_alias",
+             cls.app.view_functions["teacher_dashboard"]),
+            ("/__test__/alias/new", "admin_teacher_new_alias",
+             cls.app.view_functions["teacher_new"]),
+        )
+        for path, endpoint, view in rules:
+            if endpoint not in cls.app.view_functions:
+                cls.app.add_url_rule(path, endpoint=endpoint, view_func=view)
+
+    def _client(self, session_state):
+        client = self.app.test_client()
+        with client.session_transaction() as sess:
+            sess.update(session_state)
+        return client
+
+    def assertSentToLogin(self, response, login_path):
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response.headers["Location"].startswith(login_path), response.headers["Location"])
+
+    def test_undeclared_view_is_denied_to_every_principal(self):
+        for name, session_state in PRINCIPAL_SESSIONS.items():
+            with self.subTest(principal=name):
+                response = self._client(session_state).get("/__test__/undeclared-report")
+                self.assertSentToLogin(response, "/admin/login")
+                self.assertNotIn(b"undeclared view body", response.data)
+
+    def test_declared_admin_view_with_a_public_name_stays_admin_only(self):
+        for name in ("anonymous", "cosmetic_admin_profile", "tester", "tester_with_admin_profile"):
+            with self.subTest(principal=name):
+                response = self._client(PRINCIPAL_SESSIONS[name]).get("/__test__/declared-admin")
+                self.assertSentToLogin(response, "/admin/login")
+        response = self._client(PRINCIPAL_SESSIONS["admin"]).get("/__test__/declared-admin")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data, b"declared admin view body")
+
+    def test_alias_with_a_public_name_cannot_bypass_an_admin_view(self):
+        for name in ("anonymous", "cosmetic_admin_profile", "tester"):
+            with self.subTest(principal=name):
+                response = self._client(PRINCIPAL_SESSIONS[name]).get("/__test__/alias/dashboard")
+                self.assertSentToLogin(response, "/admin/login")
+        response = self._client(PRINCIPAL_SESSIONS["admin"]).get("/__test__/alias/dashboard")
+        self.assertEqual(response.status_code, 200)
+
+    def test_alias_with_an_admin_name_keeps_the_teacher_policy(self):
+        anonymous = self._client({}).get("/__test__/alias/new")
+        self.assertSentToLogin(anonymous, "/tester/login")
+        tester = self._client(PRINCIPAL_SESSIONS["tester"]).get("/__test__/alias/new")
+        self.assertEqual(tester.status_code, 200)
 
 
 class AccessPolicyRouteTest(IsolatedAppTestCase):
@@ -397,6 +560,46 @@ class AccessPolicyRouteTest(IsolatedAppTestCase):
             "/teacher/new", data=data, headers={"Origin": "http://localhost"})
         self.assertEqual(accepted.status_code, 302)
         self.assertIn("/teacher/assignment/", accepted.headers["Location"])
+
+    def test_authorized_session_still_needs_a_same_origin_request(self):
+        # Authorization never implies request integrity.
+        self._as_admin()
+        for headers in (
+            {"Origin": "http://evil.example"},
+            {"Referer": "http://evil.example/teacher/dzi-training"},
+        ):
+            with self.subTest(headers=headers):
+                response = self.client.post("/teacher/dzi-training", data={}, headers=headers)
+                self.assertEqual(response.status_code, 403)
+
+    def test_same_origin_request_is_still_authorized_separately(self):
+        # Request integrity never implies authorization.
+        same_origin = {"Origin": "http://localhost"}
+        data = {"section_id": str(self.section_id), "question_count": "1", "time_limit_minutes": ""}
+        anonymous = self.client.post("/teacher/new", data=data, headers=same_origin)
+        self.assertEqual(anonymous.status_code, 302)
+        self.assertEqual(anonymous.headers["Location"], "/tester/login?next=/teacher/new")
+
+        self._as_tester()
+        tester = self.client.post("/teacher/dzi-training", data={}, headers=same_origin)
+        self.assertEqual(tester.status_code, 302)
+        self.assertEqual(tester.headers["Location"], "/admin/login?next=/teacher/dzi-training")
+
+    def test_cosmetic_admin_profile_gains_nothing_on_unsafe_requests(self):
+        with self.client.session_transaction() as sess:
+            sess["tester_authenticated"] = True
+            sess["ui_profile"] = "admin"
+        response = self.client.post(
+            "/teacher/dzi-training", data={}, headers={"Origin": "http://localhost"})
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.headers["Location"], "/admin/login?next=/teacher/dzi-training")
+
+    def test_cross_origin_unsafe_request_is_refused_before_authorization(self):
+        # Integrity runs first: an unauthorized cross-origin post is a 403,
+        # exactly as before the cutover, not a login redirect.
+        response = self.client.post(
+            "/teacher/dzi-training", data={}, headers={"Origin": "http://evil.example"})
+        self.assertEqual(response.status_code, 403)
 
 
 if __name__ == "__main__":
