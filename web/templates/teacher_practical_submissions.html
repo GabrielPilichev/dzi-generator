@@ -7,7 +7,7 @@
 {% block breadcrumb %}
     <a href="{{ url_for('index') }}">Начало</a>
     <span>›</span>
-    <a href="{{ url_for('teacher_dashboard') }}">Учител</a>
+    <a href="{{ url_for('teacher.teacher_dashboard') }}">Учител</a>
     <span>›</span>
     Практически файлове
 {% endblock %}
@@ -20,7 +20,7 @@
     <p class="subtitle">Качени решения за практическите задачи 26–28.</p>
   </div>
   <div class="header-actions">
-    <a class="button secondary back-link" href="{{ url_for('teacher_dashboard') }}">Учителско табло</a>
+    <a class="button secondary back-link" href="{{ url_for('teacher.teacher_dashboard') }}">Учителско табло</a>
   </div>
 </section>
 

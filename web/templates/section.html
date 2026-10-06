@@ -32,7 +32,7 @@
 </div>
 
 {% if questions %}
-    {{ review_banner(url_for('teacher_new', section=section.section_slug)) }}
+    {{ review_banner(url_for('teacher.teacher_new', section=section.section_slug)) }}
     {{ section_toolbar(section.section_slug, questions|length) }}
     {{ question_cards(questions) }}
     {{ section_tools_script() }}

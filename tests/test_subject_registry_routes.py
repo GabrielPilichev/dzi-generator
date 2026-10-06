@@ -116,7 +116,7 @@ class SeedSubjectRoutesTest(_RouteTestCase):
     def test_database_error_degrades_every_subject_to_preparation(self):
         self.login()
         boom = sqlite3.OperationalError("simulated availability failure")
-        with patch.object(web_app, "subject_content_grades", side_effect=boom), \
+        with patch("web.services.subject_catalog.subject_content_grades", side_effect=boom), \
                 self.assertLogs(web_app.app.logger, level="WARNING") as logs:
             html = self.html("/")
             nav = _subject_nav(html)

@@ -35,6 +35,7 @@ OLD_ENDPOINTS = (
 )
 CONTROLLER_MODULES = (
     "web/blueprints/dzi.py", "web/blueprints/practical.py", "web/blueprints/quiz.py",
+    "web/blueprints/teacher.py",
 )
 
 
@@ -75,7 +76,7 @@ class PracticalRouteOwnershipTest(unittest.TestCase):
             self.assertNotIn(legacy, web_app.app.view_functions)
 
     def test_later_roadmap_views_have_not_moved(self):
-        for endpoint in ("teacher_dzi_training", "teacher_dashboard", "teacher_new"):
+        for endpoint in ("tester_home", "admin_login", "section_view"):
             with self.subTest(endpoint=endpoint):
                 self.assertEqual(web_app.app.view_functions[endpoint].__module__, "web.app")
 

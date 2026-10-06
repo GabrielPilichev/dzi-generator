@@ -12,6 +12,7 @@ from src.subject_assessment import AssessmentScope
 from tests.dzi_open_fixtures import mark_dzi_question
 from tests.subject_fixtures import add_curriculum, add_membership, add_question, add_section, add_topic, four_options
 from tests.support import IsolatedAppTestCase, web_app
+from web.services import practical as practical_service
 from web.services import quiz as quiz_service
 
 OTHER_SUBJECTS = ('physics', 'biology', 'chemistry', 'mathematics', 'informatics')
@@ -174,7 +175,7 @@ class OpenQuestionScopeTest(IsolatedAppTestCase):
                     self.assertEqual(page.panels, 0)
                     self.assertFalse(any('/dzi/source/' in link and '/practical' in link
                                          for link in page.links))
-                    self.assertEqual(web_app.fetch_practical_assignment_options(
+                    self.assertEqual(practical_service.fetch_practical_assignment_options(
                         conn, scope=AssessmentScope(conn, self.sections[key])), [])
         finally:
             conn.close()
@@ -186,7 +187,7 @@ class OpenQuestionScopeTest(IsolatedAppTestCase):
                 with self.subTest(context=key):
                     scope = AssessmentScope(conn, self.sections[key])
                     self.assertTrue(scope.allows_dzi_content)
-                    sources = web_app.fetch_practical_assignment_options(conn, scope=scope)
+                    sources = practical_service.fetch_practical_assignment_options(conn, scope=scope)
                     self.assertTrue(sources)
                     self.assertTrue(all(source['level'] == 'DZI' for source in sources))
                     page = PracticalPanelProbe(self.form(key))
@@ -201,7 +202,7 @@ class OpenQuestionScopeTest(IsolatedAppTestCase):
         conn = web_app.quiz_db()
         try:
             scope = AssessmentScope(conn, self.sections['dzi'])
-            before = web_app.fetch_practical_assignment_options(conn, scope=scope)
+            before = practical_service.fetch_practical_assignment_options(conn, scope=scope)
             for year, subject, level in ((2091, 'informatika_it', 'school'), (2092, 'physics', 'DZI')):
                 exam = conn.execute('INSERT INTO exams (subject,level,year,session,variant,format_version,source_file) VALUES (?,?,?,\'may\',1,?,?)',
                                     (subject, level, year, web_app.DZI_FORMAT_VERSION, f'practical-fixture-{year}.pdf')).lastrowid
@@ -209,7 +210,7 @@ class OpenQuestionScopeTest(IsolatedAppTestCase):
                                     (exam,)).lastrowid
                 conn.execute("INSERT INTO practical_task_resources (exam_task_id,resource_path,original_filename) VALUES (?,'data/reference/fake.xlsx','ДЗИ.xlsx')",
                              (task,))
-            self.assertEqual(web_app.fetch_practical_assignment_options(conn, scope=scope), before)
+            self.assertEqual(practical_service.fetch_practical_assignment_options(conn, scope=scope), before)
         finally:
             conn.rollback()
             conn.close()

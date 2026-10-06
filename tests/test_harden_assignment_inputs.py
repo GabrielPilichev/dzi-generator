@@ -3,6 +3,7 @@ import unittest
 
 
 from tests.support import IsolatedAppTestCase, web_app
+from web.blueprints import teacher as teacher_module
 from web.services import quiz as quiz_service
 
 class HardenAssignmentInputsTest(IsolatedAppTestCase):
@@ -143,8 +144,8 @@ class HardenAssignmentInputsTest(IsolatedAppTestCase):
         conn.close()
         
         self.assertIsNotNone(new_row)
-        self.assertLessEqual(len(new_row["title_bg"]), web_app.QUIZ_TITLE_MAX_LENGTH)
-        self.assertTrue(new_row["title_bg"].endswith(web_app.QUIZ_DUPLICATE_TITLE_SUFFIX))
+        self.assertLessEqual(len(new_row["title_bg"]), teacher_module.QUIZ_TITLE_MAX_LENGTH)
+        self.assertTrue(new_row["title_bg"].endswith(teacher_module.QUIZ_DUPLICATE_TITLE_SUFFIX))
         
     def test_quiz_start_integrity_error_does_not_claim_attempt(self):
         # Create an assignment

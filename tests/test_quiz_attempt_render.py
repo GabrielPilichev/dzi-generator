@@ -235,8 +235,8 @@ class QuizAttemptRenderTest(IsolatedAppTestCase):
             sess[web_app.quiz_attempt_owner_session_key(attempt_id)] = True
 
     def test_dzi_pool_health_counts_may_2025_v2(self):
-        with self.app.app_context():
-            health = web_app.fetch_dzi_pool_health("may_2025_v2")
+        with quiz_service.quiz_connection() as conn:
+            health = quiz_service.fetch_dzi_pool_health(conn, "may_2025_v2")
 
         self.assertIsNotNone(health)
         self.assertEqual(health["source_slug"], "may_2025_v2")

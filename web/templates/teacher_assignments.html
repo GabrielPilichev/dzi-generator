@@ -7,7 +7,7 @@
 {% block breadcrumb %}
     <a href="{{ url_for('index') }}">Начало</a>
     <span>›</span>
-    <a href="{{ url_for('teacher_dashboard') }}">Учител</a>
+    <a href="{{ url_for('teacher.teacher_dashboard') }}">Учител</a>
     <span>›</span>
     Създадени тестове
 {% endblock %}
@@ -20,7 +20,7 @@
     <p class="subtitle">Всички създадени задания и връзките към тях.</p>
   </div>
   <div class="header-actions">
-    <a class="button" href="{{ url_for('teacher_new') }}">+ Създай нов тест</a>
+    <a class="button" href="{{ url_for('teacher.teacher_new') }}">+ Създай нов тест</a>
   </div>
 </section>
 
@@ -80,11 +80,11 @@
             <td>{{ a.created_at }}</td>
             <td>
               <div class="links">
-                <a href="{{ url_for('teacher_assignment', assignment_id=a.id) }}">Учителски изглед</a>
-                <a href="{{ url_for('teacher_assignment_results', assignment_id=a.id) }}">Резултати</a>
+                <a href="{{ url_for('teacher.teacher_assignment', assignment_id=a.id) }}">Учителски изглед</a>
+                <a href="{{ url_for('teacher.teacher_assignment_results', assignment_id=a.id) }}">Резултати</a>
                 <a href="{{ url_for('quiz_start', assignment_id=a.id) }}">Линк за ученици</a>
                 <form method="post"
-                      action="{{ url_for('teacher_assignment_duplicate', assignment_id=a.id) }}"
+                      action="{{ url_for('teacher.teacher_assignment_duplicate', assignment_id=a.id) }}"
                       class="inline-form"
                       onsubmit="return confirm('Това ще създаде копие на теста „{{ a.title_bg|e }}“ с ново ID. Опитите и отговорите няма да се копират. Продължи?');">
                   <button type="submit" class="link-button">Дублирай</button>
@@ -99,10 +99,10 @@
   {% else %}
     {% if type_filter and type_filter != 'all' %}
       <p class="empty-state">Няма тестове за избрания филтър.</p>
-      <p class="empty-actions"><a class="button secondary" href="{{ url_for('teacher_assignments') }}">Покажи всички</a></p>
+      <p class="empty-actions"><a class="button secondary" href="{{ url_for('teacher.teacher_assignments') }}">Покажи всички</a></p>
     {% else %}
       <p class="empty-state">Все още няма създадени тестове. Създай първо задание, за да получиш линк за учениците.</p>
-      <p class="empty-actions"><a class="button" href="{{ url_for('teacher_new') }}">Създай първи тест</a></p>
+      <p class="empty-actions"><a class="button" href="{{ url_for('teacher.teacher_new') }}">Създай първи тест</a></p>
     {% endif %}
   {% endif %}
 </section>

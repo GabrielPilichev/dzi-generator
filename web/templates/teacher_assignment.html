@@ -8,9 +8,9 @@
 {% block breadcrumb %}
     <a href="{{ url_for('index') }}">Начало</a>
     <span>›</span>
-    <a href="{{ url_for('teacher_dashboard') }}">Учител</a>
+    <a href="{{ url_for('teacher.teacher_dashboard') }}">Учител</a>
     <span>›</span>
-    <a href="{{ url_for('teacher_assignments') }}">Създадени тестове</a>
+    <a href="{{ url_for('teacher.teacher_assignments') }}">Създадени тестове</a>
     <span>›</span>
     Тест #{{ assignment.id }}
 {% endblock %}
@@ -23,10 +23,10 @@
     <p class="subtitle">Споделяем линк за ученици и списък с опити.</p>
   </div>
   <div class="header-actions">
-    <a class="button secondary" href="{{ url_for('teacher_assignment_results', assignment_id=assignment.id) }}">Виж резултати</a>
+    <a class="button secondary" href="{{ url_for('teacher.teacher_assignment_results', assignment_id=assignment.id) }}">Виж резултати</a>
     {% if admin_authenticated %}
       <form method="post"
-            action="{{ url_for('teacher_assignment_duplicate', assignment_id=assignment.id) }}"
+            action="{{ url_for('teacher.teacher_assignment_duplicate', assignment_id=assignment.id) }}"
             class="inline-form"
             onsubmit="return confirm('Това ще създаде копие на теста с ново ID. Опитите и отговорите няма да се копират. Продължи?');">
         <button type="submit" class="button secondary">Дублирай теста</button>
@@ -126,7 +126,7 @@
       {% endif %}
     </div>
   {% endif %}
-  <form method="post" action="{{ url_for('teacher_assignment_edit', assignment_id=assignment.id) }}" class="form-card">
+  <form method="post" action="{{ url_for('teacher.teacher_assignment_edit', assignment_id=assignment.id) }}" class="form-card">
     <label for="edit-title">Заглавие</label>
     <input id="edit-title" name="title_bg" type="text" required maxlength="200"
            value="{{ (edit_form_values.title_bg if edit_form_values else assignment.title_bg) }}">

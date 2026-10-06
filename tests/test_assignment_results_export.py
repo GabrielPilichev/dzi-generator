@@ -5,6 +5,7 @@ import unittest
 
 
 from tests.support import IsolatedAppTestCase, web_app
+from web.blueprints import teacher as teacher_module
 
 
 def _register_dzi_default_denied_test_route(app):
@@ -33,7 +34,7 @@ class QuizCsvCellSafetyTest(unittest.TestCase):
         )
         for value in dangerous:
             with self.subTest(value=value):
-                self.assertEqual(web_app._quiz_csv_text(value), "'" + value)
+                self.assertEqual(teacher_module._quiz_csv_text(value), "'" + value)
 
         safe = (
             "Боян Иванов",
@@ -45,15 +46,15 @@ class QuizCsvCellSafetyTest(unittest.TestCase):
         )
         for value in safe:
             with self.subTest(value=value):
-                self.assertEqual(web_app._quiz_csv_text(value), value)
-        self.assertEqual(web_app._quiz_csv_text(None), "")
-        self.assertEqual(web_app._quiz_csv_text(""), "")
+                self.assertEqual(teacher_module._quiz_csv_text(value), value)
+        self.assertEqual(teacher_module._quiz_csv_text(None), "")
+        self.assertEqual(teacher_module._quiz_csv_text(""), "")
 
     def test_numeric_cells_keep_existing_types_and_formatting(self):
-        self.assertEqual(web_app._quiz_csv_value(None), "")
-        self.assertEqual(web_app._quiz_csv_value(-1), -1)
-        self.assertEqual(web_app._quiz_csv_value(-1.25), -1.25)
-        self.assertEqual(web_app._quiz_format_points(-1.25), "-1.2500")
+        self.assertEqual(teacher_module._quiz_csv_value(None), "")
+        self.assertEqual(teacher_module._quiz_csv_value(-1), -1)
+        self.assertEqual(teacher_module._quiz_csv_value(-1.25), -1.25)
+        self.assertEqual(teacher_module._quiz_format_points(-1.25), "-1.2500")
 
 
 class AssignmentResultsExportTest(IsolatedAppTestCase):
@@ -444,7 +445,7 @@ class AssignmentResultsExportTest(IsolatedAppTestCase):
             response = self.client.get(f"/teacher/assignment/{assignment_id}/results.csv")
             self.assertEqual(response.status_code, 200)
             rows, fieldnames = self._parse_csv(response.data)
-            self.assertEqual(fieldnames, web_app.QUIZ_RESULTS_EXPORT_COLUMNS)
+            self.assertEqual(fieldnames, teacher_module.QUIZ_RESULTS_EXPORT_COLUMNS)
             self.assertEqual(len(rows), 2)
             attempt_row, answer_row = rows
 
