@@ -1,0 +1,213 @@
+{
+  "format_version": 1,
+  "kind": "question_candidate_provenance",
+  "run": {
+    "id": "biology-g8-embryonic-and-postembryonic-development-run-2",
+    "started_at": "2026-10-06T08:40:30Z",
+    "finished_at": "2026-10-06T08:46:00Z",
+    "subject": "biology",
+    "grade": 8,
+    "curriculum": {
+      "education_type": "general",
+      "title": "Биология и здравно образование, 8. клас — общообразователна подготовка"
+    },
+    "targets": [
+      {
+        "section": {
+          "slug": "biology-g8-reproduction-growth-and-development",
+          "title": "Размножаване, растеж и развитие"
+        },
+        "topics": [
+          {
+            "slug": "biology-g8-embryonic-and-postembryonic-development",
+            "title": "Зародишно и следзародишно развитие"
+          }
+        ]
+      }
+    ],
+    "limits": {
+      "max_topics": 1,
+      "max_pages": 8,
+      "max_candidates": 10,
+      "max_candidates_per_source": 10,
+      "max_runtime_minutes": 60
+    },
+    "pages_inspected": 8,
+    "stop_reason": "topic_complete",
+    "collector": "Claude Sonnet 5.5 (High) — Biology Wave 2 supplement",
+    "skill_vocabulary": [
+      "recall",
+      "sequence",
+      "explain",
+      "compare",
+      "apply-health"
+    ],
+    "notes": "8 от таван 10. Ранно спиране: D6 е покрита по един въпрос за инфекция с предпазване, срок на въздействие, лекарства и наркотици; D5 е покрита само чрез пубертета и растежния скок. Не е писан въпрос за подредба на периоди след раждането и за наименувани периоди – няма прочетен източник, който да ги подкрепя в рамките на програмата. Осем опита за четене: 5 страници са използвани; OpenStax 28.5 няма съдържание за периоди (терморегулацията е изключена) и WHO adolescent-health fact sheet върна несвързана страница (отхвърлена); WHO health-topics adolescent-health е прочетена, но не е използвана в кандидат. Обемът на програмата не е проверен в mon.bg (блокиран; по override на Gabriel)."
+  },
+  "not_stored_in_database": [
+    "candidate id",
+    "source type",
+    "source url",
+    "source title",
+    "source publisher",
+    "source retrieved_at",
+    "transformation",
+    "source_ref",
+    "research",
+    "reuse_exception",
+    "explanation",
+    "difficulty",
+    "review (reviewer, reviewed_at, notes)",
+    "run manifest"
+  ],
+  "batches": [
+    {
+      "file": "biology-g8-embryonic-and-postembryonic-development-run-2.embryonic-and-postembryonic-development.json",
+      "source": "reviewed:biology:biology-g8-embryonic-and-postembryonic-development-run-2.embryonic-and-postembryonic-development",
+      "topic_slug": "biology-g8-embryonic-and-postembryonic-development",
+      "questions": [
+        {
+          "number": 1,
+          "candidate_id": "biology-g8-embryonic-and-postembryonic-development-run-2-001",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "medlineplus-puberty",
+            "type": "third_party",
+            "url": "https://medlineplus.gov/puberty.html",
+            "title": "Puberty - MedlinePlus",
+            "retrieved_at": "2026-10-06T08:46:00Z",
+            "publisher": "MedlinePlus (NIH)",
+            "notes": "Прочетена страница. Потвърждава: пубертетът е времето, когато момчето или момичето става полово зряло; при момичетата обикновено е между 8 и 13 г.; растежен скок при двата пола около 2–3 години, който приближава до височината на възрастния, достигната след пубертета; задълбочаване на гласа и мустаци/брада – при момчетата, менструация – при момичетата."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D5 · пубертетът – период на полово съзряване",
+            "skill": "recall",
+            "notes": "MedlinePlus: пубертетът е времето, когато момче или момиче става полово зряло; променя тялото."
+          },
+          "explanation": "Пубертетът е времето в живота, когато момчето или момичето става полово зряло. Той съпровожда развитието след раждането и не принадлежи към зародишното развитие.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 2,
+          "candidate_id": "biology-g8-embryonic-and-postembryonic-development-run-2-002",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "medlineplus-puberty",
+            "type": "third_party",
+            "url": "https://medlineplus.gov/puberty.html",
+            "title": "Puberty - MedlinePlus",
+            "retrieved_at": "2026-10-06T08:46:00Z",
+            "publisher": "MedlinePlus (NIH)",
+            "notes": "Прочетена страница. Потвърждава: пубертетът е времето, когато момчето или момичето става полово зряло; при момичетата обикновено е между 8 и 13 г.; растежен скок при двата пола около 2–3 години, който приближава до височината на възрастния, достигната след пубертета; задълбочаване на гласа и мустаци/брада – при момчетата, менструация – при момичетата."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D5 · растеж след раждането – растежен скок",
+            "skill": "recall",
+            "notes": "MedlinePlus: растежен скок при двата пола около 2–3 години; височината на възрастния – след пубертета."
+          },
+          "explanation": "При момчетата и момичетата растежният скок продължава няколко години. Той ги приближава до височината на възрастния, която достигат след пубертета.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 3,
+          "candidate_id": "biology-g8-embryonic-and-postembryonic-development-run-2-005",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "nhs-rubella",
+            "type": "third_party",
+            "url": "https://www.nhs.uk/conditions/rubella/",
+            "title": "Rubella (German measles) - NHS",
+            "retrieved_at": "2026-10-06T08:46:00Z",
+            "publisher": "NHS",
+            "notes": "Прочетена страница (преглед 13.03.2026). Потвърждава: рубеола в бременността може да увреди плода (спонтанен аборт, проблеми със зрение, слух, сърце, мозък); рискът е най-висок в ранната бременност и не се смята за налице след 20-ата седмица; ваксините MMR/MMRV предпазват, но MMR не е подходяща по време на бременност."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D6 · инфекция в бременността – предпазване чрез ваксинация преди бременността",
+            "skill": "apply-health",
+            "notes": "NHS Rubella: риск за плода; ваксините предпазват; MMR не е подходяща при бременност."
+          },
+          "explanation": "Рубеолата по време на бременност може да увреди плода, а ваксината MMR не е подходяща за бременни. Затова предпазването трябва да стане преди бременността.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 4,
+          "candidate_id": "biology-g8-embryonic-and-postembryonic-development-run-2-006",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "nhs-rubella",
+            "type": "third_party",
+            "url": "https://www.nhs.uk/conditions/rubella/",
+            "title": "Rubella (German measles) - NHS",
+            "retrieved_at": "2026-10-06T08:46:00Z",
+            "publisher": "NHS",
+            "notes": "Прочетена страница (преглед 13.03.2026). Потвърждава: рубеола в бременността може да увреди плода (спонтанен аборт, проблеми със зрение, слух, сърце, мозък); рискът е най-висок в ранната бременност и не се смята за налице след 20-ата седмица; ваксините MMR/MMRV предпазват, но MMR не е подходяща по време на бременност."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D6 · срок на вредно въздействие спрямо залагането на органите",
+            "skill": "compare",
+            "notes": "NHS Rubella: рискът е най-висок рано, няма риск след 20-а седмица. OpenStax 28.2: органи – първите 8 седмици."
+          },
+          "explanation": "Според здравните препоръки рискът при рубеола е най-висок в ранната бременност, а след 20-ата седмица не се смята, че има риск за плода. Най-високият риск съвпада с периода, когато се залагат органите.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 5,
+          "candidate_id": "biology-g8-embryonic-and-postembryonic-development-run-2-007",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "nhs-medicines-in-pregnancy",
+            "type": "third_party",
+            "url": "https://www.nhs.uk/pregnancy/keeping-well/medicines/",
+            "title": "Medicines in pregnancy - NHS",
+            "retrieved_at": "2026-10-06T08:46:00Z",
+            "publisher": "NHS",
+            "notes": "Прочетена страница. Потвърждава: повечето лекарства преминават през плацентата; преди всяко лекарство (и закупено без рецепта) – проверка с фармацевт, акушерка или лекар; предписано редовно лекарство не се спира, без да се говори с лекаря; „естествените“ билкови средства не са непременно безопасни. Страницата е с минала дата за следващ преглед (05.09.2025)."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D6 · лекарства в бременността – не се спират и не се започват на своя глава",
+            "skill": "recall",
+            "notes": "NHS Medicines: говори с лекар веднага; не спирай предписано лекарство без съвет; билковите не са непременно безопасни."
+          },
+          "explanation": "Повечето лекарства преминават през плацентата, но спирането на предписано лекарство без съвет от лекаря може да навреди и на майката, и на бебето. Правилно е веднага да се говори с лекаря. Билковите средства също не са непременно безопасни.",
+          "difficulty": "easy"
+        }
+      ]
+    }
+  ],
+  "not_exported": []
+}

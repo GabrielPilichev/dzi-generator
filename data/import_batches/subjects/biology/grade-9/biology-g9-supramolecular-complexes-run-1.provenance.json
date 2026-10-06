@@ -1,0 +1,801 @@
+{
+  "format_version": 1,
+  "kind": "question_candidate_provenance",
+  "run": {
+    "id": "biology-g9-supramolecular-complexes-run-1",
+    "started_at": "2026-10-06T07:15:08Z",
+    "finished_at": "2026-10-06T07:15:09Z",
+    "subject": "biology",
+    "grade": 9,
+    "curriculum": {
+      "education_type": "general",
+      "title": "Биология и здравно образование, 9. клас — общообразователна подготовка"
+    },
+    "targets": [
+      {
+        "section": {
+          "slug": "biology-g9-supramolecular-complexes",
+          "title": "Надмолекулни комплекси"
+        },
+        "topics": [
+          {
+            "slug": "biology-g9-supramolecular-complexes",
+            "title": "Надмолекулни комплекси"
+          }
+        ]
+      }
+    ],
+    "limits": {
+      "max_topics": 1,
+      "max_pages": 14,
+      "max_candidates": 40,
+      "max_candidates_per_source": 40,
+      "max_runtime_minutes": 60
+    },
+    "pages_inspected": 14,
+    "stop_reason": "topic_complete",
+    "collector": "Claude Sonnet 5.5 (High) — Biology Wave 2",
+    "skill_vocabulary": [
+      "recall",
+      "explain",
+      "sequence",
+      "compare",
+      "apply-health"
+    ],
+    "notes": "See report. Early stop: D1-D5 all covered; further items would repeat a named fact or need an unfetched source (bacterial fission, lysogeny, programme-only examples). Limit deviation: prompt prescribed max_pages 8; 14 pages were fetched during source preflight and claim verification, so the run was restarted with --max-pages 14 to record the true count (13 recorded as sources; WHO rabies page fetched but unused and dropped). Blocked or unusable: mon.bg programme PDF (Cloudflare 403, not recorded as a source because it was not retrieved), genome.gov (egress blocked), one CDC vaccines URL (404). D1 definition and example set (ribosome, chromatin) could not be checked against the programme text. WebFetch summaries were cross-checked against raw page text downloaded with curl for every claim used; two WebFetch statements (WHO measles antiviral, WHO HIV vaccine) were not found in the raw text and were not used."
+  },
+  "not_stored_in_database": [
+    "candidate id",
+    "source type",
+    "source url",
+    "source title",
+    "source publisher",
+    "source retrieved_at",
+    "transformation",
+    "source_ref",
+    "research",
+    "reuse_exception",
+    "explanation",
+    "difficulty",
+    "review (reviewer, reviewed_at, notes)",
+    "run manifest"
+  ],
+  "batches": [
+    {
+      "file": "biology-g9-supramolecular-complexes-run-1.supramolecular-complexes.json",
+      "source": "reviewed:biology:biology-g9-supramolecular-complexes-run-1.supramolecular-complexes",
+      "topic_slug": "biology-g9-supramolecular-complexes",
+      "questions": [
+        {
+          "number": 1,
+          "candidate_id": "biology-g9-supramolecular-complexes-run-1-04",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "os-21-1",
+            "type": "third_party",
+            "url": "https://openstax.org/books/biology-2e/pages/21-1-viral-evolution-morphology-and-classification",
+            "title": "Biology 2e, 21.1 Viral Evolution, Morphology, and Classification",
+            "publisher": "OpenStax",
+            "retrieved_at": "2026-10-06T07:03:30Z",
+            "notes": "Fetched OpenStax Biology 2e viruses chapter page 21.1 (structure; noncellular; capsid; envelope; genome DNA or RNA; receptors)."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D1 · вирусът е комплекс, а не единична молекула",
+            "skill": "recall",
+            "notes": "OpenStax 21.1: a virion consists of a nucleic acid core and a protein capsid."
+          },
+          "explanation": "Надмолекулният комплекс е структура от няколко макромолекули (например нуклеинова киселина и белтъци), свързани в една функционираща единица, каквато е вирусната частица.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 2,
+          "candidate_id": "biology-g9-supramolecular-complexes-run-1-05",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "os-21-1",
+            "type": "third_party",
+            "url": "https://openstax.org/books/biology-2e/pages/21-1-viral-evolution-morphology-and-classification",
+            "title": "Biology 2e, 21.1 Viral Evolution, Morphology, and Classification",
+            "publisher": "OpenStax",
+            "retrieved_at": "2026-10-06T07:03:30Z",
+            "notes": "Fetched OpenStax Biology 2e viruses chapter page 21.1 (structure; noncellular; capsid; envelope; genome DNA or RNA; receptors)."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D2 · вирион: нуклеинова киселина и белтъчна обвивка (капсид)",
+            "skill": "recall",
+            "notes": "OpenStax 21.1: all virions have a nucleic acid genome covered by a protective capsid."
+          },
+          "explanation": "Вирусната частица има нуклеинова киселина (геном), покрита от белтъчна обвивка – капсид. Някои вируси имат и външна обвивка.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 3,
+          "candidate_id": "biology-g9-supramolecular-complexes-run-1-06",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "os-21-1",
+            "type": "third_party",
+            "url": "https://openstax.org/books/biology-2e/pages/21-1-viral-evolution-morphology-and-classification",
+            "title": "Biology 2e, 21.1 Viral Evolution, Morphology, and Classification",
+            "publisher": "OpenStax",
+            "retrieved_at": "2026-10-06T07:03:30Z",
+            "notes": "Fetched OpenStax Biology 2e viruses chapter page 21.1 (structure; noncellular; capsid; envelope; genome DNA or RNA; receptors)."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D2 · мембраната на вирусната обвивка е от клетката гостоприемник",
+            "skill": "recall",
+            "notes": "OpenStax 21.1: envelope made of protein and phospholipid membranes derived from the host cell; influenza is an enveloped virus."
+          },
+          "explanation": "Обвивката на вирусите се получава от мембраните на клетката гостоприемник, в които са вградени вирусни белтъци.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 4,
+          "candidate_id": "biology-g9-supramolecular-complexes-run-1-07",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "os-21-1",
+            "type": "third_party",
+            "url": "https://openstax.org/books/biology-2e/pages/21-1-viral-evolution-morphology-and-classification",
+            "title": "Biology 2e, 21.1 Viral Evolution, Morphology, and Classification",
+            "publisher": "OpenStax",
+            "retrieved_at": "2026-10-06T07:03:30Z",
+            "notes": "Fetched OpenStax Biology 2e viruses chapter page 21.1 (structure; noncellular; capsid; envelope; genome DNA or RNA; receptors)."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D2 · вирусите нямат клетъчен строеж",
+            "skill": "recall",
+            "notes": "OpenStax 21.1: viruses are noncellular; they lack organelles, ribosomes and the plasma membrane."
+          },
+          "explanation": "Вирусите са неклетъчни: нямат собствена плазмена мембрана, цитоплазма, органели и рибозоми. Някои вируси имат обвивка, получена от мембраната на клетката гостоприемник. Те съдържат нуклеинова киселина и белтъци.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 5,
+          "candidate_id": "biology-g9-supramolecular-complexes-run-1-08",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "os-21-1",
+            "type": "third_party",
+            "url": "https://openstax.org/books/biology-2e/pages/21-1-viral-evolution-morphology-and-classification",
+            "title": "Biology 2e, 21.1 Viral Evolution, Morphology, and Classification",
+            "publisher": "OpenStax",
+            "retrieved_at": "2026-10-06T07:03:30Z",
+            "notes": "Fetched OpenStax Biology 2e viruses chapter page 21.1 (structure; noncellular; capsid; envelope; genome DNA or RNA; receptors)."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D2 · генетичен материал: ДНК при клетките, ДНК или РНК при вирусите",
+            "skill": "compare",
+            "notes": "OpenStax 21.1: unlike nearly all living organisms that use DNA, viruses may use either DNA or RNA."
+          },
+          "explanation": "Генетичният материал на клетъчните организми е ДНК. Вирусите могат да имат или ДНК, или РНК.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 6,
+          "candidate_id": "biology-g9-supramolecular-complexes-run-1-09",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "os-21-2",
+            "type": "third_party",
+            "url": "https://openstax.org/books/biology-2e/pages/21-2-virus-infections-and-hosts",
+            "title": "Biology 2e, 21.2 Virus Infections and Hosts",
+            "publisher": "OpenStax",
+            "retrieved_at": "2026-10-06T07:03:30Z",
+            "notes": "Fetched OpenStax Biology 2e page 21.2 (replication cycle stages, release, symptoms origin, phage entry)."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D2 · специфичност на вируса – рецептори на клетката",
+            "skill": "explain",
+            "notes": "OpenStax 21.2 attachment: specificity of virus-receptor interaction determines the host and cells that can be infected."
+          },
+          "explanation": "Прикрепването става към определени рецептори. Специфичността на това взаимодействие определя кои клетки може да зарази даден вирус.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 7,
+          "candidate_id": "biology-g9-supramolecular-complexes-run-1-11",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "os-21-2",
+            "type": "third_party",
+            "url": "https://openstax.org/books/biology-2e/pages/21-2-virus-infections-and-hosts",
+            "title": "Biology 2e, 21.2 Virus Infections and Hosts",
+            "publisher": "OpenStax",
+            "retrieved_at": "2026-10-06T07:03:30Z",
+            "notes": "Fetched OpenStax Biology 2e page 21.2 (replication cycle stages, release, symptoms origin, phage entry)."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D3 · ред на етапите: прикрепване, проникване, синтез, сглобяване, освобождаване",
+            "skill": "sequence",
+            "notes": "OpenStax 21.2: attachment, penetration, uncoating, replication, assembly, release. Uncoating is not listed as a separate option to keep programme-level wording."
+          },
+          "explanation": "Вирусът първо се прикрепя към рецептор и прониква, след това клетката синтезира вирусните части, те се сглобяват в нови частици и накрая се освобождават.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 8,
+          "candidate_id": "biology-g9-supramolecular-complexes-run-1-13",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "os-21-2",
+            "type": "third_party",
+            "url": "https://openstax.org/books/biology-2e/pages/21-2-virus-infections-and-hosts",
+            "title": "Biology 2e, 21.2 Virus Infections and Hosts",
+            "publisher": "OpenStax",
+            "retrieved_at": "2026-10-06T07:03:30Z",
+            "notes": "Fetched OpenStax Biology 2e page 21.2 (replication cycle stages, release, symptoms origin, phage entry)."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D3 · какво осигурява вирусът и какво – клетката гостоприемник",
+            "skill": "explain",
+            "notes": "OpenStax 21.1 (no organelles or ribosomes) and 21.2 (a virus must use host-cell processes; viral mRNA directs the host cell to make capsid proteins)."
+          },
+          "explanation": "Вирусът няма рибозоми, органели и обмяна на веществата. Той осигурява само своята нуклеинова киселина с информацията, а клетката – машинарията за синтез.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 9,
+          "candidate_id": "biology-g9-supramolecular-complexes-run-1-14",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "os-21-2",
+            "type": "third_party",
+            "url": "https://openstax.org/books/biology-2e/pages/21-2-virus-infections-and-hosts",
+            "title": "Biology 2e, 21.2 Virus Infections and Hosts",
+            "publisher": "OpenStax",
+            "retrieved_at": "2026-10-06T07:03:30Z",
+            "notes": "Fetched OpenStax Biology 2e page 21.2 (replication cycle stages, release, symptoms origin, phage entry)."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D3 · при бактериофаг навлиза само нуклеиновата киселина",
+            "skill": "recall",
+            "notes": "OpenStax 21.2: the nucleic acid of bacteriophages enters the host cell naked, leaving the capsid outside."
+          },
+          "explanation": "Нуклеиновата киселина на бактериофага навлиза „гола“ в клетката, а капсидът остава отвън.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 10,
+          "candidate_id": "biology-g9-supramolecular-complexes-run-1-15",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "os-21-2",
+            "type": "third_party",
+            "url": "https://openstax.org/books/biology-2e/pages/21-2-virus-infections-and-hosts",
+            "title": "Biology 2e, 21.2 Virus Infections and Hosts",
+            "publisher": "OpenStax",
+            "retrieved_at": "2026-10-06T07:03:30Z",
+            "notes": "Fetched OpenStax Biology 2e page 21.2 (replication cycle stages, release, symptoms origin, phage entry)."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D3 · пъпкуване – клетката остава жива и продължава да изгражда вируси",
+            "skill": "explain",
+            "notes": "OpenStax 21.2: many animal viruses such as HIV leave by budding without immediately killing the cell; influenza figure answer: the host cell can continue to make virus particles."
+          },
+          "explanation": "При пъпкуване клетката не умира веднага и продължава да произвежда нови вирусни частици.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 11,
+          "candidate_id": "biology-g9-supramolecular-complexes-run-1-18",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "os-21-2",
+            "type": "third_party",
+            "url": "https://openstax.org/books/biology-2e/pages/21-2-virus-infections-and-hosts",
+            "title": "Biology 2e, 21.2 Virus Infections and Hosts",
+            "publisher": "OpenStax",
+            "retrieved_at": "2026-10-06T07:03:30Z",
+            "notes": "Fetched OpenStax Biology 2e page 21.2 (replication cycle stages, release, symptoms origin, phage entry)."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D3 · разграждане на капсида – достъп до нуклеиновата киселина",
+            "skill": "recall",
+            "notes": "OpenStax 21.2: once inside, the viral capsid degrades and the viral nucleic acid is released and becomes available for replication and transcription."
+          },
+          "explanation": "Разграждането на капсида следва проникването и предхожда синтеза: освободената нуклеинова киселина става достъпна за клетъчните ензими.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 12,
+          "candidate_id": "biology-g9-supramolecular-complexes-run-1-20",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "os-21-2",
+            "type": "third_party",
+            "url": "https://openstax.org/books/biology-2e/pages/21-2-virus-infections-and-hosts",
+            "title": "Biology 2e, 21.2 Virus Infections and Hosts",
+            "publisher": "OpenStax",
+            "retrieved_at": "2026-10-06T07:03:30Z",
+            "notes": "Fetched OpenStax Biology 2e page 21.2 (replication cycle stages, release, symptoms origin, phage entry)."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D3 · условия за размножаване: подходяща жива клетка с рецептори",
+            "skill": "explain",
+            "notes": "OpenStax 21.1 and 21.2: virus lacks ribosomes and uses host-cell processes; attachment to a receptor is required for penetration. Thought experiment, no health claim."
+          },
+          "explanation": "Вирусът няма собствени рибозоми и обмяна на веществата, затова му трябва жива клетка (проба 2 отпада). Освен това трябва да се прикрепи към рецептор (проба 3 отпада).",
+          "difficulty": "hard"
+        },
+        {
+          "number": 13,
+          "candidate_id": "biology-g9-supramolecular-complexes-run-1-22",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "who-flu",
+            "type": "third_party",
+            "url": "https://www.who.int/news-room/fact-sheets/detail/influenza-(seasonal)",
+            "title": "Influenza (seasonal) fact sheet",
+            "publisher": "World Health Organization",
+            "retrieved_at": "2026-10-06T07:03:30Z",
+            "notes": "Fetched WHO influenza fact sheet (droplets, symptoms, tissue and handwashing)."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D4 · грип – типични признаци",
+            "skill": "recall",
+            "notes": "WHO influenza fact sheet: sudden onset of fever, usually dry cough, headache, muscle and joint pain. Distractors from WHO hepatitis, measles and HIV pages."
+          },
+          "explanation": "Грипът започва внезапно с треска, суха кашлица, главоболие и болки в мускулите и ставите. Другите набори описват хепатит, морбили и ХИВ.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 14,
+          "candidate_id": "biology-g9-supramolecular-complexes-run-1-23",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "cdc-flu",
+            "type": "third_party",
+            "url": "https://www.cdc.gov/flu/about/index.html",
+            "title": "About Influenza",
+            "publisher": "CDC",
+            "retrieved_at": "2026-10-06T07:03:30Z",
+            "notes": "Fetched CDC influenza page (spreads mainly by droplets; covering coughs and sneezes)."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D4 · дихателен етикет – защо покриването на устата ограничава грипа",
+            "skill": "apply-health",
+            "notes": "CDC flu page: spreads mainly by droplets; recommends covering coughs and sneezes. WHO influenza fact sheet: cover mouth and nose with a tissue when coughing and wash hands."
+          },
+          "explanation": "Мярката прекъсва пътя на предаване: кърпичката задържа капчиците, в които са вирусите.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 15,
+          "candidate_id": "biology-g9-supramolecular-complexes-run-1-24",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "who-measles",
+            "type": "third_party",
+            "url": "https://www.who.int/news-room/fact-sheets/detail/measles",
+            "title": "Measles fact sheet",
+            "publisher": "World Health Organization",
+            "retrieved_at": "2026-10-06T07:04:10Z",
+            "notes": "Fetched WHO measles fact sheet (respiratory transmission, symptoms then rash). No counts or ages used."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D4 · морбили – хрема, кашлица, зачервени очи и обрив от лицето надолу",
+            "skill": "recall",
+            "notes": "WHO measles fact sheet: early fever, runny nose, cough, red and watery eyes; rash appears 3 to 5 days later on the face and spreads downward. No numbers used in the item."
+          },
+          "explanation": "Хремата, кашлицата и зачервените очи, последвани от обрив, започващ от лицето и спускащ се надолу, са характерни за морбили.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 16,
+          "candidate_id": "biology-g9-supramolecular-complexes-run-1-27",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "who-hep-b",
+            "type": "third_party",
+            "url": "https://www.who.int/news-room/fact-sheets/detail/hepatitis-b",
+            "title": "Hepatitis B fact sheet",
+            "publisher": "World Health Organization",
+            "retrieved_at": "2026-10-06T07:04:10Z",
+            "notes": "Fetched WHO hepatitis B fact sheet (routes, newborn vaccination, infection in infancy vs adulthood). No numbers used."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D4 · хепатит В – рисково споделяне на инструменти при пиърсинг или татуировка",
+            "skill": "recall",
+            "notes": "WHO hepatitis B fact sheet: spread via blood, unsafe injections and exposure to sharp instruments; avoid sharing or reusing needles and equipment for piercing or tattooing."
+          },
+          "explanation": "Хепатит В се предава чрез кръв и замърсени остри предмети, затова инструментите не бива да се споделят. Здравият външен вид не гарантира, че човек не е заразен.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 17,
+          "candidate_id": "biology-g9-supramolecular-complexes-run-1-28",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "who-hiv",
+            "type": "third_party",
+            "url": "https://www.who.int/news-room/fact-sheets/detail/hiv-aids",
+            "title": "HIV and AIDS fact sheet",
+            "publisher": "World Health Organization",
+            "retrieved_at": "2026-10-06T07:04:10Z",
+            "notes": "Fetched WHO HIV fact sheet (targets white blood cells; routes; not spread by kisses, hugs, sharing food)."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D4 · ХИВ не се предава при ежедневен контакт",
+            "skill": "recall",
+            "notes": "WHO HIV fact sheet: spread by blood, breast milk, semen and vaginal fluids and mother to baby; not spread by kisses, hugs or sharing food. Route level only; STI behaviour belongs to the reproductive topic."
+          },
+          "explanation": "ХИВ се предава чрез кръв, кърма, семенна и вагинална течност и от майка на дете. Не се предава чрез целувки, прегръдки и споделяне на храна.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 18,
+          "candidate_id": "biology-g9-supramolecular-complexes-run-1-29",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "who-hiv",
+            "type": "third_party",
+            "url": "https://www.who.int/news-room/fact-sheets/detail/hiv-aids",
+            "title": "HIV and AIDS fact sheet",
+            "publisher": "World Health Organization",
+            "retrieved_at": "2026-10-06T07:04:10Z",
+            "notes": "Fetched WHO HIV fact sheet (targets white blood cells; routes; not spread by kisses, hugs, sharing food)."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D4 · ХИВ засяга белите кръвни клетки и отслабва защитата",
+            "skill": "explain",
+            "notes": "WHO HIV fact sheet: HIV targets the body white blood cells, weakening the immune system and making it easier to get sick."
+          },
+          "explanation": "ХИВ засяга белите кръвни клетки и отслабва имунната система, затова организмът по-трудно се справя с други инфекции.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 19,
+          "candidate_id": "biology-g9-supramolecular-complexes-run-1-30",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "os-21-2",
+            "type": "third_party",
+            "url": "https://openstax.org/books/biology-2e/pages/21-2-virus-infections-and-hosts",
+            "title": "Biology 2e, 21.2 Virus Infections and Hosts",
+            "publisher": "OpenStax",
+            "retrieved_at": "2026-10-06T07:03:30Z",
+            "notes": "Fetched OpenStax Biology 2e page 21.2 (replication cycle stages, release, symptoms origin, phage entry)."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D4 · признаците на вирусна болест – увреждане на клетки и реакция на организма",
+            "skill": "recall",
+            "notes": "OpenStax 21.2: symptoms of viral diseases result from cell damage caused by the virus and from the immune response to it."
+          },
+          "explanation": "Признаците се дължат на увреждането на заразените клетки и на реакцията на организма срещу вируса.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 20,
+          "candidate_id": "biology-g9-supramolecular-complexes-run-1-31",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "who-measles",
+            "type": "third_party",
+            "url": "https://www.who.int/news-room/fact-sheets/detail/measles",
+            "title": "Measles fact sheet",
+            "publisher": "World Health Organization",
+            "retrieved_at": "2026-10-06T07:04:10Z",
+            "notes": "Fetched WHO measles fact sheet (respiratory transmission, symptoms then rash). No counts or ages used."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D4 · групиране на болести по път на предаване (грип и морбили – дихателни капчици)",
+            "skill": "compare",
+            "notes": "WHO measles fact sheet: spread by coughing, sneezing or breathing the air. WHO influenza, hepatitis A, hepatitis B and HIV pages confirm the other routes."
+          },
+          "explanation": "Грипът и морбили се предават по дихателен път. Хепатит А се предава чрез храна и вода, хепатит В и ХИВ – чрез кръв и телесни течности.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 21,
+          "candidate_id": "biology-g9-supramolecular-complexes-run-1-34",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "cdc-vaccines",
+            "type": "third_party",
+            "url": "https://www.cdc.gov/vaccines/basics/index.html",
+            "title": "Vaccine Basics",
+            "publisher": "CDC",
+            "retrieved_at": "2026-10-06T07:04:50Z",
+            "notes": "Fetched CDC vaccine basics (vaccines imitate an infection to teach the immune system)."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D5 · ваксината е профилактика – подготвя организма преди заразяване",
+            "skill": "recall",
+            "notes": "CDC vaccine basics: vaccines imitate an infection to teach the immune system. WHO how-vaccines-work page: vaccines trigger a response without causing disease. Mechanism (antibodies, memory) deliberately left to the Grade 8 immunity topic."
+          },
+          "explanation": "Ваксините имитират инфекция и така подготвят организма за бъдеща среща с вируса. Целта е предпазване, а не унищожаване на вируси в болния.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 22,
+          "candidate_id": "biology-g9-supramolecular-complexes-run-1-36",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "os-21-3",
+            "type": "third_party",
+            "url": "https://openstax.org/books/biology-2e/pages/21-3-prevention-and-treatment-of-viral-infections",
+            "title": "Biology 2e, 21.3 Prevention and Treatment of Viral Infections",
+            "publisher": "OpenStax",
+            "retrieved_at": "2026-10-06T07:04:30Z",
+            "notes": "Fetched OpenStax Biology 2e page 21.3 (vaccines; influenza mutation vs measles; antivirals)."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D5 · грипна ваксина всяка година, ваксина срещу морбили – години наред",
+            "skill": "compare",
+            "notes": "OpenStax 21.3: influenza surface molecule mutations require yearly vaccination; measles, mumps and rubella mutate so infrequently that the same vaccine is used year after year. WHO measles page confirms respiratory spread (distractor B false)."
+          },
+          "explanation": "Вирусът на грипа бързо променя повърхностните си молекули, затова ваксината се обновява. Вирусите на морбили, паротит и рубеола се променят рядко.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 23,
+          "candidate_id": "biology-g9-supramolecular-complexes-run-1-37",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "who-hep-b",
+            "type": "third_party",
+            "url": "https://www.who.int/news-room/fact-sheets/detail/hepatitis-b",
+            "title": "Hepatitis B fact sheet",
+            "publisher": "World Health Organization",
+            "retrieved_at": "2026-10-06T07:04:10Z",
+            "notes": "Fetched WHO hepatitis B fact sheet (routes, newborn vaccination, infection in infancy vs adulthood). No numbers used."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D5 · ваксина срещу хепатит В още в първите часове след раждането",
+            "skill": "apply-health",
+            "notes": "WHO hepatitis B fact sheet: most commonly transmitted mother to child during birth and in early childhood; infection in infancy and early childhood much more often becomes chronic than adult infection; all babies should receive the vaccine within 24 hours. No percentages used."
+          },
+          "explanation": "Вирусът най-често се предава от майка на дете при раждането и в ранна детска възраст, а при заразяване в тази възраст по-често се стига до хронична инфекция.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 24,
+          "candidate_id": "biology-g9-supramolecular-complexes-run-1-38",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "who-vaccines",
+            "type": "third_party",
+            "url": "https://www.who.int/news-room/feature-stories/detail/how-do-vaccines-work",
+            "title": "How do vaccines work?",
+            "publisher": "World Health Organization",
+            "retrieved_at": "2026-10-06T07:04:50Z",
+            "notes": "Fetched WHO page on how vaccines work (prepare the immune system; herd immunity)."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D5 · колективна защита – ваксинирани около човека, който не може да се ваксинира",
+            "skill": "apply-health",
+            "notes": "WHO how-vaccines-work page: when many people in a community are vaccinated the pathogen has a hard time circulating, protecting those who cannot be vaccinated (herd immunity)."
+          },
+          "explanation": "Когато голяма част от общността е ваксинирана, вирусът трудно циркулира и хората, които не могат да се ваксинират, са по-слабо изложени.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 25,
+          "candidate_id": "biology-g9-supramolecular-complexes-run-1-39",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "cdc-abx",
+            "type": "third_party",
+            "url": "https://www.cdc.gov/antibiotic-use/about/index.html",
+            "title": "About Antibiotic Use and Resistance",
+            "publisher": "CDC",
+            "retrieved_at": "2026-10-06T07:04:30Z",
+            "notes": "Fetched CDC antibiotic page (antibiotics do not work on viruses, incl. flu)."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D5 · антибиотиците не действат срещу вирусни инфекции",
+            "skill": "recall",
+            "notes": "CDC antibiotic use page: antibiotics do not work on viruses, including those that cause flu; will not make you feel better. WHO influenza fact sheet and OpenStax 21.1 establish flu as a viral disease."
+          },
+          "explanation": "Грипът се причинява от вирус, а антибиотиците не лекуват вирусни инфекции. Вирусите не са бактерии.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 26,
+          "candidate_id": "biology-g9-supramolecular-complexes-run-1-41",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "who-hep-a",
+            "type": "third_party",
+            "url": "https://www.who.int/news-room/fact-sheets/detail/hepatitis-a",
+            "title": "Hepatitis A fact sheet",
+            "publisher": "World Health Organization",
+            "retrieved_at": "2026-10-06T07:04:10Z",
+            "notes": "Fetched WHO hepatitis A fact sheet (faecal-oral route, symptoms, safe water and hygiene)."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D5 · ситуация: хепатит А – признаци, път на предаване и мярка",
+            "skill": "apply-health",
+            "notes": "WHO hepatitis A fact sheet: dark urine and jaundice; faecal-oral route via contaminated food or water; associated with lack of safe water, sanitation and hygiene. Jaundice also occurs in hepatitis B (WHO), so the shared food and water source is the discriminating cue."
+          },
+          "explanation": "Жълтеницата и тъмната урина при група деца, които са яли и пили от общ замърсен източник, сочат хепатит А. Той се предава по фекално-орален път и се предотвратява с безопасна вода, хигиена на храната и миене на ръцете.",
+          "difficulty": "medium"
+        }
+      ]
+    }
+  ],
+  "not_exported": []
+}

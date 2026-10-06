@@ -1,0 +1,914 @@
+{
+  "format_version": 1,
+  "kind": "question_candidate_provenance",
+  "run": {
+    "id": "biology-g8-excretory-system-run-1",
+    "started_at": "2026-10-06T07:04:45Z",
+    "finished_at": "2026-10-06T07:09:21Z",
+    "subject": "biology",
+    "grade": 8,
+    "curriculum": {
+      "education_type": "general",
+      "title": "Биология и здравно образование, 8. клас — общообразователна подготовка"
+    },
+    "targets": [
+      {
+        "section": {
+          "slug": "biology-g8-metabolism",
+          "title": "Обмяна на веществата"
+        },
+        "topics": [
+          {
+            "slug": "biology-g8-excretory-system",
+            "title": "Отделителна система"
+          }
+        ]
+      }
+    ],
+    "limits": {
+      "max_topics": 1,
+      "max_pages": 8,
+      "max_candidates": 40,
+      "max_candidates_per_source": 40,
+      "max_runtime_minutes": 60
+    },
+    "pages_inspected": 8,
+    "stop_reason": "topic_complete",
+    "collector": "Claude Sonnet 5.5 (Medium) — Biology Wave 2",
+    "skill_vocabulary": [
+      "recall",
+      "explain",
+      "sequence",
+      "compare",
+      "apply-health",
+      "interpret-data"
+    ],
+    "notes": "Sources: all eight required-source pages fetched and read (NIDDK x3, NHS x3, OpenStax x2); none blocked. Network override: mon.bg and ncbi.nlm.nih.gov not used; curriculum scope taken only from the tracked structure file (data/subject_structures/biology/grade-8.json) and the plan dimensions D1-D6, so no mon.bg official source is recorded. pages_inspected is recorded at the limit of 8: during research 15 pages were fetched in total (4 more NIDDK/NHS and 3 more OpenStax pages), but only these 8 are cited and every claim rests on them. Wave 1 labels not repeated: cell-and-tissues #24 (kidneys and bladder as a system), skin #11/#15/#22 (sweat composition, skin vs kidneys, water at sweating). Near-neighbours kept: D4 dark-urine item (skin water-at-sweating is a different fact). Not collected: nephron transport mechanisms, daily urine volumes, nephron counts, ADH/hormone control (endocrine topic), antibiotic course advice (source page not within page limit)."
+  },
+  "not_stored_in_database": [
+    "candidate id",
+    "source type",
+    "source url",
+    "source title",
+    "source publisher",
+    "source retrieved_at",
+    "transformation",
+    "source_ref",
+    "research",
+    "reuse_exception",
+    "explanation",
+    "difficulty",
+    "review (reviewer, reviewed_at, notes)",
+    "run manifest"
+  ],
+  "batches": [
+    {
+      "file": "biology-g8-excretory-system-run-1.excretory-system.json",
+      "source": "reviewed:biology:biology-g8-excretory-system-run-1.excretory-system",
+      "topic_slug": "biology-g8-excretory-system",
+      "questions": [
+        {
+          "number": 1,
+          "candidate_id": "biology-g8-excretory-system-run-1-001",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "niddk-kidneys",
+            "type": "third_party",
+            "url": "https://www.niddk.nih.gov/health-information/kidney-disease/kidneys-how-they-work",
+            "title": "Your Kidneys & How They Work",
+            "publisher": "NIH NIDDK",
+            "retrieved_at": "2026-10-06T07:12:00Z",
+            "notes": "Kidney location, nephron (glomerulus + tubule), filtering and return of needed substances, renal artery/vein, ureters and bladder, water/salt/acid balance."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D1 · пикочен мехур – събиране на урината",
+            "skill": "recall",
+            "notes": "NIDDK page: the bladder stores urine."
+          },
+          "explanation": "Урината се образува в бъбреците, тече по пикочопроводите и се съхранява в пикочния мехур. Пикочният канал само я извежда навън.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 2,
+          "candidate_id": "biology-g8-excretory-system-run-1-002",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "niddk-kidneys",
+            "type": "third_party",
+            "url": "https://www.niddk.nih.gov/health-information/kidney-disease/kidneys-how-they-work",
+            "title": "Your Kidneys & How They Work",
+            "publisher": "NIH NIDDK",
+            "retrieved_at": "2026-10-06T07:12:00Z",
+            "notes": "Kidney location, nephron (glomerulus + tubule), filtering and return of needed substances, renal artery/vein, ureters and bladder, water/salt/acid balance."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D1 · път на урината през органите",
+            "skill": "recall",
+            "notes": "NIDDK page: urine flows from kidneys to bladder through ureters; OpenStax 25.2: urethra carries urine from bladder out of the body. A memorised order, so tagged recall."
+          },
+          "explanation": "Урината се образува в бъбрека, отвежда се по пикочопровода до мехура и от него излиза през пикочния канал.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 3,
+          "candidate_id": "biology-g8-excretory-system-run-1-005",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "niddk-kidneys",
+            "type": "third_party",
+            "url": "https://www.niddk.nih.gov/health-information/kidney-disease/kidneys-how-they-work",
+            "title": "Your Kidneys & How They Work",
+            "publisher": "NIH NIDDK",
+            "retrieved_at": "2026-10-06T07:12:00Z",
+            "notes": "Kidney location, nephron (glomerulus + tubule), filtering and return of needed substances, renal artery/vein, ureters and bladder, water/salt/acid balance."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D1 · местоположение на бъбреците",
+            "skill": "recall",
+            "notes": "NIDDK page: two bean-shaped organs just below the rib cage, one on each side of the spine."
+          },
+          "explanation": "Бъбреците са два органа с форма на боб, разположени от двете страни на гръбначния стълб, малко под ребрената клетка.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 4,
+          "candidate_id": "biology-g8-excretory-system-run-1-006",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "niddk-kidneys",
+            "type": "third_party",
+            "url": "https://www.niddk.nih.gov/health-information/kidney-disease/kidneys-how-they-work",
+            "title": "Your Kidneys & How They Work",
+            "publisher": "NIH NIDDK",
+            "retrieved_at": "2026-10-06T07:12:00Z",
+            "notes": "Kidney location, nephron (glomerulus + tubule), filtering and return of needed substances, renal artery/vein, ureters and bladder, water/salt/acid balance."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D2 · основна функция на бъбреците",
+            "skill": "recall",
+            "notes": "NIDDK page: kidneys filter blood, removing wastes and extra water to make urine."
+          },
+          "explanation": "Бъбреците филтрират кръвта и от отпадъците и излишната вода образуват урина.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 5,
+          "candidate_id": "biology-g8-excretory-system-run-1-007",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "niddk-kidneys",
+            "type": "third_party",
+            "url": "https://www.niddk.nih.gov/health-information/kidney-disease/kidneys-how-they-work",
+            "title": "Your Kidneys & How They Work",
+            "publisher": "NIH NIDDK",
+            "retrieved_at": "2026-10-06T07:12:00Z",
+            "notes": "Kidney location, nephron (glomerulus + tubule), filtering and return of needed substances, renal artery/vein, ureters and bladder, water/salt/acid balance."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D2 · нефрон – структурна единица",
+            "skill": "recall",
+            "notes": "NIDDK page: each kidney is made of filtering units called nephrons, each with a glomerulus and a tubule."
+          },
+          "explanation": "Всеки бъбрек е изграден от много нефрони. Всеки нефрон има гломерул, който филтрира кръвта, и каналче.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 6,
+          "candidate_id": "biology-g8-excretory-system-run-1-008",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "niddk-kidneys",
+            "type": "third_party",
+            "url": "https://www.niddk.nih.gov/health-information/kidney-disease/kidneys-how-they-work",
+            "title": "Your Kidneys & How They Work",
+            "publisher": "NIH NIDDK",
+            "retrieved_at": "2026-10-06T07:12:00Z",
+            "notes": "Kidney location, nephron (glomerulus + tubule), filtering and return of needed substances, renal artery/vein, ureters and bladder, water/salt/acid balance."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D2 · гломерул – защо задържа кръвните клетки",
+            "skill": "recall",
+            "notes": "NIDDK page: thin glomerulus walls let smaller molecules, wastes and fluid pass; proteins and blood cells stay in the vessel."
+          },
+          "explanation": "Филтрирането зависи от размера на частиците. Тънките стени пропускат малки молекули, отпадъци и вода, а по-големите частици, като белтъци и кръвни клетки, остават в кръвоносния съд.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 7,
+          "candidate_id": "biology-g8-excretory-system-run-1-009",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "niddk-kidneys",
+            "type": "third_party",
+            "url": "https://www.niddk.nih.gov/health-information/kidney-disease/kidneys-how-they-work",
+            "title": "Your Kidneys & How They Work",
+            "publisher": "NIH NIDDK",
+            "retrieved_at": "2026-10-06T07:12:00Z",
+            "notes": "Kidney location, nephron (glomerulus + tubule), filtering and return of needed substances, renal artery/vein, ureters and bladder, water/salt/acid balance."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D2 · гломерул и каналче – разлика във функциите",
+            "skill": "compare",
+            "notes": "NIDDK page: glomerulus filters the blood; tubule returns needed substances to blood and removes wastes."
+          },
+          "explanation": "Гломерулът е филтърът, а каналчето връща нужните вещества и води останалата течност с отпадъците като урина.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 8,
+          "candidate_id": "biology-g8-excretory-system-run-1-010",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "niddk-kidneys",
+            "type": "third_party",
+            "url": "https://www.niddk.nih.gov/health-information/kidney-disease/kidneys-how-they-work",
+            "title": "Your Kidneys & How They Work",
+            "publisher": "NIH NIDDK",
+            "retrieved_at": "2026-10-06T07:12:00Z",
+            "notes": "Kidney location, nephron (glomerulus + tubule), filtering and return of needed substances, renal artery/vein, ureters and bladder, water/salt/acid balance."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D2 · кръвоток през бъбрека",
+            "skill": "recall",
+            "notes": "NIDDK page: blood flows in through the renal artery, is filtered in the glomeruli and exits through the renal vein; the ureter carries urine."
+          },
+          "explanation": "Кръвта постъпва в бъбрека по бъбречната артерия, филтрира се в нефроните и излиза по бъбречната вена. Урината е отделна течност и се отвежда по пикочопровода.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 9,
+          "candidate_id": "biology-g8-excretory-system-run-1-011",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "niddk-kidneys",
+            "type": "third_party",
+            "url": "https://www.niddk.nih.gov/health-information/kidney-disease/kidneys-how-they-work",
+            "title": "Your Kidneys & How They Work",
+            "publisher": "NIH NIDDK",
+            "retrieved_at": "2026-10-06T07:12:00Z",
+            "notes": "Kidney location, nephron (glomerulus + tubule), filtering and return of needed substances, renal artery/vein, ureters and bladder, water/salt/acid balance."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D3 · етапи на образуване на урина – последователност",
+            "skill": "sequence",
+            "notes": "NIDDK page: the glomerulus filters, then the tubule returns needed substances; wastes and extra water become urine, stored in the bladder."
+          },
+          "explanation": "Първо кръвта се филтрира в гломерула, после каналчето връща в кръвта нужното от филтрата. Останалото е урината, която се събира в мехура и накрая се изхвърля. Нещо не може да се върне, преди да е било филтрирано.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 10,
+          "candidate_id": "biology-g8-excretory-system-run-1-012",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "niddk-kidneys",
+            "type": "third_party",
+            "url": "https://www.niddk.nih.gov/health-information/kidney-disease/kidneys-how-they-work",
+            "title": "Your Kidneys & How They Work",
+            "publisher": "NIH NIDDK",
+            "retrieved_at": "2026-10-06T07:12:00Z",
+            "notes": "Kidney location, nephron (glomerulus + tubule), filtering and return of needed substances, renal artery/vein, ureters and bladder, water/salt/acid balance."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D3 · връщане на водата в кръвта",
+            "skill": "explain",
+            "notes": "NIDDK page: the vessel alongside the tubule reabsorbs almost all of the water, minerals and nutrients; only a small part becomes urine."
+          },
+          "explanation": "В каналчето кръвоносен съд абсорбира почти цялата вода заедно с нужните минерали и хранителни вещества. Затова само малка част от филтрата става урина.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 11,
+          "candidate_id": "biology-g8-excretory-system-run-1-014",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "niddk-kidneys",
+            "type": "third_party",
+            "url": "https://www.niddk.nih.gov/health-information/kidney-disease/kidneys-how-they-work",
+            "title": "Your Kidneys & How They Work",
+            "publisher": "NIH NIDDK",
+            "retrieved_at": "2026-10-06T07:12:00Z",
+            "notes": "Kidney location, nephron (glomerulus + tubule), filtering and return of needed substances, renal artery/vein, ureters and bladder, water/salt/acid balance."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D3 · запушване на пикочопровод – последица",
+            "skill": "explain",
+            "notes": "NIDDK page: two ureters, one on each side of the bladder; NHS CKD page lists blockages in the flow of urine (e.g. kidney stones) as a cause of kidney problems."
+          },
+          "explanation": "Всеки бъбрек има собствен пикочопровод. При запушване на левия урината от левия бъбрек не може да стигне до мехура, а десният бъбрек и десният пикочопровод работят нормално. Подобни запушвания са опасни и се лекуват от лекар.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 12,
+          "candidate_id": "biology-g8-excretory-system-run-1-015",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-urine",
+            "type": "third_party",
+            "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/25-1-physical-characteristics-of-urine",
+            "title": "25.1 Physical Characteristics of Urine",
+            "publisher": "OpenStax Anatomy and Physiology 2e",
+            "retrieved_at": "2026-10-06T07:12:00Z",
+            "notes": "Urine findings: protein means glomerular damage, no cells normally, leukocytes suggest UTI, glucose in diabetes mellitus, colour and hydration."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D4 · белтък в урината – увредени гломерули",
+            "skill": "interpret-data",
+            "notes": "OpenStax 25.1: only trace protein is normal; excess protein usually means the glomerulus is damaged and lets protein leak into the filtrate."
+          },
+          "explanation": "В здрав организъм белтъците не преминават през гломерула и в урината има само следи от белтък. Много белтък показва, че гломерулите са увредени и го пропускат.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 13,
+          "candidate_id": "biology-g8-excretory-system-run-1-016",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-urine",
+            "type": "third_party",
+            "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/25-1-physical-characteristics-of-urine",
+            "title": "25.1 Physical Characteristics of Urine",
+            "publisher": "OpenStax Anatomy and Physiology 2e",
+            "retrieved_at": "2026-10-06T07:12:00Z",
+            "notes": "Urine findings: protein means glomerular damage, no cells normally, leukocytes suggest UTI, glucose in diabetes mellitus, colour and hydration."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D4 · левкоцити и бактерии – инфекция",
+            "skill": "interpret-data",
+            "notes": "OpenStax 25.1: leukocytes in urine may indicate a urinary tract infection; NIDDK UTI page: burning urination is a symptom and bacteria the common cause."
+          },
+          "explanation": "Левкоцитите в урината са индиректен знак за инфекция, а паренето и бактериите насочват към инфекция на пикочните пътища. Недостигът на вода оцветява урината по-тъмно, а увредените гломерули са свързани с белтък.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 14,
+          "candidate_id": "biology-g8-excretory-system-run-1-017",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-urine",
+            "type": "third_party",
+            "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/25-1-physical-characteristics-of-urine",
+            "title": "25.1 Physical Characteristics of Urine",
+            "publisher": "OpenStax Anatomy and Physiology 2e",
+            "retrieved_at": "2026-10-06T07:12:00Z",
+            "notes": "Urine findings: protein means glomerular damage, no cells normally, leukocytes suggest UTI, glucose in diabetes mellitus, colour and hydration."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D4 · глюкоза в урината – захарен диабет",
+            "skill": "recall",
+            "notes": "OpenStax 25.1: in diabetes mellitus blood glucose exceeds the available transporters and glucose appears in the urine."
+          },
+          "explanation": "При захарен диабет кръвната глюкоза е толкова висока, че каналчетата не успяват да я върнат цялата в кръвта и част от нея се появява в урината.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 15,
+          "candidate_id": "biology-g8-excretory-system-run-1-018",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-urine",
+            "type": "third_party",
+            "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/25-1-physical-characteristics-of-urine",
+            "title": "25.1 Physical Characteristics of Urine",
+            "publisher": "OpenStax Anatomy and Physiology 2e",
+            "retrieved_at": "2026-10-06T07:12:00Z",
+            "notes": "Urine findings: protein means glomerular damage, no cells normally, leukocytes suggest UTI, glucose in diabetes mellitus, colour and hydration."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D4 · кръвни клетки не са нормален състав",
+            "skill": "recall",
+            "notes": "OpenStax 25.1: cells are not normally found in urine; urine colour comes from urochrome; filtered solutes include ions and wastes."
+          },
+          "explanation": "Нормалната урина съдържа вода, разтворени вещества и жълтия пигмент урохром. Кръвни клетки в нея обикновено няма, защото гломерулите ги задържат в кръвта.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 16,
+          "candidate_id": "biology-g8-excretory-system-run-1-019",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "nhs-stones",
+            "type": "third_party",
+            "url": "https://www.nhs.uk/conditions/kidney-stones/",
+            "title": "Kidney stones",
+            "publisher": "NHS",
+            "retrieved_at": "2026-10-06T07:12:00Z",
+            "notes": "Stone formation, symptoms, prevention (water, salt, dark pee = dehydration)."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D4 · тъмна урина – недостиг на вода",
+            "skill": "recall",
+            "notes": "NHS kidney stones page: if pee is dark, it means dehydration and more water is needed. OpenStax 25.1 also says colour roughly describes hydration. Wave 1 skin item 22 (water at sweating) is a different fact; this item tests reading urine colour."
+          },
+          "explanation": "Тъмната урина е признак за недостиг на вода и показва, че трябва да се пие повече. Много вода прави урината светла, а увредените гломерули и инфекциите се доказват с изследване.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 17,
+          "candidate_id": "biology-g8-excretory-system-run-1-020",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "nhs-kidney-infection",
+            "type": "third_party",
+            "url": "https://www.nhs.uk/conditions/kidney-infection/",
+            "title": "Kidney infection",
+            "publisher": "NHS",
+            "retrieved_at": "2026-10-06T07:12:00Z",
+            "notes": "Kidney infection causes, symptoms, medical advice for blood in pee, do not hold pee in and empty bladder fully."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D4 · кръв в урината – обръщане към лекар",
+            "skill": "recall",
+            "notes": "NHS kidney infection page lists blood in pee under advice to seek an urgent GP appointment or NHS 111; NIDDK/NHS also list blood in urine as a symptom of stones. OpenStax 25.1: blood is not normally present in urine."
+          },
+          "explanation": "Кръв в урината не бива да се пренебрегва, защото може да е признак на инфекция или бъбречен камък. Причината се установява от лекар. Антибиотици не се вземат без преглед.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 18,
+          "candidate_id": "biology-g8-excretory-system-run-1-021",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "niddk-uti",
+            "type": "third_party",
+            "url": "https://www.niddk.nih.gov/health-information/urologic-diseases/bladder-infection-uti-in-adults",
+            "title": "Bladder Infection (UTI) in Adults",
+            "publisher": "NIH NIDDK",
+            "retrieved_at": "2026-10-06T07:12:00Z",
+            "notes": "Bladder infection: bacteria, symptoms, untreated infection can reach kidneys, fluids and loose clothing for prevention."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D5 · причина за инфекция на пикочния мехур",
+            "skill": "recall",
+            "notes": "NIDDK UTI page: a bladder infection is most often caused by bacteria that enter the bladder and multiply."
+          },
+          "explanation": "Инфекцията на мехура най-често се причинява от бактерии, които навлизат в него и се размножават.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 19,
+          "candidate_id": "biology-g8-excretory-system-run-1-022",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "niddk-uti",
+            "type": "third_party",
+            "url": "https://www.niddk.nih.gov/health-information/urologic-diseases/bladder-infection-uti-in-adults",
+            "title": "Bladder Infection (UTI) in Adults",
+            "publisher": "NIH NIDDK",
+            "retrieved_at": "2026-10-06T07:12:00Z",
+            "notes": "Bladder infection: bacteria, symptoms, untreated infection can reach kidneys, fluids and loose clothing for prevention."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D5 · нелекувана инфекция – бъбречна инфекция",
+            "skill": "recall",
+            "notes": "NIDDK UTI page: if untreated, a bladder infection can develop into a kidney infection; NHS kidney infection page: often caused by cystitis."
+          },
+          "explanation": "Ако не се лекува, инфекцията на мехура може да стигне до бъбреците и да се превърне в бъбречна инфекция.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 20,
+          "candidate_id": "biology-g8-excretory-system-run-1-023",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "niddk-uti",
+            "type": "third_party",
+            "url": "https://www.niddk.nih.gov/health-information/urologic-diseases/bladder-infection-uti-in-adults",
+            "title": "Bladder Infection (UTI) in Adults",
+            "publisher": "NIH NIDDK",
+            "retrieved_at": "2026-10-06T07:12:00Z",
+            "notes": "Bladder infection: bacteria, symptoms, untreated infection can reach kidneys, fluids and loose clothing for prevention."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D5 · пиене на течности – превенция на инфекции",
+            "skill": "recall",
+            "notes": "NIDDK UTI page: drinking lots of liquids may help prevent bladder infections, water is best; loose-fitting clothing helps keep the urinary tract healthy."
+          },
+          "explanation": "Пиенето на много течности, най-добре вода, помага за предпазване от инфекции на мехура. Препоръчват се и свободни дрехи.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 21,
+          "candidate_id": "biology-g8-excretory-system-run-1-024",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "nhs-kidney-infection",
+            "type": "third_party",
+            "url": "https://www.nhs.uk/conditions/kidney-infection/",
+            "title": "Kidney infection",
+            "publisher": "NHS",
+            "retrieved_at": "2026-10-06T07:12:00Z",
+            "notes": "Kidney infection causes, symptoms, medical advice for blood in pee, do not hold pee in and empty bladder fully."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D5 · задържане на урина",
+            "skill": "recall",
+            "notes": "NHS kidney infection page: do not hold your pee in if you feel the urge; always try to fully empty your bladder (listed among things that can help prevent infection coming back)."
+          },
+          "explanation": "Не бива да се задържа урина при позив, а мехурът трябва да се изпразва докрай. Така се намалява рискът от пикочни инфекции.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 22,
+          "candidate_id": "biology-g8-excretory-system-run-1-025",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "nhs-stones",
+            "type": "third_party",
+            "url": "https://www.nhs.uk/conditions/kidney-stones/",
+            "title": "Kidney stones",
+            "publisher": "NHS",
+            "retrieved_at": "2026-10-06T07:12:00Z",
+            "notes": "Stone formation, symptoms, prevention (water, salt, dark pee = dehydration)."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D5 · камък и инфекция на мехура – различаване на признаци",
+            "skill": "compare",
+            "notes": "NHS kidney stones page: pain usually starts in the side or lower back and may come and go; cloudy pee and needing to pee often also listed. NIDDK UTI page: burning urination is a UTI symptom."
+          },
+          "explanation": "Силната болка на пристъпи в хълбока или гърба е типична за камък. Паренето при уриниране е признак на инфекция, а мътната урина и честото уриниране се срещат и при двете състояния.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 23,
+          "candidate_id": "biology-g8-excretory-system-run-1-026",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "nhs-stones",
+            "type": "third_party",
+            "url": "https://www.nhs.uk/conditions/kidney-stones/",
+            "title": "Kidney stones",
+            "publisher": "NHS",
+            "retrieved_at": "2026-10-06T07:12:00Z",
+            "notes": "Stone formation, symptoms, prevention (water, salt, dark pee = dehydration)."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D5 · бъбречен камък – как се образува",
+            "skill": "recall",
+            "notes": "NHS kidney stones page: usually caused by a build-up of chemicals found in pee which form hard lumps in the kidneys."
+          },
+          "explanation": "Камъкът се образува, когато в урината има много определени вещества и минерали, които се натрупват и образуват твърда частица в бъбреците.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 24,
+          "candidate_id": "biology-g8-excretory-system-run-1-027",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "nhs-stones",
+            "type": "third_party",
+            "url": "https://www.nhs.uk/conditions/kidney-stones/",
+            "title": "Kidney stones",
+            "publisher": "NHS",
+            "retrieved_at": "2026-10-06T07:12:00Z",
+            "notes": "Stone formation, symptoms, prevention (water, salt, dark pee = dehydration)."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D5 · предпазване от бъбречни камъни",
+            "skill": "recall",
+            "notes": "NHS kidney stones page: drink enough water, avoid lots of fizzy/caffeinated/alcoholic drinks, do not have too much salt, dark pee means you need to drink more. Water advice overlaps item on UTI prevention only in the general idea; this item adds salt and the dark-pee rule. Correction pass (R2): salt advice per NHS kidney stones page (do not have too much salt; limit fizzy/caffeinated/alcoholic drinks)."
+          },
+          "explanation": "Освен достатъчно вода, за предпазване от камъни не се прекалява със солта. Газираните, кофеиновите и алкохолните напитки се ограничават, а тъмната урина е знак за недостиг на вода.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 25,
+          "candidate_id": "biology-g8-excretory-system-run-1-028",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "niddk-ckd",
+            "type": "third_party",
+            "url": "https://www.niddk.nih.gov/health-information/kidney-disease/chronic-kidney-disease-ckd",
+            "title": "Chronic Kidney Disease (CKD)",
+            "publisher": "NIH NIDDK",
+            "retrieved_at": "2026-10-06T07:12:00Z",
+            "notes": "CKD causes (diabetes, high blood pressure), testing, blood-pressure control, dialysis or transplant when kidneys fail."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D5 · причини за хронично бъбречно заболяване",
+            "skill": "recall",
+            "notes": "NIDDK CKD page: diabetes and high blood pressure are the most common causes in adults; NHS CKD page: high blood pressure strains kidney vessels and excess glucose damages the filters."
+          },
+          "explanation": "Най-честите причини са захарният диабет и високото кръвно налягане, които с времето увреждат малките съдове и филтрите на бъбреците.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 26,
+          "candidate_id": "biology-g8-excretory-system-run-1-029",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "nhs-ckd",
+            "type": "third_party",
+            "url": "https://www.nhs.uk/conditions/kidney-disease/",
+            "title": "Chronic kidney disease",
+            "publisher": "NHS",
+            "retrieved_at": "2026-10-06T07:12:00Z",
+            "notes": "CKD: no early symptoms, found by blood/urine tests, causes, dialysis replicates some kidney functions."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D5 · хронично бъбречно заболяване – късно откриване",
+            "skill": "recall",
+            "notes": "NHS CKD page: usually no symptoms early on; often diagnosed by blood or urine tests done for another reason; at-risk people may be advised to have regular tests."
+          },
+          "explanation": "В началото обикновено няма оплаквания и заболяването често се открива случайно с изследване на кръв и урина. Затова рисковите групи се изследват редовно.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 27,
+          "candidate_id": "biology-g8-excretory-system-run-1-030",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "niddk-ckd",
+            "type": "third_party",
+            "url": "https://www.niddk.nih.gov/health-information/kidney-disease/chronic-kidney-disease-ckd",
+            "title": "Chronic Kidney Disease (CKD)",
+            "publisher": "NIH NIDDK",
+            "retrieved_at": "2026-10-06T07:12:00Z",
+            "notes": "CKD causes (diabetes, high blood pressure), testing, blood-pressure control, dialysis or transplant when kidneys fail."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D5 · хронично бъбречно заболяване – предпазване",
+            "skill": "recall",
+            "notes": "NIDDK CKD page: people with diabetes or high blood pressure should get tested; controlling blood pressure is the most important step; healthy habits protect kidneys."
+          },
+          "explanation": "Хората с диабет и високо кръвно налягане са в риск, затова се изследват, контролират кръвното налягане и водят здравословен начин на живот.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 28,
+          "candidate_id": "biology-g8-excretory-system-run-1-031",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-transport",
+            "type": "third_party",
+            "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/25-2-gross-anatomy-of-urine-transport",
+            "title": "25.2 Gross Anatomy of Urine Transport",
+            "publisher": "OpenStax Anatomy and Physiology 2e",
+            "retrieved_at": "2026-10-06T07:12:00Z",
+            "notes": "Ureters, bladder, urethra: roles and path of urine; shorter female urethra explains more UTI."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D5 · по-чести инфекции при жените",
+            "skill": "explain",
+            "notes": "OpenStax 25.2: the short female urethra (about 4 cm) is less of a barrier to bacteria than the longer male urethra, the best explanation for greater UTI incidence in females. The figure is in the explanation only, not in the question."
+          },
+          "explanation": "Пикочният канал при жените е много по-къс от мъжкия и е по-слаба преграда за бактериите.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 29,
+          "candidate_id": "biology-g8-excretory-system-run-1-032",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "niddk-kidneys",
+            "type": "third_party",
+            "url": "https://www.niddk.nih.gov/health-information/kidney-disease/kidneys-how-they-work",
+            "title": "Your Kidneys & How They Work",
+            "publisher": "NIH NIDDK",
+            "retrieved_at": "2026-10-06T07:12:00Z",
+            "notes": "Kidney location, nephron (glomerulus + tubule), filtering and return of needed substances, renal artery/vein, ureters and bladder, water/salt/acid balance."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D6 · бъбреците и баланса на вода и соли",
+            "skill": "recall",
+            "notes": "NIDDK page: kidneys maintain a healthy balance of water, salts and minerals in the blood; without it nerves, muscles and other tissues may not work normally."
+          },
+          "explanation": "Бъбреците поддържат постоянно съдържанието на вода, соли и минерали в кръвта и така запазват постоянството на вътрешната среда. Без този баланс нервите, мускулите и други тъкани не работят нормално.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 30,
+          "candidate_id": "biology-g8-excretory-system-run-1-033",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "niddk-kidneys",
+            "type": "third_party",
+            "url": "https://www.niddk.nih.gov/health-information/kidney-disease/kidneys-how-they-work",
+            "title": "Your Kidneys & How They Work",
+            "publisher": "NIH NIDDK",
+            "retrieved_at": "2026-10-06T07:12:00Z",
+            "notes": "Kidney location, nephron (glomerulus + tubule), filtering and return of needed substances, renal artery/vein, ureters and bladder, water/salt/acid balance."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D6 · киселина и отпадъци от кръвта",
+            "skill": "recall",
+            "notes": "NIDDK page: kidneys remove wastes, extra fluid and acid produced by the cells. Correction pass (R2): urea as end product of protein breakdown per OpenStax A&P 2e 25.1."
+          },
+          "explanation": "Бъбреците отстраняват отпадъчни продукти като урея, която се образува при разграждането на белтъци, излишните соли и излишната вода. Нужните вещества се връщат в кръвта.",
+          "difficulty": "easy"
+        }
+      ]
+    }
+  ],
+  "not_exported": []
+}

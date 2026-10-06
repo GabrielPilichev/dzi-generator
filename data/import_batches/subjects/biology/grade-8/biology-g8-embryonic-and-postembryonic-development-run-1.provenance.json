@@ -1,0 +1,689 @@
+{
+  "format_version": 1,
+  "kind": "question_candidate_provenance",
+  "run": {
+    "id": "biology-g8-embryonic-and-postembryonic-development-run-1",
+    "started_at": "2026-10-06T07:03:50Z",
+    "finished_at": "2026-10-06T07:40:00Z",
+    "subject": "biology",
+    "grade": 8,
+    "curriculum": {
+      "education_type": "general",
+      "title": "Биология и здравно образование, 8. клас — общообразователна подготовка"
+    },
+    "targets": [
+      {
+        "section": {
+          "slug": "biology-g8-reproduction-growth-and-development",
+          "title": "Размножаване, растеж и развитие"
+        },
+        "topics": [
+          {
+            "slug": "biology-g8-embryonic-and-postembryonic-development",
+            "title": "Зародишно и следзародишно развитие"
+          }
+        ]
+      }
+    ],
+    "limits": {
+      "max_topics": 1,
+      "max_pages": 8,
+      "max_candidates": 37,
+      "max_candidates_per_source": 37,
+      "max_runtime_minutes": 60
+    },
+    "pages_inspected": 8,
+    "stop_reason": "topic_complete",
+    "collector": "Claude Sonnet 5.5 (Medium) — Biology Wave 2",
+    "skill_vocabulary": [
+      "recall",
+      "sequence",
+      "explain",
+      "compare",
+      "apply-health"
+    ],
+    "notes": "27 от 37. Ранно спиране: за D5 (периоди след раждането и техните белези) и за рисковете от инфекции, лекарства и наркотици няма извлечен авторитетен източник в рамките на 8 страници, затова те не са писани (правило за източници). D5 е покрита само чрез новороденото. Обемът на програмата не е проверен в mon.bg (блокиран; по override на Gabriel); обхватът е от структурния преглед в хранилището. Три сондиращи заявки (NHS 404, OpenStax 28.4 празна, CDC индекс) не са прочетени и не са броени."
+  },
+  "not_stored_in_database": [
+    "candidate id",
+    "source type",
+    "source url",
+    "source title",
+    "source publisher",
+    "source retrieved_at",
+    "transformation",
+    "source_ref",
+    "research",
+    "reuse_exception",
+    "explanation",
+    "difficulty",
+    "review (reviewer, reviewed_at, notes)",
+    "run manifest"
+  ],
+  "batches": [
+    {
+      "file": "biology-g8-embryonic-and-postembryonic-development-run-1.embryonic-and-postembryonic-development.json",
+      "source": "reviewed:biology:biology-g8-embryonic-and-postembryonic-development-run-1.embryonic-and-postembryonic-development",
+      "topic_slug": "biology-g8-embryonic-and-postembryonic-development",
+      "questions": [
+        {
+          "number": 1,
+          "candidate_id": "biology-g8-embryonic-and-postembryonic-development-run-1-001",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "os-ap2e-28-1-fertilization",
+            "type": "third_party",
+            "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/28-1-fertilization",
+            "title": "OpenStax Anatomy and Physiology 2e, 28.1 Fertilization",
+            "retrieved_at": "2026-10-06T07:06:00Z",
+            "publisher": "OpenStax",
+            "notes": "Потвърждава: сливане на сперматозоид и яйцеклетка дава зигота с генетичен материал от двамата родители; оплождането е в маточната тръба, защото неоплодената яйцеклетка не оцелява при пътя до матката."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D1 · зигота – клетката след оплождането",
+            "skill": "recall",
+            "notes": "OpenStax 28.1: слети ядра на сперматозоид и яйцеклетка образуват зиготата."
+          },
+          "explanation": "Сливането на ядрата на двете полови клетки образува зигота – първата клетка на новия организъм. Зародишът е многоклетъчен и се развива по-късно.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 2,
+          "candidate_id": "biology-g8-embryonic-and-postembryonic-development-run-1-002",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "os-ap2e-28-1-fertilization",
+            "type": "third_party",
+            "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/28-1-fertilization",
+            "title": "OpenStax Anatomy and Physiology 2e, 28.1 Fertilization",
+            "retrieved_at": "2026-10-06T07:06:00Z",
+            "publisher": "OpenStax",
+            "notes": "Потвърждава: сливане на сперматозоид и яйцеклетка дава зигота с генетичен материал от двамата родители; оплождането е в маточната тръба, защото неоплодената яйцеклетка не оцелява при пътя до матката."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D1 · зигота – генетичен материал от двамата родители",
+            "skill": "recall",
+            "notes": "OpenStax 28.1: зиготата съдържа генетичен материал – половината от всеки биологичен родител."
+          },
+          "explanation": "Всяка полова клетка носи половината от генетичния материал; при оплождането те се обединяват в зиготата.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 3,
+          "candidate_id": "biology-g8-embryonic-and-postembryonic-development-run-1-003",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "os-ap2e-28-1-fertilization",
+            "type": "third_party",
+            "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/28-1-fertilization",
+            "title": "OpenStax Anatomy and Physiology 2e, 28.1 Fertilization",
+            "retrieved_at": "2026-10-06T07:06:00Z",
+            "publisher": "OpenStax",
+            "notes": "Потвърждава: сливане на сперматозоид и яйцеклетка дава зигота с генетичен материал от двамата родители; оплождането е в маточната тръба, защото неоплодената яйцеклетка не оцелява при пътя до матката."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D1 · място на оплождането – защо в маточната тръба",
+            "skill": "explain",
+            "notes": "OpenStax 28.1: оплождането е в дисталната маточна тръба, защото неоплодена яйцеклетка не издържа пътя до матката."
+          },
+          "explanation": "Яйцеклетката живее ограничено време; ако не бъде оплодена в тръбата, не достига до матката жизнеспособна. Образува се в яйчника, а околоплодната течност се появява по-късно.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 4,
+          "candidate_id": "biology-g8-embryonic-and-postembryonic-development-run-1-004",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "os-ap2e-28-2-embryonic-development",
+            "type": "third_party",
+            "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/28-2-embryonic-development",
+            "title": "OpenStax Anatomy and Physiology 2e, 28.2 Embryonic Development",
+            "retrieved_at": "2026-10-06T07:06:00Z",
+            "publisher": "OpenStax",
+            "notes": "Потвърждава: деления на зиготата, вграждане в матката, околоплодна течност, плацента и пъпна връв, обмен на вещества без смесване на кръвта, пропускливост на плацентата за алкохол и никотин."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D2 · последователност на ранните събития (логика)",
+            "skill": "sequence",
+            "notes": "OpenStax 28.2: деления по пътя към матката, вграждане в края на първата седмица, плацентата поема храненето по-късно."
+          },
+          "explanation": "Първо се образува зиготата, тя се дели по пътя към матката, после се вгражда в лигавицата ѝ и чак след това плацентата поема храненето.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 5,
+          "candidate_id": "biology-g8-embryonic-and-postembryonic-development-run-1-005",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "os-ap2e-28-2-embryonic-development",
+            "type": "third_party",
+            "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/28-2-embryonic-development",
+            "title": "OpenStax Anatomy and Physiology 2e, 28.2 Embryonic Development",
+            "retrieved_at": "2026-10-06T07:06:00Z",
+            "publisher": "OpenStax",
+            "notes": "Потвърждава: деления на зиготата, вграждане в матката, околоплодна течност, плацента и пъпна връв, обмен на вещества без смесване на кръвта, пропускливост на плацентата за алкохол и никотин."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D2 · последователност зигота – зародиш – плод – новородено",
+            "skill": "recall",
+            "notes": "OpenStax 28.2 и 28.3: зародиш (embryo) преди плод (fetus) до раждането."
+          },
+          "explanation": "Развитието започва от зиготата, следват зародишният и плодовият период, а раждането дава новороденото.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 6,
+          "candidate_id": "biology-g8-embryonic-and-postembryonic-development-run-1-006",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "os-ap2e-28-3-fetal-development",
+            "type": "third_party",
+            "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/28-3-fetal-development",
+            "title": "OpenStax Anatomy and Physiology 2e, 28.3 Fetal Development",
+            "retrieved_at": "2026-10-06T07:06:00Z",
+            "publisher": "OpenStax",
+            "notes": "Потвърждава: плод е организмът от девета седмица до раждането; плодовият период развива структурите и функциите на заложените в зародишния период системи; белите дробове на плода не работят."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D2 · зародиш и плод – сравнение по същност на периода",
+            "skill": "compare",
+            "notes": "OpenStax 28.2: до края на зародишния период органните системи са заложени, но не напълно функционални; 28.3: плодовият период развива структурите и функциите им."
+          },
+          "explanation": "В зародишния период всички системи се залагат в първоначален вид; в плодовия те растат и узряват, докато плодът стане способен да оцелее извън майката.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 7,
+          "candidate_id": "biology-g8-embryonic-and-postembryonic-development-run-1-007",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "os-ap2e-28-2-embryonic-development",
+            "type": "third_party",
+            "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/28-2-embryonic-development",
+            "title": "OpenStax Anatomy and Physiology 2e, 28.2 Embryonic Development",
+            "retrieved_at": "2026-10-06T07:06:00Z",
+            "publisher": "OpenStax",
+            "notes": "Потвърждава: деления на зиготата, вграждане в матката, околоплодна течност, плацента и пъпна връв, обмен на вещества без смесване на кръвта, пропускливост на плацентата за алкохол и никотин."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D2 · вграждане (имплантация) на зародиша",
+            "skill": "recall",
+            "notes": "OpenStax 28.2: implantation – зародишът се вгражда в лигавицата на матката."
+          },
+          "explanation": "Вгнездяването е прикрепването на зародиша към лигавицата на матката.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 8,
+          "candidate_id": "biology-g8-embryonic-and-postembryonic-development-run-1-008",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "os-ap2e-28-2-embryonic-development",
+            "type": "third_party",
+            "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/28-2-embryonic-development",
+            "title": "OpenStax Anatomy and Physiology 2e, 28.2 Embryonic Development",
+            "retrieved_at": "2026-10-06T07:06:00Z",
+            "publisher": "OpenStax",
+            "notes": "Потвърждава: деления на зиготата, вграждане в матката, околоплодна течност, плацента и пъпна връв, обмен на вещества без смесване на кръвта, пропускливост на плацентата за алкохол и никотин."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D2 · значение на вграждането за развитието",
+            "skill": "recall",
+            "notes": "OpenStax 28.2: след вграждането лигавицата на матката, а после плацентата, изхранват зародиша; невградените бластоцисти се изхвърлят с менструацията."
+          },
+          "explanation": "Без вграждане зародишът няма връзка с майчиния организъм, откъдето получава хранителни вещества и кислород, и развитието спира.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 9,
+          "candidate_id": "biology-g8-embryonic-and-postembryonic-development-run-1-009",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "os-ap2e-28-2-embryonic-development",
+            "type": "third_party",
+            "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/28-2-embryonic-development",
+            "title": "OpenStax Anatomy and Physiology 2e, 28.2 Embryonic Development",
+            "retrieved_at": "2026-10-06T07:06:00Z",
+            "publisher": "OpenStax",
+            "notes": "Потвърждава: деления на зиготата, вграждане в матката, околоплодна течност, плацента и пъпна връв, обмен на вещества без смесване на кръвта, пропускливост на плацентата за алкохол и никотин."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D2 · околоплодна течност – защитна роля",
+            "skill": "recall",
+            "notes": "OpenStax 28.2: амнионът и околоплодната течност предпазват от травми и резки температурни промени."
+          },
+          "explanation": "Околоплодната течност амортизира ударите и поддържа почти постоянна температура. Храненето и дишането са чрез плацентата и пъпната връв.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 10,
+          "candidate_id": "biology-g8-embryonic-and-postembryonic-development-run-1-010",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "os-ap2e-28-2-embryonic-development",
+            "type": "third_party",
+            "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/28-2-embryonic-development",
+            "title": "OpenStax Anatomy and Physiology 2e, 28.2 Embryonic Development",
+            "retrieved_at": "2026-10-06T07:06:00Z",
+            "publisher": "OpenStax",
+            "notes": "Потвърждава: деления на зиготата, вграждане в матката, околоплодна течност, плацента и пъпна връв, обмен на вещества без смесване на кръвта, пропускливост на плацентата за алкохол и никотин."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D3 · плацента – орган за обмяна на вещества",
+            "skill": "recall",
+            "notes": "OpenStax 28.2: плацентата е органът за обмен на хранителни вещества, отпадъци и газове между майката и развиващия се плод."
+          },
+          "explanation": "Плацентата е органът за обмяна на хранителни вещества, газове и отпадъци между майката и плода. Пъпната връв само свързва плода с нея.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 11,
+          "candidate_id": "biology-g8-embryonic-and-postembryonic-development-run-1-012",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "os-ap2e-28-2-embryonic-development",
+            "type": "third_party",
+            "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/28-2-embryonic-development",
+            "title": "OpenStax Anatomy and Physiology 2e, 28.2 Embryonic Development",
+            "retrieved_at": "2026-10-06T07:06:00Z",
+            "publisher": "OpenStax",
+            "notes": "Потвърждава: деления на зиготата, вграждане в матката, околоплодна течност, плацента и пъпна връв, обмен на вещества без смесване на кръвта, пропускливост на плацентата за алкохол и никотин."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D3 · майчина и плодова кръв не се смесват",
+            "skill": "explain",
+            "notes": "OpenStax 28.2: майчината и плодовата кръв не се смесват, кръвните клетки не преминават; обменът е двупосочен."
+          },
+          "explanation": "Обменът е през стените на съдовете в хорионните въси. Той е двупосочен и без смесване на кръвта.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 12,
+          "candidate_id": "biology-g8-embryonic-and-postembryonic-development-run-1-013",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "os-ap2e-28-2-embryonic-development",
+            "type": "third_party",
+            "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/28-2-embryonic-development",
+            "title": "OpenStax Anatomy and Physiology 2e, 28.2 Embryonic Development",
+            "retrieved_at": "2026-10-06T07:06:00Z",
+            "publisher": "OpenStax",
+            "notes": "Потвърждава: деления на зиготата, вграждане в матката, околоплодна течност, плацента и пъпна връв, обмен на вещества без смесване на кръвта, пропускливост на плацентата за алкохол и никотин."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D3 · плацента и пъпна връв – различни роли",
+            "skill": "compare",
+            "notes": "OpenStax 28.2: плацентата е свързана с плода чрез пъпната връв; плацентата е от зародишни и майчини тъкани; артерии и вена в кордона."
+          },
+          "explanation": "Плацентата е органът за обмен; пъпната връв е връзката със съдове между плода и плацентата. Плацентата е от тъкани на плода и на майката, а съдовете водят кръв в двете посоки.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 13,
+          "candidate_id": "biology-g8-embryonic-and-postembryonic-development-run-1-015",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "os-ap2e-28-5-newborn-adjustments",
+            "type": "third_party",
+            "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/28-5-adjustments-of-the-infant-at-birth-and-postnatal-stages",
+            "title": "OpenStax Anatomy and Physiology 2e, 28.5 Adjustments of the Infant at Birth and Postnatal Stages",
+            "retrieved_at": "2026-10-06T07:06:00Z",
+            "publisher": "OpenStax",
+            "notes": "Потвърждава: контракциите изтласкват плода през родовия канал; първото вдишване разширява белите дробове; новороденото губи топлина лесно (голяма повърхност спрямо обема)."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D4 · съкращения на матката при раждането",
+            "skill": "recall",
+            "notes": "OpenStax 28.5: контракциите по време на раждането изтласкват плода през родовия канал."
+          },
+          "explanation": "Родилните контракции са съкращения на матката, които изтласкват плода през родовия канал.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 14,
+          "candidate_id": "biology-g8-embryonic-and-postembryonic-development-run-1-016",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "os-ap2e-28-5-newborn-adjustments",
+            "type": "third_party",
+            "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/28-5-adjustments-of-the-infant-at-birth-and-postnatal-stages",
+            "title": "OpenStax Anatomy and Physiology 2e, 28.5 Adjustments of the Infant at Birth and Postnatal Stages",
+            "retrieved_at": "2026-10-06T07:06:00Z",
+            "publisher": "OpenStax",
+            "notes": "Потвърждава: контракциите изтласкват плода през родовия канал; първото вдишване разширява белите дробове; новороденото губи топлина лесно (голяма повърхност спрямо обема)."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D4 · първо вдишване след раждането",
+            "skill": "recall",
+            "notes": "OpenStax 28.5: първото вдишване разширява белите дробове; дотогава те са частично спаднали и пълни с течност."
+          },
+          "explanation": "С първото вдишване белите дробове се изпълват с въздух и поемат дишането, а кръвообращението се преустроява.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 15,
+          "candidate_id": "biology-g8-embryonic-and-postembryonic-development-run-1-018",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "nhs-drinking-alcohol-while-pregnant",
+            "type": "third_party",
+            "url": "https://www.nhs.uk/pregnancy/keeping-well/drinking-alcohol-while-pregnant/",
+            "title": "Drinking alcohol while pregnant - NHS",
+            "retrieved_at": "2026-10-06T07:06:00Z",
+            "publisher": "NHS",
+            "notes": "Потвърждава: алкохолът преминава през плацентата; плодът няма напълно развит черен дроб; риск от FASD; при вече изпит алкохол в ранна бременност – да се спре и да се говори с акушерка или лекар. Страницата е с минала дата за следващ преглед (13.03.2026); CDC и СЗО са в същия смисъл."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D6 · алкохол – път до плода през плацентата",
+            "skill": "recall",
+            "notes": "NHS: алкохолът преминава от кръвта през плацентата към бебето; OpenStax 28.2 – плацентата е пропусклива за алкохол."
+          },
+          "explanation": "Алкохолът преминава от майчината кръв през плацентата, затова плацентата не е пълна преграда.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 16,
+          "candidate_id": "biology-g8-embryonic-and-postembryonic-development-run-1-019",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "nhs-drinking-alcohol-while-pregnant",
+            "type": "third_party",
+            "url": "https://www.nhs.uk/pregnancy/keeping-well/drinking-alcohol-while-pregnant/",
+            "title": "Drinking alcohol while pregnant - NHS",
+            "retrieved_at": "2026-10-06T07:06:00Z",
+            "publisher": "NHS",
+            "notes": "Потвърждава: алкохолът преминава през плацентата; плодът няма напълно развит черен дроб; риск от FASD; при вече изпит алкохол в ранна бременност – да се спре и да се говори с акушерка или лекар. Страницата е с минала дата за следващ преглед (13.03.2026); CDC и СЗО са в същия смисъл."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D6 · незрял черен дроб на плода",
+            "skill": "recall",
+            "notes": "NHS: плодът няма напълно развит черен дроб и не може да преработва алкохола."
+          },
+          "explanation": "Плодът не може сам да обезвреди алкохола, защото черният му дроб не е напълно развит.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 17,
+          "candidate_id": "biology-g8-embryonic-and-postembryonic-development-run-1-020",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "nhs-drinking-alcohol-while-pregnant",
+            "type": "third_party",
+            "url": "https://www.nhs.uk/pregnancy/keeping-well/drinking-alcohol-while-pregnant/",
+            "title": "Drinking alcohol while pregnant - NHS",
+            "retrieved_at": "2026-10-06T07:06:00Z",
+            "publisher": "NHS",
+            "notes": "Потвърждава: алкохолът преминава през плацентата; плодът няма напълно развит черен дроб; риск от FASD; при вече изпит алкохол в ранна бременност – да се спре и да се говори с акушерка или лекар. Страницата е с минала дата за следващ преглед (13.03.2026); CDC и СЗО са в същия смисъл."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D6 · последици от алкохола – FASD",
+            "skill": "recall",
+            "notes": "NHS и WHO: FASD е дългосрочно състояние с учебни, поведенчески и физически проблеми и вродени дефекти."
+          },
+          "explanation": "Алкохолът може да причини фетален алкохолен спектър – трайни увреждания в ученето, поведението и развитието.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 18,
+          "candidate_id": "biology-g8-embryonic-and-postembryonic-development-run-1-022",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "cdc-about-alcohol-use-during-pregnancy",
+            "type": "third_party",
+            "url": "https://www.cdc.gov/alcohol-pregnancy/about/index.html",
+            "title": "About Alcohol Use During Pregnancy - CDC",
+            "retrieved_at": "2026-10-06T07:06:00Z",
+            "publisher": "CDC",
+            "notes": "Потвърждава: няма известно безопасно количество и няма безопасен период; всички видове алкохол могат да навредят; никога не е късно да се спре."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D6 · алкохол – няма безопасно количество и период",
+            "skill": "recall",
+            "notes": "CDC: no known safe amount, no safe time, all types of alcohol can be harmful."
+          },
+          "explanation": "Според CDC няма безопасно количество и няма безопасно време, а виното, бирата и спиртните напитки са еднакво рискови.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 19,
+          "candidate_id": "biology-g8-embryonic-and-postembryonic-development-run-1-023",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "nhs-stop-smoking-in-pregnancy",
+            "type": "third_party",
+            "url": "https://www.nhs.uk/pregnancy/keeping-well/stop-smoking/",
+            "title": "Stop smoking in pregnancy - NHS",
+            "retrieved_at": "2026-10-06T07:06:00Z",
+            "publisher": "NHS",
+            "notes": "Потвърждава: пушенето ограничава кислорода към плода; рискове – преждевременно раждане, ниско тегло, мъртвораждане; спирането помага дори в последните седмици; пасивният дим вреди преди и след раждането (бронхит, пневмония, астма)."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D6 · пушене – намален кислород към плода",
+            "skill": "recall",
+            "notes": "NHS: цигарите могат да ограничат доставката на кислород към бебето и сърцето му бие по-силно."
+          },
+          "explanation": "Тютюневият дим и въглеродният оксид намаляват кислорода към плода, затова сърцето му трябва да бие по-усилено.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 20,
+          "candidate_id": "biology-g8-embryonic-and-postembryonic-development-run-1-024",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "nhs-stop-smoking-in-pregnancy",
+            "type": "third_party",
+            "url": "https://www.nhs.uk/pregnancy/keeping-well/stop-smoking/",
+            "title": "Stop smoking in pregnancy - NHS",
+            "retrieved_at": "2026-10-06T07:06:00Z",
+            "publisher": "NHS",
+            "notes": "Потвърждава: пушенето ограничава кислорода към плода; рискове – преждевременно раждане, ниско тегло, мъртвораждане; спирането помага дори в последните седмици; пасивният дим вреди преди и след раждането (бронхит, пневмония, астма)."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D6 · пушене – последици за изхода на бременността",
+            "skill": "recall",
+            "notes": "NHS: при спиране бебето е по-малко вероятно да се роди рано и с ниско тегло; пушачите раждат по-леки бебета."
+          },
+          "explanation": "Спирането на пушенето намалява риска от преждевременно раждане и ниско тегло, затова пушенето ги увеличава.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 21,
+          "candidate_id": "biology-g8-embryonic-and-postembryonic-development-run-1-025",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "nhs-stop-smoking-in-pregnancy",
+            "type": "third_party",
+            "url": "https://www.nhs.uk/pregnancy/keeping-well/stop-smoking/",
+            "title": "Stop smoking in pregnancy - NHS",
+            "retrieved_at": "2026-10-06T07:06:00Z",
+            "publisher": "NHS",
+            "notes": "Потвърждава: пушенето ограничава кислорода към плода; рискове – преждевременно раждане, ниско тегло, мъртвораждане; спирането помага дори в последните седмици; пасивният дим вреди преди и след раждането (бронхит, пневмония, астма)."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D6 · пасивно пушене по време на бременност",
+            "skill": "recall",
+            "notes": "NHS: вторичният дим може да засегне бебето преди и след раждането и да намали теглото му."
+          },
+          "explanation": "Вторичният дим може да намали теглото при раждане и вреди преди и след раждането.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 22,
+          "candidate_id": "biology-g8-embryonic-and-postembryonic-development-run-1-026",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "nhs-stop-smoking-in-pregnancy",
+            "type": "third_party",
+            "url": "https://www.nhs.uk/pregnancy/keeping-well/stop-smoking/",
+            "title": "Stop smoking in pregnancy - NHS",
+            "retrieved_at": "2026-10-06T07:06:00Z",
+            "publisher": "NHS",
+            "notes": "Потвърждава: пушенето ограничава кислорода към плода; рискове – преждевременно раждане, ниско тегло, мъртвораждане; спирането помага дори в последните седмици; пасивният дим вреди преди и след раждането (бронхит, пневмония, астма)."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave2-r2-r2b-resolution-approval",
+            "reviewed_at": "2026-10-06T09:00:41Z",
+            "notes": "Approved after independent R2/R2b review and curriculum correction."
+          },
+          "flags": [],
+          "research": {
+            "concept": "D6 · спиране на пушенето – дори късно помага",
+            "skill": "recall",
+            "notes": "NHS: колкото по-рано, толкова по-добре, но спирането дори в последните седмици е от полза."
+          },
+          "explanation": "Препоръката е да спре веднага; ползите има дори при спиране в последните седмици.",
+          "difficulty": "easy"
+        }
+      ]
+    }
+  ],
+  "not_exported": []
+}
