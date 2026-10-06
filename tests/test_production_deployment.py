@@ -227,8 +227,6 @@ print(json.dumps({
     "scheme": app.config["PREFERRED_URL_SCHEME"],
     "db": app.config["DB_PATH"], "quiz_db": str(web_app.QUIZ_DB_PATH),
     "uploads": app.config["PRACTICAL_UPLOAD_ROOT"], "vault": str(web_app.QUIZ_VAULT_PATH),
-    "skip_migration": os.environ.get("DZI_SKIP_STARTUP_MIGRATION"),
-    "schema_on_demand": web_app.SCHEMA_CHANGES_ON_DEMAND,
     "max_content_length": app.config["MAX_CONTENT_LENGTH"],
     "proxy": isinstance(wsgi, ProxyFix) and [wsgi.x_for, wsgi.x_proto, wsgi.x_host, wsgi.x_port, wsgi.x_prefix],
     "health": [health.status_code, health.get_data(as_text=True)],
@@ -275,8 +273,6 @@ class ProductionStartupTest(unittest.TestCase):
         self.assertEqual(report["quiz_db"], env["DZI_DB"])
         self.assertEqual(report["uploads"], env["DZI_UPLOAD_ROOT"])
         self.assertEqual(report["vault"], env["DZI_VAULT"])
-        self.assertEqual(report["skip_migration"], "1")
-        self.assertFalse(report["schema_on_demand"])
         self.assertEqual(report["max_content_length"], MAX_REQUEST_BYTES)
         self.assertEqual(report["proxy"], [1, 1, 1, 0, 0])
         self.assertEqual(report["health"], [200, "ok\n"])
@@ -370,7 +366,7 @@ class DatabaseAndStartupSchemaConfigTest(unittest.TestCase):
         return json.loads(result.stdout.strip().splitlines()[-1])
 
     def test_default_paths_point_browsing_and_quiz_at_the_same_seed(self):
-        report = self.probe({"DZI_SKIP_STARTUP_MIGRATION": "1"})
+        report = self.probe({})
         expected = str(ROOT / "data" / "questions.db")
         self.assertEqual((report["db"], report["db_global"], report["quiz_db"]),
                          (expected, expected, expected))
@@ -378,75 +374,143 @@ class DatabaseAndStartupSchemaConfigTest(unittest.TestCase):
 
     def test_dzi_db_and_upload_root_configure_one_database_and_upload_dir(self):
         env = _state_dir(self, seed=False)
-        report = self.probe({"DZI_DB": env["DZI_DB"], "DZI_UPLOAD_ROOT": env["DZI_UPLOAD_ROOT"],
-                             "DZI_SKIP_STARTUP_MIGRATION": "1"})
+        report = self.probe({"DZI_DB": env["DZI_DB"], "DZI_UPLOAD_ROOT": env["DZI_UPLOAD_ROOT"]})
         self.assertEqual((report["db"], report["db_global"], report["quiz_db"]),
                          (env["DZI_DB"],) * 3)
         self.assertEqual(report["uploads"], env["DZI_UPLOAD_ROOT"])
 
     def test_reference_root_defaults_to_the_checkout_and_follows_the_setting(self):
         assets = str(ROOT / "data" / "assets")
-        report = self.probe({"DZI_SKIP_STARTUP_MIGRATION": "1"})
+        report = self.probe({})
         self.assertIsNone(report["reference_root"])
         self.assertEqual(report["resource_roots"], [str(ROOT / "data" / "reference"), assets])
 
         env = _state_dir(self, seed=False)
-        report = self.probe({"DZI_DB": env["DZI_DB"], "DZI_REFERENCE_ROOT": env["DZI_VAULT"],
-                             "DZI_SKIP_STARTUP_MIGRATION": "1"})
+        report = self.probe({"DZI_DB": env["DZI_DB"], "DZI_REFERENCE_ROOT": env["DZI_VAULT"]})
         self.assertEqual(report["reference_root"], env["DZI_VAULT"])
         self.assertEqual(report["resource_roots"], [env["DZI_VAULT"], assets])
         self.assertEqual(report["uploads"], str(ROOT / "data" / "uploads" / "practical"))
 
-    def test_development_import_keeps_startup_quiz_migration(self):
-        env = _state_dir(self, seed=False)
-        report = self.probe({"DZI_DB": env["DZI_DB"]})
-        self.assertTrue({"quiz_assignments", "quiz_attempts", "quiz_answers"} <= set(report["tables"]))
-
-    def test_skip_flag_prevents_any_schema_change_on_import(self):
+    def test_import_does_not_change_an_empty_database(self):
         env = _state_dir(self, seed=False)
         before = _sha256(Path(env["DZI_DB"]))
-        report = self.probe({"DZI_DB": env["DZI_DB"], "DZI_SKIP_STARTUP_MIGRATION": "1"})
+        report = self.probe({"DZI_DB": env["DZI_DB"]})
         self.assertEqual(report["tables"], [])
         self.assertEqual(_sha256(Path(env["DZI_DB"])), before)
 
 
-class RequestPathSchemaPolicyTest(unittest.TestCase):
-    """The teacher-review column guard is the only DDL reachable from a request."""
+SCHEMA_STATE_PROBE = r'''
+import json, os, sqlite3, sys
+from web import app as web_app
+db = os.environ["DZI_DB"]
+client = web_app.app.test_client()
+statuses = [client.get(path).status_code for path in ("/", "/healthz")]
+with sqlite3.connect(db) as conn:
+    version = conn.execute("PRAGMA schema_version").fetchone()[0]
+print(json.dumps({"statuses": statuses, "schema_version": version}))
+'''
 
-    def legacy_db(self):
-        conn = sqlite3.connect(":memory:")
-        conn.row_factory = sqlite3.Row
-        self.addCleanup(conn.close)
-        conn.execute("CREATE TABLE quiz_text_answers (id INTEGER PRIMARY KEY, raw_answer TEXT)")
-        return conn
 
-    def columns(self, conn):
-        return {row["name"] for row in conn.execute("PRAGMA table_info(quiz_text_answers)")}
+class WebAppNeverChangesSchemaTest(unittest.TestCase):
+    """Importing web.app and serving requests leave the database schema alone."""
 
-    def test_production_runs_no_sql_at_all_from_the_column_guard(self):
-        conn = self.legacy_db()
-        statements = []
-        conn.set_trace_callback(statements.append)
-        with patch.object(web_app, "SCHEMA_CHANGES_ON_DEMAND", False):
-            web_app.quiz_ensure_text_answer_teacher_status_column(conn)
-        conn.set_trace_callback(None)
-        self.assertEqual(statements, [])
-        self.assertNotIn("teacher_override_status", self.columns(conn))
+    def schema_version(self, db):
+        with sqlite3.connect(db) as conn:
+            return conn.execute("PRAGMA schema_version").fetchone()[0]
 
-    def test_development_keeps_the_self_healing_column_guard(self):
-        conn = self.legacy_db()
-        with patch.object(web_app, "SCHEMA_CHANGES_ON_DEMAND", True):
-            web_app.quiz_ensure_text_answer_teacher_status_column(conn)
-            web_app.quiz_ensure_text_answer_teacher_status_column(conn)  # idempotent
-        self.assertIn("teacher_override_status", self.columns(conn))
+    def schema_fingerprint(self, db):
+        """Every schema object plus the schema cookie.
 
-    def test_no_other_schema_statements_exist_in_request_code(self):
-        source = (ROOT / "web" / "app.py").read_text(encoding="utf-8")
-        blueprint = (ROOT / "web" / "blueprints" / "quiz.py").read_text(encoding="utf-8")
-        ddl = re.findall(r"\b(?:CREATE|ALTER|DROP)\s+(?:TABLE|INDEX|TRIGGER|VIEW)\b", source + blueprint)
-        self.assertEqual(ddl, ["ALTER TABLE"])
-        self.assertEqual(source.count("executescript("), 1)  # quiz_apply_migration only
-        self.assertEqual(len(re.findall(r"(?m)^\s*quiz_apply_migration\(\)$", source)), 1)
+        Requests are compared by schema, not file hash: get_db() still switches
+        the connection to WAL (journal mode is a PR B concern), which rewrites
+        the header of a rollback-journal copy without touching the schema.
+        """
+        with sqlite3.connect(db) as conn:
+            objects = conn.execute(
+                "SELECT type, name, tbl_name, sql FROM sqlite_master ORDER BY type, name"
+            ).fetchall()
+            return objects, conn.execute("PRAGMA schema_version").fetchone()[0]
+
+    def probe(self, env):
+        result = _run_python(SCHEMA_STATE_PROBE, {"DZI_SECRET_KEY": SECRET_KEY, **env})
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        return json.loads(result.stdout.strip().splitlines()[-1]), result.stderr
+
+    def migrated_copy(self):
+        env = _state_dir(self, seed=True)
+        return env["DZI_DB"], env
+
+    def test_import_leaves_a_prepared_database_byte_identical(self):
+        db, env = self.migrated_copy()
+        before = _sha256(Path(db))
+        result = _run_python("from web import app as web_app\nprint('imported')",
+                             {"DZI_SECRET_KEY": SECRET_KEY, "DZI_DB": db})
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(_sha256(Path(db)), before)
+        self.assertNotIn("pending migrations", result.stderr)
+
+    def test_requests_leave_a_prepared_database_schema_unchanged(self):
+        db, env = self.migrated_copy()
+        before = self.schema_fingerprint(db)
+        report, stderr = self.probe({"DZI_DB": db})
+        self.assertEqual(report["statuses"][0], 200)
+        self.assertEqual(self.schema_fingerprint(db), before)
+        self.assertNotIn("pending migrations", stderr)
+
+    def test_pending_migration_is_warned_about_not_applied(self):
+        db, env = self.migrated_copy()
+        with sqlite3.connect(db) as conn:
+            conn.execute("DELETE FROM schema_migrations WHERE filename = ?",
+                         ("010_topic_section_display_order.sql",))
+        before = self.schema_fingerprint(db)
+        report, stderr = self.probe({"DZI_DB": db})
+        self.assertEqual(self.schema_fingerprint(db), before)
+        self.assertEqual(report["schema_version"], before[1])
+        self.assertIn("010_topic_section_display_order.sql", stderr)
+        self.assertIn("src.manage_migrations", stderr)
+        with sqlite3.connect(db) as conn:
+            applied = {r[0] for r in conn.execute("SELECT filename FROM schema_migrations")}
+        self.assertNotIn("010_topic_section_display_order.sql", applied)
+
+    def test_unmigrated_database_is_not_given_quiz_tables(self):
+        env = _state_dir(self, seed=False)
+        db = env["DZI_DB"]
+        sqlite3.connect(db).close()
+        before = (_sha256(Path(db)), self.schema_version(db))
+        result = _run_python("from web import app as web_app\nprint('imported')",
+                             {"DZI_SECRET_KEY": SECRET_KEY, "DZI_DB": db})
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual((_sha256(Path(db)), self.schema_version(db)), before)
+        with sqlite3.connect(db) as conn:
+            self.assertEqual(conn.execute("SELECT count(*) FROM sqlite_master").fetchone()[0], 0)
+
+    def test_explicit_migration_tool_still_applies_pending_migrations(self):
+        db, env = self.migrated_copy()
+        with sqlite3.connect(db) as conn:
+            conn.execute("DROP TABLE quiz_answers")
+            conn.execute("DELETE FROM schema_migrations WHERE filename = ?",
+                         ("001_quiz_tables.sql",))
+        pending = production.pending_schema_migrations(
+            Path(db), web_app.open_existing_database_read_only)
+        self.assertIn("001_quiz_tables.sql", pending)
+        result = subprocess.run(
+            [sys.executable, "-m", "src.manage_migrations", "--db", db, "--apply"],
+            cwd=ROOT, capture_output=True, text=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(production.pending_schema_migrations(
+            Path(db), web_app.open_existing_database_read_only), [])
+
+    def test_no_schema_statements_or_sql_files_in_web_code(self):
+        offenders = []
+        for path in sorted((ROOT / "web").rglob("*.py")):
+            source = path.read_text(encoding="utf-8")
+            if re.search(r"\b(?:CREATE|ALTER|DROP)\s+(?:TABLE|INDEX|TRIGGER|VIEW)\b", source, re.I) \
+                    or "executescript(" in source or ".sql" in source:
+                offenders.append(str(path.relative_to(ROOT)))
+        self.assertEqual(offenders, [])
+        self.assertFalse(hasattr(web_app, "quiz_apply_migration"))
+        self.assertFalse(hasattr(web_app, "SCHEMA_CHANGES_ON_DEMAND"))
 
 
 class HealthEndpointTest(IsolatedAppTestCase):
