@@ -3,7 +3,7 @@
 Four separate concerns, deliberately kept apart:
 
 - **Authentication** — who the session is (`tester_authenticated`,
-  `admin_authenticated`), owned by the login/logout routes in `web/app.py`.
+  `admin_authenticated`), owned by the login/logout routes in `web/blueprints/auth.py` (endpoints `auth.tester_login`, `auth.admin_login`, `auth.tester_logout`, `auth.admin_logout`, `auth.switch_profile`, `auth.tester_home`).
 - **Authorization (access policy)** — whether that session may use a route,
   declared per view function in `web/access.py`.
 - **Request integrity** — how an unsafe or external request proves it is
@@ -41,7 +41,7 @@ login.
 ## Declared Access Policies
 
 `@access_policy(...)` sits below `@app.route(...)` and attaches the policy to
-the view function, so a legacy alias or a blueprint-prefixed endpoint name
+the view function, so a blueprint-prefixed endpoint name
 resolves to the same decision. An endpoint without a declared policy is denied;
 a coverage test walks `app.url_map` and fails on any undeclared endpoint.
 
@@ -99,7 +99,11 @@ with `mark_quiz_attempt_owner(attempt_id)`.
 ## Refactor Note
 
 Blueprint names change Flask endpoint names, but declared policies live on view
-functions, so a rename, a blueprint move or a legacy alias cannot change a
+functions, so a rename or a blueprint move cannot change a
 route's access decision. A new view must declare `@access_policy(...)` (and
 `@integrity_policy(...)` if it accepts unsafe methods); until it does, every
 session is denied and the coverage test in `tests/test_access_policy.py` fails.
+
+## Endpoint names after E5
+
+The unprefixed legacy quiz endpoints (`quiz_start`, `quiz_attempt`, `quiz_result`) and the unprefixed auth endpoints (`tester_login`, `admin_login`, ...) no longer exist; use `quiz.*` and `auth.*`. Public URLs are unchanged. `ui_profile` is cosmetic UI state and never grants access; `web/redirects.py` owns `safe_redirect_target`.

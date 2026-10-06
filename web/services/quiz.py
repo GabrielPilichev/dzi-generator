@@ -1631,7 +1631,7 @@ def quiz_write_assignment_note(assignment_id: int, base_url: str) -> None:
             ]
             avg = round(sum(percentages) / len(percentages), 1)
 
-        quiz_link = base_url.rstrip("/") + _quiz_url_for("quiz_start", assignment_id=assignment_id)
+        quiz_link = base_url.rstrip("/") + _quiz_url_for("quiz.quiz_start", assignment_id=assignment_id)
         path = quiz_assignment_note_path(assignment_id, a["section_slug"], a["created_at"])
 
         rows = []

@@ -280,7 +280,7 @@
             <td>{{ a.submitted_at or "—" }}</td>
             <td>
               {% if a.submitted_at %}
-                <a href="{{ url_for('quiz_result', attempt_id=a.id) }}">виж резултат</a>
+                <a href="{{ url_for('quiz.quiz_result', attempt_id=a.id) }}">виж резултат</a>
               {% else %}
                 —
               {% endif %}

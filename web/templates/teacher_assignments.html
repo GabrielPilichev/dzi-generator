@@ -82,7 +82,7 @@
               <div class="links">
                 <a href="{{ url_for('teacher.teacher_assignment', assignment_id=a.id) }}">Учителски изглед</a>
                 <a href="{{ url_for('teacher.teacher_assignment_results', assignment_id=a.id) }}">Резултати</a>
-                <a href="{{ url_for('quiz_start', assignment_id=a.id) }}">Линк за ученици</a>
+                <a href="{{ url_for('quiz.quiz_start', assignment_id=a.id) }}">Линк за ученици</a>
                 <form method="post"
                       action="{{ url_for('teacher.teacher_assignment_duplicate', assignment_id=a.id) }}"
                       class="inline-form"

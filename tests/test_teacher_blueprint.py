@@ -88,10 +88,10 @@ class TeacherRouteOwnershipTest(unittest.TestCase):
             with self.subTest(path=path.name):
                 self.assertIsNone(pattern.search(path.read_text(encoding="utf-8")))
 
-    def test_e5_views_have_not_moved(self):
-        for endpoint in ("tester_home", "admin_login"):
+    def test_e5_views_live_in_the_auth_blueprint(self):
+        for endpoint in ("auth.tester_home", "auth.admin_login"):
             with self.subTest(endpoint=endpoint):
-                self.assertEqual(web_app.app.view_functions[endpoint].__module__, "web.app")
+                self.assertEqual(web_app.app.view_functions[endpoint].__module__, "web.blueprints.auth")
 
     def test_moved_helpers_left_the_application_module(self):
         for name in ("fetch_dzi_pool_health", "fetch_practical_assignment_options",

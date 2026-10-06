@@ -148,14 +148,14 @@
                     {% if admin_authenticated %}
                         <span class="profile-label">Профил</span>
                         <span class="profile-link active">Админ</span>
-                        <a class="profile-link" href="{{ url_for('admin_logout') }}">Изход</a>
+                        <a class="profile-link" href="{{ url_for('auth.admin_logout') }}">Изход</a>
                     {% elif tester_authenticated %}
                         <span class="profile-label">Профил</span>
                         <span class="profile-link active">Тестер</span>
-                        <a class="profile-link" href="{{ url_for('tester_logout') }}">Изход</a>
+                        <a class="profile-link" href="{{ url_for('auth.tester_logout') }}">Изход</a>
                     {% else %}
-                        <a class="profile-link" href="{{ url_for('tester_login', next=request.path) }}">Вход за тестер</a>
-                        <a class="profile-link" href="{{ url_for('admin_login', next=request.path) }}">Вход за админ</a>
+                        <a class="profile-link" href="{{ url_for('auth.tester_login', next=request.path) }}">Вход за тестер</a>
+                        <a class="profile-link" href="{{ url_for('auth.admin_login', next=request.path) }}">Вход за админ</a>
                     {% endif %}
                 </div>
 
@@ -165,11 +165,11 @@
                         <div class="mobile-profile-panel">
                             {% if admin_authenticated %}
                                 <span class="profile-link active">Админ</span>
-                                <a class="profile-link" href="{{ url_for('admin_logout') }}">Изход</a>
+                                <a class="profile-link" href="{{ url_for('auth.admin_logout') }}">Изход</a>
                             {% elif tester_authenticated %}
                                 <span class="profile-link active">Тестер</span>
-                                <a class="profile-link" href="{{ url_for('tester_logout') }}">Изход</a>
-                                <a class="profile-link" href="{{ url_for('admin_login', next=request.path) }}">Вход за админ</a>
+                                <a class="profile-link" href="{{ url_for('auth.tester_logout') }}">Изход</a>
+                                <a class="profile-link" href="{{ url_for('auth.admin_login', next=request.path) }}">Вход за админ</a>
                             {% endif %}
                         </div>
                     </details>
@@ -177,8 +177,8 @@
                     <details class="mobile-profile-menu">
                         <summary>Вход</summary>
                         <div class="mobile-profile-panel">
-                            <a class="profile-link" href="{{ url_for('tester_login', next=request.path) }}">Вход за тестер</a>
-                            <a class="profile-link" href="{{ url_for('admin_login', next=request.path) }}">Вход за админ</a>
+                            <a class="profile-link" href="{{ url_for('auth.tester_login', next=request.path) }}">Вход за тестер</a>
+                            <a class="profile-link" href="{{ url_for('auth.admin_login', next=request.path) }}">Вход за админ</a>
                         </div>
                     </details>
                 {% endif %}

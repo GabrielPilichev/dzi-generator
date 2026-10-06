@@ -31,12 +31,9 @@ EXPECTED_URL_MAP = (
     ('/physics/grade/<int:grade>', ('GET',), 'public', None),
     ('/profile/<profile>', ('GET',), 'profile_switch', None),
     ('/quiz/<int:assignment_id>', ('GET', 'POST'), 'public', 'same_origin'),
-    ('/quiz/<int:assignment_id>', ('GET', 'POST'), 'public', 'same_origin'),
-    ('/quiz/attempt/<int:attempt_id>', ('GET', 'POST'), 'attempt_owner', 'same_origin'),
     ('/quiz/attempt/<int:attempt_id>', ('GET', 'POST'), 'attempt_owner', 'same_origin'),
     ('/quiz/attempt/<int:attempt_id>/practical/<source_slug>', ('GET',), 'attempt_owner', None),
     ('/quiz/attempt/<int:attempt_id>/practical/<source_slug>/task/<int:exam_task_id>/upload', ('POST',), 'attempt_owner', 'same_origin'),
-    ('/quiz/attempt/<int:attempt_id>/result', ('GET',), 'attempt_owner', None),
     ('/quiz/attempt/<int:attempt_id>/result', ('GET',), 'attempt_owner', None),
     ('/section/<slug>', ('GET',), 'public', None),
     ('/static/<path:filename>', ('GET',), None, None),
@@ -245,10 +242,12 @@ class DziExamsServiceTest(IsolatedAppTestCase):
         finally:
             conn.close()
 
-    def test_app_keeps_its_historic_helper_names(self):
+    def test_app_keeps_its_historic_helper_names_but_not_the_thin_wrappers(self):
         for name in ("dzi_source_slug", "dzi_parse_source_slug", "dzi_json_text_list",
-                     "dzi_find_exam", "fetch_dzi_tasks", "DZI_FORMAT_VERSION"):
+                     "DZI_FORMAT_VERSION"):
             self.assertTrue(hasattr(web_app, name), name)
+        for name in ("dzi_find_exam", "fetch_dzi_tasks"):
+            self.assertFalse(hasattr(web_app, name), name)
 
 
 if __name__ == "__main__":

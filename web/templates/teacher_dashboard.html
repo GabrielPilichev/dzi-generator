@@ -170,7 +170,7 @@
             <td>{{ a.started_at }}</td>
             <td>
               {% if a.submitted_at %}
-                <a href="{{ url_for('quiz_result', attempt_id=a.id) }}">виж резултат</a>
+                <a href="{{ url_for('quiz.quiz_result', attempt_id=a.id) }}">виж резултат</a>
               {% else %}
                 <a href="{{ url_for('teacher.teacher_assignment', assignment_id=a.assignment_id) }}">към теста</a>
               {% endif %}

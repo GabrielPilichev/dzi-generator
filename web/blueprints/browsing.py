@@ -8,7 +8,7 @@ to declare. Subject metadata comes from :mod:`web.services.subject_catalog` and
 the cached browsing reads from :mod:`web.services.browsing`; the ownership and
 short-slug rules stay in ``src.subject_browsing``. The module imports neither
 ``web.app`` nor another controller, and the URLs are unchanged. The tester and
-auth routes stay on the application until E5.
+auth routes live in ``web.blueprints.auth`` (E5).
 """
 
 from __future__ import annotations

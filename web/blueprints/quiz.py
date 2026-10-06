@@ -50,11 +50,11 @@ def quiz_start(assignment_id):
     if start is not None:
         if start.created:
             mark_quiz_attempt_owner(start.attempt_id)
-            return redirect(url_for("quiz_attempt", attempt_id=start.attempt_id))
+            return redirect(url_for("quiz.quiz_attempt", attempt_id=start.attempt_id))
         require_quiz_attempt_access(start.attempt_id)
         if start.submitted:
-            return redirect(url_for("quiz_result", attempt_id=start.attempt_id))
-        return redirect(url_for("quiz_attempt", attempt_id=start.attempt_id))
+            return redirect(url_for("quiz.quiz_result", attempt_id=start.attempt_id))
+        return redirect(url_for("quiz.quiz_attempt", attempt_id=start.attempt_id))
 
     return render_template(
         "quiz_start.html",
@@ -81,7 +81,7 @@ def quiz_attempt(attempt_id):
             abort(404)
 
         if attempt["submitted_at"]:
-            return redirect(url_for("quiz_result", attempt_id=attempt_id))
+            return redirect(url_for("quiz.quiz_result", attempt_id=attempt_id))
 
         attempt_question_plan = quiz_service.quiz_parse_attempt_question_plan(attempt["question_ids_json"])
         open_question_ids = quiz_service.quiz_attempt_open_question_ids(attempt_question_plan)
@@ -147,7 +147,7 @@ def quiz_attempt(attempt_id):
         quiz_service.quiz_write_attempt_note(attempt_id)
         quiz_service.quiz_write_assignment_note(int(assignment["id"]), request.host_url)
 
-        return redirect(url_for("quiz_result", attempt_id=attempt_id))
+        return redirect(url_for("quiz.quiz_result", attempt_id=attempt_id))
 
     return render_template(
         "quiz_attempt.html",
@@ -177,7 +177,7 @@ def quiz_result(attempt_id):
             abort(404)
 
         if not attempt["submitted_at"]:
-            return redirect(url_for("quiz_attempt", attempt_id=attempt_id))
+            return redirect(url_for("quiz.quiz_attempt", attempt_id=attempt_id))
 
         attempt_question_plan = quiz_service.quiz_parse_attempt_question_plan(attempt["question_ids_json"])
         context = quiz_service.quiz_result_context(conn, attempt, attempt_question_plan)
@@ -188,14 +188,3 @@ def quiz_result(attempt_id):
         attempt=attempt,
         **context,
     )
-
-
-def register_legacy_quiz_endpoint_aliases(app) -> None:
-    aliases = (
-        ("/quiz/<int:assignment_id>", "quiz_start", quiz_start, ("GET", "POST")),
-        ("/quiz/attempt/<int:attempt_id>", "quiz_attempt", quiz_attempt, ("GET", "POST")),
-        ("/quiz/attempt/<int:attempt_id>/result", "quiz_result", quiz_result, ("GET",)),
-    )
-    for rule, endpoint, view_func, methods in aliases:
-        if endpoint not in app.view_functions:
-            app.add_url_rule(rule, endpoint=endpoint, view_func=view_func, methods=methods)
