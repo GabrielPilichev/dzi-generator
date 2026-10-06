@@ -147,6 +147,10 @@ billing work is:
 
 `docs/REFACTOR_ACCOUNTS_ROADMAP.md`
 
+The approved Accounts implementation specification is
+`docs/ACCOUNTS_DESIGN.md`; for accounts work it takes precedence over the
+roadmap's conceptual sketch.
+
 Follow that roadmap one PR at a time. Do not skip prerequisites, combine
 phases, or change the architecture sequence unless Gabriel explicitly changes
 the plan.

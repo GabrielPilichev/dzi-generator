@@ -1,0 +1,790 @@
+# LearnPilot — Accounts Design Specification
+
+Status: **approved design, documentation only.** Nothing in this document is
+implemented yet. It is the authoritative implementation specification for the
+Accounts phase of `docs/REFACTOR_ACCOUNTS_ROADMAP.md`; where the two differ on
+accounts, this document wins (the approved deviations are listed in §1).
+
+Implement it one PR at a time, in the order of §17. The roadmap's rules for
+every PR (feature branch, numbered migrations only, tests never touch
+`data/questions.db`, Bulgarian UI text, no merge without Gabriel's go-ahead)
+apply unchanged.
+
+## 1. Executive summary
+
+- **Model:** one `users` table with a single `role` column
+  (`student | teacher | admin`), email + password as the local credential, and
+  no other account tables in the first migration.
+- **Session:** the existing Flask signed cookie carries only `uid`, a per-user
+  random `sk` (session key) and `iat`. Role, active state and name are read
+  from the row once per signed-in request.
+- **Seam:** `web/access.py` already isolates every access decision behind
+  `current_principal()`. Accounts plug in there, and the legacy tester/admin
+  session keys keep working as a bridge until the last PR of phase 1.
+- **Rollout:** small PRs for teacher/admin accounts and assignment ownership
+  (phase 1). Student accounts are phase 2 and additionally need one
+  migration-runner fix (§16).
+- **Registration:** no public self-registration in v1. Accounts are created by
+  a server-side CLI, which is also how the first admin is bootstrapped.
+
+**Approved decisions (Gabriel):**
+
+1. Student authentication is deferred to phase 2. The preferred direction is
+   Google/Microsoft OIDC. Open password self-registration is not implemented
+   now.
+2. Google/Microsoft OAuth transactions use the session-bound design of §13:
+   state, nonce, PKCE verifier, validated return target and expiry in the
+   signed session. Apple remains out of scope.
+3. Admin TOTP does not block the initial Accounts PRs. It is a separate
+   security PR that must land before the production cutover and the permanent
+   removal of legacy auth (§17, PR T).
+4. Student-data retention and erasure remain a later product/legal decision.
+   This design does not define a retention period.
+
+**Approved deviations from the roadmap's conceptual model:**
+
+- The local password credential is stored on `users`, not in a separate
+  `password_credentials` table.
+- OAuth transactions are session-bound, not a server-side transaction table
+  plus a separate browser-binding cookie.
+- TOTP is a separate pre-cutover security PR, not part of the first account
+  schema.
+
+## 2. Current auth architecture
+
+**Mechanisms**
+
+| Concern | Where | What it does |
+| --- | --- | --- |
+| Authentication | `web/blueprints/auth.py` | Two shared env passwords (`DZI_TESTER_PASSWORD`, `DZI_ADMIN_PASSWORD`) compared with `hmac.compare_digest`. Success sets `session["tester_authenticated"]` or `session["admin_authenticated"]`. |
+| Authorization | `web/access.py`, `enforce_access_policy` in `web/app.py` | Per-view `@access_policy`, default deny. `principal_from_session` is the only reader of the auth keys. |
+| Request integrity | `protect_same_origin_unsafe_methods` in `web/app.py` | Origin/Referer must match the host for every unsafe method; no exemptions; missing headers pass only under `TESTING`. |
+| Attempt ownership | `web/attempt_access.py` | `session["quiz_attempt_owner:<id>"] = True`, checked in the view, answers 404. |
+| Session | `web/app.py` | Signed client-side cookie, `SameSite=Strict`, `HttpOnly`, `Secure`. Not permanent, no server-side state. |
+| Production | `web/production.py` | Requires `DZI_SECRET_KEY` (≥32 chars) and both passwords (≥12 chars, different, not the local defaults). |
+
+**Session keys in use:** `tester_authenticated`, `admin_authenticated`,
+`ui_profile` (cosmetic), `quiz_attempt_owner:<id>`.
+
+**Route policies today**
+
+| Policy | Routes |
+| --- | --- |
+| `public` | browsing, `/tester`, both logins, `/tester/logout`, `/quiz/<assignment_id>`, `/healthz` |
+| `teacher` (tester or admin) | `/teacher/new`, `/teacher/assignment/<id>` |
+| `admin` | `/teacher`, `/teacher/assignments`, results, `results.csv`, edit, duplicate, `/teacher/dzi-training`, `/dzi...`, practical review and downloads, `/admin/...`, `/admin/logout` |
+| `attempt_owner` | `/quiz/attempt/<id>`, `/result`, practical page and upload |
+| `profile_switch` | `/profile/<profile>` |
+
+**Template assumptions**
+
+- `base.html` branches on the context variables `tester_authenticated` and
+  `admin_authenticated` for the nav, the login/logout links and the mobile
+  menu, and prints `ui_profile_label` in the footer.
+- `index.html`, `teacher_assignment.html` and `teacher_new.html` use
+  `admin_authenticated` to show admin-only controls.
+- No template knows about a user, a name or a role.
+
+**Ownership today**
+
+- `quiz_assignments` has no owner.
+- `quiz_attempts` is identified by the typed `student_name`, with table-level
+  `UNIQUE (assignment_id, student_name)`; the seed is
+  `sha256(assignment_id|name)`.
+- `practical_submissions` hangs off `quiz_attempt_id`.
+- Nothing references a person.
+
+**Test dependence on the legacy mechanism**
+
+- 36 test files write the session keys directly and 23 post to
+  `/tester/login` or `/admin/login`; about 30 private `_login_admin` /
+  `_login_tester` helpers are duplicated across files.
+- `tests/test_access_policy.py` pins a full route × principal matrix.
+- `tests/test_auth_blueprint.py` asserts that `auth.py` uses no database.
+- `tests/test_auth_guard.py` asserts that anonymous GETs set no cookie and
+  that the cookie is `Strict`.
+
+## 3. Problems and gaps
+
+1. **Shared secrets, no identity.** Nothing can be attributed, revoked per
+   person or scoped per teacher.
+2. **Any tester can read any assignment.** `/teacher/assignment/<id>` is
+   `teacher`-level with sequential ids and lists every attempt's student name
+   and score.
+3. **No revocation.** Logout only deletes the browser's cookie; a copied
+   cookie stays valid until `DZI_SECRET_KEY` rotates.
+4. **Logouts and profile switch are state-changing GETs.** Harmless under
+   `Strict`, a logout-CSRF nuisance once the cookie becomes `Lax`.
+5. **Attempt identity is a typed name.** A student who loses the cookie gets
+   404 on their own attempt, and anyone can squat a name.
+6. **Results, CSV and practical review are admin-only.** The roadmap wants
+   teachers to see their own.
+7. **`Strict` cookies break inbound links.** A signed-in student clicking a
+   quiz link from Teams or Classroom arrives without a session.
+8. **The migration runner cannot safely rebuild `quiz_attempts`** (§16), which
+   the roadmap's uniqueness change requires.
+
+## 4. V1 account model
+
+**DECISION — one `role` column with a CHECK constraint.**
+
+- WHY: there are three roles and a fixed capability table, and `Principal`
+  already exposes `is_teacher` / `is_admin`. Admin implies teacher capability;
+  student is disjoint.
+- ALTERNATIVES REJECTED: a role table or a capability model. Nothing needs
+  per-user grants, and plans/entitlements are already a separate seam in the
+  roadmap.
+
+**DECISION — email, password hash, display name and state all live in
+`users`.** (Approved deviation from the roadmap.)
+
+- WHY: one indexed lookup on login, one row per person, and OAuth-only users
+  simply have `password_hash NULL`.
+- ALTERNATIVES REJECTED: the roadmap's separate `password_credentials` table.
+  It is a 1:1 join that buys nothing; identities from providers still get
+  their own table later.
+
+**DECISION — defer `declared_type`, `plan`, `plan_started_at`,
+`email_verified_at`, TOTP and recovery codes.**
+
+- WHY: each is a nullable `ADD COLUMN` or a new table when its feature lands;
+  none changes the shape of `users`.
+
+## 5. Proposed SQL schema
+
+Migrations are created by their PRs (§17), not by this document.
+
+**`012_users.sql`**
+
+```sql
+PRAGMA foreign_keys = ON;
+
+CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email TEXT UNIQUE
+        CHECK (email IS NULL OR (length(email) BETWEEN 3 AND 254
+               AND email = lower(trim(email)) AND instr(email, '@') > 1)),
+    display_name TEXT NOT NULL
+        CHECK (length(trim(display_name)) BETWEEN 2 AND 80),
+    role TEXT NOT NULL DEFAULT 'student'
+        CHECK (role IN ('student', 'teacher', 'admin')),
+    password_hash TEXT
+        CHECK (password_hash IS NULL OR (length(password_hash) > 0 AND email IS NOT NULL)),
+    is_active INTEGER NOT NULL DEFAULT 1 CHECK (is_active IN (0, 1)),
+    session_key TEXT NOT NULL CHECK (length(session_key) >= 32),
+    password_changed_at TEXT,
+    last_login_at TEXT,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+- `UNIQUE` on `email` provides the login index, and the primary key serves the
+  per-request lookup. No other index is needed.
+- The 2–80 name bound mirrors `quiz_student_name_error`.
+
+**`013_login_throttle.sql`**
+
+```sql
+PRAGMA foreign_keys = ON;
+
+CREATE TABLE IF NOT EXISTS login_throttle (
+    identifier_hash TEXT PRIMARY KEY CHECK (length(identifier_hash) = 64),
+    failure_count INTEGER NOT NULL DEFAULT 0 CHECK (failure_count >= 0),
+    window_started_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    blocked_until TEXT
+) WITHOUT ROWID;
+
+CREATE INDEX IF NOT EXISTS idx_login_throttle_window
+    ON login_throttle(window_started_at);
+```
+
+**`014_assignment_owner.sql`**
+
+```sql
+PRAGMA foreign_keys = ON;
+
+ALTER TABLE quiz_assignments
+    ADD COLUMN owner_user_id INTEGER REFERENCES users(id);
+
+CREATE INDEX IF NOT EXISTS idx_quiz_assignments_owner
+    ON quiz_assignments(owner_user_id, created_at, id);
+```
+
+**`015_quiz_attempts_user.sql`** (phase 2; table rebuild, see §16)
+
+- Adds `user_id INTEGER REFERENCES users(id)` and drops the table-level
+  `UNIQUE`.
+- Replaces it with:
+  - `CREATE UNIQUE INDEX uniq_quiz_attempts_legacy_name ON quiz_attempts(assignment_id, student_name) WHERE user_id IS NULL;`
+  - `CREATE UNIQUE INDEX uniq_quiz_attempts_user ON quiz_attempts(assignment_id, user_id) WHERE user_id IS NOT NULL;`
+  - `CREATE INDEX idx_quiz_attempts_user ON quiz_attempts(user_id, started_at);`
+
+**Future `user_identities`** (with OAuth in phase 2, not now)
+
+```sql
+CREATE TABLE IF NOT EXISTS user_identities (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES users(id),
+    issuer TEXT NOT NULL,
+    subject TEXT NOT NULL,
+    provider TEXT NOT NULL CHECK (provider IN ('google', 'microsoft')),
+    email_at_link TEXT,
+    created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    last_login_at TEXT,
+    UNIQUE (issuer, subject)
+);
+CREATE INDEX IF NOT EXISTS idx_user_identities_user ON user_identities(user_id);
+```
+
+**Not created:** sessions, password-reset tokens, email-verification tokens,
+OAuth transactions, TOTP/recovery tables (the TOTP PR designs its own storage).
+
+**Stable IDs**
+
+**DECISION — `INTEGER PRIMARY KEY AUTOINCREMENT`, no UUID.**
+
+- WHY: user ids never appear in a URL in v1. `AUTOINCREMENT` guarantees an id
+  is never reused, which matters because both the session and the ownership
+  foreign keys carry it.
+- ALTERNATIVES REJECTED: public UUIDs. They become relevant only if profile
+  URLs appear; assignments get an unguessable `public_token` in phase 2
+  instead.
+
+**Canonical vs runtime**
+
+- `users` is classified `RUNTIME` and `login_throttle` `OPERATIONAL` in
+  `src/canonical_tables.py::TABLE_CLASSIFICATION` (an unclassified table
+  already fails tests).
+- Neither is exported to `data/canonical/`. Account data never becomes
+  canonical content.
+- `src.build_database` leaves both empty; `test_runtime_tables_are_empty`
+  covers `users`.
+
+## 6. Authentication and session design
+
+**Identifier and normalization**
+
+- The identifier is the email, normalized as
+  `unicodedata.normalize("NFKC", s).strip().lower()`.
+- Rejected if it has no single `@`, contains whitespace or control characters,
+  or exceeds 254 characters.
+- Only the normalized form is stored. No provider-specific folding (Gmail
+  dots, plus-tags).
+
+**Password hashing**
+
+**DECISION — `werkzeug.security.generate_password_hash(password, method="scrypt")`
+and `check_password_hash`.**
+
+- WHY: Werkzeug is already a dependency; its scrypt default
+  (`scrypt:32768:8:1`) salts per hash and stores the parameters in the hash
+  string.
+- ALTERNATIVES REJECTED: argon2 or bcrypt (new dependencies); anything
+  hand-rolled.
+
+Rules:
+
+- Minimum 10 characters (14 for admin, enforced by the CLI and the change
+  form), maximum 256, no composition rules, and not equal to the email.
+- On successful login, rehash if the stored method prefix differs from the
+  current one.
+- For an unknown email, verify against a module-level dummy hash so timing
+  does not reveal whether the account exists.
+
+**Session contents**
+
+**DECISION — `session["uid"]`, `session["sk"]`, `session["iat"]` only.**
+
+- WHY: role, name and active state are mutable and must take effect
+  immediately.
+- ALTERNATIVES REJECTED: copying the role into the cookie; a server-side
+  session table; Redis.
+
+**DECISION — a random per-user `session_key` instead of an integer version.**
+
+- WHY: databases here get rebuilt and restored. After a restore, a new user
+  can receive an id that an old cookie still names, and an integer version of
+  0 would match; a random key cannot.
+- The key is rotated on password change, disable, role change and CLI
+  "sign out everywhere", and compared with `hmac.compare_digest`.
+
+**Loading the principal**
+
+- A `load_current_user` `before_request` hook in `web/app.py` runs after the
+  same-origin check and before `enforce_access_policy`.
+- If the session has `uid`, it runs one
+  `SELECT id, role, display_name, is_active, session_key FROM users WHERE id = ?`
+  on the request connection and stores `g.principal`.
+- If there is no `uid` it does nothing, so anonymous requests still cost zero
+  queries and set no cookie.
+- `web.access.current_principal()` returns `g.principal` when present and
+  otherwise falls back to `principal_from_session`. `web/access.py` stays free
+  of service imports, which an existing test requires.
+- `/healthz` and `static` are skipped.
+
+**Login (`POST /login`)**
+
+1. Check the throttle for the identifier; if blocked, answer 429 without
+   hashing.
+2. Look up the user and verify (or dummy-verify) the password.
+3. On failure, record it and show one generic message.
+4. On success: reset the throttle, call `session.clear()`, carry over only
+   `quiz_attempt_owner:*` keys, set `uid`, `sk`, `iat`, update
+   `last_login_at`, and redirect through `safe_redirect_target`.
+
+**Fixation**
+
+- Flask's cookie session has no server-side id to fixate.
+- `session.clear()` on login and logout removes any pre-login state, including
+  legacy `tester_authenticated` / `admin_authenticated`.
+
+**Logout**
+
+- `POST /logout` under the same-origin policy calls `session.clear()`.
+- It does not rotate `session_key`, so other devices stay signed in.
+
+**Remember-me**
+
+**DECISION — none.** The cookie stays a browser-session cookie, with a
+server-enforced absolute lifetime from `iat`: 30 days for student and teacher,
+12 hours for admin.
+
+- WHY: shared school computers, and no revocation UI.
+
+**Password change (`/account/password`)**
+
+- Requires the current password; failures count against the same throttle.
+- Rotates `session_key`, re-issues the current session, and thereby signs out
+  every other session.
+
+**Disabled accounts and role changes**
+
+- Both are read from the row, so they apply on the next request.
+- The CLI also rotates `session_key`, which forces a fresh login.
+
+**Cookie attributes**
+
+- Unchanged in phase 1 (`Strict`, `HttpOnly`, `Secure`).
+- The move to `Lax` is its own small PR in phase 2, after the new POST logout
+  exists.
+
+**Caching**
+
+- Add `Cache-Control: no-store` to responses for signed-in principals, so the
+  back button on a shared computer does not replay results.
+
+## 7. Authorization and roles
+
+**Principal** gains `user_id`, `role` and `display_name` with defaults, so
+existing `Principal(is_teacher=..., is_admin=...)` constructions stay valid.
+
+| Role | `is_teacher` | `is_admin` |
+| --- | --- | --- |
+| student | no | no |
+| teacher | yes | no |
+| admin | yes | yes |
+
+**Access vocabulary additions**
+
+- `signed_in`: any active account. First used in phase 2.
+- `assignment_owner`: the route requires teacher capability, and the view
+  checks owner-or-admin and answers 404.
+
+**Target flows**
+
+| Who | Access |
+| --- | --- |
+| Anonymous | Browsing as today; `/login`; the legacy name-based quiz flow until student accounts ship. |
+| Student (phase 2) | Sign in, take assigned quizzes, see own attempts and results, upload practical work for own attempts. |
+| Teacher | `/teacher/new`; own assignments' detail, edit, duplicate, results, CSV; practical review for own assignments. |
+| Admin | Everything, including unowned legacy assignments, `/teacher` dashboard, `/teacher/dzi-training`, `/dzi...`, candidates, resource downloads. |
+
+**Where UI state differs from authorization**
+
+- `ui_profile` and `/profile/<profile>` are cosmetic and get retired; the
+  label derives from the role.
+- `tester_authenticated` and `admin_authenticated` in templates become values
+  computed from the principal during the bridge, then are renamed.
+
+## 8. Tester/admin compatibility strategy
+
+**Bridge rules (PR 3 until cutover)**
+
+- A valid account identity in the session is the only identity; legacy keys
+  are ignored while `uid` is present.
+- Without `uid`, the legacy keys behave exactly as today, so the existing
+  matrix tests stay green unchanged.
+- A legacy tester session has teacher capability but no `user_id`. After
+  ownership lands it creates unowned assignments and can open only unowned
+  ones, which is today's behaviour and never exposes an account teacher's
+  assignments.
+- Denial redirects keep pointing at `/tester/login` and `/admin/login` until
+  the cutover PR.
+
+**Switch**
+
+- `DZI_LEGACY_SHARED_LOGIN` (default on). When off, the legacy routes 404 and
+  the keys are ignored.
+- `web/production.py` requires the two passwords only while it is on.
+
+**Tests**
+
+- PR 3 adds `tests/auth_helpers.py` (`login_as(client, role)`), and PR 5 moves
+  the duplicated per-file helpers onto it and points it at real account rows.
+- Tests that pin legacy behaviour keep writing the keys explicitly and are
+  deleted with the legacy code in PR 10.
+
+**Phases derived from the repository**
+
+1. Schema + service.
+2. CLI bootstrap.
+3. Principal seam.
+4. Login/logout.
+5. Test helper migration.
+6. Assignment ownership.
+7. Owner-scoped teacher routes.
+8. Practical review.
+9. Admin TOTP (PR T), then cutover.
+10. Legacy removal.
+
+## 9. Ownership model
+
+| Table | Class | Reason |
+| --- | --- | --- |
+| `quiz_assignments` | A — v1 (`owner_user_id`, nullable) | Closes gap 2 and enables teacher results. Legacy rows stay NULL and admin-only. |
+| `quiz_attempts` | B — phase 2 (`user_id`, nullable) | Needs the table rebuild and student sign-in. Legacy rows stay NULL; no linking by name. |
+| `quiz_answers`, `quiz_text_answers` | C | Owned through the attempt. |
+| `practical_submissions`, `practical_submission_files` | C | Owned through the attempt; reviewer scope comes through attempt → assignment → owner. |
+| `generated_exams` | C | Offline tooling log, no web writer. |
+| `practical_submission_grades` | C | No migration creates it; the code only probes for it. No change. |
+
+**Interacting ids**
+
+- `quiz_attempts.question_ids_json` holds canonical question ids and is
+  unaffected.
+- The seed for account attempts becomes
+  `quiz_seed(assignment_id, f"user:{user_id}")`.
+- `student_name` stays as a display snapshot copied from `display_name`.
+- Vault notes under `vault/Generated/Quizzes/` embed the name in filenames and
+  will carry account names too.
+
+## 10. Registration
+
+| Option | Assessment |
+| --- | --- |
+| Open registration with password | No email infrastructure means no verification and no recovery; it invites spam and stores minors' passwords. Not implemented. |
+| Admin-created accounts | Fits a pilot of a handful of teachers and needs no web surface. **v1.** |
+| Invite or join code | Possible for classes later; still needs an identifier and recovery story. |
+
+**DECISION — v1 has no registration route.** Accounts are created by the CLI.
+
+**DECISION (approved) — student authentication is phase 2, preferred via
+Google/Microsoft OIDC.** Open password self-registration is not built now; it
+would at minimum require transactional email for verification and recovery.
+
+## 11. Bootstrap admin
+
+**DECISION — an explicit management command, `python3 -m src.manage_accounts`.**
+
+- Subcommands: `create`, `set-password`, `set-role`, `disable`, `enable`,
+  `sign-out`, `list`.
+- The password is read with `getpass` (twice) or `--password-stdin`, never
+  from argv or the environment.
+- `--db` is required unless `DZI_DB` is set; the command never silently
+  defaults to `data/questions.db`.
+- Granting `admin` is possible only here; no web path can create or promote an
+  admin.
+- WHY: `web.wsgi` must not write on import, and an env bootstrap would keep a
+  password in the env file and re-apply it on every start.
+- ALTERNATIVES REJECTED: one-time environment bootstrap; seeding through a
+  migration or canonical data. No credentials are ever committed.
+
+## 12. Password reset and email
+
+- **v1:** no reset flow and no email verification. `email_verified_at` is not
+  created.
+- **Recovery:** the operator runs `manage_accounts set-password` on the
+  server, which rotates `session_key`, and passes the new password out of
+  band. The user then changes it at `/account/password`.
+- **Later:** a hashed, single-use, short-lived token table arrives with
+  transactional email, in the same PR as the flow.
+
+## 13. Future OAuth boundary (Google and Microsoft; phase 2)
+
+Not implemented in phase 1. Apple is out of scope.
+
+- `users` does not change. `user_identities` (§5) is added by its own
+  migration, keyed on `UNIQUE (issuer, subject)`.
+- Authlib is the client library, as the roadmap states; it is added in that
+  PR. No hand-rolled OAuth.
+- The callback declares the reserved `OAUTH_STATE` integrity policy in
+  `web/request_integrity.py`; it is not an access level.
+- The session cookie moves to `SameSite=Lax` (keeping `Secure` and `HttpOnly`)
+  before OAuth, so the provider's top-level GET redirect carries the session.
+
+**DECISION (approved) — session-bound transaction.** `state`, `nonce`, the
+PKCE verifier, the validated return target and an expiry are stored in the
+signed session and removed on callback (success or failure).
+
+- WHY: with a `Lax` cookie the Google and Microsoft GET callbacks carry the
+  session, which is itself the browser binding. No table and no
+  `SameSite=None` cookie are needed.
+- ALTERNATIVES REJECTED: the roadmap's server-side transaction table plus a
+  separate binding cookie. It is needed only for a cross-site form-post
+  callback (Apple), which is out of scope.
+
+**Security requirements for that PR**
+
+| Topic | Requirement |
+| --- | --- |
+| State | Random, single-use, compared in constant time; mismatch, absence or expiry is a hard failure. |
+| PKCE | S256 for both providers. |
+| Nonce | Sent in the request and verified in the ID token. |
+| Callback | Exact registered redirect URI built from `DZI_PUBLIC_HOST`; authorization-code flow only. |
+| Issuer and audience | Validate the signature via provider JWKS, `aud` equals our client id, `exp`/`iat`. For Microsoft multi-tenant, the issuer must match the token's `tid`. |
+| Email semantics | Google's `email_verified` may be trusted for display. Microsoft's email claims are not verified and are never used for identity. Authorization is never keyed on email. |
+| Linking | Only while signed in to the existing account. Never by matching email. |
+| Duplicate email | A provider sign-in whose email matches an existing account neither signs in nor links; it tells the user to sign in and link from the account page. |
+| Login CSRF | Covered by the session-bound state. |
+| Open redirect | The return target passes through `safe_redirect_target` when stored and again when used. Existing redirect confinement must not regress. |
+| Uniqueness | `UNIQUE (issuer, subject)`; one identity maps to one user. |
+
+## 14. Security model
+
+**CSRF and request integrity**
+
+**DECISION — no CSRF tokens; the existing same-origin check is sufficient for
+account forms.**
+
+- WHY: every unsafe method already requires a matching Origin or Referer with
+  no exemptions, and that includes the login POST, so login CSRF is covered.
+  The cookie's SameSite attribute is a second, independent layer.
+- Conditions that must hold:
+  - every new unsafe view declares `@integrity_policy(SAME_ORIGIN)`;
+  - new state changes are POST only;
+  - authentication code never touches the integrity check (the separation
+    from the D1/D2 refactor is preserved).
+
+**Rate limiting**
+
+- **Per identifier (SQLite):** 10 failures in 15 minutes blocks that
+  identifier for 15 minutes, for existing and non-existing emails alike.
+  - The key is `HMAC-SHA256(SECRET_KEY, normalized_email)`, so mistyped emails
+    are never stored in clear.
+  - Expired rows are deleted on write.
+- **Per IP (Nginx):** a new `lp_login` zone on `= /login` at about `1r/s` with
+  `burst=40`. A whole class behind one school NAT may sign in at once, and the
+  current `5r/m` zones would lock a lesson out.
+- ALTERNATIVES REJECTED: an in-process counter (silently wrong if workers ever
+  increase); Redis.
+- Accepted trade-off: someone can lock a known email out for 15 minutes; the
+  CLI clears it.
+
+**Error behaviour**
+
+| Case | Behaviour |
+| --- | --- |
+| Invalid credentials, unknown email, disabled account, account without password | Same page, same status, one message: „Грешен имейл или парола.“ |
+| Throttled | 429, „Твърде много опити. Опитай отново след няколко минути.“ regardless of whether the account exists. |
+| Duplicate at creation | The CLI reports it plainly (operator context). No public surface in v1. |
+| Anonymous on a protected route | 302 to login with `next=<path>`. |
+| Signed in without the role | Until cutover, the existing redirect. From the cutover PR, a Bulgarian 403 page (new `403.html`). |
+| Object not owned (assignment, attempt) | 404, never 403. |
+| Stale, deleted, disabled or key-mismatched session | Identity keys dropped, request continues as anonymous. |
+| Malformed `next` | `safe_redirect_target` falls back by role: admin → `/teacher`, teacher → `/teacher/new`, student → `/`. |
+
+## 15. Privacy and data minimization
+
+- **Collected:** email, display name, role, password hash, timestamps. Nothing
+  else.
+- **Not collected:** date of birth, school, class, phone, IP address, user
+  agent, login history.
+- **Never logged:** passwords, hashes, `session_key`, cookie values, failed
+  identifiers. Emails never go in a query string, because Gunicorn logs the
+  request line.
+- **Existing sinks that will carry account names:** CSV exports and the vault
+  notes under `vault/Generated/Quizzes/`.
+- **Deletion:** v1 only disables accounts.
+- **Retention and erasure (deferred, approved):** how long student accounts
+  and attempts are kept, and who may request deletion, is a later
+  product/legal decision. No retention period is defined here, and none may be
+  invented during implementation. Erasure tooling is built once that decision
+  exists.
+- No analytics or tracking.
+
+## 16. Migration strategy
+
+| Migration | Content | Backfill | Downtime | Rollback |
+| --- | --- | --- | --- | --- |
+| `012_users.sql` | New table | None | Restart only | Old code ignores the table. |
+| `013_login_throttle.sql` | New table and index | None | Restart only | Same. |
+| `014_assignment_owner.sql` | Nullable column and index | None; legacy rows stay NULL | Restart only | Old code inserts with explicit column lists and is unaffected. |
+| `015_quiz_attempts_user.sql` (phase 2) | Table rebuild | Copy all rows with `user_id NULL`, preserving ids and the `sqlite_sequence` value | Service stopped, seconds | Restore from the pre-migration backup. |
+
+**Runner constraint (blocks 015 only)**
+
+- `src/manage_migrations.py::apply_migrations` wraps each file in
+  `BEGIN … COMMIT` on a connection with `foreign_keys=ON`, and that pragma
+  cannot be changed inside a transaction.
+- Dropping `quiz_attempts` in that state runs an implicit delete, which
+  cascades into `quiz_text_answers` and `practical_submissions` (both
+  `ON DELETE CASCADE`).
+- Migration 015 therefore needs a prior runner PR: an opt-in file directive
+  that turns foreign keys off before `BEGIN`, runs `PRAGMA foreign_key_check`
+  before `COMMIT`, and rolls back on any row.
+
+**Interaction with the operational database**
+
+- Production applies migrations only through `manage_migrations --apply`, with
+  the service stopped and a `src.backup_sqlite` backup first; startup already
+  refuses pending migrations.
+- A developer's local `data/questions.db` is migrated the same way, never
+  rebuilt or replaced.
+- Account migrations reach production only after the consolidated deployment
+  and the `000` baseline adoption are complete, as a separate deploy.
+
+## 17. PR-by-PR implementation sequence
+
+**Phase 1 — teacher and admin accounts**
+
+| PR | Scope | Likely files | Migration | Tests | Non-goals | Depends on |
+| --- | --- | --- | --- | --- | --- | --- |
+| 1 | `users` schema and accounts service | `web/migrations/012_users.sql`, `web/services/accounts.py`, `src/canonical_tables.py` | 012 | Migration SQL, service, classification, fresh build | Routes, session, CLI | — |
+| 2 | `manage_accounts` CLI | `src/manage_accounts.py`, `docs/DEPLOYMENT.md` | — | CLI on temp DBs; password never in argv; admin only via CLI | Web UI | 1 |
+| 3 | Principal seam and bridge | `web/access.py`, `web/app.py`, `tests/auth_helpers.py` | — | Session with valid, stale, disabled, key-mismatched `uid`; legacy matrix unchanged; anonymous sets no cookie | Login routes | 1 |
+| 4 | `/login`, `POST /logout`, `/account/password`, throttle | `web/blueprints/account.py`, `login.html`, `account_password.html`, `base.html`, `web/migrations/013_login_throttle.sql`, `deploy/nginx/learnpilot.conf`, `docs/AUTH_ROUTE_CONTRACT.md` | 013 | §18 login/session rows | Registration, reset, OAuth, changing denial redirects | 3 |
+| 5 | Move test helpers to `tests/auth_helpers.py` | `tests/` only | — | Suite green; query budgets re-baselined by exactly the one user lookup | Any app change | 3 |
+| 6 | Assignment ownership | `web/migrations/014_assignment_owner.sql`, `web/blueprints/teacher.py`, `web/services/quiz.py` | 014 | Stamped on create; foreign teacher gets 404; admin sees all; legacy tester sees unowned only | Changing which routes are admin-only | 4 |
+| 7 | Owner-scoped teacher routes | `web/blueprints/teacher.py`, templates, access matrix test, contract doc | — | Results, CSV, edit, duplicate, list for owner; 404 for others; list query count bounded | Practical review, dashboard | 6 |
+| 8 | Practical review for owning teachers | `web/blueprints/practical.py`, `web/services/practical.py` | — | Owner scope on listing and file download; path safety unchanged | Upload limits | 7 |
+| T | Admin TOTP (separate security PR, own short design and review) | to be designed in that PR | to be designed | to be designed | Anything outside admin second factor | 4 |
+| 9 | Cutover | `web/access.py`, `web/app.py`, `web/production.py`, `403.html`, env template, docs | — | Denials go to `/login`; 403 for wrong role; flag off disables legacy; production config validation | Deleting legacy code | 4, 5, T |
+| 10 | Remove legacy | `web/blueprints/auth.py`, legacy templates, `ui_profile`, Nginx zones, `AGENTS.md` smoke checklist | — | Legacy routes gone; url-map snapshots updated; no reference to the removed keys | — | 9 |
+
+Notes:
+
+- PR 4 uses a new blueprint because `tests/test_auth_blueprint.py` asserts
+  `auth.py` touches no database.
+- PR T does not block PRs 1–8. It must land before PR 9 is deployed with the
+  legacy flag off in production and before PR 10. Its secret storage and any
+  new dependency are decided in that PR, not improvised earlier.
+- PRs 4, 6–8 and T each get an independent security review.
+
+**Phase 2 — student accounts** (after phase 1): the migration-runner
+directive; migration 015 with account-owned attempts and the `signed_in`
+policy; the `Lax` cookie; assignment `public_token` links; Google/Microsoft
+OIDC sign-in with `user_identities`; a "my attempts" page. The DZI gate and
+entitlements follow, as in the roadmap. Phase 2 gets its own PR breakdown
+before it starts.
+
+## 18. Test matrix
+
+| Area | Required tests |
+| --- | --- |
+| Schema | 012–014 apply on an empty and an adopted database; CHECK and UNIQUE violations rejected; foreign-key check clean; every table created by exactly one migration. |
+| Fresh canonical build | `users` and `login_throttle` empty; classification complete; canonical manifest unchanged. |
+| Password hashing | Hash verifies; wrong password fails; stored method is scrypt; rehash on method change; length bounds; dummy verify on unknown email. |
+| Login/logout | Success sets exactly `uid`, `sk`, `iat`; generic failure message for all four failure causes; logout is POST-only and clears the session. |
+| Session | Pre-login keys cleared except attempt-owner keys; absolute lifetime enforced; key rotation invalidates other sessions; stale `uid` becomes anonymous. |
+| Roles | Route × role matrix for student, teacher, admin, anonymous; admin cannot be created through any web path. |
+| Bridge | Legacy matrix unchanged while the flag is on; account identity overrides legacy keys; flag off disables legacy routes. |
+| Redirects | External, protocol-relative, schemed and relative `next` values fall back; role fallbacks. |
+| Request integrity | Cross-origin and header-less POSTs to `/login`, `/logout`, `/account/password` get 403 before any session write; coverage test still passes. |
+| Disabled accounts | Cannot sign in; an existing session stops working on the next request. |
+| Throttle | Block after the limit; block applies to unknown identifiers; reset on success; no plaintext identifier stored. |
+| Ownership | Owner, other teacher, admin, legacy tester on every assignment route; always 404 for non-owners. |
+| Bootstrap | CLI creates admin; duplicate email rejected; requires explicit database; never opens the runtime database in tests. |
+| Duplicate identities | Email uniqueness case-insensitively after normalization. |
+| Existing behaviour | Quiz, teacher and DZI suites unchanged; url-map snapshot tests updated only for the new routes. |
+| Performance | Anonymous request runs zero account queries; signed-in request runs exactly one; owner-scoped list has no per-row query. |
+
+No tests are required for OAuth, TOTP, reset, verification or registration
+until those features are built.
+
+## 19. Production rollout
+
+1. Finish the consolidated deployment and baseline adoption first.
+2. Deploy PRs 1–4 with the legacy flag on: stop, back up, apply 012–013,
+   start.
+3. Create the admin with the CLI and verify sign-in; then create pilot teacher
+   accounts.
+4. Deploy ownership (014). Existing production assignments stay unowned and
+   admin-only.
+5. Land and deploy admin TOTP (PR T) and enrol the admin account.
+6. Turn the legacy flag off (PR 9), then remove both passwords from the env
+   file after PR 10.
+
+Restoring a backup revives the password hashes and session keys of that
+moment. After any restore, run `manage_accounts sign-out` for all users.
+
+## 20. Explicitly deferred
+
+- Student accounts, attempt ownership, `signed_in` routes, assignment tokens,
+  the `Lax` cookie (phase 2).
+- Public registration, email verification, password reset, forced password
+  change after an operator reset.
+- OAuth (Google, Microsoft) and `user_identities` (phase 2); Apple entirely.
+- Admin TOTP and recovery codes (PR T, before cutover).
+- `declared_type`, plans, entitlements, billing, teacher creation quotas.
+- Student-data retention period and erasure tooling (product/legal decision).
+- An admin web UI for users.
+
+## 21. Decisions and remaining open items
+
+Resolved by Gabriel (see §1): student authentication deferred to phase 2 with
+OIDC preferred; session-bound OAuth transactions approved; TOTP is a separate
+pre-cutover PR; retention/erasure deferred.
+
+Still open, none of which blocks phase 1:
+
+| Item | Needed by | Until decided |
+| --- | --- | --- |
+| Student-data retention period and erasure process | Before student accounts launch | Accounts are only disabled; nothing is deleted automatically. |
+| Whether the МОН tenant allows third-party sign-in for `edu.mon.bg` | Phase 2 OIDC design | Assume it must be verified before relying on Microsoft sign-in for students. |
+| Legacy unowned assignments | Any time | Keep `owner_user_id = NULL`; admin-only (roadmap default). |
+
+## 22. Risks
+
+- **Data loss in the attempts rebuild** if migration 015 runs on the current
+  runner. Mitigated by the runner PR and a backup.
+- **Two auth paths during the bridge.** Bounded by the flag and by PR 10; the
+  bridge must not outlive phase 1.
+- **Single sync worker.** A password check costs noticeable CPU; a login flood
+  stalls every user. The Nginx limit and the pre-hash throttle check are the
+  defence.
+- **Targeted lockout** of a known email for 15 minutes.
+- **Cookie sessions cannot be listed or individually revoked.** Only per-user
+  key rotation and the absolute lifetime exist.
+- **Test churn.** PR 5 touches many test files mechanically; keep it
+  tests-only.
+- **Gap 2 stays open until PR 6.** Any holder of the tester password can read
+  all assignments' student names until then.
+- **Admin without a second factor between PR 4 and PR T.** Mitigated by the
+  14-character minimum, the 12-hour admin session and the login throttle; PR T
+  closes it before cutover.
+
+## Recommended next PR
+
+**PR 1 — `users` schema and accounts service**
+
+- **Scope:** add the table and a service module with no caller in the web app.
+- **Migration:** `012_users.sql`, exactly as in §5.
+- **Expected behaviour:**
+  - No route, template, session or access change; the url map and every
+    existing test are unchanged.
+  - `web/services/accounts.py` offers `normalize_email`, `password_problem`,
+    `create_user`, `get_user_by_id`, `get_user_by_email`, `verify_password`,
+    `set_password`, `set_role`, `set_active`, `rotate_session_key`.
+  - Each function takes an open connection and the caller commits.
+  - `create_user` generates `session_key` with `secrets.token_urlsafe(32)`.
+- **Likely files:**
+  - `web/migrations/012_users.sql`
+  - `web/services/accounts.py`
+  - `src/canonical_tables.py` (classify `users` as runtime)
+  - `tests/test_users_migration_sql.py`
+  - `tests/test_accounts_service.py`
+- **Tests:** the schema, fresh-build, password-hashing and duplicate-identity
+  rows of §18; the service must import neither `web.app` nor a blueprint.
+- **Non-goals:** CLI, login, session handling, `Principal` changes, throttle,
+  ownership, any OAuth or TOTP table, any canonical data change.
