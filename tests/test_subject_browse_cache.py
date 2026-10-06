@@ -191,7 +191,7 @@ class PublicBrowseCacheTest(unittest.TestCase):
             self.assertIn(sql.strip().split()[0].upper(), {"SELECT", "PRAGMA"}, sql)
             if sql.strip().upper().startswith("PRAGMA"):
                 self.assertIn(sql.strip().upper(), {
-                    "PRAGMA JOURNAL_MODE=WAL", "PRAGMA DATABASE_LIST", "PRAGMA QUERY_ONLY=ON",
+                    "PRAGMA FOREIGN_KEYS=ON", "PRAGMA DATABASE_LIST", "PRAGMA QUERY_ONLY=ON",
                 })
 
     def test_topic_page_adds_no_query_path_beyond_its_section(self):
@@ -237,7 +237,7 @@ class PublicBrowseCacheTest(unittest.TestCase):
                     self.assertIn(sql.strip().split()[0].upper(), {"SELECT", "PRAGMA"}, sql)
                     if sql.strip().upper().startswith("PRAGMA"):
                         self.assertIn(sql.strip().upper(), {
-                            "PRAGMA JOURNAL_MODE=WAL", "PRAGMA DATABASE_LIST", "PRAGMA QUERY_ONLY=ON",
+                            "PRAGMA FOREIGN_KEYS=ON", "PRAGMA DATABASE_LIST", "PRAGMA QUERY_ONLY=ON",
                         })
 
     def test_committed_content_edit_is_visible_on_next_public_request(self):

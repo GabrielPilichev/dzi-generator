@@ -419,12 +419,7 @@ class WebAppNeverChangesSchemaTest(unittest.TestCase):
             return conn.execute("PRAGMA schema_version").fetchone()[0]
 
     def schema_fingerprint(self, db):
-        """Every schema object plus the schema cookie.
-
-        Requests are compared by schema, not file hash: get_db() still switches
-        the connection to WAL (journal mode is a PR B concern), which rewrites
-        the header of a rollback-journal copy without touching the schema.
-        """
+        """Every schema object plus the schema cookie."""
         with sqlite3.connect(db) as conn:
             objects = conn.execute(
                 "SELECT type, name, tbl_name, sql FROM sqlite_master ORDER BY type, name"
@@ -456,6 +451,16 @@ class WebAppNeverChangesSchemaTest(unittest.TestCase):
         self.assertEqual(report["statuses"][0], 200)
         self.assertEqual(self.schema_fingerprint(db), before)
         self.assertNotIn("pending migrations", stderr)
+
+    def test_requests_leave_a_prepared_database_byte_identical(self):
+        # No request connection changes journal mode any more (web.db), so even the
+        # header of a rollback-journal copy stays as it was.
+        db, env = self.migrated_copy()
+        before = _sha256(Path(db))
+        report, stderr = self.probe({"DZI_DB": db})
+        self.assertEqual(report["statuses"], [200, 200])
+        self.assertEqual(_sha256(Path(db)), before)
+        self.assertEqual([p.name for p in Path(db).parent.glob("questions.db*")], ["questions.db"])
 
     def test_pending_migration_is_warned_about_not_applied(self):
         db, env = self.migrated_copy()
@@ -543,8 +548,11 @@ class HealthEndpointTest(IsolatedAppTestCase):
             response = self.client.get("/healthz")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(connections), 1)
-        self.assertLessEqual(len(statements), 2)
-        self.assertTrue(all(s.lstrip().upper().startswith("PRAGMA") for s in statements), statements)
+        # The two connection-local policy pragmas from web.db, then the one header read.
+        self.assertEqual(
+            [s.strip().upper() for s in statements],
+            ["PRAGMA FOREIGN_KEYS=ON", "PRAGMA QUERY_ONLY=ON", "PRAGMA SCHEMA_VERSION"],
+        )
 
     def test_missing_or_corrupt_database_reports_unavailable_without_details(self):
         tmp = tempfile.TemporaryDirectory()

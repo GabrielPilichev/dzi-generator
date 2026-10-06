@@ -14,6 +14,9 @@ from contextlib import ExitStack, closing, contextmanager
 from pathlib import Path
 from unittest.mock import patch
 
+from tests.seed_guard import guard_connect_db
+from web import db as web_db
+
 with patch.dict(os.environ, {"DZI_DB": ":memory:"}):
     from web import app as web_app
 
@@ -84,7 +87,11 @@ def isolated_app():
         upload_root = root / "uploads" / "practical"
         upload_root.mkdir(parents=True)
 
-        with preserved_app_state(), patch.object(web_app.app, "_got_first_request", False):
+        # A test on a temporary DB must never reach the tracked seed through the
+        # shared web connection factory (e.g. leaked DB_PATH/QUIZ_DB_PATH).
+        with preserved_app_state(), \
+                patch.object(web_db, "connect_db", guard_connect_db(web_db.connect_db)), \
+                patch.object(web_app.app, "_got_first_request", False):
             # Some legacy class fixtures register a test-only auth route. Reset
             # Flask's setup marker for that fixture and restore it on exit.
             web_app.DB_PATH = db_path
