@@ -375,7 +375,9 @@ class AuthGuardTest(IsolatedAppTestCase):
         self.assertIn("клас", body)
         self.assertIn("Учител: не е посочен", body)
 
-    def test_future_dzi_named_endpoint_is_admin_only_by_default(self):
+    def test_future_undeclared_dzi_endpoint_is_denied_by_default(self):
+        # The test-only view declares no access policy, so explicit enforcement
+        # denies it to every session, admin included (roadmap PR D2).
         path = "/__test__/dzi-default-denied"
 
         response = self.client.get(path)
@@ -390,8 +392,9 @@ class AuthGuardTest(IsolatedAppTestCase):
         self.client = self.app.test_client()
         self._login_admin()
         response = self.client.get(path)
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data, b"test-only DZI endpoint")
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/admin/login", response.headers["Location"])
+        self.assertNotEqual(response.data, b"test-only DZI endpoint")
 
     def test_admin_login_rejects_external_next_after_successful_login(self):
         for next_url in ("//evil.example/login", "https://evil.example/login"):

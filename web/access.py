@@ -1,4 +1,4 @@
-"""Explicit route access policy (roadmap PR D1).
+"""Explicit route access policy (roadmap PRs D1/D2).
 
 Authorization only: given who the current session is, may it use a route?
 Authentication (logins, logout, session creation) stays in ``web.app``.
@@ -10,9 +10,9 @@ Policies attach to view functions, not endpoint strings, so legacy aliases and
 blueprint-prefixed endpoint names resolve to the same policy. An endpoint
 without a declared policy is denied.
 
-D1 declares these policies beside ``protect_admin_routes`` in ``web.app``,
-which still enforces access; tests assert both agree for every endpoint. PR D2
-replaces the prefix guard with this module.
+These declarations are the only route-level authorization: the
+``enforce_access_policy`` before-request hook in ``web.app`` applies them to the
+resolved view (D2 removed the old endpoint-prefix guard).
 
 This module must not import ``web.app``.
 """
