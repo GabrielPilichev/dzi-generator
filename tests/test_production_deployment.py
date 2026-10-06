@@ -22,7 +22,7 @@ from unittest.mock import patch
 from werkzeug.test import create_environ
 
 from src.practical_uploads import MAX_REQUEST_BYTES, MAX_UPLOAD_BYTES
-from tests.support import ROOT, IsolatedAppTestCase, copy_seed_database, web_app
+from tests.support import ROOT, IsolatedAppTestCase, adopt_baseline, copy_seed_database, web_app
 from web import production
 
 
@@ -36,13 +36,15 @@ def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def _state_dir(test: unittest.TestCase, *, seed: bool) -> dict:
+def _state_dir(test: unittest.TestCase, *, seed: bool, baseline: bool = True) -> dict:
     tmp = tempfile.TemporaryDirectory(prefix="learnpilot-prod-")
     test.addCleanup(tmp.cleanup)
     root = Path(tmp.name).resolve()
     db = root / "questions.db"
     if seed:
         copy_seed_database(ROOT / "data/questions.db", db)
+        if baseline:
+            adopt_baseline(db)  # an existing database records 000; the seed copy predates it
     else:
         db.write_bytes(b"")
     (root / "uploads").mkdir()
@@ -327,6 +329,19 @@ class ProductionStartupTest(unittest.TestCase):
         output = result.stdout + result.stderr
         self.assertEqual(result.returncode, 3, output)
         self.assertIn("pending migrations: 009_quiz_text_answer_teacher_status.sql", output)
+        self.assertIn("src.manage_migrations", output)
+        self.assertIn("db unchanged: True", output)
+        self.assertEqual(_sha256(db), before)
+
+    def test_existing_database_that_has_not_adopted_the_baseline_stops_startup(self):
+        # Rollout order: snapshot, --baseline-dry-run, --baseline-apply, then deploy.
+        env = _state_dir(self, seed=True, baseline=False)
+        db = Path(env["DZI_DB"])
+        before = _sha256(db)
+        result = _run_python(FAILING_STARTUP_PROBE, env)
+        output = result.stdout + result.stderr
+        self.assertEqual(result.returncode, 3, output)
+        self.assertIn("pending migrations: 000_baseline.sql", output)
         self.assertIn("src.manage_migrations", output)
         self.assertIn("db unchanged: True", output)
         self.assertEqual(_sha256(db), before)

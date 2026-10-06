@@ -221,6 +221,34 @@ always back up the production database first. The development-only
 request-time `ALTER TABLE` guard for teacher answer review is disabled in
 production as well, so no request path runs schema code.
 
+### One-time baseline adoption (`000_baseline.sql`)
+
+`web/migrations/000_baseline.sql` is the schema-only baseline: the core tables
+that existed before migration 001 (curriculum, exams, questions and their
+indexes). It contains no data and nothing that 001-010 create. A **fresh, empty**
+database runs it through a normal `--apply`, followed by 001-010.
+
+A database that already has this schema (the production database included) does
+**not** run 000; it records it. Adoption is bookkeeping only (one
+`schema_migrations` row), it never creates or alters application schema, and it
+is refused unless every baseline table, column, index and constraint is really
+present. Until 000 is recorded, startup refuses the database like any other
+pending migration, and `--apply` refuses a non-empty database that has not
+recorded 000.
+
+Rollout order for the first release that contains 000, from the new release
+checkout and before the service is restarted onto it:
+
+1. Take a complete snapshot (section 16).
+2. `python3 -m src.manage_migrations --db <production db> --baseline-dry-run`
+   must report `000_baseline.sql: baselineable` and no remaining pending
+   migrations. Anything else: stop and investigate; do not adopt.
+3. `python3 -m src.manage_migrations --db <production db> --baseline-apply`.
+4. Deploy and restart as usual.
+
+Canonical content remains separate from the schema baseline and is not part of
+this step.
+
 Before the first public start, run the complete suite inside the server venv
 with isolated temporary test databases, and retain the version evidence:
 

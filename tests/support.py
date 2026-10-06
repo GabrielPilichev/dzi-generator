@@ -5,6 +5,7 @@ DB, then configure its two independent DB paths before class fixtures or request
 environment variables alone cannot reconfigure an already imported application.
 """
 
+import io
 import os
 import shutil
 import sqlite3
@@ -59,6 +60,22 @@ def copy_seed_database(source: Path, destination: Path):
         sidecar = Path(str(destination) + suffix)
         if sidecar.exists():
             sidecar.unlink()
+
+
+def adopt_baseline(db_path: Path):
+    """Record migration 000 on a temporary seed copy, as an existing database does.
+
+    The tracked seed predates 000 and must stay byte-identical, so a copy of it
+    has 000 pending until adopted. Only schema_migrations bookkeeping changes.
+    """
+    from src import manage_migrations
+
+    path = Path(db_path).resolve()
+    if path == (ROOT / "data" / "questions.db").resolve():
+        raise AssertionError("refusing to write to the repository database from a test")
+    status = manage_migrations.baseline_apply(path, ROOT / "web" / "migrations", out=io.StringIO())
+    if status != 0:
+        raise AssertionError("baseline adoption failed on the temporary database copy")
 
 
 @contextmanager

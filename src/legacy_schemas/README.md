@@ -12,3 +12,6 @@ Use `web/migrations/` for live migrations and new schema work.
 
 Do not add new schema changes here, and do not use these snapshots to migrate
 the current application database. They are kept only as historical references.
+
+The pre-001 core schema is now tracked as `web/migrations/000_baseline.sql`,
+derived from the seed database rather than from these snapshots, which drifted.

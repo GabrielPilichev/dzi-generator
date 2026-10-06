@@ -28,6 +28,10 @@ if present. The source is read as files, never opened through SQLite: even a
 read-only SQLite connection can update its shared-memory sidecar. Copying fails
 if the seed changes during the copy; retry when development writes are idle.
 No migrations or imports run against the repository database.
+The tracked seed predates migration 000 (the schema baseline), so a copy of it
+reports 000 as pending until `tests.support.adopt_baseline(copy)` records it, the
+same way an existing database adopts it; `subject_fixtures.apply_pending_migrations`
+and the production-startup fixtures do this for you.
 Both `app.config["DB_PATH"]` / `get_db()` and
 `QUIZ_DB_PATH` / `quiz_db()` point to that temporary database. `DZI_DB` is set to
 the same path for code that reads the environment.
@@ -49,6 +53,13 @@ Configuration, environment variables and path globals are restored after every
 test and class, including failed setup. Class cleanup removes the temporary DB,
 SQLite sidecars and generated artifacts. Database rows are shared within a class
 to preserve existing class-level question fixtures; classes do not share writes.
+
+`tests/test_schema_baseline.py` is the schema-parity gate: an empty database plus
+000-010 must equal the seed's schema (tables, ordered columns, types, NOT NULL,
+defaults, primary/foreign keys, indexes, partial indexes, CHECKs, AUTOINCREMENT)
+using `tests/schema_snapshot.py`. A difference there means 000 or a migration is
+wrong; never loosen the comparison. The same module can compare two database
+files: `python3 -m tests.schema_snapshot --left A.db --right B.db`.
 
 Pure helper tests pass explicit in-memory connections and need no application
 fixture. Migration/import tests use in-memory or temporary databases and files;
