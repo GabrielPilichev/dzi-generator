@@ -145,6 +145,8 @@ class StructureDryRunAndApplyTest(_StructureImportTestCase):
 
     def test_dry_run_sees_committed_content_that_is_still_in_the_wal(self):
         holder = self.connect()                       # keeps the WAL from being checkpointed away
+        # copy_seed_database returns a rollback-journal copy; this test needs WAL.
+        holder.execute("PRAGMA journal_mode=WAL").fetchone()
         holder.execute("SELECT COUNT(*) FROM curricula").fetchone()
         structure = synthetic_structure()
         import_structure(self.db_path, structure, apply=True)

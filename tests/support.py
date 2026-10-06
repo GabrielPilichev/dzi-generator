@@ -7,9 +7,10 @@ environment variables alone cannot reconfigure an already imported application.
 
 import os
 import shutil
+import sqlite3
 import tempfile
 import unittest
-from contextlib import ExitStack, contextmanager
+from contextlib import ExitStack, closing, contextmanager
 from pathlib import Path
 from unittest.mock import patch
 
@@ -21,11 +22,11 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def copy_seed_database(source: Path, destination: Path):
-    """Copy a quiescent seed plus committed WAL data without opening SQLite.
+    """Copy a quiescent seed plus committed WAL data into a standalone database.
 
-    Even mode=ro SQLite connections can update the source -shm file. Let SQLite
-    rebuild shared memory only for the temporary copy. Fail if the source changes
-    during copying rather than running tests against an inconsistent snapshot.
+    The source is never opened through SQLite: even mode=ro connections can
+    update the source -shm file. Fail if the source changes during copying
+    rather than running tests against an inconsistent snapshot.
     """
     source_wal = Path(str(source) + "-wal")
 
@@ -42,6 +43,19 @@ def copy_seed_database(source: Path, destination: Path):
         shutil.copyfile(source_wal, Path(str(destination) + "-wal"))
     if source_state() != before:
         raise RuntimeError("Seed database changed while copying; retry when it is idle")
+    # The seed is WAL-mode, and a read-only connection (the DZI generator uses
+    # mode=ro) cannot open a WAL database whose -wal/-shm sidecars are missing
+    # and cannot be created. Fold any copied WAL into the copy and switch it to
+    # a rollback journal so it is self-contained whether or not the source had
+    # sidecars. Only the temporary copy is ever opened here, never the source.
+    with closing(sqlite3.connect(destination)) as conn:
+        if conn.execute("PRAGMA journal_mode=DELETE").fetchone()[0] != "delete":
+            raise RuntimeError("Could not make the seed database copy self-contained")
+    # SQLite can leave an unused -shm behind after leaving WAL mode.
+    for suffix in ("-wal", "-shm"):
+        sidecar = Path(str(destination) + suffix)
+        if sidecar.exists():
+            sidecar.unlink()
 
 
 @contextmanager
