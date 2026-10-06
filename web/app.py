@@ -72,6 +72,7 @@ from web.blueprints.quiz import (
     register_legacy_quiz_endpoint_aliases,
     require_quiz_attempt_access,
 )
+from web import db as web_db
 from web.production import warn_if_schema_migrations_pending
 
 
@@ -685,12 +686,9 @@ ALLOWED_INTERNAL_TABLES = {
 
 
 def get_db() -> sqlite3.Connection:
-    """Per-request SQLite connection. Closed in teardown."""
+    """Per-request SQLite connection (web.db policy). Closed in teardown."""
     if "db" not in g:
-        conn = sqlite3.connect(app.config["DB_PATH"])
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.row_factory = sqlite3.Row
-        g.db = conn
+        g.db = web_db.connect_db(app.config["DB_PATH"])
     return g.db
 
 
@@ -1851,18 +1849,8 @@ HEALTH_DB_TIMEOUT_SECONDS = 2.0
 
 
 def open_existing_database_read_only(path, *, timeout: float = 5.0) -> sqlite3.Connection:
-    """Never creates a missing database file; this connection refuses SQL writes.
-
-    mode=rw (not mode=ro) lets SQLite initialize absent WAL/SHM sidecars, as in
-    src.subject_browse_cache; query_only keeps the connection read-only.
-    """
-    conn = sqlite3.connect(Path(path).resolve().as_uri() + "?mode=rw", uri=True, timeout=timeout)
-    try:
-        conn.execute("PRAGMA query_only=ON")
-    except BaseException:
-        conn.close()
-        raise
-    return conn
+    """Never creates a missing database file; this connection refuses SQL writes."""
+    return web_db.connect_db(path, query_only=True, timeout=timeout)
 
 
 @app.route("/healthz")
@@ -2272,7 +2260,6 @@ import json as _quiz_json
 import os as _quiz_os
 import random as _quiz_random
 import re as _quiz_re
-import sqlite3 as _quiz_sqlite3
 import sys as _quiz_sys
 import unicodedata as _quiz_unicodedata
 from datetime import datetime as _quiz_datetime, timezone as _quiz_timezone
@@ -2297,10 +2284,8 @@ QUIZ_VAULT_PATH = _QuizPath(
 
 
 def quiz_db():
-    conn = _quiz_sqlite3.connect(str(QUIZ_DB_PATH))
-    conn.row_factory = _quiz_sqlite3.Row
-    conn.execute("PRAGMA foreign_keys = ON")
-    return conn
+    """One short-lived connection per call; the caller closes it."""
+    return web_db.connect_db(QUIZ_DB_PATH)
 
 
 def quiz_slugify(value: str) -> str:

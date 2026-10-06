@@ -193,6 +193,12 @@ sudo -u learnpilot sqlite3 /var/lib/learnpilot/data/questions.db 'PRAGMA journal
 
 (`/var/lib/learnpilot/data` must already exist, owned by `learnpilot`; see section 2.)
 
+The `PRAGMA journal_mode=WAL;` above is the only place WAL is chosen. Journal mode
+is persistent database state, so the application (`web/db.py`) never sets it:
+opening connections and serving requests leave the file's journal mode and header
+untouched. Repeat the pragma after restoring a database from a backup (section 17)
+and for any database created some other way.
+
 ## 9. Schema / pre-start step
 
 Production never changes schema on import: `web.wsgi` disables the

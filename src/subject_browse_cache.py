@@ -10,11 +10,11 @@ from collections import OrderedDict
 from concurrent.futures import Future
 from copy import deepcopy
 from pathlib import Path
-import sqlite3
 from threading import Lock
 
 from src.subject_browsing import SubjectContentBrowser
 from src.subject_content import IT, canonical_subject
+from web import db as web_db
 
 
 def database_identity(path):
@@ -49,13 +49,11 @@ class BrowseResultCache:
 
     @staticmethod
     def _load(path, compute):
-        # mode=rw never creates a missing DB, but lets SQLite initialize absent
-        # WAL/SHM sidecars. mode=ro cannot do that on all SQLite builds. Enforce
-        # read-only SQL before invoking any loader; do not change journal mode.
-        conn = sqlite3.connect(Path(path).resolve().as_uri() + "?mode=rw", uri=True)
-        conn.row_factory = sqlite3.Row
+        # A query-only connection from the shared web.db policy: it never creates a
+        # missing DB and refuses writes before any loader runs. It does not change
+        # journal mode.
+        conn = web_db.connect_db(path, query_only=True)
         try:
-            conn.execute("PRAGMA query_only=ON")
             return compute(conn)
         finally:
             conn.close()

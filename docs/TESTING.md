@@ -48,6 +48,30 @@ fixture. Migration/import tests use in-memory or temporary databases and files;
 keep that boundary when adding tests. Never call an import or migration tool with
 its default repository database from a test.
 
+## Connection policy and the seed tripwire
+
+Every connection the web app opens (`get_db()`, `quiz_db()`, the health check and
+the browse-cache cold loaders) comes from `web.db.connect_db(path, *, query_only=False)`:
+`sqlite3.Row`, `foreign_keys=ON`, a 5 second busy timeout, and `query_only` for the
+read-only ones. It never sets a journal mode (WAL is chosen when a live database is
+prepared, see `docs/DEPLOYMENT.md`) and it takes the path as an argument, so the
+patched `DB_PATH` / `QUIZ_DB_PATH` values keep controlling which database is used.
+`tests/test_web_db.py` and `tests/test_web_db_integration.py` pin this.
+
+Two safeguards (`tests/seed_guard.py`) keep tests off the tracked seed,
+`data/questions.db`:
+
+- `tests.support.isolated_app()` wraps `web.db.connect_db` so that asking for the
+  seed raises `SeedDatabaseAccess` instead of opening it (for example when a leaked
+  `DB_PATH` points back at the repository). A test that really must read the seed
+  through the factory wraps the call in `allow_seed_inspection()`; copying its bytes
+  with `copy_seed_database` is always allowed.
+- Importing the `tests` package records the sha256 of the seed and its `-wal`; at
+  interpreter exit a difference prints a `SEED DATABASE TRIPWIRE` message and the
+  process exits with status 1 even if every test passed. If it fires, find the
+  writer (or a local server running against the seed) and `git restore
+  data/questions.db`.
+
 ## Previous isolation problems
 
 - `web.app` used to run `quiz_apply_migration()` at import time, before unittest
