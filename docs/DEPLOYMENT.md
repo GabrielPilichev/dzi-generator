@@ -662,6 +662,42 @@ the step 3 snapshot.
 - If no migration was applied, a code rollback needs no data restore.
 - Browsers may keep old CSS/JS for up to one hour (static cache lifetime).
 
+## 22. Account management CLI
+
+`src.manage_accounts` is operator tooling for the `users` table (migration 012).
+It is a command reference only: the application does not use account
+authentication yet, so this is not a rollout step.
+
+The target database is never defaulted to `data/questions.db`. Pass `--db <path>`
+or set `DZI_DB` (`--db` wins). The file must already exist and already have the
+`users` table; the command never creates, migrates or rebuilds a database.
+
+```bash
+python3 -m src.manage_accounts --db "$DZI_DB" create --email teacher@example.bg --name "Име Фамилия" --role teacher
+python3 -m src.manage_accounts --db "$DZI_DB" set-password --email teacher@example.bg
+python3 -m src.manage_accounts --db "$DZI_DB" set-role --email teacher@example.bg --role admin
+python3 -m src.manage_accounts --db "$DZI_DB" disable --email teacher@example.bg
+python3 -m src.manage_accounts --db "$DZI_DB" enable --email teacher@example.bg
+python3 -m src.manage_accounts --db "$DZI_DB" sign-out --email teacher@example.bg
+python3 -m src.manage_accounts --db "$DZI_DB" list
+```
+
+- Accounts are addressed by (normalized) email. Roles: `student`, `teacher`, `admin`.
+  This CLI is the only way to create or promote an admin.
+- Passwords are never accepted as arguments or from the environment. By default
+  the command prompts twice without echo. For controlled automation use
+  `--password-stdin`: stdin must be exactly one line (an optional trailing
+  newline is removed); empty or multi-line input is rejected.
+- Password length: 10 to 256 characters; admin accounts need at least 14.
+  `set-role --role admin` cannot see the old password, so follow it with
+  `set-password` if the current one is shorter than 14 characters.
+- `set-password`, `set-role`, `disable`, `enable` and `sign-out` rotate the
+  account's session key, invalidating its future sessions.
+- `list` prints id, email, name, role, active state, created and last login
+  times; never password hashes or session keys.
+- Errors go to stderr with a nonzero exit status; each command commits only after
+  it fully succeeds.
+
 ## 2 GB VPS sizing
 
 Initial configuration from capacity testing: Gunicorn `workers = 1`,
