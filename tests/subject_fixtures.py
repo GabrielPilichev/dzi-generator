@@ -18,6 +18,82 @@ from src.subject_registry import SubjectDefinition, validate_registry
 from tests.support import ROOT, adopt_baseline
 
 
+def _referencing_foreign_keys(conn: sqlite3.Connection) -> dict[str, list[tuple[str, str]]]:
+    """parent table -> [(child table, child column)] over every declared foreign key."""
+    references: dict[str, list[tuple[str, str]]] = {}
+    for (table,) in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table' "
+                                 "AND name NOT LIKE 'sqlite_%'").fetchall():
+        for row in conn.execute(f'PRAGMA foreign_key_list("{table}")'):
+            references.setdefault(row[2], []).append((table, row[3]))
+    return references
+
+
+def _delete_with_dependents(conn: sqlite3.Connection, references, table: str, ids: list[int]) -> None:
+    """Delete ``ids`` of ``table`` after recursively deleting the rows that reference them."""
+    if not ids:
+        return
+    marks = ",".join("?" for _ in ids)
+    for child, column in references.get(table, []):
+        child_ids = [row[0] for row in conn.execute(
+            f'SELECT rowid FROM "{child}" WHERE "{column}" IN ({marks})', ids)]
+        for start in range(0, len(child_ids), 500):
+            _delete_with_dependents_rowid(conn, references, child, child_ids[start:start + 500])
+    conn.execute(f'DELETE FROM "{table}" WHERE id IN ({marks})', ids)
+
+
+def _delete_with_dependents_rowid(conn, references, table: str, rowids: list[int]) -> None:
+    marks = ",".join("?" for _ in rowids)
+    ids = [row[0] for row in conn.execute(f'SELECT id FROM "{table}" WHERE rowid IN ({marks})', rowids)] \
+        if _has_id(conn, table) else None
+    if ids is None:
+        conn.execute(f'DELETE FROM "{table}" WHERE rowid IN ({marks})', rowids)
+    else:
+        _delete_with_dependents(conn, references, table, ids)
+
+
+def _has_id(conn: sqlite3.Connection, table: str) -> bool:
+    return any(row[1] == "id" and row[5] == 1 for row in conn.execute(f'PRAGMA table_info("{table}")'))
+
+
+def remove_subject_content(db_path, subjects=("physics", "biology")) -> None:
+    """Delete the curricula, sections, topics and questions of ``subjects`` from a temporary DB.
+
+    This produces the "IT/DZI content only" state that subject-preparation tests pin (Physics
+    and Biology absent, so those subjects render as in preparation). It is an explicit,
+    visible fixture step on a temporary copy of the canonical test database; dependents are
+    removed first through the declared foreign keys, and the result is checked with
+    ``PRAGMA foreign_key_check``. Never call it with the repository database.
+    """
+    path = Path(db_path).resolve()
+    if path == (ROOT / "data" / "questions.db").resolve():
+        raise AssertionError("refusing to modify the repository database from a test")
+    marks = ",".join("?" for _ in subjects)
+    conn = sqlite3.connect(path)
+    try:
+        conn.execute("PRAGMA foreign_keys = ON")
+        references = _referencing_foreign_keys(conn)
+        curricula = [row[0] for row in conn.execute(
+            f"SELECT id FROM curricula WHERE subject IN ({marks})", subjects)]
+        sections = [row[0] for row in conn.execute(
+            f"SELECT id FROM curriculum_sections WHERE curriculum_id IN ({','.join('?' for _ in curricula)})",
+            curricula)] if curricula else []
+        topics = [row[0] for row in conn.execute(
+            f"SELECT id FROM curriculum_topics WHERE section_id IN ({','.join('?' for _ in sections)})",
+            sections)] if sections else []
+        questions = [row[0] for row in conn.execute(
+            f"SELECT id FROM questions WHERE subject IN ({marks})", subjects)]
+        with conn:
+            _delete_with_dependents(conn, references, "questions", questions)
+            _delete_with_dependents(conn, references, "curriculum_topics", topics)
+            _delete_with_dependents(conn, references, "curriculum_sections", sections)
+            _delete_with_dependents(conn, references, "curricula", curricula)
+        violations = conn.execute("PRAGMA foreign_key_check").fetchall()
+        if violations:
+            raise AssertionError(f"removing {subjects} left foreign key violations: {violations[:3]}")
+    finally:
+        conn.close()
+
+
 def apply_pending_migrations(db_path) -> None:
     """Bring a temporary database copy up to the current schema with the real runner.
 

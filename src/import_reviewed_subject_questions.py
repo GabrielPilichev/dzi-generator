@@ -2,6 +2,11 @@
 
 Dry run is the default. Both modes exercise the same validation and insertion
 path; dry run does so on an in-memory copy of the target database.
+
+Ids are stable: an existing curriculum/section/topic/question (matched by its natural key)
+and its options keep their ids; only genuinely new rows are inserted, each with a freshly
+allocated id above the canonical and target maximum (``src/stable_ids.py``) or the caller's
+``explicit_ids`` entry when it does not collide (a conflict rejects the whole batch).
 """
 
 from __future__ import annotations
@@ -12,6 +17,7 @@ import sqlite3
 from pathlib import Path
 from urllib.parse import quote
 
+from src import stable_ids
 from src.subject_assessment import AssessmentScope
 from src.subject_browsing import is_namespaced_slug
 from src.subject_content import (
@@ -110,8 +116,16 @@ def _one(conn, sql, params, label):
     return rows[0] if rows else None
 
 
-def _import_in_transaction(conn, batch, subject):
+def _explicit_for_existing(table, existing_id, requested):
+    """A requested id for a row that already exists must be the stored id: never remap."""
+    if requested is not None and requested != existing_id:
+        raise stable_ids.IdConflict(
+            f"{table}: stored id {existing_id} differs from the requested id {requested}")
+
+
+def _import_in_transaction(conn, batch, subject, explicit_ids=None):
     """Insert or exactly reuse rows. Caller owns the transaction boundary."""
+    explicit_ids = explicit_ids or {}
     grade = batch["grade"]
     summary = {key: {"inserted": 0, "reused": 0} for key in
                ("curricula", "sections", "topics", "questions")}
@@ -133,13 +147,17 @@ def _import_in_transaction(conn, batch, subject):
         if row["title_bg"] != curriculum["title"]:
             raise ValueError("Conflicting curriculum title")
         curriculum_id = row["id"]
+        _explicit_for_existing("curricula", curriculum_id, explicit_ids.get("curricula"))
         summary["curricula"]["reused"] += 1
     else:
-        curriculum_id = conn.execute(
-            "INSERT INTO curricula (grade, subject, education_type, title_bg, source_type) "
-            "VALUES (?, ?, ?, ?, 'reviewed_subject_import')",
-            (grade, subject, curriculum["education_type"], curriculum["title"]),
-        ).lastrowid
+        curriculum_id = stable_ids.new_row_id(
+            conn, "curricula", explicit_ids.get("curricula"),
+            {"subject": subject, "grade": grade, "education_type": curriculum["education_type"]})
+        conn.execute(
+            "INSERT INTO curricula (id, grade, subject, education_type, title_bg, source_type) "
+            "VALUES (?, ?, ?, ?, ?, 'reviewed_subject_import')",
+            (curriculum_id, grade, subject, curriculum["education_type"], curriculum["title"]),
+        )
         summary["curricula"]["inserted"] += 1
     _owned(curriculum_ownership(conn, curriculum_id), subject, "Curriculum")
 
@@ -151,14 +169,17 @@ def _import_in_transaction(conn, batch, subject):
                 or row["title_bg"] != section["title"] or row["section_type"] != "content"):
             raise ValueError("Conflicting section slug/content/grade")
         section_id = row["id"]
+        _explicit_for_existing("curriculum_sections", section_id, explicit_ids.get("sections"))
         summary["sections"]["reused"] += 1
     else:
-        section_id = conn.execute(
+        section_id = stable_ids.new_row_id(
+            conn, "curriculum_sections", explicit_ids.get("sections"), {"section_slug": section["slug"]})
+        conn.execute(
             "INSERT INTO curriculum_sections "
-            "(curriculum_id, section_slug, title_bg, class, section_type, source_type) "
-            "VALUES (?, ?, ?, ?, 'content', 'reviewed_subject_import')",
-            (curriculum_id, section["slug"], section["title"], grade),
-        ).lastrowid
+            "(id, curriculum_id, section_slug, title_bg, class, section_type, source_type) "
+            "VALUES (?, ?, ?, ?, ?, 'content', 'reviewed_subject_import')",
+            (section_id, curriculum_id, section["slug"], section["title"], grade),
+        )
         summary["sections"]["inserted"] += 1
     _owned(section_ownership(conn, section_id), subject, "Section")
 
@@ -169,6 +190,7 @@ def _import_in_transaction(conn, batch, subject):
         if row["section_id"] != section_id or row["title_bg"] != topic["title"]:
             raise ValueError("Conflicting topic slug/content/section")
         topic_id = row["id"]
+        _explicit_for_existing("curriculum_topics", topic_id, explicit_ids.get("topics"))
         membership = conn.execute(
             "SELECT relationship_type, is_primary FROM topic_section_assignments "
             "WHERE topic_id = ? AND section_id = ?", (topic_id, section_id),
@@ -179,10 +201,12 @@ def _import_in_transaction(conn, batch, subject):
             raise ValueError("Conflicting topic section/class relationships")
         summary["topics"]["reused"] += 1
     else:
-        topic_id = conn.execute(
-            "INSERT INTO curriculum_topics (topic_slug, title_bg, section_id) VALUES (?, ?, ?)",
-            (topic["slug"], topic["title"], section_id),
-        ).lastrowid
+        topic_id = stable_ids.new_row_id(
+            conn, "curriculum_topics", explicit_ids.get("topics"), {"topic_slug": topic["slug"]})
+        conn.execute(
+            "INSERT INTO curriculum_topics (id, topic_slug, title_bg, section_id) VALUES (?, ?, ?, ?)",
+            (topic_id, topic["slug"], topic["title"], section_id),
+        )
         conn.execute(
             "INSERT INTO topic_section_assignments "
             "(topic_id, section_id, relationship_type, is_primary, source_type) "
@@ -208,6 +232,8 @@ def _import_in_transaction(conn, batch, subject):
                     or row["is_ai_generated"] != 0):
                 raise ValueError(f"Conflicting question {question['number']}")
             question_id = row["id"]
+            _explicit_for_existing("questions", question_id,
+                                   (explicit_ids.get("questions") or {}).get(question["number"]))
             actual_options = {r["option_letter"]: (r["option_text"], r["is_correct"])
                               for r in conn.execute(
                                   "SELECT option_letter, option_text, is_correct "
@@ -226,19 +252,23 @@ def _import_in_transaction(conn, batch, subject):
                 raise ValueError(f"Conflicting question relationships for {question['number']}")
             summary["questions"]["reused"] += 1
         else:
-            question_id = conn.execute(
+            question_id = stable_ids.new_row_id(
+                conn, "questions", (explicit_ids.get("questions") or {}).get(question["number"]),
+                {"source_exam": batch["source"], "source_number": question["number"]})
+            conn.execute(
                 "INSERT INTO questions "
-                "(exam_id, source_exam, source_number, subject, level, question_type, "
+                "(id, exam_id, source_exam, source_number, subject, level, question_type, "
                 "topic_id, points, prompt, has_image, is_ai_generated) "
-                "VALUES (NULL, ?, ?, ?, ?, 'multiple_choice', ?, 1, ?, 0, 0)",
-                (batch["source"], question["number"], subject, str(grade), topic_id,
+                "VALUES (?, NULL, ?, ?, ?, ?, 'multiple_choice', ?, 1, ?, 0, 0)",
+                (question_id, batch["source"], question["number"], subject, str(grade), topic_id,
                  question["prompt"]),
-            ).lastrowid
+            )
             for letter in LETTERS:
                 conn.execute(
                     "INSERT INTO multiple_choice_options "
-                    "(question_id, option_letter, option_text, is_correct) VALUES (?, ?, ?, ?)",
-                    (question_id, letter, question["options"][letter],
+                    "(id, question_id, option_letter, option_text, is_correct) VALUES (?, ?, ?, ?, ?)",
+                    (stable_ids.new_row_id(conn, "multiple_choice_options"),
+                     question_id, letter, question["options"][letter],
                      int(letter == question["correct"])),
                 )
             conn.execute(
@@ -254,8 +284,15 @@ def _import_in_transaction(conn, batch, subject):
     return summary
 
 
-def import_batch(db_path: Path, batch: dict, *, apply: bool = False) -> dict:
-    """Validate and plan on an in-memory DB, or apply atomically to a target DB."""
+def import_batch(db_path: Path, batch: dict, *, apply: bool = False,
+                 explicit_ids: dict | None = None) -> dict:
+    """Validate and plan on an in-memory DB, or apply atomically to a target DB.
+
+    ``explicit_ids`` optionally pins the ids of NEW rows:
+    ``{"curricula": id, "sections": id, "topics": id, "questions": {number: id}}``.
+    A colliding or recycled id, or an id differing from an existing row's, raises
+    ``stable_ids.IdConflict`` (a ``ValueError``) and nothing is written.
+    """
     subject = validate_batch(batch)
     db_path = Path(db_path).resolve()
     if apply:
@@ -273,7 +310,7 @@ def import_batch(db_path: Path, batch: dict, *, apply: bool = False) -> dict:
         conn.execute("PRAGMA foreign_keys = ON")
         conn.execute("BEGIN IMMEDIATE")
         try:
-            summary = _import_in_transaction(conn, batch, subject)
+            summary = _import_in_transaction(conn, batch, subject, explicit_ids)
             if apply:
                 conn.commit()
             else:

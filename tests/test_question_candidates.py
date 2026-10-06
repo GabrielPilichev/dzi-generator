@@ -26,7 +26,7 @@ from tests.question_candidate_fixtures import (
     OTHER_TOPIC, RUN_ID, SECTION, TOPIC, candidate, dataset, directory_state, review,
 )
 from tests.subject_fixtures import add_curriculum, add_question, add_section, add_topic
-from tests.support import ROOT, copy_seed_database
+from tests.support import ROOT, build_test_database
 
 
 class LimitTests(unittest.TestCase):
@@ -461,7 +461,7 @@ class DatabaseCheckTests(unittest.TestCase):
         self.db_dir = self.root / "db"
         self.db_dir.mkdir()
         self.db_path = self.db_dir / "questions.db"
-        copy_seed_database(ROOT / "data/questions.db", self.db_path)
+        build_test_database(self.db_path)
         conn = sqlite3.connect(self.db_path)
         with conn:
             conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")

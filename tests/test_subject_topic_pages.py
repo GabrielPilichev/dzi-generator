@@ -12,7 +12,7 @@ from tests.subject_fixtures import (
     add_curriculum, add_membership, add_module, add_question, add_section, add_topic,
     four_options,
 )
-from tests.support import IsolatedAppTestCase, web_app
+from tests.support import IsolatedAppTestCase, web_app, IT_ONLY
 from tests.test_homepage_search import _HTMLProbe
 
 TOOLBAR_IDS = ("question-search", "question-type-filter", "question-difficulty-filter",
@@ -60,6 +60,8 @@ class _PageTestCase(IsolatedAppTestCase):
 
 
 class SubjectTopicPagesTest(_PageTestCase):
+    content_profile = IT_ONLY  # these tests pin Physics/Biology as subjects without content
+
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
@@ -315,6 +317,7 @@ class SharedSectionComponentsTest(_PageTestCase):
 
 class StructureOnlySubjectTest(_PageTestCase):
     """Sections and topics without any question: browsable, not a ready question bank."""
+    content_profile = IT_ONLY  # these tests pin Physics/Biology as subjects without content
 
     @classmethod
     def setUpClass(cls):

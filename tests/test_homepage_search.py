@@ -7,7 +7,7 @@ from urllib.parse import parse_qs, urlparse
 _ROOT = Path(__file__).resolve().parents[1]
 
 from src.subject_registry import get_subject
-from tests.support import IsolatedAppTestCase, web_app
+from tests.support import IsolatedAppTestCase, web_app, IT_ONLY
 
 PHYSICS_PLACEHOLDER_GROUPS = get_subject("physics").placeholder_topic_groups
 
@@ -58,6 +58,8 @@ def _classes(attrs):
 
 
 class HomepageSearchTest(IsolatedAppTestCase):
+    content_profile = IT_ONLY  # these tests pin Physics/Biology as subjects without content
+
     @classmethod
     def setUpClass(cls):
         super().setUpClass()

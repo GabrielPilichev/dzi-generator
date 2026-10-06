@@ -14,7 +14,7 @@ from src.import_reviewed_subject_questions import import_batch, main, validate_b
 from src.subject_assessment import AssessmentScope
 from src.subject_browsing import SubjectContentBrowser
 from src.subject_content import question_ownership, topic_ownership
-from tests.support import IsolatedAppTestCase, ROOT, copy_seed_database, web_app
+from tests.support import IsolatedAppTestCase, ROOT, IT_ONLY, build_test_database, web_app
 
 
 def synthetic_batch(subject="physics", number=1):
@@ -41,7 +41,7 @@ class ReviewedSubjectImportTests(IsolatedAppTestCase):
         self.addCleanup(tmp.cleanup)
         self.root = Path(tmp.name)
         self.db_path = self.root / "questions.db"
-        copy_seed_database(ROOT / "data/questions.db", self.db_path)
+        build_test_database(self.db_path, IT_ONLY)  # Physics/Biology absent: the importer adds them
         web_app.DB_PATH = self.db_path
         web_app.QUIZ_DB_PATH = self.db_path
         web_app.app.config["DB_PATH"] = str(self.db_path)

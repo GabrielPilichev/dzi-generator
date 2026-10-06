@@ -16,7 +16,7 @@ from src.subject_registry import (
     grade_paths, subject_grade_paths, subject_supports_grade, validate_registry,
 )
 from tests.subject_fixtures import registered_subject
-from tests.support import ROOT, IsolatedAppTestCase, web_app
+from tests.support import ROOT, IsolatedAppTestCase, web_app, IT_ONLY
 from tests.test_homepage_search import _HTMLProbe
 
 G, P, GP, NA = (GENERAL,), (PROFILED,), (GENERAL, PROFILED), ()
@@ -149,6 +149,8 @@ class GradePathRegistryTests(unittest.TestCase):
 
 
 class GradeAvailabilityPagesTest(IsolatedAppTestCase):
+    content_profile = IT_ONLY  # these tests pin Physics/Biology as subjects without content
+
     def setUp(self):
         self.client = web_app.app.test_client()
 

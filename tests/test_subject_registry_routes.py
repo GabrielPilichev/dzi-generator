@@ -12,7 +12,7 @@ from unittest.mock import patch
 from src.import_reviewed_subject_questions import import_batch
 from src.subject_assessment import AssessmentScope
 from src.subject_registry import PLATFORM_GRADES, SUBJECTS
-from tests.support import IsolatedAppTestCase, web_app
+from tests.support import IsolatedAppTestCase, web_app, IT_ONLY
 from tests.test_homepage_search import _HTMLProbe
 
 CARD = re.compile(r'<article\s+class="([^"]*home-subject-card[^"]*)"')
@@ -76,6 +76,8 @@ class _RouteTestCase(IsolatedAppTestCase):
 
 
 class SeedSubjectRoutesTest(_RouteTestCase):
+    content_profile = IT_ONLY  # these tests pin Physics/Biology as subjects without content
+
     def test_homepage_lists_every_subject_in_registry_order(self):
         cards = _cards(self.html("/"))
         self.assertEqual([title for title, _ in cards], TITLES)
@@ -272,6 +274,7 @@ def _biology_batch():
 
 class SyntheticBiologySubjectTest(_RouteTestCase):
     """Content-derived availability: a subject activates by data alone, no route work."""
+    content_profile = IT_ONLY  # these tests pin Physics/Biology as subjects without content
 
     @classmethod
     def setUpClass(cls):

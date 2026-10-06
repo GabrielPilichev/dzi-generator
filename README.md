@@ -29,7 +29,10 @@ that are already tracked by Git. Git will still report modifications to
 `data/questions.db` after tests or local runtime use. Restore accidental DB
 dirtiness before commits unless the PR explicitly owns a planned DB/data change.
 
-Future PR: replace tracked DB with migration + seed script.
+A fresh database no longer needs the tracked file: `python3 -m src.build_database
+--output /path/to/new.db` builds one from the migrations and `data/canonical`
+(`docs/CANONICAL_DATA.md`), and the test suite builds its databases the same way
+(`docs/TESTING.md`). Untracking the seed itself is a later PR.
 
 ## Important Docs
 

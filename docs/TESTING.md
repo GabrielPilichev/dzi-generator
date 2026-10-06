@@ -23,15 +23,12 @@ It scopes `DZI_DB=:memory:` around the initial import because `web.app` runs a
 legacy quiz migration at import time. The environment is immediately restored;
 production import/startup behavior is not changed.
 
-Each class receives a temporary copy of the existing seed database and its WAL,
-if present. The source is read as files, never opened through SQLite: even a
-read-only SQLite connection can update its shared-memory sidecar. Copying fails
-if the seed changes during the copy; retry when development writes are idle.
-No migrations or imports run against the repository database.
-The tracked seed predates migration 000 (the schema baseline), so a copy of it
-reports 000 as pending until `tests.support.adopt_baseline(copy)` records it, the
-same way an existing database adopts it; `subject_fixtures.apply_pending_migrations`
-and the production-startup fixtures do this for you.
+Each class receives its own temporary database, **built from migrations + `data/canonical`**,
+not copied from the tracked seed (`data/questions.db`): see *Test database architecture* below.
+No migrations or imports run against the repository database. Because the database is built
+at the current migration level (000 recorded), `subject_fixtures.apply_pending_migrations` is a
+no-op on it. `tests.support.adopt_baseline` and `copy_seed_database` remain only for the
+transition tests listed in `tests/test_seed_transition.py`.
 Both `app.config["DB_PATH"]` / `get_db()` and
 `QUIZ_DB_PATH` / `quiz_db()` point to that temporary database. `DZI_DB` is set to
 the same path for code that reads the environment.
@@ -54,7 +51,7 @@ test and class, including failed setup. Class cleanup removes the temporary DB,
 SQLite sidecars and generated artifacts. Database rows are shared within a class
 to preserve existing class-level question fixtures; classes do not share writes.
 
-`tests/test_schema_baseline.py` is the schema-parity gate: an empty database plus
+`tests/test_schema_baseline.py` is the schema-parity gate (a seed-transition test): an empty database plus
 000-010 must equal the seed's schema (tables, ordered columns, types, NOT NULL,
 defaults, primary/foreign keys, indexes, partial indexes, CHECKs, AUTOINCREMENT)
 using `tests/schema_snapshot.py`. A difference there means 000 or a migration is
@@ -73,6 +70,58 @@ Pure helper tests pass explicit in-memory connections and need no application
 fixture. Migration/import tests use in-memory or temporary databases and files;
 keep that boundary when adding tests. Never call an import or migration tool with
 its default repository database from a test.
+
+## Test database architecture (G2)
+
+```
+src.build_database  (migrations 000..current + data/canonical, ~1.5 s, once per process)
+        |
+        v
+read-only template in a temp dir (sha256 recorded, re-verified on every clone)
+        |  tests.support.build_test_database(path, profile)   # byte clone
+        v
+isolated writable database per test class / test
+```
+
+* `tests.support.canonical_template(profile)` builds the template on first use and never hands
+  it to a test; `build_test_database(destination, profile=CANONICAL)` returns an isolated writable
+  copy (rollback-journal, no sidecars). It raises if the template's bytes ever changed. The template
+  lives only in a per-process temporary directory (removed at exit) and is never committed; it is
+  rebuilt for each test process from the tracked inputs, so there is no timestamp cache to go stale.
+* `IsolatedAppTestCase`, `isolated_app()` and the other seed-copy call sites use it, so
+  `tests` never mutate `data/questions.db`, `data/canonical` or the migrations (a test pins this).
+* Profiles: `CANONICAL` (default) is the full canonical content, including the reviewed Physics and
+  Biology. `IT_ONLY` is that template minus Physics/Biology, produced by the explicit fixture
+  `tests.subject_fixtures.remove_subject_content`. Subject-preparation tests that pin "a subject
+  without content renders as in preparation" opt in with `content_profile = IT_ONLY` (class
+  attribute) or `build_test_database(path, IT_ONLY)`; do not use it to hide a real failure.
+* Cost: the whole suite takes about the same as before G2 (about 65-75 s); the one-time template build
+  is under 2 s and a clone is a ~3 MB file copy.
+
+### Runtime fixtures
+
+A built database has **no runtime rows** (assignments, attempts, answers, text answers,
+practical submissions). The legacy seed's smoke rows (2 assignments, 4 attempts, 19 answers)
+are not recreated anywhere. A test that needs runtime state creates exactly that with
+`tests/runtime_fixtures.py` (`add_assignment`, `add_attempt`, `add_answer`,
+`add_submitted_attempt`) on its own temporary database: fixed values, ids that depend only on the
+canonical content, nothing shared between tests. Operational tables (`obsidian_notes`,
+`generated_exams`, ...) are likewise empty; insert what a test needs.
+
+### Seed-transition tests (until H)
+
+`copy_seed_database` (a byte copy of the tracked seed) is still used by exactly the tests
+listed in `tests/test_seed_transition.py`: canonical-vs-seed equivalence
+(`test_canonical_content`), schema parity (`test_schema_baseline`), baseline adoption
+(`test_production_deployment`) and the copy helper's own tests. That module fails if another test
+starts copying the seed. The seed's SHA-256 and sidecar absence are pinned there too. These are
+removed with the seed in H.
+
+`tests/test_build_database.py` covers the builder (fresh/missing-parent/existing destination,
+migrations, hashes, ids, sequences, FK, empty runtime/operational tables, determinism, no seed
+access, failure cleanup, corrupt input); `tests/test_database_test_support.py` the template,
+isolation and fixtures; `tests/test_importer_stable_ids.py` importer identity and the DZI
+option/subquestion rules.
 
 ## Connection policy and the seed tripwire
 

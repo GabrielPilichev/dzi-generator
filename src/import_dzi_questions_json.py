@@ -13,6 +13,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+try:
+    from src import stable_ids
+except ModuleNotFoundError:  # run as `python3 src/import_dzi_questions_json.py`
+    import stable_ids
+
 
 DEFAULT_DB_PATH = Path("data/questions.db")
 FORMAT_VERSION = "dzi_it_pp_2025_format"
@@ -442,16 +447,19 @@ def upsert_question(
     topic_text = task.get("topic_slug")
 
     if existing is None:
+        # A new identity: an id above everything canonical and the target have used.
+        new_id = stable_ids.new_row_id(conn, "questions")
         conn.execute(
             """
             INSERT INTO questions (
-                exam_id, source_exam, source_number, subject, level, year,
+                id, exam_id, source_exam, source_number, subject, level, year,
                 question_type, topic, points, prompt, has_image,
                 is_ai_generated, quality_score, topic_id
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 1.0, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 1.0, ?)
             """,
             (
+                new_id,
                 exam["id"],
                 source_slug,
                 task_number,
@@ -466,7 +474,7 @@ def upsert_question(
                 topic_id,
             ),
         )
-        return int(conn.execute("SELECT last_insert_rowid()").fetchone()[0]), "inserted"
+        return new_id, "inserted"
 
     conn.execute(
         """
@@ -507,18 +515,42 @@ def replace_multiple_choice_options(
     question_id: int,
     task: dict[str, Any],
 ) -> int:
-    conn.execute("DELETE FROM multiple_choice_options WHERE question_id = ?", (question_id,))
+    """Make the question's options equal the payload while keeping stable option ids.
+
+    Identity is ``(question_id, option_letter)``: a letter that already exists is updated
+    in place (same id); only a letter the question does not have yet is inserted, with a
+    freshly allocated safe id. A stored letter the payload omits is stale and deleted: the
+    payload is the complete option set of the task. Never delete-and-reinsert matches.
+    """
+    existing = {
+        row["option_letter"]: row["id"]
+        for row in conn.execute(
+            "SELECT id, option_letter FROM multiple_choice_options WHERE question_id = ?",
+            (question_id,),
+        )
+    }
+    wanted = {option["letter"] for option in task["options"]}
+    for letter in sorted(set(existing) - wanted):
+        conn.execute("DELETE FROM multiple_choice_options WHERE id = ?", (existing[letter],))
     for option in task["options"]:
+        letter = option["letter"]
+        if letter in existing:
+            conn.execute(
+                "UPDATE multiple_choice_options SET option_text = ?, is_correct = ? WHERE id = ?",
+                (option["text"], 1 if option["is_correct"] else 0, existing[letter]),
+            )
+            continue
         conn.execute(
             """
             INSERT INTO multiple_choice_options (
-                question_id, option_letter, option_text, is_correct
+                id, question_id, option_letter, option_text, is_correct
             )
-            VALUES (?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?)
             """,
             (
+                stable_ids.new_row_id(conn, "multiple_choice_options"),
                 question_id,
-                option["letter"],
+                letter,
                 option["text"],
                 1 if option["is_correct"] else 0,
             ),
@@ -526,52 +558,86 @@ def replace_multiple_choice_options(
     return len(task["options"])
 
 
+def subquestion_rows(task: dict[str, Any]) -> list[tuple[int, str, str, str | None, int]]:
+    """The payload's subquestions as ``(number, text, answer, alternatives, points)``.
+
+    The number is the 1-based position in the task's ``subquestions`` list (the stable
+    natural key together with the question); a task without a list is one subquestion, 1.
+    """
+    subquestions = task.get("subquestions") or []
+    if subquestions:
+        return [
+            (
+                index,
+                subquestion["prompt"],
+                answers_to_text(subquestion["answers"]),
+                alternatives_to_text(subquestion.get("answer_alternatives")),
+                subquestion.get("points", 1),
+            )
+            for index, subquestion in enumerate(subquestions, start=1)
+        ]
+    return [(
+        1,
+        task["prompt"],
+        answers_to_text(task["answers"]),
+        alternatives_to_text(task.get("answer_alternatives")),
+        task["points"],
+    )]
+
+
 def replace_fill_in_subquestions(
     conn: sqlite3.Connection,
     question_id: int,
     task: dict[str, Any],
 ) -> int:
-    conn.execute("DELETE FROM fill_in_subquestions WHERE question_id = ?", (question_id,))
-    subquestions = task.get("subquestions") or []
+    """Make the question's subquestions equal the payload while keeping stable ids.
 
-    if subquestions:
-        for index, subquestion in enumerate(subquestions, start=1):
+    Identity is ``(question_id, subquestion_number)``. A matching number is updated in
+    place and keeps its id; a number the question does not have yet is inserted with a
+    freshly allocated safe id (above the canonical maximum and the target's). A stored
+    number the payload no longer lists is stale and deleted deliberately: the payload is the
+    complete subquestion list of the task, and the deleted id is never handed out again.
+    """
+    rows = subquestion_rows(task)
+    existing = {
+        row["subquestion_number"]: row["id"]
+        for row in conn.execute(
+            "SELECT id, subquestion_number FROM fill_in_subquestions WHERE question_id = ?",
+            (question_id,),
+        )
+    }
+    for number in sorted(set(existing) - {row[0] for row in rows}):
+        conn.execute("DELETE FROM fill_in_subquestions WHERE id = ?", (existing[number],))
+    for number, text, answer, alternatives, points in rows:
+        if number in existing:
             conn.execute(
                 """
-                INSERT INTO fill_in_subquestions (
-                    question_id, subquestion_number, subquestion_text,
-                    correct_answer, answer_alternatives, points
-                )
-                VALUES (?, ?, ?, ?, ?, ?)
+                UPDATE fill_in_subquestions
+                SET subquestion_text = ?, correct_answer = ?, answer_alternatives = ?, points = ?
+                WHERE id = ?
                 """,
-                (
-                    question_id,
-                    index,
-                    subquestion["prompt"],
-                    answers_to_text(subquestion["answers"]),
-                    alternatives_to_text(subquestion.get("answer_alternatives")),
-                    subquestion.get("points", 1),
-                ),
+                (text, answer, alternatives, points, existing[number]),
             )
-        return len(subquestions)
-
-    conn.execute(
-        """
-        INSERT INTO fill_in_subquestions (
-            question_id, subquestion_number, subquestion_text,
-            correct_answer, answer_alternatives, points
+            continue
+        conn.execute(
+            """
+            INSERT INTO fill_in_subquestions (
+                id, question_id, subquestion_number, subquestion_text,
+                correct_answer, answer_alternatives, points
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                stable_ids.new_row_id(conn, "fill_in_subquestions"),
+                question_id,
+                number,
+                text,
+                answer,
+                alternatives,
+                points,
+            ),
         )
-        VALUES (?, 1, ?, ?, ?, ?)
-        """,
-        (
-            question_id,
-            task["prompt"],
-            answers_to_text(task["answers"]),
-            alternatives_to_text(task.get("answer_alternatives")),
-            task["points"],
-        ),
-    )
-    return 1
+    return len(rows)
 
 
 def link_exam_task(

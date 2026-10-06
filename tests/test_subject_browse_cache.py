@@ -174,6 +174,7 @@ class PublicBrowseCacheTest(unittest.TestCase):
     def setUp(self):
         stack = ExitStack()
         self.addCleanup(stack.close)
+        # The full canonical dataset (IT + Physics + Biology): "/" is a global browse route.
         stack.enter_context(isolated_app())
         stack.enter_context(patch.object(cache_module, "browse_cache", BrowseResultCache()))
 
@@ -220,8 +221,8 @@ class PublicBrowseCacheTest(unittest.TestCase):
         self._assert_read_only(topic_sql)
 
     def test_public_statement_budgets_and_no_writes(self):
-        # Seed-size regression ceilings: retain the original F1 resolver on
-        # cold loads; warm reads have only WAL setup, availability, and DB path.
+        # Regression ceilings on the full canonical dataset: ownership is resolved in
+        # batches, never per question; warm reads have only WAL setup, availability, and DB path.
         paths = ("/", "/grade/12", "/section/grade12-dzi-preparation",
                  "/subjects/information-technologies", self.GENERIC_SECTION,
                  self._generic_topic())
@@ -233,7 +234,9 @@ class PublicBrowseCacheTest(unittest.TestCase):
                 self.assertEqual(warm.status_code, 200)
                 self.assertEqual(cold.data, warm.data)
                 self.assertLessEqual(len(cold_sql), 15000, (path, len(cold_sql)))
-                self.assertLessEqual(len(warm_sql), 3, (path, warm_sql))
+                # Warm reads: connection PRAGMA, the availability query and one cache-identity
+                # PRAGMA per subject with cached content; "/" renders IT, Physics and Biology.
+                self.assertLessEqual(len(warm_sql), 5 if path == "/" else 3, (path, warm_sql))
                 for sql in cold_sql + warm_sql:
                     self.assertIn(sql.strip().split()[0].upper(), {"SELECT", "PRAGMA"}, sql)
                     if sql.strip().upper().startswith("PRAGMA"):

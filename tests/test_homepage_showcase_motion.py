@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from tests.support import IsolatedAppTestCase, web_app
+from tests.support import IsolatedAppTestCase, web_app, IT_ONLY
 from tests.test_homepage_search import _HTMLProbe
 
 
@@ -12,6 +12,8 @@ STATIC = ROOT / "web" / "static"
 
 
 class HomepageShowcaseMotionTest(IsolatedAppTestCase):
+    content_profile = IT_ONLY  # these tests pin Physics/Biology as subjects without content
+
     @classmethod
     def setUpClass(cls):
         super().setUpClass()

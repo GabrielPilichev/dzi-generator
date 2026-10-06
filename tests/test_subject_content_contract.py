@@ -2,10 +2,12 @@
 
 from src import generate_questions, subject_content
 from tests.subject_fixtures import add_curriculum, add_membership, add_question, add_section, add_topic
-from tests.support import IsolatedAppTestCase, web_app
+from tests.support import IsolatedAppTestCase, web_app, IT_ONLY
 
 
 class SubjectContentContractTest(IsolatedAppTestCase):
+    content_profile = IT_ONLY  # these tests pin Physics/Biology as subjects without content
+
     @classmethod
     def setUpClass(cls):
         super().setUpClass()

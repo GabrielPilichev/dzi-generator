@@ -11,7 +11,10 @@ Rules, in short (see docs/SUBJECT_STRUCTURE_IMPORT.md):
 - existing titles are never overwritten: a different stored title is a conflict;
 - the file is complete for its curriculum: a stored section, or a stored topic
   of a listed section, that the file does not list is a conflict;
-- nothing is ever deleted.
+- nothing is ever deleted;
+- ids are stable: a stored curriculum/section/topic keeps its id, a new one takes a
+  freshly allocated id above the canonical and target maximum (``src/stable_ids.py``),
+  or the caller's ``explicit_ids`` entry when it does not collide (a conflict fails).
 """
 
 from __future__ import annotations
@@ -22,6 +25,7 @@ import sqlite3
 from pathlib import Path
 from urllib.parse import quote
 
+from src import stable_ids
 from src.subject_browsing import (
     has_topic_order, is_namespaced_slug, namespaced_slug_prefix, public_description,
 )
@@ -337,45 +341,67 @@ def _plan_topic(conn, subject, grade, prefix, section_slug, section_id, section_
 
 # --------------------------------------------------------------------------- applying
 
-def _apply(conn: sqlite3.Connection, structure: dict, subject: str, report: dict, ids: dict) -> None:
+def _explicit_for_existing(table: str, existing_id, requested) -> None:
+    """A requested id for a row that already exists must be the stored id: never remap."""
+    if requested is not None and requested != existing_id:
+        raise stable_ids.IdConflict(
+            f"{table}: stored id {existing_id} differs from the requested id {requested}")
+
+
+def _apply(conn: sqlite3.Connection, structure: dict, subject: str, report: dict, ids: dict,
+           explicit_ids: dict | None = None) -> None:
     """Write exactly what the report announces. Caller owns the transaction."""
+    explicit_ids = explicit_ids or {}
     grade = structure["grade"]
     wanted = structure["curriculum"]
     curriculum_id = ids["curriculum"]
     if report["curriculum"]["action"] == "create":
-        curriculum_id = conn.execute(
-            "INSERT INTO curricula (grade, subject, education_type, title_bg, source_type, source_url) "
-            "VALUES (?, ?, ?, ?, ?, ?)",
-            (grade, subject, wanted["education_type"], wanted["title"], SOURCE_TYPE,
+        curriculum_id = stable_ids.new_row_id(
+            conn, "curricula", explicit_ids.get("curricula"),
+            {"subject": subject, "grade": grade, "education_type": wanted["education_type"]})
+        conn.execute(
+            "INSERT INTO curricula (id, grade, subject, education_type, title_bg, source_type, source_url) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (curriculum_id, grade, subject, wanted["education_type"], wanted["title"], SOURCE_TYPE,
              wanted.get("source_url")),
-        ).lastrowid
-    elif report["curriculum"]["action"] == "update":
-        conn.execute("UPDATE curricula SET source_url = ? WHERE id = ?",
-                     (wanted["source_url"], curriculum_id))
+        )
+    else:
+        _explicit_for_existing("curricula", curriculum_id, explicit_ids.get("curricula"))
+        if report["curriculum"]["action"] == "update":
+            conn.execute("UPDATE curricula SET source_url = ? WHERE id = ?",
+                         (wanted["source_url"], curriculum_id))
 
     for section, wanted_section in zip(report["sections"], structure["sections"]):
         section_id = ids["sections"].get(section["slug"])
+        requested_section = (explicit_ids.get("sections") or {}).get(section["slug"])
         if section["action"] == "create":
-            section_id = conn.execute(
+            section_id = stable_ids.new_row_id(
+                conn, "curriculum_sections", requested_section, {"section_slug": section["slug"]})
+            conn.execute(
                 "INSERT INTO curriculum_sections "
-                "(curriculum_id, section_slug, title_bg, class, section_type, display_order, source_type) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?)",
-                (curriculum_id, section["slug"], section["title"], grade, SECTION_TYPE,
+                "(id, curriculum_id, section_slug, title_bg, class, section_type, display_order, source_type) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (section_id, curriculum_id, section["slug"], section["title"], grade, SECTION_TYPE,
                  section["order"], SOURCE_TYPE),
-            ).lastrowid
-        elif section["action"] == "update":
-            conn.execute("UPDATE curriculum_sections SET display_order = ? WHERE id = ?",
-                         (section["order"], section_id))
+            )
+        else:
+            _explicit_for_existing("curriculum_sections", section_id, requested_section)
+            if section["action"] == "update":
+                conn.execute("UPDATE curriculum_sections SET display_order = ? WHERE id = ?",
+                             (section["order"], section_id))
         _owned(section_ownership(conn, section_id), subject, f"section {section['slug']!r}")
 
         for topic, wanted_topic in zip(section["topics"], wanted_section["topics"]):
             topic_id = ids["topics"].get(topic["slug"])
+            requested_topic = (explicit_ids.get("topics") or {}).get(topic["slug"])
             if topic["action"] == "create":
-                topic_id = conn.execute(
-                    "INSERT INTO curriculum_topics (topic_slug, title_bg, section_id, description) "
-                    "VALUES (?, ?, ?, ?)",
-                    (topic["slug"], topic["title"], section_id, wanted_topic.get("description")),
-                ).lastrowid
+                topic_id = stable_ids.new_row_id(
+                    conn, "curriculum_topics", requested_topic, {"topic_slug": topic["slug"]})
+                conn.execute(
+                    "INSERT INTO curriculum_topics (id, topic_slug, title_bg, section_id, description) "
+                    "VALUES (?, ?, ?, ?, ?)",
+                    (topic_id, topic["slug"], topic["title"], section_id, wanted_topic.get("description")),
+                )
                 conn.execute(
                     "INSERT INTO topic_section_assignments "
                     "(topic_id, section_id, relationship_type, is_primary, source_type, display_order) "
@@ -384,15 +410,17 @@ def _apply(conn: sqlite3.Connection, structure: dict, subject: str, report: dict
                 )
                 conn.execute("INSERT INTO topic_classes (topic_id, class) VALUES (?, ?)",
                              (topic_id, grade))
-            elif topic["action"] == "update":
-                conn.execute(
-                    "UPDATE topic_section_assignments SET display_order = ? "
-                    "WHERE topic_id = ? AND section_id = ?",
-                    (topic["order"], topic_id, section_id),
-                )
-                if "description added" in topic["changes"]:
-                    conn.execute("UPDATE curriculum_topics SET description = ? WHERE id = ?",
-                                 (wanted_topic["description"], topic_id))
+            else:
+                _explicit_for_existing("curriculum_topics", topic_id, requested_topic)
+                if topic["action"] == "update":
+                    conn.execute(
+                        "UPDATE topic_section_assignments SET display_order = ? "
+                        "WHERE topic_id = ? AND section_id = ?",
+                        (topic["order"], topic_id, section_id),
+                    )
+                    if "description added" in topic["changes"]:
+                        conn.execute("UPDATE curriculum_topics SET description = ? WHERE id = ?",
+                                     (wanted_topic["description"], topic_id))
             _owned(topic_ownership(conn, topic_id), subject, f"topic {topic['slug']!r}")
 
 
@@ -417,11 +445,17 @@ def _summarize(report: dict, *, apply: bool) -> dict:
     return report
 
 
-def import_structure(db_path: Path, structure: dict, *, apply: bool = False) -> dict:
+def import_structure(db_path: Path, structure: dict, *, apply: bool = False,
+                     explicit_ids: dict | None = None) -> dict:
     """Plan on an in-memory copy (default), or apply atomically to the target database.
 
     Returns the report. Raises StructureImportError for an invalid file or any
     conflict, in both modes, without changing the target.
+
+    ``explicit_ids`` optionally pins the ids of NEW rows:
+    ``{"curricula": id, "sections": {slug: id}, "topics": {slug: id}}``. An id that
+    exists, was used before (unless it is that canonical row's own identity) or differs
+    from the stored id of an existing row is a conflict that rejects the whole import.
     """
     subject = validate_structure(structure)
     db_path = Path(db_path).resolve()
@@ -455,7 +489,10 @@ def import_structure(db_path: Path, structure: dict, *, apply: bool = False) -> 
                 raise StructureImportError(conflicts)
             _summarize(report, apply=apply)
             # A dry run rehearses the same writes on its in-memory copy.
-            _apply(conn, structure, subject, report, ids)
+            try:
+                _apply(conn, structure, subject, report, ids, explicit_ids)
+            except stable_ids.IdConflict as exc:
+                raise StructureImportError(str(exc)) from exc
             if apply:
                 conn.commit()
             else:
