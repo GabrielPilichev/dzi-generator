@@ -13,6 +13,9 @@ from src.subject_registry import IT, PHYSICS, SUBJECTS, resolve_subject_identifi
 
 # Content identities come from the canonical registry; being registered does not
 # imply available content.
+# Bound-parameter budget per IN (...) list; SQLite's historical limit is 999.
+SQL_CHUNK_SIZE = 900
+
 KNOWN_CONTENT_SUBJECTS = frozenset(subject.id for subject in SUBJECTS)
 SUBJECT_ALIASES = {
     alias: subject.id
@@ -126,6 +129,142 @@ def question_ownership(conn: sqlite3.Connection, question_id: int) -> Ownership:
     if declared.subject != topic.subject:
         return Ownership(None, "conflict", "question_subject_mismatch")
     return topic
+
+
+def sql_chunks(values, size=SQL_CHUNK_SIZE):
+    values = list(values)
+    for start in range(0, len(values), size):
+        yield values[start:start + size]
+
+
+def section_ownerships(conn: sqlite3.Connection) -> dict[int, Ownership]:
+    """``section_ownership`` for every section in one query."""
+    owners: dict[int, Ownership] = {}
+    for section_id, curriculum_id, curriculum_row_id, subject in conn.execute("""
+        SELECT cs.id, cs.curriculum_id, c.id, c.subject
+        FROM curriculum_sections cs
+        LEFT JOIN curricula c ON c.id = cs.curriculum_id
+    """):
+        if curriculum_id is None:
+            owners[int(section_id)] = Ownership(None, "unclassified", "section_without_curriculum")
+        elif curriculum_row_id is None:
+            owners[int(section_id)] = Ownership(None, "missing", "curriculum_not_found")
+        else:
+            owners[int(section_id)] = _declared_ownership(subject)
+    return owners
+
+
+def topic_ownerships(
+    conn: sqlite3.Connection,
+    topic_ids,
+    *,
+    section_owners: dict[int, Ownership] | None = None,
+) -> dict[int, Ownership]:
+    """``topic_ownership`` for many topics in a few set-based queries.
+
+    The checks and their order mirror ``topic_ownership`` exactly so every
+    status and detail is identical to the per-topic function.
+    """
+    topic_ids = sorted({int(topic_id) for topic_id in topic_ids})
+    if section_owners is None:
+        section_owners = section_ownerships(conn)
+
+    primary_by_topic: dict[int, int | None] = {}
+    memberships: dict[int, list[tuple[int, object]]] = {}
+    for chunk in sql_chunks(topic_ids):
+        marks = ",".join("?" for _ in chunk)
+        # SAFE: placeholders only; values use ? params.
+        for topic_id, section_id in conn.execute(
+            f"SELECT id, section_id FROM curriculum_topics WHERE id IN ({marks})", chunk
+        ):
+            primary_by_topic[int(topic_id)] = None if section_id is None else int(section_id)
+        for topic_id, section_id, is_primary in conn.execute(
+            f"""
+            SELECT topic_id, section_id, is_primary
+            FROM topic_section_assignments
+            WHERE topic_id IN ({marks})
+            ORDER BY topic_id, rowid
+            """,
+            chunk,
+        ):
+            memberships.setdefault(int(topic_id), []).append((int(section_id), is_primary))
+
+    missing_section = Ownership(None, "missing", "section_not_found")
+    owners: dict[int, Ownership] = {}
+    for topic_id in topic_ids:
+        if topic_id not in primary_by_topic:
+            owners[topic_id] = Ownership(None, "missing", "topic_not_found")
+            continue
+        primary_section_id = primary_by_topic[topic_id]
+        if primary_section_id is None:
+            owners[topic_id] = Ownership(None, "unclassified", "topic_without_primary_section")
+            continue
+        primary = section_owners.get(primary_section_id, missing_section)
+        if not primary.is_consistent:
+            owners[topic_id] = primary
+            continue
+        members = memberships.get(topic_id, [])
+        if not any(section_id == primary_section_id for section_id, _ in members):
+            owners[topic_id] = Ownership(None, "conflict", "primary_section_not_assigned")
+            continue
+        owners[topic_id] = primary
+        for section_id, is_primary in members:
+            if bool(is_primary) != (section_id == primary_section_id):
+                owners[topic_id] = Ownership(None, "conflict", "primary_assignment_mismatch")
+                break
+            member = section_owners.get(section_id, missing_section)
+            if not member.is_consistent:
+                owners[topic_id] = Ownership(None, "conflict", "unclassified_topic_membership")
+                break
+            if member.subject != primary.subject:
+                owners[topic_id] = Ownership(None, "conflict", "cross_subject_topic_membership")
+                break
+    return owners
+
+
+def question_ownerships(
+    conn: sqlite3.Connection,
+    question_ids,
+    *,
+    section_owners: dict[int, Ownership] | None = None,
+) -> dict[int, Ownership]:
+    """``question_ownership`` for many questions in a few set-based queries."""
+    question_ids = sorted({int(question_id) for question_id in question_ids})
+    declared_rows: dict[int, tuple[object, object]] = {}
+    for chunk in sql_chunks(question_ids):
+        marks = ",".join("?" for _ in chunk)
+        # SAFE: placeholders only; values use ? params.
+        for question_id, subject, topic_id in conn.execute(
+            f"SELECT id, subject, topic_id FROM questions WHERE id IN ({marks})", chunk
+        ):
+            declared_rows[int(question_id)] = (subject, topic_id)
+
+    topic_owners = topic_ownerships(
+        conn,
+        (topic_id for _, topic_id in declared_rows.values() if topic_id is not None),
+        section_owners=section_owners,
+    )
+    owners: dict[int, Ownership] = {}
+    for question_id in question_ids:
+        if question_id not in declared_rows:
+            owners[question_id] = Ownership(None, "missing", "question_not_found")
+            continue
+        subject, topic_id = declared_rows[question_id]
+        if topic_id is None:
+            owners[question_id] = Ownership(None, "unclassified", "question_without_topic")
+            continue
+        topic = topic_owners[int(topic_id)]
+        if not topic.is_consistent:
+            owners[question_id] = topic
+            continue
+        declared = _declared_ownership(subject)
+        if not declared.is_consistent:
+            owners[question_id] = declared
+        elif declared.subject != topic.subject:
+            owners[question_id] = Ownership(None, "conflict", "question_subject_mismatch")
+        else:
+            owners[question_id] = topic
+    return owners
 
 
 def require_topic_subject(

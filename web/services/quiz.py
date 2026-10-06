@@ -36,7 +36,9 @@ from src.dzi_open_questions import (
     is_open_question_generation_ready as is_fill_in_question_auto_gradable,
 )
 from src.subject_assessment import AssessmentScope
-from src.subject_content import IT, canonical_subject, section_ownership
+from src.subject_content import (
+    IT, canonical_subject, question_ownerships, section_ownership, sql_chunks,
+)
 from web import db as web_db
 from web.services.question_visuals import (
     attach_question_visual_assets,
@@ -847,14 +849,8 @@ def question_has_usable_visual(conn, question) -> bool:
     return any(quiz_path_exists(row["local_path"]) for row in asset_rows)
 
 
-def quiz_multiple_choice_is_eligible(conn, question_id: int) -> bool:
-    options = conn.execute("""
-        SELECT option_text, is_correct
-        FROM multiple_choice_options
-        WHERE question_id = ?
-        ORDER BY option_letter
-    """, (question_id,)).fetchall()
-
+def multiple_choice_options_are_eligible(options) -> bool:
+    """Pure rule over option rows; shared by the per-question and batched paths."""
     if len(options) != 4:
         return False
 
@@ -866,6 +862,17 @@ def quiz_multiple_choice_is_eligible(conn, question_id: int) -> bool:
         return False
 
     return quiz_answer_text_is_real(correct_options[0]["option_text"])
+
+
+def quiz_multiple_choice_is_eligible(conn, question_id: int) -> bool:
+    options = conn.execute("""
+        SELECT option_text, is_correct
+        FROM multiple_choice_options
+        WHERE question_id = ?
+        ORDER BY option_letter
+    """, (question_id,)).fetchall()
+
+    return multiple_choice_options_are_eligible(options)
 
 
 def quiz_fill_in_is_eligible(conn, question_id: int) -> bool:
@@ -916,6 +923,110 @@ def quiz_section_question_ids(
         if (scope is None or scope.accepts(int(r["id"])))
         and is_quiz_question_eligible(conn, r)
     ]
+
+
+def quiz_section_question_ids_by_section(
+    conn, scopes: dict[int, AssessmentScope]
+) -> dict[int, list[int]]:
+    """``quiz_section_question_ids`` for many sections in a bounded set of queries.
+
+    ``is_quiz_question_eligible`` and ``quiz_section_question_ids`` stay the
+    reference implementation (attempt rendering and quiz start use them). This
+    returns, for every section in ``scopes``, the same ids in the same order.
+    Ownership, option and visual checks run over batch-fetched rows; the
+    image-reference phrase rule stays in Python (``quiz_prompt_needs_visual``).
+    """
+    result: dict[int, list[int]] = {section_id: [] for section_id in scopes}
+    if not scopes:
+        return result
+
+    # Candidate (section, question) pairs, exactly as the per-section query selects them.
+    rows_by_section: dict[int, list] = {}
+    questions: dict[int, object] = {}
+    for chunk in sql_chunks(scopes):
+        marks = ",".join("?" for _ in chunk)
+        # SAFE: QUIZ_APPROVED_FILTER is static and placeholders are generated.
+        for row in conn.execute(f"""
+            SELECT DISTINCT tsa.section_id AS section_id, q.id, q.prompt, q.question_type,
+                            q.has_image, q.image_path
+            FROM questions q
+            JOIN topic_section_assignments tsa ON tsa.topic_id = q.topic_id
+            WHERE tsa.section_id IN ({marks})
+              AND {QUIZ_APPROVED_FILTER}
+              AND q.question_type = 'multiple_choice'
+            ORDER BY tsa.section_id, q.id
+        """, chunk):
+            rows_by_section.setdefault(int(row["section_id"]), []).append(row)
+            questions[int(row["id"])] = row
+
+    owners = question_ownerships(conn, questions)
+    candidate_ids = sorted(questions)
+
+    options_by_question: dict[int, list] = {}
+    for chunk in sql_chunks(candidate_ids):
+        marks = ",".join("?" for _ in chunk)
+        # SAFE: placeholders only; values use ? params.
+        for option in conn.execute(f"""
+            SELECT question_id, option_text, is_correct
+            FROM multiple_choice_options
+            WHERE question_id IN ({marks})
+            ORDER BY question_id, option_letter
+        """, chunk):
+            options_by_question.setdefault(int(option["question_id"]), []).append(option)
+
+    usable_visual = _usable_visual_question_ids(conn, questions)
+    eligible = {}
+    for question_id, question in questions.items():
+        if quiz_prompt_needs_visual(question["prompt"]) and question_id not in usable_visual:
+            eligible[question_id] = False
+        else:
+            eligible[question_id] = multiple_choice_options_are_eligible(
+                options_by_question.get(question_id, [])
+            )
+
+    for section_id, scope in scopes.items():
+        for row in rows_by_section.get(section_id, []):
+            question_id = int(row["id"])
+            owner = owners[question_id]
+            if owner.is_consistent and owner.subject == scope.subject and eligible[question_id]:
+                result[section_id].append(question_id)
+    return result
+
+
+def _usable_visual_question_ids(conn, questions: dict[int, object]) -> set[int]:
+    """Ids among phrase-flagged questions that ``question_has_usable_visual`` accepts."""
+    usable: set[int] = set()
+    pending = []
+    for question_id, question in questions.items():
+        if not quiz_prompt_needs_visual(question["prompt"]):
+            continue
+        if quiz_path_exists(question["image_path"]):
+            usable.add(question_id)
+        else:
+            pending.append(question_id)
+
+    for chunk in sql_chunks(pending):
+        marks = ",".join("?" for _ in chunk)
+        # SAFE: placeholders only; values use ? params.
+        for row in conn.execute(f"""
+            SELECT al.owner_id AS question_id, a.local_path
+            FROM asset_links al
+            JOIN assets a ON a.id = al.asset_id
+            WHERE al.owner_type IN ('question', 'questions')
+              AND al.owner_id IN ({marks})
+              AND a.asset_type IN ('image', 'pdf_crop')
+            UNION ALL
+            SELECT etq.question_id, a.local_path
+            FROM asset_links al
+            JOIN assets a ON a.id = al.asset_id
+            JOIN exam_task_questions etq ON etq.task_id = al.owner_id
+            WHERE al.owner_type = 'exam_task'
+              AND etq.question_id IN ({marks})
+              AND a.asset_type IN ('image', 'pdf_crop')
+        """, chunk + chunk):
+            if int(row["question_id"]) not in usable and quiz_path_exists(row["local_path"]):
+                usable.add(int(row["question_id"]))
+    return usable
 
 
 def quiz_seed(assignment_id: int, student_name: str) -> str:

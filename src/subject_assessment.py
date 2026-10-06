@@ -8,7 +8,9 @@ from __future__ import annotations
 
 import sqlite3
 
-from src.subject_content import IT, canonical_subject, question_ownership, section_ownership
+from src.subject_content import (
+    IT, canonical_subject, question_ownership, section_ownership, section_ownerships,
+)
 from src.dzi_open_questions import fetch_dzi_open_questions
 
 
@@ -29,6 +31,29 @@ class AssessmentScope:
         self.section_type = conn.execute(
             "SELECT section_type FROM curriculum_sections WHERE id = ?", (self.section_id,)
         ).fetchone()[0]
+
+    @classmethod
+    def for_all_sections(cls, conn: sqlite3.Connection) -> dict[int, "AssessmentScope"]:
+        """Scopes for every section with a known subject, in one query.
+
+        Equivalent to constructing ``AssessmentScope(conn, id)`` per section and
+        skipping the ``ValueError`` ones.
+        """
+        owners = section_ownerships(conn)
+        scopes: dict[int, AssessmentScope] = {}
+        for section_id, section_type in conn.execute(
+            "SELECT id, section_type FROM curriculum_sections"
+        ):
+            owner = owners[int(section_id)]
+            if not owner.is_consistent:
+                continue
+            scope = cls.__new__(cls)
+            scope.conn = conn
+            scope.section_id = int(section_id)
+            scope.subject = owner.subject
+            scope.section_type = section_type
+            scopes[scope.section_id] = scope
+        return scopes
 
     @property
     def allows_dzi_content(self) -> bool:

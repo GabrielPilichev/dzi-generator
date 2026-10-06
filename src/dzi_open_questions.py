@@ -9,7 +9,7 @@ from __future__ import annotations
 import json
 import sqlite3
 
-from src.subject_content import IT, canonical_subject
+from src.subject_content import IT, canonical_subject, sql_chunks
 
 
 VISUAL_DEPENDENT_PATTERNS = (
@@ -97,20 +97,31 @@ def fetch_dzi_open_questions(conn: sqlite3.Connection, *, source_slug=None) -> l
           AND q.level = 'DZI' AND e.level = 'DZI'
         ORDER BY q.source_exam, q.source_number, q.id
     """).fetchall()
+    owned = [
+        row for row in rows
+        if canonical_subject(row["subject"]) == IT
+        and canonical_subject(row["exam_subject"]) == IT
+        and row["year"] == row["exam_year"]
+        and (source_slug is None or row["source_exam"] == source_slug)
+    ]
+    # One batched fetch instead of a query per question. Python still applies
+    # the readiness rules (including the visual-phrase check) to each row.
+    subquestions_by_question: dict[int, list[dict]] = {}
+    for chunk in sql_chunks(row["id"] for row in owned):
+        marks = ",".join("?" for _ in chunk)
+        # SAFE: placeholders only; values use ? params.
+        for sub in conn.execute(f"""
+            SELECT question_id, id, subquestion_number, correct_answer, answer_alternatives
+            FROM fill_in_subquestions WHERE question_id IN ({marks})
+            ORDER BY question_id, subquestion_number, id
+        """, chunk):
+            record = dict(sub)
+            subquestions_by_question.setdefault(record.pop("question_id"), []).append(record)
+
     candidates = []
-    for row in rows:
-        if (canonical_subject(row["subject"]) != IT
-                or canonical_subject(row["exam_subject"]) != IT
-                or row["year"] != row["exam_year"]):
-            continue
-        subquestions = [dict(sub) for sub in conn.execute("""
-            SELECT id, subquestion_number, correct_answer, answer_alternatives
-            FROM fill_in_subquestions WHERE question_id = ?
-            ORDER BY subquestion_number
-        """, (row["id"],))]
+    for row in owned:
+        subquestions = subquestions_by_question.get(row["id"], [])
         if not is_open_question_generation_ready(row, subquestions):
-            continue
-        if source_slug is not None and row["source_exam"] != source_slug:
             continue
         candidates.append({**dict(row), "subquestions": subquestions})
     return candidates
