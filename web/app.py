@@ -46,7 +46,9 @@ from web.blueprints.quiz import quiz_bp
 from web.blueprints.teacher import teacher_bp
 from web.blueprints.browsing import browsing_bp, open_existing_database_read_only
 from web.access import (
+    ANONYMOUS,
     PROFILE_SWITCH,
+    account_principal,
     current_principal,
     denial_login_endpoint,
     is_route_allowed,
@@ -54,6 +56,7 @@ from web.access import (
 )
 from web.request_db import get_request_db
 from web.production import warn_if_schema_migrations_pending
+from web.services import accounts as accounts_service
 from web.services.subject_catalog import subject_catalog, subject_topic_groups
 from web.services import quiz as quiz_service
 from web.services.dzi_exams import (
@@ -296,6 +299,41 @@ def protect_same_origin_unsafe_methods():
         return
     if not _request_has_same_origin():
         abort(403)
+
+
+# Session identity of an account (Accounts design §6). Role, name and active state
+# are never in the cookie; they are read from the users row on every request.
+ACCOUNT_SESSION_KEYS = ("uid", "sk", "iat")
+# Legacy shared-login keys, ignored while an account identity is present.
+LEGACY_AUTH_SESSION_KEYS = ("tester_authenticated", "admin_authenticated")
+ACCOUNT_LOADING_SKIPPED_ENDPOINTS = frozenset({"browsing.healthz", "static"})
+
+
+@app.before_request
+def load_current_user():
+    """Resolve an account session to ``g.principal`` (authentication only).
+
+    No account key in the session: nothing happens, no query, no cookie, and
+    ``web.access.current_principal`` falls back to the legacy keys. Any account
+    key present means an account session was attempted: it either resolves to the
+    account's principal or the request is anonymous. It never falls back to
+    legacy keys in the same cookie, and the stale identity is dropped together
+    with those keys so the next request cannot fall through to them either.
+    """
+    if request.endpoint in ACCOUNT_LOADING_SKIPPED_ENDPOINTS:
+        return
+    if not any(key in session for key in ACCOUNT_SESSION_KEYS):
+        return
+    user = accounts_service.load_session_user(
+        get_request_db(), session.get("uid"), session.get("sk")
+    )
+    principal = ANONYMOUS
+    if user is not None:
+        principal = account_principal(user["id"], user["role"], user["display_name"])
+    if principal.user_id is None:
+        for key in (*ACCOUNT_SESSION_KEYS, *LEGACY_AUTH_SESSION_KEYS):
+            session.pop(key, None)
+    g.principal = principal
 
 
 @app.before_request

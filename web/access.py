@@ -22,7 +22,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 
-from flask import session
+from flask import g, session
 
 # Access levels in use today.
 PUBLIC = "public"
@@ -45,13 +45,42 @@ _POLICY_ATTRIBUTE = "access_policy"
 
 @dataclass(frozen=True)
 class Principal:
-    """Who the current session is, as far as authorization is concerned."""
+    """Who the current session is, as far as authorization is concerned.
+
+    ``user_id``, ``role`` and ``display_name`` are set only for an account-backed
+    principal; the legacy tester/admin session has none of them.
+    """
 
     is_teacher: bool
     is_admin: bool
+    user_id: int | None = None
+    role: str | None = None
+    display_name: str | None = None
 
 
 ANONYMOUS = Principal(is_teacher=False, is_admin=False)
+
+# Capability of each account role (is_teacher, is_admin).
+_ROLE_CAPABILITIES = {
+    "student": (False, False),
+    "teacher": (True, False),
+    "admin": (True, True),
+}
+
+
+def account_principal(user_id: int, role: str, display_name: str) -> Principal:
+    """The principal of a loaded account row. An unknown role gets no capability."""
+    capabilities = _ROLE_CAPABILITIES.get(role)
+    if capabilities is None:
+        return ANONYMOUS
+    is_teacher, is_admin = capabilities
+    return Principal(
+        is_teacher=is_teacher,
+        is_admin=is_admin,
+        user_id=user_id,
+        role=role,
+        display_name=display_name,
+    )
 
 
 def principal_from_session(session_state: Mapping) -> Principal:
@@ -65,6 +94,14 @@ def principal_from_session(session_state: Mapping) -> Principal:
 
 
 def current_principal() -> Principal:
+    """The request's principal.
+
+    ``g.principal`` is set by ``web.app``'s ``load_current_user`` hook whenever the
+    session carried an account identity (valid, or ``ANONYMOUS`` when stale), and
+    then wins over any legacy key. Without it the legacy session keys apply.
+    """
+    if "principal" in g:
+        return g.principal
     return principal_from_session(session)
 
 
