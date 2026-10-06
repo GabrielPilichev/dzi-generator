@@ -1,0 +1,147 @@
+{"id":1,"alias_slug":"pmt","topic_id":25,"action":"map","reason":"Classifier often shortens pmt-ipmt-ppmt to pmt.","created_at":"2026-05-04 14:12:14"}
+{"id":2,"alias_slug":"ipmt","topic_id":25,"action":"map","reason":"Financial function alias.","created_at":"2026-05-04 14:12:14"}
+{"id":3,"alias_slug":"ppmt","topic_id":25,"action":"map","reason":"Financial function alias.","created_at":"2026-05-04 14:12:14"}
+{"id":4,"alias_slug":"vlookup","topic_id":51,"action":"map","reason":"VLOOKUP/HLOOKUP/LOOKUP alias.","created_at":"2026-05-04 14:12:14"}
+{"id":5,"alias_slug":"hlookup","topic_id":51,"action":"map","reason":"VLOOKUP/HLOOKUP/LOOKUP alias.","created_at":"2026-05-04 14:12:14"}
+{"id":6,"alias_slug":"lookup-function","topic_id":51,"action":"map","reason":"Lookup function alias.","created_at":"2026-05-04 14:12:14"}
+{"id":7,"alias_slug":"pivot-chart","topic_id":12,"action":"map","reason":"Pivot Chart is stored together with Pivot Table.","created_at":"2026-05-04 14:12:14"}
+{"id":8,"alias_slug":"pivot-table-chart","topic_id":12,"action":"map","reason":"Pivot Table / Pivot Chart combined topic.","created_at":"2026-05-04 14:12:14"}
+{"id":9,"alias_slug":"and-function","topic_id":24,"action":"map","reason":"No dedicated AND topic exists; map logical-function questions to closest spreadsheet logical-functions bucket for now.","created_at":"2026-05-04 14:12:14"}
+{"id":10,"alias_slug":"logical-functions","topic_id":24,"action":"map","reason":"General logical spreadsheet functions mapped to existing logical/multivariant function topic.","created_at":"2026-05-04 14:12:14"}
+{"id":11,"alias_slug":"choose-function","topic_id":24,"action":"map","reason":"CHOOSE is included in switch-function topic.","created_at":"2026-05-04 14:12:14"}
+{"id":12,"alias_slug":"switch","topic_id":24,"action":"map","reason":"Short alias.","created_at":"2026-05-04 14:12:14"}
+{"id":13,"alias_slug":"html-form","topic_id":22,"action":"map","reason":"Singular alias.","created_at":"2026-05-04 14:12:14"}
+{"id":14,"alias_slug":"forms-html","topic_id":22,"action":"map","reason":"HTML forms alias.","created_at":"2026-05-04 14:12:14"}
+{"id":15,"alias_slug":"wordpress","topic_id":46,"action":"map","reason":"WordPress belongs under CMS.","created_at":"2026-05-04 14:12:14"}
+{"id":16,"alias_slug":"web-cms","topic_id":46,"action":"map","reason":"CMS alias.","created_at":"2026-05-04 14:12:14"}
+{"id":17,"alias_slug":"domain","topic_id":45,"action":"map","reason":"Domain alias.","created_at":"2026-05-04 14:12:14"}
+{"id":18,"alias_slug":"dns","topic_id":45,"action":"map","reason":"DNS belongs with domain topic.","created_at":"2026-05-04 14:12:14"}
+{"id":19,"alias_slug":"hosting","topic_id":42,"action":"map","reason":"Hosting alias.","created_at":"2026-05-04 14:12:14"}
+{"id":20,"alias_slug":"xss","topic_id":20,"action":"map","reason":"Web security subtopic.","created_at":"2026-05-04 14:12:14"}
+{"id":21,"alias_slug":"ddos","topic_id":20,"action":"map","reason":"Web security subtopic.","created_at":"2026-05-04 14:12:14"}
+{"id":22,"alias_slug":"web-backup","topic_id":20,"action":"map","reason":"Backup/security in web context.","created_at":"2026-05-04 14:12:14"}
+{"id":23,"alias_slug":"css-selector","topic_id":31,"action":"map","reason":"Singular alias.","created_at":"2026-05-04 14:12:14"}
+{"id":24,"alias_slug":"selectors-css","topic_id":31,"action":"map","reason":"CSS selector alias.","created_at":"2026-05-04 14:12:14"}
+{"id":25,"alias_slug":"primary-key-db","topic_id":13,"action":"map","reason":"Database primary key alias.","created_at":"2026-05-04 14:12:14"}
+{"id":26,"alias_slug":"foreign-key-db","topic_id":50,"action":"map","reason":"Database foreign key alias.","created_at":"2026-05-04 14:12:14"}
+{"id":27,"alias_slug":"sql-query","topic_id":3,"action":"map","reason":"Generic SQL query alias.","created_at":"2026-05-04 14:12:14"}
+{"id":28,"alias_slug":"raster-vector","topic_id":23,"action":"map","reason":"Short alias.","created_at":"2026-05-04 14:12:14"}
+{"id":29,"alias_slug":"vector-graphics","topic_id":23,"action":"map","reason":"Closest existing vector/raster topic.","created_at":"2026-05-04 14:12:14"}
+{"id":30,"alias_slug":"raster-graphics","topic_id":23,"action":"map","reason":"Closest existing vector/raster topic.","created_at":"2026-05-04 14:12:14"}
+{"id":31,"alias_slug":"sample-rate-audio","topic_id":49,"action":"map","reason":"Audio sample rate alias.","created_at":"2026-05-04 14:12:14"}
+{"id":32,"alias_slug":"quantization","topic_id":34,"action":"map","reason":"Audio quantization alias.","created_at":"2026-05-04 14:12:14"}
+{"id":33,"alias_slug":"discretization","topic_id":14,"action":"map","reason":"Audio discretization alias.","created_at":"2026-05-04 14:12:14"}
+{"id":34,"alias_slug":"local-area-network","topic_id":9,"action":"map","reason":"LAN alias.","created_at":"2026-05-04 14:12:14"}
+{"id":35,"alias_slug":"lan","topic_id":9,"action":"map","reason":"LAN alias.","created_at":"2026-05-04 14:12:14"}
+{"id":36,"alias_slug":"gps-system","topic_id":37,"action":"map","reason":"GPS alias.","created_at":"2026-05-04 14:12:14"}
+{"id":37,"alias_slug":"cpu","topic_id":56,"action":"map","reason":"CPU alias.","created_at":"2026-05-04 14:12:14"}
+{"id":38,"alias_slug":"processor","topic_id":56,"action":"map","reason":"Processor alias.","created_at":"2026-05-04 14:12:14"}
+{"id":39,"alias_slug":"motherboard","topic_id":59,"action":"map","reason":"Motherboard alias.","created_at":"2026-05-04 14:12:14"}
+{"id":40,"alias_slug":"storage-devices","topic_id":62,"action":"map","reason":"Storage devices alias.","created_at":"2026-05-04 14:12:14"}
+{"id":41,"alias_slug":"free-software","topic_id":null,"action":"reject","reason":"No dedicated free software/freeware topic exists yet. Do not force-map.","created_at":"2026-05-04 14:12:14"}
+{"id":42,"alias_slug":"freeware","topic_id":null,"action":"reject","reason":"No dedicated freeware topic exists yet. Do not force-map.","created_at":"2026-05-04 14:12:14"}
+{"id":43,"alias_slug":"network-security","topic_id":null,"action":"reject","reason":"Ambiguous: could be Grade 9 network protection or Grade 12 web/security. Needs classifier context.","created_at":"2026-05-04 14:12:14"}
+{"id":44,"alias_slug":"hardware-router","topic_id":null,"action":"reject","reason":"No router/network-device topic exists yet. Needs new topic or manual mapping.","created_at":"2026-05-04 14:12:14"}
+{"id":45,"alias_slug":"web-navigation","topic_id":null,"action":"reject","reason":"No dedicated navigation topic exists yet; could be Grade 8/12 web design depending context.","created_at":"2026-05-04 14:12:14"}
+{"id":46,"alias_slug":"general","topic_id":null,"action":"skip","reason":"Source broad category, not a curriculum topic.","created_at":"2026-05-04 14:12:14"}
+{"id":47,"alias_slug":"security","topic_id":null,"action":"skip","reason":"Too broad without context.","created_at":"2026-05-04 14:12:14"}
+{"id":48,"alias_slug":"video_audio","topic_id":null,"action":"skip","reason":"Area label, not topic slug.","created_at":"2026-05-04 14:12:14"}
+{"id":49,"alias_slug":"web","topic_id":null,"action":"skip","reason":"Area label, not topic slug.","created_at":"2026-05-04 14:12:14"}
+{"id":50,"alias_slug":"databases","topic_id":null,"action":"skip","reason":"Area label, not topic slug.","created_at":"2026-05-04 14:12:14"}
+{"id":51,"alias_slug":"spreadsheets","topic_id":null,"action":"skip","reason":"Area label, not topic slug.","created_at":"2026-05-04 14:12:14"}
+{"id":52,"alias_slug":"info_systems","topic_id":null,"action":"skip","reason":"Area label, not topic slug.","created_at":"2026-05-04 14:12:14"}
+{"id":53,"alias_slug":"computer-systems","topic_id":68,"action":"map","reason":"LLM broad slug for computer system component questions.","created_at":"2026-05-04 14:22:12"}
+{"id":54,"alias_slug":"computer-components","topic_id":68,"action":"map","reason":"Alias for hardware/system components.","created_at":"2026-05-04 14:22:12"}
+{"id":55,"alias_slug":"office-applications","topic_id":73,"action":"map","reason":"Broad office applications alias, currently used for MS Word table formatting questions.","created_at":"2026-05-04 14:22:12"}
+{"id":56,"alias_slug":"word-tables","topic_id":73,"action":"map","reason":"MS Word table formatting alias.","created_at":"2026-05-04 14:22:12"}
+{"id":57,"alias_slug":"social-network","topic_id":69,"action":"map","reason":"Singular alias.","created_at":"2026-05-04 14:22:12"}
+{"id":58,"alias_slug":"social-media","topic_id":69,"action":"map","reason":"Social media alias.","created_at":"2026-05-04 14:22:12"}
+{"id":59,"alias_slug":"instagram","topic_id":69,"action":"map","reason":"Example social network.","created_at":"2026-05-04 14:22:12"}
+{"id":60,"alias_slug":"linkedin","topic_id":69,"action":"map","reason":"Example social network.","created_at":"2026-05-04 14:22:12"}
+{"id":61,"alias_slug":"youtube","topic_id":69,"action":"map","reason":"Video-sharing social platform in classroom tests.","created_at":"2026-05-04 14:22:12"}
+{"id":62,"alias_slug":"e-learning","topic_id":70,"action":"map","reason":"E-learning alias.","created_at":"2026-05-04 14:22:12"}
+{"id":63,"alias_slug":"internet-search","topic_id":71,"action":"map","reason":"Internet search alias.","created_at":"2026-05-04 14:22:12"}
+{"id":64,"alias_slug":"search-operators","topic_id":71,"action":"map","reason":"Search operators alias.","created_at":"2026-05-04 14:22:12"}
+{"id":65,"alias_slug":"file-search","topic_id":71,"action":"map","reason":"File Explorer search operators alias.","created_at":"2026-05-04 14:22:12"}
+{"id":66,"alias_slug":"voip","topic_id":72,"action":"map","reason":"Voice over IP alias.","created_at":"2026-05-04 14:22:12"}
+{"id":67,"alias_slug":"internet-telephony","topic_id":72,"action":"map","reason":"Internet telephony alias.","created_at":"2026-05-04 14:22:12"}
+{"id":68,"alias_slug":"raster-image","topic_id":74,"action":"map","reason":"Raster image alias.","created_at":"2026-05-04 14:22:12"}
+{"id":69,"alias_slug":"web-page","topic_id":75,"action":"map","reason":"Web page alias.","created_at":"2026-05-04 14:22:12"}
+{"id":70,"alias_slug":"webpage-properties","topic_id":75,"action":"map","reason":"Web page properties alias.","created_at":"2026-05-04 14:22:12"}
+{"id":71,"alias_slug":"computer-history","topic_id":76,"action":"map","reason":"History of computer technology.","created_at":"2026-05-04 14:32:04"}
+{"id":72,"alias_slug":"abc-computer","topic_id":76,"action":"map","reason":"ABC early computer question alias.","created_at":"2026-05-04 14:32:04"}
+{"id":73,"alias_slug":"operating-system","topic_id":77,"action":"map","reason":"Singular OS alias.","created_at":"2026-05-04 14:32:04"}
+{"id":74,"alias_slug":"os-functions","topic_id":77,"action":"map","reason":"Operating system function alias.","created_at":"2026-05-04 14:32:04"}
+{"id":75,"alias_slug":"mobile-os","topic_id":78,"action":"map","reason":"Mobile OS alias.","created_at":"2026-05-04 14:32:04"}
+{"id":76,"alias_slug":"peripherals","topic_id":79,"action":"map","reason":"Peripheral devices alias.","created_at":"2026-05-04 14:32:04"}
+{"id":77,"alias_slug":"communication-device","topic_id":79,"action":"map","reason":"Communication peripheral alias.","created_at":"2026-05-04 14:32:04"}
+{"id":78,"alias_slug":"driver","topic_id":80,"action":"map","reason":"Device driver alias.","created_at":"2026-05-04 14:32:04"}
+{"id":79,"alias_slug":"device-driver","topic_id":80,"action":"map","reason":"Device driver alias.","created_at":"2026-05-04 14:32:04"}
+{"id":80,"alias_slug":"software-installation","topic_id":81,"action":"map","reason":"Software installation alias.","created_at":"2026-05-04 14:32:04"}
+{"id":81,"alias_slug":"uninstall-programs","topic_id":81,"action":"map","reason":"Uninstall programs alias.","created_at":"2026-05-04 14:32:04"}
+{"id":82,"alias_slug":"archive","topic_id":82,"action":"map","reason":"Archive alias.","created_at":"2026-05-04 14:32:04"}
+{"id":83,"alias_slug":"compression","topic_id":82,"action":"map","reason":"Compression alias.","created_at":"2026-05-04 14:32:04"}
+{"id":84,"alias_slug":"zip-rar","topic_id":82,"action":"map","reason":"Compressed archive formats alias.","created_at":"2026-05-04 14:32:04"}
+{"id":85,"alias_slug":"spreadsheet-functions","topic_id":83,"action":"map","reason":"Generic spreadsheet functions alias.","created_at":"2026-05-04 14:32:04"}
+{"id":86,"alias_slug":"excel-functions","topic_id":83,"action":"map","reason":"Excel functions alias.","created_at":"2026-05-04 14:32:04"}
+{"id":89,"alias_slug":"shareware","topic_id":84,"action":"map","reason":"Software type alias.","created_at":"2026-05-04 14:32:04"}
+{"id":90,"alias_slug":"network-topology","topic_id":85,"action":"map","reason":"Network topology alias.","created_at":"2026-05-04 15:11:35"}
+{"id":91,"alias_slug":"star-topology","topic_id":85,"action":"map","reason":"Star topology alias.","created_at":"2026-05-04 15:11:35"}
+{"id":92,"alias_slug":"router","topic_id":86,"action":"map","reason":"Router alias.","created_at":"2026-05-04 15:11:35"}
+{"id":94,"alias_slug":"access-point","topic_id":86,"action":"map","reason":"Wireless access point alias.","created_at":"2026-05-04 15:11:35"}
+{"id":95,"alias_slug":"tcp","topic_id":87,"action":"map","reason":"TCP protocol alias.","created_at":"2026-05-04 15:11:35"}
+{"id":96,"alias_slug":"pop","topic_id":87,"action":"map","reason":"POP protocol alias.","created_at":"2026-05-04 15:11:35"}
+{"id":97,"alias_slug":"ftp","topic_id":87,"action":"map","reason":"FTP protocol alias.","created_at":"2026-05-04 15:11:35"}
+{"id":98,"alias_slug":"network-protocol","topic_id":87,"action":"map","reason":"Network protocol alias.","created_at":"2026-05-04 15:11:35"}
+{"id":99,"alias_slug":"domain-name","topic_id":87,"action":"map","reason":"Domain-name/IP-address classroom context.","created_at":"2026-05-04 15:11:35"}
+{"id":101,"alias_slug":"data-integrity","topic_id":88,"action":"map","reason":"Data integrity alias.","created_at":"2026-05-04 15:11:35"}
+{"id":102,"alias_slug":"cloud-technologies","topic_id":89,"action":"map","reason":"Cloud technologies alias.","created_at":"2026-05-04 15:11:35"}
+{"id":103,"alias_slug":"biometrics","topic_id":90,"action":"map","reason":"Biometric identification alias.","created_at":"2026-05-04 15:11:35"}
+{"id":104,"alias_slug":"biometric-identification","topic_id":90,"action":"map","reason":"Biometric identification alias.","created_at":"2026-05-04 15:11:35"}
+{"id":105,"alias_slug":"device-manager","topic_id":91,"action":"map","reason":"Device Manager alias.","created_at":"2026-05-04 15:11:35"}
+{"id":106,"alias_slug":"feasibility-analysis","topic_id":92,"action":"map","reason":"IS feasibility analysis alias.","created_at":"2026-05-04 15:11:35"}
+{"id":107,"alias_slug":"access-table","topic_id":93,"action":"map","reason":"MS Access table alias.","created_at":"2026-05-04 15:11:35"}
+{"id":108,"alias_slug":"access-form","topic_id":94,"action":"map","reason":"MS Access form alias.","created_at":"2026-05-04 15:11:35"}
+{"id":109,"alias_slug":"access-macro","topic_id":95,"action":"map","reason":"MS Access macro alias.","created_at":"2026-05-04 15:11:35"}
+{"id":110,"alias_slug":"select-query","topic_id":96,"action":"map","reason":"Select query alias.","created_at":"2026-05-04 15:11:35"}
+{"id":111,"alias_slug":"action-query","topic_id":97,"action":"map","reason":"Action query alias.","created_at":"2026-05-04 15:11:35"}
+{"id":112,"alias_slug":"website-planning","topic_id":98,"action":"map","reason":"Website planning alias.","created_at":"2026-05-04 15:11:35"}
+{"id":113,"alias_slug":"target-audience","topic_id":98,"action":"map","reason":"Target audience alias.","created_at":"2026-05-04 15:11:35"}
+{"id":114,"alias_slug":"information-architecture","topic_id":99,"action":"map","reason":"Website information architecture alias.","created_at":"2026-05-04 15:11:35"}
+{"id":116,"alias_slug":"responsive-design","topic_id":100,"action":"map","reason":"Responsive design alias.","created_at":"2026-05-04 15:11:35"}
+{"id":117,"alias_slug":"rss","topic_id":101,"action":"map","reason":"RSS alias.","created_at":"2026-05-04 15:11:35"}
+{"id":118,"alias_slug":"rss-feed","topic_id":101,"action":"map","reason":"RSS feed alias.","created_at":"2026-05-04 15:11:35"}
+{"id":119,"alias_slug":"user-interface","topic_id":102,"action":"map","reason":"User interface alias.","created_at":"2026-05-04 15:34:42"}
+{"id":120,"alias_slug":"interface","topic_id":102,"action":"map","reason":"Interface alias.","created_at":"2026-05-04 15:34:42"}
+{"id":121,"alias_slug":"website-design","topic_id":103,"action":"map","reason":"Website design process alias.","created_at":"2026-05-04 15:34:42"}
+{"id":122,"alias_slug":"web-design-process","topic_id":103,"action":"map","reason":"Website design process alias.","created_at":"2026-05-04 15:34:42"}
+{"id":123,"alias_slug":"cms-system","topic_id":104,"action":"map","reason":"CMS systems alias.","created_at":"2026-05-04 15:34:42"}
+{"id":124,"alias_slug":"wordpress-installation","topic_id":105,"action":"map","reason":"WordPress install alias.","created_at":"2026-05-04 15:34:42"}
+{"id":125,"alias_slug":"captcha","topic_id":106,"action":"map","reason":"CAPTCHA alias.","created_at":"2026-05-04 15:34:42"}
+{"id":126,"alias_slug":"sniffing","topic_id":107,"action":"map","reason":"Network sniffing alias.","created_at":"2026-05-04 15:34:42"}
+{"id":127,"alias_slug":"traffic-sniffing","topic_id":107,"action":"map","reason":"Traffic sniffing alias.","created_at":"2026-05-04 15:34:42"}
+{"id":128,"alias_slug":"cms-security","topic_id":108,"action":"map","reason":"CMS security alias.","created_at":"2026-05-04 15:34:42"}
+{"id":129,"alias_slug":"bandwidth","topic_id":109,"action":"map","reason":"Bandwidth alias.","created_at":"2026-05-04 15:34:42"}
+{"id":130,"alias_slug":"hypertext","topic_id":110,"action":"map","reason":"Hypertext alias.","created_at":"2026-05-04 15:34:42"}
+{"id":131,"alias_slug":"hyperlink","topic_id":110,"action":"map","reason":"Hyperlink alias.","created_at":"2026-05-04 15:34:42"}
+{"id":132,"alias_slug":"belbin","topic_id":111,"action":"map","reason":"Belbin team roles alias.","created_at":"2026-05-04 15:34:42"}
+{"id":133,"alias_slug":"teamwork","topic_id":111,"action":"map","reason":"Teamwork alias.","created_at":"2026-05-04 15:34:42"}
+{"id":134,"alias_slug":"brainstorm","topic_id":112,"action":"map","reason":"Brainstorming alias.","created_at":"2026-05-04 15:34:42"}
+{"id":135,"alias_slug":"ram","topic_id":113,"action":"map","reason":"RAM alias.","created_at":"2026-05-04 15:34:42"}
+{"id":136,"alias_slug":"windows-accounts","topic_id":114,"action":"map","reason":"Windows accounts alias.","created_at":"2026-05-04 15:34:42"}
+{"id":137,"alias_slug":"firewall","topic_id":115,"action":"map","reason":"Firewall alias.","created_at":"2026-05-04 15:34:42"}
+{"id":138,"alias_slug":"safe-mode","topic_id":116,"action":"map","reason":"Safe mode alias.","created_at":"2026-05-04 15:34:42"}
+{"id":139,"alias_slug":"grid","topic_id":117,"action":"map","reason":"Grid infrastructure alias.","created_at":"2026-05-04 15:55:40"}
+{"id":140,"alias_slug":"grid-infrastructure","topic_id":117,"action":"map","reason":"Grid infrastructure alias.","created_at":"2026-05-04 15:55:40"}
+{"id":141,"alias_slug":"internet-service","topic_id":118,"action":"map","reason":"Internet services alias.","created_at":"2026-05-04 15:55:40"}
+{"id":142,"alias_slug":"coaxial-cable","topic_id":119,"action":"map","reason":"Coaxial cable alias.","created_at":"2026-05-04 15:55:40"}
+{"id":143,"alias_slug":"communication-media","topic_id":119,"action":"map","reason":"Communication media alias.","created_at":"2026-05-04 15:55:40"}
+{"id":144,"alias_slug":"file-explorer-share","topic_id":120,"action":"map","reason":"File Explorer sharing alias.","created_at":"2026-05-04 15:55:40"}
+{"id":145,"alias_slug":"document-template","topic_id":121,"action":"map","reason":"Document template alias.","created_at":"2026-05-04 15:55:40"}
+{"id":146,"alias_slug":"task-manager","topic_id":122,"action":"map","reason":"Task Manager alias.","created_at":"2026-05-04 15:55:40"}
+{"id":147,"alias_slug":"software-troubleshooting","topic_id":123,"action":"map","reason":"Software troubleshooting alias.","created_at":"2026-05-04 15:55:40"}
+{"id":148,"alias_slug":"analysis-toolpak","topic_id":124,"action":"map","reason":"Analysis ToolPak alias.","created_at":"2026-05-04 15:55:40"}
+{"id":149,"alias_slug":"is-startup-stage","topic_id":125,"action":"map","reason":"IS startup/development stage alias.","created_at":"2026-05-04 15:55:40"}
+{"id":150,"alias_slug":"access-data-entry","topic_id":126,"action":"map","reason":"Access data entry objects alias.","created_at":"2026-05-04 15:55:40"}
+{"id":151,"alias_slug":"access-controls","topic_id":127,"action":"map","reason":"Access controls/buttons alias.","created_at":"2026-05-04 15:55:40"}
+{"id":152,"alias_slug":"access-startup-form","topic_id":128,"action":"map","reason":"Access startup form alias.","created_at":"2026-05-04 15:55:40"}

@@ -243,7 +243,9 @@ def print_table(rows: list[dict[str, Any]], columns: list[str]) -> None:
 
 def main() -> int:
     args = parse_args()
-    conn = sqlite3.connect(f"file:{args.db}?mode=ro", uri=True)
+    # immutable=1: a plain mode=ro open of a WAL-mode database (the tracked seed)
+    # creates -wal/-shm sidecars next to it. The audit never needs a live view.
+    conn = sqlite3.connect(f"{Path(args.db).resolve().as_uri()}?mode=ro&immutable=1", uri=True)
     conn.row_factory = sqlite3.Row
     try:
         params: list[Any] = [FORMAT_VERSION]

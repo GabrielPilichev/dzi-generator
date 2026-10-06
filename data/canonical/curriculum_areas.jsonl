@@ -1,0 +1,11 @@
+{"id":1,"area_id":"spreadsheets","title_bg":"Електронни таблици","moc_filename":"spreadsheets-moc.md","description":"Excel-style ЕТ. От 9 клас (основи) до 11 клас Модул 1 (advanced)."}
+{"id":2,"area_id":"databases","title_bg":"Бази данни","moc_filename":"databases-moc.md","description":"Релационни БД, SQL, проектиране. Главно 11 клас Модул 1."}
+{"id":3,"area_id":"web","title_bg":"Уеб технологии","moc_filename":"web-moc.md","description":"HTML, CSS, дизайн, CMS, сигурност. 8 клас (въведение) и 12 клас Модул 3 (професионално)."}
+{"id":4,"area_id":"graphics","title_bg":"Графика и обработка на изображения","moc_filename":"graphics-moc.md","description":"Растер и вектор. 11 клас Модул 2."}
+{"id":5,"area_id":"video_audio","title_bg":"Видео и аудио","moc_filename":"video-audio-moc.md","description":"Цифровизация, монтаж, кодеци. 11 клас Модул 2."}
+{"id":6,"area_id":"info_systems","title_bg":"Информационни системи","moc_filename":"info-systems-moc.md","description":"SDLC, проектиране на ИС, управление на проекти. 11-12 клас."}
+{"id":7,"area_id":"ai_programming","title_bg":"AI и програмиране","moc_filename":"ai-programming-moc.md","description":"Скриптови езици, алгоритми, ML основи. Прогресия 8-9-10 клас."}
+{"id":8,"area_id":"networks","title_bg":"Компютърни мрежи и услуги","moc_filename":null,"description":"Мрежи, протоколи, сигурност. 8-9 клас."}
+{"id":9,"area_id":"applications","title_bg":"Приложни програми","moc_filename":null,"description":"Текстообработка, шаблони, циркулярни писма. 9 клас."}
+{"id":10,"area_id":"hardware","title_bg":"Хардуер","moc_filename":null,"description":"Компютърен хардуер — CPU, RAM, дискове, видеокарти, дънни платки. Главно 8-9 клас."}
+{"id":11,"area_id":"legal","title_bg":"Авторско право и стандарти","moc_filename":null,"description":"Авторско право, лицензи, плагиатство, международни стандарти и организации. Главно 12 клас Модул 4."}

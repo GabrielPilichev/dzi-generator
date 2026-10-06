@@ -24,6 +24,11 @@ Status is conservative:
 | `src/practical_uploads.py` | Runtime safety helpers for practical-task student uploads; imported by `web/app.py` and covered by tests. |
 | `src/manage_migrations.py` | Numbered SQLite migration planner/runner with dry-run and baseline support (`--baseline-dry-run`/`--baseline-apply` adopt `000_baseline.sql` on existing databases); covered by migration tests. It is also the only production schema-change step (`docs/DEPLOYMENT.md`). |
 | `src/schema_introspection.py` | Read-only SQLite table-shape helpers (columns, keys, indexes, CHECKs); used by baseline detection in `manage_migrations.py` and the schema-parity test. |
+| `src/canonical_tables.py` | Table classification (canonical/runtime/operational), natural keys, load order and the single row serialization/hash used by all canonical tooling. See `docs/CANONICAL_DATA.md`. |
+| `src/canonical_export.py` | Deterministic export of canonical tables to `data/canonical/*.jsonl` plus manifest, `--check`, and stable-identity-guarded `--replace-canonical`; never writes the tracked directory by default. |
+| `src/canonical_load.py` | Minimal explicit-id canonical loader and `rebuild_for_parity` round trip (migrations + canonical load); not the G2 builder. |
+| `src/canonical_parity.py` | Schema/content/id/FK/sequence parity and non-FK id-reference validators for canonical content. |
+| `src/canonical_reconcile.py` | One-time reconciliation of the seed, tracked Physics/Biology inputs and the local identity export into `data/canonical`; refuses on any ambiguous identity. |
 | `src/backup_sqlite.py` | WAL-safe online SQLite backup with `PRAGMA quick_check` verification; explicit source/destination, never overwrites or writes inside the checkout. Covered by `tests/test_backup_sqlite.py`. |
 | `src/import_subject_structure.py` | Imports a reviewed curriculum structure (ordered sections and topics, no questions) for a registered subject; dry run by default, atomic `--apply`, rejects conflicts. See `docs/SUBJECT_STRUCTURE_IMPORT.md`; covered by `tests/test_import_subject_structure.py`. |
 | `src/question_collection_limits.py` | Hard limits and absolute ceilings of one question-collection run, plus the page/candidate/runtime budget counter; no network or database access. See `docs/QUESTION_COLLECTION_PIPELINE.md`; covered by `tests/test_question_candidates.py`. |
