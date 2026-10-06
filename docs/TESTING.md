@@ -50,9 +50,11 @@ its default repository database from a test.
 
 ## Previous isolation problems
 
-- `web.app` invokes `quiz_apply_migration()` at import time, before unittest class
-  setup. Even a test that only imported a formatting helper could open the real
-  database if another module had not first configured the environment.
+- `web.app` used to run `quiz_apply_migration()` at import time, before unittest
+  class setup, so a test that only imported a formatting helper could open and
+  change the real database. That migration is gone (schema changes are only made
+  by `python3 -m src.manage_migrations`); importing `web.app` with a real `DZI_DB`
+  now only does a read-only pending-migration check that logs a warning.
 - Import-time `DZI_DB` / `DZI_VAULT` assignments depended on which test first
   imported `web.app`; later environment changes did not update captured globals.
 - Browsing used `app.config["DB_PATH"]`, which those environment assignments did

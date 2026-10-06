@@ -72,6 +72,7 @@ from web.blueprints.quiz import (
     register_legacy_quiz_endpoint_aliases,
     require_quiz_attempt_access,
 )
+from web.production import warn_if_schema_migrations_pending
 
 
 # ---------------------------------------------------------------------------
@@ -82,7 +83,6 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DB_ENV = "DZI_DB"
 UPLOAD_ROOT_ENV = "DZI_UPLOAD_ROOT"
 REFERENCE_ROOT_ENV = "DZI_REFERENCE_ROOT"
-SKIP_STARTUP_MIGRATION_ENV = "DZI_SKIP_STARTUP_MIGRATION"
 SESSION_COOKIE_SECURE_ENV = "DZI_SESSION_COOKIE_SECURE"
 
 
@@ -101,13 +101,6 @@ def configured_reference_root() -> Path | None:
 DB_PATH = configured_db_path()
 TRUE_ENV_VALUES = {"1", "true", "yes", "on"}
 FALSE_ENV_VALUES = {"0", "false", "no", "off"}
-# Development/tests keep legacy self-healing schema helpers (import-time quiz
-# tables, request-time column guard). web.wsgi sets the flag so production
-# changes schema only through `python3 -m src.manage_migrations`.
-SCHEMA_CHANGES_ON_DEMAND = (
-    (os.environ.get(SKIP_STARTUP_MIGRATION_ENV) or "").strip().lower()
-    not in TRUE_ENV_VALUES
-)
 
 
 def build_secret_key() -> str:
@@ -2310,16 +2303,6 @@ def quiz_db():
     return conn
 
 
-def quiz_apply_migration() -> None:
-    migration = _QuizPath("web/migrations/001_quiz_tables.sql")
-    if not migration.exists():
-        return
-    conn = quiz_db()
-    conn.executescript(migration.read_text(encoding="utf-8"))
-    conn.commit()
-    conn.close()
-
-
 def quiz_slugify(value: str) -> str:
     bg = {
         "а": "a", "б": "b", "в": "v", "г": "g", "д": "d", "е": "e", "ж": "zh",
@@ -3896,11 +3879,10 @@ def quiz_load_result_questions(conn, attempt, question_ids: list[int], seed: str
     return questions
 
 
-# Development/test imports keep the legacy idempotent quiz-table guard. The
-# production entry point (web.wsgi) disables it: production schema changes run
-# only through the explicit `python3 -m src.manage_migrations` deploy step.
-if SCHEMA_CHANGES_ON_DEMAND:
-    quiz_apply_migration()
+# The web application never changes schema: that is the explicit
+# `python3 -m src.manage_migrations --db ... --apply` step. Local runs only get
+# a read-only warning; web.wsgi refuses to start while migrations are pending.
+warn_if_schema_migrations_pending(DB_PATH, open_existing_database_read_only)
 
 
 
@@ -4650,23 +4632,6 @@ def quiz_parse_review_points(value: object, *, points_possible: float) -> float:
     return points
 
 
-def quiz_ensure_text_answer_teacher_status_column(conn) -> None:
-    # Production never runs schema code from requests: migration 009 adds this
-    # column and web.wsgi refuses to start while any migration is pending.
-    if not SCHEMA_CHANGES_ON_DEMAND:
-        return
-    if "teacher_override_status" in sqlite_table_columns(conn, "quiz_text_answers"):
-        return
-    conn.execute("""
-        ALTER TABLE quiz_text_answers
-        ADD COLUMN teacher_override_status TEXT
-            CHECK (
-                teacher_override_status IS NULL
-                OR teacher_override_status IN ('correct', 'partially_correct', 'incorrect')
-            )
-    """)
-
-
 def prepare_quiz_text_answer_review(answer: dict) -> dict:
     auto_status = "pending"
     if answer.get("is_correct") == 1:
@@ -4835,7 +4800,6 @@ def teacher_assignment_results(assignment_id):
             _quiz_abort(400)
         teacher_note_value = teacher_note or None
 
-        quiz_ensure_text_answer_teacher_status_column(conn)
         row = conn.execute("""
             SELECT qta.id, qta.is_correct, qta.points_possible
             FROM quiz_text_answers qta

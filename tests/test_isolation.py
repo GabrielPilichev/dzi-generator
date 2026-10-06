@@ -34,7 +34,7 @@ with patch("sqlite3.connect", guarded):
     loader = unittest.TestLoader()
     loader.discover("tests")
     assert not loader.errors, loader.errors
-    assert connections == [":memory:"], connections
+    assert connections == [], connections  # importing web.app opens no database
 '''
         environment = dict(os.environ, DZI_DB=str(ROOT / "data/questions.db"))
         result = subprocess.run(

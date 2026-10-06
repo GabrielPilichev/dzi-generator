@@ -2,12 +2,13 @@
 
 Development and tests keep importing ``web.app`` directly. Only this path
 enforces secrets, explicit state paths outside the code checkout, no schema
-changes on import, a fully migrated schema, and exactly one trusted proxy hop.
+changes from the web app, a fully migrated schema, and exactly one trusted proxy hop.
 Error messages name settings, never their values.
 """
 
 from __future__ import annotations
 
+import logging
 import os
 import re
 from pathlib import Path
@@ -29,7 +30,6 @@ DB_ENV = "DZI_DB"
 PUBLIC_HOST_ENV = "DZI_PUBLIC_HOST"
 STATE_DIRECTORY_ENVS = ("DZI_UPLOAD_ROOT", "DZI_VAULT")
 REFERENCE_ROOT_ENV = "DZI_REFERENCE_ROOT"
-SKIP_STARTUP_MIGRATION_ENV = "DZI_SKIP_STARTUP_MIGRATION"
 TRUE_VALUES = {"1", "true", "yes", "on"}
 FLASK_DEBUG_OFF_VALUES = {"0", "false", "no"}  # Flask's own get_debug_flag() rule.
 
@@ -142,6 +142,32 @@ def pending_schema_migrations(db_path, open_read_only) -> list[str]:
     return pending_migrations(migration_filenames(MIGRATIONS_DIR), applied)
 
 
+def migration_command(db_hint: str = "$DZI_DB") -> str:
+    return f'python3 -m src.manage_migrations --db "{db_hint}" --apply'
+
+
+def warn_if_schema_migrations_pending(db_path, open_read_only) -> list[str]:
+    """Local-run check: log pending migrations and carry on; never writes.
+
+    Production does not use this: create_production_app fails hard instead.
+    """
+    logger = logging.getLogger(__name__)
+    try:
+        if not Path(db_path).is_file():
+            return []  # e.g. an in-memory or not-yet-created database
+        pending = pending_schema_migrations(db_path, open_read_only)
+    except Exception as exc:  # a warning helper must never stop a local run
+        logger.warning("Could not check for pending database migrations: %s", exc)
+        return []
+    if pending:
+        logger.warning(
+            "Database schema has pending migrations: %s. The web app does not "
+            "change schema; back up the database, then run `%s`.",
+            ", ".join(pending), migration_command(),
+        )
+    return pending
+
+
 def trusted_proxy(wsgi_app):
     """Trust exactly one hop: Nginx on loopback sets X-Forwarded-For/Proto/Host.
 
@@ -161,8 +187,6 @@ def create_production_app(environ: Mapping[str, str] | None = None):
             + "\nSee docs/DEPLOYMENT.md (environment configuration)."
         )
 
-    # web.app reads this at import time; production imports never change schema.
-    os.environ[SKIP_STARTUP_MIGRATION_ENV] = "1"
     from web import app as web_app
 
     pending = pending_schema_migrations(web_app.DB_PATH, web_app.open_existing_database_read_only)
@@ -170,8 +194,7 @@ def create_production_app(environ: Mapping[str, str] | None = None):
         raise ProductionConfigError(
             "Refusing to start LearnPilot: database schema has pending migrations: "
             + ", ".join(pending)
-            + ". Back up the database, then run "
-            "`python3 -m src.manage_migrations --db \"$DZI_DB\" --apply` "
+            + f". Back up the database, then run `{migration_command()}` "
             "from the application directory."
         )
 

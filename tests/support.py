@@ -1,7 +1,7 @@
 """Temporary application state for unittest discovery and individual modules.
 
-Importing web.app runs the legacy quiz migration. Bootstrap it in memory, then
-configure its two independent DB paths before class fixtures or requests run;
+Importing web.app never changes a database schema. Import it against an in-memory
+DB, then configure its two independent DB paths before class fixtures or requests run;
 environment variables alone cannot reconfigure an already imported application.
 """
 
