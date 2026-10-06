@@ -5,7 +5,7 @@
 {% block body_class %}{% if not (attempt is defined and attempt) %}management-page admin-management-page management-detail-page{% endif %}{% endblock %}
 
 {% block breadcrumb %}
-    <a href="{{ url_for('index') }}">Начало</a>
+    <a href="{{ url_for('browsing.index') }}">Начало</a>
     <span>›</span>
     <a href="{{ url_for('dzi.dzi_index') }}">Официални ДЗИ</a>
     <span>›</span>

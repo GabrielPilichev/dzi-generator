@@ -88,8 +88,8 @@ class TeacherRouteOwnershipTest(unittest.TestCase):
             with self.subTest(path=path.name):
                 self.assertIsNone(pattern.search(path.read_text(encoding="utf-8")))
 
-    def test_e4_and_e5_views_have_not_moved(self):
-        for endpoint in ("index", "grade_view", "section_view", "tester_home", "admin_login"):
+    def test_e5_views_have_not_moved(self):
+        for endpoint in ("tester_home", "admin_login"):
             with self.subTest(endpoint=endpoint):
                 self.assertEqual(web_app.app.view_functions[endpoint].__module__, "web.app")
 

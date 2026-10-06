@@ -76,7 +76,7 @@ class PracticalRouteOwnershipTest(unittest.TestCase):
             self.assertNotIn(legacy, web_app.app.view_functions)
 
     def test_later_roadmap_views_have_not_moved(self):
-        for endpoint in ("tester_home", "admin_login", "section_view"):
+        for endpoint in ("tester_home", "admin_login"):
             with self.subTest(endpoint=endpoint):
                 self.assertEqual(web_app.app.view_functions[endpoint].__module__, "web.app")
 
