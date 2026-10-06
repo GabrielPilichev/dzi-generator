@@ -7,9 +7,9 @@
 {% block breadcrumb %}
     <a href="{{ url_for('index') }}">Начало</a>
     <span>›</span>
-    <a href="{{ url_for('dzi_index') }}">Официални ДЗИ</a>
+    <a href="{{ url_for('dzi.dzi_index') }}">Официални ДЗИ</a>
     <span>›</span>
-    <a href="{{ url_for('dzi_source_view', source_slug=exam.source_slug) }}">{{ exam.source_slug }}</a>
+    <a href="{{ url_for('dzi.dzi_source_view', source_slug=exam.source_slug) }}">{{ exam.source_slug }}</a>
     <span>›</span>
     Практически задачи
 {% endblock %}
@@ -28,7 +28,7 @@
     {% if attempt %}
         <a class="button secondary back-link" href="{{ url_for('quiz_attempt', attempt_id=attempt.id) }}">Към теста</a>
     {% else %}
-        <a class="button secondary back-link" href="{{ url_for('dzi_source_view', source_slug=exam.source_slug) }}">Към източника</a>
+        <a class="button secondary back-link" href="{{ url_for('dzi.dzi_source_view', source_slug=exam.source_slug) }}">Към източника</a>
     {% endif %}
     <span class="pill">{{ tasks|length }} задачи</span>
 </div>

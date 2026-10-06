@@ -59,6 +59,8 @@ from src.practical_uploads import (
     validate_upload_extension,
     validate_upload_size,
 )
+from web.blueprints import dzi as dzi_blueprint
+from web.blueprints.dzi import dzi_bp
 from web.blueprints.quiz import (
     has_quiz_attempt_access,
     mark_quiz_attempt_owner,
@@ -82,7 +84,16 @@ from web.access import (
 )
 from web.request_integrity import SAME_ORIGIN, integrity_policy
 from web.production import warn_if_schema_migrations_pending
+from web.services import dzi_exams
 from web.services import quiz as quiz_service
+from web.services.dzi_exams import (
+    DZI_FORMAT_VERSION,
+    dzi_json_text_list,
+    dzi_parse_source_slug,
+    dzi_source_slug,
+    dzi_source_title,
+    fetch_fill_in_answer_rows,
+)
 from web.services.question_visuals import (
     attach_question_visual_assets,
     fetch_question_visual_assets,
@@ -744,19 +755,6 @@ def _decorate_browse_questions(db: sqlite3.Connection, rows: list[dict]) -> list
     return attach_question_visual_assets(db, questions, id_key="question_id")
 
 
-DZI_FORMAT_VERSION = "dzi_it_pp_2025_format"
-DZI_SESSION_SLUGS = {
-    "may": "may",
-    "august": "aug",
-}
-DZI_SLUG_SESSIONS = {
-    "may": "may",
-    "aug": "august",
-}
-DZI_SESSION_LABELS = {
-    "may": "май",
-    "august": "август",
-}
 # DZI_REFERENCE_ROOT relocates only data/reference (official DZI resources);
 # data/assets always stays in the checkout.
 PRACTICAL_REFERENCE_ROOT = configured_reference_root()
@@ -766,137 +764,12 @@ PRACTICAL_RESOURCE_ROOTS = (
 )
 
 
-def dzi_source_slug(row: sqlite3.Row | dict) -> str:
-    prefix = DZI_SESSION_SLUGS.get(row["session"], row["session"])
-    return f"{prefix}_{row['year']}_v{row['variant']}"
-
-
-def dzi_source_title(row: sqlite3.Row | dict) -> str:
-    session = DZI_SESSION_LABELS.get(row["session"], row["session"])
-    return f"ДЗИ ИТ ПП — {session} {row['year']}, вариант {row['variant']}"
-
-
-def dzi_parse_source_slug(source_slug: str) -> tuple[int, str, int] | None:
-    parts = source_slug.split("_")
-    if len(parts) != 3:
-        return None
-    session = DZI_SLUG_SESSIONS.get(parts[0])
-    if session is None:
-        return None
-    try:
-        year = int(parts[1])
-        if not parts[2].startswith("v"):
-            return None
-        variant = int(parts[2][1:])
-    except ValueError:
-        return None
-    return year, session, variant
-
-
 def dzi_find_exam(source_slug: str) -> dict | None:
-    parsed = dzi_parse_source_slug(source_slug)
-    if parsed is None:
-        return None
-    year, session, variant = parsed
-    db = get_db()
-    row = db.execute("""
-        SELECT *
-        FROM exams
-        WHERE format_version = ?
-          AND year = ?
-          AND session = ?
-          AND variant = ?
-        ORDER BY id
-        LIMIT 1
-    """, (DZI_FORMAT_VERSION, year, session, variant)).fetchone()
-    if row is None:
-        return None
-    exam = dict(row)
-    exam["source_slug"] = dzi_source_slug(row)
-    exam["title"] = dzi_source_title(row)
-    return exam
+    return dzi_exams.dzi_find_exam(get_db(), source_slug)
 
 
-def fetch_dzi_sources() -> list[dict]:
-    db = get_db()
-    rows = db.execute("""
-        SELECT
-            e.*,
-            (
-                SELECT COUNT(*)
-                FROM exam_tasks et
-                WHERE et.exam_id = e.id
-            ) AS task_count,
-            (
-                SELECT COALESCE(SUM(et.points), 0)
-                FROM exam_tasks et
-                WHERE et.exam_id = e.id
-            ) AS total_points,
-            (
-                SELECT COUNT(DISTINCT etq.question_id)
-                FROM exam_tasks et
-                JOIN exam_task_questions etq
-                    ON etq.task_id = et.id
-                   AND etq.role = 'primary'
-                WHERE et.exam_id = e.id
-                  AND et.task_number BETWEEN 1 AND 25
-            ) AS part1_linked_questions,
-            (
-                SELECT COUNT(*)
-                FROM official_exam_sources oes
-                WHERE oes.exam_id = e.id
-                  AND oes.source_kind = 'exam_pdf'
-            ) AS exam_pdf_sources,
-            (
-                SELECT COUNT(DISTINCT source_links.asset_id)
-                FROM asset_links source_links
-                WHERE source_links.owner_type = 'exam'
-                  AND source_links.owner_id = e.id
-                  AND source_links.role = 'source_pdf'
-            ) AS source_pdf_assets
-        FROM exams e
-        WHERE e.format_version = ?
-        ORDER BY e.year DESC, e.session, e.variant
-    """, (DZI_FORMAT_VERSION,)).fetchall()
-
-    sources = []
-    for row in rows:
-        source = dict(row)
-        source["source_slug"] = dzi_source_slug(row)
-        source["title"] = dzi_source_title(row)
-        source["source_pdf_status"] = (
-            "наличен"
-            if source["source_file"] and source["exam_pdf_sources"] and source["source_pdf_assets"]
-            else "непълен"
-        )
-        sources.append(source)
-    return sources
-
-
-def fetch_dzi_task_asset_counts(exam_id: int) -> dict[int, int]:
-    db = get_db()
-    rows = db.execute("""
-        SELECT et.task_number, COUNT(DISTINCT al.asset_id) AS asset_count
-        FROM exam_tasks et
-        LEFT JOIN asset_links al
-            ON al.owner_type = 'exam_task'
-           AND al.owner_id = et.id
-        WHERE et.exam_id = ?
-        GROUP BY et.id
-    """, (exam_id,)).fetchall()
-    return {int(row["task_number"]): int(row["asset_count"] or 0) for row in rows}
-
-
-def fetch_practical_resource_count(exam_id: int) -> int:
-    db = get_db()
-    row = db.execute("""
-        SELECT COUNT(*)
-        FROM practical_task_resources ptr
-        JOIN exam_tasks et ON et.id = ptr.exam_task_id
-        WHERE et.exam_id = ?
-          AND et.task_number BETWEEN 26 AND 28
-    """, (exam_id,)).fetchone()
-    return int(row[0] or 0)
+def fetch_dzi_tasks(exam_id: int) -> dict[str, list[dict]]:
+    return dzi_exams.fetch_dzi_tasks(get_db(), exam_id)
 
 
 def fetch_practical_assignment_options(
@@ -935,120 +808,6 @@ def fetch_practical_assignment_options(
         option["title"] = dzi_source_title(row)
         options.append(option)
     return options
-
-
-def fetch_dzi_question_options(question_id: int) -> list[dict]:
-    db = get_db()
-    rows = db.execute("""
-        SELECT option_letter, option_text, is_correct
-        FROM multiple_choice_options
-        WHERE question_id = ?
-        ORDER BY option_letter
-    """, (question_id,)).fetchall()
-    return [dict(row) for row in rows]
-
-
-def dzi_json_text_list(value: str | None) -> list[str]:
-    if value is None:
-        return []
-    value = str(value).strip()
-    if not value:
-        return []
-    try:
-        parsed = json.loads(value)
-    except (TypeError, json.JSONDecodeError):
-        return [value]
-    if parsed is None:
-        return []
-    if isinstance(parsed, list):
-        return [str(item) for item in parsed if item is not None and str(item).strip()]
-    if isinstance(parsed, str):
-        return [parsed] if parsed.strip() else []
-    return [str(parsed)]
-
-
-def fetch_fill_in_answer_rows(db: sqlite3.Connection, question_id: int) -> list[dict]:
-    rows = db.execute("""
-        SELECT subquestion_number, subquestion_text, correct_answer, answer_alternatives, points
-        FROM fill_in_subquestions
-        WHERE question_id = ?
-        ORDER BY subquestion_number
-    """, (question_id,)).fetchall()
-    subquestions = []
-    for row in rows:
-        correct_answers = dzi_json_text_list(row["correct_answer"])
-        alternatives = dzi_json_text_list(row["answer_alternatives"])
-        accepted_answers = unique_text_values(correct_answers + alternatives)
-        subquestion = dict(row)
-        subquestion["correct_answers"] = correct_answers
-        subquestion["answer_alternatives_list"] = alternatives
-        subquestion["accepted_answers"] = accepted_answers
-        subquestions.append(subquestion)
-    return subquestions
-
-
-def fetch_dzi_fill_subquestions(question_id: int) -> list[dict]:
-    db = get_db()
-    return fetch_fill_in_answer_rows(db, question_id)
-
-
-def fetch_dzi_tasks(exam_id: int) -> dict[str, list[dict]]:
-    db = get_db()
-    rows = db.execute("""
-        SELECT
-            et.id AS task_id,
-            et.task_number,
-            et.task_kind,
-            et.points,
-            et.has_assets,
-            q.id AS question_id,
-            q.prompt AS question_prompt,
-            q.question_type,
-            COALESCE(t.title_bg, tq.title_bg) AS topic_title,
-            pt.work_environment
-        FROM exam_tasks et
-        LEFT JOIN exam_task_questions etq
-            ON etq.task_id = et.id
-           AND etq.role = 'primary'
-        LEFT JOIN questions q
-            ON q.id = etq.question_id
-           AND (q.is_ai_generated = 0 OR q.quality_score >= 1.0)
-        LEFT JOIN curriculum_topics t ON t.id = q.topic_id
-        LEFT JOIN curriculum_topics tq ON tq.id = et.topic_id
-        LEFT JOIN practical_tasks pt ON pt.task_id = et.id
-        WHERE et.exam_id = ?
-        ORDER BY et.task_number
-    """, (exam_id,)).fetchall()
-
-    asset_counts = fetch_dzi_task_asset_counts(exam_id)
-    grouped = {"part1": [], "part2": []}
-    question_ids = [
-        int(row["question_id"])
-        for row in rows
-        if row["question_id"] is not None
-    ]
-    visual_assets_by_question = fetch_question_visual_assets(db, question_ids)
-    for row in rows:
-        task = dict(row)
-        task["asset_count"] = asset_counts.get(int(task["task_number"]), 0)
-        task["linked"] = task["question_id"] is not None
-        task["options"] = []
-        task["subquestions"] = []
-        task["visual_assets"] = (
-            visual_assets_by_question.get(int(task["question_id"]), [])
-            if task["question_id"] is not None
-            else []
-        )
-        task["linked_image_count"] = len(task["visual_assets"])
-        task["has_linked_image"] = bool(task["linked_image_count"])
-        if task["question_id"] and task["question_type"] == "multiple_choice":
-            task["options"] = fetch_dzi_question_options(int(task["question_id"]))
-        elif task["question_id"] and task["question_type"] in {"fill_in", "short_answer"}:
-            task["subquestions"] = fetch_dzi_fill_subquestions(int(task["question_id"]))
-
-        key = "part1" if int(task["task_number"]) <= 25 else "part2"
-        grouped[key].append(task)
-    return grouped
 
 
 def practical_task_batch_path(source_slug: str) -> Path:
@@ -1772,39 +1531,6 @@ def section_view(slug: str):
     )
 
 
-@app.route("/dzi")
-@access_policy(ADMIN)
-def dzi_index():
-    sources = fetch_dzi_sources()
-    return render_template("dzi_index.html", sources=sources)
-
-
-@app.route("/dzi/source/<source_slug>")
-@access_policy(ADMIN)
-def dzi_source_view(source_slug: str):
-    exam = dzi_find_exam(source_slug)
-    if exam is None:
-        abort(404)
-    tasks = fetch_dzi_tasks(int(exam["id"]))
-    practical_resource_count = fetch_practical_resource_count(int(exam["id"]))
-    return render_template(
-        "dzi_source.html",
-        exam=exam,
-        tasks=tasks,
-        practical_resource_count=practical_resource_count,
-    )
-
-
-@app.route("/dzi/source/<source_slug>/practical")
-@access_policy(ADMIN)
-def dzi_practical_source(source_slug: str):
-    resolved = fetch_practical_tasks(source_slug)
-    if resolved is None:
-        abort(404)
-    exam, tasks = resolved
-    return render_template("practical_tasks.html", exam=exam, tasks=tasks)
-
-
 @app.route("/dzi/practical/resource/<int:resource_id>/download")
 @access_policy(ADMIN)
 def dzi_practical_resource_download(resource_id: int):
@@ -2052,33 +1778,6 @@ def quiz_practical_upload(attempt_id: int, source_slug: str, exam_task_id: int):
         source_slug=source_slug,
         uploaded="1",
     ))
-
-
-@app.route("/admin/open-question-candidates")
-@access_policy(ADMIN)
-def admin_open_question_candidates():
-    conn = quiz_db()
-    try:
-        candidates = fetch_open_question_candidates(conn)
-    finally:
-        conn.close()
-
-    grouped: dict[str, int] = {}
-    for candidate in candidates:
-        source_slug = candidate.get("source_slug") or "unknown"
-        grouped[source_slug] = grouped.get(source_slug, 0) + 1
-
-    grouped_sources = [
-        {"source_slug": source_slug, "count": count}
-        for source_slug, count in sorted(grouped.items())
-    ]
-
-    return _quiz_render_template(
-        "open_question_candidates.html",
-        candidates=candidates,
-        grouped_sources=grouped_sources,
-        total_candidates=len(candidates),
-    )
 
 
 # ---------------------------------------------------------------------------
@@ -3546,6 +3245,8 @@ def teacher_assignment_results_export(assignment_id):
 # Keep legacy quiz endpoint names available for existing url_for(...) calls
 # while the canonical route declarations live on the quiz blueprint.
 register_legacy_quiz_endpoint_aliases(app)
+dzi_blueprint.configure_runtime(practical_tasks=lambda source_slug: fetch_practical_tasks(source_slug))
+app.register_blueprint(dzi_bp)
 app.register_blueprint(quiz_bp)
 
 # === QUIZ PHASE 2 END ===
