@@ -169,7 +169,7 @@ remaining runs should add. Raw ceiling = sum of run maxima = ⌈upper target ÷
 | 8 | Обмяна на веществата | Сърдечно-съдова система | **TO COLLECT** | VERY_BROAD | HIGH | 0 | 62–72 | 62–72 | 79 | r1 (28) + r2 (26) + r3 (25) | ≥ 35 % | Sonnet High | r1 CP2 science gate; bank R7 |
 | 8 | Движение и опора на тялото | Опорно-двигателна система – скелет и скелетни мускули | **TO COLLECT** | BROAD | MEDIUM | 0 | 46–54 | 46–54 | 59 | r1 (30) + r2 (29) | ≥ 35 % | Sonnet Medium | r1 R8; bank R9 |
 | 8 | Размножаване, растеж и развитие | Полова система | **TO COLLECT** | NORMAL | HIGH | 0 | 36–42 | 36–42 | 46 | r1 (26) + r2 (20) | ≥ 33 % | Sonnet High | r1 R5 science gate; bank R8 |
-| 8 | Размножаване, растеж и развитие | Зародишно и следзародишно развитие | **TO COLLECT** | NARROW | MEDIUM | 0 | 28–34 | 28–34 | 37 | r1 (37) | ≥ 30 % | Sonnet Medium | R2 |
+| 8 | Размножаване, растеж и развитие | Зародишно и следзародишно развитие | **TO COLLECT** | NARROW | MEDIUM | 0 | 28–34 | 28–34 | 37 | r1 (37; collected 27) + r2 (≤ 10 supplement) | ≥ 30 % | Sonnet Medium | R2; r2 R2b |
 | 8 | Регулация и хомеостаза | Нервна система | **TO COLLECT** | BROAD | HIGH | 0 | 48–58 | 48–58 | 64 | r1 (34) + r2 (30) | ≥ 35 % | Sonnet High | r1 CP2 science gate; bank R6 |
 | 8 | Регулация и хомеостаза | Ендокринна система | **TO COLLECT** | NORMAL | HIGH | 0 | 36–44 | 36–44 | 48 | r1 (26) + r2 (22) | ≥ 40 % | Sonnet High | r1 R8 science gate; bank R9 |
 | 8 | Регулация и хомеостаза | Сетивни системи | **TO COLLECT** | BROAD | MEDIUM | 0 | 42–50 | 42–50 | 55 | r1 (28) + r2 (27) | ≥ 35 % | Sonnet Medium | r1 R9; bank R10 |
@@ -280,6 +280,13 @@ Later evolution runs compare against this bank instead.
   removal of urine, urine composition norm vs pathology as described data,
   diseases, link with blood and water balance. Expected early stop near 34–36:
   six dimensions, small organ set.
+- **Final bank (R2 resolution): 30 candidates; genuine reasoning 8/30 (~27 %)
+  against the planned ≥ 33 % signal. No supplement is justified, and no
+  excretory run-2 is created.** All six dimensions are covered and the topic is
+  inside its 30–36 final target; the remaining apparent reasoning opportunities
+  are re-angles of existing facts or belong to skin, endocrine or other topics.
+  Accepted coverage-driven exception under the plan's quality/early-stop
+  philosophy.
 - One run of up to 40 rather than the 20–30 suggested for narrow topics: the
   whole bank fits one mission and the pilot showed narrow topics saturating at
   32–37; splitting would double comparison overhead for no new coverage.
@@ -324,6 +331,42 @@ Later evolution runs compare against this bank instead.
   umbilical cord, birth, post-embryonic periods, risks to development.
 - Reasoning ≥ 30 %, below a third: a stage-order and recognition sub-theme;
   reasoning comes from risk-factor and placenta-function items.
+- **r2 supplement** `biology-g8-embryonic-and-postembryonic-development-run-2`
+  (ceiling 10, not a quota; early stop expected): targeted at the D5/D6
+  coverage gaps shown by run-1 (27 collected, 22 after R2 resolution). The
+  original allocation was 37 raw, so run-1 (27) + run-2 (10) stays inside it and
+  the overall Biology raw ceiling of 1,151 is unchanged. Boundary: Grade 8
+  topic 4.2 only.
+  - D5: postembryonic development that the official Grade 8 4.2 wording
+    supports (comparison, sequence, growth, responsibility for offspring). The
+    programme names only the MAIN stages and gives no canonical list of
+    postnatal periods, so no detailed period names unless justified by
+    curriculum-aligned source evidence; otherwise no unsupported vocabulary.
+  - D6 maxima (not quotas): infection in pregnancy and prevention 2; medicine
+    without medical advice 1; drugs 1; at most one cause/effect item on timing of
+    harmful exposure relative to the organ-forming period, if scientifically and
+    curriculum-supported.
+  - Exclude: week-by-week detail; gametogenesis/cleavage (owned elsewhere);
+    endocrine/hormone detail; treatment detail; duplicated alcohol, smoking,
+    placenta and first-breath content; newborn thermoregulation/heat loss;
+    re-angles of run-1 facts.
+  - Skills: recall, sequence, explain, compare, apply-health. Reasoning target
+    ≥ 45 % genuine reasoning among survivors; no scenario-wrapped recall.
+  - Sources for pregnancy/health/developmental-risk claims: fetched content
+    from WHO, CDC, NHS, MedlinePlus or OpenStax; search snippets do not count;
+    an unsupported claim means the candidate is dropped.
+  - Compare against embryonic run-1 and, where relevant, excretory.
+  - Review R2b (Opus 5.5 High mini-review) reads run-1 and run-2 side by side;
+    the topic is not COMPLETE until R2b and the correction/validation pass.
+  - **R2b outcome: TOPIC COMPLETE; no run-3.** Final pending survivors: run-1
+    22, run-2 5 (8 collected against the ceiling of 10), combined 27 against
+    the projected 28–34. The numerical shortfall is accepted because coverage is
+    complete. Genuine reasoning after independent review: run-2 0/5, combined
+    5/27 (~19 %) against the ≥ 30 % floor. Accepted under B6 and the
+    coverage-driven early-stop policy: R2b found that raising reasoning would
+    need duplicate re-angles, unsupported postnatal terminology, or content
+    owned by the reproductive/endocrine topics. Ceilings are not quotas, so the
+    overall raw ceiling (1,151) and the remaining run count (41) are unchanged.
 - Numbers: USE about nine months / 40 weeks; NO week-by-week milestones.
 - Risks: stage-order items repeat; gametogenesis and cleavage detail are G10.
 
@@ -576,13 +619,15 @@ overlaps).
 
 ## H. Wave schedule
 
-Wave 1 was the pilot. Waves 2–11 hold the 40 remaining runs, at most four
+Wave 1 was the pilot. Waves 2–11 hold the 41 remaining runs (including the embryonic run-2 supplement), at most four
 parallel sessions each, with the reviews of section I between them.
 
 | Wave | Session 1 | Session 2 | Session 3 | Session 4 | Ceiling |
 |---|---|---|---|---|---|
 | W2 | `g8-digestive-system` r1 (34, S-High) | `g8-excretory-system` r1 (40, S-Medium) | `g9-supramolecular-complexes` r1 (40, S-High) | `g8-embryonic-and-postembryonic-development` r1 (37, S-Medium) | 151 |
 | **R2** | Opus 5.5 High review: `g8-excretory-system` bank, `g9-supramolecular-complexes` bank, `g8-embryonic-and-postembryonic-development` bank | | | | blocks: none |
+| W2b | `g8-embryonic-and-postembryonic-development` r2 (≤ 10 supplement, S-Medium) | | | | ≤ 10, inside the original 37 for the topic; after R2 resolution |
+| **R2b** | Opus 5.5 High mini-review: embryonic run-1 and run-2 side by side | | | | blocks: embryonic COMPLETE |
 | W3 | `g8-digestive-system` r2 (30, S-High) | `g9-chemical-composition-of-living-matter` r2 (30, S-High) | `g8-respiratory-system` r1 (26, S-Medium) | `g10-ecological-factors` r1 (26, S-Medium) | 112 |
 | **CP1** | Opus 5.5 High review: `g8-digestive-system` bank, `g9-chemical-composition-of-living-matter` bank, `g8-respiratory-system` r1, `g10-ecological-factors` r1 | | | | blocks: all of W4 onward |
 | W4 | `g8-cardiovascular-system` r1 (28, S-High) | `g9-cell-structure-and-processes` r1 (30, S-High) | `g10-heredity-and-variation` r1 (30, S-High) | `g8-nervous-system` r1 (34, S-High) | 122 |
@@ -660,15 +705,15 @@ health claims, wrong ratios or phase events, and scope leaks.
 
 | Grade | Topics | Completed final | Additional final expected | Expected grade total | Remaining raw ceiling | Remaining runs | Original raw | Original final |
 |---|---|---|---|---|---|---|---|---|
-| 8 | 12 | 69 | 412–490 | 481–559 | 538 | 19 | 699 | 519–612 |
+| 8 | 12 | 69 | 412–490 | 481–559 | 538 | 20 | 692 | 519–612 |
 | 9 | 5 | 39 | 182–221 | 221–260 | 243 | 8 | 319 | 236–276 |
 | 10 | 7 | 36 | 282–338 | 318–374 | 370 | 13 | 452 | 338–394 |
-| **Total** | **24** | **144** | **876–1049** | **1020–1193** | **1151** | **40** | **1470** | **1093–1282** |
+| **Total** | **24** | **144** | **876–1049** | **1020–1193** | **1151** | **41** | **1463** | **1093–1282** |
 
 - Completed final: **144** (4 topics). Expected additional final: **876–1,049**
-  from 40 runs. Expected Biology total: **1,020–1,193**.
-- Remaining raw ceiling **1,151** in **40 runs** over **10 waves**, against the
-  original remaining 1,311 raw (1,470 − 159) in 43 runs over 11 waves.
+  from 41 runs. Expected Biology total: **1,020–1,193**.
+- Remaining raw ceiling **1,151** in **41 runs** over **10 waves**, against the
+  original remaining 1,304 raw (1,463 − 159) in 43 runs over 11 waves.
 - The expected total is about 7 % below the original 1,093–1,282, and the
   remaining raw ceiling about 12 % below the original remaining raw. Three
   causes: (1) three pilot topics are complete at 32–37, and chemical
@@ -763,7 +808,7 @@ later image pass; every bank must stand on its own as text.
 | 8 | Обмяна на веществата | Сърдечно-съдова система | `biology-g8-cardiovascular-system` | exceptionally broad | 88 | 65–75 | 30/50/20 | important | Highest in the grade: vessel types, circulation loops, blood cells and blood groups are four separate fact families, each easy to over-sample. Immunity/vaccines belong here only. |
 | 8 | Движение и опора на тялото | Опорно-двигателна система – скелет и скелетни мускули | `biology-g8-musculoskeletal-system` | broad | 66 | 50–58 | 35/50/15 | important | Bone-naming items multiply without adding coverage; limit named bones to those the programme needs for regions and joints. |
 | 8 | Размножаване, растеж и развитие | Полова система | `biology-g8-reproductive-system` | normal | 56 | 42–50 | 35/50/15 | important | Organ → function pairs for two systems; cycle-day arithmetic can repeat. STI items repeat the same prevention fact. |
-| 8 | Размножаване, растеж и развитие | Зародишно и следзародишно развитие | `biology-g8-embryonic-and-postembryonic-development` | narrow | 44 | 32–38 | 40/50/10 | useful | Few stages, so stage-order items repeat. Gametogenesis and cleavage detail belong to G10. |
+| 8 | Размножаване, растеж и развитие | Зародишно и следзародишно развитие | `biology-g8-embryonic-and-postembryonic-development` | narrow | 37 | 32–38 | 40/50/10 | useful | Few stages, so stage-order items repeat. Gametogenesis and cleavage detail belong to G10. |
 | 8 | Регулация и хомеостаза | Нервна система | `biology-g8-nervous-system` | broad | 74 | 55–65 | 30/50/20 | important | Reflex-arc element order and brain-part → function are over-sampled easily; psychoactive-substance items repeat the same warning. |
 | 8 | Регулация и хомеостаза | Ендокринна система | `biology-g8-endocrine-system` | normal | 56 | 42–50 | 35/50/15 | useful | Gland → hormone → effect triples are the classic rewrite trap; one item per triple, then regulation and disorders. |
 | 8 | Регулация и хомеостаза | Сетивни системи | `biology-g8-sensory-systems` | broad | 64 | 48–56 | 35/50/15 | important | Eye-part and ear-part → function lists; keep to one item per structure and spend the rest on the path of the signal and on disorders. |
@@ -785,10 +830,10 @@ later image pass; every bank must stand on its own as text.
 
 | Grade | Topics | Raw target | Expected final range | Collection runs |
 |---|---|---|---|---|
-| 8 | 12 | 699 | 519–612 | 23 |
+| 8 | 12 | 692 | 519–612 | 23 |
 | 9 | 5 | 319 | 236–276 | 10 |
 | 10 | 7 | 452 | 338–394 | 14 |
-| **Total** | **24** | **1470** | **1093–1282** | **47** |
+| **Total** | **24** | **1463** | **1093–1282** | **47** |
 
 Raw targets assume that roughly 15–25 % of candidates are deleted or merged in
 review. Biology allows many surface variants of one fact, so the loss is
@@ -803,7 +848,7 @@ expected to be higher than the 5–9 % seen in the Physics banks.
 - **8 · Сърдечно-съдова система** (exceptionally broad, raw 88): The sub-theme carries the heart, vessels and circulation, the formed elements of blood, blood groups, immunity, vaccines and immunisation, infection through blood, and blood-composition data, plus a pulse and blood-pressure lab.
 - **8 · Опорно-двигателна система – скелет и скелетни мускули** (broad, raw 66): Skeleton and skeletal muscles, three kinds of bone connection, joints, comparison with mammals, injuries and diseases, risk factors, first aid for trauma, and tolerance toward people with disabilities.
 - **8 · Полова система** (normal, raw 56): Male and female organs and functions, ovulation and the menstrual cycle, sexual and reproductive health, sexually transmitted diseases, risks of early sexual contact.
-- **8 · Зародишно и следзародишно развитие** (narrow, raw 44): Main stages of embryonic and post-embryonic human development, named and recognised on an image; responsibility for offspring.
+- **8 · Зародишно и следзародишно развитие** (narrow, raw 37): Main stages of embryonic and post-embryonic human development, named and recognised on an image; responsibility for offspring.
 - **8 · Нервна система** (broad, raw 74): Structure and functions of the nervous system, reflex and reflex arc, unconditioned vs conditioned reflexes, nervous regulation and its link with hormonal regulation, diseases and injuries, alcohol and narcotic substances, mental-health prophylaxis.
 - **8 · Ендокринна система** (normal, raw 56): Glands and hormones, hormonal regulation, examples of nervous–hormonal links, homeostasis, disorders, hormonal preparations.
 - **8 · Сетивни системи** (broad, raw 64): Sense organs as parts of sensory systems: eye and vision, ear, hearing and balance, other senses; disorders and prevention; a lab on the visual system.
@@ -857,9 +902,9 @@ questions only for its own dimensions.
 - run-1 (max 28): D1 Male reproductive organs: structure and function; D2 Female reproductive organs: structure and function; D3 Gametes; ovulation and the menstrual cycle as a sequence
 - run-2 (max 28): D4 Sexual and reproductive health; D5 Sexually transmitted diseases: cause – signs – prevention; D6 Responsible behaviour: applying the rules to a situation
 
-**Зародишно и следзародишно развитие** — `biology-g8-embryonic-and-postembryonic-development`, raw 44 in 2 runs
-- run-1 (max 22): D1 Fertilisation and the start of development; D2 Stages of embryonic development in order; D3 Placenta and umbilical cord: role
-- run-2 (max 22): D4 Birth; D5 Post-embryonic periods and their features; D6 Factors that put development at risk
+**Зародишно и следзародишно развитие** — `biology-g8-embryonic-and-postembryonic-development`, raw 37 in 2 runs (run-1 + a targeted run-2 supplement)
+- run-1 (max 37; stopped early at 27 collected, 22 surviving after R2 and curriculum correction): D1 Fertilisation and the start of development; D2 Stages of embryonic development in order; D3 Placenta and umbilical cord: role; D4 Birth (as covered)
+- run-2 (max 10, a ceiling and not a quota; early stop applies; 27 + 10 = the 37 raw allocation; R2b required): D5 Post-embryonic development, D6 Factors that put development at risk, within the limits of section D
 
 **Нервна система** — `biology-g8-nervous-system`, raw 74 in 2 runs
 - run-1 (max 37): D1 Neuron and nervous tissue in the system; D2 Central nervous system: parts and functions; D3 Peripheral nervous system; D4 Reflex and reflex arc as a sequence
@@ -1050,12 +1095,12 @@ or three runs. No limit is changed.
 | 3 | `g8-digestive-system` run-1 (34); `g8-musculoskeletal-system` run-1 (33); `g10-reproduction-growth-and-individual-development` run-1 (33); `g8-sensory-systems` run-1 (32) | 132 |
 | 4 | `g9-cell-structure-and-processes` run-1 (32); `g10-heredity-and-variation` run-1 (32); `g8-cardiovascular-system` run-1 (30); `g9-cell-reproduction` run-1 (30) | 124 |
 | 5 | `g8-respiratory-system` run-1 (28); `g8-reproductive-system` run-1 (28); `g8-endocrine-system` run-1 (28); `g10-ecological-factors` run-1 (28) | 112 |
-| 6 | `g8-excretory-system` run-1 (24); `g9-supramolecular-complexes` run-1 (24); `g10-evidence-for-biological-evolution` run-1 (24); `g8-embryonic-and-postembryonic-development` run-1 (22) | 94 |
+| 6 | `g8-excretory-system` run-1 (24); `g9-supramolecular-complexes` run-1 (24); `g10-evidence-for-biological-evolution` run-1 (24); `g8-embryonic-and-postembryonic-development` run-1 (37, stopped at 27) | 109 |
 | 7 | `g9-chemical-composition-of-living-matter` run-2 (39); `g8-nervous-system` run-2 (37); `g10-population-biocenosis-ecosystem` run-2 (37); `g10-origin-and-development-of-living-matter` run-2 (36) | 149 |
 | 8 | `g8-digestive-system` run-2 (34); `g8-musculoskeletal-system` run-2 (33); `g10-reproduction-growth-and-individual-development` run-2 (33); `g8-sensory-systems` run-2 (32) | 132 |
 | 9 | `g9-cell-structure-and-processes` run-2 (32); `g10-heredity-and-variation` run-2 (32); `g9-cell-reproduction` run-2 (30); `g8-cardiovascular-system` run-2 (29) | 123 |
 | 10 | `g8-reproductive-system` run-2 (28); `g8-endocrine-system` run-2 (28); `g10-ecological-factors` run-2 (28); `g8-respiratory-system` run-2 (27) | 111 |
-| 11 | `g8-excretory-system` run-2 (24); `g9-supramolecular-complexes` run-2 (24); `g10-evidence-for-biological-evolution` run-2 (24); `g8-embryonic-and-postembryonic-development` run-2 (22) | 94 |
+| 11 | `g8-excretory-system` run-2 (24); `g9-supramolecular-complexes` run-2 (24); `g10-evidence-for-biological-evolution` run-2 (24); `g8-embryonic-and-postembryonic-development` run-2 (10, supplement) | 82 |
 | 12 | `g10-heredity-and-variation` run-3 (32); `g9-cell-structure-and-processes` run-3 (31); `g8-cardiovascular-system` run-3 (29) | 92 |
 
 Four simultaneous sessions is the recommendation: each is independent, and four
