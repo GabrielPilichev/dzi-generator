@@ -256,6 +256,14 @@ Coordinate H with Gabriel because it changes how local and production content up
 
 The first Accounts PR is **design-only**. Stop and redesign here before implementation. The sign-in method never decides permissions, and the data model must support more than one identity per account without email-based auto-linking.
 
+**Status: the design is approved.** `docs/ACCOUNTS_DESIGN.md` is the authoritative Accounts implementation specification (schema, session, compatibility bridge, ownership, PR sequence). The rest of this section is the original conceptual brief; where it differs from `docs/ACCOUNTS_DESIGN.md`, that document wins. Approved deviations:
+
+- The local password credential is stored on `users`, not in a separate `password_credentials` table.
+- Google/Microsoft OAuth transactions use the session-bound design (state, nonce, PKCE verifier, validated return target and expiry in the signed session), not a server-side transaction plus browser-binding cookie.
+- Apple sign-in remains out of scope.
+- Admin TOTP is a separate security PR before the production cutover and legacy-auth removal; it does not block the initial Accounts PRs.
+- Student authentication is deferred to phase 2 (preferred: Google/Microsoft OIDC); no open password self-registration now. Student-data retention/erasure remains a later product/legal decision.
+
 ### Accounts design PR
 
 The design PR settles schema, credential storage, OAuth transaction handling, ownership migration and account lifecycle before any account tables land.
@@ -379,7 +387,7 @@ Codex does not decide these; where a PR needs one before Gabriel answers, it use
 | --- | --- | --- |
 | Do legacy parser questions (`aug_2023`, `may_2023`, `jun_2022`) count as DZI? | C2 | Count them |
 | Endpoint names: rename references or keep aliases | E1 | Rename |
-| Sign-in methods per account type (password, Google, Microsoft `edu.mon.bg`, join codes; Apple is not v1) | Accounts design | none; blocks sign-in implementation |
+| Sign-in methods per account type (password, Google, Microsoft `edu.mon.bg`, join codes; Apple is not v1) | Accounts design | Decided: CLI-created password accounts for teachers/admin in phase 1; student sign-in deferred to phase 2, preferred Google/Microsoft OIDC (see `docs/ACCOUNTS_DESIGN.md`) |
 | Who covers test access: teacher's plan or student's plan | Entitlements | Teacher's plan; students never pay to take a teacher's test |
 | How content reaches production today | G1/H | audit first; canonical reviewed inputs only after H |
 | Payment provider: Stripe or a merchant of record | Billing | none; blocks billing |
