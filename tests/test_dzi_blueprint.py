@@ -120,11 +120,8 @@ class UrlMapSnapshotTest(unittest.TestCase):
                        "admin_open_question_candidates"):
             self.assertNotIn(legacy, endpoints)
 
-    def test_e2_and_e3_dzi_routes_have_not_moved(self):
-        for endpoint in ("dzi_practical_resource_download", "teacher_dzi_training"):
-            with self.subTest(endpoint=endpoint):
-                self.assertIn(endpoint, web_app.app.view_functions)
-                self.assertEqual(web_app.app.view_functions[endpoint].__module__, "web.app")
+    def test_e3_dzi_route_has_not_moved(self):
+        self.assertEqual(web_app.app.view_functions["teacher_dzi_training"].__module__, "web.app")
 
 
 class DziBlueprintDependencyTest(unittest.TestCase):

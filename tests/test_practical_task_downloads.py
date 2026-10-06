@@ -18,6 +18,7 @@ from src.practical_resource_resolution import (
 )
 
 from tests.support import IsolatedAppTestCase, web_app
+from web.services import practical as practical_service
 
 
 class PracticalTaskDownloadsTest(IsolatedAppTestCase):
@@ -40,19 +41,21 @@ class PracticalTaskDownloadsTest(IsolatedAppTestCase):
         self._create_db()
         self._write_batch()
 
-        self.old_project_root = web_app.PROJECT_ROOT
-        self.old_resource_roots = web_app.PRACTICAL_RESOURCE_ROOTS
+        self.old_config = {
+            key: web_app.app.config[key]
+            for key in ("PROJECT_ROOT", "PRACTICAL_RESOURCE_ROOTS", "PRACTICAL_REFERENCE_ROOT")
+        }
         self.old_db_path = web_app.app.config["DB_PATH"]
         self.old_batch_dir = web_app.app.config["PRACTICAL_TASK_BATCH_DIR"]
         self.addCleanup(self._restore_app_config)
 
-        web_app.PROJECT_ROOT = self.project_root
-        web_app.PRACTICAL_RESOURCE_ROOTS = (
-            self.project_root / "data" / "reference",
-            self.project_root / "data" / "assets",
-        )
         web_app.app.config.update(
             TESTING=True,
+            PROJECT_ROOT=self.project_root,
+            PRACTICAL_RESOURCE_ROOTS=(
+                self.project_root / "data" / "reference",
+                self.project_root / "data" / "assets",
+            ),
             DB_PATH=str(self.db_path),
             PRACTICAL_TASK_BATCH_DIR=str(self.batch_dir),
         )
@@ -62,8 +65,7 @@ class PracticalTaskDownloadsTest(IsolatedAppTestCase):
             sess["ui_profile"] = "admin"
 
     def _restore_app_config(self):
-        web_app.PROJECT_ROOT = self.old_project_root
-        web_app.PRACTICAL_RESOURCE_ROOTS = self.old_resource_roots
+        web_app.app.config.update(self.old_config)
         web_app.app.config["DB_PATH"] = self.old_db_path
         web_app.app.config["PRACTICAL_TASK_BATCH_DIR"] = self.old_batch_dir
 
@@ -234,7 +236,7 @@ class PracticalTaskDownloadsTest(IsolatedAppTestCase):
         return resolve_resource_reference(
             reference,
             project_root=self.project_root,
-            allowed_roots=web_app.PRACTICAL_RESOURCE_ROOTS,
+            allowed_roots=web_app.app.config["PRACTICAL_RESOURCE_ROOTS"],
         )
 
     def test_page_renders_may_2025_practical_tasks_and_resources(self):
@@ -367,16 +369,19 @@ class PracticalTaskDownloadsTest(IsolatedAppTestCase):
         root = self.project_root / "state" / "reference"
         (root / "may_2025_v2").mkdir(parents=True)
         (root / "may_2025_v2" / "Shipments.xlsx").write_bytes(b"external reference bytes")
-        web_app.PRACTICAL_REFERENCE_ROOT = root
-        web_app.PRACTICAL_RESOURCE_ROOTS = (root, self.project_root / "data" / "assets")
+        web_app.app.config["PRACTICAL_REFERENCE_ROOT"] = root
+        web_app.app.config["PRACTICAL_RESOURCE_ROOTS"] = (root, self.project_root / "data" / "assets")
         return root
+
+    def _configured_resources(self):
+        return practical_service.resources_from_config(web_app.app.config)
 
     def _resolve_configured(self, reference: str):
         return resolve_resource_reference(
             reference,
             project_root=self.project_root,
-            allowed_roots=web_app.PRACTICAL_RESOURCE_ROOTS,
-            reference_root=web_app.PRACTICAL_REFERENCE_ROOT,
+            allowed_roots=web_app.app.config["PRACTICAL_RESOURCE_ROOTS"],
+            reference_root=web_app.app.config["PRACTICAL_REFERENCE_ROOT"],
         )
 
     def test_configured_reference_root_serves_files_and_zip_members(self):
@@ -395,8 +400,8 @@ class PracticalTaskDownloadsTest(IsolatedAppTestCase):
         member = self.client.get(f"/dzi/practical/resource/{member_id}/download")
         self.assertEqual(member.status_code, 200)
         self.assertEqual(member.data, b"external member")
-        self.assertTrue(web_app.practical_resource_status(
-            {"resource_path": str(self.resource_path)})["is_available"])
+        self.assertTrue(practical_service.practical_resource_status(
+            {"resource_path": str(self.resource_path)}, self._configured_resources())["is_available"])
 
     def test_configured_reference_root_never_falls_back_to_the_checkout(self):
         self._use_external_reference_root()
@@ -404,8 +409,8 @@ class PracticalTaskDownloadsTest(IsolatedAppTestCase):
         self.assertTrue((self.project_root / self.unicode_resource_path).is_file())
         with self.assertRaisesRegex(ResourceResolutionError, "missing_file"):
             self._resolve_configured(str(self.unicode_resource_path))
-        status = web_app.practical_resource_status(
-            {"resource_path": str(self.unicode_resource_path)})
+        status = practical_service.practical_resource_status(
+            {"resource_path": str(self.unicode_resource_path)}, self._configured_resources())
         self.assertTrue(status["is_path_safe"])
         self.assertFalse(status["is_available"])
 
@@ -439,7 +444,7 @@ class PracticalTaskDownloadsTest(IsolatedAppTestCase):
             self._resolve_configured("data/reference/link.txt")
 
     def test_unconfigured_reference_root_keeps_checkout_resolution(self):
-        self.assertIsNone(web_app.PRACTICAL_REFERENCE_ROOT)
+        self.assertIsNone(web_app.app.config["PRACTICAL_REFERENCE_ROOT"])
         self.assertEqual(self._resolve_configured(str(self.resource_path)).path,
                          (self.project_root / self.resource_path).resolve())
 

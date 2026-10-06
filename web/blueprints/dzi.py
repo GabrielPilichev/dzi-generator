@@ -3,34 +3,25 @@ page for a source, and the open-question candidate overview (roadmap PR E1).
 
 Every view is admin-only through its declared access policy
 (:mod:`web.access`); this module never reads the session to decide access.
-Queries live in :mod:`web.services.dzi_exams` and the quiz service. The module
-imports neither ``web.app`` nor any other controller. The one thing it cannot
-own yet, the practical-task loader that is bound to the application's resource
-roots, is registered by the composition root through :func:`configure_runtime`
-and is read on every use; the practical blueprint step (E2) removes that seam.
+Queries live in :mod:`web.services.dzi_exams`, :mod:`web.services.practical`
+and the quiz service. The module imports neither ``web.app`` nor any other
+controller; the practical-task listing comes from the practical service, which
+reads the application's resource roots from configuration.
 """
 
 from __future__ import annotations
 
 from contextlib import closing
-from typing import Callable
 
 from flask import Blueprint, abort, current_app, render_template
 
 from web import db as web_db
 from web.access import ADMIN, access_policy
-from web.services import dzi_exams
+from web.services import dzi_exams, practical
 from web.services import quiz as quiz_service
 
 
 dzi_bp = Blueprint("dzi", __name__)
-
-_runtime: dict[str, Callable] = {}
-
-
-def configure_runtime(*, practical_tasks: Callable[[str], tuple[dict, list[dict]] | None]) -> None:
-    """Register the loader for ``/dzi/source/<source_slug>/practical``."""
-    _runtime["practical_tasks"] = practical_tasks
 
 
 def _request_db():
@@ -65,13 +56,12 @@ def dzi_source_view(source_slug: str):
 @dzi_bp.route("/dzi/source/<source_slug>/practical")
 @access_policy(ADMIN)
 def dzi_practical_source(source_slug: str):
-    try:
-        load_practical_tasks = _runtime["practical_tasks"]
-    except KeyError:
-        raise RuntimeError(
-            "web.blueprints.dzi is not configured; call configure_runtime() first"
-        ) from None
-    resolved = load_practical_tasks(source_slug)
+    with closing(_request_db()) as db:
+        resolved = practical.fetch_practical_tasks(
+            db, source_slug,
+            batch_dir=current_app.config["PRACTICAL_TASK_BATCH_DIR"],
+            resources=practical.resources_from_config(current_app.config),
+        )
     if resolved is None:
         abort(404)
     exam, tasks = resolved
