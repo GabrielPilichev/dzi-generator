@@ -45,21 +45,21 @@ EXPECTED_ACCESS_MATRIX = {
     "tester_logout": access.PUBLIC,
     "quiz_start": access.PUBLIC,
     "quiz.quiz_start": access.PUBLIC,
-    "teacher_new": access.TEACHER,
-    "teacher_assignment": access.TEACHER,
+    "teacher.teacher_new": access.TEACHER,
+    "teacher.teacher_assignment": access.TEACHER,
     "admin_logout": access.ADMIN,
     "dzi.admin_open_question_candidates": access.ADMIN,
     "dzi.dzi_index": access.ADMIN,
     "dzi.dzi_source_view": access.ADMIN,
     "dzi.dzi_practical_source": access.ADMIN,
     "practical.dzi_practical_resource_download": access.ADMIN,
-    "teacher_dashboard": access.ADMIN,
-    "teacher_assignments": access.ADMIN,
-    "teacher_dzi_training": access.ADMIN,
-    "teacher_assignment_results": access.ADMIN,
-    "teacher_assignment_results_export": access.ADMIN,
-    "teacher_assignment_edit": access.ADMIN,
-    "teacher_assignment_duplicate": access.ADMIN,
+    "teacher.teacher_dashboard": access.ADMIN,
+    "teacher.teacher_assignments": access.ADMIN,
+    "teacher.teacher_dzi_training": access.ADMIN,
+    "teacher.teacher_assignment_results": access.ADMIN,
+    "teacher.teacher_assignment_results_export": access.ADMIN,
+    "teacher.teacher_assignment_edit": access.ADMIN,
+    "teacher.teacher_assignment_duplicate": access.ADMIN,
     "practical.teacher_practical_submissions": access.ADMIN,
     "practical.teacher_practical_submission_file_download": access.ADMIN,
     "quiz_attempt": access.ATTEMPT_OWNER,
@@ -242,7 +242,7 @@ class AccessPolicyCoverageTest(unittest.TestCase):
     def test_a_renamed_endpoint_keeps_its_policy(self):
         # Policies live on view functions, so a blueprint-style rename of the
         # endpoint string cannot change the access decision.
-        view_func = self.app.view_functions["teacher_new"]
+        view_func = self.app.view_functions["teacher.teacher_new"]
         self.assertEqual(access.policy_for_view(view_func), access.TEACHER)
         self.assertEqual(
             access.policy_for_endpoint(self.app, "quiz.quiz_attempt"),
@@ -397,9 +397,9 @@ class AccessEnforcementBypassTest(IsolatedAppTestCase):
              access.access_policy(access.ADMIN)(_declared_admin_view)),
             # Aliases registering existing views under misleading names.
             ("/__test__/alias/dashboard", "public_dashboard_alias",
-             cls.app.view_functions["teacher_dashboard"]),
+             cls.app.view_functions["teacher.teacher_dashboard"]),
             ("/__test__/alias/new", "admin_teacher_new_alias",
-             cls.app.view_functions["teacher_new"]),
+             cls.app.view_functions["teacher.teacher_new"]),
         )
         for path, endpoint, view in rules:
             if endpoint not in cls.app.view_functions:

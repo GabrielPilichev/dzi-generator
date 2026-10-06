@@ -5,6 +5,7 @@ import unittest
 
 
 from tests.support import IsolatedAppTestCase, web_app
+from web.blueprints import teacher as teacher_module
 
 
 def _register_dzi_default_denied_test_route(app):
@@ -380,7 +381,7 @@ class AssignmentResultsExportFilteredTest(IsolatedAppTestCase):
             )
             self.assertEqual(response.status_code, 200)
             rows, fieldnames = self._parse_csv(response.data)
-            self.assertEqual(fieldnames, web_app.QUIZ_RESULTS_EXPORT_COLUMNS)
+            self.assertEqual(fieldnames, teacher_module.QUIZ_RESULTS_EXPORT_COLUMNS)
             self.assertEqual(len(rows), 2)
             attempt_row, answer_row = rows
             for row in rows:

@@ -8,11 +8,11 @@
 {% block breadcrumb %}
     <a href="{{ url_for('index') }}">Начало</a>
     <span>›</span>
-    <a href="{{ url_for('teacher_dashboard') }}">Учител</a>
+    <a href="{{ url_for('teacher.teacher_dashboard') }}">Учител</a>
     <span>›</span>
-    <a href="{{ url_for('teacher_assignments') }}">Създадени тестове</a>
+    <a href="{{ url_for('teacher.teacher_assignments') }}">Създадени тестове</a>
     <span>›</span>
-    <a href="{{ url_for('teacher_assignment', assignment_id=assignment.id) }}">Тест #{{ assignment.id }}</a>
+    <a href="{{ url_for('teacher.teacher_assignment', assignment_id=assignment.id) }}">Тест #{{ assignment.id }}</a>
     <span>›</span>
     Резултати
 {% endblock %}
@@ -42,11 +42,11 @@
     {% endif %}
   </div>
   <div class="header-actions teacher-results-actions" aria-label="Действия за резултатите">
-    <a class="button secondary back-link" href="{{ url_for('teacher_assignment', assignment_id=assignment.id) }}">Към тест #{{ assignment.id }}</a>
-    <a class="button secondary" href="{{ url_for('teacher_assignment_results_export', assignment_id=assignment.id) }}">Експортирай CSV (всички предадени)</a>
+    <a class="button secondary back-link" href="{{ url_for('teacher.teacher_assignment', assignment_id=assignment.id) }}">Към тест #{{ assignment.id }}</a>
+    <a class="button secondary" href="{{ url_for('teacher.teacher_assignment_results_export', assignment_id=assignment.id) }}">Експортирай CSV (всички предадени)</a>
     {% if filter_active or sort_active %}
       <a class="button secondary"
-         href="{{ url_for('teacher_assignment_results_export', assignment_id=assignment.id,
+         href="{{ url_for('teacher.teacher_assignment_results_export', assignment_id=assignment.id,
                           filtered=1, q=filters.q, status=filters.status,
                           open=filters.open, sort=filters.sort) }}">
         Експортирай CSV (филтрирано)
@@ -127,7 +127,7 @@
 
     <button type="submit" class="button secondary">Приложи</button>
     {% if filter_active or sort_active %}
-      <a href="{{ url_for('teacher_assignment_results', assignment_id=assignment.id) }}">Изчисти</a>
+      <a href="{{ url_for('teacher.teacher_assignment_results', assignment_id=assignment.id) }}">Изчисти</a>
     {% endif %}
   </form>
 </section>
@@ -293,7 +293,7 @@
   {% else %}
     {% if filter_active %}
       <p class="empty-state">Няма опити за избраните филтри.</p>
-      <p class="empty-actions"><a class="button secondary" href="{{ url_for('teacher_assignment_results', assignment_id=assignment.id) }}">Изчисти филтрите</a></p>
+      <p class="empty-actions"><a class="button secondary" href="{{ url_for('teacher.teacher_assignment_results', assignment_id=assignment.id) }}">Изчисти филтрите</a></p>
     {% else %}
       <p class="empty-state">Още няма опити за този тест. Сподели линка към заданието, за да започнат учениците.</p>
     {% endif %}
@@ -415,7 +415,7 @@
             </td>
             <td>{{ answer.grading_mode or "—" }}</td>
             <td>
-              <form class="open-answer-review-form" method="post" action="{{ url_for('teacher_assignment_results', assignment_id=assignment.id) }}">
+              <form class="open-answer-review-form" method="post" action="{{ url_for('teacher.teacher_assignment_results', assignment_id=assignment.id) }}">
                 <input type="hidden" name="text_answer_id" value="{{ answer.id }}">
                 <label>
                   Статус

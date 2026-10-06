@@ -26,6 +26,7 @@ from tests.subject_fixtures import (
     add_curriculum, add_membership, add_question, add_section, add_topic, four_options,
 )
 from tests.support import IsolatedAppTestCase, web_app, web_db
+from web.services import practical as practical_service
 from web.services import quiz as quiz_service
 
 # Statements on a seed-sized page: ~12 set-based families plus one extra statement per
@@ -241,7 +242,7 @@ class BatchedHelpersMatchReferenceTest(IsolatedAppTestCase, TeacherNewPageMixin)
             section["allows_dzi_open_questions"] = scope.allows_dzi_open_questions
             section["allows_dzi_content"] = scope.allows_dzi_content
             if scope.allows_dzi_content and practical is None:
-                practical = web_app.fetch_practical_assignment_options(conn, scope=scope)
+                practical = practical_service.fetch_practical_assignment_options(conn, scope=scope)
             reference_sections.append(section)
         self.assertGreater(len(reference_sections), 5)
         self.assertTrue(any(section["allows_dzi_content"] for section in reference_sections))

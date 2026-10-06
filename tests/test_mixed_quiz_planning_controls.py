@@ -5,6 +5,7 @@ from unittest.mock import patch
 
 
 from tests.support import IsolatedAppTestCase, web_app
+from web.blueprints import teacher as teacher_module
 from web.services import quiz as quiz_service
 
 
@@ -188,7 +189,7 @@ class MixedQuizPlanningControlsTest(IsolatedAppTestCase):
         response = self.client.post("/teacher/new", data={
             "section_id": str(self.section["id"]),
             "question_count": "1",
-            "time_limit_minutes": str(web_app.QUIZ_TIME_LIMIT_MAX_MINUTES + 1),
+            "time_limit_minutes": str(teacher_module.QUIZ_TIME_LIMIT_MAX_MINUTES + 1),
             "open_count": "0",
         })
 

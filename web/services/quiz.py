@@ -40,6 +40,7 @@ from src.subject_content import (
     IT, canonical_subject, question_ownerships, section_ownership, sql_chunks,
 )
 from web import db as web_db
+from web.services import dzi_exams
 from web.services.question_visuals import (
     attach_question_visual_assets,
     fetch_question_visual_assets,
@@ -2026,4 +2027,48 @@ def quiz_result_context(conn, attempt, attempt_question_plan: dict) -> dict:
         "original_question_count": original_question_count,
         "renderable_question_count": renderable_question_count,
         "skipped_question_count": skipped_question_count,
+    }
+
+
+def fetch_dzi_pool_health(conn: sqlite3.Connection, source_slug: str = "may_2025_v2") -> dict | None:
+    """Pool health of one official exam source, read on the caller's connection."""
+    exam = dzi_exams.dzi_find_exam(conn, source_slug)
+    if exam is None:
+        return None
+
+    # SAFE: QUIZ_APPROVED_FILTER is a static SQL fragment; exam id uses ?.
+    rows = conn.execute(f"""
+        SELECT DISTINCT q.id, q.prompt, q.question_type, q.has_image, q.image_path
+        FROM exam_tasks et
+        JOIN exam_task_questions etq
+          ON etq.task_id = et.id
+         AND etq.role = 'primary'
+        JOIN questions q
+          ON q.id = etq.question_id
+        WHERE et.exam_id = ?
+          AND et.task_number BETWEEN 1 AND 25
+          AND {QUIZ_APPROVED_FILTER}
+        ORDER BY et.task_number, q.id
+    """, (exam["id"],)).fetchall()
+
+    usable_count = 0
+    not_yet_supported_count = 0
+    invalid_mc_count = 0
+
+    for row in rows:
+        if row["question_type"] != "multiple_choice":
+            not_yet_supported_count += 1
+        elif is_quiz_question_eligible(conn, row):
+            usable_count += 1
+        else:
+            invalid_mc_count += 1
+
+    imported_count = len(rows)
+    return {
+        "source_slug": source_slug,
+        "imported_count": imported_count,
+        "usable_count": usable_count,
+        "filtered_count": imported_count - usable_count,
+        "not_yet_supported_count": not_yet_supported_count,
+        "invalid_mc_count": invalid_mc_count,
     }

@@ -7,7 +7,7 @@
 {% block breadcrumb %}
     <a href="{{ url_for('index') }}">Начало</a>
     <span>›</span>
-    <a href="{{ url_for('teacher_dashboard') }}">Учител</a>
+    <a href="{{ url_for('teacher.teacher_dashboard') }}">Учител</a>
     <span>›</span>
     Създай тест
 {% endblock %}
@@ -55,7 +55,7 @@
 
         <div class="actions" aria-label="Избери предмет">
             {% for option in teacher_subject_options %}
-                <a class="button secondary" href="{{ url_for('teacher_new', subject=option.slug) }}">{{ option.title }}</a>
+                <a class="button secondary" href="{{ url_for('teacher.teacher_new', subject=option.slug) }}">{{ option.title }}</a>
             {% endfor %}
         </div>
 

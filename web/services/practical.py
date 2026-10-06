@@ -23,9 +23,12 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Mapping
 
+from src.subject_assessment import AssessmentScope
+from src.subject_content import IT, canonical_subject
 from src.practical_resource_resolution import ResourceResolutionError, resolve_resource_reference
 from web.db_introspect import first_existing_column, sqlite_table_columns, sqlite_table_exists
 from web.services import dzi_exams
+from web.services.dzi_exams import DZI_FORMAT_VERSION, dzi_source_slug, dzi_source_title
 
 
 @dataclass(frozen=True)
@@ -423,3 +426,41 @@ def fetch_practical_submission_review_rows(
                 "is_available": bool(safe_path and safe_path.is_file() and not row["is_deleted"]),
             })
     return list(submissions_by_id.values())
+
+
+def fetch_practical_assignment_options(
+    conn: sqlite3.Connection, *, scope: AssessmentScope
+) -> list[dict]:
+    if not scope.allows_dzi_content:
+        return []
+    required_tables = ("exams", "exam_tasks", "practical_task_resources")
+    if not all(sqlite_table_exists(conn, table) for table in required_tables):
+        return []
+
+    rows = conn.execute("""
+        SELECT
+            e.*,
+            COUNT(DISTINCT et.id) AS practical_task_count,
+            COUNT(ptr.id) AS resource_count
+        FROM exams e
+        JOIN exam_tasks et
+          ON et.exam_id = e.id
+         AND et.task_number BETWEEN 26 AND 28
+         AND et.task_kind LIKE 'practical_%'
+        JOIN practical_task_resources ptr
+          ON ptr.exam_task_id = et.id
+        WHERE e.format_version = ? AND e.level = 'DZI'
+        GROUP BY e.id
+        HAVING resource_count > 0
+        ORDER BY e.year DESC, e.session, e.variant
+    """, (DZI_FORMAT_VERSION,)).fetchall()
+
+    options = []
+    for row in rows:
+        if canonical_subject(row["subject"]) != IT:
+            continue
+        option = dict(row)
+        option["source_slug"] = dzi_source_slug(row)
+        option["title"] = dzi_source_title(row)
+        options.append(option)
+    return options
