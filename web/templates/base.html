@@ -39,7 +39,7 @@
     <div class="app-shell">
         <header class="top-nav">
             <div class="top-nav-row">
-                <a class="brand" href="{{ url_for('index') }}" aria-label="LearnPilot начало">
+                <a class="brand" href="{{ url_for('browsing.index') }}" aria-label="LearnPilot начало">
                     <img
                         class="brand-logo brand-logo-full"
                         src="{{ url_for('static', filename='img/brand/logo2.png') }}"
@@ -58,16 +58,16 @@
 
                 {% if tester_authenticated or admin_authenticated %}
                     <nav class="nav-links" aria-label="Съдържание">
-                        {% set current_grade = request.view_args.grade if request.endpoint == 'grade_view' else none %}
+                        {% set current_grade = request.view_args.grade if request.endpoint == 'browsing.grade_view' else none %}
                         {% set is_dzi_current = request.path == '/section/grade12-dzi-preparation' or (request.endpoint and (request.endpoint.startswith('dzi') or request.endpoint == 'practical.dzi_practical_resource_download') and request.endpoint != 'dzi.admin_open_question_candidates') %}
                         {% set current_subject_slug = none %}
-                        {% if request.endpoint in ['subject_view', 'subject_grade_view', 'subject_topic_group_view', 'subject_topic_view'] and request.view_args %}
+                        {% if request.endpoint in ['browsing.subject_view', 'browsing.subject_grade_view', 'browsing.subject_topic_group_view', 'browsing.subject_topic_view'] and request.view_args %}
                             {% set current_subject_slug = request.view_args.get('subject_slug') %}
                         {% endif %}
 
-                        <a class="{% if request.endpoint == 'index' %}nav-current{% else %}nav-link{% endif %}"
-                           href="{{ url_for('index') }}"
-                           {% if request.endpoint == 'index' %}aria-current="page"{% endif %}>Начало</a>
+                        <a class="{% if request.endpoint == 'browsing.index' %}nav-current{% else %}nav-link{% endif %}"
+                           href="{{ url_for('browsing.index') }}"
+                           {% if request.endpoint == 'browsing.index' %}aria-current="page"{% endif %}>Начало</a>
 
                         <div class="nav-menu">
                             <button
@@ -81,7 +81,7 @@
                             <div class="nav-menu-panel" id="nav-menu-classes" hidden>
                                 {% for grade_num in [8, 9, 10, 11, 12] %}
                                     <a class="nav-menu-link {% if current_grade == grade_num %}nav-menu-link--current{% endif %}"
-                                       href="{{ url_for('grade_view', grade=grade_num) }}"
+                                       href="{{ url_for('browsing.grade_view', grade=grade_num) }}"
                                        {% if current_grade == grade_num %}aria-current="page"{% endif %}>{{ grade_num }}. клас</a>
                                 {% endfor %}
                             </div>
@@ -92,7 +92,7 @@
                                 <summary class="nav-link nav-menu-trigger">Класове</summary>
                                 <div class="nav-menu-panel">
                                     {% for grade_num in [8, 9, 10, 11, 12] %}
-                                        <a class="nav-menu-link" href="{{ url_for('grade_view', grade=grade_num) }}">{{ grade_num }}. клас</a>
+                                        <a class="nav-menu-link" href="{{ url_for('browsing.grade_view', grade=grade_num) }}">{{ grade_num }}. клас</a>
                                     {% endfor %}
                                 </div>
                             </details>
@@ -111,7 +111,7 @@
                                 {% for subject in learnpilot_subjects %}
                                     <a class="nav-menu-link {% if current_subject_slug == subject.slug %}nav-menu-link--current{% endif %} {% if subject.status != 'active' %}nav-menu-link--placeholder{% endif %}"
                                        href="{{ subject_url(subject) }}"
-                                       {% if request.endpoint == 'subject_view' and current_subject_slug == subject.slug %}aria-current="page"{% endif %}>
+                                       {% if request.endpoint == 'browsing.subject_view' and current_subject_slug == subject.slug %}aria-current="page"{% endif %}>
                                         {{ subject.title }}
                                         {% if subject.status != 'active' %}
                                             <span class="nav-menu-status">{{ subject_status_label(subject) }}</span>
@@ -139,7 +139,7 @@
                         </noscript>
 
                         <a class="{% if is_dzi_current %}nav-current{% else %}nav-link{% endif %}"
-                           href="{{ url_for('section_view', slug='grade12-dzi-preparation') }}"
+                           href="{{ url_for('browsing.section_view', slug='grade12-dzi-preparation') }}"
                            {% if is_dzi_current %}aria-current="page"{% endif %}>ДЗИ</a>
                     </nav>
                 {% endif %}
@@ -187,7 +187,7 @@
 
         <nav class="breadcrumb" aria-label="Път в сайта">
             {% block breadcrumb %}
-                <a href="{{ url_for('index') }}">Начало</a>
+                <a href="{{ url_for('browsing.index') }}">Начало</a>
             {% endblock %}
         </nav>
 

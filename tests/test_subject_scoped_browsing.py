@@ -2,6 +2,7 @@
 
 from src.subject_browsing import SubjectContentBrowser
 from tests.subject_fixtures import add_curriculum, add_membership, add_question, add_section, add_topic
+from web.services import browsing as browsing_service
 from tests.support import IsolatedAppTestCase, web_app
 from tests.test_homepage_search import _HTMLProbe
 
@@ -13,7 +14,7 @@ class SubjectScopedBrowsingTest(IsolatedAppTestCase):
         cls.app = web_app.app
         with cls.app.app_context():
             cls.baseline_it_grade8 = next(
-                row["question_count"] for row in web_app.fetch_grades_with_counts()
+                row["question_count"] for row in browsing_service.fetch_grades_with_counts()
                 if row["grade"] == 8
             )
 
@@ -139,7 +140,7 @@ class SubjectScopedBrowsingTest(IsolatedAppTestCase):
         with self.app.app_context():
             it_counts = SubjectContentBrowser(web_app.get_db(), "it").grade_counts()
             physics_counts = SubjectContentBrowser(web_app.get_db(), "physics").grade_counts()
-            legacy_it_counts = web_app.fetch_grades_with_counts()
+            legacy_it_counts = browsing_service.fetch_grades_with_counts()
         self.assertEqual(next(row for row in it_counts if row["grade"] == 8)["question_count"],
                          self.baseline_it_grade8 + 1)
         self.assertEqual(next(row for row in legacy_it_counts if row["grade"] == 8)["question_count"],

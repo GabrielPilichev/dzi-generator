@@ -6,7 +6,7 @@
 {% block body_class %}student-assessment-page student-assessment-result-page{% endblock %}
 
 {% block breadcrumb %}
-    <a href="{{ url_for('index') }}">Начало</a>
+    <a href="{{ url_for('browsing.index') }}">Начало</a>
     <span>›</span>
     Резултат
 {% endblock %}
@@ -60,7 +60,7 @@
     </div>
     <div class="result-actions">
       <a class="button" href="{{ url_for('quiz_start', assignment_id=assignment.id) }}">Нов опит</a>
-      <a class="button secondary" href="{{ url_for('index') }}">Към началото</a>
+      <a class="button secondary" href="{{ url_for('browsing.index') }}">Към началото</a>
     </div>
   </div>
 </section>

@@ -32,22 +32,18 @@ from datetime import datetime
 from pathlib import Path
 from urllib.parse import urlparse
 
-from flask import Flask, abort, g, render_template, url_for, request, redirect, send_file, session
+from flask import Flask, abort, g, render_template, url_for, request, redirect, session
 
-from src.subject_browsing import public_slug, stored_slug_candidates
-from src.subject_browse_cache import CachedSubjectBrowser
+from src.subject_browsing import public_slug
 from src.subject_assessment import AssessmentScope, question_belongs_to_subject
-from src.subject_content import IT, canonical_subject
-from src.subject_registry import (
-    PLATFORM_GRADES, all_subjects, get_subject, subject_for_route_slug, subject_supports_grade,
-)
+from src.subject_registry import all_subjects, get_subject
 from src.practical_uploads import MAX_FILES_PER_REQUEST, MAX_REQUEST_BYTES, MAX_UPLOAD_BYTES
 from web.blueprints.dzi import dzi_bp
 from web.blueprints.practical import practical_bp
 from web.attempt_access import quiz_attempt_owner_session_key
 from web.blueprints.quiz import quiz_bp, register_legacy_quiz_endpoint_aliases
 from web.blueprints.teacher import teacher_bp
-from web import db as web_db
+from web.blueprints.browsing import browsing_bp, open_existing_database_read_only
 from web.access import (
     ADMIN,
     PROFILE_SWITCH,
@@ -63,7 +59,7 @@ from web.request_integrity import SAME_ORIGIN, integrity_policy
 from web.request_db import get_request_db
 from web.production import warn_if_schema_migrations_pending
 from web.services import dzi_exams
-from web.services.subject_catalog import subject_catalog
+from web.services.subject_catalog import subject_catalog, subject_topic_groups
 from web.services import quiz as quiz_service
 from web.services.dzi_exams import (
     DZI_FORMAT_VERSION,
@@ -71,12 +67,8 @@ from web.services.dzi_exams import (
     dzi_parse_source_slug,
     dzi_source_slug,
     dzi_source_title,
-    fetch_fill_in_answer_rows,
 )
-from web.services.question_visuals import (
-    attach_question_visual_assets,
-    fetch_question_visual_assets,
-)
+from web.services.question_visuals import fetch_question_visual_assets
 from web.services.quiz import (
     QUIZ_APPROVED_FILTER,
     QUIZ_DURATION_FALLBACK_BG,
@@ -221,30 +213,6 @@ SUBJECT_STATUS_LABELS = {
 }
 
 
-def catalog_subject(route_slug: str) -> dict | None:
-    """Catalog entry for a URL route slug; ids and legacy aliases are not URLs."""
-    definition = subject_for_route_slug(route_slug)
-    if definition is None:
-        return None
-    return next((subject for subject in subject_catalog() if subject["id"] == definition.id), None)
-
-
-def subject_topic_groups(subject: dict, grade: int) -> tuple[dict, ...]:
-    topic_groups_by_grade = subject.get("topic_groups_by_grade") or {}
-    return tuple(topic_groups_by_grade.get(int(grade), ()))
-
-
-def get_subject_topic_group_config(subject_slug: str, grade: int, topic_group_slug: str) -> tuple[dict, dict] | None:
-    subject = catalog_subject(subject_slug)
-    if subject is None or grade not in subject["available_classes"]:
-        return None
-
-    for topic_group in subject_topic_groups(subject, grade):
-        if topic_group.get("slug") == topic_group_slug:
-            return subject, topic_group
-    return None
-
-
 def subject_status_label(subject: dict) -> str:
     return SUBJECT_STATUS_LABELS.get(str(subject.get("status", "")), "В подготовка")
 
@@ -351,7 +319,7 @@ def protect_same_origin_unsafe_methods():
 
 @app.before_request
 def load_ui_profile():
-    if request.endpoint == "healthz":
+    if request.endpoint == "browsing.healthz":
         return  # Monitoring probes get no session cookie.
     profile = session.get("ui_profile", "tester")
     if profile not in VALID_UI_PROFILES:
@@ -394,14 +362,14 @@ def inject_app_meta():
 @app.context_processor
 def inject_subject_navigation():
     def subject_url(subject: dict) -> str:
-        return url_for("subject_view", subject_slug=subject["slug"])
+        return url_for("browsing.subject_view", subject_slug=subject["slug"])
 
     def subject_class_url(subject: dict, grade: int) -> str:
-        return url_for("subject_grade_view", subject_slug=subject["slug"], grade=grade)
+        return url_for("browsing.subject_grade_view", subject_slug=subject["slug"], grade=grade)
 
     def subject_topic_group_url(subject: dict, grade: int, topic_group: dict) -> str:
         return url_for(
-            "subject_topic_group_view",
+            "browsing.subject_topic_group_view",
             subject_slug=subject["slug"],
             grade=grade,
             topic_group_slug=topic_group["slug"],
@@ -409,7 +377,7 @@ def inject_subject_navigation():
 
     def subject_section_url(subject: dict, grade: int, section: dict) -> str:
         return url_for(
-            "subject_topic_group_view",
+            "browsing.subject_topic_group_view",
             subject_slug=subject["slug"],
             grade=grade,
             topic_group_slug=public_slug(subject["id"], grade, section["section_slug"]),
@@ -417,7 +385,7 @@ def inject_subject_navigation():
 
     def subject_topic_url(subject: dict, grade: int, section: dict, topic: dict) -> str:
         return url_for(
-            "subject_topic_view",
+            "browsing.subject_topic_view",
             subject_slug=subject["slug"],
             grade=grade,
             topic_group_slug=public_slug(subject["id"], grade, section["section_slug"]),
@@ -461,7 +429,7 @@ def switch_profile(profile: str):
         abort(404)
 
     session["ui_profile"] = profile
-    fallback = "tester_home" if profile == "tester" else "index"
+    fallback = "tester_home" if profile == "tester" else "browsing.index"
     next_url = safe_redirect_target(request.args.get("next"), fallback)
     return redirect(next_url)
 
@@ -577,7 +545,7 @@ def enforce_access_policy():
     if level == PROFILE_SWITCH:
         next_url = safe_redirect_target(
             request.args.get("next") or request.referrer,
-            "index",
+            "browsing.index",
         )
     else:
         next_url = request.path
@@ -615,7 +583,7 @@ def admin_login():
 def admin_logout():
     session.pop("admin_authenticated", None)
     session["ui_profile"] = "tester"
-    return redirect(url_for("index"))
+    return redirect(url_for("browsing.index"))
 
 
 # ---------------------------------------------------------------------------
@@ -637,58 +605,6 @@ def close_db(exception):
 # ---------------------------------------------------------------------------
 # Queries
 # ---------------------------------------------------------------------------
-
-def subject_browser(subject_id: str = IT) -> CachedSubjectBrowser:
-    """One public browsing facade per subject/request, shared by legacy routes."""
-    subject_id = canonical_subject(subject_id)
-    browsers = g.setdefault("subject_browsers", {})
-    if subject_id not in browsers:
-        browsers[subject_id] = CachedSubjectBrowser(
-            get_db(), subject_id, legacy_it=subject_id == IT
-        )
-    return browsers[subject_id]
-
-
-def fetch_grades_with_counts() -> list[dict]:
-    """Legacy IT grade counts; other subjects use their own browsing scope."""
-    return subject_browser().grade_counts()
-
-
-def fetch_section(slug: str) -> dict | None:
-    return subject_browser().section(slug, legacy_unclassified=True)
-
-
-def fetch_questions_in_section(
-    section_id: int, *, browser: CachedSubjectBrowser | None = None
-) -> list[dict]:
-    """Approved questions linked to this section via topic_section_assignments."""
-    browser = browser or subject_browser()
-    return browser.question_details(section_id, _decorate_browse_questions)
-
-
-def _decorate_browse_questions(db: sqlite3.Connection, rows: list[dict]) -> list[dict]:
-    """DB-only public options/answers/asset metadata; no URLs or request state."""
-
-    questions = []
-    for r in rows:
-        q = dict(r)
-        if q["question_type"] in ("multiple_choice", "true_false"):
-            opts = db.execute("""
-                SELECT option_letter, option_text, is_correct
-                FROM multiple_choice_options
-                WHERE question_id = ?
-                ORDER BY option_letter
-            """, (q["question_id"],)).fetchall()
-            q["options"] = [dict(o) for o in opts]
-        else:
-            q["options"] = []
-        if q["question_type"] in {"fill_in", "short_answer"}:
-            q["subquestions"] = fetch_fill_in_answer_rows(db, int(q["question_id"]))
-        else:
-            q["subquestions"] = []
-        questions.append(q)
-    return attach_question_visual_assets(db, questions, id_key="question_id")
-
 
 # DZI_REFERENCE_ROOT relocates only data/reference (official DZI resources);
 # data/assets always stays in the checkout.
@@ -719,320 +635,6 @@ def fetch_dzi_tasks(exam_id: int) -> dict[str, list[dict]]:
 @access_policy(PUBLIC)
 def tester_home():
     return render_template("tester_home.html")
-
-
-@app.route("/")
-@access_policy(PUBLIC)
-def index():
-    subjects = []
-    dzi_section = None
-    for catalog_entry in subject_catalog():
-        subject = dict(catalog_entry)
-        subject["question_count"] = 0
-        subject["search_content"] = ""
-        if subject["content_grades"]:
-            browser = subject_browser(subject["id"])
-            overview = browser.overview(subject["content_grades"])
-            subject["question_count"] = overview["question_count"]
-            subject["search_content"] = overview["search_content"]
-            if subject["dzi"]:
-                dzi_section = next(
-                    (section for section in overview["sections"]
-                     if section["section_slug"] == "grade12-dzi-preparation"),
-                    None,
-                )
-        subjects.append(subject)
-
-    return render_template(
-        "index.html",
-        subjects=subjects,
-        home_total_questions=sum(subject["question_count"] for subject in subjects),
-        home_class_count=len({grade for subject in subjects for grade in subject["content_grades"]}),
-        dzi_section=dzi_section,
-    )
-
-
-def _subject_browser(subject: dict) -> CachedSubjectBrowser | None:
-    """Browser for subjects that own stored sections; None while in preparation."""
-    if not subject["content_grades"]:
-        return None
-    return subject_browser(subject["id"])
-
-
-def render_subject_page(subject_slug: str):
-    subject = catalog_subject(subject_slug)
-    if subject is None:
-        abort(404)
-
-    grade_rows = []
-    browser = _subject_browser(subject)
-    if browser is not None:
-        grade_rows = browser.grade_counts()
-    grade_rows_by_number = {int(row["grade"]): row for row in grade_rows}
-    total_questions = sum(int(row["question_count"] or 0) for row in grade_rows)
-    return render_template(
-        "subject.html",
-        subject=subject,
-        content_grades=set(subject["content_grades"]),
-        grade_rows_by_number=grade_rows_by_number,
-        total_questions=total_questions,
-    )
-
-
-def subject_section_groups(sections: list[dict]) -> list[dict]:
-    """Sections grouped by curriculum module, only where that adds structure.
-
-    Modules are optional: a grade with no module, or with a single one, stays a
-    flat list of sections. Sections outside any module form the last group.
-    """
-    groups: dict[object, dict] = {}
-    for section in sections:
-        key = section.get("module_slug")
-        group = groups.setdefault(
-            key, {"module_slug": key, "title": section.get("module_title"), "sections": []}
-        )
-        group["sections"].append(section)
-    if len(groups) < 2:
-        return []
-    ungrouped = groups.pop(None, None)
-    return [*groups.values(), *([ungrouped] if ungrouped else [])]
-
-
-def render_subject_grade_page(subject_slug: str, grade: int):
-    subject = catalog_subject(subject_slug)
-    if subject is None or grade not in subject["available_classes"]:
-        abort(404)
-
-    sections = []
-    browser = _subject_browser(subject)
-    if browser is not None:
-        sections = browser.sections_for_grade(grade)
-
-    return render_template(
-        "subject_grade.html",
-        subject=subject,
-        grade=grade,
-        sections=sections,
-        section_groups=subject_section_groups(sections),
-        topic_groups=subject_topic_groups(subject, grade) if not sections else (),
-    )
-
-
-def _subject_section_content(browser: CachedSubjectBrowser, section: dict) -> tuple[list[dict], list[dict]]:
-    """A section's topics (with question counts) and questions, from cached reads."""
-    questions = fetch_questions_in_section(section["section_id"], browser=browser)
-    counts: dict[int, int] = {}
-    for question in questions:
-        counts[int(question["topic_id"])] = counts.get(int(question["topic_id"]), 0) + 1
-    topics = browser.topics_in_section(section["section_id"])
-    for topic in topics:
-        topic["question_count"] = counts.get(int(topic["topic_id"]), 0)
-    return topics, questions
-
-
-def render_subject_topic_group_page(subject_slug: str, grade: int, topic_group_slug: str):
-    subject = catalog_subject(subject_slug)
-    if subject is None or grade not in subject["available_classes"]:
-        abort(404)
-
-    browser = _subject_browser(subject)
-    if browser is not None:
-        section = browser.section_for_url(topic_group_slug, grade)
-        if section is not None:
-            topics, questions = _subject_section_content(browser, section)
-            return render_template(
-                "subject_section.html",
-                subject=subject,
-                grade=grade,
-                topic_group={"slug": section["section_slug"], "title": section["section_title"]},
-                section=section,
-                topics=topics,
-                questions=questions,
-            )
-        # Once this class has DB content, the provisional configuration is no
-        # longer a parallel source of real group routes.
-        if grade in subject["content_grades"]:
-            abort(404)
-
-    topic_group_result = get_subject_topic_group_config(subject_slug, grade, topic_group_slug)
-    if topic_group_result is None:
-        abort(404)
-
-    subject, topic_group = topic_group_result
-    return render_template(
-        "subject_section.html",
-        subject=subject,
-        grade=grade,
-        topic_group=topic_group,
-    )
-
-
-def render_subject_topic_page(subject_slug: str, grade: int, section_slug: str, topic_slug: str):
-    """One topic of an owned section. Placeholder groups have no topics."""
-    subject = catalog_subject(subject_slug)
-    if subject is None or grade not in subject["available_classes"]:
-        abort(404)
-    browser = _subject_browser(subject)
-    if browser is None:
-        abort(404)
-    section = browser.section_for_url(section_slug, grade)
-    if section is None:
-        abort(404)
-
-    # The section's cached, ownership-checked topics and questions are filtered
-    # here; a topic page adds no query path of its own.
-    topics, section_questions = _subject_section_content(browser, section)
-    by_slug = {topic["topic_slug"]: topic for topic in topics}
-    topic = next(
-        (by_slug[slug] for slug in stored_slug_candidates(subject["id"], grade, topic_slug)
-         if slug in by_slug),
-        None,
-    )
-    if topic is None:
-        abort(404)
-
-    return render_template(
-        "subject_topic.html",
-        subject=subject,
-        grade=grade,
-        section=section,
-        topic=topic,
-        questions=[q for q in section_questions if q["topic_id"] == topic["topic_id"]],
-        section_question_count=len(section_questions),
-    )
-
-
-@app.route("/subjects/<subject_slug>")
-@access_policy(PUBLIC)
-def subject_view(subject_slug: str):
-    return render_subject_page(subject_slug)
-
-
-@app.route("/subjects/<subject_slug>/<int:grade>")
-@access_policy(PUBLIC)
-def subject_grade_view(subject_slug: str, grade: int):
-    return render_subject_grade_page(subject_slug, grade)
-
-
-@app.route("/subjects/<subject_slug>/<int:grade>/<topic_group_slug>")
-@access_policy(PUBLIC)
-def subject_topic_group_view(subject_slug: str, grade: int, topic_group_slug: str):
-    return render_subject_topic_group_page(subject_slug, grade, topic_group_slug)
-
-
-@app.route("/subjects/<subject_slug>/<int:grade>/<topic_group_slug>/<topic_slug>")
-@access_policy(PUBLIC)
-def subject_topic_view(subject_slug: str, grade: int, topic_group_slug: str, topic_slug: str):
-    return render_subject_topic_page(subject_slug, grade, topic_group_slug, topic_slug)
-
-
-# Pre-registry Physics URLs: permanent redirects to the generic subject pages.
-@app.route("/physics")
-@access_policy(PUBLIC)
-def physics():
-    return redirect(url_for("subject_view", subject_slug="physics"), code=301)
-
-
-@app.route("/physics/grade/<int:grade>")
-@access_policy(PUBLIC)
-def physics_grade(grade: int):
-    if not subject_supports_grade("physics", grade):
-        abort(404)
-    return redirect(url_for("subject_grade_view", subject_slug="physics", grade=grade), code=301)
-
-
-@app.route("/favicon.ico")
-@access_policy(PUBLIC)
-def favicon():
-    return send_file(PROJECT_ROOT / "web" / "static" / "img" / "brand" / "favicon.ico", mimetype="image/x-icon")
-
-
-HEALTH_DB_TIMEOUT_SECONDS = 2.0
-
-
-def open_existing_database_read_only(path, *, timeout: float = 5.0) -> sqlite3.Connection:
-    """Never creates a missing database file; this connection refuses SQL writes."""
-    return web_db.connect_db(path, query_only=True, timeout=timeout)
-
-
-@app.route("/healthz")
-@access_policy(PUBLIC)
-def healthz():
-    """Liveness plus one cheap database header read; no templates or content queries."""
-    try:
-        conn = open_existing_database_read_only(
-            app.config["DB_PATH"], timeout=HEALTH_DB_TIMEOUT_SECONDS
-        )
-        try:
-            conn.execute("PRAGMA schema_version").fetchone()
-        finally:
-            conn.close()
-    except (sqlite3.Error, OSError, ValueError) as exc:
-        app.logger.warning("Health check failed: %s", type(exc).__name__)
-        status, body = 503, "unavailable\n"
-    else:
-        status, body = 200, "ok\n"
-    return app.response_class(
-        body, status=status, mimetype="text/plain",
-        headers={"Cache-Control": "no-store"},
-    )
-
-
-def grade_subject_entries(grade: int) -> list[dict]:
-    """Subjects LearnPilot supports in a grade, in registry order, with content state.
-
-    Membership comes from the registry (``grades``); counts come from the
-    database. A supported subject without content is listed as in preparation.
-    """
-    entries = []
-    for subject in subject_catalog():
-        if grade not in subject["available_classes"]:
-            continue
-        row = None
-        browser = _subject_browser(subject)
-        if browser is not None:
-            row = next(
-                (row for row in browser.grade_counts() if int(row["grade"]) == grade), None
-            )
-        entries.append({
-            "subject": subject,
-            "path": subject["supported_grade_paths"].get(grade),
-            "framework_plan_dependent": grade in subject["framework_plan_dependent_grades"],
-            "has_content": grade in subject["content_grades"],
-            "question_count": int(row["question_count"] or 0) if row else 0,
-        })
-    return entries
-
-
-@app.route("/grade/<int:grade>")
-@access_policy(PUBLIC)
-def grade_view(grade: int):
-    if grade not in PLATFORM_GRADES:
-        abort(404)
-    return render_template(
-        "grade.html",
-        grade=grade,
-        entries=grade_subject_entries(grade),
-        profiled_outside_scope=[
-            subject for subject in subject_catalog()
-            if grade in subject["profiled_grades_outside_scope"]
-        ],
-    )
-
-
-@app.route("/section/<slug>")
-@access_policy(PUBLIC)
-def section_view(slug: str):
-    section = fetch_section(slug)
-    if section is None:
-        abort(404)
-    questions = fetch_questions_in_section(section["section_id"])
-    return render_template(
-        "section.html",
-        section=section,
-        questions=questions,
-        section_subject=next(subject for subject in subject_catalog() if subject["id"] == IT),
-    )
 
 
 # ---------------------------------------------------------------------------
@@ -1102,6 +704,7 @@ warn_if_schema_migrations_pending(DB_PATH, open_existing_database_read_only)
 # Keep legacy quiz endpoint names available for existing url_for(...) calls
 # while the canonical route declarations live on the quiz blueprint.
 register_legacy_quiz_endpoint_aliases(app)
+app.register_blueprint(browsing_bp)
 app.register_blueprint(dzi_bp)
 app.register_blueprint(practical_bp)
 app.register_blueprint(quiz_bp)

@@ -3,7 +3,7 @@
 {% block title %}Тестерски режим{% endblock %}
 
 {% block breadcrumb %}
-    <a href="{{ url_for('index') }}">Начало</a>
+    <a href="{{ url_for('browsing.index') }}">Начало</a>
     <span>›</span>
     Тестер
 {% endblock %}
@@ -24,23 +24,23 @@
     </div>
 
     <div class="grade-grid">
-        <a class="grade-card" href="{{ url_for('grade_view', grade=8) }}">
+        <a class="grade-card" href="{{ url_for('browsing.grade_view', grade=8) }}">
             <div class="label">8. клас</div>
             <div class="meta">основи и преговор</div>
         </a>
-        <a class="grade-card" href="{{ url_for('grade_view', grade=9) }}">
+        <a class="grade-card" href="{{ url_for('browsing.grade_view', grade=9) }}">
             <div class="label">9. клас</div>
             <div class="meta">мрежи, приложения, уеб</div>
         </a>
-        <a class="grade-card" href="{{ url_for('grade_view', grade=10) }}">
+        <a class="grade-card" href="{{ url_for('browsing.grade_view', grade=10) }}">
             <div class="label">10. клас</div>
             <div class="meta">алгоритми и безопасност</div>
         </a>
-        <a class="grade-card" href="{{ url_for('grade_view', grade=11) }}">
+        <a class="grade-card" href="{{ url_for('browsing.grade_view', grade=11) }}">
             <div class="label">11. клас</div>
             <div class="meta">данни, БД, мултимедия</div>
         </a>
-        <a class="grade-card" href="{{ url_for('grade_view', grade=12) }}">
+        <a class="grade-card" href="{{ url_for('browsing.grade_view', grade=12) }}">
             <div class="label">12. клас</div>
             <div class="meta">уеб, ИКТ, матура</div>
         </a>
@@ -58,7 +58,7 @@
     </p>
 
     <p>
-        <a class="button" href="{{ url_for('section_view', slug='grade12-dzi-preparation') }}">
+        <a class="button" href="{{ url_for('browsing.section_view', slug='grade12-dzi-preparation') }}">
             Отвори „Подготовка за матура“
         </a>
     </p>

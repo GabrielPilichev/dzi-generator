@@ -3,6 +3,7 @@
 import json
 import re
 
+from web.services import browsing as browsing_service
 from tests.support import IsolatedAppTestCase, ROOT, web_app
 
 
@@ -26,7 +27,7 @@ class SectionQuestionImagesTest(IsolatedAppTestCase):
                 for entry in mappings if entry["needs_image"]
             }
             with web_app.app.app_context():
-                questions = web_app.fetch_questions_in_section(cls.section_id)
+                questions = browsing_service.fetch_questions_in_section(cls.section_id)
             mapped = [q for q in questions if q["question_id"] in confirmed
                       and q["visual_assets"]]
             cls.mapped = mapped[:2]

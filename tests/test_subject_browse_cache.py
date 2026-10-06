@@ -11,6 +11,7 @@ from unittest.mock import patch
 
 from src.subject_browse_cache import BrowseResultCache, database_identity
 import src.subject_browse_cache as cache_module
+from web.services import browsing as browsing_service
 from tests.support import isolated_app, web_app
 
 
@@ -245,8 +246,8 @@ class PublicBrowseCacheTest(unittest.TestCase):
         self.assertEqual(client.get("/").status_code, 200)
         self.assertEqual(client.get("/section/grade12-dzi-preparation").status_code, 200)
         with web_app.app.app_context():
-            section = web_app.fetch_section("grade12-dzi-preparation")
-            question = web_app.fetch_questions_in_section(section["section_id"])[0]
+            section = browsing_service.fetch_section("grade12-dzi-preparation")
+            question = browsing_service.fetch_questions_in_section(section["section_id"])[0]
             topic_id, question_id = question["topic_id"], question["question_id"]
         writer = sqlite3.connect(web_app.app.config["DB_PATH"])
         try:
@@ -262,7 +263,7 @@ class PublicBrowseCacheTest(unittest.TestCase):
 
     def test_transaction_local_results_are_not_shared(self):
         with web_app.app.app_context():
-            browser = web_app.subject_browser()
+            browser = browsing_service.subject_browser()
             original = browser.section("grade12-dzi-preparation")
             conn = web_app.get_db()
             conn.execute("UPDATE curriculum_sections SET title_bg = 'Uncommitted' WHERE id = ?",
