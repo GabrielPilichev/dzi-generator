@@ -67,6 +67,8 @@ def main(argv=None):
     parser.add_argument("--run-id", help="lowercase hyphenated id; default is derived from "
                                          "subject, grade and the current UTC time")
     parser.add_argument("--collector", help="who or what runs the collection")
+    parser.add_argument("--skills", help="optional comma-separated skill/coverage tags the run "
+                                         "may use in research.skill (at most 12)")
     parser.add_argument("--output", type=Path, required=True,
                         help="candidate dataset to create; must not exist")
     args = parser.parse_args(argv)
@@ -89,6 +91,8 @@ def main(argv=None):
             started_at=now.isoformat().replace("+00:00", "Z"),
             subject=args.subject, grade=args.grade, curriculum=curriculum,
             targets=targets, limits=limits, collector=args.collector,
+            skill_vocabulary=([tag.strip() for tag in args.skills.split(",")]
+                              if args.skills is not None else None),
         )
         args.output.parent.mkdir(parents=True, exist_ok=True)
         with args.output.open("x", encoding="utf-8") as handle:

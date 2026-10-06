@@ -30,6 +30,10 @@ def main(argv=None) -> int:
     parser.add_argument("--db", type=Path,
                         help="optional database, opened read-only, for ownership and "
                              "existing-question duplicate checks")
+    parser.add_argument("--compare", type=Path, action="append", default=[], metavar="DATASET",
+                        help="another candidate dataset of the same subject (an earlier run of "
+                             "the topic, a sibling topic) to compare for exact/near duplicates; "
+                             "repeatable, read-only")
     parser.add_argument("--annotate", type=Path, metavar="OUTPUT",
                         help="write a copy of the dataset with computed flags; must not exist")
     args = parser.parse_args(argv)
@@ -37,7 +41,13 @@ def main(argv=None) -> int:
         dataset = json.loads(args.input.read_text(encoding="utf-8"))
     except (OSError, ValueError) as exc:
         parser.exit(1, f"Validation rejected: {exc}\n")
-    report = validate_dataset(dataset, db_path=args.db)
+    others = []
+    for path in args.compare:
+        try:
+            others.append(json.loads(path.read_text(encoding="utf-8")))
+        except (OSError, ValueError) as exc:
+            parser.exit(1, f"Validation rejected: cannot read {path}: {exc}\n")
+    report = validate_dataset(dataset, db_path=args.db, compare_datasets=others)
     result = report.as_dict()
     if args.annotate is not None:
         if not report.ok:

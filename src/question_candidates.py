@@ -85,6 +85,7 @@ MAX_PROMPT_CHARS = 1500
 MAX_RESEARCH_NOTES_CHARS = 500
 MIN_LEAK_CHARS = 4
 MAX_ID_CHARS = 120
+MAX_SKILL_VOCABULARY = 12          # a declared vocabulary is small by design
 
 # An approved candidate must not carry one of these flags.
 BLOCKING_FLAGS = frozenset({"duplicate_exact", "duplicate_existing_exact"})
@@ -224,7 +225,8 @@ def _shape(value, label, required, optional, report, code, candidate_id=None) ->
 def _validate_run(run, report):
     """Validate the manifest; return the context later checks need, or None."""
     before = len(report.errors)
-    if not _shape(run, "run", _RUN_KEYS, ("collector", "notes"), report, "run"):
+    if not _shape(run, "run", _RUN_KEYS, ("collector", "notes", "skill_vocabulary"),
+                  report, "run"):
         return None
 
     run_id = run["id"]
@@ -283,6 +285,7 @@ def _validate_run(run, report):
             report.error("run", f"run {key} must be non-empty, trimmed text when present")
 
     topics = _validate_targets(run["targets"], subject, grade, limits, report)
+    skills = _validate_skill_vocabulary(run.get("skill_vocabulary"), "skill_vocabulary" in run, report)
 
     if len(report.errors) != before:
         return None
@@ -293,8 +296,24 @@ def _validate_run(run, report):
     return {
         "run_id": run_id, "subject": subject, "grade": grade, "limits": limits,
         "started": started, "finished": finished, "pages": pages, "topics": topics,
-        "collector": run.get("collector"),
+        "collector": run.get("collector"), "skills": skills,
     }
+
+
+def _validate_skill_vocabulary(value, present, report):
+    """The declared skill/coverage tags of a run as a set, or None when not declared.
+
+    Optional and backward compatible: a run that declares nothing is not checked.
+    """
+    if not present:
+        return None
+    if (not isinstance(value, list) or not value or len(value) > MAX_SKILL_VOCABULARY
+            or not all(_is_text(tag) for tag in value)
+            or len({normalize_text(tag) for tag in value}) != len(value)):
+        report.error("run", f"skill_vocabulary must be an array of 1 to {MAX_SKILL_VOCABULARY} "
+                            "distinct, non-empty, trimmed tags")
+        return None
+    return frozenset(value)
 
 
 def _validate_targets(targets, subject, grade, limits, report) -> dict:
@@ -457,6 +476,21 @@ def _validate_provenance(candidate, source, report, cid) -> None:
     if transformation == EXTRACTED and policy.verbatim_allowed and "source_ref" not in candidate:
         report.flag("extract_without_locator",
                     "extracted wording has no source_ref (document, session, question or page)", cid)
+
+
+def _check_skill(candidate, context, report, cid) -> None:
+    """Against a declared ``run.skill_vocabulary``: undeclared tags are errors."""
+    skills = context["skills"]
+    if skills is None:
+        return
+    research = candidate.get("research")
+    skill = research.get("skill") if isinstance(research, dict) else None
+    if skill is None:
+        report.flag("skill_missing", "the run declares a skill vocabulary; this candidate has "
+                                     "no research.skill", cid)
+    elif isinstance(skill, str) and skill not in skills:
+        report.error("skill_vocabulary", f"research.skill {skill!r} is not in the run's "
+                                         f"skill_vocabulary: {', '.join(sorted(skills))}", cid)
 
 
 def _validate_answer(candidate, report, cid):
@@ -638,6 +672,7 @@ def _validate_candidates(candidates, context, sources, report) -> list:
         else:
             per_source[source["id"]] = per_source.get(source["id"], 0) + 1
         _validate_provenance(candidate, source, report, cid)
+        _check_skill(candidate, context, report, cid)
 
         prompt_ok = _is_text(candidate["prompt"])
         if not prompt_ok:
@@ -708,6 +743,43 @@ def _flag_duplicates(records, report) -> None:
             for one, other in ((left, right), (right, left)):
                 report.flag(f"duplicate_{kind}",
                             f"{kind} duplicate of candidate {other['id']}", one["id"])
+
+
+def _flag_sibling_duplicates(records, others, context, report) -> None:
+    """Compare with other datasets of the same subject (supplied explicitly, read-only).
+
+    Exact and near wording only; the same fact worded differently is a review matter.
+    """
+    for position, other in enumerate(others, 1):
+        run = other.get("run") if isinstance(other, dict) else None
+        candidates = other.get("candidates") if isinstance(other, dict) else None
+        if not (isinstance(run, dict) and isinstance(candidates, list)
+                and isinstance(run.get("id"), str)):
+            report.error("compare_dataset", f"comparison dataset {position} is not a candidate dataset")
+            continue
+        if run.get("subject") != context["subject"]:
+            continue
+        for item in candidates:
+            if not (isinstance(item, dict) and isinstance(item.get("id"), str)
+                    and isinstance(item.get("prompt"), str)):
+                continue
+            review = item.get("review")
+            if isinstance(review, dict) and review.get("status") == REJECTED:
+                continue
+            options = item.get("options")
+            if isinstance(options, dict) and all(isinstance(text, str) for text in options.values()):
+                stored = frozenset(normalize_text(text) for text in options.values())
+            else:
+                stored = None
+            there = {"id": item["id"], "prompt": normalize_text(item["prompt"]), "options": stored}
+            for record in records:
+                if record["status"] == REJECTED:
+                    continue
+                kind = similarity(record, there)
+                if kind is not None:
+                    report.flag(f"duplicate_sibling_{kind}",
+                                f"{kind} duplicate of candidate {item['id']} in run {run['id']}",
+                                record["id"])
 
 
 # --------------------------------------------------------------------------- read-only database checks
@@ -820,8 +892,13 @@ def _flag_existing_duplicates(conn, records, context, report) -> None:
 
 # --------------------------------------------------------------------------- public API
 
-def validate_dataset(dataset, *, db_path=None, check_duplicates: bool = True) -> ValidationReport:
-    """Validate a candidate dataset. Never writes; ``db_path`` is opened read-only."""
+def validate_dataset(dataset, *, db_path=None, check_duplicates: bool = True,
+                     compare_datasets=()) -> ValidationReport:
+    """Validate a candidate dataset. Never writes; ``db_path`` is opened read-only.
+
+    ``compare_datasets`` are other, already loaded datasets (earlier runs of the
+    topic, sibling topics); exact and near duplicates against them are flagged.
+    """
     report = ValidationReport()
     if not _shape(dataset, "dataset", ("format_version", "kind", "run", "sources", "candidates"),
                   (), report, "format"):
@@ -844,6 +921,7 @@ def validate_dataset(dataset, *, db_path=None, check_duplicates: bool = True) ->
     records = _validate_candidates(dataset["candidates"], context, sources, report)
     if check_duplicates:
         _flag_duplicates(records, report)
+        _flag_sibling_duplicates(records, compare_datasets, context, report)
 
     if db_path is not None:
         try:
@@ -895,7 +973,8 @@ def annotated_copy(dataset: dict, report: ValidationReport) -> dict:
 
 
 def new_dataset(*, run_id: str, started_at: str, subject: str, grade: int, curriculum: dict,
-                targets: list, limits: CollectionLimits, collector: str | None = None) -> dict:
+                targets: list, limits: CollectionLimits, collector: str | None = None,
+                skill_vocabulary: list | None = None) -> dict:
     """An empty, validated dataset for a run that has not collected anything yet."""
     run = {
         "id": run_id, "started_at": started_at, "finished_at": None,
@@ -905,6 +984,8 @@ def new_dataset(*, run_id: str, started_at: str, subject: str, grade: int, curri
     }
     if collector is not None:
         run["collector"] = collector
+    if skill_vocabulary is not None:
+        run["skill_vocabulary"] = list(skill_vocabulary)
     dataset = {"format_version": FORMAT_VERSION, "kind": KIND, "run": run,
                "sources": [], "candidates": []}
     report = validate_dataset(dataset)
