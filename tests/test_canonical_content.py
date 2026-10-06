@@ -16,6 +16,7 @@ from contextlib import closing, redirect_stderr
 from pathlib import Path
 from unittest.mock import patch
 
+from src import manage_migrations
 from src import canonical_export as export
 from src import canonical_load as load
 from src import canonical_parity as parity
@@ -146,6 +147,9 @@ class ExclusionTest(CanonicalTestCase):
 
     def test_export_from_a_database_with_runtime_rows_leaves_them_out(self):
         path = self.seed_copy()  # holds 2 assignments, 4 attempts, 19 answers, 228 notes
+        # The frozen seed predates 011: adopt the baseline and apply what is pending.
+        for flags in (("--baseline-apply",), ("--apply",)):
+            manage_migrations.main(["--db", str(path), *flags], out=io.StringIO(), err=io.StringIO())
         with closing(sqlite3.connect(path)) as conn:
             self.assertGreater(conn.execute("SELECT COUNT(*) FROM quiz_attempts").fetchone()[0], 0)
             out = self.temp_path("out")
