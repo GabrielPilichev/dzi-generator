@@ -137,3 +137,15 @@ Run relevant checks:
 - git diff --stat
 
 Do not commit until user approves.
+
+## Structural refactor roadmap
+
+The canonical sequencing and architecture plan for the ongoing LearnPilot
+refactor, accounts, ownership, DZI content gating, entitlements, and future
+billing work is:
+
+`docs/REFACTOR_ACCOUNTS_ROADMAP.md`
+
+Follow that roadmap one PR at a time. Do not skip prerequisites, combine
+phases, or change the architecture sequence unless Gabriel explicitly changes
+the plan.
