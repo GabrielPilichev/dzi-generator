@@ -40,7 +40,24 @@ Future PR: replace tracked DB with migration + seed script.
 - `docs/reviews/dzi_image_db_linking_plan.md` - confirmed DZI question image pipeline checklist
 - `docs/DEPLOYMENT.md` - production deployment (Nginx -> Gunicorn `web.wsgi:app` -> SQLite/WAL), backups and operations
 
+## Development Setup
+
+```bash
+cd ~/dzi-generator
+python3 -m pip install -r requirements-dev.txt
+python3 -B -m unittest discover -s tests
+```
+
+`requirements.txt` holds production/runtime dependencies only.
+`requirements-dev.txt` includes it and adds `python-docx`, which the DOCX
+build tools and the full test suite need. Optional script dependencies are
+listed, commented out, in `requirements-dev.txt`.
+
 ## Local Run
+
+Session cookies are `Secure` by default. When running over plain HTTP on
+localhost, browsers will not keep the session cookie, so set
+`DZI_SESSION_COOKIE_SECURE=0` for local runs only. Never set it in production.
 
 Set a stable Flask secret key for local/deployed runs:
 

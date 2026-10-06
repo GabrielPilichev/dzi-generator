@@ -1,0 +1,11 @@
+-r requirements.txt
+
+# Needed by src/build_exam.py, src/build_worksheet.py and
+# tests/test_open_question_scope.py (not used by the web app at runtime).
+python-docx>=1.1
+
+# Optional script dependencies (install only if you run these tools):
+# watchdog     # src/watch_vault.py
+# requests     # src/scrape/http.py
+# Ollama tooling (src/agents/ollama_client.py) needs a local `ollama serve`;
+# no extra pip package is required.
