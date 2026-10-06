@@ -611,7 +611,7 @@ def teacher_assignment(assignment_id):
     """, (assignment_id,)).fetchall()
     attempts = attach_attempt_question_image_counts(conn, attempts)
 
-    quiz_url = request.host_url.rstrip("/") + url_for("quiz_start", assignment_id=assignment_id)
+    quiz_url = request.host_url.rstrip("/") + url_for("quiz.quiz_start", assignment_id=assignment_id)
     mixed_status = quiz_assignment_mixed_status(assignment["question_plan_json"])
     conn.close()
 
@@ -672,7 +672,7 @@ def teacher_assignment_edit(assignment_id):
             WHERE assignment_id = ?
             ORDER BY started_at
         """, (assignment_id,)).fetchall()
-        quiz_url = request.host_url.rstrip("/") + url_for("quiz_start", assignment_id=assignment_id)
+        quiz_url = request.host_url.rstrip("/") + url_for("quiz.quiz_start", assignment_id=assignment_id)
         mixed_status = quiz_assignment_mixed_status(assignment["question_plan_json"])
         conn.close()
         rendered = render_template(

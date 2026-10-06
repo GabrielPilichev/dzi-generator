@@ -12,6 +12,7 @@ from src.subject_assessment import AssessmentScope
 from tests.dzi_open_fixtures import mark_dzi_question
 from tests.subject_fixtures import add_curriculum, add_membership, add_question, add_section, add_topic, four_options
 from tests.support import IsolatedAppTestCase, web_app
+from web.services import dzi_exams
 from web.services import practical as practical_service
 from web.services import quiz as quiz_service
 
@@ -418,8 +419,7 @@ class OpenQuestionScopeTest(IsolatedAppTestCase):
             conn.close()
         conn = web_app.quiz_db()
         try:
-            with self.app.test_request_context(), patch.object(web_app, 'get_db', return_value=conn):
-                tasks = web_app.fetch_dzi_tasks(exam_id)
+            tasks = dzi_exams.fetch_dzi_tasks(conn, exam_id)
         finally:
             conn.close()
         self.assertIn(qid, [q['question_id'] for q in tasks['part1']])

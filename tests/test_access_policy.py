@@ -23,9 +23,7 @@ from web import access, request_integrity
 # application's route map.
 TEST_ONLY_RULE_PREFIX = "/__test__/"
 
-# The D1 access matrix: the behavioral contract D2 enforces. Legacy quiz
-# aliases (quiz_start, quiz_attempt, quiz_result) and their blueprint endpoints
-# are separate url_map rules sharing one view each.
+# The D1 access matrix: the behavioral contract D2 enforces.
 EXPECTED_ACCESS_MATRIX = {
     "static": access.PUBLIC,
     "browsing.index": access.PUBLIC,
@@ -37,17 +35,16 @@ EXPECTED_ACCESS_MATRIX = {
     "browsing.subject_topic_view": access.PUBLIC,
     "browsing.physics": access.PUBLIC,
     "browsing.physics_grade": access.PUBLIC,
-    "tester_home": access.PUBLIC,
+    "auth.tester_home": access.PUBLIC,
     "browsing.healthz": access.PUBLIC,
     "browsing.favicon": access.PUBLIC,
-    "admin_login": access.PUBLIC,
-    "tester_login": access.PUBLIC,
-    "tester_logout": access.PUBLIC,
-    "quiz_start": access.PUBLIC,
+    "auth.admin_login": access.PUBLIC,
+    "auth.tester_login": access.PUBLIC,
+    "auth.tester_logout": access.PUBLIC,
     "quiz.quiz_start": access.PUBLIC,
     "teacher.teacher_new": access.TEACHER,
     "teacher.teacher_assignment": access.TEACHER,
-    "admin_logout": access.ADMIN,
+    "auth.admin_logout": access.ADMIN,
     "dzi.admin_open_question_candidates": access.ADMIN,
     "dzi.dzi_index": access.ADMIN,
     "dzi.dzi_source_view": access.ADMIN,
@@ -62,13 +59,11 @@ EXPECTED_ACCESS_MATRIX = {
     "teacher.teacher_assignment_duplicate": access.ADMIN,
     "practical.teacher_practical_submissions": access.ADMIN,
     "practical.teacher_practical_submission_file_download": access.ADMIN,
-    "quiz_attempt": access.ATTEMPT_OWNER,
     "quiz.quiz_attempt": access.ATTEMPT_OWNER,
-    "quiz_result": access.ATTEMPT_OWNER,
     "quiz.quiz_result": access.ATTEMPT_OWNER,
     "practical.quiz_practical_attempt": access.ATTEMPT_OWNER,
     "practical.quiz_practical_upload": access.ATTEMPT_OWNER,
-    "switch_profile": access.PROFILE_SWITCH,
+    "auth.switch_profile": access.PROFILE_SWITCH,
 }
 
 PRINCIPAL_SESSIONS = {
@@ -159,12 +154,12 @@ class AccessPolicyUnitTest(unittest.TestCase):
                 self.assertFalse(access.is_route_allowed(level, admin_session))
 
     def test_denied_requests_are_sent_to_the_matching_login(self):
-        self.assertEqual(access.denial_login_endpoint(access.TEACHER), "tester_login")
-        self.assertEqual(access.denial_login_endpoint(access.ADMIN), "admin_login")
-        self.assertEqual(access.denial_login_endpoint(None), "admin_login")
+        self.assertEqual(access.denial_login_endpoint(access.TEACHER), "auth.tester_login")
+        self.assertEqual(access.denial_login_endpoint(access.ADMIN), "auth.admin_login")
+        self.assertEqual(access.denial_login_endpoint(None), "auth.admin_login")
         self.assertEqual(
             access.denial_login_endpoint(access.PROFILE_SWITCH, {"profile": "admin"}),
-            "admin_login",
+            "auth.admin_login",
         )
 
     def test_principal_reads_authentication_state_only(self):
@@ -246,7 +241,7 @@ class AccessPolicyCoverageTest(unittest.TestCase):
         self.assertEqual(access.policy_for_view(view_func), access.TEACHER)
         self.assertEqual(
             access.policy_for_endpoint(self.app, "quiz.quiz_attempt"),
-            access.policy_for_endpoint(self.app, "quiz_attempt"),
+            access.ATTEMPT_OWNER,
         )
 
     def test_access_policy_modules_import_neither_web_app_nor_services(self):
@@ -533,21 +528,6 @@ class AccessPolicyRouteTest(IsolatedAppTestCase):
         ):
             with self.subTest(path=path):
                 self.assertEqual(self.client.get(path).status_code, 404, path)
-
-    def test_legacy_quiz_aliases_behave_like_their_canonical_routes(self):
-        with self.app.test_request_context("/"):
-            from flask import url_for
-
-            for alias, canonical in (
-                ("quiz_attempt", "quiz.quiz_attempt"),
-                ("quiz_result", "quiz.quiz_result"),
-                ("quiz_start", "quiz.quiz_start"),
-            ):
-                with self.subTest(alias=alias):
-                    self.assertEqual(
-                        url_for(alias, attempt_id=1, assignment_id=1, _external=False),
-                        url_for(canonical, attempt_id=1, assignment_id=1, _external=False),
-                    )
 
     def test_unsafe_requests_still_require_same_origin(self):
         self._as_tester()

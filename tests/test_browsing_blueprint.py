@@ -33,7 +33,7 @@ E4_ROUTES = {
 OLD_ENDPOINTS = tuple(endpoint.split(".", 1)[1] for endpoint in E4_ROUTES.values())
 CONTROLLER_MODULES = (
     "web/blueprints/dzi.py", "web/blueprints/practical.py", "web/blueprints/quiz.py",
-    "web/blueprints/teacher.py", "web/blueprints/browsing.py",
+    "web/blueprints/teacher.py", "web/blueprints/browsing.py", "web/blueprints/auth.py",
 )
 
 
@@ -83,10 +83,10 @@ class BrowsingRouteOwnershipTest(unittest.TestCase):
             with self.subTest(path=path.name):
                 self.assertIsNone(pattern.search(path.read_text(encoding="utf-8")))
 
-    def test_e5_views_have_not_moved(self):
-        for endpoint in ("tester_home", "tester_login", "admin_login", "switch_profile"):
+    def test_e5_views_live_in_the_auth_blueprint(self):
+        for endpoint in ("auth.tester_home", "auth.tester_login", "auth.admin_login", "auth.switch_profile"):
             with self.subTest(endpoint=endpoint):
-                self.assertEqual(web_app.app.view_functions[endpoint].__module__, "web.app")
+                self.assertEqual(web_app.app.view_functions[endpoint].__module__, "web.blueprints.auth")
 
     def test_moved_helpers_left_the_application_module(self):
         for name in ("subject_browser", "fetch_section", "fetch_questions_in_section",

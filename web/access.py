@@ -115,4 +115,4 @@ def is_route_allowed(level: str | None, principal: Principal, view_args: Mapping
 def denial_login_endpoint(level: str | None, view_args: Mapping | None = None) -> str:
     """Where a denied request is sent to sign in: tester login for teacher
     routes, admin login for everything else (including undeclared routes)."""
-    return "tester_login" if _required_level(level, view_args) == TEACHER else "admin_login"
+    return "auth.tester_login" if _required_level(level, view_args) == TEACHER else "auth.admin_login"

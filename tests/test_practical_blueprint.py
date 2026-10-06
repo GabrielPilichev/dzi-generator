@@ -76,9 +76,9 @@ class PracticalRouteOwnershipTest(unittest.TestCase):
             self.assertNotIn(legacy, web_app.app.view_functions)
 
     def test_later_roadmap_views_have_not_moved(self):
-        for endpoint in ("tester_home", "admin_login"):
+        for endpoint in ("auth.tester_home", "auth.admin_login"):
             with self.subTest(endpoint=endpoint):
-                self.assertEqual(web_app.app.view_functions[endpoint].__module__, "web.app")
+                self.assertEqual(web_app.app.view_functions[endpoint].__module__, "web.blueprints.auth")
 
     def test_templates_reference_only_blueprint_qualified_endpoints(self):
         for template in (ROOT / "web" / "templates").glob("*.html"):
@@ -201,8 +201,9 @@ class PracticalRoutesBehaviorTest(IsolatedAppTestCase):
         config = web_app.app.config
         for key in ("PROJECT_ROOT", "PRACTICAL_RESOURCE_ROOTS", "PRACTICAL_REFERENCE_ROOT"):
             self.assertIn(key, config)
-        self.assertEqual(tuple(config["PRACTICAL_RESOURCE_ROOTS"]), tuple(web_app.PRACTICAL_RESOURCE_ROOTS))
-        self.assertEqual(config["PRACTICAL_REFERENCE_ROOT"], web_app.PRACTICAL_REFERENCE_ROOT)
+        self.assertEqual(config["PRACTICAL_RESOURCE_ROOTS"][-1], config["PROJECT_ROOT"] / "data" / "assets")
+        for legacy in ("PRACTICAL_RESOURCE_ROOTS", "PRACTICAL_REFERENCE_ROOT"):
+            self.assertFalse(hasattr(web_app, legacy), legacy)
 
 
 if __name__ == "__main__":

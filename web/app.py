@@ -21,7 +21,6 @@ from __future__ import annotations
 
 import copy
 import os
-import hmac
 import json
 import math
 import secrets
@@ -41,24 +40,20 @@ from src.practical_uploads import MAX_FILES_PER_REQUEST, MAX_REQUEST_BYTES, MAX_
 from web.blueprints.dzi import dzi_bp
 from web.blueprints.practical import practical_bp
 from web.attempt_access import quiz_attempt_owner_session_key
-from web.blueprints.quiz import quiz_bp, register_legacy_quiz_endpoint_aliases
+from web.blueprints.auth import VALID_UI_PROFILES, auth_bp
+from web.redirects import safe_redirect_target
+from web.blueprints.quiz import quiz_bp
 from web.blueprints.teacher import teacher_bp
 from web.blueprints.browsing import browsing_bp, open_existing_database_read_only
 from web.access import (
-    ADMIN,
     PROFILE_SWITCH,
-    PUBLIC,
-    TEACHER,
-    access_policy,
     current_principal,
     denial_login_endpoint,
     is_route_allowed,
     policy_for_endpoint,
 )
-from web.request_integrity import SAME_ORIGIN, integrity_policy
 from web.request_db import get_request_db
 from web.production import warn_if_schema_migrations_pending
-from web.services import dzi_exams
 from web.services.subject_catalog import subject_catalog, subject_topic_groups
 from web.services import quiz as quiz_service
 from web.services.dzi_exams import (
@@ -183,7 +178,6 @@ app.config["MAX_CONTENT_LENGTH"] = MAX_REQUEST_BYTES
 # Local UI profiles
 # ---------------------------------------------------------------------------
 
-VALID_UI_PROFILES = {"admin", "tester"}
 QUESTION_DIFFICULTY_LABELS = {
     "1": "много лесен",
     "2": "лесен",
@@ -267,19 +261,6 @@ def question_difficulty_label(value) -> str | None:
     if not key:
         return None
     return QUESTION_DIFFICULTY_LABELS.get(key)
-
-
-def safe_redirect_target(candidate: str | None, fallback: str) -> str:
-    fallback_url = fallback if fallback.startswith("/") else url_for(fallback)
-    if not isinstance(candidate, str) or not candidate:
-        return fallback_url
-    if not candidate.startswith("/") or candidate.startswith("//"):
-        return fallback_url
-
-    parsed = urlparse(candidate)
-    if parsed.scheme or parsed.netloc or not parsed.path.startswith("/"):
-        return fallback_url
-    return candidate
 
 
 UNSAFE_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
@@ -422,108 +403,9 @@ def inject_ui_profile():
     }
 
 
-@app.route("/profile/<profile>")
-@access_policy(PROFILE_SWITCH)
-def switch_profile(profile: str):
-    if profile not in VALID_UI_PROFILES:
-        abort(404)
-
-    session["ui_profile"] = profile
-    fallback = "tester_home" if profile == "tester" else "browsing.index"
-    next_url = safe_redirect_target(request.args.get("next"), fallback)
-    return redirect(next_url)
-
-
-
-
-# ---------------------------------------------------------------------------
-# Tester password protection
-# ---------------------------------------------------------------------------
-
-def tester_password_configured() -> bool:
-    return bool(os.environ.get("DZI_TESTER_PASSWORD"))
-
-
-def password_matches(submitted_password: str | None, configured_password: str | None) -> bool:
-    if not isinstance(submitted_password, str) or not isinstance(configured_password, str):
-        return False
-    return hmac.compare_digest(
-        submitted_password.encode("utf-8", errors="surrogatepass"),
-        configured_password.encode("utf-8", errors="surrogatepass"),
-    )
-
-
-def is_tester_authenticated() -> bool:
-    return bool(session.get("tester_authenticated")) or is_admin_authenticated()
-
-
-def can_generate_tests() -> bool:
-    return is_tester_authenticated() or is_admin_authenticated()
-
-
-@app.context_processor
-def inject_tester_auth():
-    return {
-        "tester_authenticated": is_tester_authenticated(),
-        "tester_password_configured": tester_password_configured(),
-        "can_generate_tests": can_generate_tests(),
-    }
-
-
-@app.route("/tester/login", methods=["GET", "POST"])
-@access_policy(PUBLIC)
-@integrity_policy(SAME_ORIGIN)
-def tester_login():
-    error = None
-    next_url = safe_redirect_target(
-        request.args.get("next") or request.form.get("next"),
-        "tester_home",
-    )
-
-    if request.method == "POST":
-        configured_password = os.environ.get("DZI_TESTER_PASSWORD", "")
-        submitted_password = request.form.get("password", "")
-
-        if not configured_password:
-            error = "Тестерската парола не е зададена. Стартирай сървъра с DZI_TESTER_PASSWORD."
-        elif password_matches(submitted_password, configured_password):
-            session["tester_authenticated"] = True
-            session["ui_profile"] = "tester"
-            return redirect(next_url)
-        else:
-            error = "Грешна парола."
-
-    return render_template("tester_login.html", error=error, next_url=next_url)
-
-
-@app.route("/tester/logout")
-@access_policy(PUBLIC)
-def tester_logout():
-    session.pop("tester_authenticated", None)
-    if not session.get("admin_authenticated"):
-        session["ui_profile"] = "tester"
-    return redirect(url_for("tester_home"))
-
-
 # ---------------------------------------------------------------------------
 # Admin password protection
 # ---------------------------------------------------------------------------
-
-def admin_password_configured() -> bool:
-    return bool(os.environ.get("DZI_ADMIN_PASSWORD"))
-
-
-def is_admin_authenticated() -> bool:
-    return bool(session.get("admin_authenticated"))
-
-
-@app.context_processor
-def inject_admin_auth():
-    return {
-        "admin_authenticated": is_admin_authenticated(),
-        "admin_password_configured": admin_password_configured(),
-    }
-
 
 @app.before_request
 def enforce_access_policy():
@@ -552,40 +434,6 @@ def enforce_access_policy():
     return redirect(url_for(denial_login_endpoint(level, view_args), next=next_url))
 
 
-@app.route("/admin/login", methods=["GET", "POST"])
-@access_policy(PUBLIC)
-@integrity_policy(SAME_ORIGIN)
-def admin_login():
-    error = None
-    next_url = safe_redirect_target(
-        request.args.get("next") or request.form.get("next"),
-        "teacher.teacher_dashboard",
-    )
-
-    if request.method == "POST":
-        configured_password = os.environ.get("DZI_ADMIN_PASSWORD", "")
-        submitted_password = request.form.get("password", "")
-
-        if not configured_password:
-            error = "Админ паролата не е зададена. Стартирай сървъра с DZI_ADMIN_PASSWORD."
-        elif password_matches(submitted_password, configured_password):
-            session["admin_authenticated"] = True
-            session["ui_profile"] = "admin"
-            return redirect(next_url)
-        else:
-            error = "Грешна парола."
-
-    return render_template("admin_login.html", error=error, next_url=next_url)
-
-
-@app.route("/admin/logout")
-@access_policy(ADMIN)
-def admin_logout():
-    session.pop("admin_authenticated", None)
-    session["ui_profile"] = "tester"
-    return redirect(url_for("browsing.index"))
-
-
 # ---------------------------------------------------------------------------
 # DB helpers
 # ---------------------------------------------------------------------------
@@ -608,33 +456,14 @@ def close_db(exception):
 
 # DZI_REFERENCE_ROOT relocates only data/reference (official DZI resources);
 # data/assets always stays in the checkout.
-PRACTICAL_REFERENCE_ROOT = configured_reference_root()
-PRACTICAL_RESOURCE_ROOTS = (
-    PRACTICAL_REFERENCE_ROOT or PROJECT_ROOT / "data" / "reference",
+# The practical blueprint and service read these from app.config per request.
+_practical_reference_root = configured_reference_root()
+app.config["PROJECT_ROOT"] = PROJECT_ROOT
+app.config["PRACTICAL_REFERENCE_ROOT"] = _practical_reference_root
+app.config["PRACTICAL_RESOURCE_ROOTS"] = (
+    _practical_reference_root or PROJECT_ROOT / "data" / "reference",
     PROJECT_ROOT / "data" / "assets",
 )
-# The practical blueprint and service read these from configuration per request.
-app.config["PROJECT_ROOT"] = PROJECT_ROOT
-app.config["PRACTICAL_REFERENCE_ROOT"] = PRACTICAL_REFERENCE_ROOT
-app.config["PRACTICAL_RESOURCE_ROOTS"] = PRACTICAL_RESOURCE_ROOTS
-
-
-def dzi_find_exam(source_slug: str) -> dict | None:
-    return dzi_exams.dzi_find_exam(get_db(), source_slug)
-
-
-def fetch_dzi_tasks(exam_id: int) -> dict[str, list[dict]]:
-    return dzi_exams.fetch_dzi_tasks(get_db(), exam_id)
-
-
-# ---------------------------------------------------------------------------
-# Routes
-# ---------------------------------------------------------------------------
-
-@app.route("/tester")
-@access_policy(PUBLIC)
-def tester_home():
-    return render_template("tester_home.html")
 
 
 # ---------------------------------------------------------------------------
@@ -701,9 +530,7 @@ warn_if_schema_migrations_pending(DB_PATH, open_existing_database_read_only)
 
 
 
-# Keep legacy quiz endpoint names available for existing url_for(...) calls
-# while the canonical route declarations live on the quiz blueprint.
-register_legacy_quiz_endpoint_aliases(app)
+app.register_blueprint(auth_bp)
 app.register_blueprint(browsing_bp)
 app.register_blueprint(dzi_bp)
 app.register_blueprint(practical_bp)

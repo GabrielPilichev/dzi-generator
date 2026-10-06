@@ -353,8 +353,9 @@ print(json.dumps({
     "db": web_app.app.config["DB_PATH"], "db_global": str(web_app.DB_PATH),
     "quiz_db": str(web_app.QUIZ_DB_PATH),
     "uploads": web_app.app.config["PRACTICAL_UPLOAD_ROOT"], "tables": tables,
-    "reference_root": web_app.PRACTICAL_REFERENCE_ROOT and str(web_app.PRACTICAL_REFERENCE_ROOT),
-    "resource_roots": [str(root) for root in web_app.PRACTICAL_RESOURCE_ROOTS],
+    "reference_root": web_app.app.config["PRACTICAL_REFERENCE_ROOT"]
+    and str(web_app.app.config["PRACTICAL_REFERENCE_ROOT"]),
+    "resource_roots": [str(root) for root in web_app.app.config["PRACTICAL_RESOURCE_ROOTS"]],
 }))
 '''
 
