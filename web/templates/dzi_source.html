@@ -8,7 +8,7 @@
 {% block breadcrumb %}
     <a href="{{ url_for('index') }}">Начало</a>
     <span>›</span>
-    <a href="{{ url_for('dzi_index') }}">Официални ДЗИ</a>
+    <a href="{{ url_for('dzi.dzi_index') }}">Официални ДЗИ</a>
     <span>›</span>
     {{ exam.source_slug }}
 {% endblock %}
@@ -114,9 +114,9 @@
 </section>
 
 <div class="question-toolbar dzi-toolbar">
-    <a class="button secondary back-link" href="{{ url_for('dzi_index') }}">Всички ДЗИ източници</a>
+    <a class="button secondary back-link" href="{{ url_for('dzi.dzi_index') }}">Всички ДЗИ източници</a>
     {% if practical_resource_count %}
-        <a class="button" href="{{ url_for('dzi_practical_source', source_slug=exam.source_slug) }}">
+        <a class="button" href="{{ url_for('dzi.dzi_practical_source', source_slug=exam.source_slug) }}">
             Практически задачи 26–28
         </a>
         <span class="pill">{{ practical_resource_count }} файла за изтегляне</span>
