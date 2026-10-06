@@ -6,8 +6,9 @@ from pathlib import Path
 _ROOT = Path(__file__).resolve().parents[1]
 
 from tests.support import web_app
+from web.services import quiz as quiz_service
 
-insert_quiz_text_answer = web_app.insert_quiz_text_answer
+insert_quiz_text_answer = quiz_service.insert_quiz_text_answer
 
 
 MIGRATION_SQL = (_ROOT / "web" / "migrations" / "005_quiz_text_answers.sql").read_text(encoding="utf-8")

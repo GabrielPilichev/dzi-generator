@@ -4,6 +4,7 @@ import sqlite3
 from unittest.mock import patch
 
 from tests.support import IsolatedAppTestCase, web_app
+from web.services import quiz as quiz_service
 
 
 class _FirstAttemptLookupMiss:
@@ -98,7 +99,7 @@ class QuizAttemptRaceOwnershipTest(IsolatedAppTestCase):
         connection = web_app.quiz_db()
         racing_connection = _FirstAttemptLookupMiss(connection)
         try:
-            with patch.object(web_app, "quiz_db", return_value=racing_connection) as mocked:
+            with patch.object(quiz_service, "quiz_db", return_value=racing_connection) as mocked:
                 response = client.post(
                     f"/quiz/{assignment_id}", data={"student_name": "Race Student"}
                 )

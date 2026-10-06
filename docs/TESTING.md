@@ -32,6 +32,13 @@ Both `app.config["DB_PATH"]` / `get_db()` and
 `QUIZ_DB_PATH` / `quiz_db()` point to that temporary database. `DZI_DB` is set to
 the same path for code that reads the environment.
 
+Quiz logic lives in `web/services/quiz.py`, which never imports `web.app`;
+`web.app` registers `QUIZ_DB_PATH`, `QUIZ_VAULT_PATH` and `PROJECT_ROOT` with it as
+call-time providers, so patching those `web.app` globals still redirects quiz code.
+To stub a quiz function (`quiz_db`, `quiz_pick_questions`, `quiz_current_timestamp`),
+patch it on `web.services.quiz`: patching the name re-exported by `web.app` only
+affects `web.app`'s own callers.
+
 `QUIZ_VAULT_PATH` and `DZI_VAULT` point to a temporary vault. Assignment and attempt
 notes are really generated there, not mocked away. Practical uploads also get a
 temporary root. Templates, static assets, reviewed batches and reference files

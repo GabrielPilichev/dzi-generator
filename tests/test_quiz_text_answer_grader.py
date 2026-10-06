@@ -2,8 +2,9 @@ import unittest
 
 
 from tests.support import web_app
+from web.services import quiz as quiz_service
 
-grade_quiz_text_answers = web_app.grade_quiz_text_answers
+grade_quiz_text_answers = quiz_service.grade_quiz_text_answers
 
 
 class QuizTextAnswerGraderTest(unittest.TestCase):

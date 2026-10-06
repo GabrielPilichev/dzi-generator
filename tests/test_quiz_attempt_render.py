@@ -6,6 +6,7 @@ from pathlib import Path
 
 
 from tests.support import IsolatedAppTestCase, web_app
+from web.services import quiz as quiz_service
 
 
 STALE_MESSAGE = (
@@ -278,12 +279,12 @@ class QuizAttemptRenderTest(IsolatedAppTestCase):
         self.assertTrue(eligibility[self.visual_filter_text_question_id])
 
     def test_visual_prompt_heuristic_is_conservative(self):
-        self.assertTrue(web_app.quiz_prompt_needs_visual("Даденото изображение показва уеб страница."))
-        self.assertTrue(web_app.quiz_prompt_needs_visual("В показана диаграма са дадени стойности."))
-        self.assertTrue(web_app.quiz_prompt_needs_visual("Коя стойност се вижда в диаграмата?"))
-        self.assertTrue(web_app.quiz_prompt_needs_visual("Какво е отбелязано на изображението?"))
-        self.assertTrue(web_app.quiz_prompt_needs_visual("Използвайте показаната таблица."))
-        self.assertFalse(web_app.quiz_prompt_needs_visual("Кое твърдение за електронна таблица е вярно?"))
+        self.assertTrue(quiz_service.quiz_prompt_needs_visual("Даденото изображение показва уеб страница."))
+        self.assertTrue(quiz_service.quiz_prompt_needs_visual("В показана диаграма са дадени стойности."))
+        self.assertTrue(quiz_service.quiz_prompt_needs_visual("Коя стойност се вижда в диаграмата?"))
+        self.assertTrue(quiz_service.quiz_prompt_needs_visual("Какво е отбелязано на изображението?"))
+        self.assertTrue(quiz_service.quiz_prompt_needs_visual("Използвайте показаната таблица."))
+        self.assertFalse(quiz_service.quiz_prompt_needs_visual("Кое твърдение за електронна таблица е вярно?"))
 
     def _create_assignment(self, *, time_limit_minutes=None):
         conn = web_app.quiz_db()
@@ -310,7 +311,7 @@ class QuizAttemptRenderTest(IsolatedAppTestCase):
         assignment_id = self._create_assignment(time_limit_minutes=time_limit_minutes)
         conn = web_app.quiz_db()
         try:
-            renderable_question_ids, _skipped_count = web_app.filter_renderable_attempt_question_ids(conn, question_ids)
+            renderable_question_ids, _skipped_count = quiz_service.filter_renderable_attempt_question_ids(conn, question_ids)
             cur = conn.execute("""
                 INSERT INTO quiz_attempts (
                     assignment_id, student_name, seed, question_ids_json,
@@ -754,7 +755,7 @@ class QuizAttemptRenderTest(IsolatedAppTestCase):
             started_at="2026-05-13 12:00:00",
         )
 
-        with patch.object(web_app, "quiz_current_timestamp", return_value=fixed_now):
+        with patch.object(quiz_service, "quiz_current_timestamp", return_value=fixed_now):
             response = self.client.get(f"/quiz/attempt/{attempt_id}")
 
         self.assertEqual(response.status_code, 200)
@@ -771,7 +772,7 @@ class QuizAttemptRenderTest(IsolatedAppTestCase):
             started_at="2026-05-13 12:00:00",
         )
 
-        with patch.object(web_app, "quiz_current_timestamp", return_value=fixed_now):
+        with patch.object(quiz_service, "quiz_current_timestamp", return_value=fixed_now):
             response = self.client.get(f"/quiz/attempt/{attempt_id}")
 
         self.assertEqual(response.status_code, 200)
@@ -792,7 +793,7 @@ class QuizAttemptRenderTest(IsolatedAppTestCase):
             started_at="2026-05-13 12:00:00",
         )
 
-        with patch.object(web_app, "quiz_current_timestamp", return_value=fixed_now):
+        with patch.object(quiz_service, "quiz_current_timestamp", return_value=fixed_now):
             response = self.client.get(f"/quiz/attempt/{attempt_id}")
 
         self.assertEqual(response.status_code, 200)
@@ -814,7 +815,7 @@ class QuizAttemptRenderTest(IsolatedAppTestCase):
             started_at="2026-05-13 12:00:00",
         )
 
-        with patch.object(web_app, "quiz_current_timestamp", return_value=fixed_now):
+        with patch.object(quiz_service, "quiz_current_timestamp", return_value=fixed_now):
             response = self.client.get(f"/quiz/attempt/{attempt_id}")
 
         self.assertEqual(response.status_code, 200)
@@ -831,7 +832,7 @@ class QuizAttemptRenderTest(IsolatedAppTestCase):
             started_at="2026-05-13 12:00:00",
         )
 
-        with patch.object(web_app, "quiz_current_timestamp", return_value=fixed_now):
+        with patch.object(quiz_service, "quiz_current_timestamp", return_value=fixed_now):
             response = self.client.get(f"/quiz/attempt/{attempt_id}")
 
         self.assertEqual(response.status_code, 200)
@@ -848,7 +849,7 @@ class QuizAttemptRenderTest(IsolatedAppTestCase):
             started_at="2026-05-13 12:00:00",
         )
 
-        with patch.object(web_app, "quiz_current_timestamp", return_value=fixed_now):
+        with patch.object(quiz_service, "quiz_current_timestamp", return_value=fixed_now):
             response = self.client.get(f"/quiz/attempt/{attempt_id}")
 
         self.assertEqual(response.status_code, 200)
@@ -865,7 +866,7 @@ class QuizAttemptRenderTest(IsolatedAppTestCase):
             started_at="2026-05-13 12:00:00",
         )
 
-        with patch.object(web_app, "quiz_current_timestamp", return_value=fixed_now):
+        with patch.object(quiz_service, "quiz_current_timestamp", return_value=fixed_now):
             response = self.client.get(f"/quiz/attempt/{attempt_id}")
 
         self.assertEqual(response.status_code, 200)
@@ -914,15 +915,15 @@ class QuizAttemptRenderTest(IsolatedAppTestCase):
         self.assertNotIn("syncWarning(remaining)", body)
 
     def test_quiz_duration_format_handles_seconds_minutes_and_hours(self):
-        self.assertEqual(web_app.quiz_format_duration(34), "34 сек.")
-        self.assertEqual(web_app.quiz_format_duration(754), "12 мин. 34 сек.")
-        self.assertEqual(web_app.quiz_format_duration(3723), "1 ч. 2 мин. 3 сек.")
+        self.assertEqual(quiz_service.quiz_format_duration(34), "34 сек.")
+        self.assertEqual(quiz_service.quiz_format_duration(754), "12 мин. 34 сек.")
+        self.assertEqual(quiz_service.quiz_format_duration(3723), "1 ч. 2 мин. 3 сек.")
 
     def test_quiz_success_rate_format_handles_common_and_missing_values(self):
-        self.assertEqual(web_app.quiz_success_rate_display(3, 4), "75%")
-        self.assertEqual(web_app.quiz_success_rate_display(1, 3), "33.3%")
-        self.assertEqual(web_app.quiz_success_rate_display(0, 0), "Няма данни за успеваемост")
-        self.assertEqual(web_app.quiz_success_rate_display(None, None), "Няма данни за успеваемост")
+        self.assertEqual(quiz_service.quiz_success_rate_display(3, 4), "75%")
+        self.assertEqual(quiz_service.quiz_success_rate_display(1, 3), "33.3%")
+        self.assertEqual(quiz_service.quiz_success_rate_display(0, 0), "Няма данни за успеваемост")
+        self.assertEqual(quiz_service.quiz_success_rate_display(None, None), "Няма данни за успеваемост")
 
     def test_completed_result_page_shows_success_rate(self):
         _assignment_id, attempt_id = self._create_attempt(
@@ -1651,7 +1652,7 @@ class QuizAttemptRenderTest(IsolatedAppTestCase):
         )
         conn = web_app.quiz_db()
         try:
-            web_app.insert_quiz_text_answer(
+            quiz_service.insert_quiz_text_answer(
                 conn,
                 attempt_id=attempt_id,
                 question_id=open_question_id,

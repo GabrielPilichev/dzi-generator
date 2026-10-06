@@ -12,6 +12,7 @@ from src.subject_assessment import AssessmentScope
 from tests.dzi_open_fixtures import mark_dzi_question
 from tests.subject_fixtures import add_curriculum, add_membership, add_question, add_section, add_topic, four_options
 from tests.support import IsolatedAppTestCase, web_app
+from web.services import quiz as quiz_service
 
 OTHER_SUBJECTS = ('physics', 'biology', 'chemistry', 'mathematics', 'informatics')
 
@@ -271,9 +272,9 @@ class OpenQuestionScopeTest(IsolatedAppTestCase):
 
     def test_generation_safeguards_require_every_answer_and_reject_practical(self):
         question = {'question_type': 'fill_in', 'source_number': 16, 'prompt': 'Текст'}
-        self.assertFalse(web_app.is_fill_in_question_auto_gradable(question, [
+        self.assertFalse(quiz_service.is_fill_in_question_auto_gradable(question, [
             {'correct_answer': '["да"]'}, {'correct_answer': '[]'}]))
-        self.assertFalse(web_app.is_fill_in_question_auto_gradable(
+        self.assertFalse(quiz_service.is_fill_in_question_auto_gradable(
             {**question, 'source_number': 26}, [{'correct_answer': '["да"]'}]))
 
     def test_crafted_ordinary_posts_cannot_authorize_dzi(self):
@@ -351,7 +352,7 @@ class OpenQuestionScopeTest(IsolatedAppTestCase):
             conn.close()
 
     def test_dzi_empty_pool_retains_truthful_disabled_state(self):
-        with patch.object(web_app, 'fetch_dzi_open_questions', return_value=[]):
+        with patch.object(quiz_service, 'fetch_dzi_open_questions', return_value=[]):
             html = self.form('dzi')
         self.assertNotIn('id="open-question-panel" hidden', html)
         self.assertRegex(html, r'<input id="open_count"[^>]*max="0"[^>]*disabled')

@@ -2,8 +2,9 @@ import unittest
 
 
 from tests.support import web_app
+from web.services import quiz as quiz_service
 
-quiz_normalize_text_answer = web_app.quiz_normalize_text_answer
+quiz_normalize_text_answer = quiz_service.quiz_normalize_text_answer
 
 
 class QuizTextNormalizationTest(unittest.TestCase):
