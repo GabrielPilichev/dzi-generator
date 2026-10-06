@@ -548,8 +548,11 @@ class HealthEndpointTest(IsolatedAppTestCase):
             response = self.client.get("/healthz")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(connections), 1)
-        self.assertLessEqual(len(statements), 2)
-        self.assertTrue(all(s.lstrip().upper().startswith("PRAGMA") for s in statements), statements)
+        # The two connection-local policy pragmas from web.db, then the one header read.
+        self.assertEqual(
+            [s.strip().upper() for s in statements],
+            ["PRAGMA FOREIGN_KEYS=ON", "PRAGMA QUERY_ONLY=ON", "PRAGMA SCHEMA_VERSION"],
+        )
 
     def test_missing_or_corrupt_database_reports_unavailable_without_details(self):
         tmp = tempfile.TemporaryDirectory()
