@@ -43,6 +43,7 @@ from web.services.question_visuals import (
     fetch_question_visual_assets,
 )
 from web.db_introspect import first_existing_column, sqlite_table_columns
+from web.text_values import unique_text_values
 
 
 # ---------------------------------------------------------------------------
@@ -1662,18 +1663,6 @@ def quiz_load_result_questions(conn, attempt, question_ids: list[int], seed: str
         )
 
     return questions
-
-
-def unique_text_values(values: list[str]) -> list[str]:
-    unique = []
-    seen = set()
-    for value in values:
-        text = str(value).strip()
-        if not text or text in seen:
-            continue
-        unique.append(text)
-        seen.add(text)
-    return unique
 
 
 TEACHER_OPEN_ANSWER_STATUSES = {"correct", "partially_correct", "incorrect"}

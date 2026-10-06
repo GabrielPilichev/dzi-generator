@@ -98,9 +98,9 @@ from web.services.quiz import (
     quiz_text_answer_informational_subtotal,
     quiz_text_auto_points,
     quiz_write_assignment_note,
-    unique_text_values,
 )
 from web.db_introspect import first_existing_column, sqlite_table_columns, sqlite_table_exists
+from web.text_values import unique_text_values
 
 
 # ---------------------------------------------------------------------------

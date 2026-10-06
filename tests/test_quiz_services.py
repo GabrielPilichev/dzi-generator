@@ -18,7 +18,7 @@ from web import db as web_db
 from web.services import quiz as quiz_service
 
 ROOT = Path(__file__).resolve().parents[1]
-LOW_LEVEL_MODULES = ("web/db.py", "web/db_introspect.py")
+LOW_LEVEL_MODULES = ("web/db.py", "web/db_introspect.py", "web/text_values.py")
 
 
 def _references_web_app(path: Path) -> list[str]:
