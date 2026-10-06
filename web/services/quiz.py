@@ -909,6 +909,20 @@ def quiz_section_question_ids(
 ) -> list[int]:
     if scope is not None and section_id != scope.section_id:
         raise ValueError("MC scope must match its section")
+    if scope is not None:
+        # Batched ownership/options/visual checks: a bounded number of queries however many
+        # candidates the section has (same ids, same order as the reference below).
+        return quiz_section_question_ids_by_section(conn, {section_id: scope})[section_id]
+    return _quiz_section_question_ids_reference(conn, section_id, scope=None)
+
+
+def _quiz_section_question_ids_reference(
+    conn, section_id: int, *, scope: AssessmentScope | None = None
+) -> list[int]:
+    """Per-question reference implementation (one lookup set per candidate).
+
+    Kept for the scope-less legacy picker and as the oracle the batched path is tested against.
+    """
     # SAFE: QUIZ_APPROVED_FILTER is a static SQL fragment; section_id uses ?.
     rows = conn.execute(f"""
         SELECT DISTINCT q.id, q.prompt, q.question_type, q.has_image, q.image_path
