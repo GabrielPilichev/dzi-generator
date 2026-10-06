@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from flask import Blueprint, abort, redirect, render_template, request, session, url_for
 
+from web.access import ATTEMPT_OWNER, PUBLIC, access_policy
+from web.request_integrity import SAME_ORIGIN, integrity_policy
 from web.services import quiz as quiz_service
 
 
@@ -26,6 +28,8 @@ def require_quiz_attempt_access(attempt_id: int) -> None:
 
 
 @quiz_bp.route("/quiz/<int:assignment_id>", methods=["GET", "POST"])
+@access_policy(PUBLIC)
+@integrity_policy(SAME_ORIGIN)
 def quiz_start(assignment_id):
     start = None
     name_error = None
@@ -73,6 +77,8 @@ def quiz_start(assignment_id):
 
 
 @quiz_bp.route("/quiz/attempt/<int:attempt_id>", methods=["GET", "POST"])
+@access_policy(ATTEMPT_OWNER)
+@integrity_policy(SAME_ORIGIN)
 def quiz_attempt(attempt_id):
     require_quiz_attempt_access(attempt_id)
     submitted_now = False
@@ -169,6 +175,7 @@ def quiz_attempt(attempt_id):
 
 
 @quiz_bp.route("/quiz/attempt/<int:attempt_id>/result")
+@access_policy(ATTEMPT_OWNER)
 def quiz_result(attempt_id):
     require_quiz_attempt_access(attempt_id)
     with quiz_service.quiz_connection() as conn:
