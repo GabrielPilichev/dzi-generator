@@ -11,13 +11,16 @@ import sqlite3
 
 from src.subject_content import (
     IT,
+    Ownership,
     canonical_subject,
-    question_ownership,
-    section_ownership,
-    topic_ownership,
+    question_ownerships,
+    section_ownerships,
+    topic_ownerships,
 )
 from src.subject_registry import all_subjects, get_subject
 
+
+_SECTION_NOT_FOUND = Ownership(None, "missing", "section_not_found")
 
 STORED_SLUG = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 
@@ -104,6 +107,7 @@ class SubjectContentBrowser:
         self._section_owners = {}
         self._topic_owners = {}
         self._question_owners = {}
+        self._sections_loaded = False
         self._topic_order = None
 
     def _explicit_topic_order(self) -> str:
@@ -120,19 +124,51 @@ class SubjectContentBrowser:
             )
         return self._topic_order
 
+    # Ownership is resolved with the batched ``*_ownerships`` helpers of
+    # ``src.subject_content`` (identical statuses and details to the per-id functions) and
+    # memoized on this browser instance only. A browser is built per connection/request, so
+    # nothing is shared between databases, tests or requests.
+
+    def _all_section_owners(self) -> dict:
+        """Ownership of every section, loaded once with one query."""
+        if not self._sections_loaded:
+            for section_id, owner in section_ownerships(self.conn).items():
+                self._section_owners.setdefault(section_id, owner)
+            self._sections_loaded = True
+        return self._section_owners
+
     def _section_owner(self, section_id: int):
-        if section_id not in self._section_owners:
-            self._section_owners[section_id] = section_ownership(self.conn, section_id)
-        return self._section_owners[section_id]
+        return self._all_section_owners().get(section_id, _SECTION_NOT_FOUND)
+
+    def _prime_topics(self, topic_ids) -> None:
+        todo = {int(t) for t in topic_ids if t is not None} - self._topic_owners.keys()
+        if todo:
+            self._topic_owners.update(
+                topic_ownerships(self.conn, todo, section_owners=self._all_section_owners()))
 
     def _topic_owner(self, topic_id: int):
         if topic_id not in self._topic_owners:
-            self._topic_owners[topic_id] = topic_ownership(self.conn, topic_id)
+            self._prime_topics([topic_id])
         return self._topic_owners[topic_id]
+
+    def _prime_questions(self, pairs) -> None:
+        """Resolve many questions at once; ``pairs`` are ``(question_id, topic_id)``."""
+        pairs = [(int(q), t) for q, t in pairs]
+        todo = {q for q, _ in pairs} - self._question_owners.keys()
+        if todo:
+            self._question_owners.update(
+                question_ownerships(self.conn, todo, section_owners=self._all_section_owners()))
+        if self.legacy_it:
+            # owns_question falls back to the topic for undeclared-subject questions.
+            self._prime_topics(
+                t for q, t in pairs
+                if self._question_owners[q].status == "unclassified"
+                and self._question_owners[q].detail == "missing_subject")
 
     def _question_owner(self, question_id: int):
         if question_id not in self._question_owners:
-            self._question_owners[question_id] = question_ownership(self.conn, question_id)
+            self._question_owners.update(question_ownerships(
+                self.conn, [question_id], section_owners=self._all_section_owners()))
         return self._question_owners[question_id]
 
     def owns_section(self, section_id: int) -> bool:
@@ -174,6 +210,10 @@ class SubjectContentBrowser:
             grades,
         ).fetchall()
         by_grade: dict[int, dict] = {}
+        self._prime_topics(topic_id for _, topic_id, _ in rows)
+        self._prime_questions(
+            (question_id, topic_id) for _, topic_id, question_id in rows
+            if question_id is not None and self.owns_topic(int(topic_id)))
         for grade, topic_id, question_id in rows:
             grade, topic_id = int(grade), int(topic_id)
             if not self.owns_topic(topic_id):
@@ -264,6 +304,7 @@ class SubjectContentBrowser:
             """,
             (section_id,),
         ).fetchall()
+        self._prime_topics(row["topic_id"] for row in rows)
         topics = []
         for row in rows:
             if not self.owns_topic(int(row["topic_id"])):
@@ -292,6 +333,7 @@ class SubjectContentBrowser:
             """,
             (section_id,),
         ).fetchall()
+        self._prime_questions((row["question_id"], row["topic_id"]) for row in rows)
         return [
             dict(row) for row in rows
             if self.owns_question(int(row["question_id"]), int(row["topic_id"]))
