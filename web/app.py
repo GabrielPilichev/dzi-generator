@@ -19,6 +19,7 @@ LearnPilot — Web app, Phase 1.
 
 from __future__ import annotations
 
+import copy
 import os
 import hmac
 import json
@@ -107,6 +108,7 @@ from web.services.quiz import (
     quiz_parse_assignment_question_plan,
     quiz_parse_attempt_question_plan,
     quiz_section_question_ids,
+    quiz_section_question_ids_by_section,
     quiz_teacher_difficulty_breakdown,
     quiz_text_answer_informational_subtotal,
     quiz_text_auto_points,
@@ -2608,7 +2610,7 @@ def teacher_new():
                 "source_slug": source_slug,
             }
 
-            available = len(quiz_section_question_ids(conn, section_id, scope=scope))
+            available = len(quiz_section_question_ids_by_section(conn, {section_id: scope})[section_id])
             if available <= 0:
                 conn.close()
                 return _quiz_redirect(_quiz_url_for("teacher_new", subject=selected_subject))
@@ -2694,26 +2696,39 @@ def teacher_new():
     section_rows = conn.execute("""
         SELECT id, class, title_bg
         FROM curriculum_sections
-        ORDER BY class, display_order, title_bg
+        ORDER BY class, display_order, title_bg, id
     """).fetchall()
+
+    # Set-based loading: scopes, eligible ids and the DZI open pool are fetched
+    # once for the whole page instead of per section and per question.
+    selected_scopes = {
+        section_id: scope
+        for section_id, scope in AssessmentScope.for_all_sections(conn).items()
+        if scope.subject == selected_subject
+    }
+    eligible_ids = quiz_section_question_ids_by_section(conn, selected_scopes)
 
     sections = []
     practical_source_options = None
+    dzi_open_summary = None
     for row in section_rows:
         section = dict(row)
-        try:
-            section_scope = AssessmentScope(conn, int(section["id"]))
-        except ValueError:
+        section_scope = selected_scopes.get(int(section["id"]))
+        if section_scope is None:
             continue
-        if section_scope.subject != selected_subject:
-            continue
-        eligible_count = len(quiz_section_question_ids(
-            conn, int(section["id"]), scope=section_scope
-        ))
+        eligible_count = len(eligible_ids[int(section["id"])])
         if eligible_count <= 0:
             continue
         section["question_count"] = eligible_count
-        section["open"] = open_question_scope_summary(conn, int(section["id"]), section_scope)
+        if section_scope.allows_dzi_open_questions:
+            # The DZI open pool does not depend on which DZI section asks.
+            if dzi_open_summary is None:
+                dzi_open_summary = open_question_scope_summary(
+                    conn, int(section["id"]), section_scope
+                )
+            section["open"] = copy.deepcopy(dzi_open_summary)
+        else:
+            section["open"] = open_question_scope_summary(conn, int(section["id"]), section_scope)
         section["allows_dzi_open_questions"] = section_scope.allows_dzi_open_questions
         section["allows_dzi_content"] = section_scope.allows_dzi_content
         if section_scope.allows_dzi_content and practical_source_options is None:
