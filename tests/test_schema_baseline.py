@@ -1,4 +1,4 @@
-"""Schema-only baseline migration (G0): 000 + 001-010 rebuild the seed schema.
+"""Schema-only baseline migration (G0): 000 + 001-011 rebuild the seed schema (010 + 011 index).
 
 Every database here is a temporary file. The tracked seed is only ever read as
 bytes (``copy_seed_database``); it is never opened or migrated.
@@ -23,6 +23,10 @@ MIGRATIONS_DIR = ROOT / "web" / "migrations"
 BASELINE = MIGRATIONS_DIR / "000_baseline.sql"
 ALL_MIGRATIONS = sorted(path.name for path in MIGRATIONS_DIR.glob("*.sql"))
 NUMBERED = [name for name in ALL_MIGRATIONS if name != "000_baseline.sql"]
+# The tracked seed is frozen at migration level 010; later migrations are pending on it.
+SEED_LEVEL = "010_topic_section_display_order.sql"
+PENDING_ON_SEED = [name for name in ALL_MIGRATIONS if name > SEED_LEVEL]
+SEED_MIGRATIONS = [name for name in ALL_MIGRATIONS if name <= SEED_LEVEL]
 
 
 def run_runner(db_path, *flags):
@@ -86,6 +90,13 @@ class BaselineTestCase(unittest.TestCase):
         copy_seed_database(ROOT / "data/questions.db", path)
         return path
 
+    def seed_copy_at_current_level(self):
+        path = self.seed_copy()
+        self.assertEqual(run_runner(path, "--baseline-apply")[0], 0)
+        code, out, err = run_runner(path, "--apply")
+        self.assertEqual(code, 0, out + err)
+        return path
+
     def db_from_baseline_sql(self, sql):
         path = self.tempdir() / "partial.db"
         with closing(sqlite3.connect(path)) as conn:
@@ -146,13 +157,13 @@ class BaselineOwnershipTest(BaselineTestCase):
 
 
 class FreshDatabaseTest(BaselineTestCase):
-    def test_empty_database_applies_000_through_010(self):
+    def test_empty_database_applies_every_migration(self):
         path = self.empty_db()
         code, out, err = run_runner(path, "--apply")
         self.assertEqual(code, 0, out + err)
         self.assertEqual([name for name, _ in migration_rows(path)], ALL_MIGRATIONS)
         self.assertEqual(ALL_MIGRATIONS[0], "000_baseline.sql")
-        self.assertEqual(ALL_MIGRATIONS[-1], "010_topic_section_display_order.sql")
+        self.assertEqual(ALL_MIGRATIONS[-1], "011_questions_topic_id_index.sql")
         self.assertIn("foreign_key_check: ok", out)
 
     def test_fresh_database_has_no_content_rows(self):
@@ -162,7 +173,7 @@ class FreshDatabaseTest(BaselineTestCase):
     def test_fresh_schema_equals_the_seed_schema(self):
         """Hard gate: 000 + 001-010 reproduce the canonical seed, logically."""
         differences = compare(
-            schema_of(self.fresh_db()), schema_of(self.seed_copy()), "migrated", "seed"
+            schema_of(self.fresh_db()), schema_of(self.seed_copy_at_current_level()), "migrated", "seed"
         )
         self.assertEqual(differences, [], "\n".join(differences))
 
@@ -229,7 +240,7 @@ class ExistingDatabaseAdoptionTest(BaselineTestCase):
         code, out, err = run_runner(path, "--baseline-dry-run")
         self.assertEqual(code, 0, err)
         self.assertIn("000_baseline.sql: baselineable", out)
-        self.assertIn("remaining pending migrations:\n  - none", out)
+        self.assertIn("remaining pending migrations:\n  - " + "\n  - ".join(PENDING_ON_SEED), out)
         self.assertEqual(file_sha256(path), before)
         self.assertEqual([p.name for p in path.parent.iterdir()], [path.name])
 
@@ -247,7 +258,7 @@ class ExistingDatabaseAdoptionTest(BaselineTestCase):
         self.assertEqual(compare(schema_before, schema_of(path)), [])
         self.assertEqual(content_digests(path), content_before)
         rows_after = migration_rows(path)
-        self.assertEqual([name for name, _ in rows_after], ALL_MIGRATIONS)
+        self.assertEqual([name for name, _ in rows_after], SEED_MIGRATIONS)
         # History is preserved byte for byte; only 000 is new.
         self.assertEqual([row for row in rows_after if row[0] != "000_baseline.sql"], rows_before)
         with closing(sqlite3.connect(path)) as conn:
@@ -264,7 +275,7 @@ class ExistingDatabaseAdoptionTest(BaselineTestCase):
         self.assertEqual(content_digests(path), content)
         self.assertEqual(migration_rows(path), rows)
         code, out, _ = run_runner(path, "--baseline-dry-run")
-        self.assertIn("baseline candidates:\n  - none", out)
+        self.assertNotIn("000_baseline.sql", out.split("remaining pending")[0])
 
     def test_normal_apply_after_adoption_has_nothing_to_do(self):
         path = self.seed_copy()
@@ -272,15 +283,17 @@ class ExistingDatabaseAdoptionTest(BaselineTestCase):
         rows = migration_rows(path)
         code, out, err = run_runner(path, "--apply")
         self.assertEqual(code, 0, out + err)
+        self.assertIn("applied migrations:\n  - " + "\n  - ".join(PENDING_ON_SEED), out)
+        self.assertEqual([name for name, _ in migration_rows(path)], ALL_MIGRATIONS)
+        code, out, err = run_runner(path, "--apply")
         self.assertIn("applied migrations:\n  - none", out)
-        self.assertEqual(migration_rows(path), rows)
 
     def test_seed_without_adoption_has_pending_000(self):
         path = self.seed_copy()
         pending = production.pending_schema_migrations(path, lambda p: sqlite3.connect(p))
-        self.assertEqual(pending, ["000_baseline.sql"])
+        self.assertEqual(pending, ["000_baseline.sql", *PENDING_ON_SEED])
         run_runner(path, "--baseline-apply")
-        self.assertEqual(production.pending_schema_migrations(path, lambda p: sqlite3.connect(p)), [])
+        self.assertEqual(production.pending_schema_migrations(path, lambda p: sqlite3.connect(p)), PENDING_ON_SEED)
 
 
 class IncompatibleDatabaseTest(BaselineTestCase):

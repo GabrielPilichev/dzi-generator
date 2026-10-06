@@ -2,7 +2,7 @@
   "format": "learnpilot-canonical-content",
   "format_version": 1,
   "schema": {
-    "migration_level": "010_topic_section_display_order.sql",
+    "migration_level": "011_questions_topic_id_index.sql",
     "migrations": [
       "000_baseline.sql",
       "001_quiz_tables.sql",
@@ -14,7 +14,8 @@
       "007_practical_task_resources.sql",
       "008_practical_submissions.sql",
       "009_quiz_text_answer_teacher_status.sql",
-      "010_topic_section_display_order.sql"
+      "010_topic_section_display_order.sql",
+      "011_questions_topic_id_index.sql"
     ]
   },
   "classification": {

@@ -78,7 +78,7 @@ production mechanism.
 one compact JSON object per row, every column in schema order, explicit `null`,
 `ensure_ascii=False`, rows in primary-key order, ids explicit. Integer and real values
 keep their JSON form (`1` vs `1.0`). No DDL, no blobs; schema stays
-`000_baseline` + `001`–`010` + later migrations.
+`000_baseline` + `001`–`011` + later migrations.
 
 `data/canonical/manifest.json`: format/version, schema migration level, the
 classification and exclusions, the FK-topological load order, and per table the row

@@ -191,6 +191,17 @@ def dzi_json_text_list(value: str | None) -> list[str]:
     return [str(parsed)]
 
 
+def fill_in_answer_row(row: sqlite3.Row) -> dict:
+    """A ``fill_in_subquestions`` row with its parsed/accepted answer lists."""
+    correct_answers = dzi_json_text_list(row["correct_answer"])
+    alternatives = dzi_json_text_list(row["answer_alternatives"])
+    subquestion = dict(row)
+    subquestion["correct_answers"] = correct_answers
+    subquestion["answer_alternatives_list"] = alternatives
+    subquestion["accepted_answers"] = unique_text_values(correct_answers + alternatives)
+    return subquestion
+
+
 def fetch_fill_in_answer_rows(db: sqlite3.Connection, question_id: int) -> list[dict]:
     rows = db.execute("""
         SELECT subquestion_number, subquestion_text, correct_answer, answer_alternatives, points
@@ -198,17 +209,7 @@ def fetch_fill_in_answer_rows(db: sqlite3.Connection, question_id: int) -> list[
         WHERE question_id = ?
         ORDER BY subquestion_number
     """, (question_id,)).fetchall()
-    subquestions = []
-    for row in rows:
-        correct_answers = dzi_json_text_list(row["correct_answer"])
-        alternatives = dzi_json_text_list(row["answer_alternatives"])
-        accepted_answers = unique_text_values(correct_answers + alternatives)
-        subquestion = dict(row)
-        subquestion["correct_answers"] = correct_answers
-        subquestion["answer_alternatives_list"] = alternatives
-        subquestion["accepted_answers"] = accepted_answers
-        subquestions.append(subquestion)
-    return subquestions
+    return [fill_in_answer_row(row) for row in rows]
 
 
 def fetch_dzi_tasks(db: sqlite3.Connection, exam_id: int) -> dict[str, list[dict]]:
