@@ -18,21 +18,30 @@ rename is handled separately.
 - Jinja templates in `web/templates`
 - Obsidian vault in `vault/`
 
-## Database Tracking Policy
+## Database and Setup
 
-`data/questions.db` is currently tracked intentionally as the project seed/dev
-database. It gives local development, smoke tests, and the current DZI/quiz UI a
-known dataset.
+`data/questions.db` is **ignored local runtime state**, not a tracked file. Git holds the
+sources it is built from:
 
-The file is also listed in `.gitignore`, but `.gitignore` does not untrack files
-that are already tracked by Git. Git will still report modifications to
-`data/questions.db` after tests or local runtime use. Restore accidental DB
-dirtiness before commits unless the PR explicitly owns a planned DB/data change.
+| What | Source of truth |
+| --- | --- |
+| Schema | `web/migrations/` (`000_baseline.sql` + numbered migrations) |
+| Durable content | `data/canonical/` (`docs/CANONICAL_DATA.md`) |
+| Runtime database | an ordinary SQLite file generated/provisioned from those sources |
+| Production | an external persistent database outside the checkout, never stored in Git |
+| Tests | temporary databases built from the same sources (`docs/TESTING.md`) |
 
-A fresh database no longer needs the tracked file: `python3 -m src.build_database
---output /path/to/new.db` builds one from the migrations and `data/canonical`
-(`docs/CANONICAL_DATA.md`), and the test suite builds its databases the same way
-(`docs/TESTING.md`). Untracking the seed itself is a later PR.
+A fresh clone has no database. Build one explicitly before running the app:
+
+```bash
+python3 -m src.build_database --output data/questions.db
+```
+
+The builder creates a new file from the migrations and `data/canonical` and refuses to
+overwrite an existing one. The app never creates or rebuilds the database on startup, and
+never reads `data/canonical` while serving requests. An existing local database keeps working:
+keep it, and bring it up to date with the normal migration workflow
+(`python3 -m src.manage_migrations`, see `docs/DEPLOYMENT.md`).
 
 ## Important Docs
 

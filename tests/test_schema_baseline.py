@@ -1,7 +1,9 @@
-"""Schema-only baseline migration (G0): 000 + 001-011 rebuild the seed schema (010 + 011 index).
+"""Schema-only baseline migration (G0): 000 + 001-011 build the schema, and an existing
+pre-baseline database adopts 000 without changing anything else.
 
-Every database here is a temporary file. The tracked seed is only ever read as
-bytes (``copy_seed_database``); it is never opened or migrated.
+Every database here is a temporary file. The pre-baseline database is a small synthetic one
+(``tests.support.build_legacy_database``): the pre-000 schema at migration level 010 plus a few
+rows. No binary fixture is involved.
 """
 
 import hashlib
@@ -16,17 +18,16 @@ from pathlib import Path
 from src import manage_migrations
 from src.schema_introspection import INTERNAL_TABLES, user_table_names
 from tests.schema_snapshot import compare, snapshot
-from tests.support import ROOT, copy_seed_database
+from tests.support import LEGACY_LEVEL, ROOT, build_legacy_database
 from web import production
 
 MIGRATIONS_DIR = ROOT / "web" / "migrations"
 BASELINE = MIGRATIONS_DIR / "000_baseline.sql"
 ALL_MIGRATIONS = sorted(path.name for path in MIGRATIONS_DIR.glob("*.sql"))
 NUMBERED = [name for name in ALL_MIGRATIONS if name != "000_baseline.sql"]
-# The tracked seed is frozen at migration level 010; later migrations are pending on it.
-SEED_LEVEL = "010_topic_section_display_order.sql"
-PENDING_ON_SEED = [name for name in ALL_MIGRATIONS if name > SEED_LEVEL]
-SEED_MIGRATIONS = [name for name in ALL_MIGRATIONS if name <= SEED_LEVEL]
+# A pre-baseline database sits at migration level 010; later migrations are pending on it.
+PENDING_ON_LEGACY = [name for name in ALL_MIGRATIONS if name > LEGACY_LEVEL]
+LEGACY_MIGRATIONS = [name for name in ALL_MIGRATIONS if name <= LEGACY_LEVEL]
 
 
 def run_runner(db_path, *flags):
@@ -85,13 +86,11 @@ class BaselineTestCase(unittest.TestCase):
         self.assertEqual(code, 0, out + err)
         return path
 
-    def seed_copy(self):
-        path = self.tempdir() / "seed-copy.db"
-        copy_seed_database(ROOT / "data/questions.db", path)
-        return path
+    def legacy_db(self):
+        return build_legacy_database(self.tempdir() / "legacy.db")
 
-    def seed_copy_at_current_level(self):
-        path = self.seed_copy()
+    def legacy_db_at_current_level(self):
+        path = self.legacy_db()
         self.assertEqual(run_runner(path, "--baseline-apply")[0], 0)
         code, out, err = run_runner(path, "--apply")
         self.assertEqual(code, 0, out + err)
@@ -170,10 +169,10 @@ class FreshDatabaseTest(BaselineTestCase):
         digests = content_digests(self.fresh_db())
         self.assertEqual({table: count for table, (count, _) in digests.items() if count}, {})
 
-    def test_fresh_schema_equals_the_seed_schema(self):
-        """Hard gate: 000 + 001-010 reproduce the canonical seed, logically."""
+    def test_fresh_schema_equals_an_adopted_existing_database(self):
+        """Hard gate: building from scratch and adopting a pre-baseline database agree, logically."""
         differences = compare(
-            schema_of(self.fresh_db()), schema_of(self.seed_copy_at_current_level()), "migrated", "seed"
+            schema_of(self.fresh_db()), schema_of(self.legacy_db_at_current_level()), "migrated", "adopted"
         )
         self.assertEqual(differences, [], "\n".join(differences))
 
@@ -182,7 +181,7 @@ class FreshDatabaseTest(BaselineTestCase):
         path = self.empty_db()
         with closing(sqlite3.connect(path)) as conn:
             conn.executescript(BASELINE.read_text(encoding="utf-8"))
-        self.assertNotEqual(compare(schema_of(path), schema_of(self.seed_copy())), [])
+        self.assertNotEqual(compare(schema_of(path), schema_of(self.legacy_db())), [])
         with closing(sqlite3.connect(path)) as conn:
             columns = {r[1] for r in conn.execute("PRAGMA table_info(curriculum_sections)")}
             tsa = {r[1] for r in conn.execute("PRAGMA table_info(topic_section_assignments)")}
@@ -234,18 +233,18 @@ class SchemaComparatorTest(BaselineTestCase):
 
 
 class ExistingDatabaseAdoptionTest(BaselineTestCase):
-    def test_seed_copy_is_baselineable_and_dry_run_writes_nothing(self):
-        path = self.seed_copy()
+    def test_legacy_database_is_baselineable_and_dry_run_writes_nothing(self):
+        path = self.legacy_db()
         before = file_sha256(path)
         code, out, err = run_runner(path, "--baseline-dry-run")
         self.assertEqual(code, 0, err)
         self.assertIn("000_baseline.sql: baselineable", out)
-        self.assertIn("remaining pending migrations:\n  - " + "\n  - ".join(PENDING_ON_SEED), out)
+        self.assertIn("remaining pending migrations:\n  - " + "\n  - ".join(PENDING_ON_LEGACY), out)
         self.assertEqual(file_sha256(path), before)
         self.assertEqual([p.name for p in path.parent.iterdir()], [path.name])
 
     def test_baseline_apply_changes_only_migration_bookkeeping(self):
-        path = self.seed_copy()
+        path = self.legacy_db()
         schema_before, content_before = schema_of(path), content_digests(path)
         rows_before = migration_rows(path)
         self.assertNotIn("000_baseline.sql", [name for name, _ in rows_before])
@@ -258,14 +257,14 @@ class ExistingDatabaseAdoptionTest(BaselineTestCase):
         self.assertEqual(compare(schema_before, schema_of(path)), [])
         self.assertEqual(content_digests(path), content_before)
         rows_after = migration_rows(path)
-        self.assertEqual([name for name, _ in rows_after], SEED_MIGRATIONS)
+        self.assertEqual([name for name, _ in rows_after], LEGACY_MIGRATIONS)
         # History is preserved byte for byte; only 000 is new.
         self.assertEqual([row for row in rows_after if row[0] != "000_baseline.sql"], rows_before)
         with closing(sqlite3.connect(path)) as conn:
             self.assertEqual(conn.execute("PRAGMA foreign_key_check").fetchall(), [])
 
     def test_baseline_apply_is_idempotent(self):
-        path = self.seed_copy()
+        path = self.legacy_db()
         self.assertEqual(run_runner(path, "--baseline-apply")[0], 0)
         schema, content, rows = schema_of(path), content_digests(path), migration_rows(path)
         code, out, err = run_runner(path, "--baseline-apply")
@@ -278,22 +277,22 @@ class ExistingDatabaseAdoptionTest(BaselineTestCase):
         self.assertNotIn("000_baseline.sql", out.split("remaining pending")[0])
 
     def test_normal_apply_after_adoption_has_nothing_to_do(self):
-        path = self.seed_copy()
+        path = self.legacy_db()
         run_runner(path, "--baseline-apply")
         rows = migration_rows(path)
         code, out, err = run_runner(path, "--apply")
         self.assertEqual(code, 0, out + err)
-        self.assertIn("applied migrations:\n  - " + "\n  - ".join(PENDING_ON_SEED), out)
+        self.assertIn("applied migrations:\n  - " + "\n  - ".join(PENDING_ON_LEGACY), out)
         self.assertEqual([name for name, _ in migration_rows(path)], ALL_MIGRATIONS)
         code, out, err = run_runner(path, "--apply")
         self.assertIn("applied migrations:\n  - none", out)
 
-    def test_seed_without_adoption_has_pending_000(self):
-        path = self.seed_copy()
+    def test_legacy_database_without_adoption_has_pending_000(self):
+        path = self.legacy_db()
         pending = production.pending_schema_migrations(path, lambda p: sqlite3.connect(p))
-        self.assertEqual(pending, ["000_baseline.sql", *PENDING_ON_SEED])
+        self.assertEqual(pending, ["000_baseline.sql", *PENDING_ON_LEGACY])
         run_runner(path, "--baseline-apply")
-        self.assertEqual(production.pending_schema_migrations(path, lambda p: sqlite3.connect(p)), PENDING_ON_SEED)
+        self.assertEqual(production.pending_schema_migrations(path, lambda p: sqlite3.connect(p)), PENDING_ON_LEGACY)
 
 
 class IncompatibleDatabaseTest(BaselineTestCase):
@@ -374,8 +373,8 @@ class IncompatibleDatabaseTest(BaselineTestCase):
         self.assertIn("--baseline-apply", err)
         self.assertEqual(file_sha256(path), before)  # nothing written, not even schema_migrations
 
-    def test_normal_apply_refuses_a_complete_seed_copy_until_adopted(self):
-        path = self.seed_copy()
+    def test_normal_apply_refuses_a_complete_legacy_database_until_adopted(self):
+        path = self.legacy_db()
         before = file_sha256(path)
         code, _out, err = run_runner(path, "--apply")
         self.assertEqual(code, 1)

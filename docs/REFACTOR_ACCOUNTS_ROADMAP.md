@@ -11,7 +11,7 @@ Rules for every PR:
 - Work on a feature branch. Never commit to `main` and never merge without Gabriel's go-ahead.
 - Small, behavior-preserving patches. Every URL stays identical unless the PR says otherwise.
 - No schema change without a numbered migration in `web/migrations/`, applied only through `python3 -m src.manage_migrations`. App code never mutates the schema.
-- Tests never write to `data/questions.db`; use the `tests/support.py` isolation. Restore the seed DB before committing if a local run dirtied it.
+- Tests never write to `data/questions.db`; use the `tests/support.py` isolation. `data/questions.db` is ignored local runtime state (H).
 - Keep Flask, SQLite, Jinja and plain CSS/JS. No ORM, DI framework, repository classes, npm, JS framework, Tailwind or Bootstrap.
 - UI text stays Bulgarian and follows the `AGENTS.md` UI rules.
 - Never commit secrets, logs, `.bak` files, tunnel URLs or DB dumps.
@@ -241,6 +241,8 @@ Acceptance: the scratch rebuild reproduces the classified rebuildable content wi
 Acceptance: a clean checkout can build the test/dev database without `data/questions.db`; the full suite and parity checks are green.
 
 ### PR H — Untrack the mutable seed DB and separate deployment lifecycles
+
+Status: the tracked binary was removed from Git (`data/questions.db` is ignored runtime state; fresh databases come from `python3 -m src.build_database`). Item 3 (production content-update workflow) is deferred to the consolidated deployment.
 
 1. Stop tracking `data/questions.db` only after G2 passes. It remains ignored.
 2. Content reaches production only through reviewed canonical seeds/importers applied to the production DB, never by shipping a database file.

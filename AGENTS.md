@@ -22,11 +22,13 @@
 - Code identifiers should be English.
 - Do not store binary blobs in SQLite.
 
-## Database tracking policy
-- `data/questions.db` is currently tracked intentionally as the project seed/dev DB.
-- `.gitignore` lists `data/questions.db`, but that does not untrack the already-tracked file; Git will still report local DB modifications.
-- Restore accidental DB dirtiness before commits unless the PR explicitly owns a planned DB/data change.
-- Future PR: replace tracked DB with migration + seed script.
+## Database policy
+- `data/questions.db` is **ignored, untracked local runtime state** (with its `-wal`/`-shm`/`-journal` sidecars). It is not a source of truth and a fresh clone does not contain it.
+- Schema source of truth: `web/migrations/`. Durable content source of truth: `data/canonical/`.
+- Fresh local database: `python3 -m src.build_database --output data/questions.db` (explicit; the app never builds it at startup).
+- Tests build temporary databases from migrations + canonical (`tests/support.py`); they never read or copy `data/questions.db`.
+- Never delete, restore, regenerate or overwrite a developer's existing local `data/questions.db`; migrate it with the normal migration workflow.
+- Do not commit `data/questions.db` or any other SQLite file/replacement snapshot.
 
 ## Existing routes to preserve
 - /
@@ -80,12 +82,13 @@
 - Local-only passwords: tester `tester123`, admin `admin123`.
 - Tester may use `/teacher/new` and the created assignment detail flow.
 - Tester must not access `/dzi`, `/teacher`, `/teacher/assignments`, `/teacher/dzi-training`, teacher results, or admin-like teacher/DZI pages.
-- Local smoke tests may dirty `data/questions.db` and create notes under `vault/Generated/Quizzes/`; restore/remove those before commits unless intentionally changing DB/vault content.
+- Local smoke tests may create notes under `vault/Generated/Quizzes/`; remove those before commits unless intentionally changing vault content. The runtime DB is ignored by Git.
 - Before commit, run:
   `python3 -m unittest tests.test_auth_guard tests.test_quiz_attempt_render`
   `python3 -m py_compile web/app.py tests/test_auth_guard.py tests/test_quiz_attempt_render.py`
   `sqlite3 "file:data/questions.db?mode=ro" "SELECT * FROM pragma_foreign_key_check;"`
   `python3 src/audit_dzi_state.py --source-slug may_2025_v2`
+- The `sqlite3`/`audit_dzi_state.py` commands above need a local runtime DB; build one first with `python3 -m src.build_database --output data/questions.db` if it does not exist (`audit_dzi_state.py` fails clearly when it is absent). Its pool-health expectation below describes a DB built from `data/canonical`.
 - `audit_dzi_state.py` reports structural DZI readiness; unittest/tests pin quiz pool-health numbers.
 - Current DZI pool health expectation for `may_2025_v2`: 25 total imported Part 1 questions, 15 MC quiz-ready, 10 short-answer/not-yet-supported, 0 broken/invalid MC.
 
@@ -107,7 +110,6 @@ Agents may run these without asking when relevant:
 - `sqlite3 "file:data/questions.db?mode=ro" "SELECT * FROM pragma_foreign_key_check;"`
 - `python3 src/audit_dzi_state.py`
 - `python3 src/audit_open_question_readiness.py`
-- `git restore data/questions.db 2>/dev/null || true` only when cleaning unintended runtime/test DB dirtiness.
 
 ### Forbidden unless explicitly requested
 Do not run these unless the user explicitly asks to start/stop/restart local testing:
@@ -127,7 +129,6 @@ Do not run these unless the user explicitly asks to start/stop/restart local tes
 ### Generated artifact hygiene
 - Do not commit `vault/Generated/Quizzes/`.
 - Do not commit local uploads.
-- If tests/runtime dirty `data/questions.db` unintentionally, restore it unless the DB change is explicitly planned.
 
 ## Before finishing
 Run relevant checks:

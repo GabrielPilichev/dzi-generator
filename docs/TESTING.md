@@ -24,11 +24,11 @@ legacy quiz migration at import time. The environment is immediately restored;
 production import/startup behavior is not changed.
 
 Each class receives its own temporary database, **built from migrations + `data/canonical`**,
-not copied from the tracked seed (`data/questions.db`): see *Test database architecture* below.
+not copied from a repository database (`data/questions.db` is untracked and may not exist): see *Test database architecture* below.
 No migrations or imports run against the repository database. Because the database is built
 at the current migration level (000 recorded), `subject_fixtures.apply_pending_migrations` is a
-no-op on it. `tests.support.adopt_baseline` and `copy_seed_database` remain only for the
-transition tests listed in `tests/test_seed_transition.py`.
+no-op on it. A database that predates the baseline is built synthetically with
+`tests.support.build_legacy_database` (see *Baseline adoption tests*).
 Both `app.config["DB_PATH"]` / `get_db()` and
 `QUIZ_DB_PATH` / `quiz_db()` point to that temporary database. `DZI_DB` is set to
 the same path for code that reads the environment.
@@ -51,8 +51,8 @@ test and class, including failed setup. Class cleanup removes the temporary DB,
 SQLite sidecars and generated artifacts. Database rows are shared within a class
 to preserve existing class-level question fixtures; classes do not share writes.
 
-`tests/test_schema_baseline.py` is the schema-parity gate (a seed-transition test): an empty database plus
-000-010 must equal the seed's schema (tables, ordered columns, types, NOT NULL,
+`tests/test_schema_baseline.py` is the schema gate: an empty database plus
+000-011 must equal a synthetic pre-baseline database after adopting 000 and applying the rest (tables, ordered columns, types, NOT NULL,
 defaults, primary/foreign keys, indexes, partial indexes, CHECKs, AUTOINCREMENT)
 using `tests/schema_snapshot.py`. A difference there means 000 or a migration is
 wrong; never loosen the comparison. The same module can compare two database
@@ -61,9 +61,9 @@ files: `python3 -m tests.schema_snapshot --left A.db --right B.db`.
 `tests/test_canonical_content.py` is the G1 canonical-content gate (`docs/CANONICAL_DATA.md`):
 table classification completeness, deterministic JSONL/manifest, legacy and
 Physics/Biology id preservation, the explicit-id round trip (migrations + canonical
-load, built twice), parity/hash/sequence/reference checks, update-safety and seed
-immutability. It reads the seed only through `copy_seed_database` copies and asserts the
-seed hash and sidecars are unchanged. Changing canonical content means re-exporting through
+load, built twice), parity/hash/sequence/reference checks and update-safety. It never reads
+`data/questions.db`. The parity contract is: migrations + canonical -> a deterministic logical
+database, and canonical export -> no drift. Changing canonical content means re-exporting through
 `python3 -m src.canonical_export --replace-canonical` so the manifest hashes stay true.
 
 Pure helper tests pass explicit in-memory connections and need no application
@@ -88,8 +88,8 @@ isolated writable database per test class / test
   copy (rollback-journal, no sidecars). It raises if the template's bytes ever changed. The template
   lives only in a per-process temporary directory (removed at exit) and is never committed; it is
   rebuilt for each test process from the tracked inputs, so there is no timestamp cache to go stale.
-* `IsolatedAppTestCase`, `isolated_app()` and the other seed-copy call sites use it, so
-  `tests` never mutate `data/questions.db`, `data/canonical` or the migrations (a test pins this).
+* `IsolatedAppTestCase`, `isolated_app()` and every DB-backed test use it, so
+  `tests` never read or mutate `data/questions.db`, `data/canonical` or the migrations (a test pins this).
 * Profiles: `CANONICAL` (default) is the full canonical content, including the reviewed Physics and
   Biology. `IT_ONLY` is that template minus Physics/Biology, produced by the explicit fixture
   `tests.subject_fixtures.remove_subject_content`. Subject-preparation tests that pin "a subject
@@ -101,21 +101,29 @@ isolated writable database per test class / test
 ### Runtime fixtures
 
 A built database has **no runtime rows** (assignments, attempts, answers, text answers,
-practical submissions). The legacy seed's smoke rows (2 assignments, 4 attempts, 19 answers)
+practical submissions). The retired seed's smoke rows (2 assignments, 4 attempts, 19 answers)
 are not recreated anywhere. A test that needs runtime state creates exactly that with
 `tests/runtime_fixtures.py` (`add_assignment`, `add_attempt`, `add_answer`,
 `add_submitted_attempt`) on its own temporary database: fixed values, ids that depend only on the
 canonical content, nothing shared between tests. Operational tables (`obsidian_notes`,
 `generated_exams`, ...) are likewise empty; insert what a test needs.
 
-### Seed-transition tests (until H)
+### Baseline adoption tests
 
-`copy_seed_database` (a byte copy of the tracked seed) is still used by exactly the tests
-listed in `tests/test_seed_transition.py`: canonical-vs-seed equivalence
-(`test_canonical_content`), schema parity (`test_schema_baseline`), baseline adoption
-(`test_production_deployment`) and the copy helper's own tests. That module fails if another test
-starts copying the seed. The seed's SHA-256 and sidecar absence are pinned there too. These are
-removed with the seed in H.
+Migration 000 lets an existing pre-baseline database adopt the baseline without running it.
+`tests.support.build_legacy_database(path)` builds the smallest deterministic fixture for that:
+the 000 DDL plus migrations 001-010 executed directly, `schema_migrations` recording 001-010 but
+not 000, and a couple of rows. `test_schema_baseline` (dry run, apply, idempotence, refusal
+until adopted, incompatible schemas) and the startup test in `test_production_deployment` use it.
+No binary fixture or historical content is committed.
+
+### The tracked seed is retired (H)
+
+`data/questions.db` is no longer tracked. `tests/test_seed_retirement.py` pins that it and its
+SQLite sidecars are ignored, that `data/canonical` and the migrations are not, that test
+discovery and `import web.app` work without the file (and do not create it), and that no seed
+copy/hash helper remains. The seed-transition tests (seed SHA pins, byte-copy helper tests,
+canonical-vs-seed equivalence, seed immutability) and `src/canonical_reconcile.py` were removed.
 
 `tests/test_build_database.py` covers the builder (fresh/missing-parent/existing destination,
 migrations, hashes, ids, sequences, FK, empty runtime/operational tables, determinism, no seed
@@ -123,7 +131,7 @@ access, failure cleanup, corrupt input); `tests/test_database_test_support.py` t
 isolation and fixtures; `tests/test_importer_stable_ids.py` importer identity and the DZI
 option/subquestion rules.
 
-## Connection policy and the seed tripwire
+## Connection policy and the runtime-database guard
 
 Every connection the web app opens (`get_db()`, `quiz_db()`, the health check and
 the browse-cache cold loaders) comes from `web.db.connect_db(path, *, query_only=False)`:
@@ -133,19 +141,11 @@ prepared, see `docs/DEPLOYMENT.md`) and it takes the path as an argument, so the
 patched `DB_PATH` / `QUIZ_DB_PATH` values keep controlling which database is used.
 `tests/test_web_db.py` and `tests/test_web_db_integration.py` pin this.
 
-Two safeguards (`tests/seed_guard.py`) keep tests off the tracked seed,
-`data/questions.db`:
-
-- `tests.support.isolated_app()` wraps `web.db.connect_db` so that asking for the
-  seed raises `SeedDatabaseAccess` instead of opening it (for example when a leaked
-  `DB_PATH` points back at the repository). A test that really must read the seed
-  through the factory wraps the call in `allow_seed_inspection()`; copying its bytes
-  with `copy_seed_database` is always allowed.
-- Importing the `tests` package records the sha256 of the seed and its `-wal`; at
-  interpreter exit a difference prints a `SEED DATABASE TRIPWIRE` message and the
-  process exits with status 1 even if every test passed. If it fires, find the
-  writer (or a local server running against the seed) and `git restore
-  data/questions.db`.
+`tests/runtime_db_guard.py` keeps tests off a developer's local runtime database,
+`data/questions.db`: `tests.support.isolated_app()` wraps `web.db.connect_db` so that asking
+for that path raises `RuntimeDatabaseAccess` instead of opening it (for example when a leaked
+`DB_PATH` points back at the checkout). The guard never reads, hashes or copies the file and
+behaves the same whether or not it exists.
 
 ## Previous isolation problems
 
@@ -162,7 +162,7 @@ Two safeguards (`tests/seed_guard.py`) keep tests off the tracked seed,
 - Assignment/mixed/quiz tests wrote through whichever `QUIZ_DB_PATH` and vault
   globals happened to be active. Several classes reassigned these without
   restoring them, leaking state into subsequent tests.
-- Pure helper tests unnecessarily created seed copies and changed environment
+- Pure helper tests unnecessarily created database copies and changed environment
   variables during discovery, despite using in-memory DBs or no DB at all.
 - Practical tests already owned their custom DB/upload fixtures, but leaked some
   application configuration such as `TESTING`. The shared fixture now also
@@ -172,6 +172,6 @@ Production configuration, authentication and scoring are unchanged. The helper
 also scopes Flask's first-request marker so legacy test-only auth routes can be
 registered regardless of which application test ran first.
 
-For a recovery-sensitive run, compare the SHA-256 of `data/questions.db`, a
+For a recovery-sensitive run, compare a
 content/mtime manifest of `vault/Generated/Quizzes/`, and `git status --short`
 before and after. `-B` avoids persistent bytecode artifacts.

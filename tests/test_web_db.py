@@ -10,7 +10,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from src.subject_browse_cache import BrowseResultCache
-from tests.seed_guard import ROOT
+from tests.runtime_db_guard import ROOT
 from web import db as web_db
 
 

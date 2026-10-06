@@ -368,13 +368,14 @@ def main():
     config_path = args.config.resolve()
     data_out_dir = args.data_output_dir.resolve()
     vault_out_dir = args.vault_output_dir.resolve()
-    if not db_path.is_file():
-        raise SystemExit(f"DZI training database does not exist: {db_path}")
     configured_vault = os.environ.get("DZI_VAULT")
+    if configured_vault and db_path.is_relative_to(Path(__file__).resolve().parents[1]):
+        raise SystemExit("DZI training database must be outside the checkout")
+    if not db_path.is_file():
+        raise SystemExit(f"DZI training database does not exist: {db_path}"
+                         " (build one with: python3 -m src.build_database --output PATH)")
     if configured_vault:
         vault_root = Path(configured_vault).resolve()
-        if db_path.is_relative_to(Path(__file__).resolve().parents[1]):
-            raise SystemExit("DZI training database must be outside the checkout")
         if not (data_out_dir.is_relative_to(vault_root)
                 and vault_out_dir.is_relative_to(vault_root)):
             raise SystemExit("DZI training output paths must stay inside DZI_VAULT")

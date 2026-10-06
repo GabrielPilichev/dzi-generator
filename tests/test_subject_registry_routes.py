@@ -1,6 +1,6 @@
 """Registry-driven homepage, navigation, subject routes and teacher form.
 
-Both classes run against a temporary copy of the seed database. The second one
+Both classes run against a temporary canonical-built database. The second one
 imports synthetic Biology content through the reviewed importer into that copy,
 never into the repository database.
 """

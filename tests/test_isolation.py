@@ -1,15 +1,12 @@
 import os
-import sqlite3
 import subprocess
 import sys
-import tempfile
 import unittest
 from contextlib import closing
 from pathlib import Path
-from unittest.mock import patch
 
 from tests.runtime_fixtures import add_submitted_attempt
-from tests.support import ROOT, IsolatedAppTestCase, copy_seed_database, isolated_app, web_app
+from tests.support import ROOT, IsolatedAppTestCase, isolated_app, web_app
 from web.services import quiz as quiz_service
 
 
@@ -44,37 +41,6 @@ with patch("sqlite3.connect", guarded):
             capture_output=True, text=True,
         )
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-
-    def test_changing_seed_is_rejected(self):
-        with tempfile.TemporaryDirectory() as directory:
-            source = Path(directory) / "source.db"
-            destination = Path(directory) / "copy.db"
-            source.write_bytes(b"fixture")
-
-            def change_during_copy(src, dst):
-                dst.write_bytes(src.read_bytes())
-                src.write_bytes(b"changed fixture")
-
-            with patch("tests.support.shutil.copyfile", side_effect=change_during_copy):
-                with self.assertRaisesRegex(RuntimeError, "Seed database changed"):
-                    copy_seed_database(source, destination)
-
-    def test_seed_copy_includes_wal_without_touching_source_sidecars(self):
-        with tempfile.TemporaryDirectory() as directory:
-            source = Path(directory) / "source.db"
-            destination = Path(directory) / "copy.db"
-            with closing(sqlite3.connect(source)) as conn:
-                conn.execute("PRAGMA journal_mode=WAL")
-                conn.execute("PRAGMA wal_autocheckpoint=0")
-                conn.execute("CREATE TABLE seed_probe (value TEXT)")
-                conn.execute("INSERT INTO seed_probe VALUES ('committed in WAL')")
-                conn.commit()
-                paths = [source, Path(str(source) + "-wal"), Path(str(source) + "-shm")]
-                before = {p: (p.read_bytes(), p.stat().st_mtime_ns) for p in paths}
-                copy_seed_database(source, destination)
-                with closing(sqlite3.connect(destination)) as copied:
-                    self.assertEqual(copied.execute("SELECT value FROM seed_probe").fetchone()[0], "committed in WAL")
-                self.assertEqual({p: (p.read_bytes(), p.stat().st_mtime_ns) for p in paths}, before)
 
     def test_both_database_helpers_write_only_the_same_temporary_database(self):
         path = Path(web_app.app.config["DB_PATH"])

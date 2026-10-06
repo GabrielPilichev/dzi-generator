@@ -86,7 +86,7 @@ class TeacherNewPageMixin:
 
 
 class BatchedHelpersMatchReferenceTest(IsolatedAppTestCase, TeacherNewPageMixin):
-    """Batched results equal the per-row reference over every row of the seed."""
+    """Batched results equal the per-row reference over every row of the canonical content."""
 
     def setUp(self):
         self.conn = web_app.quiz_db()

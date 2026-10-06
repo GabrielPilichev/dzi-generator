@@ -1,6 +1,6 @@
 """Generic subject sections, topics, grouping and structure-only presentation.
 
-Everything runs on a temporary copy of the seed database with synthetic rows.
+Everything runs on a temporary canonical-built database with synthetic rows.
 Titles are deliberately artificial; no curriculum is implied for any subject.
 """
 

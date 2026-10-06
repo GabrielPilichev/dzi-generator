@@ -55,7 +55,7 @@ def synthetic_structure(subject="physics", grade=8):
 
 
 class _StructureImportTestCase(IsolatedAppTestCase):
-    """Each test gets its own migrated copy of the seed, wired into the application."""
+    """Each test gets its own migrated canonical-built database, wired into the application."""
 
     @classmethod
     def setUpClass(cls):
@@ -146,7 +146,7 @@ class StructureDryRunAndApplyTest(_StructureImportTestCase):
 
     def test_dry_run_sees_committed_content_that_is_still_in_the_wal(self):
         holder = self.connect()                       # keeps the WAL from being checkpointed away
-        # copy_seed_database returns a rollback-journal copy; this test needs WAL.
+        # Test databases use a rollback journal; this test needs WAL.
         holder.execute("PRAGMA journal_mode=WAL").fetchone()
         holder.execute("SELECT COUNT(*) FROM curricula").fetchone()
         structure = synthetic_structure()
