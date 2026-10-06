@@ -1,0 +1,1094 @@
+{
+  "format": "learnpilot-canonical-content",
+  "format_version": 1,
+  "schema": {
+    "migration_level": "010_topic_section_display_order.sql",
+    "migrations": [
+      "000_baseline.sql",
+      "001_quiz_tables.sql",
+      "002_curriculum_section_provenance.sql",
+      "003_dzi_tasks_assets_blueprint.sql",
+      "004_dzi_safety_constraints.sql",
+      "005_quiz_text_answers.sql",
+      "006_assignment_question_plan.sql",
+      "007_practical_task_resources.sql",
+      "008_practical_submissions.sql",
+      "009_quiz_text_answer_teacher_status.sql",
+      "010_topic_section_display_order.sql"
+    ]
+  },
+  "classification": {
+    "canonical": [
+      "assessment_event_sections",
+      "assessment_events",
+      "asset_links",
+      "assets",
+      "curricula",
+      "curriculum_areas",
+      "curriculum_modules",
+      "curriculum_sections",
+      "curriculum_topics",
+      "dzi_blueprint_slots",
+      "dzi_blueprints",
+      "exam_task_questions",
+      "exam_tasks",
+      "exams",
+      "fill_in_subquestions",
+      "lessons",
+      "multiple_choice_options",
+      "official_exam_sources",
+      "practical_task_resources",
+      "practical_tasks",
+      "question_topic_assignments",
+      "questions",
+      "topic_aliases",
+      "topic_classes",
+      "topic_concepts",
+      "topic_prerequisites",
+      "topic_section_assignments"
+    ],
+    "runtime": [
+      "practical_submission_files",
+      "practical_submissions",
+      "quiz_answers",
+      "quiz_assignments",
+      "quiz_attempts",
+      "quiz_text_answers"
+    ],
+    "operational": [
+      "generated_exams",
+      "note_question_links",
+      "obsidian_notes",
+      "schema_migrations",
+      "scrape_log",
+      "sqlite_sequence"
+    ]
+  },
+  "canonical_tables": [
+    "assets",
+    "curricula",
+    "curriculum_areas",
+    "dzi_blueprints",
+    "exams",
+    "asset_links",
+    "curriculum_modules",
+    "official_exam_sources",
+    "questions",
+    "curriculum_sections",
+    "fill_in_subquestions",
+    "multiple_choice_options",
+    "assessment_events",
+    "lessons",
+    "assessment_event_sections",
+    "curriculum_topics",
+    "dzi_blueprint_slots",
+    "exam_tasks",
+    "question_topic_assignments",
+    "topic_aliases",
+    "topic_classes",
+    "topic_concepts",
+    "topic_prerequisites",
+    "topic_section_assignments",
+    "exam_task_questions",
+    "practical_task_resources",
+    "practical_tasks"
+  ],
+  "runtime_exclusions": [
+    "practical_submission_files",
+    "practical_submissions",
+    "quiz_answers",
+    "quiz_assignments",
+    "quiz_attempts",
+    "quiz_text_answers"
+  ],
+  "operational_exclusions": [
+    "generated_exams",
+    "note_question_links",
+    "obsidian_notes",
+    "schema_migrations",
+    "scrape_log",
+    "sqlite_sequence"
+  ],
+  "tables": {
+    "assets": {
+      "file": "assets.jsonl",
+      "rows": 44,
+      "columns": [
+        "id",
+        "asset_type",
+        "original_filename",
+        "local_path",
+        "source_url",
+        "sha256",
+        "mime_type",
+        "file_size",
+        "created_at",
+        "notes"
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "autoincrement": true,
+      "max_id": 44,
+      "sqlite_sequence": 44,
+      "natural_key": [
+        "local_path"
+      ],
+      "sha256": "ff346e6b6409732ac991e0e2cfa822a916bcbce00e9b309c845cd4e2eacde982"
+    },
+    "curricula": {
+      "file": "curricula.jsonl",
+      "rows": 11,
+      "columns": [
+        "id",
+        "grade",
+        "subject",
+        "education_type",
+        "title_bg",
+        "source_type",
+        "source_url",
+        "notes"
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "autoincrement": true,
+      "max_id": 11,
+      "sqlite_sequence": 11,
+      "natural_key": [
+        "subject",
+        "grade",
+        "education_type"
+      ],
+      "sha256": "c159d332ebda281456cb0a84f776d5995bbc1bcdfdd8b0e8d900f2edc94ddedc"
+    },
+    "curriculum_areas": {
+      "file": "curriculum_areas.jsonl",
+      "rows": 11,
+      "columns": [
+        "id",
+        "area_id",
+        "title_bg",
+        "moc_filename",
+        "description"
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "autoincrement": true,
+      "max_id": 11,
+      "sqlite_sequence": 11,
+      "natural_key": [
+        "area_id"
+      ],
+      "sha256": "d982c7908bb43d1d5f7b535e6ba31a71721b6a0639fd3308522b43438bd3e2b7"
+    },
+    "dzi_blueprints": {
+      "file": "dzi_blueprints.jsonl",
+      "rows": 1,
+      "columns": [
+        "id",
+        "blueprint_slug",
+        "title_bg",
+        "total_points",
+        "part1_minutes",
+        "part2_minutes",
+        "is_active",
+        "notes",
+        "created_at"
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "autoincrement": true,
+      "max_id": 1,
+      "sqlite_sequence": 1,
+      "natural_key": [
+        "blueprint_slug"
+      ],
+      "sha256": "eae98d1852ae70e84f70e16ece10746b105188d28c28d739f3427be20ceff99f"
+    },
+    "exams": {
+      "file": "exams.jsonl",
+      "rows": 11,
+      "columns": [
+        "id",
+        "subject",
+        "level",
+        "year",
+        "session",
+        "variant",
+        "format_version",
+        "source_url",
+        "source_file",
+        "sha256",
+        "downloaded_at",
+        "parsed_at",
+        "parser_version"
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "autoincrement": true,
+      "max_id": 12,
+      "sqlite_sequence": 12,
+      "natural_key": null,
+      "sha256": "b4153f5d8cb2eec77c73f43be2e53cc47c592bbdf79692d13d78ec1805a26881"
+    },
+    "asset_links": {
+      "file": "asset_links.jsonl",
+      "rows": 81,
+      "columns": [
+        "id",
+        "asset_id",
+        "owner_type",
+        "owner_id",
+        "role",
+        "display_order",
+        "caption_bg",
+        "source_page",
+        "source_bbox_json"
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "autoincrement": true,
+      "max_id": 81,
+      "sqlite_sequence": 81,
+      "natural_key": [
+        "asset_id",
+        "owner_type",
+        "owner_id",
+        "role",
+        "display_order"
+      ],
+      "sha256": "57c61b759ac1445ff48049c1edae720688c9d0a26cbd903c87f514ab2f9e92ab"
+    },
+    "curriculum_modules": {
+      "file": "curriculum_modules.jsonl",
+      "rows": 8,
+      "columns": [
+        "id",
+        "module_number",
+        "title_bg",
+        "class",
+        "hours_per_year",
+        "moc_filename",
+        "description",
+        "curriculum_id",
+        "module_slug",
+        "module_type",
+        "is_dzi_relevant",
+        "display_order"
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "autoincrement": true,
+      "max_id": 8,
+      "sqlite_sequence": 8,
+      "natural_key": null,
+      "sha256": "ebe65dd6766791b0fe81ea803ed60cfdcf8b6e8ee8fc9f7291a57a30a1804f04"
+    },
+    "official_exam_sources": {
+      "file": "official_exam_sources.jsonl",
+      "rows": 7,
+      "columns": [
+        "id",
+        "exam_id",
+        "authority",
+        "source_kind",
+        "source_url",
+        "local_path",
+        "sha256",
+        "published_at",
+        "notes",
+        "created_at"
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "autoincrement": true,
+      "max_id": 7,
+      "sqlite_sequence": 7,
+      "natural_key": null,
+      "sha256": "026efe961259f8377a064143ce5cff76ba818aaf84e704e0e9719efe447ad3c9"
+    },
+    "questions": {
+      "file": "questions.jsonl",
+      "rows": 1678,
+      "columns": [
+        "id",
+        "exam_id",
+        "source_exam",
+        "source_number",
+        "subject",
+        "level",
+        "year",
+        "question_type",
+        "topic",
+        "difficulty",
+        "points",
+        "prompt",
+        "has_image",
+        "image_path",
+        "created_at",
+        "is_ai_generated",
+        "quality_score",
+        "topic_id",
+        "legacy_topic"
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "autoincrement": true,
+      "max_id": 1683,
+      "sqlite_sequence": 1683,
+      "natural_key": [
+        "source_exam",
+        "source_number"
+      ],
+      "sha256": "ba80ddc4c72d37bdf76f9d8865d4e5f78cde67cfdb19becd7b6f321dc195da05"
+    },
+    "curriculum_sections": {
+      "file": "curriculum_sections.jsonl",
+      "rows": 67,
+      "columns": [
+        "id",
+        "curriculum_id",
+        "module_id",
+        "section_slug",
+        "title_bg",
+        "class",
+        "section_type",
+        "display_order",
+        "has_section_test",
+        "is_entry_check_scope",
+        "is_exit_check_scope",
+        "is_dzi_relevant",
+        "source_type",
+        "notes",
+        "source_url",
+        "source_title",
+        "source_authority",
+        "dzi_relevance_verified",
+        "dzi_relevance_notes"
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "autoincrement": true,
+      "max_id": 67,
+      "sqlite_sequence": 67,
+      "natural_key": [
+        "section_slug"
+      ],
+      "sha256": "127bbb14f79f8411968d79e566321cae809a46b65e3973ff9e6bef81b2577f53"
+    },
+    "fill_in_subquestions": {
+      "file": "fill_in_subquestions.jsonl",
+      "rows": 162,
+      "columns": [
+        "id",
+        "question_id",
+        "subquestion_number",
+        "subquestion_text",
+        "correct_answer",
+        "answer_alternatives",
+        "points"
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "autoincrement": true,
+      "max_id": 201,
+      "sqlite_sequence": 201,
+      "natural_key": [
+        "question_id",
+        "subquestion_number"
+      ],
+      "sha256": "e2c899f51b20ab4e2013c1f4f9a2d8172311bbe30dc7688571fca154a38aa682"
+    },
+    "multiple_choice_options": {
+      "file": "multiple_choice_options.jsonl",
+      "rows": 6275,
+      "columns": [
+        "id",
+        "question_id",
+        "option_letter",
+        "option_text",
+        "is_correct"
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "autoincrement": true,
+      "max_id": 6671,
+      "sqlite_sequence": 6671,
+      "natural_key": [
+        "question_id",
+        "option_letter"
+      ],
+      "sha256": "c821b599627b0de8ee3b023a6618de140c8bed5e0ccb36acc3f6133f391252e3"
+    },
+    "assessment_events": {
+      "file": "assessment_events.jsonl",
+      "rows": 33,
+      "columns": [
+        "id",
+        "curriculum_id",
+        "module_id",
+        "section_id",
+        "event_slug",
+        "title_bg",
+        "class",
+        "event_type",
+        "display_order",
+        "is_national",
+        "is_dzi",
+        "source_type",
+        "notes"
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "autoincrement": true,
+      "max_id": 33,
+      "sqlite_sequence": 33,
+      "natural_key": [
+        "event_slug"
+      ],
+      "sha256": "f0c42d07b2af24c657dc96a4bd2a8d633afc15b73dd9048f58f31732fa8a44e7"
+    },
+    "lessons": {
+      "file": "lessons.jsonl",
+      "rows": 0,
+      "columns": [
+        "id",
+        "section_id",
+        "lesson_number",
+        "title_bg",
+        "lesson_type",
+        "display_order",
+        "source_type",
+        "notes"
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "autoincrement": true,
+      "max_id": null,
+      "sqlite_sequence": null,
+      "natural_key": [
+        "section_id",
+        "lesson_number"
+      ],
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "assessment_event_sections": {
+      "file": "assessment_event_sections.jsonl",
+      "rows": 60,
+      "columns": [
+        "assessment_event_id",
+        "section_id",
+        "weight"
+      ],
+      "primary_key": [
+        "assessment_event_id",
+        "section_id"
+      ],
+      "autoincrement": false,
+      "max_id": null,
+      "sqlite_sequence": null,
+      "natural_key": null,
+      "sha256": "c6d2cb6c07ad079b6a82c5044eb79f87637843629bfd47b31ca94a62c1decc87"
+    },
+    "curriculum_topics": {
+      "file": "curriculum_topics.jsonl",
+      "rows": 180,
+      "columns": [
+        "id",
+        "topic_slug",
+        "title_bg",
+        "area_id",
+        "module_id",
+        "bloom_level",
+        "difficulty",
+        "exam_relevance",
+        "note_path",
+        "note_hash",
+        "last_synced",
+        "description",
+        "created_at",
+        "section_id",
+        "lesson_id",
+        "topic_level",
+        "assessment_weight"
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "autoincrement": true,
+      "max_id": 181,
+      "sqlite_sequence": 181,
+      "natural_key": [
+        "topic_slug"
+      ],
+      "sha256": "bf8e93e7f496ca5fbfaee9ceb5dabe9a392536d67290b0eb1a5e2053a4efbc39"
+    },
+    "dzi_blueprint_slots": {
+      "file": "dzi_blueprint_slots.jsonl",
+      "rows": 28,
+      "columns": [
+        "id",
+        "blueprint_id",
+        "slot_number",
+        "exam_part",
+        "task_kind",
+        "points",
+        "topic_area",
+        "topic_id",
+        "section_id",
+        "required_asset_type",
+        "notes"
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "autoincrement": true,
+      "max_id": 28,
+      "sqlite_sequence": 28,
+      "natural_key": [
+        "blueprint_id",
+        "slot_number"
+      ],
+      "sha256": "905668406049d76948efc4e6f09aa550c481c84fc125c219bd778052b6b11620"
+    },
+    "exam_tasks": {
+      "file": "exam_tasks.jsonl",
+      "rows": 196,
+      "columns": [
+        "id",
+        "exam_id",
+        "task_number",
+        "exam_part",
+        "task_kind",
+        "points",
+        "prompt",
+        "rubric",
+        "topic_id",
+        "section_id",
+        "source_page_start",
+        "source_page_end",
+        "has_assets",
+        "created_at"
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "autoincrement": true,
+      "max_id": 196,
+      "sqlite_sequence": 196,
+      "natural_key": [
+        "exam_id",
+        "task_number"
+      ],
+      "sha256": "344411d56a98c1918a4c0628f3108b9cb536e04972043da87bd5ff5bbcd1bd5a"
+    },
+    "question_topic_assignments": {
+      "file": "question_topic_assignments.jsonl",
+      "rows": 2032,
+      "columns": [
+        "id",
+        "question_id",
+        "topic_id",
+        "section_id",
+        "assignment_type",
+        "confidence",
+        "margin",
+        "method",
+        "model",
+        "is_active",
+        "created_at",
+        "notes"
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "autoincrement": true,
+      "max_id": 2032,
+      "sqlite_sequence": 2032,
+      "natural_key": null,
+      "sha256": "d86dcfc47e0c557de7696f389d24e5f7af8b49851c852ccc24a3d8ed73f746d2"
+    },
+    "topic_aliases": {
+      "file": "topic_aliases.jsonl",
+      "rows": 147,
+      "columns": [
+        "id",
+        "alias_slug",
+        "topic_id",
+        "action",
+        "reason",
+        "created_at"
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "autoincrement": true,
+      "max_id": 152,
+      "sqlite_sequence": 152,
+      "natural_key": [
+        "alias_slug"
+      ],
+      "sha256": "39916d1f3e5ad04f550fa873ec9f1f4dcbc8ed0b2271cfcddfdf9b38024a7bfc"
+    },
+    "topic_classes": {
+      "file": "topic_classes.jsonl",
+      "rows": 194,
+      "columns": [
+        "topic_id",
+        "class"
+      ],
+      "primary_key": [
+        "topic_id",
+        "class"
+      ],
+      "autoincrement": false,
+      "max_id": null,
+      "sqlite_sequence": null,
+      "natural_key": null,
+      "sha256": "aca4d9c990c905ec4f662a37bde84022c0b72842ef726631de04bf5b57a4d248"
+    },
+    "topic_concepts": {
+      "file": "topic_concepts.jsonl",
+      "rows": 0,
+      "columns": [
+        "id",
+        "topic_id",
+        "concept",
+        "description"
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "autoincrement": true,
+      "max_id": null,
+      "sqlite_sequence": null,
+      "natural_key": [
+        "topic_id",
+        "concept"
+      ],
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "topic_prerequisites": {
+      "file": "topic_prerequisites.jsonl",
+      "rows": 0,
+      "columns": [
+        "topic_id",
+        "requires_topic_id"
+      ],
+      "primary_key": [
+        "topic_id",
+        "requires_topic_id"
+      ],
+      "autoincrement": false,
+      "max_id": null,
+      "sqlite_sequence": null,
+      "natural_key": null,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "topic_section_assignments": {
+      "file": "topic_section_assignments.jsonl",
+      "rows": 603,
+      "columns": [
+        "id",
+        "topic_id",
+        "section_id",
+        "relationship_type",
+        "is_primary",
+        "confidence",
+        "source_type",
+        "notes",
+        "created_at",
+        "display_order"
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "autoincrement": true,
+      "max_id": 633,
+      "sqlite_sequence": 633,
+      "natural_key": [
+        "topic_id",
+        "section_id"
+      ],
+      "sha256": "e917376dee7e5e25c681b48047cbe0f9692a0ad99531b1d247417f1ad45e167a"
+    },
+    "exam_task_questions": {
+      "file": "exam_task_questions.jsonl",
+      "rows": 175,
+      "columns": [
+        "task_id",
+        "question_id",
+        "role",
+        "sub_number"
+      ],
+      "primary_key": [
+        "task_id",
+        "question_id",
+        "role"
+      ],
+      "autoincrement": false,
+      "max_id": null,
+      "sqlite_sequence": null,
+      "natural_key": null,
+      "sha256": "8d2d30ba23b459676436496cab2d4480835b91645a525c2965361b54eeaaed69"
+    },
+    "practical_task_resources": {
+      "file": "practical_task_resources.jsonl",
+      "rows": 77,
+      "columns": [
+        "id",
+        "exam_task_id",
+        "resource_path",
+        "original_filename",
+        "label_bg",
+        "file_size_bytes",
+        "sha256",
+        "created_at"
+      ],
+      "primary_key": [
+        "id"
+      ],
+      "autoincrement": true,
+      "max_id": 77,
+      "sqlite_sequence": 77,
+      "natural_key": [
+        "exam_task_id",
+        "resource_path"
+      ],
+      "sha256": "ebded43a6f5fa4c062d100d377f0238933e563a128ef47e9e635f80dd072c506"
+    },
+    "practical_tasks": {
+      "file": "practical_tasks.jsonl",
+      "rows": 21,
+      "columns": [
+        "task_id",
+        "work_environment",
+        "expected_outputs_json",
+        "grading_criteria_json",
+        "notes"
+      ],
+      "primary_key": [
+        "task_id"
+      ],
+      "autoincrement": false,
+      "max_id": 196,
+      "sqlite_sequence": null,
+      "natural_key": null,
+      "sha256": "7804c4e4bcd1dd82834c32fc6d6d43848bc6f584a13f9e8880639c803b422dcf"
+    }
+  },
+  "sources": {
+    "note": "G1 one-time reconciliation; see docs/CANONICAL_DATA.md",
+    "legacy_seed": {
+      "authority": "values and ids of all legacy rows",
+      "path": "data/questions.db",
+      "sha256": "47dc58348b08b59ce2c4e1081fcd6d99cdda1b6003eddfbd81fd4f65d20cb91e",
+      "rows": {
+        "assessment_event_sections": 60,
+        "assessment_events": 33,
+        "asset_links": 81,
+        "assets": 44,
+        "curricula": 5,
+        "curriculum_areas": 11,
+        "curriculum_modules": 8,
+        "curriculum_sections": 47,
+        "curriculum_topics": 127,
+        "dzi_blueprint_slots": 28,
+        "dzi_blueprints": 1,
+        "exam_task_questions": 175,
+        "exam_tasks": 196,
+        "exams": 11,
+        "fill_in_subquestions": 162,
+        "lessons": 0,
+        "multiple_choice_options": 2891,
+        "official_exam_sources": 7,
+        "practical_task_resources": 77,
+        "practical_tasks": 21,
+        "question_topic_assignments": 1186,
+        "questions": 832,
+        "topic_aliases": 147,
+        "topic_classes": 141,
+        "topic_concepts": 0,
+        "topic_prerequisites": 0,
+        "topic_section_assignments": 550
+      }
+    },
+    "subject_content": {
+      "authority": "values of Physics/Biology rows",
+      "importers": [
+        "src/import_subject_structure.py",
+        "src/import_reviewed_subject_questions.py"
+      ],
+      "structures": [
+        {
+          "path": "data/subject_structures/biology/grade-10.json",
+          "sha256": "6368a8426dbe71cc79924a697a743b843bea3764c5fdad94e877108b8c8bee49"
+        },
+        {
+          "path": "data/subject_structures/biology/grade-8.json",
+          "sha256": "18f0af972d2583a1cbaf76cf9d91aa06a5aa0d921361cc068877827c356be96b"
+        },
+        {
+          "path": "data/subject_structures/biology/grade-9.json",
+          "sha256": "4a58586b0b679abce8a08d95ffd20500279d95dad9c91d9db7978f83450c2ba8"
+        },
+        {
+          "path": "data/subject_structures/physics/grade-10.json",
+          "sha256": "95e2ade1cced6f514ddd0bbeea38a890a8a4583b3f9b86c60dab5cc8019f9101"
+        },
+        {
+          "path": "data/subject_structures/physics/grade-8.json",
+          "sha256": "5036a9d2de4a34e7a63e95b0f5bcf98e0987d7da547f0628b766bc60bf7ff256"
+        },
+        {
+          "path": "data/subject_structures/physics/grade-9.json",
+          "sha256": "2fcc0ceefd8c33f5c34777e22e8835880fe54d4e1be77096814241a6dc42e51f"
+        }
+      ],
+      "batches": [
+        {
+          "path": "data/import_batches/subjects/biology/grade-10/biology-g10-origin-and-evolution-of-humans-run-1.origin-and-evolution-of-humans.json",
+          "sha256": "2d667e3757d6915777554d88e75fb2469c5ca7ac1adef1a6a6909f311c6dc998"
+        },
+        {
+          "path": "data/import_batches/subjects/biology/grade-8/biology-g8-cell-and-tissues-run-1.cell-and-tissues.json",
+          "sha256": "59cb4bd7b053a8cbd6d4de0fc6576d6859d0009e513976ad2fb9616cceb68c25"
+        },
+        {
+          "path": "data/import_batches/subjects/biology/grade-8/biology-g8-embryonic-and-postembryonic-development-run-1.embryonic-and-postembryonic-development.json",
+          "sha256": "5d726f85fd42a9d1f22ca24296d20baed7e2b31d03164134560c7dd36be11fe2"
+        },
+        {
+          "path": "data/import_batches/subjects/biology/grade-8/biology-g8-embryonic-and-postembryonic-development-run-2.embryonic-and-postembryonic-development.json",
+          "sha256": "01c03b0bb35c6bf6090d4ab7ce06063e1a08565c9fb3e73a7c297aa8f6ccf397"
+        },
+        {
+          "path": "data/import_batches/subjects/biology/grade-8/biology-g8-excretory-system-run-1.excretory-system.json",
+          "sha256": "98addbedee3bd7fe91bdc2568a2a96a80a7cd010872680356b3197298c1c62d7"
+        },
+        {
+          "path": "data/import_batches/subjects/biology/grade-8/biology-g8-skin-run-1.skin.json",
+          "sha256": "7044c195b103945a746da31bbfd2283ee4fad28740225475f353146bff9e9fea"
+        },
+        {
+          "path": "data/import_batches/subjects/biology/grade-9/biology-g9-chemical-composition-of-living-matter-run-1.chemical-composition-of-living-matter.json",
+          "sha256": "b7c8d292613e4f2182522a3bed3e931739bb07b389886fe85d9f70ddae229c62"
+        },
+        {
+          "path": "data/import_batches/subjects/biology/grade-9/biology-g9-supramolecular-complexes-run-1.supramolecular-complexes.json",
+          "sha256": "3bf24ea4ad45bce9496a2d328885eb250b6588bb56abccba85fd370b51f39c33"
+        },
+        {
+          "path": "data/import_batches/subjects/physics/grade-10/physics-g10-atomic-nucleus-run-1.atomic-nucleus.json",
+          "sha256": "0a1a1f3f9e0be6442a4a24b5a42ee9f3f2e0064d29b028459d1acc9e495d41e9"
+        },
+        {
+          "path": "data/import_batches/subjects/physics/grade-10/physics-g10-atoms-and-atomic-transitions-run-1.atoms-and-atomic-transitions.json",
+          "sha256": "b37252a5254052de742865c61d23682efe660fc6f32c0e5f24d45e5f04f7fb9d"
+        },
+        {
+          "path": "data/import_batches/subjects/physics/grade-10/physics-g10-charged-particle-motion-run-1.charged-particle-motion.json",
+          "sha256": "31e77203021cbade84114ca472b747b26febb31a4f8b951330886f5752ea94b9"
+        },
+        {
+          "path": "data/import_batches/subjects/physics/grade-10/physics-g10-electric-field-run-1.electric-field.json",
+          "sha256": "f7cc3acc55edf398f40aea1d3c432cab587a4c1889c28b6181aa6bcbc9fbac20"
+        },
+        {
+          "path": "data/import_batches/subjects/physics/grade-10/physics-g10-electromagnetic-induction-alternating-current-run-1.electromagnetic-induction-alternating-current.json",
+          "sha256": "e8cb87a4dacb450e0bad659fc16e8829b143409fce2efa89a8d2d4693b707112"
+        },
+        {
+          "path": "data/import_batches/subjects/physics/grade-10/physics-g10-electromagnetic-waves-run-1.electromagnetic-waves.json",
+          "sha256": "3e51b605f46b66068aca5424f1783f6802bb836db124ca6c2aaeb15166dee9fb"
+        },
+        {
+          "path": "data/import_batches/subjects/physics/grade-10/physics-g10-light-propagation-run-1.light-propagation.json",
+          "sha256": "757ffdccde8749e9e6f22e7102daf8b810d3fac30e135dbe649fc481f9d29df6"
+        },
+        {
+          "path": "data/import_batches/subjects/physics/grade-10/physics-g10-magnetic-field-run-1.magnetic-field.json",
+          "sha256": "8b091c3f396708cc7d940d14aa754d703238393e19a27378fa887847b872d689"
+        },
+        {
+          "path": "data/import_batches/subjects/physics/grade-10/physics-g10-nuclear-reactions-run-1.nuclear-reactions.json",
+          "sha256": "e92d3ccfa2b13584a3f5dcc074485f12c5ef5a7bd16bf44b3b525e6e18d2325f"
+        },
+        {
+          "path": "data/import_batches/subjects/physics/grade-10/physics-g10-particles-run-1.particles.json",
+          "sha256": "1b8ede97d53be5c6b8de5fe5739ecc447b46ee67e58e76e8e3bd75a316f209db"
+        },
+        {
+          "path": "data/import_batches/subjects/physics/grade-10/physics-g10-quantum-properties-of-light-run-1.quantum-properties-of-light.json",
+          "sha256": "444df267dc196885858d3417d633894ac2cb3bba0be9922e464f6296ef0fc98c"
+        },
+        {
+          "path": "data/import_batches/subjects/physics/grade-10/physics-g10-stars-galaxies-universe-run-1.stars-galaxies-universe.json",
+          "sha256": "ca61abc46352e1a83cc65dc001f5b606ea2d2d48b26e8aab1cc9503a885b5f57"
+        },
+        {
+          "path": "data/import_batches/subjects/physics/grade-10/physics-g10-wave-properties-of-light-run-1.wave-properties-of-light.json",
+          "sha256": "cb6e6d7ed1e51159199a7ec5f8093f36690cd500c8db3457d21a729e08ebe69b"
+        },
+        {
+          "path": "data/import_batches/subjects/physics/grade-8/physics-g8-equilibrium-of-bodies-run-1.equilibrium-of-bodies.json",
+          "sha256": "f57d247c658df405bbc52c7f9dc25216c2bfb7033a00dc6a48f6ca2829b5e6cd"
+        },
+        {
+          "path": "data/import_batches/subjects/physics/grade-8/physics-g8-first-law-of-thermodynamics-run-1.first-law-of-thermodynamics.json",
+          "sha256": "25592fb9ecd6697c84f29499fdae4024c4b88341b53ed1aedd8179616064308b"
+        },
+        {
+          "path": "data/import_batches/subjects/physics/grade-8/physics-g8-fluid-mechanics-run-1.fluid-mechanics.json",
+          "sha256": "f2f96cfb1df792e1d8f2a6b219406a434a4fb08c78599833fa279c1b63fd4609"
+        },
+        {
+          "path": "data/import_batches/subjects/physics/grade-8/physics-g8-heat-engines-run-1.heat-engines.json",
+          "sha256": "99a963a0caae14399272c1adf27b03aa7e12aa5d2f5f910978fae29d4aaecaa4"
+        },
+        {
+          "path": "data/import_batches/subjects/physics/grade-8/physics-g8-heat-exchange-phase-transitions-run-1.heat-exchange-phase-transitions.json",
+          "sha256": "a991f75403906a9bd5114e699ad5246074936c5e24d6793f7a58a7a106401495"
+        },
+        {
+          "path": "data/import_batches/subjects/physics/grade-8/physics-g8-ideal-gas-processes-run-1.ideal-gas-processes.json",
+          "sha256": "a20b5287cdb9f3b703e1936372a3d0238b26b6e23ade83a494af0729eb1941c9"
+        },
+        {
+          "path": "data/import_batches/subjects/physics/grade-8/physics-g8-non-uniform-motion-pilot-1.non-uniform-motion.json",
+          "sha256": "25014c92733ffae391e01e26190902cb895763682033648ebd095c6b769e4caa"
+        },
+        {
+          "path": "data/import_batches/subjects/physics/grade-8/physics-g8-principles-of-mechanics-pilot-1.principles-of-mechanics.json",
+          "sha256": "e9d41c6ddd1ad5081244e9b18e77367435e78031fc7925add16875e67e0c2f59"
+        },
+        {
+          "path": "data/import_batches/subjects/physics/grade-8/physics-g8-thermal-motion-run-1.thermal-motion.json",
+          "sha256": "d56146c421861748b551c9781967bd5fdc34b1c4a4a4fe21bc531720dc8ef5ad"
+        },
+        {
+          "path": "data/import_batches/subjects/physics/grade-8/physics-g8-work-power-energy-run-1.work-power-energy.json",
+          "sha256": "a9d878dd0949ca92b35f3f4f1efd7eba69d6a6e14483fce802e1a55c16cb3d7c"
+        },
+        {
+          "path": "data/import_batches/subjects/physics/grade-9/physics-g9-current-in-metals-and-semiconductors-run-1.current-in-metals-and-semiconductors.json",
+          "sha256": "a99d29421f6106ed1bca864980777c14f6136c9e4c3c38d11e9bcd3551770a0b"
+        },
+        {
+          "path": "data/import_batches/subjects/physics/grade-9/physics-g9-electric-circuits-run-1.electric-circuits.json",
+          "sha256": "9aac80399b58d8cd66190d99c81a53e0d778270551219fc44b0152783d80da86"
+        },
+        {
+          "path": "data/import_batches/subjects/physics/grade-9/physics-g9-electrical-energy-run-1.electrical-energy.json",
+          "sha256": "c5732212fc0783def8c37ed4b156316df01e8b21967fe3b9f43070296ef2f475"
+        },
+        {
+          "path": "data/import_batches/subjects/physics/grade-9/physics-g9-mechanical-waves-run-1.mechanical-waves.json",
+          "sha256": "2b1c3018ca61908cf6abc5f11441e960e000d23bf02c5c1b1cd5f37444b1dcaf"
+        },
+        {
+          "path": "data/import_batches/subjects/physics/grade-9/physics-g9-oscillations-run-1.oscillations.json",
+          "sha256": "64bf18cbac9942cf8709e4833677e4ee213d725c3dfda9fe3c86ae582f59650e"
+        },
+        {
+          "path": "data/import_batches/subjects/physics/grade-9/physics-g9-sound-run-1.sound.json",
+          "sha256": "ba8ce088f9ef793b8f5ad3d162b52323647f3b8bd3901def0f22402d7ac74867"
+        }
+      ],
+      "rows_added": {
+        "curricula": 6,
+        "curriculum_sections": 20,
+        "curriculum_topics": 53,
+        "multiple_choice_options": 3384,
+        "question_topic_assignments": 846,
+        "questions": 846,
+        "topic_classes": 53,
+        "topic_section_assignments": 53
+      }
+    },
+    "local_identity": {
+      "authority": "ids of Physics/Biology curricula, sections, topics, questions and options",
+      "source_database_sha256": "fb7748a29e4608fb029d0c9d955ff697c9b8f2b3a1918668878825e982e40ad5",
+      "identity_export_sha256_note": "the raw export is not tracked; these canonical files are its durable form",
+      "id_ranges": {
+        "curricula": [
+          6,
+          11
+        ],
+        "curriculum_sections": [
+          48,
+          67
+        ],
+        "curriculum_topics": [
+          129,
+          181
+        ],
+        "multiple_choice_options": [
+          3288,
+          6671
+        ],
+        "question_topic_assignments": [
+          1187,
+          2032
+        ],
+        "questions": [
+          838,
+          1683
+        ],
+        "topic_section_assignments": [
+          581,
+          633
+        ]
+      },
+      "counts": {
+        "curricula": 11,
+        "curriculum_sections": 67,
+        "curriculum_topics": 180,
+        "questions": 1678,
+        "multiple_choice_options": 6275,
+        "fill_in_subquestions": 162,
+        "exams": 11,
+        "exam_tasks": 196,
+        "practical_task_resources": 77
+      }
+    },
+    "derived_ids": {
+      "tables": [
+        "question_topic_assignments",
+        "topic_section_assignments"
+      ],
+      "rule": "ids without external identity, assigned above the seed sequence in ascending (parent question/topic id, topic id, section id) order"
+    },
+    "intentional_differences_from_local_database": [
+      "created_at is NULL on rows added from tracked inputs (curriculum_topics, questions, topic_section_assignments, question_topic_assignments); the local timestamps are not tracked",
+      "topic_section_assignments and question_topic_assignments ids for those rows are derived, not copied",
+      "runtime and operational tables are excluded by classification"
+    ],
+    "excluded_seed_rows": {
+      "practical_submission_files": 0,
+      "practical_submissions": 0,
+      "quiz_answers": 19,
+      "quiz_assignments": 2,
+      "quiz_attempts": 4,
+      "quiz_text_answers": 0,
+      "generated_exams": 8,
+      "note_question_links": 0,
+      "obsidian_notes": 228,
+      "schema_migrations": 10,
+      "scrape_log": 6
+    }
+  }
+}

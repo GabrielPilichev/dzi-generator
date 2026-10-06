@@ -61,6 +61,14 @@ using `tests/schema_snapshot.py`. A difference there means 000 or a migration is
 wrong; never loosen the comparison. The same module can compare two database
 files: `python3 -m tests.schema_snapshot --left A.db --right B.db`.
 
+`tests/test_canonical_content.py` is the G1 canonical-content gate (`docs/CANONICAL_DATA.md`):
+table classification completeness, deterministic JSONL/manifest, legacy and
+Physics/Biology id preservation, the explicit-id round trip (migrations + canonical
+load, built twice), parity/hash/sequence/reference checks, update-safety and seed
+immutability. It reads the seed only through `copy_seed_database` copies and asserts the
+seed hash and sidecars are unchanged. Changing canonical content means re-exporting through
+`python3 -m src.canonical_export --replace-canonical` so the manifest hashes stay true.
+
 Pure helper tests pass explicit in-memory connections and need no application
 fixture. Migration/import tests use in-memory or temporary databases and files;
 keep that boundary when adding tests. Never call an import or migration tool with

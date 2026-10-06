@@ -1,0 +1,81 @@
+{"id":1,"asset_id":1,"owner_type":"exam","owner_id":8,"role":"source_pdf","display_order":0,"caption_bg":null,"source_page":null,"source_bbox_json":null}
+{"id":2,"asset_id":2,"owner_type":"exam","owner_id":10,"role":"source_pdf","display_order":0,"caption_bg":null,"source_page":null,"source_bbox_json":null}
+{"id":3,"asset_id":3,"owner_type":"exam","owner_id":12,"role":"source_pdf","display_order":0,"caption_bg":null,"source_page":null,"source_bbox_json":null}
+{"id":4,"asset_id":4,"owner_type":"exam","owner_id":3,"role":"source_pdf","display_order":0,"caption_bg":null,"source_page":null,"source_bbox_json":null}
+{"id":5,"asset_id":5,"owner_type":"exam","owner_id":9,"role":"source_pdf","display_order":0,"caption_bg":null,"source_page":null,"source_bbox_json":null}
+{"id":6,"asset_id":6,"owner_type":"exam","owner_id":5,"role":"source_pdf","display_order":0,"caption_bg":null,"source_page":null,"source_bbox_json":null}
+{"id":7,"asset_id":7,"owner_type":"exam","owner_id":6,"role":"source_pdf","display_order":0,"caption_bg":null,"source_page":null,"source_bbox_json":null}
+{"id":8,"asset_id":8,"owner_type":"question","owner_id":182,"role":"pdf_crop","display_order":0,"caption_bg":"DZI aug_2022_v2 Q2","source_page":null,"source_bbox_json":null}
+{"id":9,"asset_id":8,"owner_type":"exam_task","owner_id":58,"role":"pdf_crop","display_order":0,"caption_bg":"DZI aug_2022_v2 Q2","source_page":null,"source_bbox_json":null}
+{"id":10,"asset_id":9,"owner_type":"question","owner_id":836,"role":"pdf_crop","display_order":0,"caption_bg":"DZI aug_2022_v2 Q12","source_page":null,"source_bbox_json":null}
+{"id":11,"asset_id":9,"owner_type":"exam_task","owner_id":68,"role":"pdf_crop","display_order":0,"caption_bg":"DZI aug_2022_v2 Q12","source_page":null,"source_bbox_json":null}
+{"id":12,"asset_id":10,"owner_type":"question","owner_id":837,"role":"pdf_crop","display_order":0,"caption_bg":"DZI aug_2022_v2 Q13","source_page":null,"source_bbox_json":null}
+{"id":13,"asset_id":10,"owner_type":"exam_task","owner_id":69,"role":"pdf_crop","display_order":0,"caption_bg":"DZI aug_2022_v2 Q13","source_page":null,"source_bbox_json":null}
+{"id":14,"asset_id":11,"owner_type":"question","owner_id":200,"role":"pdf_crop","display_order":0,"caption_bg":"DZI aug_2022_v2 Q23","source_page":null,"source_bbox_json":null}
+{"id":15,"asset_id":11,"owner_type":"exam_task","owner_id":79,"role":"pdf_crop","display_order":0,"caption_bg":"DZI aug_2022_v2 Q23","source_page":null,"source_bbox_json":null}
+{"id":16,"asset_id":12,"owner_type":"question","owner_id":201,"role":"pdf_crop","display_order":0,"caption_bg":"DZI aug_2022_v2 Q24","source_page":null,"source_bbox_json":null}
+{"id":17,"asset_id":12,"owner_type":"exam_task","owner_id":80,"role":"pdf_crop","display_order":0,"caption_bg":"DZI aug_2022_v2 Q24","source_page":null,"source_bbox_json":null}
+{"id":18,"asset_id":13,"owner_type":"question","owner_id":240,"role":"pdf_crop","display_order":0,"caption_bg":"DZI aug_2023_v2 Q20","source_page":null,"source_bbox_json":null}
+{"id":19,"asset_id":13,"owner_type":"exam_task","owner_id":132,"role":"pdf_crop","display_order":0,"caption_bg":"DZI aug_2023_v2 Q20","source_page":null,"source_bbox_json":null}
+{"id":20,"asset_id":14,"owner_type":"question","owner_id":241,"role":"pdf_crop","display_order":0,"caption_bg":"DZI aug_2023_v2 Q21","source_page":null,"source_bbox_json":null}
+{"id":21,"asset_id":14,"owner_type":"exam_task","owner_id":133,"role":"pdf_crop","display_order":0,"caption_bg":"DZI aug_2023_v2 Q21","source_page":null,"source_bbox_json":null}
+{"id":22,"asset_id":15,"owner_type":"question","owner_id":242,"role":"pdf_crop","display_order":0,"caption_bg":"DZI aug_2023_v2 Q22","source_page":null,"source_bbox_json":null}
+{"id":23,"asset_id":15,"owner_type":"exam_task","owner_id":134,"role":"pdf_crop","display_order":0,"caption_bg":"DZI aug_2023_v2 Q22","source_page":null,"source_bbox_json":null}
+{"id":24,"asset_id":16,"owner_type":"question","owner_id":243,"role":"pdf_crop","display_order":0,"caption_bg":"DZI aug_2023_v2 Q23","source_page":null,"source_bbox_json":null}
+{"id":25,"asset_id":16,"owner_type":"exam_task","owner_id":135,"role":"pdf_crop","display_order":0,"caption_bg":"DZI aug_2023_v2 Q23","source_page":null,"source_bbox_json":null}
+{"id":26,"asset_id":17,"owner_type":"question","owner_id":244,"role":"pdf_crop","display_order":0,"caption_bg":"DZI aug_2023_v2 Q24","source_page":null,"source_bbox_json":null}
+{"id":27,"asset_id":17,"owner_type":"exam_task","owner_id":136,"role":"pdf_crop","display_order":0,"caption_bg":"DZI aug_2023_v2 Q24","source_page":null,"source_bbox_json":null}
+{"id":28,"asset_id":18,"owner_type":"question","owner_id":47,"role":"pdf_crop","display_order":0,"caption_bg":"DZI may_2022_v1 Q1","source_page":null,"source_bbox_json":null}
+{"id":29,"asset_id":18,"owner_type":"exam_task","owner_id":29,"role":"pdf_crop","display_order":0,"caption_bg":"DZI may_2022_v1 Q1","source_page":null,"source_bbox_json":null}
+{"id":30,"asset_id":19,"owner_type":"question","owner_id":832,"role":"pdf_crop","display_order":0,"caption_bg":"DZI may_2022_v1 Q11","source_page":null,"source_bbox_json":null}
+{"id":31,"asset_id":19,"owner_type":"exam_task","owner_id":39,"role":"pdf_crop","display_order":0,"caption_bg":"DZI may_2022_v1 Q11","source_page":null,"source_bbox_json":null}
+{"id":32,"asset_id":20,"owner_type":"question","owner_id":833,"role":"pdf_crop","display_order":0,"caption_bg":"DZI may_2022_v1 Q12","source_page":null,"source_bbox_json":null}
+{"id":33,"asset_id":20,"owner_type":"exam_task","owner_id":40,"role":"pdf_crop","display_order":0,"caption_bg":"DZI may_2022_v1 Q12","source_page":null,"source_bbox_json":null}
+{"id":34,"asset_id":21,"owner_type":"question","owner_id":62,"role":"pdf_crop","display_order":0,"caption_bg":"DZI may_2022_v1 Q19","source_page":null,"source_bbox_json":null}
+{"id":35,"asset_id":21,"owner_type":"exam_task","owner_id":47,"role":"pdf_crop","display_order":0,"caption_bg":"DZI may_2022_v1 Q19","source_page":null,"source_bbox_json":null}
+{"id":36,"asset_id":22,"owner_type":"question","owner_id":829,"role":"pdf_crop","display_order":0,"caption_bg":"DZI may_2023_v2 Q11","source_page":null,"source_bbox_json":null}
+{"id":37,"asset_id":22,"owner_type":"exam_task","owner_id":95,"role":"pdf_crop","display_order":0,"caption_bg":"DZI may_2023_v2 Q11","source_page":null,"source_bbox_json":null}
+{"id":38,"asset_id":23,"owner_type":"question","owner_id":830,"role":"pdf_crop","display_order":0,"caption_bg":"DZI may_2023_v2 Q12","source_page":null,"source_bbox_json":null}
+{"id":39,"asset_id":23,"owner_type":"exam_task","owner_id":96,"role":"pdf_crop","display_order":0,"caption_bg":"DZI may_2023_v2 Q12","source_page":null,"source_bbox_json":null}
+{"id":40,"asset_id":24,"owner_type":"question","owner_id":831,"role":"pdf_crop","display_order":0,"caption_bg":"DZI may_2023_v2 Q13","source_page":null,"source_bbox_json":null}
+{"id":41,"asset_id":24,"owner_type":"exam_task","owner_id":97,"role":"pdf_crop","display_order":0,"caption_bg":"DZI may_2023_v2 Q13","source_page":null,"source_bbox_json":null}
+{"id":42,"asset_id":25,"owner_type":"question","owner_id":213,"role":"pdf_crop","display_order":0,"caption_bg":"DZI may_2023_v2 Q15","source_page":null,"source_bbox_json":null}
+{"id":43,"asset_id":25,"owner_type":"exam_task","owner_id":99,"role":"pdf_crop","display_order":0,"caption_bg":"DZI may_2023_v2 Q15","source_page":null,"source_bbox_json":null}
+{"id":44,"asset_id":26,"owner_type":"question","owner_id":217,"role":"pdf_crop","display_order":0,"caption_bg":"DZI may_2023_v2 Q19","source_page":null,"source_bbox_json":null}
+{"id":45,"asset_id":26,"owner_type":"exam_task","owner_id":103,"role":"pdf_crop","display_order":0,"caption_bg":"DZI may_2023_v2 Q19","source_page":null,"source_bbox_json":null}
+{"id":46,"asset_id":27,"owner_type":"question","owner_id":218,"role":"pdf_crop","display_order":0,"caption_bg":"DZI may_2023_v2 Q20","source_page":null,"source_bbox_json":null}
+{"id":47,"asset_id":27,"owner_type":"exam_task","owner_id":104,"role":"pdf_crop","display_order":0,"caption_bg":"DZI may_2023_v2 Q20","source_page":null,"source_bbox_json":null}
+{"id":48,"asset_id":28,"owner_type":"question","owner_id":91,"role":"pdf_crop","display_order":0,"caption_bg":"DZI may_2024_v1 Q1","source_page":null,"source_bbox_json":null}
+{"id":49,"asset_id":28,"owner_type":"exam_task","owner_id":141,"role":"pdf_crop","display_order":0,"caption_bg":"DZI may_2024_v1 Q1","source_page":null,"source_bbox_json":null}
+{"id":50,"asset_id":29,"owner_type":"question","owner_id":106,"role":"pdf_crop","display_order":0,"caption_bg":"DZI may_2024_v1 Q16","source_page":null,"source_bbox_json":null}
+{"id":51,"asset_id":29,"owner_type":"exam_task","owner_id":156,"role":"pdf_crop","display_order":0,"caption_bg":"DZI may_2024_v1 Q16","source_page":null,"source_bbox_json":null}
+{"id":52,"asset_id":30,"owner_type":"question","owner_id":107,"role":"pdf_crop","display_order":0,"caption_bg":"DZI may_2024_v1 Q17","source_page":null,"source_bbox_json":null}
+{"id":53,"asset_id":30,"owner_type":"exam_task","owner_id":157,"role":"pdf_crop","display_order":0,"caption_bg":"DZI may_2024_v1 Q17","source_page":null,"source_bbox_json":null}
+{"id":54,"asset_id":31,"owner_type":"question","owner_id":108,"role":"pdf_crop","display_order":0,"caption_bg":"DZI may_2024_v1 Q18","source_page":null,"source_bbox_json":null}
+{"id":55,"asset_id":31,"owner_type":"exam_task","owner_id":158,"role":"pdf_crop","display_order":0,"caption_bg":"DZI may_2024_v1 Q18","source_page":null,"source_bbox_json":null}
+{"id":56,"asset_id":32,"owner_type":"question","owner_id":110,"role":"pdf_crop","display_order":0,"caption_bg":"DZI may_2024_v1 Q20","source_page":null,"source_bbox_json":null}
+{"id":57,"asset_id":32,"owner_type":"exam_task","owner_id":160,"role":"pdf_crop","display_order":0,"caption_bg":"DZI may_2024_v1 Q20","source_page":null,"source_bbox_json":null}
+{"id":58,"asset_id":33,"owner_type":"question","owner_id":111,"role":"pdf_crop","display_order":0,"caption_bg":"DZI may_2024_v1 Q21","source_page":null,"source_bbox_json":null}
+{"id":59,"asset_id":33,"owner_type":"exam_task","owner_id":161,"role":"pdf_crop","display_order":0,"caption_bg":"DZI may_2024_v1 Q21","source_page":null,"source_bbox_json":null}
+{"id":60,"asset_id":34,"owner_type":"question","owner_id":118,"role":"pdf_crop","display_order":0,"caption_bg":"DZI aug_2024_v2 Q3","source_page":null,"source_bbox_json":null}
+{"id":61,"asset_id":34,"owner_type":"exam_task","owner_id":171,"role":"pdf_crop","display_order":0,"caption_bg":"DZI aug_2024_v2 Q3","source_page":null,"source_bbox_json":null}
+{"id":62,"asset_id":35,"owner_type":"question","owner_id":124,"role":"pdf_crop","display_order":0,"caption_bg":"DZI aug_2024_v2 Q9","source_page":null,"source_bbox_json":null}
+{"id":63,"asset_id":35,"owner_type":"exam_task","owner_id":177,"role":"pdf_crop","display_order":0,"caption_bg":"DZI aug_2024_v2 Q9","source_page":null,"source_bbox_json":null}
+{"id":64,"asset_id":36,"owner_type":"question","owner_id":132,"role":"pdf_crop","display_order":0,"caption_bg":"DZI aug_2024_v2 Q17","source_page":null,"source_bbox_json":null}
+{"id":65,"asset_id":36,"owner_type":"exam_task","owner_id":185,"role":"pdf_crop","display_order":0,"caption_bg":"DZI aug_2024_v2 Q17","source_page":null,"source_bbox_json":null}
+{"id":66,"asset_id":37,"owner_type":"question","owner_id":133,"role":"pdf_crop","display_order":0,"caption_bg":"DZI aug_2024_v2 Q18","source_page":null,"source_bbox_json":null}
+{"id":67,"asset_id":37,"owner_type":"exam_task","owner_id":186,"role":"pdf_crop","display_order":0,"caption_bg":"DZI aug_2024_v2 Q18","source_page":null,"source_bbox_json":null}
+{"id":68,"asset_id":38,"owner_type":"question","owner_id":134,"role":"pdf_crop","display_order":0,"caption_bg":"DZI aug_2024_v2 Q19","source_page":null,"source_bbox_json":null}
+{"id":69,"asset_id":38,"owner_type":"exam_task","owner_id":187,"role":"pdf_crop","display_order":0,"caption_bg":"DZI aug_2024_v2 Q19","source_page":null,"source_bbox_json":null}
+{"id":70,"asset_id":39,"owner_type":"question","owner_id":136,"role":"pdf_crop","display_order":0,"caption_bg":"DZI aug_2024_v2 Q21","source_page":null,"source_bbox_json":null}
+{"id":71,"asset_id":39,"owner_type":"exam_task","owner_id":189,"role":"pdf_crop","display_order":0,"caption_bg":"DZI aug_2024_v2 Q21","source_page":null,"source_bbox_json":null}
+{"id":72,"asset_id":40,"owner_type":"question","owner_id":1,"role":"pdf_crop","display_order":0,"caption_bg":"DZI may_2025_v2 Q1","source_page":null,"source_bbox_json":null}
+{"id":73,"asset_id":40,"owner_type":"exam_task","owner_id":1,"role":"pdf_crop","display_order":0,"caption_bg":"DZI may_2025_v2 Q1","source_page":null,"source_bbox_json":null}
+{"id":74,"asset_id":41,"owner_type":"question","owner_id":16,"role":"pdf_crop","display_order":0,"caption_bg":"DZI may_2025_v2 Q16","source_page":null,"source_bbox_json":null}
+{"id":75,"asset_id":41,"owner_type":"exam_task","owner_id":16,"role":"pdf_crop","display_order":0,"caption_bg":"DZI may_2025_v2 Q16","source_page":null,"source_bbox_json":null}
+{"id":76,"asset_id":42,"owner_type":"question","owner_id":18,"role":"pdf_crop","display_order":0,"caption_bg":"DZI may_2025_v2 Q18","source_page":null,"source_bbox_json":null}
+{"id":77,"asset_id":42,"owner_type":"exam_task","owner_id":18,"role":"pdf_crop","display_order":0,"caption_bg":"DZI may_2025_v2 Q18","source_page":null,"source_bbox_json":null}
+{"id":78,"asset_id":43,"owner_type":"question","owner_id":21,"role":"pdf_crop","display_order":0,"caption_bg":"DZI may_2025_v2 Q21","source_page":null,"source_bbox_json":null}
+{"id":79,"asset_id":43,"owner_type":"exam_task","owner_id":21,"role":"pdf_crop","display_order":0,"caption_bg":"DZI may_2025_v2 Q21","source_page":null,"source_bbox_json":null}
+{"id":80,"asset_id":44,"owner_type":"question","owner_id":22,"role":"pdf_crop","display_order":0,"caption_bg":"DZI may_2025_v2 Q22","source_page":null,"source_bbox_json":null}
+{"id":81,"asset_id":44,"owner_type":"exam_task","owner_id":22,"role":"pdf_crop","display_order":0,"caption_bg":"DZI may_2025_v2 Q22","source_page":null,"source_bbox_json":null}
