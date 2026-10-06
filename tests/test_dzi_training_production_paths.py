@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from tests.support import ROOT, IsolatedAppTestCase, copy_seed_database, web_app
+from tests.support import ROOT, IsolatedAppTestCase, build_test_database, web_app
 
 
 class TrainingGeneratorPathTest(unittest.TestCase):
@@ -15,7 +15,7 @@ class TrainingGeneratorPathTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             db = root / "questions.db"
-            copy_seed_database(ROOT / "data/questions.db", db)
+            build_test_database(db)
             vault = root / "vault"
             vault.mkdir()
             output = vault / "Generated/DZI-Training/sets"

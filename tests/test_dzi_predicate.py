@@ -57,7 +57,10 @@ class SeedPinTest(IsolatedAppTestCase):
 
     def test_everything_else_in_the_seed_is_outside_the_predicate(self):
         denied = source_counts(self.conn, f"NOT {dzi.dzi_question_sql('q')}")
-        self.assertEqual(set(denied), SEED_NON_DZI_SOURCES)
+        # The canonical data also holds the reviewed Physics/Biology batches; they are never DZI.
+        reviewed = {source for source in denied if source.startswith(("reviewed:physics:", "reviewed:biology:"))}
+        self.assertGreater(len(reviewed), 0)
+        self.assertEqual(set(denied) - reviewed, SEED_NON_DZI_SOURCES)
         total = self.conn.execute("SELECT COUNT(*) FROM questions").fetchone()[0]
         self.assertEqual(sum(denied.values()) + 240, total)
 

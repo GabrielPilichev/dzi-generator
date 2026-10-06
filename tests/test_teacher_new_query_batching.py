@@ -25,7 +25,7 @@ from src.subject_content import (
 from tests.subject_fixtures import (
     add_curriculum, add_membership, add_question, add_section, add_topic, four_options,
 )
-from tests.support import IsolatedAppTestCase, web_app, web_db
+from tests.support import IsolatedAppTestCase, web_app, web_db, IT_ONLY
 from web.services import practical as practical_service
 from web.services import quiz as quiz_service
 
@@ -369,6 +369,7 @@ class TeacherNewCardinalityAndOrderTest(SyntheticPhysicsContent):
 
 class TeacherNewQueryCeilingTest(SyntheticPhysicsContent):
     """Own database so accumulated fixtures never reach the 900-id chunk size."""
+    content_profile = IT_ONLY  # these tests pin Physics/Biology as subjects without content
 
     def test_page_statement_count_does_not_grow_with_content(self):
         small = self.build_content(3, 5, "small")
@@ -426,6 +427,7 @@ class TeacherNewCreateAssignmentTest(SyntheticPhysicsContent):
 
 class TeacherNewSparseSubjectTest(IsolatedAppTestCase, TeacherNewPageMixin):
     """A subject with no sections or questions keeps its empty state."""
+    content_profile = IT_ONLY  # these tests pin Physics/Biology as subjects without content
 
     def test_subject_without_content_and_unknown_subject(self):
         response, context, statements = self.get_page("/teacher/new?subject=physics")

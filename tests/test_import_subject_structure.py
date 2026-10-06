@@ -7,6 +7,7 @@ import copy
 import hashlib
 import io
 import json
+import shutil
 import sqlite3
 import tempfile
 from contextlib import redirect_stderr, redirect_stdout
@@ -23,7 +24,7 @@ from src.subject_content import section_ownership, topic_ownership
 from tests.subject_fixtures import (
     add_curriculum, add_membership, add_section, add_topic, apply_pending_migrations,
 )
-from tests.support import ROOT, IsolatedAppTestCase, copy_seed_database, web_app
+from tests.support import ROOT, IsolatedAppTestCase, build_test_database, web_app
 from tests.test_homepage_search import _HTMLProbe
 
 EDUCATION_TYPE = "synthetic-structure-test"
@@ -62,7 +63,7 @@ class _StructureImportTestCase(IsolatedAppTestCase):
         template_dir = tempfile.TemporaryDirectory(prefix="learnpilot-structure-template-")
         cls.addClassCleanup(template_dir.cleanup)
         cls.template = Path(template_dir.name) / "questions.db"
-        copy_seed_database(ROOT / "data/questions.db", cls.template)
+        build_test_database(cls.template)
         apply_pending_migrations(cls.template)
 
     def setUp(self):
@@ -70,7 +71,7 @@ class _StructureImportTestCase(IsolatedAppTestCase):
         self.addCleanup(tmp.cleanup)
         self.root = Path(tmp.name)
         self.db_path = self.root / "questions.db"
-        copy_seed_database(self.template, self.db_path)
+        shutil.copyfile(self.template, self.db_path)
         web_app.DB_PATH = self.db_path
         web_app.QUIZ_DB_PATH = self.db_path
         web_app.app.config["DB_PATH"] = str(self.db_path)
@@ -209,14 +210,14 @@ class StructureDryRunAndApplyTest(_StructureImportTestCase):
             self.assertTrue(set(before[table]) <= set(after[table]), table)
 
     def test_browsing_follows_the_file_order(self):
-        import_structure(self.db_path, synthetic_structure(), apply=True)
+        import_structure(self.db_path, synthetic_structure("chemistry"), apply=True)
         conn = self.connect()
-        browser = SubjectContentBrowser(conn, "physics")
+        browser = SubjectContentBrowser(conn, "chemistry")
         sections = browser.sections_for_grade(8)
         self.assertEqual([s["section_slug"] for s in sections],
-                         ["physics-g8-zulu", "physics-g8-alpha", "physics-g8-empty"])
+                         ["chemistry-g8-zulu", "chemistry-g8-alpha", "chemistry-g8-empty"])
         self.assertEqual([t["topic_slug"] for t in browser.topics_in_section(sections[0]["section_id"])],
-                         ["physics-g8-topic-c", "physics-g8-topic-a", "physics-g8-topic-b"])
+                         ["chemistry-g8-topic-c", "chemistry-g8-topic-a", "chemistry-g8-topic-b"])
 
     def test_optional_source_url_is_stored_and_later_filled_but_never_overwritten(self):
         structure = synthetic_structure()
@@ -665,27 +666,26 @@ class StructureApplicationFlowTest(_StructureImportTestCase):
         }
 
     def test_structure_only_subject_is_browsable_in_file_order(self):
-        import_structure(self.db_path, synthetic_structure(), apply=True)
+        import_structure(self.db_path, synthetic_structure("chemistry"), apply=True)
         html, home = self.page("/")
         self.assertIn("home-subject-card--structure", html)
-        self.assertIn("/subjects/physics/8", home.hrefs())
+        self.assertIn("/subjects/chemistry/8", home.hrefs())
 
-        html, grade = self.page("/subjects/physics/8")
-        links = [href for href in grade.hrefs() if href.startswith("/subjects/physics/8/")]
-        self.assertEqual(links, ["/subjects/physics/8/zulu", "/subjects/physics/8/alpha",
-                                 "/subjects/physics/8/empty"])
+        html, grade = self.page("/subjects/chemistry/8")
+        links = [href for href in grade.hrefs() if href.startswith("/subjects/chemistry/8/")]
+        self.assertEqual(links, ["/subjects/chemistry/8/zulu", "/subjects/chemistry/8/alpha",
+                                 "/subjects/chemistry/8/empty"])
         self.assertIn("Въпросите са в подготовка", grade.text)
 
-        html, section = self.page("/subjects/physics/8/zulu")
+        html, section = self.page("/subjects/chemistry/8/zulu")
         topic_links = [attrs["href"] for _, attrs in section.elements("a")
                        if "stretched-link" in (attrs.get("class") or "")]
-        self.assertEqual(topic_links, [f"/subjects/physics/8/zulu/topic-{letter}" for letter in "cab"])
+        self.assertEqual(topic_links, [f"/subjects/chemistry/8/zulu/topic-{letter}" for letter in "cab"])
         self.assertIn("В този раздел още няма публикувани въпроси.", section.text)
-        _, topic = self.page("/subjects/physics/8/zulu/topic-a")
+        _, topic = self.page("/subjects/chemistry/8/zulu/topic-a")
         self.assertIn("Synthetic topic description.", topic.text)
-        # The Physics placeholder groups of that grade are retired by the stored sections.
-        self.page("/subjects/physics/8/mechanics", 404)
-        self.page("/subjects/physics/9/mechanics")
+        # Chemistry has no navigation placeholders, so an unknown section stays a 404.
+        self.page("/subjects/chemistry/8/mechanics", 404)
 
     def test_questions_are_imported_afterwards_into_the_same_structure(self):
         structure = synthetic_structure()
@@ -704,7 +704,7 @@ class StructureApplicationFlowTest(_StructureImportTestCase):
         self.assertFalse(import_structure(self.db_path, structure)["has_changes"])
 
     def test_structure_adopts_rows_the_question_importer_created_first(self):
-        structure = synthetic_structure()
+        structure = synthetic_structure("chemistry")
         structure["sections"] = structure["sections"][1:2]         # alpha with topic d
         import_batch(self.db_path, self.question_batch(structure, 0, 0), apply=True)
         report = import_structure(self.db_path, structure, apply=True)
@@ -713,9 +713,9 @@ class StructureApplicationFlowTest(_StructureImportTestCase):
                          ("update", ["order None -> 1"]))
         self.assertEqual(report["sections"][0]["topics"][0]["changes"], ["order None -> 1"])
         self.assertEqual(self.stored_order(structure),
-                         [("physics-g8-alpha", 1, [("physics-g8-topic-d", 1)])])
+                         [("chemistry-g8-alpha", 1, [("chemistry-g8-topic-d", 1)])])
         self.assertEqual(self.connect().execute(
-            "SELECT COUNT(*) FROM questions WHERE source_exam LIKE 'reviewed:physics:%'"
+            "SELECT COUNT(*) FROM questions WHERE source_exam LIKE 'reviewed:chemistry:%'"
         ).fetchone()[0], 1)
 
 

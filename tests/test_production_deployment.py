@@ -22,7 +22,7 @@ from unittest.mock import patch
 from werkzeug.test import create_environ
 
 from src.practical_uploads import MAX_REQUEST_BYTES, MAX_UPLOAD_BYTES
-from tests.support import ROOT, IsolatedAppTestCase, adopt_baseline, copy_seed_database, web_app
+from tests.support import ROOT, IsolatedAppTestCase, build_test_database, copy_seed_database, web_app
 from web import production
 
 
@@ -41,10 +41,12 @@ def _state_dir(test: unittest.TestCase, *, seed: bool, baseline: bool = True) ->
     test.addCleanup(tmp.cleanup)
     root = Path(tmp.name).resolve()
     db = root / "questions.db"
-    if seed:
+    if seed and baseline:
+        build_test_database(db)  # migrations + canonical content, 000 recorded
+    elif seed:
+        # TRANSITIONAL (until H): only the baseline-adoption test needs a database that
+        # predates 000, which only the legacy seed copy is.
         copy_seed_database(ROOT / "data/questions.db", db)
-        if baseline:
-            adopt_baseline(db)  # an existing database records 000; the seed copy predates it
     else:
         db.write_bytes(b"")
     (root / "uploads").mkdir()

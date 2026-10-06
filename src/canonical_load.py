@@ -1,7 +1,7 @@
-"""Minimal explicit-ID canonical loader (G1), enough to prove the round trip.
+"""Explicit-ID canonical loader (G1); ``src/build_database.py`` (G2) is built on it.
 
-This is not the developer database builder (that is G2). It loads the rows of
-``data/canonical`` into a database that already has the migrated schema:
+It loads the rows of ``data/canonical`` into a database that already has the migrated
+schema (the builder adds the temporary-path/validation/atomic-move provisioning around it):
 
 - explicit ids are inserted as given and never remapped;
 - foreign keys are ON and tables load in FK-topological order;
@@ -116,7 +116,7 @@ def migrated_empty_database(db_path: Path) -> None:
 
 
 def rebuild_for_parity(db_path: Path, canonical_dir: Path = ct.CANONICAL_DIR) -> dict[str, int]:
-    """Empty database -> migrations 000-010 -> canonical load. Used to prove the G1 round trip."""
+    """Empty database -> migrations -> canonical load, without the builder's validation or atomic move."""
     migrated_empty_database(db_path)
     return load_canonical(db_path, canonical_dir)
 

@@ -13,7 +13,7 @@ import subprocess
 import sys
 import unittest
 
-from tests.support import ROOT, IsolatedAppTestCase, web_app
+from tests.support import ROOT, IsolatedAppTestCase, web_app, IT_ONLY
 from web import access, request_integrity
 
 E4_ROUTES = {
@@ -139,6 +139,8 @@ class BrowsingDependencyDirectionTest(unittest.TestCase):
 
 
 class BrowsingRoutesBehaviorTest(IsolatedAppTestCase):
+    content_profile = IT_ONLY  # these tests pin Physics/Biology as subjects without content
+
     IT = "/subjects/information-technologies"
 
     def setUp(self):

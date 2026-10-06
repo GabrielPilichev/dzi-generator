@@ -5,11 +5,15 @@ DB, then configure its two independent DB paths before class fixtures or request
 environment variables alone cannot reconfigure an already imported application.
 """
 
+import atexit
+import hashlib
 import io
 import os
 import shutil
 import sqlite3
+import stat
 import tempfile
+import threading
 import unittest
 from contextlib import ExitStack, closing, contextmanager
 from pathlib import Path
@@ -25,9 +29,99 @@ with patch.dict(os.environ, {"DZI_DB": ":memory:"}):
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def copy_seed_database(source: Path, destination: Path):
-    """Copy a quiescent seed plus committed WAL data into a standalone database.
+# --------------------------------------------------------------------------- canonical template
+#
+# Normal test databases are NOT copies of the tracked seed. They are clones of one
+# template per test process that ``src.build_database`` builds from migrations +
+# data/canonical (about 1.5 s, once). The template is read-only, hash-checked on every
+# clone and never handed to a test; each test class/test gets its own writable copy.
+# Runtime rows (assignments, attempts, answers, submissions) start empty: tests create
+# what they need with ``tests.runtime_fixtures``.
 
+_template_lock = threading.Lock()
+_template: dict = {}
+
+
+def _template_inputs_digest() -> str:
+    """Digest of the tracked inputs the template is built from (manifest + migrations)."""
+    digest = hashlib.sha256()
+    for path in sorted((ROOT / "data" / "canonical").glob("manifest.json")) + \
+            sorted((ROOT / "web" / "migrations").glob("*.sql")):
+        digest.update(path.name.encode() + b"\0" + path.read_bytes() + b"\0")
+    return digest.hexdigest()
+
+
+def _file_sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+CANONICAL = "canonical"   # every canonical table, as data/canonical holds it
+IT_ONLY = "it_only"       # canonical minus Physics/Biology: IT/DZI content only (see below)
+PROFILES = (CANONICAL, IT_ONLY)
+
+
+def _lock_template(path: Path) -> dict:
+    path.chmod(stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH)
+    return {"path": path, "sha256": _file_sha256(path)}
+
+
+def canonical_template(profile: str = CANONICAL) -> Path:
+    """The per-process, read-only template database of ``profile`` (built on first use).
+
+    ``canonical`` is built by ``src.build_database`` from migrations + data/canonical.
+    ``it_only`` is that same template with the Physics and Biology content removed by the
+    explicit fixture ``tests.subject_fixtures.remove_subject_content``: the content state
+    the subject-preparation tests pin (a subject without content renders as "in
+    preparation"), which the canonical data no longer has for those two subjects.
+
+    Never open a template for writing and never return it to a test: use
+    ``build_test_database`` for a writable copy. Raises if its bytes ever change.
+    """
+    from src import build_database
+
+    if profile not in PROFILES:
+        raise ValueError(f"unknown test database profile {profile!r}")
+    with _template_lock:
+        if "directory" not in _template:
+            directory = Path(tempfile.mkdtemp(prefix="learnpilot-template-"))
+            atexit.register(shutil.rmtree, directory, ignore_errors=True)
+            _template["directory"] = directory
+            _template["inputs"] = _template_inputs_digest()
+        if CANONICAL not in _template:
+            path = _template["directory"] / "canonical.db"
+            build_database.build_database(path)
+            _template[CANONICAL] = _lock_template(path)
+        if profile == IT_ONLY and IT_ONLY not in _template:
+            from tests.subject_fixtures import remove_subject_content
+
+            path = _template["directory"] / "it_only.db"
+            shutil.copyfile(_template[CANONICAL]["path"], path)
+            remove_subject_content(path)
+            _template[IT_ONLY] = _lock_template(path)
+        entry = _template[profile]
+        if _file_sha256(entry["path"]) != entry["sha256"]:
+            raise RuntimeError(f"the {profile} test template database was modified")
+        return entry["path"]
+
+
+def build_test_database(destination: Path, profile: str = CANONICAL) -> Path:
+    """An isolated, writable database built from migrations + canonical content.
+
+    A byte clone of the read-only template: no seed, no runtime rows, no sidecars,
+    rollback-journal mode. Mutating it never affects the template or another test.
+    """
+    destination = Path(destination)
+    if destination.exists():
+        raise FileExistsError(destination)
+    shutil.copyfile(canonical_template(profile), destination)  # copyfile keeps default (writable) mode
+    return destination
+
+
+def copy_seed_database(source: Path, destination: Path):
+    """TRANSITIONAL (until H): copy the legacy tracked seed plus committed WAL data.
+
+    Only seed-transition tests (parity with the seed, baseline adoption, seed safety)
+    may use this. Normal tests build their database with ``build_test_database``.
     The source is never opened through SQLite: even mode=ro connections can
     update the source -shm file. Fail if the source changes during copying
     rather than running tests against an inconsistent snapshot.
@@ -92,12 +186,12 @@ def preserved_app_state():
 
 
 @contextmanager
-def isolated_app():
-    """A seeded DB and writable artifact directories owned by one test class."""
+def isolated_app(profile: str = CANONICAL):
+    """A canonical-built DB and writable artifact directories owned by one test class."""
     with tempfile.TemporaryDirectory(prefix="learnpilot-tests-") as directory:
         root = Path(directory).resolve()
         db_path = root / "questions.db"
-        copy_seed_database(ROOT / "data/questions.db", db_path)
+        build_test_database(db_path, profile)
         vault_path = root / "vault"
         vault_path.mkdir()
         upload_root = root / "uploads" / "practical"
@@ -129,7 +223,7 @@ class IsolatedAppTestCase(unittest.TestCase):
     """Call super().setUpClass() before a subclass's DB-backed class fixtures.
 
     DB data is shared within a class for existing class-level question fixtures,
-    but each class starts from the seed. Tests using custom temporary schemas may
+    but each class starts from a fresh canonical-built database. Tests using custom temporary schemas may
     override paths in setUp; all globals/configuration are restored afterwards.
     """
 
@@ -138,12 +232,15 @@ class IsolatedAppTestCase(unittest.TestCase):
         # Python 3.9 otherwise inherits one cleanup list across subclasses.
         cls._class_cleanups = []
 
+    # Which content the class's database holds: CANONICAL (default) or IT_ONLY.
+    content_profile = CANONICAL
+
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
         stack = ExitStack()
         cls.addClassCleanup(stack.close)
-        cls.isolation_root = stack.enter_context(isolated_app())
+        cls.isolation_root = stack.enter_context(isolated_app(cls.content_profile))
 
     def run(self, result=None):
         with preserved_app_state():

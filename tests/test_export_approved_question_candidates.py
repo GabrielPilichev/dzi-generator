@@ -16,7 +16,7 @@ from src.question_candidates import CandidateDatasetError, validate_dataset
 from tests.question_candidate_fixtures import (
     OTHER_TOPIC, RUN_ID, TOPIC, candidate, dataset, directory_state, review,
 )
-from tests.support import ROOT, copy_seed_database
+from tests.support import ROOT, build_test_database
 
 BATCH_FILE = f"{RUN_ID}.synthetic-topic.json"
 PROVENANCE_FILE = f"{RUN_ID}.provenance.json"
@@ -40,7 +40,7 @@ class ExportTests(unittest.TestCase):
         self.db_dir = self.root / "db"
         self.db_dir.mkdir()
         self.db_path = self.db_dir / "questions.db"
-        copy_seed_database(ROOT / "data/questions.db", self.db_path)
+        build_test_database(self.db_path)
 
     def test_only_approved_candidates_are_exported(self):
         export = build_export(mixed_dataset())

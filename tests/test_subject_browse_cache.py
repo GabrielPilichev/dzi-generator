@@ -12,7 +12,7 @@ from unittest.mock import patch
 from src.subject_browse_cache import BrowseResultCache, database_identity
 import src.subject_browse_cache as cache_module
 from web.services import browsing as browsing_service
-from tests.support import isolated_app, web_app
+from tests.support import isolated_app, web_app, IT_ONLY
 
 
 def traced_get(path):
@@ -174,7 +174,8 @@ class PublicBrowseCacheTest(unittest.TestCase):
     def setUp(self):
         stack = ExitStack()
         self.addCleanup(stack.close)
-        stack.enter_context(isolated_app())
+        # The statement ceilings below are IT-size regression ceilings (the original seed's size).
+        stack.enter_context(isolated_app(IT_ONLY))
         stack.enter_context(patch.object(cache_module, "browse_cache", BrowseResultCache()))
 
     GENERIC_SECTION = "/subjects/information-technologies/8/grade8-computer-systems"

@@ -19,7 +19,7 @@ from src.subject_registry import (
     get_subject, resolve_subject_identifier, subject_for_route_slug,
     grade_paths, subject_supports_grade, validate_registry,
 )
-from tests.support import ROOT, copy_seed_database
+from tests.support import ROOT, build_test_database
 
 EXPECTED_ORDER = [
     ("it", "information-technologies", "Информационни технологии"),
@@ -313,13 +313,13 @@ class RegistryImporterValidationTests(unittest.TestCase):
 
 
 class RegistryDatabaseTests(unittest.TestCase):
-    """Uses a temporary copy of the seed database only."""
+    """Uses a temporary canonical-built database only (migrations + data/canonical)."""
 
     def setUp(self):
         tmp = tempfile.TemporaryDirectory(prefix="learnpilot-registry-")
         self.addCleanup(tmp.cleanup)
         self.db_path = Path(tmp.name) / "questions.db"
-        copy_seed_database(ROOT / "data/questions.db", self.db_path)
+        build_test_database(self.db_path)
 
     def connect(self):
         conn = sqlite3.connect(self.db_path)
@@ -327,11 +327,13 @@ class RegistryDatabaseTests(unittest.TestCase):
         self.addCleanup(conn.close)
         return conn
 
-    def test_seed_database_has_content_for_it_only(self):
+    def test_canonical_database_has_content_for_it_physics_and_biology_only(self):
         result = subject_content_grades(self.connect())
         self.assertEqual(result["it"], frozenset({8, 9, 10, 11, 12}))
+        self.assertEqual(result["physics"], frozenset({8, 9, 10}))
+        self.assertEqual(result["biology"], frozenset({8, 9, 10}))
         for subject in SUBJECTS:
-            if subject.id != IT:
+            if subject.id not in (IT, "physics", "biology"):
                 self.assertEqual(result[subject.id], frozenset(), subject.id)
 
     def test_browser_grade_counts_follow_the_declared_grades(self):
@@ -352,7 +354,8 @@ class RegistryDatabaseTests(unittest.TestCase):
         applied = import_batch(self.db_path, _batch(), apply=True)
         self.assertEqual(applied, dry)
         conn = self.connect()
-        self.assertEqual(subject_content_grades(conn)["biology"], frozenset({8}))
+        # Grade 8 Biology content is already canonical; the import adds to it.
+        self.assertEqual(subject_content_grades(conn)["biology"], frozenset({8, 9, 10}))
         self.assertEqual(subject_content_grades(conn)["chemistry"], frozenset())
         repeated = import_batch(self.db_path, _batch(), apply=True)
         self.assertEqual(repeated["questions"], {"inserted": 0, "reused": 1})

@@ -8,6 +8,7 @@ from contextlib import closing
 from pathlib import Path
 from unittest.mock import patch
 
+from tests.runtime_fixtures import add_submitted_attempt
 from tests.support import ROOT, IsolatedAppTestCase, copy_seed_database, isolated_app, web_app
 from web.services import quiz as quiz_service
 
@@ -95,12 +96,15 @@ with patch("sqlite3.connect", guarded):
     def test_real_note_writers_use_temporary_vault(self):
         conn = web_app.quiz_db()
         try:
+            # A canonical-built database has no runtime rows: create the attempt explicitly.
+            with conn:
+                add_submitted_attempt(conn)
             attempt = conn.execute(
                 "SELECT id, assignment_id FROM quiz_attempts WHERE submitted_at IS NOT NULL LIMIT 1"
             ).fetchone()
         finally:
             conn.close()
-        self.assertIsNotNone(attempt, "seed should contain a submitted attempt")
+        self.assertIsNotNone(attempt, "the explicit fixture should have created a submitted attempt")
         with web_app.app.test_request_context("/"):
             web_app.quiz_write_assignment_note(attempt["assignment_id"], "http://localhost/")
             quiz_service.quiz_write_attempt_note(attempt["id"])
