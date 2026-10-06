@@ -27,11 +27,14 @@ python3 -B -m src.start_question_collection \
   --topics physics-g8-first-topic,physics-g8-second-topic \
   --structure path/to/physics-g8-structure.json \
   --max-pages 40 --max-candidates 100 --max-per-source 20 \
+  --skills "D1 recall,D1 compare,D1 explain,D1 apply,D1 interpret" \
   --output data/question_candidates/physics/grade-8/physics-g8-20260110.json
 
 # 2. Validate (read-only). Exit status 1 if there is any error.
 python3 -B -m src.validate_question_candidates --input RUN.json
 python3 -B -m src.validate_question_candidates --input RUN.json --db path/to/database.db
+# earlier runs of the topic and sibling topics, compared read-only (repeatable):
+python3 -B -m src.validate_question_candidates --input RUN.json --compare EARLIER_RUN.json
 python3 -B -m src.validate_question_candidates --input RUN.json --annotate RUN.review.json
 
 # 3. After human review: export the approved candidates as reviewed import batches.
@@ -44,7 +47,7 @@ python3 -B -m src.import_reviewed_subject_questions --input BATCH.json --db path
 
 `--subject`, `--grade`, `--topics`, `--max-pages`, `--max-candidates` and
 `--max-per-source` are required by the start command; there are no defaults for
-them on the command line. `--structure` is the reviewed structure file of
+them on the command line. `--skills` is optional (see "Skill vocabulary"). `--structure` is the reviewed structure file of
 `docs/SUBJECT_STRUCTURE_IMPORT.md`: the run copies the exact section and topic
 titles from it, because the reviewed importer later requires them to match.
 
@@ -114,6 +117,7 @@ are rejected everywhere. A complete synthetic example is tracked at
 | `pages_inspected` | Pages fetched so far. |
 | `stop_reason` | `null` while open, else one of `candidate_limit`, `page_limit`, `topic_complete`, `runtime_limit`, `manual_stop`, `no_more_sources`. Set together with `finished_at`. |
 | `notes` | Optional text. |
+| `skill_vocabulary` | Optional: 1 to 12 distinct, trimmed tags the run may use in `research.skill`. See "Skill vocabulary". |
 
 The sources used and the candidate count are the `sources` and `candidates`
 arrays themselves; they are not repeated in the manifest.
@@ -199,7 +203,7 @@ validator. There is no automatic approval anywhere.
 
 `src.validate_question_candidates` prints a JSON report with `errors` (the
 dataset is not usable) and `flags` (a reviewer must look). It never changes its
-input. Errors cover: format version and kind; unknown subject; unsupported
+input. Errors cover (in addition to the quality rules in "Collection quality policy"): format version and kind; unknown subject; unsupported
 grade; slug shape and topic membership; missing or malformed provenance; unknown
 source type or transformation; the source policy; malformed questions
 (unsupported type, missing or invalid correct answer, bad or duplicate answer
@@ -234,6 +238,9 @@ on each candidate, as the file to review. It refuses to replace an existing file
 | `answer_leak` | The correct choice, and no other choice, appears in the prompt; or an accepted short answer does. |
 | `mc_option_count` | Not exactly four choices (the reviewed importer accepts only four). |
 | `extract_without_locator`, `third_party_adapted`, `third_party_reuse_exception`, `research_notes_long` | See "Source policy". |
+| `skill_missing` | The run declares a `skill_vocabulary` and the candidate has no `research.skill`. |
+| `duplicate_sibling_exact`, `duplicate_sibling_near` | Same comparison as below, against a dataset given with `--compare`. |
+| `compare_skipped_subject` | A `--compare` dataset is of another subject and did not participate. |
 | `runtime_limit_exceeded`, `target_not_in_db`, `db_wal_pending` | Dataset-level notes described above. |
 
 These are deterministic text rules. They do not show that a question is
@@ -256,12 +263,165 @@ signs (`+ - * / = < >`) are kept, so `5 + 3` and `5 - 3` stay different.
   `duplicate_existing_exact`, `duplicate_existing_near`. Questions already
   imported from this same run are not counted.
 
+With `--compare DATASET` (repeatable), the same comparison runs against the
+non-rejected candidates of other datasets of the same subject (an earlier run of
+the topic, sibling topics of the grade): `duplicate_sibling_exact`,
+`duplicate_sibling_near`, flagged on the candidate being validated only. The
+other files are read, never changed. A run is compared once: the dataset's own
+run id and repeated runs are skipped silently. A run of another subject is not
+compared and is reported by the non-failing flag `compare_skipped_subject` (no
+candidate id). A file that is not a candidate dataset is the error
+`compare_dataset`.
+
 Duplicates are flagged on both candidates and never removed. Rejected candidates
 are left out of the comparison, so rejecting one of a pair clears the flag on
 the other. Limitations: questions that differ only in numbers are reported as
 near duplicates; reworded questions about the same fact are not detected; images
 and formulas written differently are not understood; the comparison is quadratic,
 which is fine at the 250-candidate ceiling.
+
+## Collection quality policy
+
+A dataset can be structurally valid and still be a poor question bank. The
+Biology Wave 1 pilot (`docs/reviews/biology_wave1_pilot_independent_review.md`)
+found recall-heavy banks, inflated difficulty, one fact asked several ways,
+padding to the cap, fragile numbers, unverified health claims and cues in the
+options. The validator catches only what is reliably decidable from structure
+(below). Everything else is policy a collector follows and a reviewer checks.
+The rules are subject-neutral.
+
+Labels: **MUST** = objective or critical requirement. **SHOULD** = strong default
+with a legitimate, stated exception. **AUDIT** = semantic check that needs a
+reader (model or human); the validator does not and cannot decide it.
+
+### Targets are ceilings; stop early (MUST)
+
+`max_candidates` and every per-run or per-topic target in a collection plan are
+**maximums, not quotas**. A collector stops, with `stop_reason: topic_complete`,
+when the planned dimensions are covered, or the next candidate would repeat a
+named fact, need an artificial scenario, leave the curriculum scope, add trivia,
+or lower quality just to reach a number. A run below its ceiling is not a
+failure. The report states the requested ceiling, the number collected and the
+early-stop reason. The hard limits above stay as they are. The validator accepts
+any count up to the ceiling; it does not treat a target as a required count.
+
+### Difficulty is cognitive demand (MUST define; AUDIT check)
+
+Difficulty is set by demand within curriculum scope, never by how unfamiliar a
+fact feels.
+
+- `easy`: direct curriculum knowledge or simple recognition.
+- `medium`: needs a connection, comparison, interpretation, process
+  understanding or application.
+- `hard`: needs multi-step reasoning or careful discrimination, entirely inside
+  curriculum scope.
+
+Hard must not mean an obscure fact, out-of-grade content, long wording, numerical
+trivia, unfamiliar terminology alone, or confusing phrasing. A collector reports
+how many `hard` candidates meet this. Difficulty is not inferred from text.
+
+### Reasoning floor (SHOULD)
+
+For normal and broad topics aim for at least one third of the candidates to need
+more than one recalled fact (compare, explain, apply, interpret data). A scenario
+wrapped around one memorised fact counts as recall. A plan or topic may justify a
+lower share (for example a recognition-centred programme); the report gives the
+recall/reasoning split and the justification. AUDIT: whether an item really
+needs reasoning is a judgement; there is no field or heuristic for it.
+
+### Skill vocabulary (SHOULD declare; validator-enforced once declared)
+
+Declaring a vocabulary is optional. A run SHOULD declare a small `run.skill_vocabulary` (at most 12 tags, for
+example a dimension id such as `D3` plus one of `recall`, `compare`, `explain`,
+`apply`, `interpret`) and use only those tags in `research.skill`. When it is
+declared, a tag outside it is the error `skill_vocabulary`, and a candidate
+without `research.skill` is flagged `skill_missing`. A dataset that declares
+nothing is not checked, so earlier datasets stay valid. No free-text tags.
+
+### One named fact, one candidate (MUST; AUDIT)
+
+Do not turn one small fact into several questions by changing wording or
+direction: the definition, the reverse definition, the "why", and a scenario
+whose answer is the same fact are one fact. Name the single fact or relation each
+candidate tests in `research.concept` (a short specific label) before adding it;
+add a second candidate on the same fact only if it tests different reasoning,
+relationships or application. Exact and near-identical wording is detected
+(`duplicate_exact`, `duplicate_near`); a reworded fact is not. AUDIT: sort by
+`research.concept` and look for clusters.
+
+### Duplicate control across runs and topics (MUST; AUDIT)
+
+Before finalising a dataset, compare it with (a) earlier runs of the same topic
+and (b) already collected sibling topics of the same subject and grade where they
+exist, but not unrelated large datasets. A later run reads the earlier run's file
+first, lists the concepts already covered in its notes and never edits it. Run
+the validator with `--compare` for each such file to catch exact and near
+duplicates. AUDIT: the same fact under different topics (for example "sweating
+cools the body" in two topics) needs a reader.
+
+### Numbers (MUST)
+
+Do not introduce a precise percentage, date, volume or other figure just to make
+a question. Use one only when the curriculum expects it, it is pedagogically
+important, or the data must be supplied to reason about. A number that affects
+correctness must be checked against an authoritative source, and the source (page
+and what it confirms) is named in `research.notes`, with the page recorded as a
+source record. The validator does not judge whether a figure is true.
+
+### Health, first-aid and safety claims (MUST)
+
+When correctness depends on health guidance, first aid, a safe action or a medical
+recommendation, verify it against at least one appropriate authoritative source
+(for example WHO, a national health authority, a recognised medical institution)
+and record it as for numbers. The curriculum fixes the scope; the health authority
+verifies what is correct and safe now. A distractor must not be a real-world
+acceptable action. Curriculum-specific terms that the medical source does not
+use are noted in the explanation.
+
+### Options and keys (validator for structure; AUDIT for the rest)
+
+The validator hard-fails: fewer than 2 or more than 6 options, non-consecutive
+letters, empty, untrimmed or placeholder options, options that are the same after
+normalisation (`mc_duplicate_options`), a missing or non-resolving key
+(`missing_correct`, `invalid_correct`), and flags `answer_leak` and
+`mc_option_count`. Collectors and reviewers AUDIT, as report items and not as
+rules the validator knows: an option much longer or more specific than the
+others; grammar that fits only the key; a qualifier such as „само“ appearing only
+in distractors; options from a different category than the stem names;
+implausible or really-true distractors. Do not pad distractors to equalise length
+and do not forbid the key from being the longest option; vary where the detail
+sits instead.
+
+### Key and explanation (AUDIT, mandatory)
+
+For every candidate the collector reads the keyed option alone and checks that it
+cannot be read as its opposite, that the explanation supports exactly the keyed
+option, and that no other option is defensible. The independent review repeats
+the check. String rules cannot establish this.
+
+### Prompts are plain text (MUST)
+
+The quiz pages print `prompt` and options as escaped text (`{{ q.prompt }}`,
+see `web/templates/quiz_attempt.html`); nothing renders Markdown or tables, and
+line breaks are not guaranteed. Do not write a candidate whose meaning depends on
+a table or other Markdown. Give the values in a sentence or a short list in prose.
+Revisit this rule only when table rendering is added and tested.
+
+### Collection report (MUST, concise)
+
+Each run ends with a short report, not a per-question listing:
+
+- topic and run; requested ceiling; number collected; early-stop reason if below;
+- difficulty distribution; A/B/C/D key distribution for multiple choice;
+- `skill_vocabulary` distribution;
+- recall vs reasoning split (with the justification if under one third);
+- exact and near duplicate findings, including `--compare` results, and the
+  semantic concept-cluster findings of the AUDIT;
+- option-hygiene findings;
+- numerical claims that needed verification, with their sources;
+- health, first-aid or safety claims that needed verification, with their sources;
+- validator errors and flags;
+- protected-file hashes, where the local workflow requires them.
 
 ## Export and the importer boundary
 
@@ -342,6 +502,10 @@ A web-enabled collector is not part of this repository yet. When one is run
 10. Never approve, export or import. A person reviews every candidate; a person
     runs the export and the importer.
 11. Never write to `data/questions.db` or any production database.
+12. Follow "Collection quality policy": targets are ceilings, stop early, one
+    candidate per named fact, difficulty by cognitive demand, verify numbers and
+    health claims against an authoritative source, plain-text prompts, and
+    finish with the collection report.
 
 ## What is deliberately not here
 

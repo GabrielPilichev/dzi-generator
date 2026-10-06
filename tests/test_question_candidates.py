@@ -671,6 +671,142 @@ class CommandLineTests(unittest.TestCase):
         self.assertIn("not in the structure file", message)
         self.assertEqual(sorted(path.name for path in self.root.iterdir()), ["structure.json"])
 
+    def test_start_cli_records_an_optional_skill_vocabulary(self):
+        code, message = self.start("--skills", "D1 recall, D1 compare", output="skills.json")
+        self.assertEqual(code, 0, message)
+        run = json.loads((self.root / "skills.json").read_text(encoding="utf-8"))["run"]
+        self.assertEqual(run["skill_vocabulary"], ["D1 recall", "D1 compare"])
+        code, message = self.start("--skills", "a,a", output="dup.json")
+        self.assertEqual(code, 1)
+        code, message = self.start(output="none.json")
+        self.assertNotIn("skill_vocabulary", json.loads(
+            (self.root / "none.json").read_text(encoding="utf-8"))["run"])
+
+
+
+class WaveLessonTests(unittest.TestCase):
+    """Pipeline rules added after the Biology Wave 1 pilot."""
+
+    @staticmethod
+    def research(skill):
+        return {"concept": "Synthetic concept", "skill": skill}
+
+    def third(self, number, skill=None, **changes):
+        extra = {"research": self.research(skill)} if skill else {}
+        return candidate(number, source_id="third-party-source",
+                         transformation="original_from_research", **extra, **changes)
+
+    def test_dataset_without_skill_vocabulary_is_unchanged(self):
+        data = dataset(self.third(1, "anything-goes"), self.third(2, "D9-whatever"))
+        report = validate_dataset(data)
+        self.assertTrue(report.ok, report.as_dict())
+        self.assertEqual(report.flags, [])
+
+    def test_declared_skill_vocabulary_is_enforced(self):
+        data = dataset(self.third(1, "D1 recall"), self.third(2, "D1 compare"), self.third(3))
+        data["run"]["skill_vocabulary"] = ["D1 recall", "D1 explain"]
+        report = validate_dataset(data)
+        self.assertEqual(
+            [(item.candidate_id, item.code) for item in report.errors],
+            [(f"{RUN_ID}-002", "skill_vocabulary")])
+        data["candidates"][1]["research"]["skill"] = "D1 explain"
+        report = validate_dataset(data)
+        self.assertTrue(report.ok, report.as_dict())
+        self.assertEqual([(i.candidate_id, i.code) for i in report.flags],
+                         [(f"{RUN_ID}-003", "skill_missing")])
+
+    def test_malformed_skill_vocabulary_is_an_error(self):
+        for bad in ([], "recall", ["a", "a"], ["a", " A"], ["a "], [1], [f"t{n}" for n in range(13)]):
+            with self.subTest(bad=bad):
+                data = dataset()
+                data["run"]["skill_vocabulary"] = bad
+                self.assertIn("run", validate_dataset(data).codes())
+
+    def test_run_may_finish_below_its_ceiling(self):
+        data = dataset(candidate(1), candidate(2))
+        data["run"]["limits"]["max_candidates"] = 40
+        data["run"]["stop_reason"] = "topic_complete"
+        report = validate_dataset(data)
+        self.assertTrue(report.ok, report.as_dict())
+        self.assertEqual(report.flags, [])
+
+    def test_normalized_duplicate_options_are_an_error(self):
+        data = dataset(candidate(1, options={"A": "Same answer", "B": "same answer.",
+                                             "C": "Third", "D": "Fourth"}))
+        self.assertIn("mc_duplicate_options", validate_dataset(data).codes())
+        data = dataset(candidate(1, correct="E"))
+        self.assertIn("invalid_correct", validate_dataset(data).codes())
+
+    def test_sibling_dataset_duplicates_are_flagged_read_only(self):
+        earlier = dataset(candidate(1, status="pending"))
+        earlier["run"]["id"] = "physics-g8-earlier-run"
+        current = dataset(candidate(1), candidate(2))
+        current["candidates"][0]["options"] = candidate(1)["options"]
+        report = validate_dataset(current, compare_datasets=[earlier])
+        self.assertTrue(report.ok)
+        self.assertEqual([(i.candidate_id, i.code) for i in report.flags],
+                         [(f"{RUN_ID}-001", "duplicate_sibling_exact")])
+        self.assertIn("physics-g8-earlier-run", report.flags[0].message)
+        # A rejected candidate or another subject does not count.
+        earlier["candidates"][0]["review"] = review("rejected")
+        self.assertEqual(validate_dataset(current, compare_datasets=[earlier]).flags, [])
+        earlier["candidates"][0]["review"] = review()
+        earlier["run"]["subject"] = "biology"
+        report = validate_dataset(current, compare_datasets=[earlier])
+        self.assertTrue(report.ok)
+        self.assertEqual([(i.candidate_id, i.code) for i in report.flags],
+                         [(None, "compare_skipped_subject")])
+        self.assertIn("not compared", report.flags[0].message)
+        self.assertIn("compare_dataset", validate_dataset(current, compare_datasets=[{}]).codes())
+
+    def earlier_run(self, run_id="physics-g8-earlier-run"):
+        earlier = dataset(candidate(1))
+        earlier["run"]["id"] = run_id
+        return earlier
+
+    def test_current_dataset_in_compare_is_skipped(self):
+        current = dataset(candidate(1), candidate(2))
+        report = validate_dataset(current, compare_datasets=[copy.deepcopy(current)])
+        self.assertTrue(report.ok)
+        self.assertEqual(report.flags, [])
+
+    def test_repeated_comparison_run_counts_once(self):
+        current = dataset(candidate(1))
+        first, again = self.earlier_run(), self.earlier_run()
+        report = validate_dataset(current, compare_datasets=[first, first, again])
+        self.assertEqual([i.code for i in report.flags], ["duplicate_sibling_exact"])
+
+    def test_near_sibling_duplicate_is_flagged(self):
+        near = candidate(1, prompt="Which synthetic statement about the first test object "
+                                   "is correct here?",
+                         options={"A": "First 1", "B": "Second 1", "C": "Third 1",
+                                  "D": "Something else"})
+        report = validate_dataset(dataset(near), compare_datasets=[self.earlier_run()])
+        self.assertEqual([i.code for i in report.flags], ["duplicate_sibling_near"])
+
+    def test_rejected_current_candidate_has_no_sibling_findings(self):
+        current = dataset(candidate(1, status="rejected"))
+        report = validate_dataset(current, compare_datasets=[self.earlier_run()])
+        self.assertTrue(report.ok)
+        self.assertEqual(report.flags, [])
+
+    def test_validate_cli_compare_option(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            first, second = dataset(candidate(1)), dataset(candidate(1))
+            second["run"]["id"] = "physics-g8-other-run"
+            for name, data in (("a.json", first), ("b.json", second)):
+                (root / name).write_text(json.dumps(data), encoding="utf-8")
+            out = io.StringIO()
+            with redirect_stdout(out):
+                code = validate_main(["--input", str(root / "a.json"),
+                                      "--compare", str(root / "b.json")])
+            self.assertEqual(code, 0)
+            self.assertIn("duplicate_sibling_exact", out.getvalue())
+            with redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+                validate_main(["--input", str(root / "a.json"),
+                               "--compare", str(root / "missing.json")])
+
 
 if __name__ == "__main__":
     unittest.main()
