@@ -7,6 +7,7 @@ transaction. Passwords and hashes are never logged or returned by lookups.
 
 from __future__ import annotations
 
+import hmac
 import secrets
 import sqlite3
 import unicodedata
@@ -103,6 +104,28 @@ def _fetch_user(conn: sqlite3.Connection, where: str, value) -> dict | None:
 
 def get_user_by_id(conn: sqlite3.Connection, user_id: int) -> dict | None:
     return _fetch_user(conn, "id", user_id)
+
+
+def load_session_user(conn: sqlite3.Connection, user_id, session_key) -> dict | None:
+    """The active user a session identity names, or ``None``.
+
+    One bounded lookup by primary key. ``None`` for a malformed identity, an
+    unknown or disabled user, and a key that does not match the stored one
+    (compared in constant time). Neither key is logged or returned in an error.
+    """
+    if (
+        not isinstance(user_id, int)
+        or isinstance(user_id, bool)
+        or not 0 < user_id < 2**63
+        or not isinstance(session_key, str)
+    ):
+        return None
+    user = get_user_by_id(conn, user_id)
+    if user is None or not user["is_active"] or not user["session_key"]:
+        return None
+    if not hmac.compare_digest(session_key.encode("utf-8"), user["session_key"].encode("utf-8")):
+        return None
+    return user
 
 
 def get_user_by_email(conn: sqlite3.Connection, email: str) -> dict | None:
