@@ -3,6 +3,7 @@ import unittest
 
 
 from tests.support import IsolatedAppTestCase, web_app
+from web.services import quiz as quiz_service
 
 class HardenAssignmentInputsTest(IsolatedAppTestCase):
     @classmethod
@@ -171,7 +172,7 @@ class HardenAssignmentInputsTest(IsolatedAppTestCase):
             conn.commit()
             return 12345, []
 
-        with patch.object(web_app, "quiz_pick_questions", side_effect=insert_competing_attempt):
+        with patch.object(quiz_service, "quiz_pick_questions", side_effect=insert_competing_attempt):
             resp = self.client.post(
                 f"/quiz/{assignment_id}",
                 data={"student_name": student_name},

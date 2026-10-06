@@ -2,8 +2,9 @@ import unittest
 
 
 from tests.support import web_app
+from web.services import quiz as quiz_service
 
-is_fill_in_question_auto_gradable = web_app.is_fill_in_question_auto_gradable
+is_fill_in_question_auto_gradable = quiz_service.is_fill_in_question_auto_gradable
 
 
 class FillInEligibilityTest(unittest.TestCase):

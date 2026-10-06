@@ -6,6 +6,7 @@ from unittest.mock import patch
 
 
 from tests.support import IsolatedAppTestCase, web_app
+from web.services import quiz as quiz_service
 
 
 class TesterFlowSmokeTest(IsolatedAppTestCase):
@@ -219,7 +220,7 @@ class TesterFlowSmokeTest(IsolatedAppTestCase):
             time_limit_minutes=30,
         )
 
-        with patch.object(web_app, "quiz_current_timestamp", return_value=datetime(2026, 5, 15, 10, 0, 0)):
+        with patch.object(quiz_service, "quiz_current_timestamp", return_value=datetime(2026, 5, 15, 10, 0, 0)):
             response = self.client.get(f"/quiz/attempt/{attempt_id}")
 
         self.assertEqual(response.status_code, 200)

@@ -21,9 +21,10 @@ import unittest
 
 
 from tests.support import web_app
+from web.services import quiz as quiz_service
 
 build_mixed_quiz_plan = web_app.build_mixed_quiz_plan
-quiz_pick_questions = web_app.quiz_pick_questions
+quiz_pick_questions = quiz_service.quiz_pick_questions
 
 
 def _build_pool_conn():

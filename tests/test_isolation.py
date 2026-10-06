@@ -9,6 +9,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from tests.support import ROOT, IsolatedAppTestCase, copy_seed_database, isolated_app, web_app
+from web.services import quiz as quiz_service
 
 
 class IsolationTest(IsolatedAppTestCase):
@@ -102,7 +103,7 @@ with patch("sqlite3.connect", guarded):
         self.assertIsNotNone(attempt, "seed should contain a submitted attempt")
         with web_app.app.test_request_context("/"):
             web_app.quiz_write_assignment_note(attempt["assignment_id"], "http://localhost/")
-            web_app.quiz_write_attempt_note(attempt["id"])
+            quiz_service.quiz_write_attempt_note(attempt["id"])
         generated = web_app.QUIZ_VAULT_PATH / "Generated" / "Quizzes"
         self.assertTrue(generated.is_relative_to(self.isolation_root))
         self.assertTrue(list(generated.rglob("*.md")))
