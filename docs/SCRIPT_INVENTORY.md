@@ -22,7 +22,8 @@ Status is conservative:
 | File | Purpose |
 | --- | --- |
 | `src/practical_uploads.py` | Runtime safety helpers for practical-task student uploads; imported by `web/app.py` and covered by tests. |
-| `src/manage_migrations.py` | Numbered SQLite migration planner/runner with dry-run and baseline support; covered by migration tests. It is also the only production schema-change step (`docs/DEPLOYMENT.md`). |
+| `src/manage_migrations.py` | Numbered SQLite migration planner/runner with dry-run and baseline support (`--baseline-dry-run`/`--baseline-apply` adopt `000_baseline.sql` on existing databases); covered by migration tests. It is also the only production schema-change step (`docs/DEPLOYMENT.md`). |
+| `src/schema_introspection.py` | Read-only SQLite table-shape helpers (columns, keys, indexes, CHECKs); used by baseline detection in `manage_migrations.py` and the schema-parity test. |
 | `src/backup_sqlite.py` | WAL-safe online SQLite backup with `PRAGMA quick_check` verification; explicit source/destination, never overwrites or writes inside the checkout. Covered by `tests/test_backup_sqlite.py`. |
 | `src/import_subject_structure.py` | Imports a reviewed curriculum structure (ordered sections and topics, no questions) for a registered subject; dry run by default, atomic `--apply`, rejects conflicts. See `docs/SUBJECT_STRUCTURE_IMPORT.md`; covered by `tests/test_import_subject_structure.py`. |
 | `src/question_collection_limits.py` | Hard limits and absolute ceilings of one question-collection run, plus the page/candidate/runtime budget counter; no network or database access. See `docs/QUESTION_COLLECTION_PIPELINE.md`; covered by `tests/test_question_candidates.py`. |

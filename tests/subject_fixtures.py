@@ -15,18 +15,20 @@ from unittest.mock import patch
 from src import subject_registry
 from src.manage_migrations import apply_migrations
 from src.subject_registry import SubjectDefinition, validate_registry
-from tests.support import ROOT
+from tests.support import ROOT, adopt_baseline
 
 
 def apply_pending_migrations(db_path) -> None:
     """Bring a temporary database copy up to the current schema with the real runner.
 
     The seed copy may predate the newest migration; a no-op once it does not.
-    Never call this with the repository database.
+    A copy of the seed also predates the baseline (000), which an existing
+    database adopts instead of running. Never call this with the repository database.
     """
     path = Path(db_path).resolve()
     if path == (ROOT / "data" / "questions.db").resolve():
         raise AssertionError("refusing to migrate the repository database from a test")
+    adopt_baseline(path)
     if apply_migrations(path, ROOT / "web" / "migrations", out=io.StringIO()) != 0:
         raise AssertionError("migrations failed on the temporary database")
 

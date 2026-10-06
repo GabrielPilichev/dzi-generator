@@ -11,11 +11,22 @@ from datetime import datetime
 from pathlib import Path
 from typing import TextIO
 
+try:
+    from src.schema_introspection import shape_requirement_problems, table_shape, user_table_names
+except ModuleNotFoundError:  # run as `python3 src/manage_migrations.py`
+    from schema_introspection import shape_requirement_problems, table_shape, user_table_names
+
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_DB_PATH = Path("data/questions.db")
 DEFAULT_MIGRATIONS_DIR = Path("web/migrations")
 BACKUP_DIR_NAME = "local_backups"
+BASELINE_FILENAME = "000_baseline.sql"
+MIGRATION_BOOKKEEPING_TABLES = ("schema_migrations", "sqlite_sequence")
+
+
+class BaselineRequired(RuntimeError):
+    """A non-empty database must adopt 000 with --baseline-apply, not run it."""
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -24,7 +35,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--migrations-dir", default=str(DEFAULT_MIGRATIONS_DIR), help="Directory with *.sql migrations.")
     parser.add_argument("--dry-run", action="store_true", help="Print pending migrations without applying changes.")
     parser.add_argument("--baseline-dry-run", action="store_true", help="Plan adoption of existing migrations without writing.")
-    parser.add_argument("--baseline-apply", action="store_true", help="Record baselineable existing migrations without executing SQL.")
+    parser.add_argument("--baseline-apply", action="store_true", help="Record baselineable existing migrations (including 000) without executing SQL.")
     parser.add_argument("--apply", action="store_true", help="Apply pending migrations.")
     return parser.parse_args(argv)
 
@@ -142,7 +153,60 @@ def columns_exist(conn: sqlite3.Connection, table_name: str, column_names: list[
     return all(column_name in existing for column_name in column_names)
 
 
-def baseline_status(conn: sqlite3.Connection, filename: str) -> tuple[str, str]:
+def database_is_empty(conn: sqlite3.Connection) -> bool:
+    """True when the database holds nothing but migration bookkeeping."""
+    placeholders = ", ".join("?" for _ in MIGRATION_BOOKKEEPING_TABLES)
+    row = conn.execute(
+        f"SELECT COUNT(*) FROM sqlite_master WHERE tbl_name NOT IN ({placeholders})",
+        MIGRATION_BOOKKEEPING_TABLES,
+    ).fetchone()
+    return row[0] == 0
+
+
+def baseline_schema_problems(conn: sqlite3.Connection, baseline_sql: str) -> list[str]:
+    """Why ``conn`` does not already contain the schema that 000 would create.
+
+    The expected schema is whatever 000 itself builds in a scratch in-memory
+    database, so the check cannot drift from the file. Every baseline table must
+    exist with its columns (type, NOT NULL, default, primary key), foreign keys,
+    indexes, CHECK constraints and AUTOINCREMENT. Extra columns and objects are
+    fine: a database that already ran 001-010 has them.
+    """
+    scratch = sqlite3.connect(":memory:")
+    try:
+        scratch.executescript(baseline_sql)
+        problems = []
+        for name in user_table_names(scratch):
+            if not table_exists(conn, name):
+                problems.append(f"table {name} is missing")
+                continue
+            expected, actual = table_shape(scratch, name), table_shape(conn, name)
+            problems.extend(f"{name}: {problem}" for problem in shape_requirement_problems(expected, actual))
+        return problems
+    finally:
+        scratch.close()
+
+
+def baseline_file_status(conn: sqlite3.Connection, migrations_dir: Path | None) -> tuple[str, str]:
+    path = (migrations_dir or DEFAULT_MIGRATIONS_DIR) / BASELINE_FILENAME
+    if not path.is_file():
+        return "manual review required", f"{BASELINE_FILENAME} not found"
+    problems = baseline_schema_problems(conn, path.read_text(encoding="utf-8"))
+    if not problems:
+        return "baselineable", "pre-001 core schema is already present"
+    if database_is_empty(conn):
+        return "not baselineable", "database is empty; 000 runs on normal --apply"
+    shown = "; ".join(problems[:3])
+    more = f"; +{len(problems) - 3} more" if len(problems) > 3 else ""
+    return "not baselineable", f"baseline schema incomplete: {shown}{more}"
+
+
+def baseline_status(
+    conn: sqlite3.Connection, filename: str, migrations_dir: Path | None = None
+) -> tuple[str, str]:
+    if filename == BASELINE_FILENAME:
+        return baseline_file_status(conn, migrations_dir)
+
     if filename == "001_quiz_tables.sql":
         if table_exists(conn, "quiz_attempts") and table_exists(conn, "quiz_answers"):
             return "baselineable", "quiz_attempts and quiz_answers exist"
@@ -225,7 +289,7 @@ def baseline_dry_run(db_path: Path, migrations_dir: Path, out: TextIO = sys.stdo
         print("baseline candidates:", file=out)
         if pending:
             for filename in pending:
-                status, reason = baseline_status(conn, filename)
+                status, reason = baseline_status(conn, filename, migrations_dir)
                 print(f"  - {filename}: {status} ({reason})", file=out)
         else:
             print("  - none", file=out)
@@ -233,7 +297,7 @@ def baseline_dry_run(db_path: Path, migrations_dir: Path, out: TextIO = sys.stdo
         remaining = [
             filename
             for filename in pending
-            if baseline_status(conn, filename)[0] != "baselineable"
+            if baseline_status(conn, filename, migrations_dir)[0] != "baselineable"
         ]
         if remaining:
             for filename in remaining:
@@ -261,7 +325,7 @@ def baseline_apply(db_path: Path, migrations_dir: Path, out: TextIO = sys.stdout
         baselineable = []
         remaining = []
         for filename in pending:
-            status, _reason = baseline_status(conn, filename)
+            status, _reason = baseline_status(conn, filename, migrations_dir)
             if status == "baselineable":
                 baselineable.append(filename)
             else:
@@ -301,8 +365,31 @@ def baseline_apply(db_path: Path, migrations_dir: Path, out: TextIO = sys.stdout
         conn.close()
 
 
+def require_empty_database_for_baseline(db_path: Path, all_migrations: list[str]) -> None:
+    """Run 000 only on an empty database; adopt it on an existing one.
+
+    CREATE ... IF NOT EXISTS would let 000 "succeed" on a partial schema and
+    record it as applied, so a non-empty database must go through the checked
+    --baseline-dry-run / --baseline-apply path instead. Reads only.
+    """
+    if BASELINE_FILENAME not in all_migrations:
+        return
+    conn = open_read_only_db(db_path)
+    try:
+        if BASELINE_FILENAME in applied_migrations(conn) or database_is_empty(conn):
+            return
+    finally:
+        conn.close()
+    raise BaselineRequired(
+        f"{db_path} already has tables but has not recorded {BASELINE_FILENAME}. "
+        "Back it up, then run --baseline-dry-run and --baseline-apply; "
+        "--apply only runs the baseline on an empty database."
+    )
+
+
 def apply_migrations(db_path: Path, migrations_dir: Path, out: TextIO = sys.stdout) -> int:
     all_migrations = migration_filenames(migrations_dir)
+    require_empty_database_for_baseline(db_path, all_migrations)
     if is_default_real_db_path(db_path):
         backup_path = create_backup_for_default_db(db_path)
         print(f"backup path: {backup_path}", file=out)
@@ -370,7 +457,7 @@ def main(argv: list[str] | None = None, out: TextIO = sys.stdout, err: TextIO = 
         if args.apply:
             return apply_migrations(Path(args.db), Path(args.migrations_dir), out)
         dry_run(Path(args.db), Path(args.migrations_dir), out)
-    except (FileNotFoundError, sqlite3.Error) as exc:
+    except (FileNotFoundError, BaselineRequired, sqlite3.Error) as exc:
         print(f"error: {exc}", file=err)
         return 1
     return 0
