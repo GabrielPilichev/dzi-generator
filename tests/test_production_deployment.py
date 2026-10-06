@@ -22,7 +22,7 @@ from unittest.mock import patch
 from werkzeug.test import create_environ
 
 from src.practical_uploads import MAX_REQUEST_BYTES, MAX_UPLOAD_BYTES
-from tests.support import ROOT, IsolatedAppTestCase, build_test_database, copy_seed_database, web_app
+from tests.support import ROOT, IsolatedAppTestCase, build_legacy_database, build_test_database, web_app
 from web import production
 
 
@@ -36,17 +36,15 @@ def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def _state_dir(test: unittest.TestCase, *, seed: bool, baseline: bool = True) -> dict:
+def _state_dir(test: unittest.TestCase, *, populated: bool, baseline: bool = True) -> dict:
     tmp = tempfile.TemporaryDirectory(prefix="learnpilot-prod-")
     test.addCleanup(tmp.cleanup)
     root = Path(tmp.name).resolve()
     db = root / "questions.db"
-    if seed and baseline:
+    if populated and baseline:
         build_test_database(db)  # migrations + canonical content, 000 recorded
-    elif seed:
-        # TRANSITIONAL (until H): only the baseline-adoption test needs a database that
-        # predates 000, which only the legacy seed copy is.
-        copy_seed_database(ROOT / "data/questions.db", db)
+    elif populated:
+        build_legacy_database(db)  # synthetic: predates 000, so the baseline is not adopted
     else:
         db.write_bytes(b"")
     (root / "uploads").mkdir()
@@ -74,7 +72,7 @@ def _run_python(script: str, env: dict, *args: str) -> subprocess.CompletedProce
 
 class ProductionConfigValidationTest(unittest.TestCase):
     def setUp(self):
-        self.env = _state_dir(self, seed=False)
+        self.env = _state_dir(self, populated=False)
 
     def errors(self, **changes):
         env = {**self.env, **changes}
@@ -264,7 +262,7 @@ print("started")
 
 class ProductionStartupTest(unittest.TestCase):
     def test_valid_production_startup(self):
-        env = _state_dir(self, seed=True)
+        env = _state_dir(self, populated=True)
         result = _run_python(PRODUCTION_PROBE, env)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         report = json.loads(result.stdout.strip().splitlines()[-1])
@@ -296,7 +294,7 @@ class ProductionStartupTest(unittest.TestCase):
             self.assertNotIn(secret, result.stdout + result.stderr)
 
     def test_missing_secret_stops_before_the_app_is_imported(self):
-        env = _state_dir(self, seed=True)
+        env = _state_dir(self, populated=True)
         del env["DZI_ADMIN_PASSWORD"]
         result = _run_python(FAILING_STARTUP_PROBE, env)
         output = result.stdout + result.stderr
@@ -310,7 +308,7 @@ class ProductionStartupTest(unittest.TestCase):
             self.assertNotIn(secret, output)
 
     def test_invalid_reference_root_stops_before_the_app_is_imported(self):
-        env = _state_dir(self, seed=True)
+        env = _state_dir(self, populated=True)
         env["DZI_REFERENCE_ROOT"] = str(Path(env["DZI_VAULT"]) / "missing-reference")
         result = _run_python(FAILING_STARTUP_PROBE, env)
         output = result.stdout + result.stderr
@@ -320,7 +318,7 @@ class ProductionStartupTest(unittest.TestCase):
         self.assertIn("db unchanged: True", output)
 
     def test_pending_migration_stops_startup_without_changing_schema(self):
-        env = _state_dir(self, seed=True)
+        env = _state_dir(self, populated=True)
         db = Path(env["DZI_DB"])
         with sqlite3.connect(db) as conn:
             conn.execute("DELETE FROM schema_migrations WHERE filename = ?",
@@ -337,7 +335,7 @@ class ProductionStartupTest(unittest.TestCase):
 
     def test_existing_database_that_has_not_adopted_the_baseline_stops_startup(self):
         # Rollout order: snapshot, --baseline-dry-run, --baseline-apply, then deploy.
-        env = _state_dir(self, seed=True, baseline=False)
+        env = _state_dir(self, populated=True, baseline=False)
         db = Path(env["DZI_DB"])
         before = _sha256(db)
         result = _run_python(FAILING_STARTUP_PROBE, env)
@@ -383,7 +381,7 @@ class DatabaseAndStartupSchemaConfigTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         return json.loads(result.stdout.strip().splitlines()[-1])
 
-    def test_default_paths_point_browsing_and_quiz_at_the_same_seed(self):
+    def test_default_paths_point_browsing_and_quiz_at_the_same_database(self):
         report = self.probe({})
         expected = str(ROOT / "data" / "questions.db")
         self.assertEqual((report["db"], report["db_global"], report["quiz_db"]),
@@ -391,7 +389,7 @@ class DatabaseAndStartupSchemaConfigTest(unittest.TestCase):
         self.assertEqual(report["uploads"], str(ROOT / "data" / "uploads" / "practical"))
 
     def test_dzi_db_and_upload_root_configure_one_database_and_upload_dir(self):
-        env = _state_dir(self, seed=False)
+        env = _state_dir(self, populated=False)
         report = self.probe({"DZI_DB": env["DZI_DB"], "DZI_UPLOAD_ROOT": env["DZI_UPLOAD_ROOT"]})
         self.assertEqual((report["db"], report["db_global"], report["quiz_db"]),
                          (env["DZI_DB"],) * 3)
@@ -403,14 +401,14 @@ class DatabaseAndStartupSchemaConfigTest(unittest.TestCase):
         self.assertIsNone(report["reference_root"])
         self.assertEqual(report["resource_roots"], [str(ROOT / "data" / "reference"), assets])
 
-        env = _state_dir(self, seed=False)
+        env = _state_dir(self, populated=False)
         report = self.probe({"DZI_DB": env["DZI_DB"], "DZI_REFERENCE_ROOT": env["DZI_VAULT"]})
         self.assertEqual(report["reference_root"], env["DZI_VAULT"])
         self.assertEqual(report["resource_roots"], [env["DZI_VAULT"], assets])
         self.assertEqual(report["uploads"], str(ROOT / "data" / "uploads" / "practical"))
 
     def test_import_does_not_change_an_empty_database(self):
-        env = _state_dir(self, seed=False)
+        env = _state_dir(self, populated=False)
         before = _sha256(Path(env["DZI_DB"]))
         report = self.probe({"DZI_DB": env["DZI_DB"]})
         self.assertEqual(report["tables"], [])
@@ -450,7 +448,7 @@ class WebAppNeverChangesSchemaTest(unittest.TestCase):
         return json.loads(result.stdout.strip().splitlines()[-1]), result.stderr
 
     def migrated_copy(self):
-        env = _state_dir(self, seed=True)
+        env = _state_dir(self, populated=True)
         return env["DZI_DB"], env
 
     def test_import_leaves_a_prepared_database_byte_identical(self):
@@ -496,7 +494,7 @@ class WebAppNeverChangesSchemaTest(unittest.TestCase):
         self.assertNotIn("010_topic_section_display_order.sql", applied)
 
     def test_unmigrated_database_is_not_given_quiz_tables(self):
-        env = _state_dir(self, seed=False)
+        env = _state_dir(self, populated=False)
         db = env["DZI_DB"]
         sqlite3.connect(db).close()
         before = (_sha256(Path(db)), self.schema_version(db))

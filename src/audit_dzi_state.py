@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import sqlite3
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -243,7 +244,11 @@ def print_table(rows: list[dict[str, Any]], columns: list[str]) -> None:
 
 def main() -> int:
     args = parse_args()
-    # immutable=1: a plain mode=ro open of a WAL-mode database (the tracked seed)
+    if not Path(args.db).is_file():
+        print(f"Database not found: {args.db}. Build one first: "
+              "python3 -m src.build_database --output data/questions.db", file=sys.stderr)
+        return 2
+    # immutable=1: a plain mode=ro open of a WAL-mode database (a developer's runtime database)
     # creates -wal/-shm sidecars next to it. The audit never needs a live view.
     conn = sqlite3.connect(f"{Path(args.db).resolve().as_uri()}?mode=ro&immutable=1", uri=True)
     conn.row_factory = sqlite3.Row

@@ -1,6 +1,6 @@
 """Browse decoration batches options/subquestions; questions(topic_id) is indexed.
 
-Databases are temporary clones of the CANONICAL template; nothing touches the seed.
+Databases are temporary clones of the CANONICAL template; nothing touches a repository database.
 Statement budgets are ceilings with headroom, never exact counts.
 """
 

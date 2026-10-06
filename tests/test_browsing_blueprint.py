@@ -4,7 +4,7 @@ The application route map (rule, methods, policy, integrity) is pinned in
 ``test_dzi_blueprint``; this file pins who owns the fourteen E4 views, their
 endpoint names, the dependency direction of the new modules, and the behavior
 of the moved routes (hierarchy ownership, grade support, redirects) on the
-tracked seed data.
+canonical data.
 """
 
 import ast

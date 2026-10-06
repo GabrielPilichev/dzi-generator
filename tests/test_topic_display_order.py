@@ -119,7 +119,7 @@ class Migration010SqlTest(unittest.TestCase):
 
 
 class Migration010RunnerTest(IsolatedAppTestCase):
-    """The real runner on a temporary copy of the seed database."""
+    """The real runner on a temporary canonical-built database."""
 
     def test_runner_adds_the_column_and_keeps_every_assignment(self):
         db_path = web_app.QUIZ_DB_PATH

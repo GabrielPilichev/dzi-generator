@@ -6,11 +6,30 @@ that the content in `data/questions.db` can be rebuilt from tracked, reviewable 
 **with stable ids**. The reviewed structure/batch JSON files stay the *human authoring*
 inputs; they are not an id authority.
 
-Status: G1 (canonical data) and G2 (builder, test databases, importer identity).
-`data/questions.db` is **still tracked** as the transitional seed/dev DB, but nothing
-needs it to *construct* a database any more: `python3 -m src.build_database` and the test
-suite build databases from migrations + `data/canonical`. Untracking the seed is H
-(`docs/REFACTOR_ACCOUNTS_ROADMAP.md`).
+Status: G1 (canonical data), G2 (builder, test databases, importer identity) and H
+(the tracked binary seed is retired).
+
+## Sources of truth (after H)
+
+| What | Source of truth |
+| --- | --- |
+| Schema | `web/migrations/` |
+| Durable content | `data/canonical/` |
+| Runtime database | ordinary SQLite, generated/provisioned from those two |
+| Production | external persistent database, never stored in Git |
+| Tests | temporary databases built from migrations + canonical |
+
+`data/questions.db` is **no longer tracked**; it is ignored runtime state (with its
+`-wal`/`-shm`/`-journal` sidecars). A fresh clone builds one explicitly:
+
+```bash
+python3 -m src.build_database --output data/questions.db
+```
+
+The application never builds the database at startup and never reads `data/canonical` while
+serving requests. An existing local or production database is kept and migrated normally, never
+replaced by a rebuild. The parity contract is: migrations + canonical -> a deterministic logical
+database, and canonical export/check -> no drift.
 
 ## Classification
 
@@ -24,38 +43,30 @@ Every table is classified exactly once in `src/canonical_tables.py`
 | runtime | user/session state; a content rebuild never writes or replaces it | `quiz_assignments`, `quiz_attempts`, `quiz_answers`, `quiz_text_answers`, `practical_submissions`, `practical_submission_files` |
 | operational | caches, vault mirror, logs, bookkeeping | `obsidian_notes`, `note_question_links`, `generated_exams`, `scrape_log`, `schema_migrations`, `sqlite_sequence` |
 
-The seed's smoke-test runtime rows (2 assignments, 4 attempts, 19 answers) and its
-operational rows are **not** in the canonical data and are not deleted from the seed.
+The retired seed's smoke-test runtime rows (2 assignments, 4 attempts, 19 answers) and its
+operational rows were never part of the canonical data.
 No `student_name` or other user data is exported.
 
-## Source precedence (the one-time reconciliation)
+## Provenance (the one-time G1 reconciliation)
 
-| Content | Values | Ids |
-| --- | --- | --- |
-| Legacy (IT curriculum, 832 questions, DZI) | tracked seed | tracked seed |
-| Physics/Biology (6 curricula, 20 sections, 53 topics, 846 questions, 3384 options) | tracked structures and reviewed batches, run through the real importers on a scratch copy of the seed | a read-only export of the author's local database (identity fields only), matched by natural key |
+`data/canonical` was constructed once from the then-tracked legacy seed (values and ids of the
+legacy rows), the tracked Physics/Biology structures and reviewed batches (values) and a
+read-only identity export of the author's local database (ids), matched by natural key
+(curriculum `(subject, grade, education_type)`, section/topic slug, question
+`(source_exam, source_number)`, option `(question_id, option_letter)`), never by position.
+`manifest.json` → `sources` records that provenance (including the retired seed's SHA-256) as
+history. The one-off reconciliation tool and the seed it read were removed in H; the tracked
+canonical files are now the only authority, and changes go through
+`canonical_export --replace-canonical`.
 
-Natural keys: curriculum `(subject, grade, education_type)`, section/topic slug, question
-`(source_exam, source_number)`, option `(question_id, option_letter)`. Position in a file
-is never identity. `src/canonical_reconcile.py` stops on any missing, duplicate,
-unexpected or conflicting match, on an id that would recycle a historical id, and when
-the seed or the identity export is not the audited one. Production holds only the
-seed-era rows, so it is not the authority for the newer ids.
-
-Intentional differences from the local database (also in `manifest.json` → `sources`):
+Properties of the dataset that stay true:
 
 * `created_at` is `NULL` on the rows added from tracked inputs (topics, questions,
-  topic/question assignments); the local timestamps are not tracked anywhere.
-* `topic_section_assignments` and `question_topic_assignments` ids of those rows are
-  derived: no foreign key or stored reference points at these tables, so they have no
-  external identity. They are assigned consecutively above the seed sequence in
-  ascending parent-id order, the order a sequential import produces.
-* `sqlite_sequence` is `max(seed sequence, max id)`; the seed's high-water marks
-  (ids of deleted historical rows) are preserved, so they are never reused.
-
-The raw identity export is not tracked: the canonical files are its durable form.
-`LEARNPILOT_G1_IDENTITY_MANIFEST=<path>` makes one test re-derive the dataset from it and
-compare it byte for byte with the tracked files.
+  topic/question assignments); those local timestamps are not tracked anywhere.
+* `topic_section_assignments` and `question_topic_assignments` ids of those rows are derived:
+  no foreign key or stored reference points at these tables.
+* `sqlite_sequence` is `max(historical high-water mark, max id)`; the high-water marks (ids of
+  deleted historical rows) are preserved, so ids are never reused.
 
 ## Stable-id contract
 
@@ -94,7 +105,6 @@ every normalized row; exporter, manifest, loader checks and comparator all use
 | `python3 -m src.canonical_export --db PATH --out DIR` | export a database's canonical tables to an empty directory (never the tracked one) |
 | `python3 -m src.canonical_export --db PATH --replace-canonical` | replace `data/canonical` after the identity checks |
 | `python3 -m src.canonical_export --check` | verify the tracked files against the manifest, classification and schema |
-| `python3 -m src.canonical_reconcile --identity-manifest PATH --out DIR` | the one-time construction described above |
 | `python3 -m src.build_database --output PATH` | G2: fresh database from migrations + canonical content (see below) |
 
 `--replace-canonical` refuses (and leaves the files untouched) when it would remove a
@@ -161,7 +171,7 @@ reviewed source (structure JSON / reviewed batch / DZI JSON)
   -> commit data/canonical
 ```
 
-`data/canonical` is the durable identity contract; the seed is no longer the identity source.
+`data/canonical` is the durable identity contract.
 
 ### Importer identity rules
 
@@ -194,20 +204,17 @@ and deleted deliberately** (the payload is the complete set for the task; the de
 never reused). Switching a task between multiple-choice and short-answer removes the other
 type's rows for the same reason. Tests: `tests/test_importer_stable_ids.py`.
 
-## Remaining seed references (G2 inventory)
-
-Classification: **A** migrated to the builder/canonical in G2; **B** intentionally retained
-until H; **C** production/runtime default path, not seed construction.
+## Remaining `data/questions.db` references (after H)
 
 | Reference | Class |
 | --- | --- |
-| `tests/support.py` `isolated_app()`, `subject_fixtures.apply_pending_migrations`, and the seven test modules that copied the seed (`test_dzi_training_production_paths`, `test_export_approved_question_candidates`, `test_import_reviewed_subject_questions`, `test_import_subject_structure`, `test_question_candidates`, `test_subject_registry`, `test_production_deployment`) | A: now `build_test_database()` |
-| `tests/test_canonical_content.py` (legacy-seed equivalence, seed immutability), `tests/test_schema_baseline.py` (000 + migrations == seed schema), `tests/test_production_deployment.py` baseline-adoption startup test, `tests/test_seed_database_copy.py` / `tests/test_isolation.py` (the byte-copy helper itself), `tests/support.copy_seed_database`, `tests/test_audit_dzi_state_seed_safety.py`, `src/canonical_reconcile.py` and the manifest's `sources` | B (pinned by `tests/test_seed_transition.py`) |
-| `tests/seed_guard.py` tripwire and `tests/test_seed_guard.py` | B: remove with the seed in H |
-| `DEFAULT_DB_PATH = data/questions.db` in `src/*.py` CLIs, `web/app.py`, `web/production.py`, `web/services/browsing.py`, README/DEPLOYMENT/AGENTS, and tests asserting those defaults or refusing to touch the checkout DB (`test_web_db_integration`, `test_production_deployment`, `test_migration_runner_dry_run`, `test_validate_*`, `test_question_image_review_suggestions`) | C |
+| `DEFAULT_DB_PATH = data/questions.db` in `src/*.py` CLIs, `web/app.py` and `web/services/browsing.py`: the local runtime default (the file must be built first; `audit_dzi_state` says so when it is absent) | runtime default |
+| README, AGENTS, this file, `docs/TESTING.md`: the builder output path and the "ignored runtime state" explanation | documentation |
+| `docs/DEPLOYMENT.md`, `web/production.py`, `deploy/*.example`: the production path `/var/lib/learnpilot/data/questions.db` and the refusal of state inside the checkout | production runtime path |
+| tests that assert those defaults, refuse to touch the checkout DB or check it is ignored (`test_web_db_integration`, `test_production_deployment`, `test_isolation`, `test_build_database`, `test_database_test_support`, `test_seed_retirement`) | runtime tooling / contract tests |
 
 ## Remaining work
 
-* **H** — untrack `data/questions.db`, retire the tripwire and the transitional seed-equivalence
-  tests, and document the production content-update workflow; production still receives nothing
-  from `data/canonical`, and G2 changes no production behavior.
+* The production content-update workflow (applying reviewed canonical seeds/importers to the
+  production database) is part of the later consolidated deployment; H changes no production
+  behavior and production receives nothing from `data/canonical` yet.

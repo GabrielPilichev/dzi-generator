@@ -1,13 +1,11 @@
 """G1: classified, identity-preserving canonical content and its round trip.
 
-Every database written here is a temporary file. The tracked seed is only read
-through byte copies (``copy_seed_database``) and its hash must not change.
+Every database written here is a temporary file built from migrations + data/canonical;
+no database at ``data/questions.db`` is read or required.
 """
 
-import hashlib
 import io
 import json
-import os
 import shutil
 import sqlite3
 import tempfile
@@ -16,22 +14,15 @@ from contextlib import closing, redirect_stderr
 from pathlib import Path
 from unittest.mock import patch
 
-from src import manage_migrations
 from src import canonical_export as export
 from src import canonical_load as load
 from src import canonical_parity as parity
-from src import canonical_reconcile as reconcile
 from src import canonical_tables as ct
-from tests.support import ROOT, copy_seed_database
+from tests.runtime_fixtures import add_submitted_attempt
+from tests.support import ROOT
 
-SEED = ROOT / "data" / "questions.db"
 CANONICAL = ROOT / "data" / "canonical"
 MAPPINGS = ROOT / "docs" / "reviews" / "confirmed_dzi_image_question_mappings.json"
-IDENTITY_ENV = "LEARNPILOT_G1_IDENTITY_MANIFEST"
-
-
-def sha256(path):
-    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
 
 
 def rows_of(path):
@@ -62,16 +53,8 @@ class CanonicalTestCase(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
-        cls.seed_sha_before = sha256(SEED)
-        cls.addClassCleanup(cls.assert_seed_untouched)
         cls.work, cls.rebuilt = shared_rebuild()
         cls.manifest = export.load_manifest(CANONICAL)
-
-    @classmethod
-    def assert_seed_untouched(cls):
-        assert sha256(SEED) == cls.seed_sha_before, "the tracked seed changed during the tests"
-        for suffix in ("-wal", "-shm", "-journal"):
-            assert not Path(str(SEED) + suffix).exists(), f"seed sidecar {suffix} appeared"
 
     def temp_path(self, name):
         directory = tempfile.TemporaryDirectory(prefix="learnpilot-canonical-test-")
@@ -83,9 +66,14 @@ class CanonicalTestCase(unittest.TestCase):
         self.addCleanup(conn.close)
         return conn
 
-    def seed_copy(self):
-        path = self.temp_path("seed-copy.db")
-        copy_seed_database(SEED, path)
+    def runtime_rows_copy(self):
+        """A writable copy of the rebuilt database with explicit runtime rows added by fixtures."""
+        path = self.temp_path("runtime-rows.db")
+        shutil.copyfile(self.rebuilt, path)
+        with closing(sqlite3.connect(path)) as conn:
+            add_submitted_attempt(conn)
+            conn.execute("INSERT INTO generated_exams (question_ids) VALUES ('[1, 2]')")
+            conn.commit()
         return path
 
     def canonical_copy(self):
@@ -146,10 +134,7 @@ class ExclusionTest(CanonicalTestCase):
             self.assertNotIn(marker, text)
 
     def test_export_from_a_database_with_runtime_rows_leaves_them_out(self):
-        path = self.seed_copy()  # holds 2 assignments, 4 attempts, 19 answers, 228 notes
-        # The frozen seed predates 011: adopt the baseline and apply what is pending.
-        for flags in (("--baseline-apply",), ("--apply",)):
-            manage_migrations.main(["--db", str(path), *flags], out=io.StringIO(), err=io.StringIO())
+        path = self.runtime_rows_copy()
         with closing(sqlite3.connect(path)) as conn:
             self.assertGreater(conn.execute("SELECT COUNT(*) FROM quiz_attempts").fetchone()[0], 0)
             out = self.temp_path("out")
@@ -214,43 +199,18 @@ class DeterminismTest(CanonicalTestCase):
 
 
 class StableIdentityTest(CanonicalTestCase):
-    def test_legacy_seed_rows_are_preserved_exactly(self):
-        path = self.seed_copy()
-        with closing(sqlite3.connect(path)) as conn:
-            for table, entry in self.manifest["tables"].items():
-                columns, keys = entry["columns"], entry["primary_key"]
-                canonical = {tuple(r[k] for k in keys): r for r in canonical_rows(table)}
-                select = ", ".join(f'"{c}"' for c in columns)
-                for values in conn.execute(f'SELECT {select} FROM "{table}"'):
-                    row = dict(zip(columns, values))
-                    key = tuple(row[k] for k in keys)
-                    self.assertEqual(canonical.get(key), row, f"{table} {key}")
-
-    def test_legacy_natural_keys_keep_their_ids(self):
-        path = self.seed_copy()
-        with closing(sqlite3.connect(path)) as conn:
-            for table, natural in ct.NATURAL_KEYS.items():
-                if not natural:
-                    continue
-                cols = ", ".join(natural)
-                stored = {row[:-1]: row[-1] for row in conn.execute(f"SELECT {cols}, id FROM {table}")
-                          if None not in row[:-1]}
-                canonical = {tuple(r[k] for k in natural): r["id"] for r in canonical_rows(table)
-                             if None not in tuple(r[k] for k in natural)}
-                for key, row_id in stored.items():
-                    self.assertEqual(canonical[key], row_id, f"{table} {key}")
-
-    def test_sequences_never_fall_below_the_seed(self):
-        path = self.seed_copy()
-        with closing(sqlite3.connect(path)) as conn:
-            for table, entry in self.manifest["tables"].items():
-                seed_sequence = ct.stored_sequence(conn, table)
-                if seed_sequence is not None:
-                    self.assertGreaterEqual(entry["sqlite_sequence"], seed_sequence, table)
-                if entry["autoincrement"] and entry["max_id"] is not None:
-                    self.assertGreaterEqual(entry["sqlite_sequence"], entry["max_id"], table)
+    def test_sequences_never_fall_below_the_highest_id(self):
+        for table, entry in self.manifest["tables"].items():
+            if entry["autoincrement"] and entry["max_id"] is not None:
+                self.assertGreaterEqual(entry["sqlite_sequence"], entry["max_id"], table)
         self.assertEqual(self.manifest["tables"]["questions"]["sqlite_sequence"], 1683)
         self.assertEqual(self.manifest["tables"]["curriculum_topics"]["sqlite_sequence"], 181)
+
+    def test_rebuilt_sqlite_sequence_matches_the_manifest(self):
+        conn = self.connect_rebuilt()
+        for table, entry in self.manifest["tables"].items():
+            if entry["autoincrement"]:
+                self.assertEqual(ct.stored_sequence(conn, table), entry["sqlite_sequence"], table)
 
     def test_high_level_counts(self):
         expected = {"curricula": 11, "curriculum_sections": 67, "curriculum_topics": 180, "questions": 1678,
@@ -271,136 +231,6 @@ class StableIdentityTest(CanonicalTestCase):
             self.assertEqual(ct.next_free_id(entry, target, "questions"), 2001)
         low = dict(entry, max_id=10, sqlite_sequence=10)
         self.assertEqual(ct.next_free_id(low, conn, "questions"), 1684)
-
-
-class TrackedInputReconciliationTest(CanonicalTestCase):
-    """Physics/Biology: tracked values + canonical ids, matched by natural key exactly once."""
-
-    @classmethod
-    def setUpClass(cls):
-        super().setUpClass()
-        seed = cls.work / "seed.db"
-        copy_seed_database(SEED, seed)
-        cls.scratch = cls.work / "scratch.db"
-        reconcile.scratch_import(seed, cls.scratch, ROOT)
-        with closing(sqlite3.connect(seed)) as seed_conn, closing(sqlite3.connect(cls.scratch)) as scratch_conn:
-            tables = ct.tables_of(ct.CANONICAL)
-            cls.seed_rows = {t: reconcile._rows(seed_conn, t) for t in tables}
-            cls.scratch_rows = {t: reconcile._rows(scratch_conn, t) for t in tables}
-            cls.seed_sequences = {t: ct.stored_sequence(seed_conn, t) or 0 for t in tables}
-        cls.identities = {
-            table: [{**row} for row in canonical_rows(table)]
-            for table in ("curricula", "curriculum_sections", "curriculum_topics", "questions",
-                          "multiple_choice_options")
-        }
-        cls.maps = reconcile.build_id_maps(cls.identities, cls.seed_rows, cls.scratch_rows, cls.seed_sequences)
-
-    def build(self, identities):
-        return reconcile.build_id_maps(identities, self.seed_rows, self.scratch_rows, self.seed_sequences)
-
-    def test_every_new_row_is_matched_exactly_once(self):
-        expected = {"curricula": 6, "curriculum_sections": 20, "curriculum_topics": 53,
-                    "questions": 846, "multiple_choice_options": 3384}
-        for table, count in expected.items():
-            mapping = self.maps[table]
-            self.assertEqual(len(mapping), count, table)
-            self.assertEqual(len(set(mapping.values())), count, f"{table}: two rows share an id")
-            canonical_new = {r["id"] for r in canonical_rows(table)} - {r["id"] for r in self.seed_rows[table]}
-            self.assertEqual(set(mapping.values()), canonical_new, table)
-
-    def test_new_ids_continue_the_seed_sequences(self):
-        for table, low, high in (("curricula", 6, 11), ("curriculum_sections", 48, 67),
-                                 ("curriculum_topics", 129, 181), ("questions", 838, 1683),
-                                 ("multiple_choice_options", 3288, 6671)):
-            self.assertEqual((min(self.maps[table].values()), max(self.maps[table].values())), (low, high))
-            self.assertGreater(low, self.seed_sequences[table])
-
-    def test_values_come_from_the_tracked_inputs(self):
-        canonical = {t: {r["id"]: r for r in canonical_rows(t)}
-                     for t in ("curriculum_sections", "curriculum_topics", "questions", "multiple_choice_options",
-                               "curricula")}
-        options = {}
-        for row in canonical["multiple_choice_options"].values():
-            options.setdefault(row["question_id"], {})[row["option_letter"]] = (row["option_text"], row["is_correct"])
-        scratch_options = {}
-        for row in self.scratch_rows["multiple_choice_options"]:
-            scratch_options.setdefault(row["question_id"], {})[row["option_letter"]] = (
-                row["option_text"], row["is_correct"])
-        for row in self.scratch_rows["curriculum_topics"]:
-            if row["id"] in self.maps["curriculum_topics"]:
-                new = canonical["curriculum_topics"][self.maps["curriculum_topics"][row["id"]]]
-                self.assertEqual((new["topic_slug"], new["title_bg"], new["description"]),
-                                 (row["topic_slug"], row["title_bg"], row["description"]))
-                self.assertEqual(new["section_id"], self.maps["curriculum_sections"][row["section_id"]])
-        for row in self.scratch_rows["questions"]:
-            if row["id"] not in self.maps["questions"]:
-                continue
-            new = canonical["questions"][self.maps["questions"][row["id"]]]
-            self.assertEqual({k: v for k, v in new.items() if k not in ("id", "topic_id", "created_at")},
-                             {k: v for k, v in row.items() if k not in ("id", "topic_id", "created_at")})
-            self.assertEqual(new["topic_id"], self.maps["curriculum_topics"][row["topic_id"]])
-            self.assertIsNone(new["created_at"])
-            self.assertEqual(options[new["id"]], scratch_options[row["id"]])
-        self.assertEqual(len(self.maps["questions"]), 846)
-
-    def test_link_rows_follow_their_parents(self):
-        topics = {r["id"]: r for r in canonical_rows("curriculum_topics")}
-        questions = {r["id"]: r for r in canonical_rows("questions")}
-        new_questions = set(self.maps["questions"].values())
-        assignments = [r for r in canonical_rows("question_topic_assignments") if r["question_id"] in new_questions]
-        self.assertEqual(len(assignments), 846)
-        self.assertEqual(len({r["question_id"] for r in assignments}), 846)
-        for row in assignments:
-            self.assertEqual(row["topic_id"], questions[row["question_id"]]["topic_id"])
-            self.assertEqual(row["section_id"], topics[row["topic_id"]]["section_id"])
-        ids = sorted(r["id"] for r in assignments)
-        self.assertEqual(ids, list(range(self.seed_sequences["question_topic_assignments"] + 1,
-                                         self.seed_sequences["question_topic_assignments"] + 847)))
-        new_topics = set(self.maps["curriculum_topics"].values())
-        membership = [r for r in canonical_rows("topic_section_assignments") if r["topic_id"] in new_topics]
-        self.assertEqual(len(membership), 53)
-        self.assertEqual(len([r for r in canonical_rows("topic_classes") if r["topic_id"] in new_topics]), 53)
-
-    def test_missing_identity_fails(self):
-        broken = {**self.identities, "questions": self.identities["questions"][:-1]}
-        with self.assertRaisesRegex(reconcile.ReconcileError, "no identity match"):
-            self.build(broken)
-        broken = {**self.identities, "curriculum_topics": [r for r in self.identities["curriculum_topics"]
-                                                          if r["id"] != 181]}
-        with self.assertRaises(reconcile.ReconcileError):
-            self.build(broken)
-
-    def test_duplicate_identity_fails(self):
-        new_question = next(r for r in self.identities["questions"] if r["id"] == 900)
-        duplicate = {**new_question, "id": 5000}
-        with self.assertRaisesRegex(reconcile.ReconcileError, "duplicate natural key"):
-            self.build({**self.identities, "questions": self.identities["questions"] + [duplicate]})
-        same_id = {**self.identities, "questions": self.identities["questions"] + [dict(new_question)]}
-        with self.assertRaisesRegex(reconcile.ReconcileError, "duplicate id"):
-            self.build(same_id)
-
-    def test_unexpected_conflicting_or_recycled_identity_fails(self):
-        extra = {**next(r for r in self.identities["questions"] if r["id"] == 900),
-                 "id": 5000, "source_number": 99999}
-        with self.assertRaisesRegex(reconcile.ReconcileError, "no tracked source"):
-            self.build({**self.identities, "questions": self.identities["questions"] + [extra]})
-        conflicting = [dict(r, prompt="changed") if r["id"] == 900 else r for r in self.identities["questions"]]
-        with self.assertRaisesRegex(reconcile.ReconcileError, "conflicts"):
-            self.build({**self.identities, "questions": conflicting})
-        recycled = [dict(r, id=840) if r["id"] == 838 else r for r in self.identities["questions"]]
-        with self.assertRaises(reconcile.ReconcileError):
-            self.build({**self.identities, "questions": recycled})
-        low = [dict(r, id=1) if r["id"] == 838 else r for r in self.identities["questions"]]
-        with self.assertRaises(reconcile.ReconcileError):
-            self.build({**self.identities, "questions": low})
-
-    @unittest.skipUnless(os.environ.get(IDENTITY_ENV), f"set {IDENTITY_ENV} to the local identity export")
-    def test_reproduces_tracked_files_from_the_local_identity_export(self):
-        out = self.temp_path("reconciled")
-        reconcile.reconcile(SEED, Path(os.environ[IDENTITY_ENV]), out)
-        for path in CANONICAL.glob("*.jsonl"):
-            self.assertEqual(path.read_bytes(), (out / path.name).read_bytes(), path.name)
-        self.assertEqual((CANONICAL / ct.MANIFEST_NAME).read_bytes(), (out / ct.MANIFEST_NAME).read_bytes())
 
 
 class LoaderTest(CanonicalTestCase):
@@ -543,7 +373,7 @@ class ReferenceTest(CanonicalTestCase):
         self.assertEqual(parity.embedded_reference_problems(self.connect_rebuilt()), [])
 
     def test_historical_runtime_references_resolve_against_canonical_ids(self):
-        path = self.seed_copy()
+        path = self.runtime_rows_copy()
         ids = parity.canonical_question_ids()
         with closing(sqlite3.connect(path)) as conn:
             self.assertGreater(conn.execute("SELECT COUNT(*) FROM quiz_attempts").fetchone()[0], 0)
@@ -587,10 +417,6 @@ class ManifestTest(CanonicalTestCase):
         self.assertEqual(export.check_directory(CANONICAL), [])
         self.assertEqual(self.manifest["schema"]["migration_level"],
                          sorted(p.name for p in (ROOT / "web" / "migrations").glob("*.sql"))[-1])
-        self.assertEqual(self.manifest["sources"]["legacy_seed"]["sha256"], reconcile.SEED_SHA256)
-        self.assertEqual(self.manifest["sources"]["local_identity"]["source_database_sha256"],
-                         reconcile.LOCAL_DB_SHA256)
-        self.assertEqual(self.manifest["sources"]["excluded_seed_rows"]["quiz_attempts"], 4)
 
     def test_manifest_generation_fails_on_inconsistency(self):
         cases = {}
@@ -710,17 +536,3 @@ class UpdateSafetyTest(CanonicalTestCase):
         self.assertEqual({p.name for p in out.iterdir()}, set(tracked))
         self.assertEqual(tracked, {p.name: p.read_bytes() for p in CANONICAL.iterdir()})
         self.assertEqual(export.main(["--check"]), 0)
-
-
-class SeedSafetyTest(CanonicalTestCase):
-    def test_seed_is_unchanged_and_has_no_sidecars(self):
-        self.assertEqual(sha256(SEED), self.seed_sha_before)
-        for suffix in ("-wal", "-shm", "-journal"):
-            self.assertFalse(Path(str(SEED) + suffix).exists())
-
-    def test_seed_is_still_tracked(self):
-        self.assertTrue(SEED.is_file(), "G1 must not untrack the seed; that is H")
-
-
-if __name__ == "__main__":
-    unittest.main()

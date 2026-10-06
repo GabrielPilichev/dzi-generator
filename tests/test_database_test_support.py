@@ -1,7 +1,7 @@
-"""G2: normal test databases are built from migrations + canonical content, never from the seed.
+"""G2: normal test databases are built from migrations + canonical content, never from a repository database.
 
 Covers the template/clone architecture of ``tests.support`` and the explicit runtime fixtures of
-``tests.runtime_fixtures``. The tracked seed appears here only as something that must not be touched.
+``tests.runtime_fixtures``. The local runtime database appears here only as something that must not be touched.
 """
 
 import builtins
@@ -22,7 +22,7 @@ from tests import runtime_fixtures as fixtures
 from tests import support
 from tests.support import CANONICAL, IT_ONLY, ROOT, build_test_database, canonical_template
 
-SEED = (ROOT / "data" / "questions.db").resolve()
+RUNTIME_DB = (ROOT / "data" / "questions.db").resolve()
 
 
 def tree_digest(*roots):
@@ -48,29 +48,28 @@ class TemporaryDirectoryTestCase(unittest.TestCase):
 
 
 class TemplateIsCanonicalBuiltTest(TemporaryDirectoryTestCase):
-    def test_creating_a_test_database_never_reads_or_copies_the_seed(self):
+    def test_creating_a_test_database_never_reads_or_copies_the_runtime_database(self):
         touched = []
         real_open, real_copyfile = builtins.open, shutil.copyfile
 
-        def is_seed(candidate):
+        def is_runtime_db(candidate):
             try:
-                return Path(os.fspath(candidate)).resolve() == SEED
+                return Path(os.fspath(candidate)).resolve() == RUNTIME_DB
             except (TypeError, ValueError, OSError):
                 return False
 
         def spy_open(file, *args, **kwargs):
-            if is_seed(file):
+            if is_runtime_db(file):
                 touched.append(("open", file))
             return real_open(file, *args, **kwargs)
 
         def spy_copyfile(src, dst, *args, **kwargs):
-            if is_seed(src):
+            if is_runtime_db(src):
                 touched.append(("copyfile", src))
             return real_copyfile(src, dst, *args, **kwargs)
 
         # A fresh template state forces a real build inside this test.
         with patch.object(support, "_template", {}), \
-                patch.object(support, "copy_seed_database", side_effect=AssertionError("seed copy")), \
                 patch.object(builtins, "open", spy_open), patch.object(shutil, "copyfile", spy_copyfile):
             build_test_database(self.root / "one.db")
             build_test_database(self.root / "two.db", IT_ONLY)
@@ -192,7 +191,7 @@ class RuntimeFixtureTest(TemporaryDirectoryTestCase):
         self.assertEqual(sum(runtime_counts(canonical_template()).values()), 0)
 
     def test_the_old_seed_smoke_rows_are_not_a_hidden_fixture(self):
-        # The legacy seed had 2 assignments, 4 attempts and 19 answers. They are not recreated.
+        # The retired seed had 2 assignments, 4 attempts and 19 answers. They are not recreated.
         counts = runtime_counts(build_test_database(self.root / "fresh.db"))
         self.assertEqual((counts["quiz_assignments"], counts["quiz_attempts"], counts["quiz_answers"]), (0, 0, 0))
 

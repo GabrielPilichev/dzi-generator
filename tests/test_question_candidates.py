@@ -1,6 +1,6 @@
 """Candidate dataset validation: format, limits, source policy, review, duplicates.
 
-Pure file/in-memory tests. The database checks use a temporary copy of the seed.
+Pure file/in-memory tests. The database checks use a temporary canonical-built database.
 """
 
 import copy
@@ -452,7 +452,7 @@ class DatasetValidationTests(unittest.TestCase):
 
 
 class DatabaseCheckTests(unittest.TestCase):
-    """Optional ``--db`` checks against a temporary copy of the seed database."""
+    """Optional ``--db`` checks against a temporary canonical-built database."""
 
     def setUp(self):
         tmp = tempfile.TemporaryDirectory(prefix="learnpilot-candidates-")

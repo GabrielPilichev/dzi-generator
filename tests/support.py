@@ -7,7 +7,6 @@ environment variables alone cannot reconfigure an already imported application.
 
 import atexit
 import hashlib
-import io
 import os
 import shutil
 import sqlite3
@@ -19,7 +18,7 @@ from contextlib import ExitStack, closing, contextmanager
 from pathlib import Path
 from unittest.mock import patch
 
-from tests.seed_guard import guard_connect_db
+from tests.runtime_db_guard import guard_connect_db
 from web import db as web_db
 
 with patch.dict(os.environ, {"DZI_DB": ":memory:"}):
@@ -31,7 +30,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 # --------------------------------------------------------------------------- canonical template
 #
-# Normal test databases are NOT copies of the tracked seed. They are clones of one
+# Test databases are never copies of a repository database. They are clones of one
 # template per test process that ``src.build_database`` builds from migrations +
 # data/canonical (about 1.5 s, once). The template is read-only, hash-checked on every
 # clone and never handed to a test; each test class/test gets its own writable copy.
@@ -107,7 +106,7 @@ def canonical_template(profile: str = CANONICAL) -> Path:
 def build_test_database(destination: Path, profile: str = CANONICAL) -> Path:
     """An isolated, writable database built from migrations + canonical content.
 
-    A byte clone of the read-only template: no seed, no runtime rows, no sidecars,
+    A byte clone of the read-only template: no runtime rows, no sidecars,
     rollback-journal mode. Mutating it never affects the template or another test.
     """
     destination = Path(destination)
@@ -117,59 +116,38 @@ def build_test_database(destination: Path, profile: str = CANONICAL) -> Path:
     return destination
 
 
-def copy_seed_database(source: Path, destination: Path):
-    """TRANSITIONAL (until H): copy the legacy tracked seed plus committed WAL data.
-
-    Only seed-transition tests (parity with the seed, baseline adoption, seed safety)
-    may use this. Normal tests build their database with ``build_test_database``.
-    The source is never opened through SQLite: even mode=ro connections can
-    update the source -shm file. Fail if the source changes during copying
-    rather than running tests against an inconsistent snapshot.
-    """
-    source_wal = Path(str(source) + "-wal")
-
-    def source_state():
-        return {
-            path: (path.stat().st_ino, path.stat().st_size,
-                   path.stat().st_mtime_ns, path.stat().st_ctime_ns)
-            for path in (source, source_wal) if path.exists()
-        }
-
-    before = source_state()
-    shutil.copyfile(source, destination)
-    if source_wal in before:
-        shutil.copyfile(source_wal, Path(str(destination) + "-wal"))
-    if source_state() != before:
-        raise RuntimeError("Seed database changed while copying; retry when it is idle")
-    # The seed is WAL-mode, and a read-only connection (the DZI generator uses
-    # mode=ro) cannot open a WAL database whose -wal/-shm sidecars are missing
-    # and cannot be created. Fold any copied WAL into the copy and switch it to
-    # a rollback journal so it is self-contained whether or not the source had
-    # sidecars. Only the temporary copy is ever opened here, never the source.
-    with closing(sqlite3.connect(destination)) as conn:
-        if conn.execute("PRAGMA journal_mode=DELETE").fetchone()[0] != "delete":
-            raise RuntimeError("Could not make the seed database copy self-contained")
-    # SQLite can leave an unused -shm behind after leaving WAL mode.
-    for suffix in ("-wal", "-shm"):
-        sidecar = Path(str(destination) + suffix)
-        if sidecar.exists():
-            sidecar.unlink()
+# The newest migration a database created before the baseline (000) had already applied.
+LEGACY_LEVEL = "010_topic_section_display_order.sql"
 
 
-def adopt_baseline(db_path: Path):
-    """Record migration 000 on a temporary seed copy, as an existing database does.
+def build_legacy_database(destination: Path) -> Path:
+    """A small synthetic database that predates the baseline migration (000).
 
-    The tracked seed predates 000 and must stay byte-identical, so a copy of it
-    has 000 pending until adopted. Only schema_migrations bookkeeping changes.
+    It has the schema an existing deployment had before 000 existed (the 000 DDL plus
+    migrations 001-010, executed directly) and ``schema_migrations`` recording 001-010 but
+    not 000, with a few content rows. Used to test baseline adoption; no binary fixture and
+    no historical content are involved.
     """
     from src import manage_migrations
 
-    path = Path(db_path).resolve()
-    if path == (ROOT / "data" / "questions.db").resolve():
-        raise AssertionError("refusing to write to the repository database from a test")
-    status = manage_migrations.baseline_apply(path, ROOT / "web" / "migrations", out=io.StringIO())
-    if status != 0:
-        raise AssertionError("baseline adoption failed on the temporary database copy")
+    destination = Path(destination)
+    if destination.exists():
+        raise FileExistsError(destination)
+    migrations = sorted((ROOT / "web" / "migrations").glob("*.sql"))
+    legacy = [path for path in migrations if path.name != "000_baseline.sql" and path.name <= LEGACY_LEVEL]
+    with closing(sqlite3.connect(destination)) as conn:
+        conn.executescript((ROOT / "web" / "migrations" / "000_baseline.sql").read_text(encoding="utf-8"))
+        manage_migrations.ensure_schema_migrations(conn)
+        for path in legacy:
+            conn.executescript(path.read_text(encoding="utf-8"))
+            conn.execute("INSERT INTO schema_migrations (filename, applied_at) VALUES (?, CURRENT_TIMESTAMP)",
+                         (path.name,))
+        conn.execute("INSERT INTO curricula (grade, subject, education_type, title_bg) "
+                     "VALUES (8, 'informatics', 'general', 'Legacy curriculum')")
+        conn.execute("INSERT INTO curricula (grade, subject, education_type, title_bg) "
+                     "VALUES (9, 'informatics', 'general', 'Legacy curriculum 2')")
+        conn.commit()
+    return destination
 
 
 @contextmanager
@@ -197,7 +175,7 @@ def isolated_app(profile: str = CANONICAL):
         upload_root = root / "uploads" / "practical"
         upload_root.mkdir(parents=True)
 
-        # A test on a temporary DB must never reach the tracked seed through the
+        # A test on a temporary DB must never reach the local runtime database through the
         # shared web connection factory (e.g. leaked DB_PATH/QUIZ_DB_PATH).
         with preserved_app_state(), \
                 patch.object(web_db, "connect_db", guard_connect_db(web_db.connect_db)), \

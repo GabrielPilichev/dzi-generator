@@ -20,7 +20,8 @@ domain (production: `learnpilot.bg`) only on the server; never commit domains, I
 | `/var/lib/learnpilot/vault` | Generated quiz notes (`DZI_VAULT`) | `learnpilot` `0750` |
 | `/var/backups/learnpilot` | Completed application snapshots | `learnpilot` `0700` |
 
-The repository tracks a seed `data/questions.db`. Production state must stay
+The repository does not track a database (`data/questions.db` is an ignored local
+runtime file). Production state must stay
 outside the checkout so a `git pull` can never replace live data; startup
 refuses state paths inside `/opt/learnpilot/app`.
 
@@ -180,13 +181,14 @@ The teacher generator reads `DZI_DB` and writes both Markdown and JSON under
 
 ## 8. Database preparation (first deployment)
 
-Create the live database from the tracked seed with the online backup tool
-(safe for WAL databases; never `cp` a live SQLite file):
+Create the live database from the migrations and the canonical content with the
+builder (it creates a new file and refuses to overwrite one). An existing
+live database is never rebuilt; it is migrated and backed up (sections 16-20).
 
 ```bash
 cd /opt/learnpilot/app
-sudo /opt/learnpilot/venv/bin/python -m src.backup_sqlite \
-  --db data/questions.db --output /var/lib/learnpilot/data/questions.db
+sudo /opt/learnpilot/venv/bin/python -m src.build_database \
+  --output /var/lib/learnpilot/data/questions.db
 sudo chown learnpilot:learnpilot /var/lib/learnpilot/data/questions.db
 sudo -u learnpilot sqlite3 /var/lib/learnpilot/data/questions.db 'PRAGMA journal_mode=WAL;'
 ```
@@ -532,8 +534,8 @@ cached. It never creates a missing database.
 ## 20. Deploy / update procedure
 
 Production data lives outside the checkout (`/var/lib/learnpilot/...`) and is
-never replaced by repository files. The tracked seed `data/questions.db` in the
-checkout is not the live database. Do not change Gunicorn workers or threads
+never replaced by repository files. Any `data/questions.db` in the
+checkout is local runtime state and is not the live database. Do not change Gunicorn workers or threads
 (section "2 GB VPS sizing"). Do not apply migrations blindly.
 
 **1. Verify the checkout is clean and on `main`.**

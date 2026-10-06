@@ -152,7 +152,7 @@ def runtime_reference_problems(conn: sqlite3.Connection, question_ids: set[int])
     """Do question ids stored in runtime/operational rows resolve against ``question_ids``?
 
     Reads whatever rows the connection has; on a canonical rebuild they are empty,
-    on the legacy seed they are the historical references that must stay valid.
+    on a legacy database they are the historical references that must stay valid.
     """
     problems: list[str] = []
 

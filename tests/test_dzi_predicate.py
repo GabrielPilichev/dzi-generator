@@ -1,10 +1,10 @@
 """The one DZI-question predicate (roadmap PR C2): rules, seed pin, dependencies.
 
 ``web.services.dzi`` only identifies official DZI content. Nothing renders through
-it yet, so these tests pin the predicate itself: what the seed contains, which
+it yet, so these tests pin the predicate itself: what the canonical data contains, which
 rows each rule admits or refuses, and that its SQL and Python forms agree.
-Synthetic rows live in an in-memory copy of a temporary seed copy; the tracked
-seed database is never written.
+Synthetic rows live in an in-memory copy of a temporary canonical-built database;
+no repository database is read or written.
 """
 
 import ast

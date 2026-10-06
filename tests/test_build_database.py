@@ -1,4 +1,4 @@
-"""G2: the database builder (migrations + canonical content, no seed) and its failure safety.
+"""G2: the database builder (migrations + canonical content) and its failure safety.
 
 Every database here is built in a temporary directory. ``data/questions.db`` is never read
 by the builder; one test proves it with a spy on every way a file could be opened or copied.
@@ -21,7 +21,7 @@ from src import canonical_load as load
 from src import canonical_tables as ct
 from tests.support import ROOT
 
-SEED = (ROOT / "data" / "questions.db").resolve()
+RUNTIME_DB = (ROOT / "data" / "questions.db").resolve()
 CANONICAL = ROOT / "data" / "canonical"
 MANIFEST = export.load_manifest(CANONICAL)
 SIDECARS = ("-wal", "-shm", "-journal")
@@ -118,7 +118,7 @@ class BuiltDatabaseTest(unittest.TestCase):
             for table in ct.tables_of(ct.RUNTIME):
                 self.assertEqual(conn.execute(f'SELECT COUNT(*) FROM "{table}"').fetchone()[0], 0, table)
 
-    def test_operational_tables_are_not_populated_from_the_seed(self):
+    def test_operational_tables_are_are_empty_after_a_build(self):
         with closing(connect(self.path)) as conn:
             for table in ("obsidian_notes", "note_question_links", "generated_exams", "scrape_log"):
                 self.assertEqual(conn.execute(f'SELECT COUNT(*) FROM "{table}"').fetchone()[0], 0, table)
@@ -162,20 +162,20 @@ class BuildReproducibilityTest(TemporaryDirectoryTestCase):
         self.assertNotEqual(builder.logical_fingerprint(first), builder.logical_fingerprint(second))
 
 
-class NoSeedDependencyTest(TemporaryDirectoryTestCase):
-    def test_build_never_opens_or_copies_the_tracked_seed(self):
+class NoRuntimeDatabaseDependencyTest(TemporaryDirectoryTestCase):
+    def test_build_never_opens_or_copies_the_runtime_database(self):
         touched = []
         real_open, real_connect = builtins.open, sqlite3.connect
         copies = {name: getattr(shutil, name) for name in ("copyfile", "copy", "copy2", "copyfileobj")}
 
-        def is_seed(candidate):
+        def is_runtime_db(candidate):
             try:
-                return Path(os.fspath(candidate)).resolve() == SEED
+                return Path(os.fspath(candidate)).resolve() == RUNTIME_DB
             except (TypeError, ValueError, OSError):
                 return False
 
         def spy_open(file, *args, **kwargs):
-            if is_seed(file):
+            if is_runtime_db(file):
                 touched.append(("open", file))
             return real_open(file, *args, **kwargs)
 
@@ -183,13 +183,13 @@ class NoSeedDependencyTest(TemporaryDirectoryTestCase):
             target = database
             if isinstance(database, str) and database.startswith("file:"):
                 target = database.split("?", 1)[0][len("file:"):]
-            if is_seed(target):
+            if is_runtime_db(target):
                 touched.append(("connect", database))
             return real_connect(database, *args, **kwargs)
 
         def spy_copy(name):
             def copier(src, dst, *args, **kwargs):
-                if is_seed(src):
+                if is_runtime_db(src):
                     touched.append((name, src))
                 return copies[name](src, dst, *args, **kwargs)
             return copier
@@ -199,9 +199,8 @@ class NoSeedDependencyTest(TemporaryDirectoryTestCase):
             builder.build_database(self.root / "built.db")
         self.assertEqual(touched, [])
 
-    def test_builder_source_has_no_seed_path(self):
+    def test_builder_source_copies_no_database(self):
         source = (ROOT / "src" / "build_database.py").read_text(encoding="utf-8")
-        self.assertNotIn("copy_seed_database", source)
         self.assertNotIn("copyfile", source)
         self.assertNotIn("shutil.copy", source)
 

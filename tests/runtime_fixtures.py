@@ -2,7 +2,7 @@
 
 A database built from migrations + canonical content has **no** runtime state:
 ``quiz_assignments``, ``quiz_attempts``, ``quiz_answers``, ``quiz_text_answers`` and the
-practical submission tables start empty. The tracked legacy seed happened to carry smoke-test
+practical submission tables start empty. The retired legacy seed happened to carry smoke-test
 rows (2 assignments, 4 attempts, 19 answers); tests must not depend on those. A test that
 needs runtime state creates exactly the rows it needs with these helpers, on its own
 temporary database, and never on the canonical test template.

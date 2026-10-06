@@ -1,6 +1,6 @@
 """Canonical subject registry: identity, grades, validation and derived availability.
 
-Pure tests use in-memory SQLite. Database-backed tests copy the seed database to a
+Pure tests use in-memory SQLite. Database-backed tests use a canonical-built database in a
 temporary file and never touch the repository database.
 """
 

@@ -54,7 +54,7 @@ def _state_path_errors(environ: Mapping[str, str]) -> list[str]:
         if not path.is_absolute():
             errors.append(f"{name} must be an absolute path")
         elif not _outside_checkout(path):
-            # The repository tracks a seed questions.db; a deploy (git pull,
+            # A local data/questions.db may sit inside a checkout; a deploy (git pull,
             # fresh clone) must never be able to replace live data or uploads.
             errors.append(f"{name} must be outside the application checkout")
         elif name == DB_ENV:

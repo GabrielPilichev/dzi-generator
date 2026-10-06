@@ -7,7 +7,7 @@ from contextlib import closing
 from pathlib import Path
 from unittest.mock import patch
 
-from tests.seed_guard import ROOT, SeedDatabaseAccess
+from tests.runtime_db_guard import ROOT, RuntimeDatabaseAccess
 from tests.support import IsolatedAppTestCase, web_app
 from web import db as web_db
 
@@ -182,20 +182,20 @@ class RequestsNeverChangeJournalModeTest(IsolatedAppTestCase):
         self.assertEqual([s for s in statements if "journal_mode" in s.lower()], [])
 
 
-class SeedDatabaseTripwireTest(IsolatedAppTestCase):
-    """Configuration leaking back to the repository seed fails instead of opening it."""
+class RuntimeDatabaseGuardTest(IsolatedAppTestCase):
+    """Configuration leaking back to the local runtime database fails instead of opening it."""
 
     def test_leaked_request_path_is_refused_before_sqlite_is_called(self):
         with patch.dict(web_app.app.config, {"DB_PATH": str(ROOT / "data" / "questions.db")}):
             with web_app.app.app_context(), patch.object(sqlite3, "connect") as connect:
-                with self.assertRaises(SeedDatabaseAccess):
+                with self.assertRaises(RuntimeDatabaseAccess):
                     web_app.get_db()
                 connect.assert_not_called()
 
     def test_leaked_quiz_path_is_refused_before_sqlite_is_called(self):
         with patch.object(web_app, "QUIZ_DB_PATH", ROOT / "data" / "questions.db"), \
                 patch.object(sqlite3, "connect") as connect:
-            with self.assertRaises(SeedDatabaseAccess):
+            with self.assertRaises(RuntimeDatabaseAccess):
                 web_app.quiz_db()
             connect.assert_not_called()
 
