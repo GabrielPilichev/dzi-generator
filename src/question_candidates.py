@@ -750,6 +750,7 @@ def _flag_sibling_duplicates(records, others, context, report) -> None:
 
     Exact and near wording only; the same fact worded differently is a review matter.
     """
+    seen_runs = {context["run_id"]}      # the dataset itself, and each run only once
     for position, other in enumerate(others, 1):
         run = other.get("run") if isinstance(other, dict) else None
         candidates = other.get("candidates") if isinstance(other, dict) else None
@@ -757,7 +758,13 @@ def _flag_sibling_duplicates(records, others, context, report) -> None:
                 and isinstance(run.get("id"), str)):
             report.error("compare_dataset", f"comparison dataset {position} is not a candidate dataset")
             continue
+        if run["id"] in seen_runs:
+            continue
+        seen_runs.add(run["id"])
         if run.get("subject") != context["subject"]:
+            report.flag("compare_skipped_subject",
+                        f"comparison run {run['id']} is subject {run.get('subject')!r}, not "
+                        f"{context['subject']!r}; it was not compared")
             continue
         for item in candidates:
             if not (isinstance(item, dict) and isinstance(item.get("id"), str)

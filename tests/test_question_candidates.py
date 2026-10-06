@@ -752,8 +752,43 @@ class WaveLessonTests(unittest.TestCase):
         self.assertEqual(validate_dataset(current, compare_datasets=[earlier]).flags, [])
         earlier["candidates"][0]["review"] = review()
         earlier["run"]["subject"] = "biology"
-        self.assertEqual(validate_dataset(current, compare_datasets=[earlier]).flags, [])
+        report = validate_dataset(current, compare_datasets=[earlier])
+        self.assertTrue(report.ok)
+        self.assertEqual([(i.candidate_id, i.code) for i in report.flags],
+                         [(None, "compare_skipped_subject")])
+        self.assertIn("not compared", report.flags[0].message)
         self.assertIn("compare_dataset", validate_dataset(current, compare_datasets=[{}]).codes())
+
+    def earlier_run(self, run_id="physics-g8-earlier-run"):
+        earlier = dataset(candidate(1))
+        earlier["run"]["id"] = run_id
+        return earlier
+
+    def test_current_dataset_in_compare_is_skipped(self):
+        current = dataset(candidate(1), candidate(2))
+        report = validate_dataset(current, compare_datasets=[copy.deepcopy(current)])
+        self.assertTrue(report.ok)
+        self.assertEqual(report.flags, [])
+
+    def test_repeated_comparison_run_counts_once(self):
+        current = dataset(candidate(1))
+        first, again = self.earlier_run(), self.earlier_run()
+        report = validate_dataset(current, compare_datasets=[first, first, again])
+        self.assertEqual([i.code for i in report.flags], ["duplicate_sibling_exact"])
+
+    def test_near_sibling_duplicate_is_flagged(self):
+        near = candidate(1, prompt="Which synthetic statement about the first test object "
+                                   "is correct here?",
+                         options={"A": "First 1", "B": "Second 1", "C": "Third 1",
+                                  "D": "Something else"})
+        report = validate_dataset(dataset(near), compare_datasets=[self.earlier_run()])
+        self.assertEqual([i.code for i in report.flags], ["duplicate_sibling_near"])
+
+    def test_rejected_current_candidate_has_no_sibling_findings(self):
+        current = dataset(candidate(1, status="rejected"))
+        report = validate_dataset(current, compare_datasets=[self.earlier_run()])
+        self.assertTrue(report.ok)
+        self.assertEqual(report.flags, [])
 
     def test_validate_cli_compare_option(self):
         with tempfile.TemporaryDirectory() as tmp:

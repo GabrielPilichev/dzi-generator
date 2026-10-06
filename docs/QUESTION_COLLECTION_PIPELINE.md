@@ -240,6 +240,7 @@ on each candidate, as the file to review. It refuses to replace an existing file
 | `extract_without_locator`, `third_party_adapted`, `third_party_reuse_exception`, `research_notes_long` | See "Source policy". |
 | `skill_missing` | The run declares a `skill_vocabulary` and the candidate has no `research.skill`. |
 | `duplicate_sibling_exact`, `duplicate_sibling_near` | Same comparison as below, against a dataset given with `--compare`. |
+| `compare_skipped_subject` | A `--compare` dataset is of another subject and did not participate. |
 | `runtime_limit_exceeded`, `target_not_in_db`, `db_wal_pending` | Dataset-level notes described above. |
 
 These are deterministic text rules. They do not show that a question is
@@ -266,8 +267,11 @@ With `--compare DATASET` (repeatable), the same comparison runs against the
 non-rejected candidates of other datasets of the same subject (an earlier run of
 the topic, sibling topics of the grade): `duplicate_sibling_exact`,
 `duplicate_sibling_near`, flagged on the candidate being validated only. The
-other files are read, never changed; a file that is not a candidate dataset is
-the error `compare_dataset`.
+other files are read, never changed. A run is compared once: the dataset's own
+run id and repeated runs are skipped silently. A run of another subject is not
+compared and is reported by the non-failing flag `compare_skipped_subject` (no
+candidate id). A file that is not a candidate dataset is the error
+`compare_dataset`.
 
 Duplicates are flagged on both candidates and never removed. Rejected candidates
 are left out of the comparison, so rejecting one of a pair clears the flag on
@@ -325,9 +329,9 @@ lower share (for example a recognition-centred programme); the report gives the
 recall/reasoning split and the justification. AUDIT: whether an item really
 needs reasoning is a judgement; there is no field or heuristic for it.
 
-### Skill vocabulary (MUST declare, validator-enforced when declared)
+### Skill vocabulary (SHOULD declare; validator-enforced once declared)
 
-A run SHOULD declare a small `run.skill_vocabulary` (at most 12 tags, for
+Declaring a vocabulary is optional. A run SHOULD declare a small `run.skill_vocabulary` (at most 12 tags, for
 example a dimension id such as `D3` plus one of `recall`, `compare`, `explain`,
 `apply`, `interpret`) and use only those tags in `research.skill`. When it is
 declared, a tag outside it is the error `skill_vocabulary`, and a candidate
