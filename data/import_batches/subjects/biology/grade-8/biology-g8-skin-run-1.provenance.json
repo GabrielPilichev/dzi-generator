@@ -1,0 +1,1065 @@
+{
+  "format_version": 1,
+  "kind": "question_candidate_provenance",
+  "run": {
+    "id": "biology-g8-skin-run-1",
+    "started_at": "2026-10-06T05:05:59Z",
+    "finished_at": "2026-10-06T05:30:00Z",
+    "subject": "biology",
+    "grade": 8,
+    "curriculum": {
+      "education_type": "general",
+      "title": "Биология и здравно образование, 8. клас — общообразователна подготовка"
+    },
+    "targets": [
+      {
+        "section": {
+          "slug": "biology-g8-regulation-and-homeostasis",
+          "title": "Регулация и хомеостаза"
+        },
+        "topics": [
+          {
+            "slug": "biology-g8-skin",
+            "title": "Кожа"
+          }
+        ]
+      }
+    ],
+    "limits": {
+      "max_topics": 3,
+      "max_pages": 3,
+      "max_candidates": 40,
+      "max_candidates_per_source": 40,
+      "max_runtime_minutes": 60
+    },
+    "pages_inspected": 1,
+    "stop_reason": "topic_complete",
+    "collector": "claude-sonnet-5-5-collector",
+    "notes": "Пилотен цикъл 2: 40 въпроса по измерения D1–D5 на тема „Кожа“. Науката е от общоприети учебни факти; не е ползван друг източник."
+  },
+  "not_stored_in_database": [
+    "candidate id",
+    "source type",
+    "source url",
+    "source title",
+    "source publisher",
+    "source retrieved_at",
+    "transformation",
+    "source_ref",
+    "research",
+    "reuse_exception",
+    "explanation",
+    "difficulty",
+    "review (reviewer, reviewed_at, notes)",
+    "run manifest"
+  ],
+  "batches": [
+    {
+      "file": "biology-g8-skin-run-1.skin.json",
+      "source": "reviewed:biology:biology-g8-skin-run-1.skin",
+      "topic_slug": "biology-g8-skin",
+      "questions": [
+        {
+          "number": 1,
+          "candidate_id": "biology-g8-skin-run-1-002",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf",
+            "title": "Учебна програма по биология и здравно образование за VIII клас (общообразователна подготовка), Приложение № 18",
+            "retrieved_at": "2026-10-06T05:00:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 5.4 „Кожа“. Всички въпроси са новонаписани от общоприети биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "слоеве – последователност",
+            "skill": "D1 слоеве и строеж"
+          },
+          "explanation": "Най-отгоре е епидермисът, под него е дермата, а най-дълбоко – подкожната мастна тъкан.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 2,
+          "candidate_id": "biology-g8-skin-run-1-003",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf",
+            "title": "Учебна програма по биология и здравно образование за VIII клас (общообразователна подготовка), Приложение № 18",
+            "retrieved_at": "2026-10-06T05:00:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 5.4 „Кожа“. Всички въпроси са новонаписани от общоприети биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "дерма – съдържание",
+            "skill": "D1 слоеве и строеж"
+          },
+          "explanation": "Дермата е от съединителна тъкан и съдържа съдове, нервни окончания, жлези и космени фоликули.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 3,
+          "candidate_id": "biology-g8-skin-run-1-004",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf",
+            "title": "Учебна програма по биология и здравно образование за VIII клас (общообразователна подготовка), Приложение № 18",
+            "retrieved_at": "2026-10-06T05:00:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 5.4 „Кожа“. Всички въпроси са новонаписани от общоприети биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "епидермис срещу дерма",
+            "skill": "D1 слоеве и строеж"
+          },
+          "explanation": "Двата слоя имат различна тъкан и различно съдържание: епителът на епидермиса е без съдове, а дермата е богата на съдове и нерви.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 4,
+          "candidate_id": "biology-g8-skin-run-1-005",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf",
+            "title": "Учебна програма по биология и здравно образование за VIII клас (общообразователна подготовка), Приложение № 18",
+            "retrieved_at": "2026-10-06T05:00:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 5.4 „Кожа“. Всички въпроси са новонаписани от общоприети биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "съдове в дермата – причина и следствие",
+            "skill": "D1 слоеве и строеж"
+          },
+          "explanation": "Съдовете са в дермата; докато раната не стигне до нея, кървене няма.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 5,
+          "candidate_id": "biology-g8-skin-run-1-006",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf",
+            "title": "Учебна програма по биология и здравно образование за VIII клас (общообразователна подготовка), Приложение № 18",
+            "retrieved_at": "2026-10-06T05:00:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 5.4 „Кожа“. Всички въпроси са новонаписани от общоприети биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "роговият слой – обновяване",
+            "skill": "D1 слоеве и строеж"
+          },
+          "explanation": "В епидермиса клетките от дълбоките слоеве се делят, изместват се нагоре, ороговяват и се отлюспват.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 6,
+          "candidate_id": "biology-g8-skin-run-1-007",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf",
+            "title": "Учебна програма по биология и здравно образование за VIII клас (общообразователна подготовка), Приложение № 18",
+            "retrieved_at": "2026-10-06T05:00:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 5.4 „Кожа“. Всички въпроси са новонаписани от общоприети биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "подкожна мастна тъкан – структура и функция",
+            "skill": "D1 слоеве и строеж"
+          },
+          "explanation": "Епидермисът е по-дебел на местата с най-голямо триене и натиск.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 7,
+          "candidate_id": "biology-g8-skin-run-1-008",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf",
+            "title": "Учебна програма по биология и здравно образование за VIII клас (общообразователна подготовка), Приложение № 18",
+            "retrieved_at": "2026-10-06T05:00:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 5.4 „Кожа“. Всички въпроси са новонаписани от общоприети биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "меланин – къде се образува",
+            "skill": "D1 слоеве и строеж"
+          },
+          "explanation": "Меланинът се синтезира от пигментни клетки (меланоцити) в долния слой на епидермиса.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 8,
+          "candidate_id": "biology-g8-skin-run-1-009",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf",
+            "title": "Учебна програма по биология и здравно образование за VIII клас (общообразователна подготовка), Приложение № 18",
+            "retrieved_at": "2026-10-06T05:00:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 5.4 „Кожа“. Всички въпроси са новонаписани от общоприети биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "подкожна мастна тъкан – функции",
+            "skill": "D1 слоеве и строеж"
+          },
+          "explanation": "Подкожната мастна тъкан е топлоизолатор, амортисьор и запас от енергия.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 9,
+          "candidate_id": "biology-g8-skin-run-1-010",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf",
+            "title": "Учебна програма по биология и здравно образование за VIII клас (общообразователна подготовка), Приложение № 18",
+            "retrieved_at": "2026-10-06T05:00:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 5.4 „Кожа“. Всички въпроси са новонаписани от общоприети биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "защитна функция – сценарий",
+            "skill": "D2 функции"
+          },
+          "explanation": "Непокътнатата кожа е бариера срещу микроби, изсушаване и механични увреждания.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 10,
+          "candidate_id": "biology-g8-skin-run-1-011",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf",
+            "title": "Учебна програма по биология и здравно образование за VIII клас (общообразователна подготовка), Приложение № 18",
+            "retrieved_at": "2026-10-06T05:00:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 5.4 „Кожа“. Всички въпроси са новонаписани от общоприети биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "витамин D",
+            "skill": "D2 функции"
+          },
+          "explanation": "Ултравиолетовите лъчи участват в образуването на витамин D в кожата.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 11,
+          "candidate_id": "biology-g8-skin-run-1-012",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf",
+            "title": "Учебна програма по биология и здравно образование за VIII клас (общообразователна подготовка), Приложение № 18",
+            "retrieved_at": "2026-10-06T05:00:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 5.4 „Кожа“. Всички въпроси са новонаписани от общоприети биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "отделяне на пот",
+            "skill": "D2 функции"
+          },
+          "explanation": "Потта е воден разтвор на соли и малко урея – така кожата участва в отделянето.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 12,
+          "candidate_id": "biology-g8-skin-run-1-013",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf",
+            "title": "Учебна програма по биология и здравно образование за VIII клас (общообразователна подготовка), Приложение № 18",
+            "retrieved_at": "2026-10-06T05:00:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 5.4 „Кожа“. Всички въпроси са новонаписани от общоприети биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "рецептори в кожата",
+            "skill": "D2 функции"
+          },
+          "explanation": "Рецепторите в дермата възприемат допир, натиск, болка, топлина и студ.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 13,
+          "candidate_id": "biology-g8-skin-run-1-014",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf",
+            "title": "Учебна програма по биология и здравно образование за VIII клас (общообразователна подготовка), Приложение № 18",
+            "retrieved_at": "2026-10-06T05:00:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 5.4 „Кожа“. Всички въпроси са новонаписани от общоприети биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "потни спрямо мастни жлези",
+            "skill": "D2 функции"
+          },
+          "explanation": "Мастните жлези отделят мазен секрет, който смазва и предпазва; потните – воден секрет.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 14,
+          "candidate_id": "biology-g8-skin-run-1-015",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf",
+            "title": "Учебна програма по биология и здравно образование за VIII клас (общообразователна подготовка), Приложение № 18",
+            "retrieved_at": "2026-10-06T05:00:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 5.4 „Кожа“. Всички въпроси са новонаписани от общоприети биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "функции – класификация",
+            "skill": "D2 функции"
+          },
+          "explanation": "Кръвните клетки се образуват в червения костен мозък.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 15,
+          "candidate_id": "biology-g8-skin-run-1-017",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf",
+            "title": "Учебна програма по биология и здравно образование за VIII клас (общообразователна подготовка), Приложение № 18",
+            "retrieved_at": "2026-10-06T05:00:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 5.4 „Кожа“. Всички въпроси са новонаписани от общоприети биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "кожа и бъбреци – сравнение",
+            "skill": "D2 функции"
+          },
+          "explanation": "Потта съдържа малко урея и соли; основният орган на отделянето са бъбреците.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 16,
+          "candidate_id": "biology-g8-skin-run-1-018",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf",
+            "title": "Учебна програма по биология и здравно образование за VIII клас (общообразователна подготовка), Приложение № 18",
+            "retrieved_at": "2026-10-06T05:00:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 5.4 „Кожа“. Всички въпроси са новонаписани от общоприети биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "реакция на съдовете в топло и студено",
+            "skill": "D3 терморегулация"
+          },
+          "explanation": "Разширените съдове отдават повече топлина, а свитите намаляват отдаването ѝ.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 17,
+          "candidate_id": "biology-g8-skin-run-1-019",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf",
+            "title": "Учебна програма по биология и здравно образование за VIII клас (общообразователна подготовка), Приложение № 18",
+            "retrieved_at": "2026-10-06T05:00:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 5.4 „Кожа“. Всички въпроси са новонаписани от общоприети биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "потене и изпаряване",
+            "skill": "D3 терморегулация"
+          },
+          "explanation": "Изпарението на водата изисква топлина, която се взема от тялото.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 18,
+          "candidate_id": "biology-g8-skin-run-1-020",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf",
+            "title": "Учебна програма по биология и здравно образование за VIII клас (общообразователна подготовка), Приложение № 18",
+            "retrieved_at": "2026-10-06T05:00:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 5.4 „Кожа“. Всички въпроси са новонаписани от общоприети биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "треперене",
+            "skill": "D3 терморегулация"
+          },
+          "explanation": "При студ скелетните мускули бързо се съкращават и отделят топлина.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 19,
+          "candidate_id": "biology-g8-skin-run-1-021",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf",
+            "title": "Учебна програма по биология и здравно образование за VIII клас (общообразователна подготовка), Приложение № 18",
+            "retrieved_at": "2026-10-06T05:00:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 5.4 „Кожа“. Всички въпроси са новонаписани от общоприети биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "влажност и потене",
+            "skill": "D3 терморегулация"
+          },
+          "explanation": "Охлаждането зависи от изпарението, а то се затруднява при висока влажност.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 20,
+          "candidate_id": "biology-g8-skin-run-1-022",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf",
+            "title": "Учебна програма по биология и здравно образование за VIII клас (общообразователна подготовка), Приложение № 18",
+            "retrieved_at": "2026-10-06T05:00:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 5.4 „Кожа“. Всички въпроси са новонаписани от общоприети биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "настръхване",
+            "skill": "D3 терморегулация"
+          },
+          "explanation": "Мускулчетата при космените фоликули изправят космите.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 21,
+          "candidate_id": "biology-g8-skin-run-1-023",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf",
+            "title": "Учебна програма по биология и здравно образование за VIII клас (общообразователна подготовка), Приложение № 18",
+            "retrieved_at": "2026-10-06T05:00:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 5.4 „Кожа“. Всички въпроси са новонаписани от общоприети биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "терморегулация – последователност",
+            "skill": "D3 терморегулация"
+          },
+          "explanation": "Рецепторите сигнализират на центъра в мозъка, който задейства ефекторите – съдове и потни жлези.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 22,
+          "candidate_id": "biology-g8-skin-run-1-025",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf",
+            "title": "Учебна програма по биология и здравно образование за VIII клас (общообразователна подготовка), Приложение № 18",
+            "retrieved_at": "2026-10-06T05:00:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 5.4 „Кожа“. Всички въпроси са новонаписани от общоприети биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "водно равновесие при потене",
+            "skill": "D3 терморегулация"
+          },
+          "explanation": "Обилното потене води до загуба на вода и соли.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 23,
+          "candidate_id": "biology-g8-skin-run-1-026",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf",
+            "title": "Учебна програма по биология и здравно образование за VIII клас (общообразователна подготовка), Приложение № 18",
+            "retrieved_at": "2026-10-06T05:00:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 5.4 „Кожа“. Всички въпроси са новонаписани от общоприети биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "акне",
+            "skill": "D4 болести и хигиена"
+          },
+          "explanation": "В пубертета мастните жлези работят по-интензивно и лесно се запушват и възпаляват.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 24,
+          "candidate_id": "biology-g8-skin-run-1-027",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf",
+            "title": "Учебна програма по биология и здравно образование за VIII клас (общообразователна подготовка), Приложение № 18",
+            "retrieved_at": "2026-10-06T05:00:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 5.4 „Кожа“. Всички въпроси са новонаписани от общоприети биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "гъбични инфекции – профилактика",
+            "skill": "D4 болести и хигиена"
+          },
+          "explanation": "Гъбичките се развиват на топло и влажно, а личните вещи намаляват риска от заразяване.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 25,
+          "candidate_id": "biology-g8-skin-run-1-028",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf",
+            "title": "Учебна програма по биология и здравно образование за VIII клас (общообразователна подготовка), Приложение № 18",
+            "retrieved_at": "2026-10-06T05:00:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 5.4 „Кожа“. Всички въпроси са новонаписани от общоприети биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "слънце и рак на кожата",
+            "skill": "D4 болести и хигиена"
+          },
+          "explanation": "Ултравиолетовите лъчи увреждат кожните клетки; многократните изгаряния повишават риска от рак на кожата.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 26,
+          "candidate_id": "biology-g8-skin-run-1-029",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf",
+            "title": "Учебна програма по биология и здравно образование за VIII клас (общообразователна подготовка), Приложение № 18",
+            "retrieved_at": "2026-10-06T05:00:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 5.4 „Кожа“. Всички въпроси са новонаписани от общоприети биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "алергичен дерматит",
+            "skill": "D4 болести и хигиена"
+          },
+          "explanation": "Реакцията е на мястото на контакт и отшумява при премахване на дразнителя.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 27,
+          "candidate_id": "biology-g8-skin-run-1-030",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf",
+            "title": "Учебна програма по биология и здравно образование за VIII клас (общообразователна подготовка), Приложение № 18",
+            "retrieved_at": "2026-10-06T05:00:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 5.4 „Кожа“. Всички въпроси са новонаписани от общоприети биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "грижа за кожа с акне",
+            "skill": "D4 болести и хигиена"
+          },
+          "explanation": "Изстискването пренася микроби и влошава възпалението.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 28,
+          "candidate_id": "biology-g8-skin-run-1-031",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf",
+            "title": "Учебна програма по биология и здравно образование за VIII клас (общообразователна подготовка), Приложение № 18",
+            "retrieved_at": "2026-10-06T05:00:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 5.4 „Кожа“. Всички въпроси са новонаписани от общоприети биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "промяна на бенка",
+            "skill": "D4 болести и хигиена"
+          },
+          "explanation": "Бързата промяна на размер, цвят или форма може да е признак на злокачествено заболяване.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 29,
+          "candidate_id": "biology-g8-skin-run-1-032",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf",
+            "title": "Учебна програма по биология и здравно образование за VIII клас (общообразователна подготовка), Приложение № 18",
+            "retrieved_at": "2026-10-06T05:00:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 5.4 „Кожа“. Всички въпроси са новонаписани от общоприети биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "миризма на пот",
+            "skill": "D4 болести и хигиена"
+          },
+          "explanation": "Прясната пот е почти без мирис; миризмата идва от разграждането ѝ от бактерии.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 30,
+          "candidate_id": "biology-g8-skin-run-1-033",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf",
+            "title": "Учебна програма по биология и здравно образование за VIII клас (общообразователна подготовка), Приложение № 18",
+            "retrieved_at": "2026-10-06T05:00:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 5.4 „Кожа“. Всички въпроси са новонаписани от общоприети биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "степени на изгаряне",
+            "skill": "D5 първа помощ"
+          },
+          "explanation": "Първа степен: само зачервяване и болка; при втора има мехури, при трета – дълбоко увреждане.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 31,
+          "candidate_id": "biology-g8-skin-run-1-034",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf",
+            "title": "Учебна програма по биология и здравно образование за VIII клас (общообразователна подготовка), Приложение № 18",
+            "retrieved_at": "2026-10-06T05:00:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 5.4 „Кожа“. Всички въпроси са новонаписани от общоприети биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "първа помощ при малко изгаряне",
+            "skill": "D5 първа помощ"
+          },
+          "explanation": "Охлаждането с хладна течаща вода намалява дълбочината на увреждането.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 32,
+          "candidate_id": "biology-g8-skin-run-1-035",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf",
+            "title": "Учебна програма по биология и здравно образование за VIII клас (общообразователна подготовка), Приложение № 18",
+            "retrieved_at": "2026-10-06T05:00:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 5.4 „Кожа“. Всички въпроси са новонаписани от общоприети биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "мехури при изгаряне",
+            "skill": "D5 първа помощ"
+          },
+          "explanation": "Целият мехур е естествена превръзка, която пази от инфекция.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 33,
+          "candidate_id": "biology-g8-skin-run-1-036",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf",
+            "title": "Учебна програма по биология и здравно образование за VIII клас (общообразователна подготовка), Приложение № 18",
+            "retrieved_at": "2026-10-06T05:00:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 5.4 „Кожа“. Всички въпроси са новонаписани от общоприети биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "първа помощ при измръзване",
+            "skill": "D5 първа помощ"
+          },
+          "explanation": "Резките промени и триенето допълнително увреждат тъканите.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 34,
+          "candidate_id": "biology-g8-skin-run-1-037",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf",
+            "title": "Учебна програма по биология и здравно образование за VIII клас (общообразователна подготовка), Приложение № 18",
+            "retrieved_at": "2026-10-06T05:00:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 5.4 „Кожа“. Всички въпроси са новонаписани от общоприети биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "причина за измръзване",
+            "skill": "D5 първа помощ"
+          },
+          "explanation": "Без кръв тъканите не получават кислород и топлина и се увреждат.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 35,
+          "candidate_id": "biology-g8-skin-run-1-038",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf",
+            "title": "Учебна програма по биология и здравно образование за VIII клас (общообразователна подготовка), Приложение № 18",
+            "retrieved_at": "2026-10-06T05:00:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 5.4 „Кожа“. Всички въпроси са новонаписани от общоприети биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "слънчев срещу топлинен удар",
+            "skill": "D5 първа помощ"
+          },
+          "explanation": "Слънчевият удар е резултат от слънцето върху незащитена глава, а топлинният – от прегряване при висока температура на околната среда. И двете състояния са прегряване и първата помощ е сходна: хладно място, охлаждане и течности.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 36,
+          "candidate_id": "biology-g8-skin-run-1-039",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf",
+            "title": "Учебна програма по биология и здравно образование за VIII клас (общообразователна подготовка), Приложение № 18",
+            "retrieved_at": "2026-10-06T05:00:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 5.4 „Кожа“. Всички въпроси са новонаписани от общоприети биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "първа помощ при слънчев удар",
+            "skill": "D5 първа помощ"
+          },
+          "explanation": "Нужно е охлаждане на сянка и изпиване на течности; при тежко състояние се вика 112.",
+          "difficulty": "hard"
+        },
+        {
+          "number": 37,
+          "candidate_id": "biology-g8-skin-run-1-040",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf",
+            "title": "Учебна програма по биология и здравно образование за VIII клас (общообразователна подготовка), Приложение № 18",
+            "retrieved_at": "2026-10-06T05:00:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 5.4 „Кожа“. Всички въпроси са новонаписани от общоприети биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "кога се вика спешна помощ",
+            "skill": "D5 първа помощ"
+          },
+          "explanation": "Обширните и дълбоки изгаряния са животозастрашаващи и изискват спешна помощ.",
+          "difficulty": "medium"
+        }
+      ]
+    }
+  ],
+  "not_exported": []
+}

@@ -1,0 +1,1119 @@
+{
+  "format_version": 1,
+  "kind": "question_candidate_provenance",
+  "run": {
+    "id": "biology-g9-chemical-composition-of-living-matter-run-1",
+    "started_at": "2026-10-06T05:12:37Z",
+    "finished_at": "2026-10-06T05:30:00Z",
+    "subject": "biology",
+    "grade": 9,
+    "curriculum": {
+      "education_type": "general",
+      "title": "Биология и здравно образование, 9. клас — общообразователна подготовка"
+    },
+    "targets": [
+      {
+        "section": {
+          "slug": "biology-g9-chemical-composition-of-living-matter",
+          "title": "Химичен състав на живата материя"
+        },
+        "topics": [
+          {
+            "slug": "biology-g9-chemical-composition-of-living-matter",
+            "title": "Химичен състав на живата материя"
+          }
+        ]
+      }
+    ],
+    "limits": {
+      "max_topics": 1,
+      "max_pages": 8,
+      "max_candidates": 39,
+      "max_candidates_per_source": 39,
+      "max_runtime_minutes": 60
+    },
+    "pages_inspected": 1,
+    "stop_reason": "topic_complete",
+    "collector": "claude-sonnet-5-5-collector",
+    "notes": "Цикъл 1 (Вълна 1, пилот 3): 39 въпроса по измерения D1–D5. D6–D9 (ензими, нуклеинови киселини, групиране по мономери, жива/нежива материя като цяло) са оставени за цикъл 2. Обхватът е по програмата; научните факти са общоприети учебни знания, не е ползван външен научен източник."
+  },
+  "not_stored_in_database": [
+    "candidate id",
+    "source type",
+    "source url",
+    "source title",
+    "source publisher",
+    "source retrieved_at",
+    "transformation",
+    "source_ref",
+    "research",
+    "reuse_exception",
+    "explanation",
+    "difficulty",
+    "review (reviewer, reviewed_at, notes)",
+    "run manifest"
+  ],
+  "batches": [
+    {
+      "file": "biology-g9-chemical-composition-of-living-matter-run-1.chemical-composition-of-living-matter.json",
+      "source": "reviewed:biology:biology-g9-chemical-composition-of-living-matter-run-1.chemical-composition-of-living-matter",
+      "topic_slug": "biology-g9-chemical-composition-of-living-matter",
+      "questions": [
+        {
+          "number": 1,
+          "candidate_id": "biology-g9-chemical-composition-of-living-matter-run-1-001",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_bio_pril11-36.pdf",
+            "title": "Учебна програма по биология и здравно образование за IX клас (общообразователна подготовка), Приложение № 11",
+            "retrieved_at": "2026-10-06T05:08:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 1 „Химичен състав на живата материя“ (очаквани резултати, нови понятия). Всички въпроси са новонаписани от общоприети учебни биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "органогенни елементи – C, H, O, N",
+            "skill": "D1"
+          },
+          "explanation": "Въглеродът, водородът, кислородът и азотът изграждат над 95% от масата на клетката, защото влизат във водата и във всички основни органични съединения.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 2,
+          "candidate_id": "biology-g9-chemical-composition-of-living-matter-run-1-002",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_bio_pril11-36.pdf",
+            "title": "Учебна програма по биология и здравно образование за IX клас (общообразователна подготовка), Приложение № 11",
+            "retrieved_at": "2026-10-06T05:08:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 1 „Химичен състав на живата материя“ (очаквани резултати, нови понятия). Всички въпроси са новонаписани от общоприети учебни биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "кислород – най-голям дял по маса",
+            "skill": "D1"
+          },
+          "explanation": "Водата е около 70–80% от масата на клетката и 8/9 от масата ѝ е кислород, затова кислородът е най-голям по маса.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 3,
+          "candidate_id": "biology-g9-chemical-composition-of-living-matter-run-1-003",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_bio_pril11-36.pdf",
+            "title": "Учебна програма по биология и здравно образование за IX клас (общообразователна подготовка), Приложение № 11",
+            "retrieved_at": "2026-10-06T05:08:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 1 „Химичен състав на живата материя“ (очаквани резултати, нови понятия). Всички въпроси са новонаписани от общоприети учебни биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "елемент – значение (съответствие)",
+            "skill": "D1"
+          },
+          "explanation": "Магнезият е в центъра на хлорофилната молекула. Желязото е в хемоглобина, йодът – в хормоните на щитовидната жлеза, а калцият е основен компонент на костите.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 4,
+          "candidate_id": "biology-g9-chemical-composition-of-living-matter-run-1-004",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_bio_pril11-36.pdf",
+            "title": "Учебна програма по биология и здравно образование за IX клас (общообразователна подготовка), Приложение № 11",
+            "retrieved_at": "2026-10-06T05:08:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 1 „Химичен състав на живата материя“ (очаквани резултати, нови понятия). Всички въпроси са новонаписани от общоприети учебни биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "микроелементи – малко количество, необходими",
+            "skill": "D1"
+          },
+          "explanation": "Микроелементите са в много малки количества, но липсата им нарушава процеси като синтеза на хормони (I).",
+          "difficulty": "easy"
+        },
+        {
+          "number": 5,
+          "candidate_id": "biology-g9-chemical-composition-of-living-matter-run-1-005",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_bio_pril11-36.pdf",
+            "title": "Учебна програма по биология и здравно образование за IX клас (общообразователна подготовка), Приложение № 11",
+            "retrieved_at": "2026-10-06T05:08:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 1 „Химичен състав на живата материя“ (очаквани резултати, нови понятия). Всички въпроси са новонаписани от общоприети учебни биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "жива и нежива природа – общи елементи, различно съотношение",
+            "skill": "D1"
+          },
+          "explanation": "Няма „специални“ елементи на живота – единството на живата и неживата природа е в еднаквите елементи, но в живите организми C, H, O и N имат много по-голям дял.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 6,
+          "candidate_id": "biology-g9-chemical-composition-of-living-matter-run-1-006",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_bio_pril11-36.pdf",
+            "title": "Учебна програма по биология и здравно образование за IX клас (общообразователна подготовка), Приложение № 11",
+            "retrieved_at": "2026-10-06T05:08:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 1 „Химичен състав на живата материя“ (очаквани резултати, нови понятия). Всички въпроси са новонаписани от общоприети учебни биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "таблица – дял на елементи в земна кора и тяло",
+            "skill": "D1"
+          },
+          "explanation": "Кислородът е първи и в двете колони. Въглеродът е 18% в тялото и само 0,02% в земната кора, а силицият е почти липсващ в тялото – съставът е близък по елементи, но различен по дял.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 7,
+          "candidate_id": "biology-g9-chemical-composition-of-living-matter-run-1-007",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_bio_pril11-36.pdf",
+            "title": "Учебна програма по биология и здравно образование за IX клас (общообразователна подготовка), Приложение № 11",
+            "retrieved_at": "2026-10-06T05:08:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 1 „Химичен състав на живата материя“ (очаквани резултати, нови понятия). Всички въпроси са новонаписани от общоприети учебни биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "въглерод – основа на органичните молекули",
+            "skill": "D1"
+          },
+          "explanation": "Атомът на въглерода образува четири ковалентни връзки, затова от него се изграждат разнообразни вериги и пръстени. Най-голям дял по маса има кислородът.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 8,
+          "candidate_id": "biology-g9-chemical-composition-of-living-matter-run-1-008",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_bio_pril11-36.pdf",
+            "title": "Учебна програма по биология и здравно образование за IX клас (общообразователна подготовка), Приложение № 11",
+            "retrieved_at": "2026-10-06T05:08:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 1 „Химичен състав на живата материя“ (очаквани резултати, нови понятия). Всички въпроси са новонаписани от общоприети учебни биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "вода – най-голям дял в клетката",
+            "skill": "D2"
+          },
+          "explanation": "Водата е около 70–80% от масата на повечето клетки; органичните съединения са по-малка част.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 9,
+          "candidate_id": "biology-g9-chemical-composition-of-living-matter-run-1-009",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_bio_pril11-36.pdf",
+            "title": "Учебна програма по биология и здравно образование за IX клас (общообразователна подготовка), Приложение № 11",
+            "retrieved_at": "2026-10-06T05:08:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 1 „Химичен състав на живата материя“ (очаквани резултати, нови понятия). Всички въпроси са новонаписани от общоприети учебни биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "вода – полярност и разтварящо действие",
+            "skill": "D2"
+          },
+          "explanation": "Полярната вода разтваря полярни и йонни вещества (захар, соли), но не и неполярните мазнини и масла.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 10,
+          "candidate_id": "biology-g9-chemical-composition-of-living-matter-run-1-010",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_bio_pril11-36.pdf",
+            "title": "Учебна програма по биология и здравно образование за IX клас (общообразователна подготовка), Приложение № 11",
+            "retrieved_at": "2026-10-06T05:08:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 1 „Химичен състав на живата материя“ (очаквани резултати, нови понятия). Всички въпроси са новонаписани от общоприети учебни биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "вода – изпарение и охлаждане",
+            "skill": "D2"
+          },
+          "explanation": "За изпаряването на водата е нужна голяма топлина (висока топлина на изпарение) – тя се взема от тялото, което се охлажда.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 11,
+          "candidate_id": "biology-g9-chemical-composition-of-living-matter-run-1-011",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_bio_pril11-36.pdf",
+            "title": "Учебна програма по биология и здравно образование за IX клас (общообразователна подготовка), Приложение № 11",
+            "retrieved_at": "2026-10-06T05:08:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 1 „Химичен състав на живата материя“ (очаквани резултати, нови понятия). Всички въпроси са новонаписани от общоприети учебни биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "вода – участие в химични реакции",
+            "skill": "D2"
+          },
+          "explanation": "Водата е реагент в хидролизата – напр. разграждането на полизахариди, белтъци и мазнини до мономери. Другите функции са транспортна, терморегулираща и опорна.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 12,
+          "candidate_id": "biology-g9-chemical-composition-of-living-matter-run-1-012",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_bio_pril11-36.pdf",
+            "title": "Учебна програма по биология и здравно образование за IX клас (общообразователна подготовка), Приложение № 11",
+            "retrieved_at": "2026-10-06T05:08:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 1 „Химичен състав на живата материя“ (очаквани резултати, нови понятия). Всички въпроси са новонаписани от общоприети учебни биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "минерални соли – форми в клетката",
+            "skill": "D2"
+          },
+          "explanation": "Част от солите са разтворени йони (Na⁺, K⁺, Cl⁻), а други са неразтворими – калциев фосфат изгражда костите и зъбите.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 13,
+          "candidate_id": "biology-g9-chemical-composition-of-living-matter-run-1-013",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_bio_pril11-36.pdf",
+            "title": "Учебна програма по биология и здравно образование за IX клас (общообразователна подготовка), Приложение № 11",
+            "retrieved_at": "2026-10-06T05:08:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 1 „Химичен състав на живата материя“ (очаквани резултати, нови понятия). Всички въпроси са новонаписани от общоприети учебни биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "йод – недостиг и щитовидна жлеза",
+            "skill": "D2"
+          },
+          "explanation": "Йодът е необходим за синтеза на хормоните на щитовидната жлеза. Йодираната сол предпазва от гуша.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 14,
+          "candidate_id": "biology-g9-chemical-composition-of-living-matter-run-1-014",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_bio_pril11-36.pdf",
+            "title": "Учебна програма по биология и здравно образование за IX клас (общообразователна подготовка), Приложение № 11",
+            "retrieved_at": "2026-10-06T05:08:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 1 „Химичен състав на живата материя“ (очаквани резултати, нови понятия). Всички въпроси са новонаписани от общоприети учебни биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "калциеви йони – съсирване и мускули",
+            "skill": "D2"
+          },
+          "explanation": "Освен че изграждат костите и зъбите, Ca²⁺ са нужни за съсирване на кръвта и за мускулно свиване. Йодът, желязото и магнезият изпълняват другите посочени роли.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 15,
+          "candidate_id": "biology-g9-chemical-composition-of-living-matter-run-1-015",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_bio_pril11-36.pdf",
+            "title": "Учебна програма по биология и здравно образование за IX клас (общообразователна подготовка), Приложение № 11",
+            "retrieved_at": "2026-10-06T05:08:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 1 „Химичен състав на живата материя“ (очаквани резултати, нови понятия). Всички въпроси са новонаписани от общоприети учебни биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "таблица – водно съдържание на тъкани",
+            "skill": "D2"
+          },
+          "explanation": "Мозъкът и мускулите (активна обмяна) съдържат много повече вода от костите (твърди, минерализирани).",
+          "difficulty": "medium"
+        },
+        {
+          "number": 16,
+          "candidate_id": "biology-g9-chemical-composition-of-living-matter-run-1-016",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_bio_pril11-36.pdf",
+            "title": "Учебна програма по биология и здравно образование за IX клас (общообразователна подготовка), Приложение № 11",
+            "retrieved_at": "2026-10-06T05:08:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 1 „Химичен състав на живата материя“ (очаквани резултати, нови понятия). Всички въпроси са новонаписани от общоприети учебни биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "въглехидрати – химични елементи",
+            "skill": "D3"
+          },
+          "explanation": "Въглехидратите са изградени от C, H и O. Азотът е характерен за белтъците, а фосфорът – за фосфолипидите и нуклеиновите киселини.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 17,
+          "candidate_id": "biology-g9-chemical-composition-of-living-matter-run-1-017",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_bio_pril11-36.pdf",
+            "title": "Учебна програма по биология и здравно образование за IX клас (общообразователна подготовка), Приложение № 11",
+            "retrieved_at": "2026-10-06T05:08:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 1 „Химичен състав на живата материя“ (очаквани резултати, нови понятия). Всички въпроси са новонаписани от общоприети учебни биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "захароза – състав на дизахарид",
+            "skill": "D3"
+          },
+          "explanation": "Захароза = глюкоза + фруктоза. Малтоза = две глюкози, лактоза = глюкоза + галактоза.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 18,
+          "candidate_id": "biology-g9-chemical-composition-of-living-matter-run-1-018",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_bio_pril11-36.pdf",
+            "title": "Учебна програма по биология и здравно образование за IX клас (общообразователна подготовка), Приложение № 11",
+            "retrieved_at": "2026-10-06T05:08:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 1 „Химичен състав на живата материя“ (очаквани резултати, нови понятия). Всички въпроси са новонаписани от общоприети учебни биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "гликоген – запасяване в черния дроб и мускулите",
+            "skill": "D3"
+          },
+          "explanation": "Гликогенът е запасният полизахарид на животните и човека, а скорбялата – на растенията.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 19,
+          "candidate_id": "biology-g9-chemical-composition-of-living-matter-run-1-019",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_bio_pril11-36.pdf",
+            "title": "Учебна програма по биология и здравно образование за IX клас (общообразователна подготовка), Приложение № 11",
+            "retrieved_at": "2026-10-06T05:08:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 1 „Химичен състав на живата материя“ (очаквани резултати, нови понятия). Всички въпроси са новонаписани от общоприети учебни биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "целулоза – структурна функция",
+            "skill": "D3"
+          },
+          "explanation": "Целулозата е структурен полизахарид – основната част от клетъчната стена на растенията.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 20,
+          "candidate_id": "biology-g9-chemical-composition-of-living-matter-run-1-020",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_bio_pril11-36.pdf",
+            "title": "Учебна програма по биология и здравно образование за IX клас (общообразователна подготовка), Приложение № 11",
+            "retrieved_at": "2026-10-06T05:08:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 1 „Химичен състав на живата материя“ (очаквани резултати, нови понятия). Всички въпроси са новонаписани от общоприети учебни биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "свойства на моно- и дизахаридите",
+            "skill": "D3"
+          },
+          "explanation": "Глюкозата и захарозата са разтворими и сладки, докато полизахаридите (скорбяла, целулоза) са слабо разтворими или неразтворими и не са сладки.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 21,
+          "candidate_id": "biology-g9-chemical-composition-of-living-matter-run-1-021",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_bio_pril11-36.pdf",
+            "title": "Учебна програма по биология и здравно образование за IX клас (общообразователна подготовка), Приложение № 11",
+            "retrieved_at": "2026-10-06T05:08:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 1 „Химичен състав на живата материя“ (очаквани резултати, нови понятия). Всички въпроси са новонаписани от общоприети учебни биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "целулоза – влакнина при човека",
+            "skill": "D3"
+          },
+          "explanation": "Целулозата е полизахарид от глюкоза, но човек няма ензим за разграждането ѝ. Влакнината обаче подпомага работата на червата.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 22,
+          "candidate_id": "biology-g9-chemical-composition-of-living-matter-run-1-022",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_bio_pril11-36.pdf",
+            "title": "Учебна програма по биология и здравно образование за IX клас (общообразователна подготовка), Приложение № 11",
+            "retrieved_at": "2026-10-06T05:08:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 1 „Химичен състав на живата материя“ (очаквани резултати, нови понятия). Всички въпроси са новонаписани от общоприети учебни биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "скорбяла, гликоген, целулоза – общо",
+            "skill": "D3"
+          },
+          "explanation": "И трите са биополимери с мономер глюкоза, но с различна функция: запас при растенията (скорбяла), запас при животните (гликоген), опора (целулоза).",
+          "difficulty": "medium"
+        },
+        {
+          "number": 23,
+          "candidate_id": "biology-g9-chemical-composition-of-living-matter-run-1-023",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_bio_pril11-36.pdf",
+            "title": "Учебна програма по биология и здравно образование за IX клас (общообразователна подготовка), Приложение № 11",
+            "retrieved_at": "2026-10-06T05:08:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 1 „Химичен състав на живата материя“ (очаквани резултати, нови понятия). Всички въпроси са новонаписани от общоприети учебни биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "полизахариди – мономери",
+            "skill": "D3"
+          },
+          "explanation": "Биополимерът е молекула от много мономери. Мономерите на полизахаридите са моносахариди.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 24,
+          "candidate_id": "biology-g9-chemical-composition-of-living-matter-run-1-024",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_bio_pril11-36.pdf",
+            "title": "Учебна програма по биология и здравно образование за IX клас (общообразователна подготовка), Приложение № 11",
+            "retrieved_at": "2026-10-06T05:08:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 1 „Химичен състав на живата материя“ (очаквани резултати, нови понятия). Всички въпроси са новонаписани от общоприети учебни биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "триглицериди – глицерол и мастни киселини",
+            "skill": "D4"
+          },
+          "explanation": "Триглицеридът се образува от глицерол, свързан с три мастни киселини.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 25,
+          "candidate_id": "biology-g9-chemical-composition-of-living-matter-run-1-025",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_bio_pril11-36.pdf",
+            "title": "Учебна програма по биология и здравно образование за IX клас (общообразователна подготовка), Приложение № 11",
+            "retrieved_at": "2026-10-06T05:08:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 1 „Химичен състав на живата материя“ (очаквани резултати, нови понятия). Всички въпроси са новонаписани от общоприети учебни биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "липиди – разтворимост",
+            "skill": "D4"
+          },
+          "explanation": "Липидите са хидрофобни – разтварят се в разтворители като бензин или етер, но не във вода.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 26,
+          "candidate_id": "biology-g9-chemical-composition-of-living-matter-run-1-026",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_bio_pril11-36.pdf",
+            "title": "Учебна програма по биология и здравно образование за IX клас (общообразователна подготовка), Приложение № 11",
+            "retrieved_at": "2026-10-06T05:08:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 1 „Химичен състав на живата материя“ (очаквани резултати, нови понятия). Всички въпроси са новонаписани от общоприети учебни биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "мазнини – енергиен запас",
+            "skill": "D4"
+          },
+          "explanation": "Грам мазнини дава повече от два пъти повече енергия от грам въглехидрати, затова мазнините са компактен дългосрочен запас.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 27,
+          "candidate_id": "biology-g9-chemical-composition-of-living-matter-run-1-027",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_bio_pril11-36.pdf",
+            "title": "Учебна програма по биология и здравно образование за IX клас (общообразователна подготовка), Приложение № 11",
+            "retrieved_at": "2026-10-06T05:08:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 1 „Химичен състав на живата материя“ (очаквани резултати, нови понятия). Всички въпроси са новонаписани от общоприети учебни биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "подкожна мазнина – топлоизолация",
+            "skill": "D4"
+          },
+          "explanation": "Подкожната мазнина е топлоизолатор, а също и енергиен запас и защита на органите.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 28,
+          "candidate_id": "biology-g9-chemical-composition-of-living-matter-run-1-028",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_bio_pril11-36.pdf",
+            "title": "Учебна програма по биология и здравно образование за IX клас (общообразователна подготовка), Приложение № 11",
+            "retrieved_at": "2026-10-06T05:08:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 1 „Химичен състав на живата материя“ (очаквани резултати, нови понятия). Всички въпроси са новонаписани от общоприети учебни биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "фосфолипид – строеж на молекулата",
+            "skill": "D4"
+          },
+          "explanation": "Фосфолипидът е „двулик“ (амфифилен) липид – главен компонент на биологичните мембрани. Триглицеридът няма фосфатна група, а холестеролът няма мастнокиселинни опашки.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 29,
+          "candidate_id": "biology-g9-chemical-composition-of-living-matter-run-1-029",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_bio_pril11-36.pdf",
+            "title": "Учебна програма по биология и здравно образование за IX клас (общообразователна подготовка), Приложение № 11",
+            "retrieved_at": "2026-10-06T05:08:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 1 „Химичен състав на живата материя“ (очаквани резултати, нови понятия). Всички въпроси са новонаписани от общоприети учебни биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "ненаситени мастни киселини – течни масла",
+            "skill": "D4"
+          },
+          "explanation": "Двойните връзки огъват веригите и пречат на плътното им подреждане, затова ненаситените мазнини са течни. Животинските (наситени) мазнини обикновено са твърди.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 30,
+          "candidate_id": "biology-g9-chemical-composition-of-living-matter-run-1-030",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_bio_pril11-36.pdf",
+            "title": "Учебна програма по биология и здравно образование за IX клас (общообразователна подготовка), Приложение № 11",
+            "retrieved_at": "2026-10-06T05:08:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 1 „Химичен състав на живата материя“ (очаквани резултати, нови понятия). Всички въпроси са новонаписани от общоприети учебни биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "холестерол – стероид",
+            "skill": "D4"
+          },
+          "explanation": "Холестеролът е стероид. Триглицеридите са запасни мазнини, фосфолипидите изграждат мембраните, а восъците са защитни липиди.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 31,
+          "candidate_id": "biology-g9-chemical-composition-of-living-matter-run-1-031",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_bio_pril11-36.pdf",
+            "title": "Учебна програма по биология и здравно образование за IX клас (общообразователна подготовка), Приложение № 11",
+            "retrieved_at": "2026-10-06T05:08:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 1 „Химичен състав на живата материя“ (очаквани резултати, нови понятия). Всички въпроси са новонаписани от общоприети учебни биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "мастноразтворими витамини – хранене",
+            "skill": "D4"
+          },
+          "explanation": "Мастноразтворимите витамини се разтварят в липиди и се усвояват заедно с тях. Не са мазнини и не са енергиен източник.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 32,
+          "candidate_id": "biology-g9-chemical-composition-of-living-matter-run-1-032",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_bio_pril11-36.pdf",
+            "title": "Учебна програма по биология и здравно образование за IX клас (общообразователна подготовка), Приложение № 11",
+            "retrieved_at": "2026-10-06T05:08:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 1 „Химичен състав на живата материя“ (очаквани резултати, нови понятия). Всички въпроси са новонаписани от общоприети учебни биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "аминокиселини – мономери на белтъците",
+            "skill": "D5"
+          },
+          "explanation": "Белтъците са полимери от аминокиселини, свързани в полипептидна верига.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 33,
+          "candidate_id": "biology-g9-chemical-composition-of-living-matter-run-1-033",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_bio_pril11-36.pdf",
+            "title": "Учебна програма по биология и здравно образование за IX клас (общообразователна подготовка), Приложение № 11",
+            "retrieved_at": "2026-10-06T05:08:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 1 „Химичен състав на живата материя“ (очаквани резултати, нови понятия). Всички въпроси са новонаписани от общоприети учебни биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "пептидна връзка",
+            "skill": "D5"
+          },
+          "explanation": "Между карбоксилната група на една аминокиселина и аминогрупата на следващата се образува пептидна връзка и се отделя вода.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 34,
+          "candidate_id": "biology-g9-chemical-composition-of-living-matter-run-1-034",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_bio_pril11-36.pdf",
+            "title": "Учебна програма по биология и здравно образование за IX клас (общообразователна подготовка), Приложение № 11",
+            "retrieved_at": "2026-10-06T05:08:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 1 „Химичен състав на живата материя“ (очаквани резултати, нови понятия). Всички въпроси са новонаписани от общоприети учебни биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "аминокиселини – различаваща се част",
+            "skill": "D5"
+          },
+          "explanation": "Аминогрупата, карбоксилната група и централният въглероден атом са общи. Радикалът е различен и определя свойствата на аминокиселината.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 35,
+          "candidate_id": "biology-g9-chemical-composition-of-living-matter-run-1-035",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_bio_pril11-36.pdf",
+            "title": "Учебна програма по биология и здравно образование за IX клас (общообразователна подготовка), Приложение № 11",
+            "retrieved_at": "2026-10-06T05:08:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 1 „Химичен състав на живата материя“ (очаквани резултати, нови понятия). Всички въпроси са новонаписани от общоприети учебни биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "първична структура – последователност",
+            "skill": "D5"
+          },
+          "explanation": "Първичната структура е последователността на аминокиселините. Тя е различна, а оттам са различни и по-високите нива и свойствата на белтъка.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 36,
+          "candidate_id": "biology-g9-chemical-composition-of-living-matter-run-1-036",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_bio_pril11-36.pdf",
+            "title": "Учебна програма по биология и здравно образование за IX клас (общообразователна подготовка), Приложение № 11",
+            "retrieved_at": "2026-10-06T05:08:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 1 „Химичен състав на живата материя“ (очаквани резултати, нови понятия). Всички въпроси са новонаписани от общоприети учебни биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "кватернерна структура – хемоглобин",
+            "skill": "D5"
+          },
+          "explanation": "Кватернерната структура е обединението на няколко полипептидни вериги. Третичната структура е пространственото нагъване на една верига.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 37,
+          "candidate_id": "biology-g9-chemical-composition-of-living-matter-run-1-037",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_bio_pril11-36.pdf",
+            "title": "Учебна програма по биология и здравно образование за IX клас (общообразователна подготовка), Приложение № 11",
+            "retrieved_at": "2026-10-06T05:08:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 1 „Химичен състав на живата материя“ (очаквани резултати, нови понятия). Всички въпроси са новонаписани от общоприети учебни биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "двигателна функция – актин и миозин",
+            "skill": "D5"
+          },
+          "explanation": "Актинът и миозинът са контрактилни белтъци – осигуряват мускулното свиване.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 38,
+          "candidate_id": "biology-g9-chemical-composition-of-living-matter-run-1-038",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_bio_pril11-36.pdf",
+            "title": "Учебна програма по биология и здравно образование за IX клас (общообразователна подготовка), Приложение № 11",
+            "retrieved_at": "2026-10-06T05:08:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 1 „Химичен състав на живата материя“ (очаквани резултати, нови понятия). Всички въпроси са новонаписани от общоприети учебни биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "денатурация – варено яйце",
+            "skill": "D5"
+          },
+          "explanation": "Денатурацията нарушава вторичната, третичната и кватернерната структура, но не и първичната (пептидните връзки остават), а функцията се губи.",
+          "difficulty": "hard"
+        },
+        {
+          "number": 39,
+          "candidate_id": "biology-g9-chemical-composition-of-living-matter-run-1-039",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-ix-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_ix_bio_pril11-36.pdf",
+            "title": "Учебна програма по биология и здравно образование за IX клас (общообразователна подготовка), Приложение № 11",
+            "retrieved_at": "2026-10-06T05:08:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на тема 1 „Химичен състав на живата материя“ (очаквани резултати, нови понятия). Всички въпроси са новонаписани от общоприети учебни биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "хемоглобин – транспорт на кислород",
+            "skill": "D5"
+          },
+          "explanation": "Хемоглобинът в еритроцитите пренася кислород. Колагенът е структурен белтък, инсулинът – хормон, антителата – защитни белтъци.",
+          "difficulty": "easy"
+        }
+      ]
+    }
+  ],
+  "not_exported": []
+}

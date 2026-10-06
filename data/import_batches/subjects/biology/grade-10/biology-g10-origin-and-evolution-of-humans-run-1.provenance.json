@@ -1,0 +1,1038 @@
+{
+  "format_version": 1,
+  "kind": "question_candidate_provenance",
+  "run": {
+    "id": "biology-g10-origin-and-evolution-of-humans-run-1",
+    "started_at": "2026-10-06T05:12:24Z",
+    "finished_at": "2026-10-06T05:14:43Z",
+    "subject": "biology",
+    "grade": 10,
+    "curriculum": {
+      "education_type": "general",
+      "title": "Биология и здравно образование, 10. клас — общообразователна подготовка"
+    },
+    "targets": [
+      {
+        "section": {
+          "slug": "biology-g10-biological-evolution",
+          "title": "Биологична еволюция"
+        },
+        "topics": [
+          {
+            "slug": "biology-g10-origin-and-evolution-of-humans",
+            "title": "Произход и еволюция на човека"
+          }
+        ]
+      }
+    ],
+    "limits": {
+      "max_topics": 1,
+      "max_pages": 3,
+      "max_candidates": 40,
+      "max_candidates_per_source": 40,
+      "max_runtime_minutes": 60
+    },
+    "pages_inspected": 2,
+    "stop_reason": "topic_complete",
+    "collector": "claude-sonnet-5-5-collector",
+    "notes": "Пилотен цикъл 4: 40 въпроса по измерения D1–D5 на темата. Обхватът е по изменената програма от 2023 г. (без понятието „раса“ и без обсъждане на расова принадлежност); различията между популации са представени като приспособяване, а човечеството – като един вид. Фактите за хоминините са проверени в Smithsonian Human Origins; обхватът идва от местния преглед на програмата за 10. клас, не от повторно изтегляне."
+  },
+  "not_stored_in_database": [
+    "candidate id",
+    "source type",
+    "source url",
+    "source title",
+    "source publisher",
+    "source retrieved_at",
+    "transformation",
+    "source_ref",
+    "research",
+    "reuse_exception",
+    "explanation",
+    "difficulty",
+    "review (reviewer, reviewed_at, notes)",
+    "run manifest"
+  ],
+  "batches": [
+    {
+      "file": "biology-g10-origin-and-evolution-of-humans-run-1.origin-and-evolution-of-humans.json",
+      "source": "reviewed:biology:biology-g10-origin-and-evolution-of-humans-run-1.origin-and-evolution-of-humans",
+      "topic_slug": "biology-g10-origin-and-evolution-of-humans",
+      "questions": [
+        {
+          "number": 1,
+          "candidate_id": "biology-g10-origin-and-evolution-of-humans-run-1-001",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "si-species",
+            "type": "third_party",
+            "url": "https://humanorigins.si.edu/evidence/human-fossils/species",
+            "title": "Human Fossils – Species (Smithsonian Human Origins Program)",
+            "retrieved_at": "2026-10-06T05:14:43Z",
+            "publisher": "Smithsonian Institution",
+            "notes": "Изследователски източник за хомининовите видове и техните признаци. Въпросите са новонаписани; не е копиран текст."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "антропогенеза – определение",
+            "skill": "D1 термин"
+          },
+          "explanation": "Антропогенезата е историческият процес на произход и еволюция на човека. Онтогенезата е индивидуалното развитие на един организъм.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 2,
+          "candidate_id": "biology-g10-origin-and-evolution-of-humans-run-1-002",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "si-species",
+            "type": "third_party",
+            "url": "https://humanorigins.si.edu/evidence/human-fossils/species",
+            "title": "Human Fossils – Species (Smithsonian Human Origins Program)",
+            "retrieved_at": "2026-10-06T05:14:43Z",
+            "publisher": "Smithsonian Institution",
+            "notes": "Изследователски източник за хомининовите видове и техните признаци. Въпросите са новонаписани; не е копиран текст."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "социални фактори на антропогенезата",
+            "skill": "D1 фактори"
+          },
+          "explanation": "Социални фактори са трудът, речта, мисленето и обществения живот. Останалите са биологични фактори.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 3,
+          "candidate_id": "biology-g10-origin-and-evolution-of-humans-run-1-004",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "si-species",
+            "type": "third_party",
+            "url": "https://humanorigins.si.edu/evidence/human-fossils/species",
+            "title": "Human Fossils – Species (Smithsonian Human Origins Program)",
+            "retrieved_at": "2026-10-06T05:14:43Z",
+            "publisher": "Smithsonian Institution",
+            "notes": "Изследователски източник за хомининовите видове и техните признаци. Въпросите са новонаписани; не е копиран текст."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "социални и биологични фактори – сравнение",
+            "skill": "D1 фактори"
+          },
+          "explanation": "Социалното наследство (умения, знания) се предава чрез обучение и общуване, а не само чрез гените.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 4,
+          "candidate_id": "biology-g10-origin-and-evolution-of-humans-run-1-005",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "si-species",
+            "type": "third_party",
+            "url": "https://humanorigins.si.edu/evidence/human-fossils/species",
+            "title": "Human Fossils – Species (Smithsonian Human Origins Program)",
+            "retrieved_at": "2026-10-06T05:14:43Z",
+            "publisher": "Smithsonian Institution",
+            "notes": "Изследователски източник за хомининовите видове и техните признаци. Въпросите са новонаписани; не е копиран текст."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "механизъм на биологичните фактори в антропогенезата",
+            "skill": "D1 фактори"
+          },
+          "explanation": "Полезният наследствен признак се запазва и разпространява чрез естествения отбор; обучението, оръдията и речта са социални фактори.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 5,
+          "candidate_id": "biology-g10-origin-and-evolution-of-humans-run-1-006",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "si-species",
+            "type": "third_party",
+            "url": "https://humanorigins.si.edu/evidence/human-fossils/species",
+            "title": "Human Fossils – Species (Smithsonian Human Origins Program)",
+            "retrieved_at": "2026-10-06T05:14:43Z",
+            "publisher": "Smithsonian Institution",
+            "notes": "Изследователски източник за хомининовите видове и техните признаци. Въпросите са новонаписани; не е копиран текст."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "роля на труда",
+            "skill": "D1 фактори"
+          },
+          "explanation": "Трудът и общуването не променят гените; те създават условия, при които отборът благоприятства по-развит мозък и реч.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 6,
+          "candidate_id": "biology-g10-origin-and-evolution-of-humans-run-1-007",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "si-species",
+            "type": "third_party",
+            "url": "https://humanorigins.si.edu/evidence/human-fossils/species",
+            "title": "Human Fossils – Species (Smithsonian Human Origins Program)",
+            "retrieved_at": "2026-10-06T05:14:43Z",
+            "publisher": "Smithsonian Institution",
+            "notes": "Изследователски източник за хомининовите видове и техните признаци. Въпросите са новонаписани; не е копиран текст."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "причинно-следствена верига: изправена походка – ръце – оръдия – мозък",
+            "skill": "D1 фактори"
+          },
+          "explanation": "Изправената походка се появява много рано и освобождава ръцете; изработването на оръдия и развитието на мозъка са по-късни и се подсилват взаимно.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 7,
+          "candidate_id": "biology-g10-origin-and-evolution-of-humans-run-1-008",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "si-species",
+            "type": "third_party",
+            "url": "https://humanorigins.si.edu/evidence/human-fossils/species",
+            "title": "Human Fossils – Species (Smithsonian Human Origins Program)",
+            "retrieved_at": "2026-10-06T05:14:43Z",
+            "publisher": "Smithsonian Institution",
+            "notes": "Изследователски източник за хомининовите видове и техните признаци. Въпросите са новонаписани; не е копиран текст."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "австралопитеци – двукрако ходене, малък мозък",
+            "skill": "D2 етапи-признаци"
+          },
+          "explanation": "Австралопитеците вече са ходили изправени, но мозъкът им е бил малък.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 8,
+          "candidate_id": "biology-g10-origin-and-evolution-of-humans-run-1-009",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "si-species",
+            "type": "third_party",
+            "url": "https://humanorigins.si.edu/evidence/human-fossils/species",
+            "title": "Human Fossils – Species (Smithsonian Human Origins Program)",
+            "retrieved_at": "2026-10-06T05:14:43Z",
+            "publisher": "Smithsonian Institution",
+            "notes": "Изследователски източник за хомининовите видове и техните признаци. Въпросите са новонаписани; не е копиран текст."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "умел човек – каменни оръдия",
+            "skill": "D2 етапи-признаци"
+          },
+          "explanation": "Умелият човек е свързан с най-ранните прости каменни оръдия при рода Homo.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 9,
+          "candidate_id": "biology-g10-origin-and-evolution-of-humans-run-1-010",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "si-species",
+            "type": "third_party",
+            "url": "https://humanorigins.si.edu/evidence/human-fossils/species",
+            "title": "Human Fossils – Species (Smithsonian Human Origins Program)",
+            "retrieved_at": "2026-10-06T05:14:43Z",
+            "publisher": "Smithsonian Institution",
+            "notes": "Изследователски източник за хомининовите видове и техните признаци. Въпросите са новонаписани; не е копиран текст."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "изправен човек – разселване извън Африка",
+            "skill": "D2 етапи-признаци"
+          },
+          "explanation": "Homo erectus е първият хомининов вид, чиито находки се срещат широко извън Африка.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 10,
+          "candidate_id": "biology-g10-origin-and-evolution-of-humans-run-1-011",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "si-species",
+            "type": "third_party",
+            "url": "https://humanorigins.si.edu/evidence/human-fossils/species",
+            "title": "Human Fossils – Species (Smithsonian Human Origins Program)",
+            "retrieved_at": "2026-10-06T05:14:43Z",
+            "publisher": "Smithsonian Institution",
+            "notes": "Изследователски източник за хомининовите видове и техните признаци. Въпросите са новонаписани; не е копиран текст."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "разпознаване на неандерталец по описание",
+            "skill": "D2 етапи-признаци"
+          },
+          "explanation": "Масивният скелет, надочните дъги и големият мозък са типични за неандерталците.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 11,
+          "candidate_id": "biology-g10-origin-and-evolution-of-humans-run-1-012",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "si-species",
+            "type": "third_party",
+            "url": "https://humanorigins.si.edu/evidence/human-fossils/species",
+            "title": "Human Fossils – Species (Smithsonian Human Origins Program)",
+            "retrieved_at": "2026-10-06T05:14:43Z",
+            "publisher": "Smithsonian Institution",
+            "notes": "Изследователски източник за хомининовите видове и техните признаци. Въпросите са новонаписани; не е копиран текст."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "разпознаване на кроманьонец по описание",
+            "skill": "D2 етапи-признаци"
+          },
+          "explanation": "Висок челен профил, брадичка и слаби надочни дъги са черти на анатомично съвременния човек.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 12,
+          "candidate_id": "biology-g10-origin-and-evolution-of-humans-run-1-013",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "si-species",
+            "type": "third_party",
+            "url": "https://humanorigins.si.edu/evidence/human-fossils/species",
+            "title": "Human Fossils – Species (Smithsonian Human Origins Program)",
+            "retrieved_at": "2026-10-06T05:14:43Z",
+            "publisher": "Smithsonian Institution",
+            "notes": "Изследователски източник за хомининовите видове и техните признаци. Въпросите са новонаписани; не е копиран текст."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "ред на появата на групите",
+            "skill": "D2 етапи-ред"
+          },
+          "explanation": "Така се подреждат първите находки във времето. Това не означава права линия: групите са се застъпвали и разклонявали.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 13,
+          "candidate_id": "biology-g10-origin-and-evolution-of-humans-run-1-016",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "si-species",
+            "type": "third_party",
+            "url": "https://humanorigins.si.edu/evidence/human-fossils/species",
+            "title": "Human Fossils – Species (Smithsonian Human Origins Program)",
+            "retrieved_at": "2026-10-06T05:14:43Z",
+            "publisher": "Smithsonian Institution",
+            "notes": "Изследователски източник за хомининовите видове и техните признаци. Въпросите са новонаписани; не е копиран текст."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "мозъчен обем на изправения човек",
+            "skill": "D2 етапи-признаци"
+          },
+          "explanation": "Австралопитекът има около 400–500 cm³, умелият човек около 600–700 cm³, Homo erectus около 900–1000 cm³, а кроманьонецът над 1300 cm³.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 14,
+          "candidate_id": "biology-g10-origin-and-evolution-of-humans-run-1-017",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "si-species",
+            "type": "third_party",
+            "url": "https://humanorigins.si.edu/evidence/human-fossils/species",
+            "title": "Human Fossils – Species (Smithsonian Human Origins Program)",
+            "retrieved_at": "2026-10-06T05:14:43Z",
+            "publisher": "Smithsonian Institution",
+            "notes": "Изследователски източник за хомининовите видове и техните признаци. Въпросите са новонаписани; не е копиран текст."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "тенденции: мозък и челюсти",
+            "skill": "D2 етапи-признаци"
+          },
+          "explanation": "Общата тенденция е нарастване на мозъка и намаляване на лицевия отдел и челюстите.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 15,
+          "candidate_id": "biology-g10-origin-and-evolution-of-humans-run-1-018",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "si-species",
+            "type": "third_party",
+            "url": "https://humanorigins.si.edu/evidence/human-fossils/species",
+            "title": "Human Fossils – Species (Smithsonian Human Origins Program)",
+            "retrieved_at": "2026-10-06T05:14:43Z",
+            "publisher": "Smithsonian Institution",
+            "notes": "Изследователски източник за хомининовите видове и техните признаци. Въпросите са новонаписани; не е копиран текст."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "общ предшественик, не пряко потомство",
+            "skill": "D2 етапи-признаци"
+          },
+          "explanation": "Неандерталците и съвременните хора произлизат от общ предшественик, живели са по едно и също време и са се кръстосвали; това не е права стълбица.",
+          "difficulty": "hard"
+        },
+        {
+          "number": 16,
+          "candidate_id": "biology-g10-origin-and-evolution-of-humans-run-1-019",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "si-species",
+            "type": "third_party",
+            "url": "https://humanorigins.si.edu/evidence/human-fossils/species",
+            "title": "Human Fossils – Species (Smithsonian Human Origins Program)",
+            "retrieved_at": "2026-10-06T05:14:43Z",
+            "publisher": "Smithsonian Institution",
+            "notes": "Изследователски източник за хомининовите видове и техните признаци. Въпросите са новонаписани; не е копиран текст."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "рода Homo спрямо австралопитеците",
+            "skill": "D2 етапи-признаци"
+          },
+          "explanation": "Австралопитеците вече са ходили изправени със свободни ръце; при рода Homo мозъкът нараства и оръдията стават система.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 17,
+          "candidate_id": "biology-g10-origin-and-evolution-of-humans-run-1-020",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "si-species",
+            "type": "third_party",
+            "url": "https://humanorigins.si.edu/evidence/human-fossils/species",
+            "title": "Human Fossils – Species (Smithsonian Human Origins Program)",
+            "retrieved_at": "2026-10-06T05:14:43Z",
+            "publisher": "Smithsonian Institution",
+            "notes": "Изследователски източник за хомининовите видове и техните признаци. Въпросите са новонаписани; не е копиран текст."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "название Homo sapiens",
+            "skill": "D1 термин"
+          },
+          "explanation": "Sapiens означава „разумен“; habilis е „умел“, erectus е „изправен“.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 18,
+          "candidate_id": "biology-g10-origin-and-evolution-of-humans-run-1-021",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "si-species",
+            "type": "third_party",
+            "url": "https://humanorigins.si.edu/evidence/human-fossils/species",
+            "title": "Human Fossils – Species (Smithsonian Human Origins Program)",
+            "retrieved_at": "2026-10-06T05:14:43Z",
+            "publisher": "Smithsonian Institution",
+            "notes": "Изследователски източник за хомининовите видове и техните признаци. Въпросите са новонаписани; не е копиран текст."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "единствен жив хомининов вид",
+            "skill": "D2 етапи-признаци"
+          },
+          "explanation": "Всички други хомининови видове са изчезнали; днес съществува само Homo sapiens.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 19,
+          "candidate_id": "biology-g10-origin-and-evolution-of-humans-run-1-022",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "si-species",
+            "type": "third_party",
+            "url": "https://humanorigins.si.edu/evidence/human-fossils/species",
+            "title": "Human Fossils – Species (Smithsonian Human Origins Program)",
+            "retrieved_at": "2026-10-06T05:14:43Z",
+            "publisher": "Smithsonian Institution",
+            "notes": "Изследователски източник за хомининовите видове и техните признаци. Въпросите са новонаписани; не е копиран текст."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "признак при изправена походка",
+            "skill": "D3 структура-функция"
+          },
+          "explanation": "S-образният гръбнак амортизира и поддържа вертикалното положение. Противопоставим палец на крака имат човекоподобните маймуни, не хората.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 20,
+          "candidate_id": "biology-g10-origin-and-evolution-of-humans-run-1-023",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "si-species",
+            "type": "third_party",
+            "url": "https://humanorigins.si.edu/evidence/human-fossils/species",
+            "title": "Human Fossils – Species (Smithsonian Human Origins Program)",
+            "retrieved_at": "2026-10-06T05:14:43Z",
+            "publisher": "Smithsonian Institution",
+            "notes": "Изследователски източник за хомининовите видове и техните признаци. Въпросите са новонаписани; не е копиран текст."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "сводесто стъпало – функция",
+            "skill": "D3 структура-функция"
+          },
+          "explanation": "Сводът действа като пружина при двукрако ходене и разпределя натоварването.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 21,
+          "candidate_id": "biology-g10-origin-and-evolution-of-humans-run-1-024",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "si-species",
+            "type": "third_party",
+            "url": "https://humanorigins.si.edu/evidence/human-fossils/species",
+            "title": "Human Fossils – Species (Smithsonian Human Origins Program)",
+            "retrieved_at": "2026-10-06T05:14:43Z",
+            "publisher": "Smithsonian Institution",
+            "notes": "Изследователски източник за хомининовите видове и техните признаци. Въпросите са новонаписани; не е копиран текст."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "речеви устройства и мозък",
+            "skill": "D3 сравнение"
+          },
+          "explanation": "Речта изисква развити речеви центрове в мозъчната кора и подходящ говорен апарат.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 22,
+          "candidate_id": "biology-g10-origin-and-evolution-of-humans-run-1-025",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "si-species",
+            "type": "third_party",
+            "url": "https://humanorigins.si.edu/evidence/human-fossils/species",
+            "title": "Human Fossils – Species (Smithsonian Human Origins Program)",
+            "retrieved_at": "2026-10-06T05:14:43Z",
+            "publisher": "Smithsonian Institution",
+            "notes": "Изследователски източник за хомининовите видове и техните признаци. Въпросите са новонаписани; не е копиран текст."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "череп на човека и шимпанзето",
+            "skill": "D3 сравнение"
+          },
+          "explanation": "При човека мозъчният череп е голям, а лицевият е по-малък; при шимпанзето е обратното.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 23,
+          "candidate_id": "biology-g10-origin-and-evolution-of-humans-run-1-026",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "si-genetics",
+            "type": "third_party",
+            "url": "https://humanorigins.si.edu/evidence/genetics",
+            "title": "Genetic Evidence (Smithsonian Human Origins Program)",
+            "retrieved_at": "2026-10-06T05:14:43Z",
+            "publisher": "Smithsonian Institution",
+            "notes": "Изследователски източник за общия предшественик на човека и шимпанзето и за малката генетична изменчивост между хората. Въпросите са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "общ предшественик на човека и шимпанзето",
+            "skill": "D3 сравнение"
+          },
+          "explanation": "Двете линии се отделят от общ предшественик преди около 6–8 млн. години; никой от живите видове не е предшественик на другия.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 24,
+          "candidate_id": "biology-g10-origin-and-evolution-of-humans-run-1-027",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "si-genetics",
+            "type": "third_party",
+            "url": "https://humanorigins.si.edu/evidence/genetics",
+            "title": "Genetic Evidence (Smithsonian Human Origins Program)",
+            "retrieved_at": "2026-10-06T05:14:43Z",
+            "publisher": "Smithsonian Institution",
+            "notes": "Изследователски източник за общия предшественик на човека и шимпанзето и за малката генетична изменчивост между хората. Въпросите са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "молекулярни данни и родство",
+            "skill": "D3 сравнение"
+          },
+          "explanation": "По-голямото сходство на ДНК показва по-близко родство и по-скорошен общ предшественик.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 25,
+          "candidate_id": "biology-g10-origin-and-evolution-of-humans-run-1-028",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "si-genetics",
+            "type": "third_party",
+            "url": "https://humanorigins.si.edu/evidence/genetics",
+            "title": "Genetic Evidence (Smithsonian Human Origins Program)",
+            "retrieved_at": "2026-10-06T05:14:43Z",
+            "publisher": "Smithsonian Institution",
+            "notes": "Изследователски източник за общия предшественик на човека и шимпанзето и за малката генетична изменчивост между хората. Въпросите са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "общ признак на човека и човекоподобните",
+            "skill": "D3 сравнение"
+          },
+          "explanation": "Човекоподобните маймуни и човекът нямат опашка. Основно двукрако ходене, S-образен гръбнак и реч са характерни само за човека.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 26,
+          "candidate_id": "biology-g10-origin-and-evolution-of-humans-run-1-029",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "si-species",
+            "type": "third_party",
+            "url": "https://humanorigins.si.edu/evidence/human-fossils/species",
+            "title": "Human Fossils – Species (Smithsonian Human Origins Program)",
+            "retrieved_at": "2026-10-06T05:14:43Z",
+            "publisher": "Smithsonian Institution",
+            "notes": "Изследователски източник за хомининовите видове и техните признаци. Въпросите са новонаписани; не е копиран текст."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "предимство на изправената походка в открита местност",
+            "skill": "D3 структура-функция"
+          },
+          "explanation": "Освободените ръце позволяват носене на храна и потомство. Четирикраките хищници бягат по-бързо от двукракия човек.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 27,
+          "candidate_id": "biology-g10-origin-and-evolution-of-humans-run-1-030",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "si-genetics",
+            "type": "third_party",
+            "url": "https://humanorigins.si.edu/evidence/genetics",
+            "title": "Genetic Evidence (Smithsonian Human Origins Program)",
+            "retrieved_at": "2026-10-06T05:14:43Z",
+            "publisher": "Smithsonian Institution",
+            "notes": "Изследователски източник за общия предшественик на човека и шимпанзето и за малката генетична изменчивост между хората. Въпросите са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "причина за различията между популации",
+            "skill": "D4 причина"
+          },
+          "explanation": "Различията във външни признаци възникват под действието на отбора и изолацията в различна среда.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 28,
+          "candidate_id": "biology-g10-origin-and-evolution-of-humans-run-1-031",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "si-species",
+            "type": "third_party",
+            "url": "https://humanorigins.si.edu/evidence/human-fossils/species",
+            "title": "Human Fossils – Species (Smithsonian Human Origins Program)",
+            "retrieved_at": "2026-10-06T05:14:43Z",
+            "publisher": "Smithsonian Institution",
+            "notes": "Изследователски източник за хомининовите видове и техните признаци. Въпросите са новонаписани; не е копиран текст."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "пигментация и ултравиолетово лъчение",
+            "skill": "D4 причина"
+          },
+          "explanation": "Признакът е запазен чрез естествен отбор; придобитият загар не се унаследява.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 29,
+          "candidate_id": "biology-g10-origin-and-evolution-of-humans-run-1-032",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "si-genetics",
+            "type": "third_party",
+            "url": "https://humanorigins.si.edu/evidence/genetics",
+            "title": "Genetic Evidence (Smithsonian Human Origins Program)",
+            "retrieved_at": "2026-10-06T05:14:43Z",
+            "publisher": "Smithsonian Institution",
+            "notes": "Изследователски източник за общия предшественик на човека и шимпанзето и за малката генетична изменчивост между хората. Въпросите са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "изолация и обмен на гени",
+            "skill": "D4 причина"
+          },
+          "explanation": "При изолация гените не се смесват между групите и различията се натрупват.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 30,
+          "candidate_id": "biology-g10-origin-and-evolution-of-humans-run-1-033",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "si-genetics",
+            "type": "third_party",
+            "url": "https://humanorigins.si.edu/evidence/genetics",
+            "title": "Genetic Evidence (Smithsonian Human Origins Program)",
+            "retrieved_at": "2026-10-06T05:14:43Z",
+            "publisher": "Smithsonian Institution",
+            "notes": "Изследователски източник за общия предшественик на човека и шимпанзето и за малката генетична изменчивост между хората. Въпросите са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "миграции и смесване",
+            "skill": "D4 причина"
+          },
+          "explanation": "Миграциите пренасят гени и размиват различията; не създават нови видове.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 31,
+          "candidate_id": "biology-g10-origin-and-evolution-of-humans-run-1-034",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "si-species",
+            "type": "third_party",
+            "url": "https://humanorigins.si.edu/evidence/human-fossils/species",
+            "title": "Human Fossils – Species (Smithsonian Human Origins Program)",
+            "retrieved_at": "2026-10-06T05:14:43Z",
+            "publisher": "Smithsonian Institution",
+            "notes": "Изследователски източник за хомининовите видове и техните признаци. Въпросите са новонаписани; не е копиран текст."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "сходни признаци при отдалечени популации",
+            "skill": "D4 причина"
+          },
+          "explanation": "Сходните условия могат независимо да запазят сходни признаци чрез отбор.",
+          "difficulty": "hard"
+        },
+        {
+          "number": 32,
+          "candidate_id": "biology-g10-origin-and-evolution-of-humans-run-1-036",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "si-genetics",
+            "type": "third_party",
+            "url": "https://humanorigins.si.edu/evidence/genetics",
+            "title": "Genetic Evidence (Smithsonian Human Origins Program)",
+            "retrieved_at": "2026-10-06T05:14:43Z",
+            "publisher": "Smithsonian Institution",
+            "notes": "Изследователски източник за общия предшественик на човека и шимпанзето и за малката генетична изменчивост между хората. Въпросите са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "кариотип",
+            "skill": "D5 аргумент"
+          },
+          "explanation": "Кариотипът на човека е 46 хромозоми във всички популации; 48 имат човекоподобните маймуни.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 33,
+          "candidate_id": "biology-g10-origin-and-evolution-of-humans-run-1-037",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "si-genetics",
+            "type": "third_party",
+            "url": "https://humanorigins.si.edu/evidence/genetics",
+            "title": "Genetic Evidence (Smithsonian Human Origins Program)",
+            "retrieved_at": "2026-10-06T05:14:43Z",
+            "publisher": "Smithsonian Institution",
+            "notes": "Изследователски източник за общия предшественик на човека и шимпанзето и за малката генетична изменчивост между хората. Въпросите са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "контрааргумент срещу разделяне на видове по цвят",
+            "skill": "D5 аргумент"
+          },
+          "explanation": "Цветът на кожата е наследствен признак, но не е бариера за размножаване; различията не обосновават отделни видове.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 34,
+          "candidate_id": "biology-g10-origin-and-evolution-of-humans-run-1-038",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "si-genetics",
+            "type": "third_party",
+            "url": "https://humanorigins.si.edu/evidence/genetics",
+            "title": "Genetic Evidence (Smithsonian Human Origins Program)",
+            "retrieved_at": "2026-10-06T05:14:43Z",
+            "publisher": "Smithsonian Institution",
+            "notes": "Изследователски източник за общия предшественик на човека и шимпанзето и за малката генетична изменчивост между хората. Въпросите са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "генетична прилика между хората",
+            "skill": "D5 аргумент"
+          },
+          "explanation": "Геномите на всеки двама души се различават с около 0,1%.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 35,
+          "candidate_id": "biology-g10-origin-and-evolution-of-humans-run-1-039",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "si-genetics",
+            "type": "third_party",
+            "url": "https://humanorigins.si.edu/evidence/genetics",
+            "title": "Genetic Evidence (Smithsonian Human Origins Program)",
+            "retrieved_at": "2026-10-06T05:14:43Z",
+            "publisher": "Smithsonian Institution",
+            "notes": "Изследователски източник за общия предшественик на човека и шимпанзето и за малката генетична изменчивост между хората. Въпросите са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "различни видове – плодовитост",
+            "skill": "D5 аргумент"
+          },
+          "explanation": "Липсата на плодовито потомство е критерий за различни видове; това не означава пряко произхождане.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 36,
+          "candidate_id": "biology-g10-origin-and-evolution-of-humans-run-1-040",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "si-genetics",
+            "type": "third_party",
+            "url": "https://humanorigins.si.edu/evidence/genetics",
+            "title": "Genetic Evidence (Smithsonian Human Origins Program)",
+            "retrieved_at": "2026-10-06T05:14:43Z",
+            "publisher": "Smithsonian Institution",
+            "notes": "Изследователски източник за общия предшественик на човека и шимпанзето и за малката генетична изменчивост между хората. Въпросите са новонаписани."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "синтез: различия и единен вид",
+            "skill": "D5 аргумент"
+          },
+          "explanation": "Външните различия са малки, адаптивни по произход, а всички хора остават един вид.",
+          "difficulty": "medium"
+        }
+      ]
+    }
+  ],
+  "not_exported": []
+}

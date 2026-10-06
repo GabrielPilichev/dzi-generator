@@ -1,0 +1,930 @@
+{
+  "format_version": 1,
+  "kind": "question_candidate_provenance",
+  "run": {
+    "id": "biology-g8-cell-and-tissues-run-1",
+    "started_at": "2026-10-05T20:35:04Z",
+    "finished_at": "2026-10-05T20:35:04Z",
+    "subject": "biology",
+    "grade": 8,
+    "curriculum": {
+      "education_type": "general",
+      "title": "Биология и здравно образование, 8. клас — общообразователна подготовка"
+    },
+    "targets": [
+      {
+        "section": {
+          "slug": "biology-g8-structural-organisation-of-the-human-body",
+          "title": "Структурна организация на човешкия организъм"
+        },
+        "topics": [
+          {
+            "slug": "biology-g8-cell-and-tissues",
+            "title": "Клетка и тъкани"
+          }
+        ]
+      }
+    ],
+    "limits": {
+      "max_topics": 1,
+      "max_pages": 3,
+      "max_candidates": 40,
+      "max_candidates_per_source": 40,
+      "max_runtime_minutes": 60
+    },
+    "pages_inspected": 1,
+    "stop_reason": "topic_complete",
+    "collector": "claude-sonnet-5-5-collector",
+    "notes": "Пилотен цикъл 1 от план за колекция: 40 въпроса по измерения D1–D5 на темата. Науката е от общоприети учебни факти; не е ползван друг източник."
+  },
+  "not_stored_in_database": [
+    "candidate id",
+    "source type",
+    "source url",
+    "source title",
+    "source publisher",
+    "source retrieved_at",
+    "transformation",
+    "source_ref",
+    "research",
+    "reuse_exception",
+    "explanation",
+    "difficulty",
+    "review (reviewer, reviewed_at, notes)",
+    "run manifest"
+  ],
+  "batches": [
+    {
+      "file": "biology-g8-cell-and-tissues-run-1.cell-and-tissues.json",
+      "source": "reviewed:biology:biology-g8-cell-and-tissues-run-1.cell-and-tissues",
+      "topic_slug": "biology-g8-cell-and-tissues",
+      "questions": [
+        {
+          "number": 1,
+          "candidate_id": "biology-g8-cell-and-tissues-run-1-001",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf",
+            "title": "Учебна програма по биология и здравно образование за VIII клас (общообразователна подготовка), Приложение № 18",
+            "retrieved_at": "2026-10-05T14:00:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на теми 1 и 1.1 (равнища на организация, видове тъкани). Всички въпроси са новонаписани от общоприети биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "равнища на организация – последователност",
+            "skill": "D1 ред"
+          },
+          "explanation": "Клетките изграждат тъканите, тъканите – органите, органите – системите от органи, а системите заедно образуват организма.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 2,
+          "candidate_id": "biology-g8-cell-and-tissues-run-1-002",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf",
+            "title": "Учебна програма по биология и здравно образование за VIII клас (общообразователна подготовка), Приложение № 18",
+            "retrieved_at": "2026-10-05T14:00:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на теми 1 и 1.1 (равнища на организация, видове тъкани). Всички въпроси са новонаписани от общоприети биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "тъкан – определение",
+            "skill": "D1 дефиниция"
+          },
+          "explanation": "Тъканта е съвкупност от сходни по строеж и функция клетки и междуклетъчното вещество между тях.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 3,
+          "candidate_id": "biology-g8-cell-and-tissues-run-1-003",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf",
+            "title": "Учебна програма по биология и здравно образование за VIII клас (общообразователна подготовка), Приложение № 18",
+            "retrieved_at": "2026-10-05T14:00:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на теми 1 и 1.1 (равнища на организация, видове тъкани). Всички въпроси са новонаписани от общоприети биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "орган – определение",
+            "skill": "D1 дефиниция"
+          },
+          "explanation": "Органът включва няколко вида тъкани, които заедно изпълняват определена функция. Другите определения са на тъкан, система от органи и клетка.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 4,
+          "candidate_id": "biology-g8-cell-and-tissues-run-1-004",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf",
+            "title": "Учебна програма по биология и здравно образование за VIII клас (общообразователна подготовка), Приложение № 18",
+            "retrieved_at": "2026-10-05T14:00:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на теми 1 и 1.1 (равнища на организация, видове тъкани). Всички въпроси са новонаписани от общоприети биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "основни видове тъкани",
+            "skill": "D2 видове"
+          },
+          "explanation": "Костната, хрущялната и мастната тъкан са видове съединителна тъкан, а жлезите са изградени от епителна тъкан.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 5,
+          "candidate_id": "biology-g8-cell-and-tissues-run-1-005",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf",
+            "title": "Учебна програма по биология и здравно образование за VIII клас (общообразователна подготовка), Приложение № 18",
+            "retrieved_at": "2026-10-05T14:00:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на теми 1 и 1.1 (равнища на организация, видове тъкани). Всички въпроси са новонаписани от общоприети биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "епителна тъкан – местоположение",
+            "skill": "D3 локализация"
+          },
+          "explanation": "Епителната тъкан образува покривни и облицоващи слоеве.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 6,
+          "candidate_id": "biology-g8-cell-and-tissues-run-1-006",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf",
+            "title": "Учебна програма по биология и здравно образование за VIII клас (общообразователна подготовка), Приложение № 18",
+            "retrieved_at": "2026-10-05T14:00:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на теми 1 и 1.1 (равнища на организация, видове тъкани). Всички въпроси са новонаписани от общоприети биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "мускулна тъкан – функция",
+            "skill": "D3 функция"
+          },
+          "explanation": "Клетките на мускулната тъкан могат да се съкращават и така осигуряват движение на тялото и на вътрешните органи.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 7,
+          "candidate_id": "biology-g8-cell-and-tissues-run-1-007",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf",
+            "title": "Учебна програма по биология и здравно образование за VIII клас (общообразователна подготовка), Приложение № 18",
+            "retrieved_at": "2026-10-05T14:00:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на теми 1 и 1.1 (равнища на организация, видове тъкани). Всички въпроси са новонаписани от общоприети биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "нервна тъкан – функция",
+            "skill": "D3 функция"
+          },
+          "explanation": "Нервните клетки са възбудими и провеждат нервни импулси.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 8,
+          "candidate_id": "biology-g8-cell-and-tissues-run-1-008",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf",
+            "title": "Учебна програма по биология и здравно образование за VIII клас (общообразователна подготовка), Приложение № 18",
+            "retrieved_at": "2026-10-05T14:00:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на теми 1 и 1.1 (равнища на организация, видове тъкани). Всички въпроси са новонаписани от общоприети биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "видове съединителна тъкан",
+            "skill": "D2 видове"
+          },
+          "explanation": "Кръвта, хрущялът и костта са видове съединителна тъкан: клетките им са в много междуклетъчно вещество.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 9,
+          "candidate_id": "biology-g8-cell-and-tissues-run-1-009",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf",
+            "title": "Учебна програма по биология и здравно образование за VIII клас (общообразователна подготовка), Приложение № 18",
+            "retrieved_at": "2026-10-05T14:00:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на теми 1 и 1.1 (равнища на организация, видове тъкани). Всички въпроси са новонаписани от общоприети биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "скелетна мускулна тъкан",
+            "skill": "D3 локализация"
+          },
+          "explanation": "Скелетните мускули са изградени от напречнонабраздена мускулна тъкан и се съкращават по волята ни.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 10,
+          "candidate_id": "biology-g8-cell-and-tissues-run-1-010",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf",
+            "title": "Учебна програма по биология и здравно образование за VIII клас (общообразователна подготовка), Приложение № 18",
+            "retrieved_at": "2026-10-05T14:00:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на теми 1 и 1.1 (равнища на организация, видове тъкани). Всички въпроси са новонаписани от общоприети биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "сърдечна мускулна тъкан – местоположение",
+            "skill": "D3 локализация"
+          },
+          "explanation": "Стената на сърцето е изградена от сърдечна мускулна тъкан.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 11,
+          "candidate_id": "biology-g8-cell-and-tissues-run-1-011",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf",
+            "title": "Учебна програма по биология и здравно образование за VIII клас (общообразователна подготовка), Приложение № 18",
+            "retrieved_at": "2026-10-05T14:00:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на теми 1 и 1.1 (равнища на организация, видове тъкани). Всички въпроси са новонаписани от общоприети биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "мастна тъкан – функция",
+            "skill": "D3 функция"
+          },
+          "explanation": "Мастната тъкан е вид съединителна тъкан, която натрупва резерви и осигурява топлинна изолация.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 12,
+          "candidate_id": "biology-g8-cell-and-tissues-run-1-012",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf",
+            "title": "Учебна програма по биология и здравно образование за VIII клас (общообразователна подготовка), Приложение № 18",
+            "retrieved_at": "2026-10-05T14:00:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на теми 1 и 1.1 (равнища на организация, видове тъкани). Всички въпроси са новонаписани от общоприети биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "кръв – плазма",
+            "skill": "D2 видове"
+          },
+          "explanation": "В кръвта клетките са в течно междуклетъчно вещество – плазмата.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 13,
+          "candidate_id": "biology-g8-cell-and-tissues-run-1-013",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf",
+            "title": "Учебна програма по биология и здравно образование за VIII клас (общообразователна подготовка), Приложение № 18",
+            "retrieved_at": "2026-10-05T14:00:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на теми 1 и 1.1 (равнища на организация, видове тъкани). Всички въпроси са новонаписани от общоприети биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "орган или тъкан – разграничаване",
+            "skill": "D1 орган"
+          },
+          "explanation": "Стомахът е изграден от няколко тъкани и изпълнява определена функция. Останалите са тъкани.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 14,
+          "candidate_id": "biology-g8-cell-and-tissues-run-1-014",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf",
+            "title": "Учебна програма по биология и здравно образование за VIII клас (общообразователна подготовка), Приложение № 18",
+            "retrieved_at": "2026-10-05T14:00:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на теми 1 и 1.1 (равнища на организация, видове тъкани). Всички въпроси са новонаписани от общоприети биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "жлезист епител – функция",
+            "skill": "D3 функция"
+          },
+          "explanation": "Жлезите са изградени от епителна тъкан, чиито клетки отделят секрети.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 15,
+          "candidate_id": "biology-g8-cell-and-tissues-run-1-015",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf",
+            "title": "Учебна програма по биология и здравно образование за VIII клас (общообразователна подготовка), Приложение № 18",
+            "retrieved_at": "2026-10-05T14:00:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на теми 1 и 1.1 (равнища на организация, видове тъкани). Всички въпроси са новонаписани от общоприети биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "епителна тъкан – пример",
+            "skill": "D3 локализация"
+          },
+          "explanation": "Външният слой на кожата е покривен епител. Сухожилието и хрущялът са съединителна, а мускулът – мускулна тъкан.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 16,
+          "candidate_id": "biology-g8-cell-and-tissues-run-1-016",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf",
+            "title": "Учебна програма по биология и здравно образование за VIII клас (общообразователна подготовка), Приложение № 18",
+            "retrieved_at": "2026-10-05T14:00:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на теми 1 и 1.1 (равнища на организация, видове тъкани). Всички въпроси са новонаписани от общоприети биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "органи – система (храносмилателна)",
+            "skill": "D5 система"
+          },
+          "explanation": "Стомахът, черният дроб и червата участват в храносмилането.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 17,
+          "candidate_id": "biology-g8-cell-and-tissues-run-1-017",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf",
+            "title": "Учебна програма по биология и здравно образование за VIII клас (общообразователна подготовка), Приложение № 18",
+            "retrieved_at": "2026-10-05T14:00:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на теми 1 и 1.1 (равнища на организация, видове тъкани). Всички въпроси са новонаписани от общоприети биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "съединителна и епителна – сравнение",
+            "skill": "D2 сравнение"
+          },
+          "explanation": "Клетките на епителната тъкан са плътно долепени, а в съединителната са разположени в много междуклетъчно вещество.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 18,
+          "candidate_id": "biology-g8-cell-and-tissues-run-1-018",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf",
+            "title": "Учебна програма по биология и здравно образование за VIII клас (общообразователна подготовка), Приложение № 18",
+            "retrieved_at": "2026-10-05T14:00:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на теми 1 и 1.1 (равнища на организация, видове тъкани). Всички въпроси са новонаписани от общоприети биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "равнища на организация – примери",
+            "skill": "D1 примери"
+          },
+          "explanation": "Еритроцитът е клетка. Стомахът и сърцето са органи, а мускулната тъкан е тъкан.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 19,
+          "candidate_id": "biology-g8-cell-and-tissues-run-1-020",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf",
+            "title": "Учебна програма по биология и здравно образование за VIII клас (общообразователна подготовка), Приложение № 18",
+            "retrieved_at": "2026-10-05T14:00:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на теми 1 и 1.1 (равнища на организация, видове тъкани). Всички въпроси са новонаписани от общоприети биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "гладка мускулна тъкан – признаци",
+            "skill": "D4 описание"
+          },
+          "explanation": "Гладката мускулна тъкан е изградена от вретеновидни клетки без напречна набразденост.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 20,
+          "candidate_id": "biology-g8-cell-and-tissues-run-1-022",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf",
+            "title": "Учебна програма по биология и здравно образование за VIII клас (общообразователна подготовка), Приложение № 18",
+            "retrieved_at": "2026-10-05T14:00:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на теми 1 и 1.1 (равнища на организация, видове тъкани). Всички въпроси са новонаписани от общоприети биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "съединителна тъкан – сухожилия",
+            "skill": "D3 функция"
+          },
+          "explanation": "Сухожилията са здрави връзки от плътна съединителна тъкан, които прикрепват мускулите към костите.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 21,
+          "candidate_id": "biology-g8-cell-and-tissues-run-1-023",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf",
+            "title": "Учебна програма по биология и здравно образование за VIII клас (общообразователна подготовка), Приложение № 18",
+            "retrieved_at": "2026-10-05T14:00:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на теми 1 и 1.1 (равнища на организация, видове тъкани). Всички въпроси са новонаписани от общоприети биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "епителна тъкан – структура и функция",
+            "skill": "D3 структура-функция"
+          },
+          "explanation": "Плътно долепените клетки образуват непрекъсната преграда, която защитава тялото.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 22,
+          "candidate_id": "biology-g8-cell-and-tissues-run-1-024",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf",
+            "title": "Учебна програма по биология и здравно образование за VIII клас (общообразователна подготовка), Приложение № 18",
+            "retrieved_at": "2026-10-05T14:00:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на теми 1 и 1.1 (равнища на организация, видове тъкани). Всички въпроси са новонаписани от общоприети биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "костна тъкан – минерални соли",
+            "skill": "D3 структура-функция"
+          },
+          "explanation": "Минералните соли правят костта твърда и здрава.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 23,
+          "candidate_id": "biology-g8-cell-and-tissues-run-1-025",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf",
+            "title": "Учебна програма по биология и здравно образование за VIII клас (общообразователна подготовка), Приложение № 18",
+            "retrieved_at": "2026-10-05T14:00:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на теми 1 и 1.1 (равнища на организация, видове тъкани). Всички въпроси са новонаписани от общоприети биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "хрущялна тъкан – функция",
+            "skill": "D3 структура-функция"
+          },
+          "explanation": "Хрущялът е съединителна тъкан с гъвкаво междуклетъчно вещество.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 24,
+          "candidate_id": "biology-g8-cell-and-tissues-run-1-026",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf",
+            "title": "Учебна програма по биология и здравно образование за VIII клас (общообразователна подготовка), Приложение № 18",
+            "retrieved_at": "2026-10-05T14:00:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на теми 1 и 1.1 (равнища на организация, видове тъкани). Всички въпроси са новонаписани от общоприети биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "органи – система (отделителна)",
+            "skill": "D5 система"
+          },
+          "explanation": "Бъбреците и пикочният мехур участват в отделянето на ненужни вещества.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 25,
+          "candidate_id": "biology-g8-cell-and-tissues-run-1-027",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf",
+            "title": "Учебна програма по биология и здравно образование за VIII клас (общообразователна подготовка), Приложение № 18",
+            "retrieved_at": "2026-10-05T14:00:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на теми 1 и 1.1 (равнища на организация, видове тъкани). Всички въпроси са новонаписани от общоприети биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "тъкани – функции (съотнасяне)",
+            "skill": "D3 сравнение"
+          },
+          "explanation": "Съединителната тъкан поддържа и свързва органите.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 26,
+          "candidate_id": "biology-g8-cell-and-tissues-run-1-032",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf",
+            "title": "Учебна програма по биология и здравно образование за VIII клас (общообразователна подготовка), Приложение № 18",
+            "retrieved_at": "2026-10-05T14:00:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на теми 1 и 1.1 (равнища на организация, видове тъкани). Всички въпроси са новонаписани от общоприети биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "нервна тъкан – местоположение",
+            "skill": "D3 локализация"
+          },
+          "explanation": "Главният и гръбначният мозък са изградени основно от нервна тъкан.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 27,
+          "candidate_id": "biology-g8-cell-and-tissues-run-1-034",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf",
+            "title": "Учебна програма по биология и здравно образование за VIII клас (общообразователна подготовка), Приложение № 18",
+            "retrieved_at": "2026-10-05T14:00:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на теми 1 и 1.1 (равнища на организация, видове тъкани). Всички въпроси са новонаписани от общоприети биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "микроскопско наблюдение на тъкани",
+            "skill": "D4 лабораторно"
+          },
+          "explanation": "Препаратът трябва да е достатъчно тънък, за да пропуска светлината.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 28,
+          "candidate_id": "biology-g8-cell-and-tissues-run-1-035",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf",
+            "title": "Учебна програма по биология и здравно образование за VIII клас (общообразователна подготовка), Приложение № 18",
+            "retrieved_at": "2026-10-05T14:00:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на теми 1 и 1.1 (равнища на организация, видове тъкани). Всички въпроси са новонаписани от общоприети биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "хрущял и кост – сравнение",
+            "skill": "D3 сравнение"
+          },
+          "explanation": "Хрущялът и костта са съединителни тъкани. Минералните соли правят костта твърда.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 29,
+          "candidate_id": "biology-g8-cell-and-tissues-run-1-037",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf",
+            "title": "Учебна програма по биология и здравно образование за VIII клас (общообразователна подготовка), Приложение № 18",
+            "retrieved_at": "2026-10-05T14:00:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на теми 1 и 1.1 (равнища на организация, видове тъкани). Всички въпроси са новонаписани от общоприети биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "кръвта като тъкан (аргументация)",
+            "skill": "D2 аргументация"
+          },
+          "explanation": "Тъканта е клетки и междуклетъчно вещество. В кръвта то е течно.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 30,
+          "candidate_id": "biology-g8-cell-and-tissues-run-1-038",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf",
+            "title": "Учебна програма по биология и здравно образование за VIII клас (общообразователна подготовка), Приложение № 18",
+            "retrieved_at": "2026-10-05T14:00:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на теми 1 и 1.1 (равнища на организация, видове тъкани). Всички въпроси са новонаписани от общоприети биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "сърдечна мускулна тъкан – сравнение с два вида",
+            "skill": "D3 сравнение"
+          },
+          "explanation": "Сърдечната тъкан е напречнонабраздена като скелетната, но неволева като гладката.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 31,
+          "candidate_id": "biology-g8-cell-and-tissues-run-1-039",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf",
+            "title": "Учебна програма по биология и здравно образование за VIII клас (общообразователна подготовка), Приложение № 18",
+            "retrieved_at": "2026-10-05T14:00:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на теми 1 и 1.1 (равнища на организация, видове тъкани). Всички въпроси са новонаписани от общоприети биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "разпознаване на тъкани по описание (три тъкани)",
+            "skill": "D4 описание"
+          },
+          "explanation": "X е костна съединителна, Y – гладка мускулна, Z – нервна тъкан.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 32,
+          "candidate_id": "biology-g8-cell-and-tissues-run-1-040",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "mon-up-viii-bio",
+            "type": "official",
+            "url": "https://www.mon.bg/nfs/2023/12/up_viii_bio.pdf",
+            "title": "Учебна програма по биология и здравно образование за VIII клас (общообразователна подготовка), Приложение № 18",
+            "retrieved_at": "2026-10-05T14:00:00Z",
+            "publisher": "Министерство на образованието и науката",
+            "notes": "Определя обхвата на теми 1 и 1.1 (равнища на организация, видове тъкани). Всички въпроси са новонаписани от общоприети биологични факти; нищо не е копирано."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-wave1-independent-review-resolution-approval",
+            "reviewed_at": "2026-10-06T06:07:01Z",
+            "notes": ""
+          },
+          "flags": [],
+          "research": {
+            "concept": "равнища на организация – разпознаване на примери",
+            "skill": "D1 равнища"
+          },
+          "explanation": "Еритроцитът е клетка, кръвта и сърдечната мускулна тъкан са тъкани, а сърцето е орган.",
+          "difficulty": "hard"
+        }
+      ]
+    }
+  ],
+  "not_exported": []
+}
