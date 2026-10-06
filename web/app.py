@@ -67,6 +67,15 @@ from web.blueprints.quiz import (
     require_quiz_attempt_access,
 )
 from web import db as web_db
+from web.access import (
+    ADMIN,
+    ATTEMPT_OWNER,
+    PROFILE_SWITCH,
+    PUBLIC,
+    TEACHER,
+    access_policy,
+)
+from web.request_integrity import SAME_ORIGIN, integrity_policy
 from web.production import warn_if_schema_migrations_pending
 from web.services import quiz as quiz_service
 from web.services.question_visuals import (
@@ -493,6 +502,7 @@ def inject_ui_profile():
 
 
 @app.route("/profile/<profile>")
+@access_policy(PROFILE_SWITCH)
 def switch_profile(profile: str):
     if profile not in VALID_UI_PROFILES:
         abort(404)
@@ -540,6 +550,8 @@ def inject_tester_auth():
 
 
 @app.route("/tester/login", methods=["GET", "POST"])
+@access_policy(PUBLIC)
+@integrity_policy(SAME_ORIGIN)
 def tester_login():
     error = None
     next_url = safe_redirect_target(
@@ -564,6 +576,7 @@ def tester_login():
 
 
 @app.route("/tester/logout")
+@access_policy(PUBLIC)
 def tester_logout():
     session.pop("tester_authenticated", None)
     if not session.get("admin_authenticated"):
@@ -610,6 +623,9 @@ def protect_admin_routes():
     #   require_quiz_attempt_access(attempt_id) inside each attempt route.
     # Future blueprint extraction must preserve these endpoint names or update this
     # guard and docs/AUTH_ROUTE_CONTRACT.md together.
+    # Each view also declares an explicit policy (web.access). This guard still
+    # enforces access; tests/test_access_policy.py asserts both agree, and
+    # roadmap PR D2 replaces this guard with the declared policies.
     endpoint = request.endpoint or ""
 
     if endpoint in {"static", "admin_login", "tester_login", "switch_profile"}:
@@ -641,6 +657,8 @@ def protect_admin_routes():
 
 
 @app.route("/admin/login", methods=["GET", "POST"])
+@access_policy(PUBLIC)
+@integrity_policy(SAME_ORIGIN)
 def admin_login():
     error = None
     next_url = safe_redirect_target(
@@ -665,6 +683,7 @@ def admin_login():
 
 
 @app.route("/admin/logout")
+@access_policy(ADMIN)
 def admin_logout():
     session.pop("admin_authenticated", None)
     session["ui_profile"] = "tester"
@@ -1454,11 +1473,13 @@ def fetch_practical_submission_review_rows() -> list[dict]:
 # ---------------------------------------------------------------------------
 
 @app.route("/tester")
+@access_policy(PUBLIC)
 def tester_home():
     return render_template("tester_home.html")
 
 
 @app.route("/")
+@access_policy(PUBLIC)
 def index():
     subjects = []
     dzi_section = None
@@ -1639,32 +1660,38 @@ def render_subject_topic_page(subject_slug: str, grade: int, section_slug: str, 
 
 
 @app.route("/subjects/<subject_slug>")
+@access_policy(PUBLIC)
 def subject_view(subject_slug: str):
     return render_subject_page(subject_slug)
 
 
 @app.route("/subjects/<subject_slug>/<int:grade>")
+@access_policy(PUBLIC)
 def subject_grade_view(subject_slug: str, grade: int):
     return render_subject_grade_page(subject_slug, grade)
 
 
 @app.route("/subjects/<subject_slug>/<int:grade>/<topic_group_slug>")
+@access_policy(PUBLIC)
 def subject_topic_group_view(subject_slug: str, grade: int, topic_group_slug: str):
     return render_subject_topic_group_page(subject_slug, grade, topic_group_slug)
 
 
 @app.route("/subjects/<subject_slug>/<int:grade>/<topic_group_slug>/<topic_slug>")
+@access_policy(PUBLIC)
 def subject_topic_view(subject_slug: str, grade: int, topic_group_slug: str, topic_slug: str):
     return render_subject_topic_page(subject_slug, grade, topic_group_slug, topic_slug)
 
 
 # Pre-registry Physics URLs: permanent redirects to the generic subject pages.
 @app.route("/physics")
+@access_policy(PUBLIC)
 def physics():
     return redirect(url_for("subject_view", subject_slug="physics"), code=301)
 
 
 @app.route("/physics/grade/<int:grade>")
+@access_policy(PUBLIC)
 def physics_grade(grade: int):
     if not subject_supports_grade("physics", grade):
         abort(404)
@@ -1672,6 +1699,7 @@ def physics_grade(grade: int):
 
 
 @app.route("/favicon.ico")
+@access_policy(PUBLIC)
 def favicon():
     return send_file(PROJECT_ROOT / "web" / "static" / "img" / "brand" / "favicon.ico", mimetype="image/x-icon")
 
@@ -1685,6 +1713,7 @@ def open_existing_database_read_only(path, *, timeout: float = 5.0) -> sqlite3.C
 
 
 @app.route("/healthz")
+@access_policy(PUBLIC)
 def healthz():
     """Liveness plus one cheap database header read; no templates or content queries."""
     try:
@@ -1733,6 +1762,7 @@ def grade_subject_entries(grade: int) -> list[dict]:
 
 
 @app.route("/grade/<int:grade>")
+@access_policy(PUBLIC)
 def grade_view(grade: int):
     if grade not in PLATFORM_GRADES:
         abort(404)
@@ -1748,6 +1778,7 @@ def grade_view(grade: int):
 
 
 @app.route("/section/<slug>")
+@access_policy(PUBLIC)
 def section_view(slug: str):
     section = fetch_section(slug)
     if section is None:
@@ -1762,12 +1793,14 @@ def section_view(slug: str):
 
 
 @app.route("/dzi")
+@access_policy(ADMIN)
 def dzi_index():
     sources = fetch_dzi_sources()
     return render_template("dzi_index.html", sources=sources)
 
 
 @app.route("/dzi/source/<source_slug>")
+@access_policy(ADMIN)
 def dzi_source_view(source_slug: str):
     exam = dzi_find_exam(source_slug)
     if exam is None:
@@ -1783,6 +1816,7 @@ def dzi_source_view(source_slug: str):
 
 
 @app.route("/dzi/source/<source_slug>/practical")
+@access_policy(ADMIN)
 def dzi_practical_source(source_slug: str):
     resolved = fetch_practical_tasks(source_slug)
     if resolved is None:
@@ -1792,6 +1826,7 @@ def dzi_practical_source(source_slug: str):
 
 
 @app.route("/dzi/practical/resource/<int:resource_id>/download")
+@access_policy(ADMIN)
 def dzi_practical_resource_download(resource_id: int):
     resource = fetch_practical_resource(resource_id)
     if resource is None:
@@ -1846,6 +1881,7 @@ def dzi_practical_resource_download(resource_id: int):
 
 
 @app.route("/quiz/attempt/<int:attempt_id>/practical/<source_slug>")
+@access_policy(ATTEMPT_OWNER)
 def quiz_practical_attempt(attempt_id: int, source_slug: str):
     require_quiz_attempt_access(attempt_id)
     resolved = fetch_practical_attempt_page(attempt_id, source_slug)
@@ -1863,6 +1899,8 @@ def quiz_practical_attempt(attempt_id: int, source_slug: str):
 
 
 @app.route("/quiz/attempt/<int:attempt_id>/practical/<source_slug>/task/<int:exam_task_id>/upload", methods=["POST"])
+@access_policy(ATTEMPT_OWNER)
+@integrity_policy(SAME_ORIGIN)
 def quiz_practical_upload(attempt_id: int, source_slug: str, exam_task_id: int):
     require_quiz_attempt_access(attempt_id)
     conn = get_db()
@@ -2037,6 +2075,7 @@ def quiz_practical_upload(attempt_id: int, source_slug: str, exam_task_id: int):
 
 
 @app.route("/admin/open-question-candidates")
+@access_policy(ADMIN)
 def admin_open_question_candidates():
     conn = quiz_db()
     try:
@@ -2174,6 +2213,8 @@ warn_if_schema_migrations_pending(DB_PATH, open_existing_database_read_only)
 
 
 @app.route("/teacher/dzi-training", methods=["GET", "POST"])
+@access_policy(ADMIN)
+@integrity_policy(SAME_ORIGIN)
 def teacher_dzi_training():
     import json
     import subprocess
@@ -2296,6 +2337,7 @@ def teacher_dzi_training():
 
 
 @app.route("/teacher")
+@access_policy(ADMIN)
 def teacher_dashboard():
     conn = quiz_db()
 
@@ -2382,6 +2424,7 @@ def teacher_dashboard():
 
 
 @app.route("/teacher/practical-submissions")
+@access_policy(ADMIN)
 def teacher_practical_submissions():
     submissions = fetch_practical_submission_review_rows()
     return render_template(
@@ -2391,6 +2434,7 @@ def teacher_practical_submissions():
 
 
 @app.route("/teacher/practical/submission-file/<int:file_id>/download")
+@access_policy(ADMIN)
 def teacher_practical_submission_file_download(file_id: int):
     file_row = fetch_practical_submission_file(file_id)
     if file_row is None:
@@ -2435,6 +2479,7 @@ def teacher_practical_submission_file_download(file_id: int):
 
 
 @app.route("/teacher/assignments")
+@access_policy(ADMIN)
 def teacher_assignments():
     conn = quiz_db()
 
@@ -2488,6 +2533,8 @@ def teacher_assignments():
 
 
 @app.route("/teacher/new", methods=["GET", "POST"])
+@access_policy(TEACHER)
+@integrity_policy(SAME_ORIGIN)
 def teacher_new():
     conn = quiz_db()
     raw_subject = (
@@ -2743,6 +2790,7 @@ def teacher_new():
 
 
 @app.route("/teacher/assignment/<int:assignment_id>")
+@access_policy(TEACHER)
 def teacher_assignment(assignment_id):
     conn = quiz_db()
     assignment = quiz_fetch_assignment(conn, assignment_id)
@@ -2785,6 +2833,8 @@ def quiz_duplicate_title(title: str | None) -> str:
 
 
 @app.route("/teacher/assignment/<int:assignment_id>/edit", methods=["POST"])
+@access_policy(ADMIN)
+@integrity_policy(SAME_ORIGIN)
 def teacher_assignment_edit(assignment_id):
     conn = quiz_db()
     assignment = quiz_fetch_assignment(conn, assignment_id)
@@ -2844,6 +2894,8 @@ def teacher_assignment_edit(assignment_id):
 
 
 @app.route("/teacher/assignment/<int:assignment_id>/duplicate", methods=["POST"])
+@access_policy(ADMIN)
+@integrity_policy(SAME_ORIGIN)
 def teacher_assignment_duplicate(assignment_id):
     conn = quiz_db()
     source = quiz_fetch_assignment(conn, assignment_id)
@@ -3004,6 +3056,8 @@ def quiz_sort_results_attempts(attempts, *, sort, open_subtotal_by_id):
 
 
 @app.route("/teacher/assignment/<int:assignment_id>/results", methods=["GET", "POST"])
+@access_policy(ADMIN)
+@integrity_policy(SAME_ORIGIN)
 def teacher_assignment_results(assignment_id):
     conn = quiz_db()
     assignment = quiz_fetch_assignment(conn, assignment_id)
@@ -3303,6 +3357,7 @@ def _quiz_format_points(value) -> str:
 
 
 @app.route("/teacher/assignment/<int:assignment_id>/results.csv")
+@access_policy(ADMIN)
 def teacher_assignment_results_export(assignment_id):
     conn = quiz_db()
     assignment = quiz_fetch_assignment(conn, assignment_id)
