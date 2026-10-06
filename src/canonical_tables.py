@@ -66,6 +66,7 @@ TABLE_CLASSIFICATION: dict[str, tuple[str, str]] = {
     "quiz_assignments": (RUNTIME, "teacher assignments, including seed smoke-test rows"),
     "quiz_attempts": (RUNTIME, "student attempts"),
     "quiz_text_answers": (RUNTIME, "student text answers"),
+    "users": (RUNTIME, "local accounts: credentials and session keys, never canonical content"),
     "generated_exams": (OPERATIONAL, "generated exam log"),
     "note_question_links": (OPERATIONAL, "vault note mirror"),
     "obsidian_notes": (OPERATIONAL, "vault sync mirror"),

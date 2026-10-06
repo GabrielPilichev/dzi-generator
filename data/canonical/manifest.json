@@ -2,7 +2,7 @@
   "format": "learnpilot-canonical-content",
   "format_version": 1,
   "schema": {
-    "migration_level": "011_questions_topic_id_index.sql",
+    "migration_level": "012_users.sql",
     "migrations": [
       "000_baseline.sql",
       "001_quiz_tables.sql",
@@ -15,7 +15,8 @@
       "008_practical_submissions.sql",
       "009_quiz_text_answer_teacher_status.sql",
       "010_topic_section_display_order.sql",
-      "011_questions_topic_id_index.sql"
+      "011_questions_topic_id_index.sql",
+      "012_users.sql"
     ]
   },
   "classification": {
@@ -54,7 +55,8 @@
       "quiz_answers",
       "quiz_assignments",
       "quiz_attempts",
-      "quiz_text_answers"
+      "quiz_text_answers",
+      "users"
     ],
     "operational": [
       "generated_exams",
@@ -100,7 +102,8 @@
     "quiz_answers",
     "quiz_assignments",
     "quiz_attempts",
-    "quiz_text_answers"
+    "quiz_text_answers",
+    "users"
   ],
   "operational_exclusions": [
     "generated_exams",
