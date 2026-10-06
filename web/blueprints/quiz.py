@@ -1,30 +1,19 @@
 from __future__ import annotations
 
-from flask import Blueprint, abort, redirect, render_template, request, session, url_for
+from flask import Blueprint, abort, redirect, render_template, request, url_for
 
 from web.access import ATTEMPT_OWNER, PUBLIC, access_policy
+from web.attempt_access import (
+    has_quiz_attempt_access,
+    mark_quiz_attempt_owner,
+    quiz_attempt_owner_session_key,
+    require_quiz_attempt_access,
+)
 from web.request_integrity import SAME_ORIGIN, integrity_policy
 from web.services import quiz as quiz_service
 
 
 quiz_bp = Blueprint("quiz", __name__)
-
-
-def quiz_attempt_owner_session_key(attempt_id: int) -> str:
-    return f"quiz_attempt_owner:{int(attempt_id)}"
-
-
-def mark_quiz_attempt_owner(attempt_id: int) -> None:
-    session[quiz_attempt_owner_session_key(attempt_id)] = True
-
-
-def has_quiz_attempt_access(attempt_id: int) -> bool:
-    return session.get(quiz_attempt_owner_session_key(attempt_id)) is True
-
-
-def require_quiz_attempt_access(attempt_id: int) -> None:
-    if not has_quiz_attempt_access(attempt_id):
-        abort(404)
 
 
 @quiz_bp.route("/quiz/<int:assignment_id>", methods=["GET", "POST"])

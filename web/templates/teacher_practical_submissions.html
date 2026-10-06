@@ -71,7 +71,7 @@
                       {% if file.is_deleted %}
                         <span class="badge diff-hard">изтрит</span>
                       {% elif file.is_available %}
-                        <a class="button secondary" href="{{ url_for('teacher_practical_submission_file_download', file_id=file.id) }}">Изтегли</a>
+                        <a class="button secondary" href="{{ url_for('practical.teacher_practical_submission_file_download', file_id=file.id) }}">Изтегли</a>
                       {% else %}
                         <span class="badge diff-hard">файлът липсва</span>
                       {% endif %}
