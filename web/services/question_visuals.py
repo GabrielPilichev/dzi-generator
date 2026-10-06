@@ -133,4 +133,3 @@ def attach_question_visual_assets(
     for question in questions:
         question["visual_assets"] = assets_by_question.get(int(question[id_key]), [])
     return questions
-
