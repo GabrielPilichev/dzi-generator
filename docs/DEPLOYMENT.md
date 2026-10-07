@@ -121,6 +121,7 @@ sudoedit /etc/learnpilot/learnpilot.env
 | `DZI_SECRET_KEY` | yes | at least 32 characters; keep stable (rotating it signs everyone out) |
 | `DZI_ADMIN_PASSWORD` | yes | at least 12 characters, not a documented local value |
 | `DZI_TESTER_PASSWORD` | yes | at least 12 characters, different from the admin password |
+| `DZI_TOTP_KEY` | for admin accounts | Fernet key that encrypts admin TOTP secrets (`python3 -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'`). Unset: startup is allowed, but admin TOTP sign-in fails closed (503). A malformed value stops startup. Keep it stable and backed up apart from database backups; losing it means `totp-reset` and re-enrolment for every admin |
 | `DZI_DB` | yes | absolute path of the existing live database, outside the checkout |
 | `DZI_UPLOAD_ROOT` | yes | absolute, existing, writable directory outside the checkout |
 | `DZI_VAULT` | yes | absolute, existing, writable directory outside the checkout |
@@ -681,6 +682,12 @@ python3 -m src.manage_accounts --db "$DZI_DB" enable --email teacher@example.bg
 python3 -m src.manage_accounts --db "$DZI_DB" sign-out --email teacher@example.bg
 python3 -m src.manage_accounts --db "$DZI_DB" clear-throttle --email teacher@example.bg
 python3 -m src.manage_accounts --db "$DZI_DB" list
+
+# Admin TOTP (migration 016; enrol and confirm need DZI_TOTP_KEY in the environment)
+python3 -m src.manage_accounts --db "$DZI_DB" totp-enroll --email admin@example.bg
+python3 -m src.manage_accounts --db "$DZI_DB" totp-confirm --email admin@example.bg
+python3 -m src.manage_accounts --db "$DZI_DB" totp-recovery-codes --email admin@example.bg
+python3 -m src.manage_accounts --db "$DZI_DB" totp-reset --email admin@example.bg
 ```
 
 - Accounts are addressed by (normalized) email. Roles: `student`, `teacher`, `admin`.
@@ -704,6 +711,18 @@ python3 -m src.manage_accounts --db "$DZI_DB" list
   the stored key.
 - `list` prints id, email, name, role, active state, created and last login
   times; never password hashes or session keys.
+- Admin TOTP: an account with role `admin` cannot sign in until it has a
+  confirmed TOTP credential. `totp-enroll` (admins only) stores a new secret
+  encrypted with `DZI_TOTP_KEY` and prints the `otpauth://` provisioning URI once;
+  add it to the authenticator app and do not keep a copy. The credential stays
+  inactive until `totp-confirm` verifies a current code (prompted without echo,
+  or `--code-stdin`); it then prints ten single-use recovery codes once, stored
+  only as scrypt hashes. `totp-recovery-codes` replaces them all.
+  `totp-reset` removes the credential and its codes (the operator recovery path
+  for a lost device). Enrol, confirm and reset rotate the session key. Both
+  `DZI_TOTP_KEY` values must match the running application's; the key is never
+  printed. Migration 016 itself rotates the session keys of existing admin
+  accounts, so no admin session issued before it survives the upgrade.
 - Errors go to stderr with a nonzero exit status; each command commits only after
   it fully succeeds.
 

@@ -10,6 +10,12 @@ defaulted to ``data/questions.db``, never created, and never migrated.
 
 Passwords are read with ``getpass`` (twice) or, for automation, ``--password-stdin``
 (exactly one line). They are never accepted from argv or the environment.
+
+Admin TOTP (migration 016) is enrolled only here: ``totp-enroll`` prints the
+``otpauth://`` provisioning URI once, ``totp-confirm`` activates the credential with a
+current code and prints the recovery codes once, ``totp-recovery-codes`` replaces
+them, and ``totp-reset`` removes the credential. Enrolment and confirmation need
+``DZI_TOTP_KEY``; no other command prints a secret.
 """
 
 from __future__ import annotations
@@ -19,18 +25,22 @@ import getpass
 import os
 import sqlite3
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 try:
-    from web.services import accounts, login_throttle
+    from web.services import accounts, login_throttle, totp
 except ModuleNotFoundError:  # run as `python3 src/manage_accounts.py`
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-    from web.services import accounts, login_throttle
+    from web.services import accounts, login_throttle, totp
 
 ADMIN_MIN_PASSWORD_LENGTH = accounts.ADMIN_MIN_PASSWORD_LENGTH
 MAX_STDIN_BYTES = 4096
 # The application's secret key: login-throttle rows are keyed with it.
 SECRET_KEY_ENV = "DZI_SECRET_KEY"
+# Encrypts admin TOTP secrets; must be the key the running application uses.
+TOTP_KEY_ENV = totp.TOTP_KEY_ENV
+MAX_CODE_INPUT_BYTES = 256
 REQUIRED_USER_COLUMNS = {
     "id", "email", "display_name", "role", "password_hash", "is_active", "session_key",
     "password_changed_at", "last_login_at", "created_at", "updated_at",
@@ -77,6 +87,32 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser(
         "clear-throttle",
         help=f"Lift the login lockout of an email (needs the application's {SECRET_KEY_ENV}).",
+    ).add_argument("--email", required=True)
+
+    sub.add_parser(
+        "totp-enroll",
+        help=f"Start admin TOTP enrolment and print the provisioning URI once (needs {TOTP_KEY_ENV}).",
+    ).add_argument("--email", required=True)
+
+    totp_confirm = sub.add_parser(
+        "totp-confirm",
+        help=f"Activate TOTP with a current code and print recovery codes once (needs {TOTP_KEY_ENV}).",
+    )
+    totp_confirm.add_argument("--email", required=True)
+    totp_confirm.add_argument(
+        "--code-stdin",
+        action="store_true",
+        help="Read the code as exactly one line from stdin instead of prompting.",
+    )
+
+    sub.add_parser(
+        "totp-recovery-codes",
+        help="Replace all recovery codes of a confirmed TOTP and print the new ones once.",
+    ).add_argument("--email", required=True)
+
+    sub.add_parser(
+        "totp-reset",
+        help="Remove TOTP and its recovery codes and sign the account out everywhere.",
     ).add_argument("--email", required=True)
 
     sub.add_parser("list", help="List accounts (no secrets).")
@@ -229,6 +265,101 @@ def cmd_clear_throttle(conn, args) -> str:
     return f"login throttle cleared for {email}"
 
 
+def require_totp_tables(conn: sqlite3.Connection) -> None:
+    if conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'totp_credentials'"
+    ).fetchone() is None:
+        raise OperatorError(
+            "database has no totp_credentials table (migration 016 required); "
+            "apply migrations with src.manage_migrations first"
+        )
+
+
+def require_totp_key() -> str:
+    """The configured TOTP key; there is no fallback and its value is never printed."""
+    key = os.environ.get(TOTP_KEY_ENV)
+    problem = totp.key_problem(key)
+    if problem:
+        raise OperatorError(f"{problem}; it must be the key the running application uses")
+    return key
+
+
+def read_code(use_stdin: bool) -> str:
+    if use_stdin:
+        data = sys.stdin.read(MAX_CODE_INPUT_BYTES + 1)
+        if len(data) > MAX_CODE_INPUT_BYTES:
+            raise OperatorError("code input too long")
+        data = data.rstrip("\r\n")
+        if "\n" in data or "\r" in data:
+            raise OperatorError("--code-stdin expects exactly one line")
+        return data
+    return getpass.getpass("Code from the authenticator: ")
+
+
+def cmd_totp_enroll(conn, args) -> str:
+    require_totp_tables(conn)
+    user = find_user(conn, args.email)
+    if user["role"] != "admin":
+        raise OperatorError("TOTP is the admin second factor; this account is not an admin")
+    key = require_totp_key()
+    try:
+        uri = totp.enroll(conn, user["id"], key, user["email"])
+    except ValueError as exc:
+        raise OperatorError(str(exc)) from exc
+    return (
+        f"TOTP enrolment started for {user['email']}; it is NOT active until totp-confirm.\n"
+        "Existing sessions invalidated.\n"
+        "Add this provisioning URI to the authenticator app. It contains the secret and\n"
+        "is shown only now; do not store or share it:\n"
+        f"{uri}\n"
+        f"Then run: totp-confirm --email {user['email']}"
+    )
+
+
+def cmd_totp_confirm(conn, args) -> str:
+    require_totp_tables(conn)
+    user = find_user(conn, args.email)
+    key = require_totp_key()
+    code = read_code(args.code_stdin)
+    try:
+        codes = totp.confirm(conn, user["id"], key, code, datetime.now(timezone.utc))
+    except totp.TotpSecretError as exc:
+        raise OperatorError(f"{exc}; run totp-reset and enrol again") from exc
+    except (LookupError, ValueError) as exc:
+        raise OperatorError(str(exc)) from exc
+    return (
+        f"TOTP confirmed for {user['email']}; admin sign-in now requires a code.\n"
+        "Existing sessions invalidated.\n"
+        "Recovery codes (each works once; shown only now, store them offline):\n"
+        + "\n".join(codes)
+    )
+
+
+def cmd_totp_recovery_codes(conn, args) -> str:
+    require_totp_tables(conn)
+    user = find_user(conn, args.email)
+    try:
+        codes = totp.regenerate_recovery_codes(conn, user["id"])
+    except LookupError as exc:
+        raise OperatorError(str(exc)) from exc
+    return (
+        f"recovery codes replaced for {user['email']}; every earlier code is void.\n"
+        "New recovery codes (each works once; shown only now, store them offline):\n"
+        + "\n".join(codes)
+    )
+
+
+def cmd_totp_reset(conn, args) -> str:
+    require_totp_tables(conn)
+    user = find_user(conn, args.email)
+    existed = totp.reset(conn, user["id"])
+    state = "TOTP and recovery codes removed" if existed else "no TOTP was enrolled"
+    return (
+        f"{state} for {user['email']}; existing sessions invalidated.\n"
+        "An admin cannot sign in until totp-enroll and totp-confirm are run again."
+    )
+
+
 def cmd_list(conn, args) -> str:
     rows = conn.execute(
         "SELECT id, email, display_name, role, is_active, created_at, last_login_at "
@@ -254,6 +385,10 @@ COMMANDS = {
     "enable": cmd_set_active(True),
     "sign-out": cmd_sign_out,
     "clear-throttle": cmd_clear_throttle,
+    "totp-enroll": cmd_totp_enroll,
+    "totp-confirm": cmd_totp_confirm,
+    "totp-recovery-codes": cmd_totp_recovery_codes,
+    "totp-reset": cmd_totp_reset,
     "list": cmd_list,
 }
 

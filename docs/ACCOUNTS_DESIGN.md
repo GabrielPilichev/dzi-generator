@@ -238,7 +238,7 @@ CREATE INDEX IF NOT EXISTS idx_user_identities_user ON user_identities(user_id);
 ```
 
 **Not created:** sessions, password-reset tokens, email-verification tokens,
-OAuth transactions, TOTP/recovery tables (the TOTP PR designs its own storage).
+OAuth transactions. The TOTP tables come from PR T as `016_admin_totp.sql` (§23).
 
 **Stable IDs**
 
@@ -658,7 +658,7 @@ account forms.**
 | 6 | Assignment ownership | `web/migrations/014_assignment_owner.sql`, `web/blueprints/teacher.py`, `web/services/quiz.py` | 014 | Stamped on create; foreign teacher gets 404; admin sees all; legacy tester sees unowned only | Changing which routes are admin-only | 4 |
 | 7 | Owner-scoped teacher routes | `web/blueprints/teacher.py`, templates, access matrix test, contract doc | — | Results, CSV, edit, duplicate, list for owner; 404 for others; list query count bounded | Practical review, dashboard | 6 |
 | 8 | Practical review for owning teachers | `web/blueprints/practical.py`, `web/services/practical.py` | — | Owner scope on listing and file download; path safety unchanged | Upload limits | 7 |
-| T | Admin TOTP (separate security PR, own short design and review) | to be designed in that PR | to be designed | to be designed | Anything outside admin second factor | 4 |
+| T | Admin TOTP (separate security PR; design in §23) | `web/migrations/016_admin_totp.sql`, `web/services/totp.py`, `web/blueprints/account.py`, `login_totp.html`, `src/manage_accounts.py`, `web/production.py`, `requirements.txt`, Nginx, docs | 016 | §23 | Anything outside admin second factor; web enrolment | 4 |
 | 9 | Cutover | `web/access.py`, `web/app.py`, `web/production.py`, `403.html`, env template, docs | — | Denials go to `/login`; 403 for wrong role; flag off disables legacy; production config validation | Deleting legacy code | 4, 5, T |
 | 10 | Remove legacy | `web/blueprints/auth.py`, legacy templates, `ui_profile`, Nginx zones, `AGENTS.md` smoke checklist | — | Legacy routes gone; url-map snapshots updated; no reference to the removed keys | — | 9 |
 
@@ -667,8 +667,7 @@ Notes:
 - PR 4 uses a new blueprint because `tests/test_auth_blueprint.py` asserts
   `auth.py` touches no database.
 - PR T does not block PRs 1–8. It must land before PR 9 is deployed with the
-  legacy flag off in production and before PR 10. Its secret storage and any
-  new dependency are decided in that PR, not improvised earlier.
+  legacy flag off in production and before PR 10. Its design is §23.
 - PRs 4, 6–8 and T each get an independent security review.
 
 **Phase 2 — student accounts** (after phase 1): the migration-runner
@@ -699,8 +698,8 @@ before it starts.
 | Existing behaviour | Quiz, teacher and DZI suites unchanged; url-map snapshot tests updated only for the new routes. |
 | Performance | Anonymous request runs zero account queries; signed-in request runs exactly one; owner-scoped list has no per-row query. |
 
-No tests are required for OAuth, TOTP, reset, verification or registration
-until those features are built.
+No tests are required for OAuth, reset, verification or registration until
+those features are built. Admin TOTP tests are listed in §23.
 
 ## 19. Production rollout
 
@@ -725,7 +724,8 @@ moment. After any restore, run `manage_accounts sign-out` for all users.
 - Public registration, email verification, password reset, forced password
   change after an operator reset.
 - OAuth (Google, Microsoft) and `user_identities` (phase 2); Apple entirely.
-- Admin TOTP and recovery codes (PR T, before cutover).
+- Web-based TOTP enrolment or self-service recovery (admin TOTP and recovery
+  codes themselves are PR T, §23, CLI-only).
 - `declared_type`, plans, entitlements, billing, teacher creation quotas.
 - Student-data retention period and erasure tooling (product/legal decision).
 - An admin web UI for users.
@@ -762,7 +762,97 @@ Still open, none of which blocks phase 1:
   all assignments' student names until then.
 - **Admin without a second factor between PR 4 and PR T.** Mitigated by the
   14-character minimum, the 12-hour admin session and the login throttle; PR T
-  closes it before cutover.
+  closes it (§23), and migration 016 ends every earlier admin session.
+- **The legacy env-password admin has no second factor.** It is bounded by the
+  legacy flag and removed by PRs 9–10; PR T does not change it.
+- **Loss of `DZI_TOTP_KEY`** makes every TOTP secret unreadable; recovery codes
+  still work, and `totp-reset` plus re-enrolment restores access.
+
+## 23. Admin TOTP (PR T)
+
+Status: implemented by PR T. It touches only the admin second factor; the legacy
+shared-password bridge is unchanged until PRs 9–10.
+
+**Schema — `016_admin_totp.sql`** (014 and 015 stay reserved for assignment
+ownership and the phase-2 attempts rebuild). Both tables are `RUNTIME`.
+
+- `totp_credentials`: `user_id` (primary key, references `users`),
+  `secret_ciphertext`, `confirmed_at`, `last_used_step`, `last_verified_at`,
+  `created_at`, `updated_at`.
+- `totp_recovery_codes`: `id`, `user_id` (references the credential,
+  `ON DELETE CASCADE`), `code_hash`, `used_at`, `created_at`.
+- The migration also rotates the `session_key` of every existing admin, so no
+  admin session issued without a second factor survives the upgrade.
+
+**Dependencies.** `pyotp>=2.9,<3` computes the RFC 6238 codes (SHA-1, 6 digits,
+30 s); `cryptography` provides Fernet. No QR library; no hand-written TOTP.
+
+**Secret storage.** The base32 secret (160 bits, `pyotp.random_base32`) is stored
+only as a Fernet token under `DZI_TOTP_KEY`, a dedicated key that is not derived
+from or shared with `DZI_SECRET_KEY`. There is no generated or fallback key. Unset,
+the application still starts and admin TOTP sign-in fails closed (503); production
+startup rejects a malformed value. Keys, secrets and codes are never logged.
+
+**Enrolment (CLI only).** `manage_accounts totp-enroll` (admins only) creates an
+unconfirmed credential and prints the `otpauth://` URI once. `totp-confirm`
+activates it only after a current code verifies; that step becomes
+`last_used_step`, and ten recovery codes are printed once. `totp-recovery-codes`
+replaces them. `totp-reset` deletes the credential and its codes; it is the
+administrative recovery path. Enrol, confirm and reset rotate `session_key`.
+There is no web enrolment or recovery route.
+
+**Sign-in.**
+
+1. `POST /login` for an `admin`: the password is verified as for everyone. With
+   no confirmed credential the sign-in is refused (403, with a pointer to the
+   server operator; shown only after a correct password). Otherwise the session
+   is cleared (attempt-owner keys carried) and set to `mfa_uid`, `mfa_sk`,
+   `mfa_iat` only. The throttle is not cleared and `last_login_at` is not set.
+2. The pending keys are not account keys. `load_current_user` ignores them, so the
+   principal is anonymous and the central `enforce_access_policy` denies every
+   protected route; no view checks MFA itself.
+3. `POST /login/totp` (public, same-origin) accepts the pending state only if it
+   is at most **5 minutes** old (not in the future), the account is an active
+   admin whose `session_key` still equals `mfa_sk`, the credential is confirmed,
+   and `last_verified_at` is older than the pending state (a completed sign-in
+   spends every earlier pending state, so a captured one cannot be replayed).
+   Otherwise the pending keys are dropped.
+4. On success it clears the throttle, records `last_login_at` and calls the
+   normal session issuance: the session becomes exactly `uid`, `sk`, `iat`
+   (plus attempt-owner keys). No role or authority flag is added.
+
+**Verification.**
+
+- TOTP: the current step ±1; a step at or below `last_used_step` is refused.
+  One conditional `UPDATE` both checks and advances `last_used_step` and
+  `last_verified_at`, so two concurrent requests cannot use one step or
+  complete one pending state twice.
+- Recovery codes: 12 characters (60 bits) from a 32-symbol alphabet, shown as
+  `xxxx-xxxx-xxxx`, stored as Werkzeug scrypt hashes, each single-use through a
+  conditional `UPDATE … WHERE used_at IS NULL`. They complete the same pending
+  state and need no `DZI_TOTP_KEY`.
+- Malformed, missing, wrong, reused and out-of-window codes all fail with one
+  message and count as a failure.
+
+**Throttling.** Codes count against the same per-account `login_throttle` key as
+the password (HMAC of the email): ten failures in fifteen minutes block both
+steps. Because a correct password never clears the counter, restarting the
+password step does not reset code guessing. Nginx applies `lp_login` to
+`/login/totp` as well.
+
+**Session-key rotation and account changes.** Disable, role change, password
+change, `sign-out`, `totp-enroll`, `totp-confirm` and `totp-reset` rotate
+`session_key`, which ends existing sessions and voids any pending state. Logout
+clears pending and full state alike. The 12-hour admin lifetime from `iat`
+applies unchanged after MFA.
+
+**Deployment.** Set `DZI_TOTP_KEY` before enrolling, apply 016 with the service
+stopped, then enrol and confirm each admin with the CLI (§19 step 5).
+
+**Tests.** Migration 016; the service (encryption, window, replay, concurrency,
+recovery codes, reset, missing key); the two-step web flow (no authority before
+the code, pending expiry and tampering, throttle, same-origin, redirects,
+logout, lifetime, leaks, legacy bridge); and the CLI commands.
 
 ## Recommended next PR
 

@@ -170,7 +170,8 @@ class RuntimeFixtureTest(TemporaryDirectoryTestCase):
             self.assertEqual(conn.execute("PRAGMA foreign_key_check").fetchall(), [])
         self.assertEqual(runtime_counts(path), {
             "quiz_assignments": 1, "quiz_attempts": 1, "quiz_answers": 3, "quiz_text_answers": 0,
-            "practical_submissions": 0, "practical_submission_files": 0, "users": 0})
+            "practical_submissions": 0, "practical_submission_files": 0, "users": 0,
+            "totp_credentials": 0, "totp_recovery_codes": 0})
 
     def test_fixture_ids_do_not_depend_on_other_tests(self):
         results = []

@@ -1,0 +1,141 @@
+"""Admin TOTP (Accounts PR T) — migration 016 (``totp_credentials``, ``totp_recovery_codes``).
+
+Applied to in-memory or temporary databases only; never to ``data/questions.db``.
+"""
+
+import json
+import sqlite3
+import tempfile
+import unittest
+from contextlib import closing
+from pathlib import Path
+
+from src import canonical_tables as ct
+from tests.support import build_test_database
+
+ROOT = Path(__file__).resolve().parents[1]
+MIGRATIONS = ROOT / "web" / "migrations"
+MIGRATION = MIGRATIONS / "016_admin_totp.sql"
+KEY = "k" * 32
+
+
+def connection() -> sqlite3.Connection:
+    conn = sqlite3.connect(":memory:")
+    conn.execute("PRAGMA foreign_keys = ON")
+    conn.executescript((MIGRATIONS / "012_users.sql").read_text(encoding="utf-8"))
+    return conn
+
+
+def add_user(conn, email, role, session_key=KEY):
+    return conn.execute(
+        "INSERT INTO users (email, display_name, role, session_key) VALUES (?, 'Име', ?, ?)",
+        (email, role, session_key),
+    ).lastrowid
+
+
+class AdminTotpMigrationSqlTest(unittest.TestCase):
+    def setUp(self):
+        self.conn = connection()
+        self.addCleanup(self.conn.close)
+        self.admin = add_user(self.conn, "admin@example.bg", "admin")
+        self.conn.executescript(MIGRATION.read_text(encoding="utf-8"))
+
+    def columns(self, table):
+        return [row[1] for row in self.conn.execute(f"PRAGMA table_info({table})")]
+
+    def test_number_does_not_take_the_reserved_014_and_015(self):
+        names = sorted(path.name for path in MIGRATIONS.glob("*.sql"))
+        self.assertIn("016_admin_totp.sql", names)
+        self.assertFalse([name for name in names if name.startswith("016_") and name != "016_admin_totp.sql"])
+        self.assertNotIn("014_admin_totp.sql", names)
+        self.assertNotIn("015_admin_totp.sql", names)
+
+    def test_columns(self):
+        self.assertEqual(self.columns("totp_credentials"),
+                         ["user_id", "secret_ciphertext", "confirmed_at", "last_used_step",
+                          "last_verified_at", "created_at", "updated_at"])
+        self.assertEqual(self.columns("totp_recovery_codes"),
+                         ["id", "user_id", "code_hash", "used_at", "created_at"])
+        self.assertIn("idx_totp_recovery_codes_user",
+                      {row[1] for row in self.conn.execute("PRAGMA index_list(totp_recovery_codes)")})
+
+    def test_no_plaintext_secret_or_code_column(self):
+        for table in ("totp_credentials", "totp_recovery_codes"):
+            for column in self.columns(table):
+                with self.subTest(table=table, column=column):
+                    self.assertNotIn(column, {"secret", "code", "otp", "recovery_code", "plaintext"})
+
+    def test_credential_constraints(self):
+        insert = "INSERT INTO totp_credentials (user_id, secret_ciphertext, last_used_step) VALUES (?, ?, ?)"
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.conn.execute(insert, (self.admin, "", None))
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.conn.execute(insert, (self.admin, "token", -1))
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.conn.execute(insert, (9999, "token", None))  # no such user
+        self.conn.execute(insert, (self.admin, "token", None))
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.conn.execute(insert, (self.admin, "other", None))  # one credential per account
+
+    def test_recovery_codes_belong_to_a_credential_and_go_with_it(self):
+        insert = "INSERT INTO totp_recovery_codes (user_id, code_hash) VALUES (?, ?)"
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.conn.execute(insert, (self.admin, "scrypt:x"))  # no credential yet
+        self.conn.execute("INSERT INTO totp_credentials (user_id, secret_ciphertext) VALUES (?, 'token')",
+                          (self.admin,))
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.conn.execute(insert, (self.admin, ""))
+        self.conn.execute(insert, (self.admin, "scrypt:x"))
+        self.conn.execute("DELETE FROM totp_credentials WHERE user_id = ?", (self.admin,))
+        self.assertEqual(self.conn.execute("SELECT COUNT(*) FROM totp_recovery_codes").fetchone()[0], 0)
+        self.assertEqual(self.conn.execute("PRAGMA foreign_key_check").fetchall(), [])
+
+    def test_migration_is_idempotent(self):
+        self.conn.executescript(MIGRATION.read_text(encoding="utf-8"))
+
+
+class AdminSessionRotationTest(unittest.TestCase):
+    def test_only_admin_session_keys_are_rotated(self):
+        conn = connection()
+        self.addCleanup(conn.close)
+        ids = {role: add_user(conn, f"{role}@example.bg", role) for role in ("student", "teacher", "admin")}
+        conn.executescript(MIGRATION.read_text(encoding="utf-8"))
+        keys = dict(conn.execute("SELECT role, session_key FROM users"))
+        self.assertEqual(keys["student"], KEY)
+        self.assertEqual(keys["teacher"], KEY)
+        self.assertNotEqual(keys["admin"], KEY)
+        self.assertRegex(keys["admin"], r"^[0-9a-f]{64}$")
+        self.assertEqual(len(ids), 3)
+
+
+class AdminTotpClassificationTest(unittest.TestCase):
+    def test_tables_are_runtime_not_canonical(self):
+        for table in ("totp_credentials", "totp_recovery_codes"):
+            with self.subTest(table=table):
+                self.assertEqual(ct.TABLE_CLASSIFICATION[table][0], ct.RUNTIME)
+                self.assertNotIn(table, ct.tables_of(ct.CANONICAL))
+                self.assertFalse((ROOT / "data" / "canonical" / f"{table}.jsonl").exists())
+
+    def test_manifest_records_the_level_and_the_exclusions(self):
+        manifest = json.loads((ROOT / "data" / "canonical" / "manifest.json").read_text(encoding="utf-8"))
+        self.assertEqual(manifest["schema"]["migration_level"], "016_admin_totp.sql")
+        self.assertEqual(manifest["schema"]["migrations"][-1], "016_admin_totp.sql")
+        for table in ("totp_credentials", "totp_recovery_codes"):
+            self.assertIn(table, manifest["runtime_exclusions"])
+            self.assertIn(table, manifest["classification"]["runtime"])
+            self.assertNotIn(table, manifest["tables"])
+
+    def test_fresh_build_is_at_016_with_empty_tables_and_clean_foreign_keys(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = build_test_database(Path(tmp) / "fresh.db")
+            with closing(sqlite3.connect(path)) as conn:
+                for table in ("totp_credentials", "totp_recovery_codes", "users"):
+                    self.assertEqual(conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0], 0)
+                self.assertEqual(conn.execute("SELECT * FROM pragma_foreign_key_check").fetchall(), [])
+                applied = [r[0] for r in conn.execute("SELECT filename FROM schema_migrations ORDER BY filename")]
+                self.assertEqual(applied[-1], "016_admin_totp.sql")
+                self.assertEqual(ct.classification_problems(conn), [])
+
+
+if __name__ == "__main__":
+    unittest.main()

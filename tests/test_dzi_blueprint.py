@@ -29,6 +29,7 @@ EXPECTED_URL_MAP = (
     ('/grade/<int:grade>', ('GET',), 'public', None),
     ('/healthz', ('GET',), 'public', None),
     ('/login', ('GET', 'POST'), 'public', 'same_origin'),
+    ('/login/totp', ('POST',), 'public', 'same_origin'),
     ('/logout', ('POST',), 'public', 'same_origin'),
     ('/physics', ('GET',), 'public', None),
     ('/physics/grade/<int:grade>', ('GET',), 'public', None),

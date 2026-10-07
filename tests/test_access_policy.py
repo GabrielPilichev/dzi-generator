@@ -67,6 +67,8 @@ EXPECTED_ACCESS_MATRIX = {
     # Accounts PR 4. No legacy principal below is an account.
     "account.login": access.PUBLIC,
     "account.logout": access.PUBLIC,
+    # Admin TOTP (PR T): public because a pending second factor is not a principal.
+    "account.login_totp": access.PUBLIC,
     "account.password": access.SIGNED_IN,
 }
 

@@ -168,6 +168,9 @@ app.config["SECRET_KEY"] = build_secret_key()
 app.config["SESSION_COOKIE_SAMESITE"] = "Strict"
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SECURE"] = build_session_cookie_secure()
+# Admin TOTP secrets are encrypted with this key. Optional: when unset, admin TOTP
+# sign-in fails closed (there is no generated or derived fallback key).
+app.config["TOTP_ENCRYPTION_KEY"] = os.environ.get("DZI_TOTP_KEY") or None
 app.config["PRACTICAL_TASK_BATCH_DIR"] = str(PROJECT_ROOT / "data" / "import_batches")
 app.config["PRACTICAL_UPLOAD_ROOT"] = (
     os.environ.get(UPLOAD_ROOT_ENV) or str(PROJECT_ROOT / "data" / "uploads" / "practical")

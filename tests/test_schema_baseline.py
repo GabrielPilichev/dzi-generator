@@ -164,7 +164,7 @@ class FreshDatabaseTest(BaselineTestCase):
         self.assertEqual(code, 0, out + err)
         self.assertEqual([name for name, _ in migration_rows(path)], ALL_MIGRATIONS)
         self.assertEqual(ALL_MIGRATIONS[0], "000_baseline.sql")
-        self.assertEqual(ALL_MIGRATIONS[-1], "013_login_throttle.sql")
+        self.assertEqual(ALL_MIGRATIONS[-1], "016_admin_totp.sql")
         self.assertIn("foreign_key_check: ok", out)
 
     def test_fresh_database_has_no_content_rows(self):

@@ -16,6 +16,9 @@ from typing import Mapping
 
 from werkzeug.middleware.proxy_fix import ProxyFix
 
+from web.services.totp import TOTP_KEY_ENV
+from web.services.totp import key_problem as totp_key_problem
+
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 MIGRATIONS_DIR = PROJECT_ROOT / "web" / "migrations"
@@ -106,6 +109,11 @@ def production_config_errors(environ: Mapping[str, str]) -> list[str]:
     if admin and admin == tester:
         # The tester login would otherwise accept the admin credential.
         errors.append("DZI_ADMIN_PASSWORD and DZI_TESTER_PASSWORD must differ")
+
+    # Optional: unset means admin TOTP sign-in fails closed. A value that is set must
+    # be a usable Fernet key; there is never a generated or derived fallback.
+    if environ.get(TOTP_KEY_ENV) and totp_key_problem(environ[TOTP_KEY_ENV]):
+        errors.append(f"{TOTP_KEY_ENV} must be a Fernet key (32 url-safe base64-encoded bytes)")
 
     cookie_secure = (environ.get("DZI_SESSION_COOKIE_SECURE") or "").strip().lower()
     if cookie_secure and cookie_secure not in TRUE_VALUES:

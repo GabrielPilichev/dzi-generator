@@ -105,7 +105,8 @@ class ClassificationTest(CanonicalTestCase):
     def test_expected_exclusions(self):
         self.assertEqual(ct.tables_of(ct.RUNTIME), sorted([
             "quiz_assignments", "quiz_attempts", "quiz_answers", "quiz_text_answers",
-            "practical_submissions", "practical_submission_files", "users"]))
+            "practical_submissions", "practical_submission_files", "users",
+            "totp_credentials", "totp_recovery_codes"]))
         self.assertEqual(ct.tables_of(ct.OPERATIONAL), sorted([
             "obsidian_notes", "note_question_links", "generated_exams", "scrape_log",
             "schema_migrations", "sqlite_sequence", "login_throttle"]))
