@@ -42,10 +42,12 @@ from web.services.quiz import (
     fetch_quiz_text_answers_for_attempt,
     open_question_scope_summary,
     quiz_assignment_mixed_status,
+    quiz_can_access_assignment,
     quiz_attempt_duration_display,
     quiz_attempt_success_rate_display,
     quiz_combined_score_summary,
     quiz_connection,
+    quiz_create_assignment,
     quiz_db,
     quiz_fetch_assignment,
     quiz_parse_assignment_question_plan,
@@ -475,30 +477,24 @@ def teacher_new():
                         teacher_new_error = "invalid_question_plan"
                         preselected_section_id = section_id
                     else:
-                        cur = conn.execute("""
-                        INSERT INTO quiz_assignments (
-                            section_id, title_bg, question_count, time_limit_minutes, question_plan_json
+                        assignment_id = quiz_create_assignment(
+                            conn, principal=current_principal(), section_id=section_id,
+                            title_bg=section["title_bg"],
+                            question_count=len(question_plan["question_ids"]),
+                            time_limit_minutes=time_limit,
+                            question_plan_json=json.dumps(question_plan, ensure_ascii=False),
                         )
-                        VALUES (?, ?, ?, ?, ?)
-                    """, (
-                            section_id,
-                            section["title_bg"],
-                            len(question_plan["question_ids"]),
-                            time_limit,
-                            json.dumps(question_plan, ensure_ascii=False),
-                        ))
-                        assignment_id = cur.lastrowid
                         conn.commit()
                         conn.close()
 
                         quiz_write_assignment_note(assignment_id, request.host_url)
                         return redirect(url_for("teacher.teacher_assignment", assignment_id=assignment_id))
             else:
-                cur = conn.execute("""
-                    INSERT INTO quiz_assignments (section_id, title_bg, question_count, time_limit_minutes)
-                    VALUES (?, ?, ?, ?)
-                """, (section_id, section["title_bg"], question_count, time_limit))
-                assignment_id = cur.lastrowid
+                assignment_id = quiz_create_assignment(
+                    conn, principal=current_principal(), section_id=section_id,
+                    title_bg=section["title_bg"], question_count=question_count,
+                    time_limit_minutes=time_limit,
+                )
                 conn.commit()
                 conn.close()
 
@@ -599,7 +595,7 @@ def teacher_new():
 def teacher_assignment(assignment_id):
     conn = quiz_db()
     assignment = quiz_fetch_assignment(conn, assignment_id)
-    if not assignment:
+    if not quiz_can_access_assignment(assignment, current_principal()):
         conn.close()
         abort(404)
 
@@ -720,19 +716,13 @@ def teacher_assignment_duplicate(assignment_id):
             conn.close()
             abort(400)
 
-    cur = conn.execute("""
-        INSERT INTO quiz_assignments (
-            section_id, title_bg, question_count, time_limit_minutes, question_plan_json
-        )
-        VALUES (?, ?, ?, ?, ?)
-    """, (
-        source["section_id"],
-        quiz_duplicate_title(source["title_bg"]),
-        source["question_count"],
-        source["time_limit_minutes"],
-        source["question_plan_json"],
-    ))
-    new_assignment_id = int(cur.lastrowid)
+    new_assignment_id = quiz_create_assignment(
+        conn, principal=current_principal(), section_id=source["section_id"],
+        title_bg=quiz_duplicate_title(source["title_bg"]),
+        question_count=source["question_count"],
+        time_limit_minutes=source["time_limit_minutes"],
+        question_plan_json=source["question_plan_json"],
+    )
     conn.commit()
     conn.close()
 

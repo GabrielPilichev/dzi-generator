@@ -3,7 +3,9 @@
 Applied to in-memory or temporary databases only; never to ``data/questions.db``.
 """
 
+import io
 import json
+import shutil
 import sqlite3
 import tempfile
 import unittest
@@ -11,6 +13,7 @@ from contextlib import closing
 from pathlib import Path
 
 from src import canonical_tables as ct
+from src import manage_migrations
 from tests.support import build_test_database
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -106,6 +109,71 @@ class AdminSessionRotationTest(unittest.TestCase):
         self.assertNotEqual(keys["admin"], KEY)
         self.assertRegex(keys["admin"], r"^[0-9a-f]{64}$")
         self.assertEqual(len(ids), 3)
+
+
+class RunnerUpgradeThrough014And016Test(unittest.TestCase):
+    """An existing 013 database upgraded by the real runner through 014 and then 016."""
+
+    def setUp(self):
+        tmp = tempfile.TemporaryDirectory(prefix="admin-totp-upgrade-")
+        self.addCleanup(tmp.cleanup)
+        root = Path(tmp.name)
+        self.path = root / "upgrade.db"
+        sqlite3.connect(self.path).close()
+        previous = root / "migrations"
+        previous.mkdir()
+        for path in sorted(MIGRATIONS.glob("*.sql")):
+            if path.name < "014_":
+                shutil.copyfile(path, previous / path.name)
+        self.assertEqual(manage_migrations.apply_migrations(self.path, previous, out=io.StringIO()), 0)
+        with closing(sqlite3.connect(self.path)) as conn:
+            conn.executescript(f"""
+                PRAGMA foreign_keys = ON;
+                INSERT INTO curriculum_sections (id, section_slug, title_bg, class, section_type)
+                    VALUES (11, 'legacy', 'Стар раздел', 12, 'section');
+                INSERT INTO users (id, email, display_name, role, session_key) VALUES
+                    (1, 'admin@example.bg', 'Админ', 'admin', '{KEY}'),
+                    (2, 'teacher@example.bg', 'Учител', 'teacher', '{KEY}');
+                INSERT INTO quiz_assignments (id, section_id, title_bg, question_count)
+                    VALUES (71, 11, 'Стар тест', 2);
+                INSERT INTO quiz_attempts (id, assignment_id, student_name, seed, question_ids_json)
+                    VALUES (91, 71, 'Ученик', 'seed', '[]');
+            """)
+            conn.commit()
+
+    def test_both_migrations_apply_in_order_and_preserve_existing_rows(self):
+        out = io.StringIO()
+        self.assertEqual(manage_migrations.apply_migrations(self.path, MIGRATIONS, out=out), 0)
+        applied = out.getvalue().split("applied migrations:")[1]
+        self.assertLess(applied.index("014_assignment_owner.sql"), applied.index("016_admin_totp.sql"))
+        self.assertNotIn("015_", applied)
+        with closing(sqlite3.connect(self.path)) as conn:
+            self.assertEqual(conn.execute("SELECT id, title_bg, owner_user_id FROM quiz_assignments").fetchall(),
+                             [(71, "Стар тест", None)])  # nothing backfilled
+            self.assertEqual(conn.execute("SELECT id, assignment_id FROM quiz_attempts").fetchall(), [(91, 71)])
+            keys = dict(conn.execute("SELECT role, session_key FROM users"))
+            self.assertEqual(keys["teacher"], KEY)
+            self.assertNotEqual(keys["admin"], KEY)
+            for table in ("totp_credentials", "totp_recovery_codes"):
+                self.assertEqual(conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0], 0)
+            self.assertEqual(conn.execute("PRAGMA foreign_key_check").fetchall(), [])
+            history = [row[0] for row in conn.execute("SELECT filename FROM schema_migrations ORDER BY filename")]
+            self.assertEqual(history[-2:], ["014_assignment_owner.sql", "016_admin_totp.sql"])
+
+    def test_reapplying_is_a_noop_and_does_not_rotate_again(self):
+        self.assertEqual(manage_migrations.apply_migrations(self.path, MIGRATIONS, out=io.StringIO()), 0)
+        with closing(sqlite3.connect(self.path)) as conn:
+            rotated = conn.execute("SELECT session_key FROM users WHERE role = 'admin'").fetchone()[0]
+        self.assertEqual(manage_migrations.apply_migrations(self.path, MIGRATIONS, out=io.StringIO()), 0)
+        with closing(sqlite3.connect(self.path)) as conn:
+            self.assertEqual(conn.execute("SELECT session_key FROM users WHERE role = 'admin'").fetchone()[0],
+                             rotated)
+
+    def test_016_is_never_adopted_without_running_it(self):
+        with closing(sqlite3.connect(self.path)) as conn:
+            conn.row_factory = sqlite3.Row
+            self.assertEqual(manage_migrations.baseline_status(conn, "016_admin_totp.sql")[0],
+                             "manual review required")
 
 
 class AdminTotpClassificationTest(unittest.TestCase):

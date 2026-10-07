@@ -18,6 +18,7 @@
       "011_questions_topic_id_index.sql",
       "012_users.sql",
       "013_login_throttle.sql",
+      "014_assignment_owner.sql",
       "016_admin_totp.sql"
     ]
   },

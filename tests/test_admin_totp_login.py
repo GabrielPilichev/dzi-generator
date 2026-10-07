@@ -27,10 +27,12 @@ from tests.test_account_login import (
     TOTP_KEY,
     AccountAppTestCase,
 )
+from tests.support import web_app
 from web import production
-from web.access import ANONYMOUS
+from web.access import ANONYMOUS, account_principal
 from web.blueprints import account as account_blueprint
-from web.services import accounts, login_throttle, totp
+from web.blueprints import teacher as teacher_blueprint
+from web.services import accounts, login_throttle, quiz, totp
 
 PENDING_KEYS = {"mfa_uid", "mfa_sk", "mfa_iat"}
 ACCOUNT_KEYS = {"uid", "sk", "iat"}
@@ -381,11 +383,32 @@ class SecondFactorSafetyTest(AdminTotpTestCase):
                     if secret != "None":
                         self.assertNotIn(secret, logged)
 
-    def test_recovery_codes_do_not_need_the_key(self):
+    def test_recovery_codes_do_not_need_the_key_and_each_use_is_logged(self):
+        admin = self.make("admin")
+        code = admin["recovery_codes"][0]
+        self.start(admin)
+        with patch.dict(self.app.config, {"TOTP_ENCRYPTION_KEY": None}), \
+                self.assertLogs("web.blueprints.account", logging.WARNING) as logs:
+            self.assertEqual(self.submit_code(code).status_code, 302)
+        logged = "\n".join(logs.output)
+        self.assertIn(f"Admin account {admin['id']} signed in with a recovery code", logged)
+        self.assertIn(f"{totp.RECOVERY_CODE_COUNT - 1} unused recovery codes remain", logged)
+        self.assertIn("DZI_TOTP_KEY is unavailable", logged)
+        for secret in (code, code.replace("-", ""), admin["totp_secret"]):
+            self.assertNotIn(secret, logged)
+
+    def test_recovery_code_use_with_a_working_key_is_logged_without_a_key_warning(self):
         admin = self.make("admin")
         self.start(admin)
-        with patch.dict(self.app.config, {"TOTP_ENCRYPTION_KEY": None}):
+        with self.assertLogs("web.blueprints.account", logging.WARNING) as logs:
             self.assertEqual(self.submit_code(admin["recovery_codes"][0]).status_code, 302)
+        self.assertNotIn("DZI_TOTP_KEY", "\n".join(logs.output))
+
+    def test_totp_sign_in_logs_nothing(self):
+        admin = self.make("admin")
+        self.start(admin)
+        with self.assertNoLogs("web.blueprints.account", logging.DEBUG):
+            self.assertEqual(self.submit_code(self.code(admin)).status_code, 302)
 
     def test_cross_origin_posts_are_refused_before_any_state_change(self):
         admin = self.make("admin")
@@ -474,6 +497,51 @@ class SecondFactorSafetyTest(AdminTotpTestCase):
         self.start(admin)
         with patch.object(accounts, "load_session_user", side_effect=AssertionError("looked up")):
             self.assertEqual(self.client.get("/").status_code, 200)
+
+
+class AssignmentOwnershipInteractionTest(AdminTotpTestCase):
+    """PR6 ownership decisions read only the principal, so a pending admin is no one."""
+
+    def owned_assignment(self, teacher):
+        with closing(web_app.quiz_db()) as conn:
+            section_id = next(row["id"] for row in conn.execute("SELECT id FROM curriculum_sections ORDER BY id")
+                              if quiz.quiz_section_question_ids(conn, row["id"]))
+            assignment_id = quiz.quiz_create_assignment(
+                conn, principal=account_principal(teacher["id"], "teacher", "Учител"),
+                section_id=section_id, title_bg="Тест", question_count=1)
+            conn.commit()
+        return assignment_id, section_id
+
+    def test_pending_admin_cannot_reach_or_create_assignments_until_mfa(self):
+        teacher = self.make("teacher")
+        assignment_id, section_id = self.owned_assignment(teacher)
+        self.assertEqual(self.query("SELECT owner_user_id FROM quiz_assignments WHERE id = ?",
+                                    (assignment_id,))[0][0], teacher["id"])
+        admin = self.make("admin")
+        self.start(admin)
+        detail = f"/teacher/assignment/{assignment_id}"
+        response = self.client.get(detail)
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/tester/login", response.headers["Location"])
+        before = self.query("SELECT COUNT(*) FROM quiz_assignments")[0][0]
+        with patch.object(teacher_blueprint, "quiz_write_assignment_note"):
+            response = self.client.post("/teacher/new", data={"section_id": section_id, "question_count": 1},
+                                        headers=SAME_ORIGIN)
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/tester/login", response.headers["Location"])
+        self.assertEqual(self.query("SELECT COUNT(*) FROM quiz_assignments")[0][0], before)
+        # After the second factor the admin sees every assignment, as PR6 defines.
+        self.assertEqual(self.submit_code(self.code(admin)).status_code, 302)
+        self.assertEqual(self.client.get(detail).status_code, 200)
+
+    def test_account_teacher_ownership_is_unaffected(self):
+        teacher, other = self.make("teacher"), self.make("teacher")
+        assignment_id, _ = self.owned_assignment(teacher)
+        owner_client, other_client = self.app.test_client(), self.app.test_client()
+        self.login(teacher["email"], client=owner_client)
+        self.login(other["email"], client=other_client)
+        self.assertEqual(owner_client.get(f"/teacher/assignment/{assignment_id}").status_code, 200)
+        self.assertEqual(other_client.get(f"/teacher/assignment/{assignment_id}").status_code, 404)
 
 
 class TotpConfigurationTest(AdminTotpTestCase):

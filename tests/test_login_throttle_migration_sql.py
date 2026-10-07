@@ -91,10 +91,7 @@ class LoginThrottleClassificationTest(unittest.TestCase):
 
     def test_manifest_records_the_level_and_the_exclusion_only(self):
         manifest = json.loads((ROOT / "data" / "canonical" / "manifest.json").read_text(encoding="utf-8"))
-        # 016 (admin TOTP) follows; 014 and 015 are reserved for other PRs.
-        self.assertEqual(manifest["schema"]["migration_level"], "016_admin_totp.sql")
-        self.assertEqual(manifest["schema"]["migrations"][-3:],
-                         ["012_users.sql", "013_login_throttle.sql", "016_admin_totp.sql"])
+        self.assertIn("013_login_throttle.sql", manifest["schema"]["migrations"])
         self.assertIn("login_throttle", manifest["operational_exclusions"])
         self.assertIn("login_throttle", manifest["classification"]["operational"])
         self.assertNotIn("login_throttle", manifest["tables"])

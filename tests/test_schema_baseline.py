@@ -165,6 +165,9 @@ class FreshDatabaseTest(BaselineTestCase):
         self.assertEqual([name for name, _ in migration_rows(path)], ALL_MIGRATIONS)
         self.assertEqual(ALL_MIGRATIONS[0], "000_baseline.sql")
         self.assertEqual(ALL_MIGRATIONS[-1], "016_admin_totp.sql")
+        # Both parallel account migrations are present; 015 stays reserved for phase 2.
+        self.assertIn("014_assignment_owner.sql", ALL_MIGRATIONS)
+        self.assertFalse([name for name in ALL_MIGRATIONS if name.startswith("015_")])
         self.assertIn("foreign_key_check: ok", out)
 
     def test_fresh_database_has_no_content_rows(self):

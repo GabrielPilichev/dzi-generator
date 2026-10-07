@@ -30,7 +30,8 @@ class AccountUiStateTest(IsolatedAppTestCase):
                 "INSERT INTO quiz_assignments (section_id, title_bg, question_count, time_limit_minutes) "
                 "VALUES (?, 'UI състояние', 1, 5)", (section["id"],))
             conn.commit()
-            cls.assignment_path = f"/teacher/assignment/{cursor.lastrowid}"
+            cls.assignment_id = cursor.lastrowid
+            cls.assignment_path = f"/teacher/assignment/{cls.assignment_id}"
         finally:
             conn.close()
 
@@ -67,7 +68,14 @@ class AccountUiStateTest(IsolatedAppTestCase):
             self.assertEqual(self.client.get(path).status_code, 302, path)
 
     def test_teacher_gets_teacher_ui_but_no_admin_controls(self):
-        sign_in_teacher(self.client, self.db_path)
+        owner = sign_in_teacher(self.client, self.db_path)
+        conn = web_app.quiz_db()
+        try:
+            conn.execute("UPDATE quiz_assignments SET owner_user_id = ? WHERE id = ?",
+                         (owner["id"], self.assignment_id))
+            conn.commit()
+        finally:
+            conn.close()
         html = self.home()
         self.assertIn("Учител", html)
         self.assertNotIn("Вход за тестер", html)

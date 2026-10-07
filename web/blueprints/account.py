@@ -271,6 +271,15 @@ def login_totp():
     except BaseException:
         conn.rollback()
         raise
+    if recovery_code:
+        # Recovery codes are an independent factor and work without DZI_TOTP_KEY, so a
+        # key outage cannot lock every admin out; each use is still made visible.
+        logger.warning(
+            "Admin account %s signed in with a recovery code; %d unused recovery codes remain%s",
+            user["id"],
+            totp_service.unused_recovery_code_count(conn, user["id"]),
+            "; DZI_TOTP_KEY is unavailable" if totp_service.key_problem(current_app.config.get(TOTP_KEY_CONFIG)) else "",
+        )
     # Clears the pending keys; the session is exactly uid/sk/iat (+ attempt markers).
     issue_account_session(user["id"], user["session_key"])
     return redirect(safe_redirect_target(next_url, ROLE_HOME_ENDPOINTS["admin"]))

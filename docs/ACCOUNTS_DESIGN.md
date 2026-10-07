@@ -782,7 +782,16 @@ ownership and the phase-2 attempts rebuild). Both tables are `RUNTIME`.
 - `totp_recovery_codes`: `id`, `user_id` (references the credential,
   `ON DELETE CASCADE`), `code_hash`, `used_at`, `created_at`.
 - The migration also rotates the `session_key` of every existing admin, so no
-  admin session issued without a second factor survives the upgrade.
+  admin session issued without a second factor survives the upgrade. This is
+  deliberately in the migration, not in a deployment step: production refuses to
+  start with 016 pending, so the rotation is guaranteed to happen before TOTP
+  enforcement is live and cannot be forgotten. The runner applies it once,
+  inside the same transaction as the schema change and its `schema_migrations`
+  row; `--baseline-apply` never adopts 016 without running it. Only runtime
+  `users` rows change (canonical builds have none, so it is a no-op there). The
+  replacement key comes from SQLite's `randomblob`; it never needs to be
+  unpredictable, because no cookie can carry it: the next admin session requires
+  `totp-confirm`, which rotates the key again with `secrets`.
 
 **Dependencies.** `pyotp>=2.9,<3` computes the RFC 6238 codes (SHA-1, 6 digits,
 30 s); `cryptography` provides Fernet. No QR library; no hand-written TOTP.
@@ -830,7 +839,14 @@ There is no web enrolment or recovery route.
 - Recovery codes: 12 characters (60 bits) from a 32-symbol alphabet, shown as
   `xxxx-xxxx-xxxx`, stored as Werkzeug scrypt hashes, each single-use through a
   conditional `UPDATE … WHERE used_at IS NULL`. They complete the same pending
-  state and need no `DZI_TOTP_KEY`.
+  state and need no `DZI_TOTP_KEY`: they are an independent factor that does not
+  depend on the encrypted secret, and their purpose is access when TOTP is
+  unavailable for any reason, a lost or misconfigured key included (otherwise a
+  key outage would lock out every admin until an operator ran `totp-reset`).
+  A missing key is never attacker-controlled and does not weaken them. Every
+  recovery-code sign-in is logged as a warning with the account id, the number of
+  unused codes left and, if so, that `DZI_TOTP_KEY` is unavailable; no code is
+  logged.
 - Malformed, missing, wrong, reused and out-of-window codes all fail with one
   message and count as a failure.
 
