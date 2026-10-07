@@ -59,7 +59,8 @@ class PracticalSubmissionReviewTest(IsolatedAppTestCase):
                 );
                 CREATE TABLE quiz_assignments (
                     id INTEGER PRIMARY KEY,
-                    title_bg TEXT
+                    title_bg TEXT,
+                    owner_user_id INTEGER
                 );
                 CREATE TABLE quiz_attempts (
                     id INTEGER PRIMARY KEY,
@@ -241,16 +242,48 @@ class PracticalSubmissionReviewTest(IsolatedAppTestCase):
 
         self.assertEqual(response.status_code, 404)
 
-    def test_tester_without_admin_cannot_access_review_or_download(self):
+    def test_teacher_account_sees_and_downloads_nothing_of_an_unowned_assignment(self):
+        # The assignment here has no owner (Accounts PR8): admin-only.
         sign_in_teacher(self.client, web_app.app.config["DB_PATH"])
 
         page = self.client.get("/teacher/practical-submissions")
         download = self.client.get("/teacher/practical/submission-file/1/download")
 
-        self.assertEqual(page.status_code, 302)
-        self.assertIn("/admin/login", page.headers["Location"])
-        self.assertEqual(download.status_code, 302)
-        self.assertIn("/admin/login", download.headers["Location"])
+        self.assertEqual(page.status_code, 200)
+        html = page.get_data(as_text=True)
+        self.assertNotIn("Student One", html)
+        self.assertNotIn("solution.xlsx", html)
+        self.assertEqual(download.status_code, 404)
+
+    def test_path_safety_is_unchanged_for_the_owning_teacher(self):
+        teacher = sign_in_teacher(self.client, web_app.app.config["DB_PATH"])
+        conn = sqlite3.connect(self.db_path)
+        try:
+            conn.execute("UPDATE quiz_assignments SET owner_user_id = ?", (teacher["id"],))
+            conn.commit()
+        finally:
+            conn.close()
+
+        owned = self.client.get("/teacher/practical/submission-file/1/download")
+        try:
+            self.assertEqual(owned.status_code, 200)
+            self.assertEqual(owned.data, b"student solution")
+        finally:
+            owned.close()
+        for file_id, reason in ((2, "missing on disk"), (3, "deleted"), (4, "traversal"), (999, "no row")):
+            with self.subTest(reason=reason):
+                response = self.client.get(f"/teacher/practical/submission-file/{file_id}/download")
+                self.assertEqual(response.status_code, 404)
+
+    def test_legacy_tester_session_is_sent_to_the_account_login(self):
+        with self.client.session_transaction() as sess:
+            sess["tester_authenticated"] = True
+
+        for path in ("/teacher/practical-submissions", "/teacher/practical/submission-file/1/download"):
+            with self.subTest(path=path):
+                response = self.client.get(path)
+                self.assertEqual(response.status_code, 302)
+                self.assertTrue(response.headers["Location"].startswith("/login?"))
 
 
 if __name__ == "__main__":

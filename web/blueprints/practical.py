@@ -3,12 +3,17 @@
 * the official resource download (admin);
 * the student practical page and file upload (``attempt_owner``; the upload is
   also same-origin protected);
-* the teacher's submission review page and stored-file download (admin).
+* the teacher's submission review page and stored-file download
+  (``assignment_owner``: an admin sees everything, a teacher account only the
+  submissions of assignments it owns; Accounts PR8).
 
 Every view declares its access policy (:mod:`web.access`) and, for the one
 unsafe method, its request-integrity policy (:mod:`web.request_integrity`);
 nothing here reads the session to decide who may enter, except the attempt
-ownership check shared with the quiz pages (:mod:`web.attempt_access`).
+ownership check shared with the quiz pages (:mod:`web.attempt_access`). Review
+ownership follows the submission's assignment (file -> submission -> attempt ->
+assignment) and is decided by :func:`web.access.can_manage_assignment` before
+any stored file is looked at on disk.
 
 Data, resource roots and upload-path confinement live in
 :mod:`web.services.practical`; the upload limits and file-name rules stay in
@@ -42,7 +47,14 @@ from src.practical_uploads import (
     validate_upload_size,
 )
 from web import db as web_db
-from web.access import ADMIN, ATTEMPT_OWNER, access_policy
+from web.access import (
+    ADMIN,
+    ASSIGNMENT_OWNER,
+    ATTEMPT_OWNER,
+    access_policy,
+    can_manage_assignment,
+    current_principal,
+)
 from web.attempt_access import require_quiz_attempt_access
 from web.request_integrity import SAME_ORIGIN, integrity_policy
 from web.services import practical
@@ -334,11 +346,11 @@ def _store_upload(conn, attempt_id: int, source_slug: str, exam_task_id: int):
 
 
 @practical_bp.route("/teacher/practical-submissions")
-@access_policy(ADMIN)
+@access_policy(ASSIGNMENT_OWNER)
 def teacher_practical_submissions():
     with closing(_request_db()) as db:
         submissions = practical.fetch_practical_submission_review_rows(
-            db, current_app.config["PRACTICAL_UPLOAD_ROOT"]
+            db, current_app.config["PRACTICAL_UPLOAD_ROOT"], principal=current_principal()
         )
     return render_template(
         "teacher_practical_submissions.html",
@@ -347,13 +359,21 @@ def teacher_practical_submissions():
 
 
 @practical_bp.route("/teacher/practical/submission-file/<int:file_id>/download")
-@access_policy(ADMIN)
+@access_policy(ASSIGNMENT_OWNER)
 def teacher_practical_submission_file_download(file_id: int):
     with closing(_request_db()) as db:
         file_row = practical.fetch_practical_submission_file(db, file_id)
     if file_row is None:
         current_app.logger.warning(
             "Practical submission download rejected: reason=not_found file_id=%s",
+            file_id,
+        )
+        abort(404)
+    # Ownership comes first: a foreign or unowned file answers like a missing
+    # one, before its deleted flag, stored path or the file itself is examined.
+    if not can_manage_assignment(current_principal(), file_row["owner_user_id"]):
+        current_app.logger.warning(
+            "Practical submission download rejected: reason=not_owner file_id=%s",
             file_id,
         )
         abort(404)

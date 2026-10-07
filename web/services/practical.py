@@ -26,6 +26,7 @@ from typing import Mapping
 from src.subject_assessment import AssessmentScope
 from src.subject_content import IT, canonical_subject
 from src.practical_resource_resolution import ResourceResolutionError, resolve_resource_reference
+from web.access import Principal, assignment_management_scope
 from web.db_introspect import first_existing_column, sqlite_table_columns, sqlite_table_exists
 from web.services import dzi_exams
 from web.services.dzi_exams import DZI_FORMAT_VERSION, dzi_source_slug, dzi_source_title
@@ -328,6 +329,9 @@ def practical_uploaded_file_safe_path(stored_path: str | None, upload_root: str 
 
 
 def fetch_practical_submission_file(db: sqlite3.Connection, file_id: int) -> dict | None:
+    """The stored file with the owner of its assignment (file -> submission ->
+    attempt -> assignment). ``owner_user_id`` is NULL for an unowned assignment;
+    the caller authorizes on it before touching the file on disk."""
     row = db.execute("""
         SELECT
             psf.id,
@@ -341,11 +345,14 @@ def fetch_practical_submission_file(db: sqlite3.Connection, file_id: int) -> dic
             ps.quiz_attempt_id,
             ps.exam_task_id,
             qt.student_name,
+            qt.assignment_id,
+            qa.owner_user_id,
             et.task_number,
             et.task_kind
         FROM practical_submission_files psf
         JOIN practical_submissions ps ON ps.id = psf.practical_submission_id
         JOIN quiz_attempts qt ON qt.id = ps.quiz_attempt_id
+        LEFT JOIN quiz_assignments qa ON qa.id = qt.assignment_id
         JOIN exam_tasks et ON et.id = ps.exam_task_id
         WHERE psf.id = ?
     """, (file_id,)).fetchone()
@@ -353,9 +360,18 @@ def fetch_practical_submission_file(db: sqlite3.Connection, file_id: int) -> dic
 
 
 def fetch_practical_submission_review_rows(
-    db: sqlite3.Connection, upload_root: str | Path
+    db: sqlite3.Connection, upload_root: str | Path, *, principal: Principal
 ) -> list[dict]:
-    rows = db.execute("""
+    """Submissions of the assignments ``principal`` manages, with their files.
+
+    Ownership is applied in SQL through the attempt's assignment
+    (``assignment_management_scope``): an admin gets every row, a teacher account
+    only rows of assignments it owns, anyone else none. Files of other rows are
+    never looked up on disk.
+    """
+    scope_condition, scope_params = assignment_management_scope(principal, "qa.owner_user_id")
+    # SAFE: scope_condition is a fixed fragment; the owner id is a bound parameter.
+    rows = db.execute(f"""
         SELECT
             ps.id AS submission_id,
             ps.status,
@@ -386,8 +402,9 @@ def fetch_practical_submission_review_rows(
         JOIN exams e ON e.id = et.exam_id
         LEFT JOIN practical_submission_files psf
             ON psf.practical_submission_id = ps.id
+        WHERE {scope_condition}
         ORDER BY ps.updated_at DESC, ps.id DESC, psf.uploaded_at DESC, psf.id DESC
-    """).fetchall()
+    """, scope_params).fetchall()
 
     submissions_by_id: dict[int, dict] = {}
     for row in rows:

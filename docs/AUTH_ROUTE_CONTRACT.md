@@ -60,14 +60,14 @@ a coverage test walks `app.url_map` and fails on any undeclared endpoint.
 | `teacher` | teacher or admin account, or a tester or admin session | `/teacher/new`, `/teacher/assignment/<id>` |
 | `admin` | admin account or admin session only | `/admin/...`, `/dzi...`, every other `/teacher...` route, `/admin/logout` |
 | `signed_in` | any active account (student, teacher or admin); a legacy tester/admin session is not an account | `/account/password` |
-| `assignment_owner` | admin (account or legacy session) or teacher account; the view checks the loaded assignment and answers 404 | `/teacher/assignments`, `/teacher/assignment/<id>/edit`, `/duplicate`, `/results` (GET and the open-answer review POST), `/results.csv` |
+| `assignment_owner` | admin (account or legacy session) or teacher account; the view checks the loaded assignment and answers 404 | `/teacher/assignments`, `/teacher/assignment/<id>/edit`, `/duplicate`, `/results` (GET and the open-answer review POST), `/results.csv`, `/teacher/practical-submissions`, `/teacher/practical/submission-file/<file_id>/download` |
 | `attempt_owner` | route is reachable; the view checks attempt ownership and answers 404 | `/quiz/attempt/<id>`, `/quiz/attempt/<id>/result`, `/quiz/attempt/<id>/practical/...` |
 | `profile_switch` | `/profile/<profile>`: `admin` needs an admin session, other targets are public | `/profile/<profile>` |
 
 Flask's built-in `static` view cannot be decorated; `web.access` treats it as
 `public` by name.
 
-## Assignment Ownership (Accounts PR6/PR7)
+## Assignment Ownership (Accounts PR6/PR7/PR8)
 
 Management of an assignment is decided by one pure predicate,
 `web.access.can_manage_assignment(principal, owner_user_id)`:
@@ -84,8 +84,8 @@ Management of an assignment is decided by one pure predicate,
 `web.access.assignment_management_scope` is its SQL counterpart: the list
 filters `qa.owner_user_id = ?` in the query (index
 `idx_quiz_assignments_owner`), with no per-row lookup; an admin gets every row.
-`web/access.py` imports no controller or service, so practical review (PR8) can
-reuse both without import cycles.
+`web/access.py` imports no controller or service, so practical review (PR8)
+reuses both without import cycles.
 
 The `assignment_owner` routes first pass the central policy (admin or teacher
 account; anonymous, students and the legacy tester are redirected to `/login`),
@@ -104,8 +104,42 @@ temporary view-only compatibility until the cutover: it shows no management
 controls and grants none of the routes above. Missing or inaccessible
 assignments return 404 before attempts are read. Creation records the creator's
 `users.id`, or NULL for a legacy session. Existing rows remain NULL without a
-backfill; they are admin-only for management. The `/teacher` dashboard and the
-practical submission review stay `admin` (practical review is PR8).
+backfill; they are admin-only for management. The `/teacher` dashboard stays
+`admin`.
+
+### Practical review (Accounts PR8)
+
+Practical submission review uses the same policy, predicate and SQL scope; the
+assignment is the ownership boundary and the practical tables carry no owner
+column:
+
+```
+practical_submission_files.practical_submission_id -> practical_submissions.id
+practical_submissions.quiz_attempt_id              -> quiz_attempts.id
+quiz_attempts.assignment_id                        -> quiz_assignments.id
+quiz_assignments.owner_user_id
+```
+
+- `/teacher/practical-submissions` and
+  `/teacher/practical/submission-file/<file_id>/download` are
+  `assignment_owner`: an admin or a teacher account passes the route policy;
+  anonymous, students, the legacy tester and a pending second factor are
+  redirected to `/login`.
+- The list filters `qa.owner_user_id = ?` in its one joined query
+  (`assignment_management_scope`); an admin gets every submission. Stored files
+  of rows outside the scope are never looked up on disk.
+- The download loads the file row joined through to the assignment owner and
+  checks `can_manage_assignment` before anything else. A foreign, unowned or
+  missing file id answers the same 404.
+- Authorization precedes filesystem access: the deleted flag, the stored-path
+  confinement (`practical_uploaded_file_safe_path`), the on-disk check and
+  `send_file` run only for an authorized principal, and are unchanged.
+- Practical data of an unowned (NULL) assignment is admin-only. The legacy
+  tester has no practical-review access; the view-only detail compatibility
+  above does not extend to it.
+- The student practical page and upload stay `attempt_owner` and are not
+  owner-scoped. The official resource download
+  (`/dzi/practical/resource/<id>/download`) and `/dzi...` stay `admin`.
 
 `signed_in` is used only by `/account/password`.
 
