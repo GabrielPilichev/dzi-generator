@@ -23,7 +23,12 @@ import pyotp
 from cryptography.fernet import Fernet
 from werkzeug.security import generate_password_hash
 
-from tests.auth_helpers import create_account, enroll_totp, set_account_session
+from tests.auth_helpers import (
+    HISTORICAL_SHARED_LOGIN_SESSION,
+    create_account,
+    enroll_totp,
+    set_account_session,
+)
 from tests.support import ROOT, IsolatedAppTestCase, web_app
 from web import access, request_integrity
 from web import db as web_db
@@ -198,7 +203,7 @@ class LoginTest(AccountAppTestCase):
     def test_pre_login_state_is_cleared_except_attempt_ownership(self):
         account = self.make("student")
         with self.client.session_transaction() as sess:
-            sess.update({"tester_authenticated": True, "admin_authenticated": True, "ui_profile": "admin",
+            sess.update({**HISTORICAL_SHARED_LOGIN_SESSION,
                          "quiz_attempt_owner:7": True, "quiz_attempt_owner:12": True,
                          "something_else": "x"})
         self.login(account["email"])
@@ -206,23 +211,30 @@ class LoginTest(AccountAppTestCase):
         self.assertEqual(set(state), {"uid", "sk", "iat", "quiz_attempt_owner:7", "quiz_attempt_owner:12"})
         self.assertIs(state["quiz_attempt_owner:7"], True)
 
-    def test_legacy_keys_and_ui_profile_grant_nothing_after_an_account_login(self):
+    def test_historical_shared_login_keys_grant_nothing_before_or_after_an_account_login(self):
         account = self.make("student")
         with self.client.session_transaction() as sess:
-            sess.update({"admin_authenticated": True, "tester_authenticated": True, "ui_profile": "admin"})
+            sess.update(HISTORICAL_SHARED_LOGIN_SESSION)
+        for path in ("/teacher", "/teacher/new", "/dzi", "/teacher/assignments", "/account/password"):
+            with self.subTest(path=path, when="before"):
+                response = self.client.get(path)
+                self.assertEqual((response.status_code, response.headers["Location"]),
+                                 (302, f"/login?next={path}"))
         self.login(account["email"])
-        for path in ("/teacher", "/teacher/new", "/dzi"):
-            with self.subTest(path=path):
-                self.assertEqual(self.client.get(path).status_code, 302)
-        self.assertEqual(self.client.get("/profile/admin").status_code, 302)
-        self.assertIn("/admin/login", self.client.get("/profile/admin").headers["Location"])
+        self.assertEqual(set(self.session()), {"uid", "sk", "iat"})
+        # Put back next to the student account, they still grant nothing.
+        with self.client.session_transaction() as sess:
+            sess.update(HISTORICAL_SHARED_LOGIN_SESSION)
+        for path in ("/teacher", "/teacher/new", "/dzi", "/teacher/assignments"):
+            with self.subTest(path=path, when="after"):
+                self.assertEqual(self.client.get(path).status_code, 403)
 
     def test_signing_in_replaces_another_account(self):
         first, second = self.make("admin"), self.make("student")
         self.login(first["email"])
         self.login(second["email"])
         self.assertEqual(self.session()["uid"], second["id"])
-        self.assertEqual(self.client.get("/teacher").status_code, 302)
+        self.assertEqual(self.client.get("/teacher").status_code, 403)
 
     def test_login_response_never_echoes_the_password(self):
         account = self.make("teacher")
@@ -402,14 +414,6 @@ class LoginRedirectTest(AccountAppTestCase):
                 with self.subTest(target=target):
                     self.assertEqual(safe_redirect_target(target, "/fallback"), target)
 
-    def test_legacy_logins_inherit_the_hardened_validator(self):
-        with patch.dict("os.environ", {"DZI_TESTER_PASSWORD": "tester-pw", "DZI_ADMIN_PASSWORD": "admin-pw"}):
-            for path, password, home in (("/tester/login", "tester-pw", "/tester"),
-                                         ("/admin/login", "admin-pw", "/teacher")):
-                with self.subTest(path=path):
-                    response = self.app.test_client().post(
-                        path, data={"password": password, "next": "/\\evil.example"}, headers=SAME_ORIGIN)
-                    self.assertEqual((response.status_code, response.headers["Location"]), (302, home))
 
 
 # --------------------------------------------------------------------------- throttle
@@ -619,15 +623,17 @@ class SessionLifetimeEnforcementTest(AccountAppTestCase):
                 self.assertEqual(principal, ANONYMOUS)
                 self.assertNotIn("uid", state)
 
-    def test_expired_account_session_never_falls_back_to_legacy_admin(self):
+    def test_expired_account_session_never_falls_back_to_historical_keys(self):
         account = create_account(self.db_path, "student")
-        for legacy in ({"admin_authenticated": True}, {"tester_authenticated": True},
-                       {"admin_authenticated": True, "tester_authenticated": True, "ui_profile": "admin"}):
-            with self.subTest(legacy=legacy):
-                principal, state = self.principal_for(self.state(account, 31 * DAY, **legacy))
+        for historical in ({"admin_authenticated": True}, {"tester_authenticated": True},
+                           HISTORICAL_SHARED_LOGIN_SESSION):
+            with self.subTest(historical=historical):
+                principal, state = self.principal_for(self.state(account, 31 * DAY, **historical))
                 self.assertEqual(principal, ANONYMOUS)
-                self.assertNotIn("admin_authenticated", state)
-                self.assertNotIn("tester_authenticated", state)
+                for key in ("uid", "sk", "iat"):
+                    self.assertNotIn(key, state)
+                # Whatever is left in the cookie is not an identity on the next request either.
+                self.assertEqual(self.principal_for(state)[0], ANONYMOUS)
 
     def test_expired_admin_is_redirected_and_stays_anonymous_on_the_next_request(self):
         account = create_account(self.db_path, "admin")
@@ -637,8 +643,8 @@ class SessionLifetimeEnforcementTest(AccountAppTestCase):
             with self.subTest(attempt=attempt):
                 response = self.client.get("/teacher")
                 self.assertEqual(response.status_code, 302)
-                self.assertIn("/admin/login", response.headers["Location"])
-        self.assertEqual(self.session(), {})
+                self.assertEqual(response.headers["Location"], "/login?next=/teacher")
+        self.assertEqual({key for key in self.session() if key in ("uid", "sk", "iat")}, set())
 
     def test_cookie_is_a_browser_session_cookie_with_unchanged_attributes(self):
         account = self.make("teacher")
@@ -698,25 +704,24 @@ class LogoutTest(AccountAppTestCase):
         self.assertEqual(self.user(account["id"], "session_key"), account["session_key"])
         self.assertEqual(other_device.get("/teacher/new").status_code, 200)
 
-    def test_anonymous_and_legacy_sessions_may_post_logout(self):
+    def test_anonymous_sessions_may_post_logout_and_everything_is_cleared(self):
         self.assertEqual(self.client.post("/logout", headers=SAME_ORIGIN).status_code, 302)
         with self.client.session_transaction() as sess:
-            sess.update({"admin_authenticated": True, "ui_profile": "admin"})
+            sess.update(HISTORICAL_SHARED_LOGIN_SESSION)
         self.client.post("/logout", headers=SAME_ORIGIN)
         self.assertEqual(self.session(), {})
 
-    def test_legacy_login_and_logout_routes_still_work(self):
-        with patch.dict("os.environ", {"DZI_TESTER_PASSWORD": "tester-pw", "DZI_ADMIN_PASSWORD": "admin-pw"}):
-            response = self.client.post("/tester/login", data={"password": "tester-pw"}, headers=SAME_ORIGIN)
-            self.assertEqual(response.status_code, 302)
-            self.assertEqual(self.client.get("/teacher/new").status_code, 200)
-            self.assertEqual(self.client.get("/tester/logout").status_code, 302)
-            self.assertEqual(self.client.get("/teacher/new").status_code, 302)
-            response = self.client.post("/admin/login", data={"password": "admin-pw"}, headers=SAME_ORIGIN)
-            self.assertEqual(response.status_code, 302)
-            self.assertEqual(self.client.get("/teacher").status_code, 200)
-            self.assertEqual(self.client.get("/admin/logout").status_code, 302)
-            self.assertEqual(self.client.get("/teacher").status_code, 302)
+    def test_logout_is_the_only_sign_out_route(self):
+        logout_rules = [(rule.rule, sorted(rule.methods - {"HEAD", "OPTIONS"}))
+                        for rule in self.app.url_map.iter_rules() if "logout" in rule.rule]
+        self.assertEqual(logout_rules, [("/logout", ["POST"])])
+        account = self.make("teacher")
+        self.sign_in(account)
+        for path in ("/tester/logout", "/admin/logout"):
+            with self.subTest(path=path):
+                self.assertEqual(self.client.get(path).status_code, 404)
+        # The removed GET logouts changed nothing: the account is still signed in.
+        self.assertEqual(self.client.get("/teacher/new").status_code, 200)
 
 
 # --------------------------------------------------------------------------- password change
@@ -754,12 +759,12 @@ class PasswordChangeTest(AccountAppTestCase):
                 self.assertEqual((response.status_code, response.headers["Location"]),
                                  (302, "/login?next=/account/password"))
 
-    def test_legacy_tester_and_admin_sessions_are_not_accounts(self):
-        for legacy in ({"tester_authenticated": True}, {"admin_authenticated": True, "ui_profile": "admin"}):
-            with self.subTest(legacy=legacy):
+    def test_historical_shared_login_keys_are_not_accounts(self):
+        for historical in ({"tester_authenticated": True}, {"admin_authenticated": True, "ui_profile": "admin"}):
+            with self.subTest(historical=historical):
                 client = self.app.test_client()
                 with client.session_transaction() as sess:
-                    sess.update(legacy)
+                    sess.update(historical)
                 self.assertEqual(client.get("/account/password").headers["Location"],
                                  "/login?next=/account/password")
                 response = self.change(client=client)
@@ -919,8 +924,18 @@ class NavigationTest(AccountAppTestCase):
         account = create_account(self.db_path, role, display_name=f"Име {role}")
         return {"uid": account["id"], "sk": account["session_key"], "iat": int(time.time()), **extra}
 
+    # Template names of the removed shared-login/profile state. Nothing may inject them.
+    REMOVED_CONTEXT_NAMES = (
+        "tester_authenticated", "admin_authenticated", "can_generate_tests", "ui_profile",
+        "ui_profile_label", "tester_password_configured", "admin_password_configured",
+        "legacy_shared_login_enabled",
+    )
+
     def flags(self, context):
-        return (context["tester_authenticated"], context["admin_authenticated"], context["can_generate_tests"])
+        """(is_teacher, is_admin, may list assignments) as templates see them."""
+        account = context["current_account"]
+        return (bool(account and account.is_teacher), bool(account and account.is_admin),
+                context["can_list_assignments"])
 
     def test_account_roles_drive_the_template_state(self):
         for role, flags, label in (("student", (False, False, False), "Ученик"),
@@ -932,37 +947,39 @@ class NavigationTest(AccountAppTestCase):
                 self.assertEqual(context["current_account"].role, role)
                 self.assertEqual(context["current_account"].display_name, f"Име {role}")
                 self.assertEqual(context["current_account_role_label"], label)
-                self.assertEqual(context["ui_profile_label"], label)
+                for removed in self.REMOVED_CONTEXT_NAMES:
+                    self.assertNotIn(removed, context)
 
-    def test_legacy_sessions_keep_their_template_state(self):
-        for state, flags, label in (
-            ({}, (False, False, False), "Тестер"),
-            ({"ui_profile": "admin"}, (False, False, False), "Тестер"),
-            ({"tester_authenticated": True, "ui_profile": "tester"}, (True, False, True), "Тестер"),
-            ({"admin_authenticated": True, "ui_profile": "admin"}, (True, True, True), "Админ"),
-            ({"admin_authenticated": True, "ui_profile": "tester"}, (True, True, True), "Тестер"),
+    def test_historical_session_keys_produce_no_template_state(self):
+        for state in (
+            {},
+            {"ui_profile": "admin"},
+            {"tester_authenticated": True, "ui_profile": "tester"},
+            {"admin_authenticated": True, "ui_profile": "admin"},
+            HISTORICAL_SHARED_LOGIN_SESSION,
         ):
             with self.subTest(state=state):
                 context = self.context(state)
-                self.assertEqual(self.flags(context), flags)
+                self.assertEqual(self.flags(context), (False, False, False))
                 self.assertIsNone(context["current_account"])
-                self.assertEqual(context["ui_profile_label"], label)
+                self.assertIsNone(context["current_account_role_label"])
+                for removed in self.REMOVED_CONTEXT_NAMES:
+                    self.assertNotIn(removed, context)
 
-    def test_account_identity_overrides_conflicting_legacy_flags(self):
-        legacy = {"admin_authenticated": True, "tester_authenticated": True, "ui_profile": "admin"}
-        context = self.context(self.account_state("student", **legacy))
+    def test_account_identity_is_unaffected_by_historical_session_keys(self):
+        context = self.context(self.account_state("student", **HISTORICAL_SHARED_LOGIN_SESSION))
         self.assertEqual(self.flags(context), (False, False, False))
-        self.assertEqual(context["ui_profile_label"], "Ученик")
-        context = self.context(self.account_state("teacher", **legacy))
+        self.assertEqual(context["current_account_role_label"], "Ученик")
+        context = self.context(self.account_state("teacher", **HISTORICAL_SHARED_LOGIN_SESSION))
         self.assertEqual(self.flags(context), (True, False, True))
 
-    def test_stale_account_identity_renders_as_anonymous_despite_legacy_flags(self):
+    def test_stale_account_identity_renders_as_anonymous_despite_historical_keys(self):
         context = self.context({"uid": 987654, "sk": "stale", "iat": int(time.time()),
                                 "admin_authenticated": True})
         self.assertEqual(self.flags(context), (False, False, False))
         self.assertIsNone(context["current_account"])
 
-    def test_account_pages_show_the_name_a_post_logout_and_no_legacy_links(self):
+    def test_account_pages_show_the_name_a_post_logout_and_no_removed_links(self):
         for role, label in (("student", "Ученик"), ("teacher", "Учител"), ("admin", "Админ")):
             with self.subTest(role=role):
                 client = self.app.test_client()
@@ -974,22 +991,28 @@ class NavigationTest(AccountAppTestCase):
                 self.assertIn('<form class="profile-logout-form" method="post" action="/logout">', html)
                 self.assertIn('href="/account/password"', html)
                 self.assertIn('class="nav-links"', html)
-                for legacy in ("/tester/logout", "/admin/logout", "/tester/login", "/admin/login"):
-                    self.assertNotIn(legacy, html)
+                for removed in ("/tester/logout", "/admin/logout", "/tester/login", "/admin/login",
+                                "/profile/"):
+                    self.assertNotIn(removed, html)
+                # The footer names the account's role, never a profile.
+                footer = html[html.index('<footer class="site-footer">'):]
+                self.assertIn(f"<span>{label}</span>", footer)
 
-    def test_legacy_and_anonymous_pages_keep_their_links(self):
-        html = self.body(self.client.get("/"))
-        for link in ('href="/login?next=/"', 'href="/tester/login?next=/"', 'href="/admin/login?next=/"'):
-            self.assertIn(link, html)
-        self.assertNotIn('action="/logout"', html)
-        self.assertNotIn('class="nav-links"', html)
-
+    def test_anonymous_and_historical_sessions_get_only_the_account_login_link(self):
+        anonymous = self.body(self.client.get("/"))
         with self.client.session_transaction() as sess:
-            sess.update({"admin_authenticated": True, "ui_profile": "admin"})
-        html = self.body(self.client.get("/"))
-        self.assertIn('href="/admin/logout"', html)
-        self.assertNotIn('action="/logout"', html)
-        self.assertNotIn('href="/account/password"', html)
+            sess.update(HISTORICAL_SHARED_LOGIN_SESSION)
+        historical = self.body(self.client.get("/"))
+        # The removed keys change nothing a visitor sees.
+        self.assertEqual(historical, anonymous)
+        for page in (anonymous, historical):
+            self.assertEqual(page.count('href="/login?next=/"'), 2)  # desktop and mobile menus
+            self.assertIn('aria-label="Вход"', page)
+            for absent in ('action="/logout"', 'class="nav-links"', 'href="/account/password"',
+                           "/tester/login", "/admin/login", "/tester/logout", "/admin/logout",
+                           "/profile/", "Тестер", "Вход за админ", ">Админ<",
+                           'href="/teacher/assignments"', "админ изглед"):
+                self.assertNotIn(absent, page)
 
     def test_display_name_is_escaped(self):
         account = create_account(self.db_path, "student", display_name="<b>Иван</b>")
@@ -1002,7 +1025,7 @@ class NavigationTest(AccountAppTestCase):
 class CacheControlTest(AccountAppTestCase):
     def test_account_responses_are_not_stored(self):
         for role, paths in (("student", ("/", "/account/password", "/no/such/page")),
-                            ("teacher", ("/teacher/new", "/teacher")),  # a page and a denial redirect
+                            ("teacher", ("/teacher/new", "/teacher")),  # a page and a 403 refusal
                             ("admin", ("/teacher", "/teacher/assignments"))):
             client = self.app.test_client()
             account = create_account(self.db_path, role)
@@ -1017,16 +1040,16 @@ class CacheControlTest(AccountAppTestCase):
         self.assertEqual(self.client.post("/logout", headers=SAME_ORIGIN).headers.get("Cache-Control"),
                          "no-store")
 
-    def test_anonymous_legacy_static_and_health_responses_are_unaffected(self):
+    def test_anonymous_static_and_health_responses_are_unaffected(self):
         static_file = next(Path(ROOT, "web", "static").rglob("*.css")).relative_to(Path(ROOT, "web", "static"))
         anonymous = self.app.test_client()
-        for path in ("/", "/login", "/tester/login"):
+        for path in ("/", "/login", "/teacher"):
             with self.subTest(path=path):
                 self.assertNotIn("Cache-Control", anonymous.get(path).headers)
-        legacy = self.app.test_client()
-        with legacy.session_transaction() as sess:
-            sess["admin_authenticated"] = True
-        self.assertNotIn("Cache-Control", legacy.get("/teacher").headers)
+        historical = self.app.test_client()
+        with historical.session_transaction() as sess:
+            sess.update(HISTORICAL_SHARED_LOGIN_SESSION)
+        self.assertNotIn("Cache-Control", historical.get("/teacher").headers)
 
         account = create_account(self.db_path, "admin")
         set_account_session(self.client, account["id"], account["session_key"])
@@ -1141,14 +1164,19 @@ class AccountBlueprintBoundariesTest(unittest.TestCase):
         self.assertNotIn("web.app", imported)
         self.assertFalse({name for name in imported if name.startswith("web.blueprints")})
 
-    def test_legacy_auth_blueprint_and_integrity_stay_account_free(self):
-        for relative in ("web/blueprints/auth.py", "web/request_integrity.py"):
-            with self.subTest(module=relative):
-                source = Path(ROOT, relative).read_text(encoding="utf-8")
-                self.assertFalse({name for name in imported_modules(relative)
-                                  if "accounts" in name or "login_throttle" in name})
-                for needle in ("sqlite3", "get_request_db", "login_throttle"):
-                    self.assertNotIn(needle, source)
+    def test_request_integrity_stays_account_free(self):
+        relative = "web/request_integrity.py"
+        source = Path(ROOT, relative).read_text(encoding="utf-8")
+        self.assertFalse({name for name in imported_modules(relative)
+                          if "accounts" in name or "login_throttle" in name})
+        for needle in ("sqlite3", "get_request_db", "login_throttle"):
+            self.assertNotIn(needle, source)
+
+    def test_account_sign_in_is_the_only_sign_in(self):
+        self.assertFalse(Path(ROOT, "web/blueprints/auth.py").exists())
+        self.assertNotIn("auth", web_app.app.blueprints)
+        login_rules = sorted(rule.rule for rule in web_app.app.url_map.iter_rules() if "login" in rule.rule)
+        self.assertEqual(login_rules, ["/login", "/login/totp"])
 
     def test_services_stay_independent_of_flask(self):
         for relative in ("web/services/accounts.py", "web/services/login_throttle.py"):

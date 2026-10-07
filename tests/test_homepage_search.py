@@ -399,13 +399,13 @@ class HomepageSearchTest(IsolatedAppTestCase):
 
         self.assertIsNotNone(mobile_menu)
         self.assertTrue(parsed.elements("summary"))
-        self._assert_login_link(html, "/tester/login", "/")
-        self._assert_login_link(html, "/admin/login", "/")
+        self._assert_login_link(html, "/login", "/")
 
     def test_desktop_profile_login_entries_match_mobile_choices(self):
         html = self._get_home_html()
-        self._assert_login_link(html, "/tester/login", "/", min_count=2)
-        self._assert_login_link(html, "/admin/login", "/", min_count=2)
+        self._assert_login_link(html, "/login", "/", min_count=2)
+        for removed in ("/tester/login", "/admin/login"):
+            self.assertNotIn(removed, html)
 
     def test_mobile_profile_css_is_present(self):
         css_path = _ROOT / "web" / "static" / "css" / "ui-pass9.css"

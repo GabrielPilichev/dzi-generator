@@ -12,7 +12,7 @@ import subprocess
 import sys
 import unittest
 
-from tests.auth_helpers import sign_in_admin, sign_in_student, sign_in_teacher
+from tests.auth_helpers import client_as, sign_in_admin, sign_in_student, sign_in_teacher
 from tests.support import ROOT, IsolatedAppTestCase, web_app
 from web import access, request_integrity
 
@@ -90,11 +90,6 @@ class TeacherRouteOwnershipTest(unittest.TestCase):
             with self.subTest(path=path.name):
                 self.assertIsNone(pattern.search(path.read_text(encoding="utf-8")))
 
-    def test_e5_views_live_in_the_auth_blueprint(self):
-        for endpoint in ("auth.tester_home", "auth.admin_login"):
-            with self.subTest(endpoint=endpoint):
-                self.assertEqual(web_app.app.view_functions[endpoint].__module__, "web.blueprints.auth")
-
     def test_moved_helpers_left_the_application_module(self):
         for name in ("fetch_dzi_pool_health", "fetch_practical_assignment_options",
                      "teacher_new", "quiz_duplicate_title"):
@@ -132,23 +127,13 @@ class TeacherDependencyDirectionTest(unittest.TestCase):
 
 
 class TeacherRoutesBehaviorTest(IsolatedAppTestCase):
-    SESSIONS = {
-        "anonymous": {},
-        "tester": {"tester_authenticated": True, "ui_profile": "tester"},
-        "admin": {"admin_authenticated": True, "ui_profile": "admin"},
-        "profile_only": {"ui_profile": "admin"},
-    }
-
     def client_for(self, who):
-        client = web_app.app.test_client()
-        with client.session_transaction() as state:
-            state.update(self.SESSIONS[who])
-        return client
+        return client_as(web_app.app, web_app.app.config["DB_PATH"], who)
 
-    def test_account_roles_reach_the_same_pages_as_the_legacy_sessions(self):
+    def test_account_roles_reach_exactly_their_pages(self):
         db_path = web_app.app.config["DB_PATH"]
         for sign_in, new_status, list_status, admin_status in (
-            (sign_in_student, 302, 302, 302), (sign_in_teacher, 200, 200, 302),
+            (sign_in_student, 403, 403, 403), (sign_in_teacher, 200, 200, 403),
             (sign_in_admin, 200, 200, 200),
         ):
             client = web_app.app.test_client()
@@ -159,22 +144,22 @@ class TeacherRoutesBehaviorTest(IsolatedAppTestCase):
                 self.assertEqual(client.get("/teacher/assignments").status_code, list_status)
                 self.assertEqual(client.get("/teacher").status_code, admin_status)
 
-    def test_teacher_new_is_open_to_tester_and_admin_only(self):
-        for who, expected in (("anonymous", 302), ("profile_only", 302),
-                              ("tester", 200), ("admin", 200)):
+    def test_teacher_new_is_open_to_teacher_and_admin_accounts_only(self):
+        for who, expected in (("anonymous", 302), ("historical", 302), ("student", 403),
+                              ("teacher", 200), ("admin", 200)):
             with self.subTest(who=who):
                 self.assertEqual(self.client_for(who).get("/teacher/new").status_code, expected)
 
-    def test_admin_only_pages_deny_a_tester(self):
+    def test_admin_only_pages_deny_a_teacher_and_a_historical_session(self):
         for path in ("/teacher", "/teacher/dzi-training"):
             with self.subTest(path=path):
-                response = self.client_for("tester").get(path)
+                self.assertEqual(self.client_for("teacher").get(path).status_code, 403)
+        # The removed shared-login keys are not an identity: every page asks to sign in.
+        for path in ("/teacher", "/teacher/dzi-training", "/teacher/assignments", "/teacher/new"):
+            with self.subTest(path=path, who="historical"):
+                response = self.client_for("historical").get(path)
                 self.assertEqual(response.status_code, 302)
-                self.assertTrue(response.headers["Location"].startswith("/admin/login"))
-        # The assignment list needs an admin or a teacher account (PR7).
-        response = self.client_for("tester").get("/teacher/assignments")
-        self.assertEqual(response.status_code, 302)
-        self.assertTrue(response.headers["Location"].startswith("/login?"))
+                self.assertEqual(response.headers["Location"], f"/login?next={path}")
 
     def test_admin_reaches_every_get_page(self):
         for path in ("/teacher", "/teacher/assignments", "/teacher/dzi-training", "/teacher/new"):
@@ -188,7 +173,7 @@ class TeacherRoutesBehaviorTest(IsolatedAppTestCase):
                 self.assertEqual(self.client_for("admin").get(path).status_code, 404)
 
     def test_cross_origin_post_is_refused_before_authorization(self):
-        for who in ("anonymous", "tester", "admin"):
+        for who in ("anonymous", "teacher", "admin"):
             for path in ("/teacher/new", "/teacher/dzi-training",
                          "/teacher/assignment/1/edit", "/teacher/assignment/1/duplicate",
                          "/teacher/assignment/1/results"):
@@ -201,6 +186,7 @@ class TeacherRoutesBehaviorTest(IsolatedAppTestCase):
         response = self.client_for("anonymous").post(
             "/teacher/new", data={}, headers={"Origin": "http://localhost"})
         self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.headers["Location"], "/login?next=/teacher/new")
 
 
 if __name__ == "__main__":

@@ -8,8 +8,10 @@ define new schema, routes, imports, scoring, or deployment behavior.
 
 - Work from a clean branch, or save/stash unrelated local work before starting.
 - Localhost may be used for manual smoke testing.
-- Use a generated `DZI_SECRET_KEY` and rotated admin/tester passwords for the
-  session.
+- Use a generated `DZI_SECRET_KEY`. Sign-in is by account only: use accounts
+  created with `python3 -m src.manage_accounts` (an admin account also needs a
+  confirmed TOTP and `DZI_TOTP_KEY`). There are no shared admin/tester
+  passwords.
 - Do not commit `.env`, logs, tunnel URLs, uploaded files, secrets, or local
   runtime config.
 - If `data/questions.db` is dirtied unintentionally, restore it unless the

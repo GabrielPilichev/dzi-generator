@@ -462,18 +462,17 @@ class MixedQuizPlanningControlsTest(IsolatedAppTestCase):
         self.assertIn("Включи отворени въпроси".encode("utf-8"), response.data)
         self.assertIn("автоматичната проверка е ориентир".encode("utf-8"), response.data)
 
-    def test_sessionless_user_still_needs_tester_login_for_teacher_new(self):
+    def test_sessionless_user_still_needs_to_sign_in_for_teacher_new(self):
         response = self.client.get("/teacher/new")
 
         self.assertEqual(response.status_code, 302)
-        self.assertIn("/tester/login", response.headers["Location"])
+        self.assertEqual(response.headers["Location"], "/login?next=/teacher/new")
 
-    def test_tester_does_not_gain_admin_candidates_page_access(self):
+    def test_teacher_does_not_gain_admin_candidates_page_access(self):
         self._login_tester()
         response = self.client.get("/admin/open-question-candidates")
 
-        self.assertEqual(response.status_code, 302)
-        self.assertIn("/admin/login", response.headers["Location"])
+        self.assertEqual(response.status_code, 403)
 
     def test_quiz_start_integrity_error_does_not_claim_existing_attempt(self):
         self._login_tester()

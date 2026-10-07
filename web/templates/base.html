@@ -56,7 +56,7 @@
                     >
                 </a>
 
-                {% if tester_authenticated or admin_authenticated or current_account %}
+                {% if current_account %}
                     <nav class="nav-links" aria-label="Съдържание">
                         {% set current_grade = request.view_args.grade if request.endpoint == 'browsing.grade_view' else none %}
                         {% set is_dzi_current = request.path == '/section/grade12-dzi-preparation' or (request.endpoint and (request.endpoint.startswith('dzi') or request.endpoint == 'practical.dzi_practical_resource_download') and request.endpoint != 'dzi.admin_open_question_candidates') %}
@@ -146,12 +146,12 @@
                             {% set is_assignments_current = request.endpoint == 'teacher.teacher_assignments' %}
                             <a class="{% if is_assignments_current %}nav-current{% else %}nav-link{% endif %}"
                                href="{{ url_for('teacher.teacher_assignments') }}"
-                               {% if is_assignments_current %}aria-current="page"{% endif %}>{{ 'Създадени тестове' if admin_authenticated else 'Моите тестове' }}</a>
+                               {% if is_assignments_current %}aria-current="page"{% endif %}>{{ 'Създадени тестове' if current_account.is_admin else 'Моите тестове' }}</a>
                         {% endif %}
                     </nav>
                 {% endif %}
 
-                <div class="profile-switch" aria-label="{{ 'Профил' if tester_authenticated or admin_authenticated or current_account else 'Вход' }}">
+                <div class="profile-switch" aria-label="{{ 'Профил' if current_account else 'Вход' }}">
                     {% if current_account %}
                         <span class="profile-label">{{ current_account.display_name }}</span>
                         <span class="profile-link active">{{ current_account_role_label }}</span>
@@ -159,41 +159,20 @@
                         <form class="profile-logout-form" method="post" action="{{ url_for('account.logout') }}">
                             <button class="profile-link profile-logout-button" type="submit">Изход</button>
                         </form>
-                    {% elif admin_authenticated %}
-                        <span class="profile-label">Профил</span>
-                        <span class="profile-link active">Админ</span>
-                        <a class="profile-link" href="{{ url_for('auth.admin_logout') }}">Изход</a>
-                    {% elif tester_authenticated %}
-                        <span class="profile-label">Профил</span>
-                        <span class="profile-link active">Тестер</span>
-                        <a class="profile-link" href="{{ url_for('auth.tester_logout') }}">Изход</a>
                     {% else %}
                         <a class="profile-link" href="{{ url_for('account.login', next=request.path) }}">Вход</a>
-                        {% if legacy_shared_login_enabled %}
-                            <a class="profile-link" href="{{ url_for('auth.tester_login', next=request.path) }}">Вход за тестер</a>
-                            <a class="profile-link" href="{{ url_for('auth.admin_login', next=request.path) }}">Вход за админ</a>
-                        {% endif %}
                     {% endif %}
                 </div>
 
-                {% if tester_authenticated or admin_authenticated or current_account %}
+                {% if current_account %}
                     <details class="mobile-profile-menu">
                         <summary>Профил</summary>
                         <div class="mobile-profile-panel">
-                            {% if current_account %}
-                                <span class="profile-link active">{{ current_account_role_label }}</span>
-                                <a class="profile-link" href="{{ url_for('account.password') }}">Парола</a>
-                                <form class="profile-logout-form" method="post" action="{{ url_for('account.logout') }}">
-                                    <button class="profile-link profile-logout-button" type="submit">Изход</button>
-                                </form>
-                            {% elif admin_authenticated %}
-                                <span class="profile-link active">Админ</span>
-                                <a class="profile-link" href="{{ url_for('auth.admin_logout') }}">Изход</a>
-                            {% elif tester_authenticated %}
-                                <span class="profile-link active">Тестер</span>
-                                <a class="profile-link" href="{{ url_for('auth.tester_logout') }}">Изход</a>
-                                <a class="profile-link" href="{{ url_for('auth.admin_login', next=request.path) }}">Вход за админ</a>
-                            {% endif %}
+                            <span class="profile-link active">{{ current_account_role_label }}</span>
+                            <a class="profile-link" href="{{ url_for('account.password') }}">Парола</a>
+                            <form class="profile-logout-form" method="post" action="{{ url_for('account.logout') }}">
+                                <button class="profile-link profile-logout-button" type="submit">Изход</button>
+                            </form>
                         </div>
                     </details>
                 {% else %}
@@ -201,10 +180,6 @@
                         <summary>Вход</summary>
                         <div class="mobile-profile-panel">
                             <a class="profile-link" href="{{ url_for('account.login', next=request.path) }}">Вход</a>
-                            {% if legacy_shared_login_enabled %}
-                                <a class="profile-link" href="{{ url_for('auth.tester_login', next=request.path) }}">Вход за тестер</a>
-                                <a class="profile-link" href="{{ url_for('auth.admin_login', next=request.path) }}">Вход за админ</a>
-                            {% endif %}
                         </div>
                     </details>
                 {% endif %}
@@ -222,7 +197,7 @@
         <footer class="site-footer">
             <span>LearnPilot · {{ app_version }}</span>
             {% if last_sync_label %}<span>последна промяна: {{ last_sync_label }}</span>{% endif %}
-            <span>{{ ui_profile_label }}</span>
+            {% if current_account %}<span>{{ current_account_role_label }}</span>{% endif %}
             {% if source_url %}<a href="{{ source_url }}">source</a>{% endif %}
         </footer>
     </div>

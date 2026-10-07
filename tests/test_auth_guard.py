@@ -8,7 +8,17 @@ from unittest.mock import patch
 
 _ROOT = Path(__file__).resolve().parents[1]
 
+from tests.auth_helpers import (
+    HISTORICAL_SHARED_LOGIN_SESSION,
+    create_account,
+    sign_in_admin,
+    sign_in_teacher,
+)
 from tests.support import IsolatedAppTestCase, web_app
+
+# A synthetic account the same-origin tests sign in with through the real form.
+LOGIN_EMAIL = "guard-teacher@example.bg"
+LOGIN_PASSWORD = "correct horse battery"
 
 
 def _register_dzi_default_denied_test_route(app):
@@ -35,6 +45,8 @@ class AuthGuardTest(IsolatedAppTestCase):
             cls.dzi_source_slug = cls._first_dzi_source_slug(conn)
         finally:
             conn.close()
+        cls.db_path = cls.app.config["DB_PATH"]
+        create_account(cls.db_path, "teacher", email=LOGIN_EMAIL, password=LOGIN_PASSWORD)
 
     @staticmethod
     def _first_eligible_section(conn):
@@ -83,22 +95,26 @@ class AuthGuardTest(IsolatedAppTestCase):
                 response = self.app.test_client().get(path)
                 self.assertNotIn("Set-Cookie", response.headers)
 
-    def test_profile_change_and_authenticated_navigation_persist(self):
-        response = self.client.get("/profile/tester")
-        self.assertIn("Set-Cookie", response.headers)
+    def test_signed_in_navigation_does_not_rewrite_the_cookie(self):
+        for sign_in in (sign_in_teacher, sign_in_admin):
+            with self.subTest(sign_in=sign_in.__name__):
+                client = self.app.test_client()
+                sign_in(client, self.db_path)
+                with client.session_transaction() as sess:
+                    before = dict(sess)
+                for path in ("/", "/grade/8", "/teacher/new"):
+                    self.assertNotIn("Set-Cookie", client.get(path).headers)
+                with client.session_transaction() as sess:
+                    self.assertEqual(dict(sess), before)
+                    self.assertEqual(set(sess), {"uid", "sk", "iat"})
+
+    def test_historical_session_keys_are_neither_used_nor_rewritten(self):
         with self.client.session_transaction() as sess:
-            self.assertEqual(sess["ui_profile"], "tester")
-            sess["tester_authenticated"] = True
-        self.assertNotIn("Set-Cookie", self.client.get("/").headers)
+            sess.update(HISTORICAL_SHARED_LOGIN_SESSION)
+        for path in ("/", "/teacher", "/teacher/new"):
+            self.assertNotIn("Set-Cookie", self.client.get(path).headers)
         with self.client.session_transaction() as sess:
-            self.assertTrue(sess["tester_authenticated"])
-        with self.client.session_transaction() as sess:
-            sess["admin_authenticated"] = True
-            sess["ui_profile"] = "admin"
-        self.assertNotIn("Set-Cookie", self.client.get("/").headers)
-        with self.client.session_transaction() as sess:
-            self.assertTrue(sess["admin_authenticated"])
-            self.assertEqual(sess["ui_profile"], "admin")
+            self.assertEqual(dict(sess), HISTORICAL_SHARED_LOGIN_SESSION)
 
     def test_cookieless_external_entry_does_not_clobber_attempt_cookie(self):
         owner = self.app.test_client()
@@ -109,18 +125,17 @@ class AuthGuardTest(IsolatedAppTestCase):
         with owner.session_transaction() as sess:
             self.assertTrue(sess[web_app.quiz_attempt_owner_session_key(123)])
 
-    def _login_tester(self):
-        with self.client.session_transaction() as sess:
-            sess["tester_authenticated"] = True
-            sess["ui_profile"] = "tester"
+    def _login_teacher(self):
+        return sign_in_teacher(self.client, self.db_path)
 
     def _login_admin(self):
-        with self.client.session_transaction() as sess:
-            sess["admin_authenticated"] = True
-            sess["ui_profile"] = "admin"
+        return sign_in_admin(self.client, self.db_path)
 
-    def _create_assignment_as_tester(self):
-        self._login_tester()
+    def _post_login(self, path="/login", password=LOGIN_PASSWORD, **kwargs):
+        return self.client.post(path, data={"email": LOGIN_EMAIL, "password": password}, **kwargs)
+
+    def _create_assignment_as_teacher(self):
+        self._login_teacher()
         response = self.client.post("/teacher/new", data={
             "section_id": str(self.section["id"]),
             "question_count": "1",
@@ -168,30 +183,23 @@ class AuthGuardTest(IsolatedAppTestCase):
             conn.close()
 
     def test_sessionless_access_is_redirected_to_login(self):
-        response = self.client.get("/teacher/new")
-        self.assertEqual(response.status_code, 302)
-        self.assertIn("/tester/login", response.headers["Location"])
-
         for path in (
+            "/teacher/new",
             "/teacher",
             "/teacher/dzi-training",
             "/dzi",
             f"/dzi/source/{self.dzi_source_slug}",
+            "/teacher/assignments",
         ):
             response = self.client.get(path)
             self.assertEqual(response.status_code, 302, path)
-            self.assertIn("/admin/login", response.headers["Location"], path)
+            self.assertEqual(response.headers["Location"], f"/login?next={path}", path)
 
-        # Assignment management (Accounts PR7) sends anonymous to the account login.
-        response = self.client.get("/teacher/assignments")
-        self.assertEqual(response.status_code, 302)
-        self.assertTrue(response.headers["Location"].startswith("/login?"))
-
-    def test_tester_can_only_use_normal_assignment_creation_flow(self):
+    def test_teacher_account_uses_the_assignment_flow_and_no_admin_page(self):
         response = self.client.get(f"/teacher/new?section={self.section['section_slug']}")
         self.assertEqual(response.status_code, 302)
 
-        self._login_tester()
+        self._login_teacher()
         response = self.client.get(f"/teacher/new?section={self.section['section_slug']}")
         self.assertEqual(response.status_code, 200)
         self.assertIn(b'id="new-assignment-form"', response.data)
@@ -200,9 +208,7 @@ class AuthGuardTest(IsolatedAppTestCase):
             response.data,
         )
 
-        assignment_url = self._create_assignment_as_tester()
-        response = self.client.get(assignment_url)
-        self.assertEqual(response.status_code, 200)
+        assignment_url = self._create_assignment_as_teacher()
 
         forbidden_paths = (
             "/teacher",
@@ -212,19 +218,22 @@ class AuthGuardTest(IsolatedAppTestCase):
         )
         for path in forbidden_paths:
             response = self.client.get(path)
-            self.assertEqual(response.status_code, 302, path)
-            self.assertIn("/admin/login", response.headers["Location"], path)
+            self.assertEqual(response.status_code, 403, path)
+            self.assertNotIn("Location", response.headers)
 
-        # Assignment management needs an admin or a teacher account (Accounts PR7):
-        # the legacy tester is sent to the account login, even for its own unowned row.
-        for path in ("/teacher/assignments", f"{assignment_url}/results",
+        # The teacher manages the assignment it created (Accounts PR7) ...
+        for path in (assignment_url, "/teacher/assignments", f"{assignment_url}/results",
                      f"{assignment_url}/results.csv"):
-            response = self.client.get(path)
-            self.assertEqual(response.status_code, 302, path)
-            self.assertTrue(response.headers["Location"].startswith("/login?"), path)
+            self.assertEqual(self.client.get(path).status_code, 200, path)
+
+        # ... and another teacher account gets 404 for it, not a hint that it exists.
+        other = self.app.test_client()
+        sign_in_teacher(other, self.db_path)
+        for path in (assignment_url, f"{assignment_url}/results", f"{assignment_url}/results.csv"):
+            self.assertEqual(other.get(path).status_code, 404, path)
 
     def test_admin_can_access_teacher_and_dzi_pages(self):
-        assignment_url = self._create_assignment_as_tester()
+        assignment_url = self._create_assignment_as_teacher()
         self.client = self.app.test_client()
         self._login_admin()
 
@@ -242,7 +251,7 @@ class AuthGuardTest(IsolatedAppTestCase):
             self.assertEqual(response.status_code, 200, path)
 
     def test_teacher_dashboard_groups_recent_tests_by_class_with_teacher_fallback(self):
-        assignment_url = self._create_assignment_as_tester()
+        assignment_url = self._create_assignment_as_teacher()
         assignment_id = assignment_url.rstrip("/").split("/")[-1]
         self.client = self.app.test_client()
         self._login_admin()
@@ -259,7 +268,7 @@ class AuthGuardTest(IsolatedAppTestCase):
         self.assertIn("Учител: не е посочен", body)
 
     def test_recent_test_cards_have_primary_clickable_link_and_result_link(self):
-        assignment_url = self._create_assignment_as_tester()
+        assignment_url = self._create_assignment_as_teacher()
         assignment_id = assignment_url.rstrip("/").split("/")[-1]
         self.client = self.app.test_client()
         self._login_admin()
@@ -280,7 +289,7 @@ class AuthGuardTest(IsolatedAppTestCase):
         self.assertRegex(body, r'<a class="card subject-class-card[^"]*"\s+href="/subjects/')
 
     def test_current_grade_nav_item_is_link_with_aria_current(self):
-        self._login_tester()
+        self._login_teacher()
         response = self.client.get("/grade/8")
         self.assertEqual(response.status_code, 200)
         body = response.get_data(as_text=True)
@@ -288,7 +297,7 @@ class AuthGuardTest(IsolatedAppTestCase):
         self._assert_single_current_nav_link(body, "/grade/8")
 
     def test_current_home_nav_item_is_link_with_aria_current(self):
-        self._login_tester()
+        self._login_teacher()
         response = self.client.get("/")
         self.assertEqual(response.status_code, 200)
         body = response.get_data(as_text=True)
@@ -296,7 +305,7 @@ class AuthGuardTest(IsolatedAppTestCase):
         self._assert_single_current_nav_link(body, "/")
 
     def test_authenticated_nav_groups_classes_and_subjects(self):
-        self._login_tester()
+        self._login_teacher()
         response = self.client.get("/")
         self.assertEqual(response.status_code, 200)
         body = response.get_data(as_text=True)
@@ -335,7 +344,7 @@ class AuthGuardTest(IsolatedAppTestCase):
         self.assertNotIn('aria-disabled="true"', nav)
 
     def test_nav_dropdowns_use_single_explicit_open_state(self):
-        self._login_tester()
+        self._login_teacher()
         response = self.client.get("/")
         self.assertEqual(response.status_code, 200)
         body = response.get_data(as_text=True)
@@ -363,7 +372,7 @@ class AuthGuardTest(IsolatedAppTestCase):
         self.assertRegex(css, r"\.nav-menu\.is-open \.nav-menu-panel:not\(\[hidden\]\)\s*\{[^}]*display:\s*grid")
 
     def test_current_dzi_nav_item_is_link_with_aria_current(self):
-        self._login_tester()
+        self._login_teacher()
         response = self.client.get("/section/grade12-dzi-preparation")
         self.assertEqual(response.status_code, 200)
         body = response.get_data(as_text=True)
@@ -371,7 +380,7 @@ class AuthGuardTest(IsolatedAppTestCase):
         self._assert_single_current_nav_link(body, "/section/grade12-dzi-preparation")
 
     def test_teacher_assignments_list_shows_class_and_teacher_fallback(self):
-        assignment_url = self._create_assignment_as_tester()
+        assignment_url = self._create_assignment_as_teacher()
         assignment_id = assignment_url.rstrip("/").split("/")[-1]
         self.client = self.app.test_client()
         self._login_admin()
@@ -392,70 +401,48 @@ class AuthGuardTest(IsolatedAppTestCase):
 
         response = self.client.get(path)
         self.assertEqual(response.status_code, 302)
-        self.assertIn("/admin/login", response.headers["Location"])
+        self.assertEqual(response.headers["Location"], f"/login?next={path}")
 
-        self._login_tester()
-        response = self.client.get(path)
-        self.assertEqual(response.status_code, 302)
-        self.assertIn("/admin/login", response.headers["Location"])
+        for login in (self._login_teacher, self._login_admin):
+            self.client = self.app.test_client()
+            login()
+            response = self.client.get(path)
+            self.assertEqual(response.status_code, 403)
+            self.assertNotEqual(response.data, b"test-only DZI endpoint")
 
-        self.client = self.app.test_client()
-        self._login_admin()
-        response = self.client.get(path)
-        self.assertEqual(response.status_code, 302)
-        self.assertIn("/admin/login", response.headers["Location"])
-        self.assertNotEqual(response.data, b"test-only DZI endpoint")
-
-    def test_admin_login_rejects_external_next_after_successful_login(self):
+    def test_login_rejects_external_next_after_successful_login(self):
         for next_url in ("//evil.example/login", "https://evil.example/login"):
             with self.subTest(next_url=next_url):
-                client = self.app.test_client()
-                response = client.post(
-                    f"/admin/login?next={next_url}",
-                    data={"password": "admin-pass"},
-                )
+                self.client = self.app.test_client()
+                response = self._post_login(f"/login?next={next_url}")
                 self.assertEqual(response.status_code, 302)
-                self.assertEqual(response.headers["Location"], "/teacher")
-
-    def test_tester_login_rejects_external_next_after_successful_login(self):
-        for next_url in ("//evil.example/login", "https://evil.example/login"):
-            with self.subTest(next_url=next_url):
-                client = self.app.test_client()
-                response = client.post(
-                    f"/tester/login?next={next_url}",
-                    data={"password": "tester-pass"},
-                )
-                self.assertEqual(response.status_code, 302)
-                self.assertEqual(response.headers["Location"], "/tester")
+                self.assertEqual(response.headers["Location"], "/teacher/new")
 
     def test_login_accepts_normal_local_next_after_successful_login(self):
-        admin_response = self.client.post(
-            "/admin/login?next=/teacher/assignments",
-            data={"password": "admin-pass"},
-        )
-        self.assertEqual(admin_response.status_code, 302)
-        self.assertEqual(admin_response.headers["Location"], "/teacher/assignments")
+        response = self._post_login("/login?next=/teacher/assignments")
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.headers["Location"], "/teacher/assignments")
 
-        client = self.app.test_client()
-        tester_response = client.post(
-            "/tester/login?next=/teacher/new",
-            data={"password": "tester-pass"},
-        )
-        self.assertEqual(tester_response.status_code, 302)
-        self.assertEqual(tester_response.headers["Location"], "/teacher/new")
+    def test_denied_request_ignores_an_external_referrer(self):
+        response = self.client.get(
+            "/teacher", headers={"Referer": "https://evil.example/from-referrer"})
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.headers["Location"], "/login?next=/teacher")
 
-    def test_mobile_profile_menu_reflects_tester_session(self):
-        self._login_tester()
+    def test_mobile_profile_menu_reflects_teacher_account(self):
+        self._login_teacher()
         response = self.client.get("/")
         self.assertEqual(response.status_code, 200)
         body = response.data.decode("utf-8")
         menu = self._mobile_profile_menu(body)
 
-        self.assertIn("Тестер", menu)
-        self.assertIn('href="/tester/logout"', menu)
-        self.assertIn('href="/admin/login?next=/"', menu)
+        self.assertIn("Учител", menu)
+        self.assertIn('method="post" action="/logout"', menu)
+        self.assertIn('href="/account/password"', menu)
+        for removed in ("/tester/logout", "/admin/logout", "/admin/login", "/tester/login", "Тестер"):
+            self.assertNotIn(removed, body)
 
-    def test_mobile_profile_menu_reflects_admin_session(self):
+    def test_mobile_profile_menu_reflects_admin_account(self):
         self._login_admin()
         response = self.client.get("/")
         self.assertEqual(response.status_code, 200)
@@ -463,58 +450,45 @@ class AuthGuardTest(IsolatedAppTestCase):
         menu = self._mobile_profile_menu(body)
 
         self.assertIn("Админ", menu)
-        self.assertIn('href="/admin/logout"', menu)
+        self.assertIn('method="post" action="/logout"', menu)
+        self.assertNotIn("/admin/logout", body)
 
-    def test_admin_login_with_cyrillic_wrong_password_returns_normal_error(self):
-        response = self.client.post(
-            "/admin/login",
-            data={"password": "грешна-парола"},
-        )
+    def test_mobile_profile_menu_offers_only_the_account_login_to_anonymous(self):
+        body = self.client.get("/").data.decode("utf-8")
+        menu = self._mobile_profile_menu(body)
 
-        self.assertEqual(response.status_code, 200)
-        self.assertIn("Грешна парола.".encode("utf-8"), response.data)
-        self.assertNotIn("грешна-парола".encode("utf-8"), response.data)
+        self.assertIn('href="/login?next=/"', menu)
+        for removed in ("/admin/login", "/tester/login", 'action="/logout"'):
+            self.assertNotIn(removed, menu)
 
-    def test_tester_login_with_cyrillic_wrong_password_returns_normal_error(self):
-        response = self.client.post(
-            "/tester/login",
-            data={"password": "грешна-парола"},
-        )
+    def test_login_with_cyrillic_wrong_password_returns_normal_error(self):
+        response = self._post_login(password="грешна-парола")
 
         self.assertEqual(response.status_code, 200)
-        self.assertIn("Грешна парола.".encode("utf-8"), response.data)
+        self.assertIn("Грешен имейл или парола.".encode("utf-8"), response.data)
         self.assertNotIn("грешна-парола".encode("utf-8"), response.data)
 
-    def test_cross_origin_post_to_admin_login_is_rejected(self):
-        response = self.client.post(
-            "/admin/login",
-            data={"password": "admin-pass"},
-            headers={"Origin": "http://evil.example"},
-        )
+    def test_cross_origin_post_to_login_is_rejected(self):
+        response = self._post_login(headers={"Origin": "http://evil.example"})
+
+        self.assertEqual(response.status_code, 403)
+        with self.client.session_transaction() as sess:
+            self.assertEqual(dict(sess), {})
+
+    def test_scheme_mismatch_post_to_login_is_rejected(self):
+        response = self._post_login(headers={"Origin": "https://localhost"})
 
         self.assertEqual(response.status_code, 403)
 
-    def test_scheme_mismatch_post_to_admin_login_is_rejected(self):
-        response = self.client.post(
-            "/admin/login",
-            data={"password": "admin-pass"},
-            headers={"Origin": "https://localhost"},
-        )
-
-        self.assertEqual(response.status_code, 403)
-
-    def test_same_origin_post_to_admin_login_still_works(self):
-        response = self.client.post(
-            "/admin/login?next=/teacher/assignments",
-            data={"password": "admin-pass"},
-            headers={"Origin": "http://localhost"},
-        )
+    def test_same_origin_post_to_login_still_works(self):
+        response = self._post_login(
+            "/login?next=/teacher/assignments", headers={"Origin": "http://localhost"})
 
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.headers["Location"], "/teacher/assignments")
 
     def test_cross_origin_post_to_teacher_mutation_is_rejected_after_login(self):
-        self._login_tester()
+        self._login_teacher()
         before_assignments = self._assignment_count()
 
         response = self.client.post(
@@ -531,7 +505,7 @@ class AuthGuardTest(IsolatedAppTestCase):
         self.assertEqual(self._assignment_count(), before_assignments)
 
     def test_same_origin_post_to_teacher_new_still_works(self):
-        self._login_tester()
+        self._login_teacher()
         before_assignments = self._assignment_count()
 
         response = self.client.post(
@@ -550,7 +524,7 @@ class AuthGuardTest(IsolatedAppTestCase):
 
     def test_get_routes_are_not_blocked_by_cross_origin_headers(self):
         response = self.client.get(
-            "/admin/login",
+            "/login",
             headers={"Origin": "http://evil.example"},
         )
 
@@ -558,10 +532,7 @@ class AuthGuardTest(IsolatedAppTestCase):
 
     def test_missing_origin_and_referer_is_allowed_in_testing_mode(self):
         self.assertTrue(self.app.config["TESTING"])
-        response = self.client.post(
-            "/admin/login?next=/teacher/assignments",
-            data={"password": "admin-pass"},
-        )
+        response = self._post_login("/login?next=/teacher/assignments")
 
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.headers["Location"], "/teacher/assignments")
@@ -570,31 +541,23 @@ class AuthGuardTest(IsolatedAppTestCase):
         previous_testing = self.app.config["TESTING"]
         self.app.config["TESTING"] = False
         try:
-            response = self.client.post(
-                "/admin/login",
-                data={"password": "admin-pass"},
-            )
+            response = self._post_login()
+            logout = self.client.post("/logout")
         finally:
             self.app.config["TESTING"] = previous_testing
 
         self.assertEqual(response.status_code, 403)
+        self.assertEqual(logout.status_code, 403)
 
     def test_same_origin_referer_is_allowed_when_origin_is_missing(self):
-        response = self.client.post(
-            "/admin/login?next=/teacher/assignments",
-            data={"password": "admin-pass"},
-            headers={"Referer": "http://localhost/admin/login"},
-        )
+        response = self._post_login(
+            "/login?next=/teacher/assignments", headers={"Referer": "http://localhost/login"})
 
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.headers["Location"], "/teacher/assignments")
 
     def test_cross_origin_referer_is_rejected_when_origin_is_missing(self):
-        response = self.client.post(
-            "/admin/login",
-            data={"password": "admin-pass"},
-            headers={"Referer": "http://evil.example/admin/login"},
-        )
+        response = self._post_login(headers={"Referer": "http://evil.example/login"})
 
         self.assertEqual(response.status_code, 403)
 
@@ -617,21 +580,6 @@ class AuthGuardTest(IsolatedAppTestCase):
             with self.subTest(value=value):
                 with patch.dict(os.environ, {"DZI_SESSION_COOKIE_SECURE": value}, clear=True):
                     self.assertTrue(web_app.build_session_cookie_secure())
-
-    def test_switch_profile_rejects_external_next_and_referrer(self):
-        self._login_admin()
-        response = self.client.get("/profile/tester?next=//evil.example/login")
-        self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.headers["Location"], "/tester")
-
-        self.client = self.app.test_client()
-        response = self.client.get(
-            "/profile/admin",
-            headers={"Referer": "https://evil.example/from-referrer"},
-        )
-        self.assertEqual(response.status_code, 302)
-        self.assertNotIn("evil.example", response.headers["Location"])
-        self.assertIn("/admin/login?next=/", response.headers["Location"])
 
     def test_secret_key_without_env_is_not_static_fallback(self):
         with patch.dict(os.environ, {}, clear=True):

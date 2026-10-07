@@ -59,18 +59,11 @@ class AdminTotpTestCase(AccountAppTestCase):
 
     def assert_anonymous(self, client=None):
         client = client or self.client
-        for path in ADMIN_PATHS:
+        for path in (*ADMIN_PATHS, *ASSIGNMENT_PATHS, "/account/password", "/teacher/new"):
             with self.subTest(path=path):
                 response = client.get(path)
                 self.assertEqual(response.status_code, 302)
-                self.assertIn("/admin/login", response.headers["Location"])
-        for path in ASSIGNMENT_PATHS:
-            with self.subTest(path=path):
-                response = client.get(path)
-                self.assertEqual(response.status_code, 302)
-                self.assertTrue(response.headers["Location"].startswith("/login?"))
-        self.assertIn("/login", client.get("/account/password").headers["Location"])
-        self.assertIn("/tester/login", client.get("/teacher/new").headers["Location"])
+                self.assertEqual(response.headers["Location"], f"/login?next={path}")
 
     def snapshot(self, account):
         return self.query(
@@ -488,16 +481,30 @@ class SecondFactorSafetyTest(AdminTotpTestCase):
                 self.assertNotIn(secret, text)
         self.assertNotIn(code, repr(self.session()))
 
-    def test_legacy_admin_bridge_is_unchanged(self):
+    def test_historical_shared_login_keys_never_help_a_pending_admin(self):
+        # What the removed shared admin login once wrote into the cookie.
+        historical = {"admin_authenticated": True, "tester_authenticated": True, "ui_profile": "admin"}
         client = self.app.test_client()
         with client.session_transaction() as sess:
-            sess.update({"admin_authenticated": True, "ui_profile": "admin"})
-        self.assertEqual(client.get("/teacher").status_code, 200)
-        # A pending account challenge replaces the legacy keys rather than sitting beside them.
+            sess.update(historical)
+        self.assert_anonymous(client)
+        # The password step replaces the whole session with the pending challenge.
         admin = self.make("admin")
         self.start(admin, client=client)
         self.assertEqual(set(self.session(client)), PENDING_KEYS)
-        self.assertEqual(client.get("/teacher").status_code, 302)
+        self.assert_anonymous(client)
+        # Put back beside the pending challenge they still grant nothing, and a wrong
+        # code does not change that.
+        with client.session_transaction() as sess:
+            sess.update(historical)
+        self.assertEqual(self.principal_for(self.session(client))[0], ANONYMOUS)
+        self.assert_anonymous(client)
+        self.assertEqual(self.submit_code(self.other_code(self.code(admin)), client=client).status_code, 200)
+        self.assert_anonymous(client)
+        # Only the second factor creates the admin principal, and it drops the stray keys.
+        self.assertEqual(self.submit_code(self.code(admin), client=client).status_code, 302)
+        self.assertEqual(set(self.session(client)), ACCOUNT_KEYS)
+        self.assertEqual(client.get("/teacher").status_code, 200)
 
     def test_pending_challenge_runs_no_account_lookup_on_other_pages(self):
         admin = self.make("admin")
@@ -529,13 +536,13 @@ class AssignmentOwnershipInteractionTest(AdminTotpTestCase):
         detail = f"/teacher/assignment/{assignment_id}"
         response = self.client.get(detail)
         self.assertEqual(response.status_code, 302)
-        self.assertIn("/tester/login", response.headers["Location"])
+        self.assertEqual(response.headers["Location"], f"/login?next={detail}")
         before = self.query("SELECT COUNT(*) FROM quiz_assignments")[0][0]
         with patch.object(teacher_blueprint, "quiz_write_assignment_note"):
             response = self.client.post("/teacher/new", data={"section_id": section_id, "question_count": 1},
                                         headers=SAME_ORIGIN)
         self.assertEqual(response.status_code, 302)
-        self.assertIn("/tester/login", response.headers["Location"])
+        self.assertEqual(response.headers["Location"], "/login?next=/teacher/new")
         self.assertEqual(self.query("SELECT COUNT(*) FROM quiz_assignments")[0][0], before)
         # After the second factor the admin sees every assignment, as PR6 defines.
         self.assertEqual(self.submit_code(self.code(admin)).status_code, 302)

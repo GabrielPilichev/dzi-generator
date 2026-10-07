@@ -36,14 +36,20 @@ class AssignmentOwnershipTest(IsolatedAppTestCase):
         note_patch.start()
         self.addCleanup(note_patch.stop)
 
-    def client(self, account=None, legacy=None):
+    def client(self, account=None, historical=None):
+        """``historical`` injects a session key of the removed shared-password logins
+        (``tester``/``admin``), which must never change what the client may do."""
         client = web_app.app.test_client()
         if account:
             set_account_session(client, account["id"], account["session_key"])
-        if legacy:
+        if historical:
             with client.session_transaction() as session:
-                session[f"{legacy}_authenticated"] = True
+                session[f"{historical}_authenticated"] = True
         return client
+
+    def assignment_count(self):
+        with closing(web_app.quiz_db()) as conn:
+            return conn.execute("SELECT COUNT(*) FROM quiz_assignments").fetchone()[0]
 
     def seed_assignment(self, account=None):
         principal = (account_principal(account["id"], "teacher", "Учител") if account
@@ -74,7 +80,7 @@ class AssignmentOwnershipTest(IsolatedAppTestCase):
             for mixed in (False, True):
                 with self.subTest(account=account["id"], mixed=mixed):
                     client = self.client(account)
-                    # Valid uid overrides these forged legacy/role hints.
+                    # Only the account identity counts; these forged hints are ignored.
                     with client.session_transaction() as session:
                         session.update(admin_authenticated=True, role="admin", owner_user_id=self.other["id"])
                     assignment_id = self.post_new(client, mixed=mixed)
@@ -83,14 +89,19 @@ class AssignmentOwnershipTest(IsolatedAppTestCase):
                     self.assertEqual(bool(row["question_plan_json"]), mixed)
                     self.assertEqual(client.get(f"/teacher/assignment/{assignment_id}").status_code, 200)
 
-    def test_legacy_creators_stay_unowned_in_both_paths(self):
-        for legacy in ("tester", "admin"):
+    def test_historical_shared_login_keys_cannot_create_in_either_path(self):
+        before = self.assignment_count()
+        for historical in ("tester", "admin"):
             for mixed in (False, True):
-                with self.subTest(legacy=legacy, mixed=mixed):
-                    client = self.client(legacy=legacy)
-                    assignment_id = self.post_new(client, mixed=mixed)
-                    self.assertIsNone(self.assignment(assignment_id)["owner_user_id"])
-                    self.assertEqual(client.get(f"/teacher/assignment/{assignment_id}").status_code, 200)
+                with self.subTest(historical=historical, mixed=mixed):
+                    data = {"section_id": self.section_id, "question_count": 2}
+                    if mixed:
+                        data.update(open_count=1, source_slug=self.source_slug)
+                    response = self.client(historical=historical).post(
+                        "/teacher/new", data=data, headers={"Origin": "http://localhost"})
+                    self.assertEqual(response.status_code, 302)
+                    self.assertEqual(response.headers["Location"], "/login?next=/teacher/new")
+        self.assertEqual(self.assignment_count(), before)
 
     def test_creation_keeps_only_account_identity_in_session(self):
         client = self.client(self.owner)
@@ -100,16 +111,23 @@ class AssignmentOwnershipTest(IsolatedAppTestCase):
 
     def test_duplicate_belongs_to_creator_not_source_or_form_owner(self):
         source_id = self.seed_assignment(self.owner)
-        for account, legacy in ((self.admin, None), (None, "admin")):
-            client = self.client(account, legacy)
+        for account in (self.admin, self.owner):
+            client = self.client(account)
             response = client.post(f"/teacher/assignment/{source_id}/duplicate",
                                    data={"owner_user_id": self.other["id"]},
                                    headers={"Origin": "http://localhost"})
             self.assertEqual(response.status_code, 302)
             new_id = int(response.headers["Location"].rsplit("/", 1)[1])
             self.assertNotEqual(new_id, source_id)
-            self.assertEqual(self.assignment(new_id)["owner_user_id"], account["id"] if account else None)
+            self.assertEqual(self.assignment(new_id)["owner_user_id"], account["id"])
             self.assertEqual(self.assignment(source_id)["owner_user_id"], self.owner["id"])
+        # A historical shared-login key duplicates nothing.
+        before = self.assignment_count()
+        response = self.client(historical="admin").post(
+            f"/teacher/assignment/{source_id}/duplicate", headers={"Origin": "http://localhost"})
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response.headers["Location"].startswith("/login?next="))
+        self.assertEqual(self.assignment_count(), before)
 
     def test_detail_matrix_and_missing_ids(self):
         owned = self.seed_assignment(self.owner)
@@ -118,13 +136,18 @@ class AssignmentOwnershipTest(IsolatedAppTestCase):
             ("owner", self.client(self.owner), (200, 404)),
             ("other", self.client(self.other, "admin"), (404, 404)),
             ("admin", self.client(self.admin), (200, 200)),
-            ("legacy tester", self.client(legacy="tester"), (404, 200)),
-            ("legacy admin", self.client(legacy="admin"), (200, 200)),
+            ("historical tester key", self.client(historical="tester"), (302, 302)),
+            ("historical admin key", self.client(historical="admin"), (302, 302)),
         ):
             with self.subTest(label=label):
                 for assignment_id, status in zip((owned, unowned), expected):
-                    self.assertEqual(client.get(f"/teacher/assignment/{assignment_id}").status_code, status)
-                self.assertEqual(client.get("/teacher/assignment/9999999").status_code, 404)
+                    response = client.get(f"/teacher/assignment/{assignment_id}")
+                    self.assertEqual(response.status_code, status)
+                    if status == 302:
+                        self.assertEqual(response.headers["Location"],
+                                         f"/login?next=/teacher/assignment/{assignment_id}")
+                self.assertEqual(client.get("/teacher/assignment/9999999").status_code,
+                                 302 if 302 in expected else 404)
 
     def test_denied_detail_never_reads_attempts(self):
         assignment_id = self.seed_assignment(self.owner)
@@ -137,7 +160,7 @@ class AssignmentOwnershipTest(IsolatedAppTestCase):
             self.assertEqual(response.status_code, 404)
             self.assertFalse(any("quiz_attempts" in s.lower() for s in statements))
 
-    def test_disabled_owner_cannot_use_legacy_admin_keys(self):
+    def test_disabled_owner_cannot_use_historical_admin_keys(self):
         assignment_id = self.seed_assignment(self.owner)
         client = self.client(self.owner, "admin")
         with closing(web_app.quiz_db()) as conn:
@@ -145,16 +168,20 @@ class AssignmentOwnershipTest(IsolatedAppTestCase):
             conn.commit()
         response = client.get(f"/teacher/assignment/{assignment_id}")
         self.assertEqual(response.status_code, 302)
-        self.assertIn("/tester/login", response.headers["Location"])
+        self.assertEqual(response.headers["Location"], f"/login?next=/teacher/assignment/{assignment_id}")
         self.assertEqual(self.assignment(assignment_id)["owner_user_id"], self.owner["id"])
 
     def test_student_and_anonymous_cannot_create_or_open_detail(self):
         assignment_id = self.seed_assignment(self.owner)
-        for client in (self.client(), self.client(self.student, "admin")):
-            self.assertEqual(client.get(f"/teacher/assignment/{assignment_id}").status_code, 302)
+        before = self.assignment_count()
+        # Anonymous is asked to sign in; a student is refused, whatever else its cookie holds.
+        for client, status in ((self.client(), 302), (self.client(historical="admin"), 302),
+                               (self.client(self.student, "admin"), 403)):
+            self.assertEqual(client.get(f"/teacher/assignment/{assignment_id}").status_code, status)
             response = client.post("/teacher/new", data={"section_id": self.section_id},
                                    headers={"Origin": "http://localhost"})
-            self.assertEqual(response.status_code, 302)
+            self.assertEqual(response.status_code, status)
+        self.assertEqual(self.assignment_count(), before)
 
     def test_reads_include_owner_and_predicate_adds_no_queries(self):
         assignment_id = self.seed_assignment(self.owner)

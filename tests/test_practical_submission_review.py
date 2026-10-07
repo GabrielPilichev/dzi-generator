@@ -275,7 +275,8 @@ class PracticalSubmissionReviewTest(IsolatedAppTestCase):
                 response = self.client.get(f"/teacher/practical/submission-file/{file_id}/download")
                 self.assertEqual(response.status_code, 404)
 
-    def test_legacy_tester_session_is_sent_to_the_account_login(self):
+    def test_historical_shared_login_session_key_is_sent_to_the_account_login(self):
+        self.client = web_app.app.test_client()
         with self.client.session_transaction() as sess:
             sess["tester_authenticated"] = True
 

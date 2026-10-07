@@ -2,17 +2,14 @@
 
 Four separate concerns, deliberately kept apart:
 
-- **Authentication** — who the session is. Since the cutover (Accounts PR9)
-  account authentication is the only authority in production:
-  - an **account** identity (`uid`, `sk`, `iat`), issued by `web/blueprints/account.py`
-    (endpoints `account.login`, `account.login_totp`, `account.logout`, `account.password`) and resolved
-    to a principal on every request by `load_current_user()` in `web/app.py`;
-  - the **legacy shared passwords** (`tester_authenticated`,
-    `admin_authenticated`), owned by the login/logout routes in `web/blueprints/auth.py` (endpoints `auth.tester_login`, `auth.admin_login`, `auth.tester_logout`, `auth.admin_logout`, `auth.switch_profile`, `auth.tester_home`),
-    are a transitional bridge that exists only while `DZI_LEGACY_SHARED_LOGIN`
-    is enabled, which production never allows. See "Legacy shared-login
-    cutover" below; wherever this document describes a legacy tester or admin
-    session, it describes that bridge and nothing that can happen in production.
+- **Authentication** — who the session is. Account authentication is the only
+  authentication the application has: an **account** identity (`uid`, `sk`,
+  `iat`), issued by `web/blueprints/account.py` (endpoints `account.login`,
+  `account.login_totp`, `account.logout`, `account.password`) and resolved to a
+  principal on every request by `load_current_user()` in `web/app.py`. The
+  shared tester/admin passwords that preceded accounts were switched off in
+  production by Accounts PR9 and physically removed by PR10; see "Removed
+  shared-password authentication" below.
 - **Authorization (access policy)** — whether that session may use a route,
   declared per view function in `web/access.py`.
 - **Request integrity** — how an unsafe or external request proves it is
@@ -42,67 +39,60 @@ establishes identity:
    happens (no query, no cookie). See "Account sessions" below.
 3. `enforce_access_policy()` — authorization. It looks up the policy declared
    on the view function Flask resolved for the request and decides with
-   `current_principal()`. With the legacy bridge disabled: a shared-password
-   route answers 404 first; a denied request without an account is redirected
-   to `/login` with `next=<path>`, whatever the route's policy; a denied
-   request from a signed-in account gets 403 (`403.html`), because signing in
-   again cannot help. With the bridge enabled the transitional behaviour
-   applies: every denial is a redirect, to `/tester/login` for `teacher`
-   routes, `/login` for `signed_in` and `assignment_owner` routes, and
-   `/admin/login` for everything else, including undeclared views. A request
-   that matched no route is left to Flask's own 404/405.
+   `current_principal()`, which is the account principal `load_current_user()`
+   resolved, or anonymous. A denied request without an account is redirected to
+   `/login` with `next=<path>`, whatever the route's policy (undeclared views
+   included); a denied request from a signed-in account gets 403 (`403.html`),
+   because signing in again cannot help. A request that matched no route is
+   left to Flask's own 404/405.
 
 Passing one check never implies the other: an admin's cross-origin post is
 refused, and a same-origin post from a session without access is still sent to
 login.
 
-## Legacy shared-login cutover (Accounts PR9)
+## Removed shared-password authentication (Accounts PR9, PR10)
 
-One setting decides whether the shared-password bridge exists:
-`DZI_LEGACY_SHARED_LOGIN`, held as the boolean `app.config["LEGACY_SHARED_LOGIN"]`
-and read through `web.access.legacy_shared_login_enabled()`. Only the boolean
-`True` enables it; a missing value means disabled.
+Before accounts, two shared passwords (`DZI_TESTER_PASSWORD`,
+`DZI_ADMIN_PASSWORD`) signed a browser in as "tester" or "admin" through
+`/tester/login` and `/admin/login`, recorded as the session keys
+`tester_authenticated` and `admin_authenticated`, with a cosmetic `ui_profile`
+key switched by `/profile/<profile>`. PR9 made that bridge unavailable in
+production behind `DZI_LEGACY_SHARED_LOGIN`; PR10 deleted it. This section is
+the only place the old names are described, as history.
 
-| Where | Value |
-| --- | --- |
-| Production (`web.wsgi`) | Always disabled. `web/production.py` refuses to start when the variable is enabled (`1`/`true`/`yes`/`on`) or not a recognised spelling, accepts unset, empty or a false spelling (`0`/`false`/`no`/`off`), and then forces the configuration to `False`. |
-| Development (`web.app` imported directly) | Enabled when unset, so the documented local tester/admin smoke flow keeps working. An explicit value is parsed with the same spellings; an unrecognised one disables the bridge with a warning. |
-| Tests | `tests.support.isolated_app` enables it explicitly; the cutover tests disable it. |
+What no longer exists:
 
-With the bridge **disabled**:
+- the routes `/tester`, `/tester/login`, `/tester/logout`, `/admin/login`,
+  `/admin/logout` and `/profile/<profile>`, the `auth` blueprint
+  (`web/blueprints/auth.py`) that owned them and their templates. The URLs
+  answer like any unknown URL: 404 for GET, and for a same-origin POST; a
+  cross-origin POST is refused with 403 by the integrity check, as for every URL;
+- any reading of `tester_authenticated`, `admin_authenticated` or `ui_profile`.
+  No code reads, writes or cleans up these keys. A cookie signed while the
+  bridge existed may still carry them: they authorize nothing, change nothing
+  that is rendered, and disappear when the browser signs in or out
+  (`session.clear()`). No signing-key rotation is involved;
+- `DZI_LEGACY_SHARED_LOGIN`, `app.config["LEGACY_SHARED_LOGIN"]`, and every
+  parsing or validation of them, in development, tests and production alike.
+  There is no switch: no environment variable or configuration value can bring
+  shared-password sign-in back, because the implementation is gone;
+- `DZI_TESTER_PASSWORD` and `DZI_ADMIN_PASSWORD` as settings. Nothing reads
+  them; a line left in an old env file is inert and can be deleted;
+- the `profile_switch` access level, the role-specific denial targets and the
+  Nginx `lp_admin_login` / `lp_tester_login` rate-limit zones;
+- the ID-less "tester" and "admin" principals. Every principal other than
+  anonymous is loaded from a `users` row. The tester's view-only access to an
+  unowned assignment's detail page is gone with it: unowned
+  (`owner_user_id IS NULL`) assignments and their practical data are visible
+  to and manageable by an account admin only. Nothing claims or backfills
+  ownership.
 
-- `/tester/login`, `/admin/login`, `/tester/logout` and `/admin/logout`
-  (the views marked `legacy_shared_login_route`) answer 404 for GET and POST,
-  for every session, before any access decision and without touching the
-  session. A correct shared password gets the same 404.
-- `current_principal()` never reads `tester_authenticated` or
-  `admin_authenticated`. A request without a resolved account is anonymous
-  whatever its cookie holds, so a cookie signed before the cutover authorizes
-  nothing. This is the decision itself, not a cleanup: `load_current_user()`
-  additionally drops the two keys from any cookie that still carries them, but
-  no authority depends on that having happened. No signing-key rotation is
-  involved.
-- `ui_profile` remains cosmetic and is clamped to the Principal; with stale
-  keys it cannot show an admin profile.
-- A pending second factor (`mfa_*`) next to stale legacy admin keys is still
-  anonymous. Before the cutover that combination was a legacy admin, because
-  `/admin/login` could be completed while the account's second factor was
-  pending; now only `POST /login/totp` creates the admin Principal.
-- Every sign-in denial targets `account.login`; no redirect points at a
-  shared-password route. A signed-in account that lacks the role gets 403.
-  Object-level ownership answers are unchanged: a foreign, unowned or missing
-  assignment, attempt or practical file is still 404.
-- Templates receive `legacy_shared_login_enabled` and offer only „Вход“
-  (`/login`); `tester_authenticated` and `admin_authenticated` are computed
-  from the Principal and are therefore false for stale keys.
-- The legacy tester and the legacy admin do not exist as principals. The
-  tester's view-only access to unowned assignment detail is unreachable;
-  unowned (`owner_user_id IS NULL`) assignments and their practical data are
-  manageable by an account admin only. Nothing claims or backfills ownership.
+A pending second factor (`mfa_*`) is anonymous whatever else the cookie holds;
+only `POST /login/totp` creates the admin principal.
 
-The bridge code itself (views, templates, `ui_profile`, `/profile/<profile>`,
-`/tester`, the Nginx zones for the two logins) is still present and is removed
-by PR10. The operator's preflight and recovery procedure are in
+Regression tests inject the historical keys to prove they grant nothing
+(`tests/test_account_auth_cutover.py`, `tests/test_auth_blueprint.py`,
+`tests/test_access_policy.py`). The operator's notes are in
 `docs/DEPLOYMENT.md`, section 23.
 
 ## Declared Access Policies
@@ -114,13 +104,12 @@ a coverage test walks `app.url_map` and fails on any undeclared endpoint.
 
 | Policy | Meaning | Routes |
 | --- | --- | --- |
-| `public` | any session, signed in or not | `/`, `/grade/<n>`, `/section/<slug>`, `/subjects/...`, `/physics...`, `/tester`, `/healthz`, `/favicon.ico`, logins (`/login`, `POST /login/totp`, `/tester/login`, `/admin/login`), `POST /logout`, `/tester/logout`, `/quiz/<assignment_id>` |
-| `teacher` | teacher or admin account, or a tester or admin session | `/teacher/new`, `/teacher/assignment/<id>` |
-| `admin` | admin account or admin session only | `/admin/...`, `/dzi...`, every other `/teacher...` route, `/admin/logout` |
-| `signed_in` | any active account (student, teacher or admin); a legacy tester/admin session is not an account | `/account/password` |
-| `assignment_owner` | admin (account or legacy session) or teacher account; the view checks the loaded assignment and answers 404 | `/teacher/assignments`, `/teacher/assignment/<id>/edit`, `/duplicate`, `/results` (GET and the open-answer review POST), `/results.csv`, `/teacher/practical-submissions`, `/teacher/practical/submission-file/<file_id>/download` |
+| `public` | any session, signed in or not | `/`, `/grade/<n>`, `/section/<slug>`, `/subjects/...`, `/physics...`, `/healthz`, `/favicon.ico`, sign-in (`/login`, `POST /login/totp`), `POST /logout`, `/quiz/<assignment_id>` |
+| `teacher` | teacher or admin account | `/teacher/new`, `/teacher/assignment/<id>` |
+| `admin` | admin account only (after the second factor) | `/admin/open-question-candidates`, `/dzi...`, every other `/teacher...` route |
+| `signed_in` | any active account (student, teacher or admin) | `/account/password` |
+| `assignment_owner` | admin account or teacher account; the view checks the loaded assignment and answers 404 | `/teacher/assignments`, `/teacher/assignment/<id>/edit`, `/duplicate`, `/results` (GET and the open-answer review POST), `/results.csv`, `/teacher/practical-submissions`, `/teacher/practical/submission-file/<file_id>/download` |
 | `attempt_owner` | route is reachable; the view checks attempt ownership and answers 404 | `/quiz/attempt/<id>`, `/quiz/attempt/<id>/result`, `/quiz/attempt/<id>/practical/...` |
-| `profile_switch` | `/profile/<profile>`: `admin` needs an admin session, other targets are public | `/profile/<profile>` |
 
 Flask's built-in `static` view cannot be decorated; `web.access` treats it as
 `public` by name.
@@ -130,12 +119,12 @@ Flask's built-in `static` view cannot be decorated; `web.access` treats it as
 Management of an assignment is decided by one pure predicate,
 `web.access.can_manage_assignment(principal, owner_user_id)`:
 
-- an admin Principal (account admin after the second factor, or the legacy
-  admin session) manages every assignment, including unowned ones;
+- an admin Principal (an account admin after the second factor) manages every
+  assignment, including unowned ones;
 - a teacher account manages only rows whose `owner_user_id` equals its
   non-NULL `users.id`;
-- everything else is denied: anonymous, students, the legacy tester, a
-  pending second factor (not a Principal), and a teacher on an unowned (NULL)
+- everything else is denied: anonymous, students, a pending second factor
+  (not a Principal), and a teacher on an unowned (NULL)
   or foreign row. Both ids must be non-NULL before they are compared, so a
   missing account id never matches a missing owner.
 
@@ -146,23 +135,21 @@ filters `qa.owner_user_id = ?` in the query (index
 reuses both without import cycles.
 
 The `assignment_owner` routes first pass the central policy (admin or teacher
-account; anonymous, students and the legacy tester are redirected to `/login`),
+account; anonymous is redirected to `/login`, a student account gets 403),
 then load the assignment and answer 404 when it is missing, foreign or, for a
 teacher, unowned. Results, CSV (filtered or not) and the open-answer review all
 use the same gate; a reviewed answer must also belong to an attempt of the
 assignment in the URL, so an answer id from another assignment is 404. Edit
 changes only the title and time limit; a submitted `owner_user_id` is ignored.
-A duplicate belongs to the acting account (NULL for a legacy admin session),
-never to the source's owner. Student/public quiz loading
+A duplicate belongs to the acting account, never to the source's owner. Student/public quiz loading
 (`quiz_fetch_assignment`) is not owner-scoped.
 
-Assignment detail retains the `teacher` route policy and shows the row to whoever
-may manage it, plus the legacy tester on an unowned row. That legacy branch is
-temporary view-only compatibility until the cutover: it shows no management
-controls and grants none of the routes above. Missing or inaccessible
-assignments return 404 before attempts are read. Creation records the creator's
-`users.id`, or NULL for a legacy session. Existing rows remain NULL without a
-backfill; they are admin-only for management. The `/teacher` dashboard stays
+Assignment detail retains the `teacher` route policy and shows the row to
+exactly whoever may manage it (`quiz_can_access_assignment` is
+`can_manage_assignment` on the loaded row); there is no view-only exception.
+Missing or inaccessible assignments return 404 before attempts are read.
+Creation records the creator's `users.id`. Rows created before ownership
+existed remain NULL without a backfill; they are admin-only. The `/teacher` dashboard stays
 `admin`.
 
 ### Practical review (Accounts PR8)
@@ -181,8 +168,8 @@ quiz_assignments.owner_user_id
 - `/teacher/practical-submissions` and
   `/teacher/practical/submission-file/<file_id>/download` are
   `assignment_owner`: an admin or a teacher account passes the route policy;
-  anonymous, students, the legacy tester and a pending second factor are
-  redirected to `/login`.
+  anonymous and a pending second factor are redirected to `/login`, a student
+  account gets 403.
 - The list filters `qa.owner_user_id = ?` in its one joined query
   (`assignment_management_scope`); an admin gets every submission. Stored files
   of rows outside the scope are never looked up on disk.
@@ -192,21 +179,15 @@ quiz_assignments.owner_user_id
 - Authorization precedes filesystem access: the deleted flag, the stored-path
   confinement (`practical_uploaded_file_safe_path`), the on-disk check and
   `send_file` run only for an authorized principal, and are unchanged.
-- Practical data of an unowned (NULL) assignment is admin-only. The legacy
-  tester has no practical-review access; the view-only detail compatibility
-  above does not extend to it.
+- Practical data of an unowned (NULL) assignment is admin-only.
 - The student practical page and upload stay `attempt_owner` and are not
   owner-scoped. The official resource download
   (`/dzi/practical/resource/<id>/download`) and `/dzi...` stay `admin`.
 
 `signed_in` is used only by `/account/password`.
 
-The tester session satisfies `teacher` exactly as before. Whether a tester
-password should keep standing in for a teacher identity is a deferred product
-question for the accounts phase, not something the access layer decides.
-
-`ui_profile` is a cosmetic display choice. `current_principal()` reads only
-authentication state, so selecting the admin UI profile grants nothing.
+`current_principal()` never reads the session: it returns the principal
+`load_current_user()` put on `g`, or anonymous.
 
 Every route that accepts an unsafe method declares `@integrity_policy(SAME_ORIGIN)`.
 `oauth_state` and `provider_signature` are reserved for future external flows
@@ -225,11 +206,10 @@ state are never in the cookie; they are read from the `users` row on every
 request. The cookie itself is unchanged: a browser-session cookie, `Secure`,
 `HttpOnly`, `SameSite=Strict`, no remember-me.
 
-**Precedence.** While any account key is present, the account is the only
-identity: legacy keys in the same cookie are ignored. An identity that does not
-resolve (unknown or disabled user, key mismatch, expired or malformed `iat`)
-makes the request anonymous and drops the account keys together with the legacy
-auth keys, so it can never fall back to a legacy privilege.
+**Fail closed.** The account keys are the only identity the application reads.
+An identity that does not resolve (unknown or disabled user, key mismatch,
+expired or malformed `iat`) makes the request anonymous and drops the account
+keys from the cookie; there is nothing else to fall back to.
 
 **Absolute lifetime.** Measured from `iat`, by the role in the database:
 30 days for `student` and `teacher`, 12 hours for `admin`. A missing or
@@ -282,10 +262,7 @@ role decides: admin → `/teacher`, teacher → `/teacher/new`, student → `/`.
 **Logout (`POST /logout`).** Clears the whole session of this browser and
 redirects to `/`. It does not rotate `session_key`, so other devices stay signed
 in; "sign out everywhere" is `manage_accounts sign-out`. There is no `GET
-/logout` (405). Clearing the session also removes any legacy key, and with the
-bridge disabled such a key would grant nothing anyway. The legacy
-`GET /tester/logout` and `GET /admin/logout` exist only while the bridge is
-enabled (404 otherwise).
+/logout` (405), and it is the only sign-out route.
 
 **Password change (`/account/password`).** Requires the current password, a new
 password that meets the account policy (10 characters, 14 for an admin, at most
@@ -295,29 +272,24 @@ Success sets the hash, rotates `session_key` in one transaction, and re-issues
 this browser's session with the new key and the original `iat`; every other
 session of the account stops working on its next request.
 
-**Templates.** `tester_authenticated`, `admin_authenticated` and
-`can_generate_tests` are computed from `current_principal()`, so an account
-identity decides them and conflicting legacy keys cannot. `current_account` is
-the account principal or `None`. The footer label is the account's role; for
-legacy sessions it is still the cosmetic `ui_profile`.
+**Templates.** `current_account` is the account principal or `None`, and is
+what navigation and role-gated controls test (`current_account.is_admin`,
+`can_list_assignments`). A signed-out page offers one link, „Вход“ (`/login`).
+The footer shows the account's role label, and nothing for a signed-out
+visitor.
 
 **Caching.** Every response to a signed-in account carries
-`Cache-Control: no-store`. Anonymous, legacy-session, `static` and `/healthz`
-responses are not changed.
+`Cache-Control: no-store`. Anonymous, `static` and `/healthz` responses are not
+changed.
 
-## Profile Switching
+## Safe redirects
 
-`switch_profile` has the `profile_switch` policy, which depends on its
-argument:
-
-- switching to `tester` is allowed;
-- switching to `admin` needs an admin Principal: with the bridge disabled an
-  anonymous request is redirected to `/login` and a non-admin account gets 403;
-  with the bridge enabled it redirects to admin login unless the session is
-  already admin-authenticated;
-- redirect targets are passed through `safe_redirect_target`, which accepts
-  only a same-site absolute path and rejects `//host`, a scheme or host, a
-  backslash (`/\host` is read as `//host` by browsers) and control characters.
+`web/redirects.py` owns `safe_redirect_target`, which accepts only a same-site
+absolute path and rejects `//host`, a scheme or host, a backslash (`/\host` is
+read as `//host` by browsers) and control characters. The account login is its
+only caller: `next` is validated when the form is rendered and again when it
+is used. A denied request is redirected with `next=<request path>`, never with
+a client-supplied target or the `Referer`.
 
 ## Quiz Attempts
 
@@ -342,6 +314,9 @@ route's access decision. A new view must declare `@access_policy(...)` (and
 `@integrity_policy(...)` if it accepts unsafe methods); until it does, every
 session is denied and the coverage test in `tests/test_access_policy.py` fails.
 
-## Endpoint names after E5
+## Endpoint names
 
-The unprefixed legacy quiz endpoints (`quiz_start`, `quiz_attempt`, `quiz_result`) and the unprefixed auth endpoints (`tester_login`, `admin_login`, ...) no longer exist; use `quiz.*` and `auth.*`. Public URLs are unchanged. `ui_profile` is cosmetic UI state and never grants access; `web/redirects.py` owns `safe_redirect_target`.
+Every endpoint is blueprint-qualified: `account.*`, `browsing.*`, `dzi.*`,
+`practical.*`, `quiz.*`, `teacher.*`. The unprefixed quiz endpoints
+(`quiz_start`, `quiz_attempt`, `quiz_result`) and the `auth.*` endpoints no
+longer exist.

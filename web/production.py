@@ -2,9 +2,8 @@
 
 Development and tests keep importing ``web.app`` directly. Only this path
 enforces secrets, explicit state paths outside the code checkout, no schema
-changes from the web app, a fully migrated schema, exactly one trusted proxy hop,
-and account authentication as the only authority: the legacy shared-password
-bridge cannot be enabled here (Accounts PR9).
+changes from the web app, a fully migrated schema and exactly one trusted proxy hop.
+Sign-in is by account only; there is no other authentication to configure.
 Error messages name settings, never their values.
 """
 
@@ -18,11 +17,6 @@ from typing import Mapping
 
 from werkzeug.middleware.proxy_fix import ProxyFix
 
-from web.access import (
-    LEGACY_SHARED_LOGIN_CONFIG,
-    LEGACY_SHARED_LOGIN_ENV,
-    parse_legacy_shared_login,
-)
 from web.services.totp import TOTP_KEY_ENV
 from web.services.totp import key_problem as totp_key_problem
 
@@ -30,9 +24,6 @@ from web.services.totp import key_problem as totp_key_problem
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 MIGRATIONS_DIR = PROJECT_ROOT / "web" / "migrations"
 
-# The shared tester/admin passwords are not production settings any more: nothing
-# reads them while the legacy bridge is disabled, so they are neither required nor
-# validated (an env file may still carry them until PR10 without effect).
 REQUIRED_SECRETS = ("DZI_SECRET_KEY",)
 MIN_SECRET_KEY_LENGTH = 32
 
@@ -105,19 +96,6 @@ def production_config_errors(environ: Mapping[str, str]) -> list[str]:
     secret_key = environ.get("DZI_SECRET_KEY") or ""
     if secret_key and len(secret_key) < MIN_SECRET_KEY_LENGTH:
         errors.append(f"DZI_SECRET_KEY must be at least {MIN_SECRET_KEY_LENGTH} characters")
-
-    # Fail closed: production never serves the shared-password logins. An explicit
-    # request for them, or a value that cannot be read as "off", stops startup
-    # instead of being silently overridden.
-    try:
-        legacy_shared_login = parse_legacy_shared_login(environ.get(LEGACY_SHARED_LOGIN_ENV))
-    except ValueError:
-        legacy_shared_login = True
-    if legacy_shared_login:
-        errors.append(
-            f"{LEGACY_SHARED_LOGIN_ENV} must be unset or false in production "
-            "(shared tester/admin logins are not available; use accounts)"
-        )
 
     # Optional: unset means admin TOTP sign-in fails closed. A value that is set must
     # be a usable Fernet key; there is never a generated or derived fallback.
@@ -223,9 +201,6 @@ def create_production_app(environ: Mapping[str, str] | None = None):
         PREFERRED_URL_SCHEME="https",
         TRUSTED_HOSTS=[environ[PUBLIC_HOST_ENV].strip().lower(), "localhost", "127.0.0.1"],
     )
-    # Forced, not read from the environment: validation above already refused a
-    # truthy value, and nothing may turn the bridge on for a production app.
-    flask_app.config[LEGACY_SHARED_LOGIN_CONFIG] = False
     if not isinstance(flask_app.wsgi_app, ProxyFix):
         flask_app.wsgi_app = trusted_proxy(flask_app.wsgi_app)
     return flask_app

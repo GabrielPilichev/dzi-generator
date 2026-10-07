@@ -3,7 +3,7 @@
 Pins the application route map (rules, methods, access and request-integrity
 policy; endpoint names are deliberately not part of it), the ownership of the
 four E1 views, the dependency direction of the new modules, and the behavior of
-the moved pages for anonymous, tester and admin sessions.
+the moved pages for anonymous visitors and teacher and admin accounts.
 """
 
 import ast
@@ -11,6 +11,7 @@ import subprocess
 import sys
 import unittest
 
+from tests.auth_helpers import client_as
 from tests.support import ROOT, IsolatedAppTestCase, web_app
 from web import access, request_integrity
 
@@ -18,8 +19,6 @@ from web import access, request_integrity
 EXPECTED_URL_MAP = (
     ('/', ('GET',), 'public', None),
     ('/account/password', ('GET', 'POST'), 'signed_in', 'same_origin'),
-    ('/admin/login', ('GET', 'POST'), 'public', 'same_origin'),
-    ('/admin/logout', ('GET',), 'admin', None),
     ('/admin/open-question-candidates', ('GET',), 'admin', None),
     ('/dzi', ('GET',), 'admin', None),
     ('/dzi/practical/resource/<int:resource_id>/download', ('GET',), 'admin', None),
@@ -33,7 +32,6 @@ EXPECTED_URL_MAP = (
     ('/logout', ('POST',), 'public', 'same_origin'),
     ('/physics', ('GET',), 'public', None),
     ('/physics/grade/<int:grade>', ('GET',), 'public', None),
-    ('/profile/<profile>', ('GET',), 'profile_switch', None),
     ('/quiz/<int:assignment_id>', ('GET', 'POST'), 'public', 'same_origin'),
     ('/quiz/attempt/<int:attempt_id>', ('GET', 'POST'), 'attempt_owner', 'same_origin'),
     ('/quiz/attempt/<int:attempt_id>/practical/<source_slug>', ('GET',), 'attempt_owner', None),
@@ -56,9 +54,6 @@ EXPECTED_URL_MAP = (
     ('/teacher/new', ('GET', 'POST'), 'teacher', 'same_origin'),
     ('/teacher/practical-submissions', ('GET',), 'assignment_owner', None),
     ('/teacher/practical/submission-file/<int:file_id>/download', ('GET',), 'assignment_owner', None),
-    ('/tester', ('GET',), 'public', None),
-    ('/tester/login', ('GET', 'POST'), 'public', 'same_origin'),
-    ('/tester/logout', ('GET',), 'public', None),
 )
 
 E1_ENDPOINTS = {
@@ -66,12 +61,6 @@ E1_ENDPOINTS = {
     "/dzi/source/<source_slug>": "dzi.dzi_source_view",
     "/dzi/source/<source_slug>/practical": "dzi.dzi_practical_source",
     "/admin/open-question-candidates": "dzi.admin_open_question_candidates",
-}
-
-SESSIONS = {
-    "anonymous": {},
-    "tester": {"tester_authenticated": True, "ui_profile": "tester"},
-    "admin": {"admin_authenticated": True, "ui_profile": "admin"},
 }
 
 
@@ -167,10 +156,7 @@ class DziRoutesBehaviorTest(IsolatedAppTestCase):
     SLUG = "may_2025_v2"
 
     def get(self, who, path):
-        client = web_app.app.test_client()
-        with client.session_transaction() as state:
-            state.update(SESSIONS[who])
-        return client.get(path)
+        return client_as(web_app.app, web_app.app.config["DB_PATH"], who).get(path)
 
     def test_admin_sees_every_e1_page(self):
         for path in ("/dzi", f"/dzi/source/{self.SLUG}",
@@ -179,14 +165,15 @@ class DziRoutesBehaviorTest(IsolatedAppTestCase):
                 response = self.get("admin", path)
                 self.assertEqual(response.status_code, 200)
 
-    def test_anonymous_is_sent_to_admin_login_and_tester_is_refused(self):
+    def test_anonymous_is_sent_to_the_account_login_and_a_teacher_is_refused(self):
         for path in ("/dzi", f"/dzi/source/{self.SLUG}",
                      f"/dzi/source/{self.SLUG}/practical", "/admin/open-question-candidates"):
             with self.subTest(path=path):
-                anonymous = self.get("anonymous", path)
-                self.assertEqual(anonymous.status_code, 302)
-                self.assertTrue(anonymous.headers["Location"].startswith("/admin/login"))
-                self.assertNotEqual(self.get("tester", path).status_code, 200)
+                for who in ("anonymous", "historical"):
+                    response = self.get(who, path)
+                    self.assertEqual(response.status_code, 302)
+                    self.assertEqual(response.headers["Location"], f"/login?next={path}")
+                self.assertEqual(self.get("teacher", path).status_code, 403)
 
     def test_unknown_or_malformed_source_is_404_for_admin(self):
         for slug in ("bogus", "may_2099_v9", "may_2025", "x_y_z"):
@@ -205,18 +192,14 @@ class DziRoutesBehaviorTest(IsolatedAppTestCase):
         self.assertIn(f'href="/dzi/source/{self.SLUG}"', html)
 
     def test_unsafe_methods_are_not_allowed(self):
-        client = web_app.app.test_client()
-        with client.session_transaction() as state:
-            state.update(SESSIONS["admin"])
+        client = client_as(web_app.app, web_app.app.config["DB_PATH"], "admin")
         for path in ("/dzi", f"/dzi/source/{self.SLUG}", "/admin/open-question-candidates"):
             with self.subTest(path=path):
                 response = client.post(path, headers={"Origin": "http://localhost"})
                 self.assertEqual(response.status_code, 405)
 
     def test_cross_origin_post_is_still_refused_before_routing(self):
-        client = web_app.app.test_client()
-        with client.session_transaction() as state:
-            state.update(SESSIONS["admin"])
+        client = client_as(web_app.app, web_app.app.config["DB_PATH"], "admin")
         response = client.post("/dzi", headers={"Origin": "http://evil.example"})
         self.assertIn(response.status_code, (400, 403))
 
