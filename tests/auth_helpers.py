@@ -12,8 +12,10 @@ import sqlite3
 import time
 from contextlib import closing
 
+import pyotp
+
 from tests.support import ROOT
-from web.services import accounts
+from web.services import accounts, totp
 
 
 def add_users_schema(conn: sqlite3.Connection) -> None:
@@ -65,3 +67,19 @@ def sign_in_teacher(client, db_path, **account_options) -> dict:
 
 def sign_in_admin(client, db_path, **account_options) -> dict:
     return login_as(client, db_path, "admin", **account_options)
+
+
+def enroll_totp(db_path, user_id: int, key, confirmed_at) -> dict:
+    """Give an account a confirmed TOTP credential with a fresh synthetic secret.
+
+    Confirmed with the code of ``confirmed_at`` (a ``datetime``), whose step is then
+    used up. Enrolment and confirmation rotate the session key; the new one is
+    returned with the secret and the one-time recovery codes.
+    """
+    with closing(sqlite3.connect(str(db_path))) as conn:
+        uri = totp.enroll(conn, user_id, key, f"user{user_id}@example.bg")
+        secret = pyotp.parse_uri(uri).secret
+        recovery_codes = totp.confirm(conn, user_id, key, pyotp.TOTP(secret).at(confirmed_at), confirmed_at)
+        conn.commit()
+        session_key = conn.execute("SELECT session_key FROM users WHERE id = ?", (user_id,)).fetchone()[0]
+    return {"secret": secret, "recovery_codes": recovery_codes, "session_key": session_key}

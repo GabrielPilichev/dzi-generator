@@ -78,6 +78,9 @@ class AssignmentOwnerMigrationTest(unittest.TestCase):
         after = self.contents()
         self.assertEqual(after.pop("quiz_assignments"),
                          [(*row, None) for row in before.pop("quiz_assignments")])
+        # Tables created by later migrations (016's TOTP tables) start empty.
+        for table in set(after) - set(before):
+            self.assertEqual(after.pop(table), [], table)
         self.assertEqual(after, before)
         self.assertEqual(self.conn.execute("PRAGMA foreign_key_check").fetchall(), [])
         new_id = self.conn.execute("""
@@ -140,8 +143,7 @@ class AssignmentOwnerFreshBuildTest(unittest.TestCase):
             with closing(sqlite3.connect(path)) as conn:
                 self.assertEqual(conn.execute("SELECT COUNT(*) FROM quiz_assignments").fetchone(), (0,))
                 self.assertEqual(conn.execute("SELECT COUNT(*) FROM users").fetchone(), (0,))
-                self.assertEqual(conn.execute("SELECT MAX(filename) FROM schema_migrations").fetchone(),
-                                 (MIGRATION,))
+                self.assertIn((MIGRATION,), conn.execute("SELECT filename FROM schema_migrations").fetchall())
                 self.assertIn("owner_user_id", [r[1] for r in conn.execute("PRAGMA table_info(quiz_assignments)")])
                 self.assertEqual(conn.execute("PRAGMA foreign_key_check").fetchall(), [])
                 self.assertEqual(canonical_tables.classification_problems(conn), [])

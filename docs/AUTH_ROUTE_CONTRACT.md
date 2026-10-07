@@ -5,7 +5,7 @@ Four separate concerns, deliberately kept apart:
 - **Authentication** — who the session is. Two mechanisms coexist during the
   accounts bridge:
   - an **account** identity (`uid`, `sk`, `iat`), issued by `web/blueprints/account.py`
-    (endpoints `account.login`, `account.logout`, `account.password`) and resolved
+    (endpoints `account.login`, `account.login_totp`, `account.logout`, `account.password`) and resolved
     to a principal on every request by `load_current_user()` in `web/app.py`;
   - the **legacy shared passwords** (`tester_authenticated`,
     `admin_authenticated`), owned by the login/logout routes in `web/blueprints/auth.py` (endpoints `auth.tester_login`, `auth.admin_login`, `auth.tester_logout`, `auth.admin_logout`, `auth.switch_profile`, `auth.tester_home`).
@@ -56,7 +56,7 @@ a coverage test walks `app.url_map` and fails on any undeclared endpoint.
 
 | Policy | Meaning | Routes |
 | --- | --- | --- |
-| `public` | any session, signed in or not | `/`, `/grade/<n>`, `/section/<slug>`, `/subjects/...`, `/physics...`, `/tester`, `/healthz`, `/favicon.ico`, logins (`/login`, `/tester/login`, `/admin/login`), `POST /logout`, `/tester/logout`, `/quiz/<assignment_id>` |
+| `public` | any session, signed in or not | `/`, `/grade/<n>`, `/section/<slug>`, `/subjects/...`, `/physics...`, `/tester`, `/healthz`, `/favicon.ico`, logins (`/login`, `POST /login/totp`, `/tester/login`, `/admin/login`), `POST /logout`, `/tester/logout`, `/quiz/<assignment_id>` |
 | `teacher` | teacher or admin account, or a tester or admin session | `/teacher/new`, `/teacher/assignment/<id>` |
 | `admin` | admin account or admin session only | `/admin/...`, `/dzi...`, every other `/teacher...` route, `/admin/logout` |
 | `signed_in` | any active account (student, teacher or admin); a legacy tester/admin session is not an account | `/account/password` |
@@ -94,7 +94,8 @@ and are not in use.
 Accounts are created only by `python3 -m src.manage_accounts`; there is no
 registration, reset or OAuth route.
 
-**Session contents.** A successful `POST /login` clears the session, carries
+**Session contents.** A successful `POST /login` (for an admin, the completed
+`POST /login/totp`) clears the session, carries
 over only `quiz_attempt_owner:*` keys, and sets `uid`, `sk` (the user's
 `session_key`) and `iat` (issue time, epoch seconds). Role, name and active
 state are never in the cookie; they are read from the `users` row on every
@@ -129,6 +130,27 @@ logged. A malformed identifier is throttled under a bounded key that no valid
 email can equal. Expired rows are deleted when a failure is recorded. Nginx adds
 a per-IP limit on `POST /login` (`lp_login`, 1 r/s, burst 40). An operator lifts
 one email's lockout with `manage_accounts clear-throttle --email <email>`.
+
+**Admin second factor (`POST /login/totp`, PR T).** For an account whose role is
+`admin`, a correct password does not issue the account session. If the account has
+no confirmed TOTP credential the sign-in is refused (403, „Профилът изисква
+двуфакторно удостоверяване, което още не е настроено. …“); otherwise the session is
+replaced (attempt-owner keys carried over) by a pending second factor `mfa_uid`,
+`mfa_sk`, `mfa_iat` and the code form is rendered. The pending keys are not account
+keys: `load_current_user` never reads them, so the request stays anonymous and every
+protected route is denied by the same central policy check. `POST /login/totp` (public,
+same-origin) accepts the pending state only if it is at most 5 minutes old, names an
+active admin whose `session_key` still matches, the credential is confirmed, and no
+second factor completed since the pending state was issued; otherwise it drops the
+pending keys and asks for a new sign-in. The code is a TOTP code (current step ±1,
+only a step newer than `last_used_step`) or an unused recovery code. Failures,
+including malformed and missing codes, count against the same per-account throttle
+as the password form, and the password step never clears it; a blocked account gets
+429. Success clears the throttle, records `last_login_at` and issues exactly `uid`,
+`sk`, `iat` through the normal session issuance, then redirects through
+`safe_redirect_target` (fallback `/teacher`). Without a usable `DZI_TOTP_KEY` a TOTP
+code fails closed with 503 and is not counted. Nginx applies the `lp_login` limit to
+`/login/totp` too. Enrolment and reset exist only in `manage_accounts`.
 
 **Redirect after login.** `next` is accepted only if `safe_redirect_target`
 approves it, when the form is rendered and again when it is used. Otherwise the

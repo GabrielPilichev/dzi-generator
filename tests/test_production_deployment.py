@@ -648,10 +648,11 @@ class DeploymentTemplateTest(unittest.TestCase):
                                   ("lp_upload", "2r/s", 45)):
             self.assertIn(f"zone={zone}:1m rate={rate};", conf)
             self.assertIn(f"limit_req zone={zone} burst={burst} nodelay;", conf)
-        for path in ("/admin/login", "/tester/login", "/login"):
+        for path in ("/admin/login", "/tester/login", "/login", "/login/totp"):
             self.assertIn(f"location = {path}", conf)
         self.assertRegex(conf, r"location = /login \{\s+limit_req zone=lp_login burst=40 nodelay;")
-        self.assertEqual(len(re.findall(r"limit_req zone=lp_login\b", conf)), 1)
+        self.assertRegex(conf, r"location = /login/totp \{\s+limit_req zone=lp_login burst=40 nodelay;")
+        self.assertEqual(len(re.findall(r"limit_req zone=lp_login\b", conf)), 2)
         self.assertIn("location ~ ^/quiz/[0-9]+$", conf)
         self.assertIn("location ~ ^/quiz/attempt/[0-9]+$", conf)
         self.assertIn("location ~ ^/quiz/attempt/[0-9]+/practical/[^/]+/task/[0-9]+/upload$", conf)

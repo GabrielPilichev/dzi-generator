@@ -8,7 +8,9 @@ Throttle time is injected, so nothing here sleeps.
 """
 
 import ast
+import html
 import itertools
+import re
 import sqlite3
 import time
 import unittest
@@ -17,9 +19,11 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import patch
 
+import pyotp
+from cryptography.fernet import Fernet
 from werkzeug.security import generate_password_hash
 
-from tests.auth_helpers import create_account, set_account_session
+from tests.auth_helpers import create_account, enroll_totp, set_account_session
 from tests.support import ROOT, IsolatedAppTestCase, web_app
 from web import access, request_integrity
 from web import db as web_db
@@ -37,6 +41,8 @@ T0 = datetime(2026, 3, 1, 9, 0, 0, tzinfo=timezone.utc)
 SAME_ORIGIN = {"Origin": "http://localhost"}
 CROSS_ORIGIN = {"Origin": "http://evil.example"}
 _emails = itertools.count(1)
+# Synthetic, generated per test run; admins made below get a TOTP under it.
+TOTP_KEY = Fernet.generate_key()
 
 
 class AccountAppTestCase(IsolatedAppTestCase):
@@ -53,12 +59,44 @@ class AccountAppTestCase(IsolatedAppTestCase):
         clock = patch.object(account_blueprint, "_utcnow", lambda: self.now)
         clock.start()
         self.addCleanup(clock.stop)
+        config = patch.dict(self.app.config, {"TOTP_ENCRYPTION_KEY": TOTP_KEY})
+        config.start()
+        self.addCleanup(config.stop)
 
-    def make(self, role="teacher", *, password=PASSWORD, **options):
-        """A real account row with a unique email; returns id, session_key and email."""
+    def make(self, role="teacher", *, password=PASSWORD, totp=True, **options):
+        """A real account row with a unique email; returns id, session_key and email.
+
+        An admin also gets a confirmed TOTP (``totp_secret``, ``recovery_codes``)
+        unless ``totp=False``.
+        """
         email = options.pop("email", None) or f"user{next(_emails)}@example.bg"
         account = create_account(self.db_path, role, email=email, password=password, **options)
-        return {**account, "email": email}
+        account = {**account, "email": email, "role": role}
+        if role == "admin" and totp:
+            enrolled = enroll_totp(self.db_path, account["id"], TOTP_KEY, self.now - timedelta(minutes=5))
+            account.update(session_key=enrolled["session_key"], totp_secret=enrolled["secret"],
+                           recovery_codes=enrolled["recovery_codes"])
+        return account
+
+    def code(self, account, at=None):
+        return pyotp.TOTP(account["totp_secret"]).at(at or self.now)
+
+    def submit_code(self, code, *, client=None, headers=SAME_ORIGIN, **form):
+        return (client or self.client).post("/login/totp", data={"code": code, **form}, headers=headers)
+
+    def sign_in(self, account, *, client=None, **form):
+        """Sign in through the real forms; an admin also answers the TOTP step.
+
+        The admin step moves the clock to a fresh TOTP step first, so each sign-in uses
+        a new code, and submits the ``next`` the TOTP page carries.
+        """
+        if account["role"] != "admin":
+            return self.login(account["email"], client=client, **form)
+        self.now += timedelta(seconds=31)
+        page = self.login(account["email"], client=client, **form)
+        self.assertEqual(page.status_code, 200, self.body(page))
+        next_value = html.unescape(re.search(r'name="next" value="([^"]*)"', self.body(page)).group(1))
+        return self.submit_code(self.code(account), client=client, next=next_value)
 
     def query(self, sql, params=()):
         with closing(sqlite3.connect(self.db_path)) as conn:
@@ -127,7 +165,7 @@ class LoginTest(AccountAppTestCase):
                 account = self.make(role)
                 client = self.app.test_client()
                 before = int(time.time())
-                response = self.login(account["email"], client=client)
+                response = self.sign_in(account, client=client)
                 self.assertEqual((response.status_code, response.headers["Location"]), (302, home))
                 state = self.session(client)
                 self.assertEqual(set(state), {"uid", "sk", "iat"})
@@ -321,15 +359,17 @@ class LoginRedirectTest(AccountAppTestCase):
 
     def test_safe_next_is_followed(self):
         account = self.make("admin")
-        response = self.login(account["email"], next="/teacher/assignments?page=2")
+        response = self.sign_in(account, next="/teacher/assignments?page=2")
         self.assertEqual(response.headers["Location"], "/teacher/assignments?page=2")
 
     def test_next_from_the_query_string_reaches_the_form_and_is_followed(self):
         account = self.make("admin")
         self.assertIn('name="next" value="/teacher/assignments"',
                       self.body(self.client.get("/login?next=/teacher/assignments")))
-        response = self.client.post("/login?next=/teacher/assignments",
-                                    data={"email": account["email"], "password": PASSWORD}, headers=SAME_ORIGIN)
+        page = self.client.post("/login?next=/teacher/assignments",
+                                data={"email": account["email"], "password": PASSWORD}, headers=SAME_ORIGIN)
+        self.assertIn('name="next" value="/teacher/assignments"', self.body(page))
+        response = self.submit_code(self.code(account), next="/teacher/assignments")
         self.assertEqual(response.headers["Location"], "/teacher/assignments")
 
     def test_unsafe_next_falls_back_to_the_role_home(self):
@@ -338,8 +378,8 @@ class LoginRedirectTest(AccountAppTestCase):
         for target in self.UNSAFE:
             for role, home in homes.items():
                 with self.subTest(next=target, role=role):
-                    response = self.login(accounts_by_role[role]["email"], client=self.app.test_client(),
-                                          next=target)
+                    response = self.sign_in(accounts_by_role[role], client=self.app.test_client(),
+                                            next=target)
                     self.assertEqual((response.status_code, response.headers["Location"]), (302, home))
 
     def test_unsafe_next_is_not_rendered_into_the_form(self):
@@ -1071,6 +1111,7 @@ class AccountBlueprintBoundariesTest(unittest.TestCase):
     ROUTES = {
         "/login": ("account.login", {"GET", "POST"}, access.PUBLIC),
         "/logout": ("account.logout", {"POST"}, access.PUBLIC),
+        "/login/totp": ("account.login_totp", {"POST"}, access.PUBLIC),
         "/account/password": ("account.password", {"GET", "POST"}, access.SIGNED_IN),
     }
 
@@ -1089,8 +1130,11 @@ class AccountBlueprintBoundariesTest(unittest.TestCase):
 
     def test_no_registration_reset_or_oauth_route_exists(self):
         paths = " ".join(rule.rule for rule in web_app.app.url_map.iter_rules())
-        for fragment in ("register", "signup", "reset", "oauth", "callback", "totp", "verify"):
+        for fragment in ("register", "signup", "reset", "oauth", "callback", "verify"):
             self.assertNotIn(fragment, paths)
+        # The admin second factor has exactly one route, and no web enrolment exists.
+        self.assertEqual([rule.rule for rule in web_app.app.url_map.iter_rules() if "totp" in rule.rule],
+                         ["/login/totp"])
 
     def test_blueprint_imports_neither_web_app_nor_another_controller(self):
         imported = imported_modules("web/blueprints/account.py")
