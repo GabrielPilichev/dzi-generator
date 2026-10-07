@@ -2,6 +2,7 @@ import json
 import unittest
 
 
+from tests.auth_helpers import sign_in_admin, sign_in_teacher
 from tests.support import IsolatedAppTestCase, web_app
 
 
@@ -45,14 +46,10 @@ class AssignmentResultsSortTest(IsolatedAppTestCase):
         self.client = self.app.test_client()
 
     def _login_admin(self):
-        with self.client.session_transaction() as sess:
-            sess["admin_authenticated"] = True
-            sess["ui_profile"] = "admin"
+        sign_in_admin(self.client, web_app.app.config["DB_PATH"])
 
     def _login_tester(self):
-        with self.client.session_transaction() as sess:
-            sess["tester_authenticated"] = True
-            sess["ui_profile"] = "tester"
+        sign_in_teacher(self.client, web_app.app.config["DB_PATH"])
 
     def _create_assignment(self, *, question_plan_json=None, title="Sort Quiz"):
         conn = web_app.quiz_db()

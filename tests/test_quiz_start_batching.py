@@ -9,6 +9,7 @@ import unittest
 from unittest.mock import patch
 
 from src.subject_assessment import AssessmentScope
+from tests.auth_helpers import sign_in_admin
 from tests.subject_fixtures import add_curriculum, add_membership, add_question, add_section, add_topic, four_options
 from tests.support import CANONICAL, IT_ONLY, IsolatedAppTestCase, isolated_app, web_app
 from web.services import quiz as quiz_service
@@ -33,8 +34,7 @@ def traced(fn):
 
 def admin():
     client = web_app.app.test_client()
-    with client.session_transaction() as session:
-        session.update(tester_authenticated=True, admin_authenticated=True, ui_profile="admin")
+    sign_in_admin(client, web_app.app.config["DB_PATH"])
     return client
 
 

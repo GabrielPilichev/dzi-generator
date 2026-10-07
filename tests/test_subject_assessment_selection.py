@@ -4,6 +4,7 @@ import json
 
 from src.generate_dzi_training_set import get_pool
 from src.subject_assessment import AssessmentScope
+from tests.auth_helpers import sign_in_admin
 from tests.subject_fixtures import (
     add_curriculum, add_membership, add_question, add_section, add_topic, four_options,
 )
@@ -69,9 +70,7 @@ class SubjectAssessmentSelectionTest(IsolatedAppTestCase):
 
     def setUp(self):
         self.client = self.app.test_client()
-        with self.client.session_transaction() as session:
-            session["tester_authenticated"] = True
-            session["admin_authenticated"] = True
+        sign_in_admin(self.client, web_app.app.config["DB_PATH"])
 
     def _create(self, section_id, subject, *, count=1, open_count=0, source=""):
         response = self.client.post("/teacher/new", data={

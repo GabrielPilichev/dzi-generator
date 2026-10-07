@@ -74,6 +74,7 @@ class MotionFoundationTest(IsolatedAppTestCase):
             self.assertNotIn("data-motion", (TEMPLATES / name).read_text(encoding="utf-8"))
 
     def test_navigation_keeps_immediate_state_and_has_native_no_js_fallback(self):
+        # The navigation template still reads the legacy session keys directly.
         with self.client.session_transaction() as session:
             session["tester_authenticated"] = True
             session["ui_profile"] = "tester"

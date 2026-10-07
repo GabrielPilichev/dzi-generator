@@ -2,6 +2,7 @@ from unittest.mock import patch
 import unittest
 
 
+from tests.auth_helpers import sign_in_admin
 from tests.support import IsolatedAppTestCase, web_app
 from web.blueprints import teacher as teacher_module
 from web.services import quiz as quiz_service
@@ -31,9 +32,7 @@ class HardenAssignmentInputsTest(IsolatedAppTestCase):
         # Clean up assignments for each test if needed, but let's just use unique titles
     
     def _login_admin(self):
-        with self.client.session_transaction() as sess:
-            sess["admin_authenticated"] = True
-            sess["ui_profile"] = "admin"
+        sign_in_admin(self.client, web_app.app.config["DB_PATH"])
 
     def test_teacher_new_malformed_numeric_input(self):
         self._login_admin()

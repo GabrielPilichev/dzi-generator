@@ -4,6 +4,7 @@ import unittest
 from pathlib import Path
 
 
+from tests.auth_helpers import sign_in_admin
 from tests.support import IsolatedAppTestCase, web_app
 
 
@@ -461,9 +462,7 @@ class SectionReviewAnswersTest(IsolatedAppTestCase):
         expected_answers = web_app.dzi_json_text_list(self.dzi_q23["correct_answer"])
         self.assertTrue(expected_answers)
 
-        with self.client.session_transaction() as sess:
-            sess["admin_authenticated"] = True
-            sess["ui_profile"] = "admin"
+        sign_in_admin(self.client, web_app.app.config["DB_PATH"])
         response = self.client.get(f"/dzi/source/{slug}")
         self.assertEqual(response.status_code, 200)
         body = response.data.decode("utf-8")
@@ -477,9 +476,7 @@ class SectionReviewAnswersTest(IsolatedAppTestCase):
     def test_dzi_source_renders_linked_question_image(self):
         slug = web_app.dzi_source_slug(self.dzi_q23)
 
-        with self.client.session_transaction() as sess:
-            sess["admin_authenticated"] = True
-            sess["ui_profile"] = "admin"
+        sign_in_admin(self.client, web_app.app.config["DB_PATH"])
         response = self.client.get(f"/dzi/source/{slug}")
         self.assertEqual(response.status_code, 200)
         body = response.data.decode("utf-8")

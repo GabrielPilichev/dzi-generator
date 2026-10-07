@@ -5,6 +5,7 @@ from datetime import datetime
 from unittest.mock import patch
 
 
+from tests.auth_helpers import sign_in_admin
 from tests.support import IsolatedAppTestCase, web_app
 from web.services import quiz as quiz_service
 
@@ -85,9 +86,7 @@ class TesterFlowSmokeTest(IsolatedAppTestCase):
         self.client = self.app.test_client()
 
     def _login_admin(self):
-        with self.client.session_transaction() as sess:
-            sess["admin_authenticated"] = True
-            sess["ui_profile"] = "admin"
+        sign_in_admin(self.client, web_app.app.config["DB_PATH"])
 
     def _create_assignment(self, *, question_count=1, time_limit_minutes=None):
         conn = web_app.quiz_db()
