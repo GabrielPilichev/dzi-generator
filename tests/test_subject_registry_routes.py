@@ -12,6 +12,7 @@ from unittest.mock import patch
 from src.import_reviewed_subject_questions import import_batch
 from src.subject_assessment import AssessmentScope
 from src.subject_registry import PLATFORM_GRADES, SUBJECTS
+from tests.auth_helpers import sign_in_admin
 from tests.support import IsolatedAppTestCase, web_app, IT_ONLY
 from tests.test_homepage_search import _HTMLProbe
 
@@ -49,9 +50,7 @@ class _RouteTestCase(IsolatedAppTestCase):
         self.client = self.app.test_client()
 
     def login(self):
-        with self.client.session_transaction() as session:
-            session["tester_authenticated"] = True
-            session["admin_authenticated"] = True
+        sign_in_admin(self.client, web_app.app.config["DB_PATH"])
 
     def html(self, path, status=200):
         response = self.client.get(path)

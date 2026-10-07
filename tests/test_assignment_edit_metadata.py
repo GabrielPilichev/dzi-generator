@@ -51,18 +51,6 @@ class AssignmentEditMetadataTest(IsolatedAppTestCase):
     def _login_tester(self):
         sign_in_teacher(self.client, web_app.app.config["DB_PATH"])
 
-    def _login_legacy_admin(self):
-        # The assignment templates still read the legacy session keys directly, so
-        # UI-visibility assertions need the legacy admin session until the cutover.
-        with self.client.session_transaction() as sess:
-            sess["admin_authenticated"] = True
-            sess["ui_profile"] = "admin"
-
-    def _login_legacy_tester(self):
-        with self.client.session_transaction() as sess:
-            sess["tester_authenticated"] = True
-            sess["ui_profile"] = "tester"
-
     def _create_assignment(
         self,
         *,
@@ -233,7 +221,7 @@ class AssignmentEditMetadataTest(IsolatedAppTestCase):
     # --- validation -----------------------------------------------------
 
     def test_empty_title_rejected_and_original_preserved(self):
-        self._login_legacy_admin()
+        self._login_admin()
         assignment_id = self._create_assignment(title="Original Title", time_limit_minutes=10)
         try:
             response = self.client.post(
@@ -366,7 +354,7 @@ class AssignmentEditMetadataTest(IsolatedAppTestCase):
     def test_detail_shows_edit_form_for_admin_only(self):
         assignment_id = self._create_assignment(title="UI Source")
         try:
-            self._login_legacy_admin()
+            self._login_admin()
             admin_resp = self.client.get(f"/teacher/assignment/{assignment_id}")
             self.assertEqual(admin_resp.status_code, 200)
             admin_body = admin_resp.data.decode("utf-8")
@@ -378,7 +366,7 @@ class AssignmentEditMetadataTest(IsolatedAppTestCase):
             self.assertIn("фиксиран при създаване", admin_body)
 
             self.setUp()
-            self._login_legacy_tester()
+            self._login_tester()
             tester_resp = self.client.get(f"/teacher/assignment/{assignment_id}")
             self.assertEqual(tester_resp.status_code, 200)
             self.assertNotIn(

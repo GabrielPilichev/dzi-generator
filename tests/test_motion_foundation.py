@@ -2,6 +2,7 @@
 
 from pathlib import Path
 
+from tests.auth_helpers import sign_in_admin, sign_in_teacher
 from tests.support import IsolatedAppTestCase, web_app
 from tests.test_homepage_search import _HTMLProbe
 
@@ -59,9 +60,7 @@ class MotionFoundationTest(IsolatedAppTestCase):
             self.assertTrue(any(attrs.get("data-motion") == "intro" for _, attrs in parsed.elements()))
             self.assertFalse(any(attrs.get("data-motion") == "reveal" for _, attrs in parsed.elements()))
 
-        with self.client.session_transaction() as session:
-            session["admin_authenticated"] = True
-            session["ui_profile"] = "admin"
+        sign_in_admin(self.client, web_app.app.config["DB_PATH"])
         response = self.client.get("/teacher")
         self.assertEqual(response.status_code, 200)
         parsed = _HTMLProbe(response.get_data(as_text=True))
@@ -74,10 +73,7 @@ class MotionFoundationTest(IsolatedAppTestCase):
             self.assertNotIn("data-motion", (TEMPLATES / name).read_text(encoding="utf-8"))
 
     def test_navigation_keeps_immediate_state_and_has_native_no_js_fallback(self):
-        # The navigation template still reads the legacy session keys directly.
-        with self.client.session_transaction() as session:
-            session["tester_authenticated"] = True
-            session["ui_profile"] = "tester"
+        sign_in_teacher(self.client, web_app.app.config["DB_PATH"])
         html = self.client.get("/").get_data(as_text=True)
         self.assertIn('aria-controls="nav-menu-classes"', html)
         self.assertIn('aria-controls="nav-menu-subjects"', html)

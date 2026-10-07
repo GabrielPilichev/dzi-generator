@@ -1,6 +1,7 @@
 """Same-grade IT/Physics browsing, using only the isolated test database."""
 
 from src.subject_browsing import SubjectContentBrowser
+from tests.auth_helpers import sign_in_admin
 from tests.subject_fixtures import add_curriculum, add_membership, add_question, add_section, add_topic
 from web.services import browsing as browsing_service
 from tests.support import IsolatedAppTestCase, web_app, IT_ONLY
@@ -180,8 +181,7 @@ class SubjectScopedBrowsingTest(IsolatedAppTestCase):
         self.assertIn("8. клас", page.text)
         self.assertIn("/subjects/physics", page.hrefs())
         self.assertIn("/subjects/physics/8", page.hrefs())
-        with self.client.session_transaction() as session:
-            session["admin_authenticated"] = True
+        sign_in_admin(self.client, web_app.app.config["DB_PATH"])
         _, authenticated_page = self._page("/subjects/physics/8/f2-physics-grade8")
         physics_nav = next(
             attrs for tag, attrs in authenticated_page.elements("a")
@@ -206,8 +206,7 @@ class SubjectScopedBrowsingTest(IsolatedAppTestCase):
         for path in paths:
             with self.subTest(path=path, profile="anonymous"):
                 self.assertEqual(self.client.get(path).status_code, 200)
-        with self.client.session_transaction() as session:
-            session["admin_authenticated"] = True
+        sign_in_admin(self.client, web_app.app.config["DB_PATH"])
         for path in paths:
             with self.subTest(path=path, profile="admin"):
                 self.assertEqual(self.client.get(path).status_code, 200)

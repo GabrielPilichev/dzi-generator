@@ -11,6 +11,7 @@ from contextlib import ExitStack
 from src.import_reviewed_subject_questions import import_batch
 from src.subject_assessment import AssessmentScope
 from src.subject_registry import SUBJECTS, SubjectDefinition, grade_paths
+from tests.auth_helpers import sign_in_admin
 from tests.subject_fixtures import registered_subject
 from tests.support import ROOT, IsolatedAppTestCase, web_app
 from tests.test_homepage_search import _HTMLProbe
@@ -55,9 +56,7 @@ class _ExtraSubjectTestCase(IsolatedAppTestCase):
         self.client = web_app.app.test_client()
 
     def login(self):
-        with self.client.session_transaction() as session:
-            session["tester_authenticated"] = True
-            session["admin_authenticated"] = True
+        sign_in_admin(self.client, web_app.app.config["DB_PATH"])
 
     def page(self, path, status=200):
         response = self.client.get(path)

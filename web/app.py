@@ -356,17 +356,21 @@ def prevent_caching_for_accounts(response):
 
 @app.before_request
 def load_ui_profile():
-    if request.endpoint == "browsing.healthz":
-        return  # Monitoring probes get no session cookie.
+    if request.endpoint in ACCOUNT_LOADING_SKIPPED_ENDPOINTS:
+        # Monitoring probes get no session cookie, and neither endpoint renders a
+        # template or loads the account principal the profile is clamped against.
+        return
     profile = session.get("ui_profile", "tester")
     if profile not in VALID_UI_PROFILES:
         profile = "tester"
 
-    if profile == "admin" and not session.get("admin_authenticated"):
+    # Presentation only: the profile is clamped to what the request Principal may use.
+    is_admin = current_principal().is_admin
+    if profile == "admin" and not is_admin:
         profile = "tester"
 
     if session.get("ui_profile") not in VALID_UI_PROFILES or (
-        session.get("ui_profile") == "admin" and not session.get("admin_authenticated")
+        session.get("ui_profile") == "admin" and not is_admin
     ):
         session.pop("ui_profile", None)
     g.ui_profile = profile
