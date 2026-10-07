@@ -1,10 +1,24 @@
 #!/usr/bin/env python3
-"""Migration planner/runner for numbered SQLite migrations."""
+"""Migration planner/runner for numbered SQLite migrations.
+
+An ordinary migration runs with foreign keys enforced. A migration that must
+rebuild a table other tables reference (create the new table, copy, drop the
+old one, rename) opts in with this exact comment line before its first SQL
+statement:
+
+    -- learnpilot-migration: table-rebuild
+
+Such a file runs with foreign keys off, which SQLite only allows to be chosen
+outside a transaction, and is committed together with its schema_migrations
+row only after PRAGMA foreign_key_check is clean. See docs/DEPLOYMENT.md
+section 9.
+"""
 
 from __future__ import annotations
 
 import argparse
-import shutil
+import os
+import re
 import sqlite3
 import sys
 from datetime import datetime
@@ -23,10 +37,29 @@ DEFAULT_MIGRATIONS_DIR = Path("web/migrations")
 BACKUP_DIR_NAME = "local_backups"
 BASELINE_FILENAME = "000_baseline.sql"
 MIGRATION_BOOKKEEPING_TABLES = ("schema_migrations", "sqlite_sequence")
+SQLITE_SIDECAR_SUFFIXES = ("-journal", "-wal", "-shm")
+
+TABLE_REBUILD_DIRECTIVE = "-- learnpilot-migration: table-rebuild"
+# Every comment line that starts with "learnpilot" is reserved for directives,
+# so a misspelt one is an error instead of a silently ordinary migration.
+DIRECTIVE_LIKE_LINE = re.compile(r"--\s*learnpilot\b", re.IGNORECASE)
+# SQLite authorizer actions refused while a table-rebuild file runs, so that its
+# SQL cannot leave the runner's transaction or reach another database file.
+# SQLite reports END as COMMIT and RELEASE / ROLLBACK TO as savepoint actions.
+REBUILD_DENIED_ACTIONS = {
+    sqlite3.SQLITE_TRANSACTION: "transaction control",
+    sqlite3.SQLITE_SAVEPOINT: "a savepoint",
+    sqlite3.SQLITE_ATTACH: "ATTACH",
+    sqlite3.SQLITE_DETACH: "DETACH",
+}
 
 
 class BaselineRequired(RuntimeError):
     """A non-empty database must adopt 000 with --baseline-apply, not run it."""
+
+
+class MigrationError(RuntimeError):
+    """A migration file, its validation or the pre-migration backup was refused."""
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -71,14 +104,61 @@ def is_default_real_db_path(db_path: Path) -> bool:
     return db_path.resolve() == default_real_db_path()
 
 
-def create_backup_for_default_db(db_path: Path) -> Path:
-    backup_dir = PROJECT_ROOT / BACKUP_DIR_NAME
-    backup_dir.mkdir(parents=True, exist_ok=True)
+def _remove_with_sidecars(path: Path) -> None:
+    for candidate in (path, *(Path(f"{path}{suffix}") for suffix in SQLITE_SIDECAR_SUFFIXES)):
+        try:
+            candidate.unlink()
+        except (FileNotFoundError, NotADirectoryError):
+            pass
+
+
+def _unused_backup_path(backup_dir: Path) -> Path:
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     backup_path = backup_dir / f"questions.db.backup-{timestamp}"
-    shutil.copy2(db_path, backup_path)
-    if not backup_path.exists():
-        raise RuntimeError(f"Backup was not created: {backup_path}")
+    counter = 1
+    while backup_path.exists():
+        backup_path = backup_dir / f"questions.db.backup-{timestamp}-{counter}"
+        counter += 1
+    return backup_path
+
+
+def create_backup_for_default_db(db_path: Path) -> Path:
+    """Snapshot the repository database before the runner writes to it.
+
+    Uses the SQLite backup API, never a file copy: a copy of a WAL-mode
+    database misses every committed page still in the -wal file. The result is
+    one self-contained rollback-journal file that passed quick_check. Any
+    failure raises, so no migration runs without its backup. Production uses
+    the full snapshot of docs/DEPLOYMENT.md section 16, not this.
+    """
+    backup_dir = PROJECT_ROOT / BACKUP_DIR_NAME
+    backup_path = _unused_backup_path(backup_dir)
+    partial = backup_dir / f".{backup_path.name}.partial-{os.getpid()}"
+    try:
+        backup_dir.mkdir(parents=True, exist_ok=True)
+        _remove_with_sidecars(partial)
+        # mode=rw never creates a missing database but lets SQLite read the WAL;
+        # query_only forbids writes through this connection.
+        source = sqlite3.connect(f"{db_path.resolve().as_uri()}?mode=rw", uri=True, timeout=30)
+        try:
+            source.execute("PRAGMA query_only = ON")
+            target = sqlite3.connect(str(partial))
+            try:
+                source.backup(target)  # one step, one consistent snapshot
+                target.execute("PRAGMA journal_mode = DELETE").fetchone()
+                result = [row[0] for row in target.execute("PRAGMA quick_check")]
+                if result != ["ok"]:
+                    raise MigrationError(f"backup failed quick_check: {result[:5]}")
+            finally:
+                target.close()
+        finally:
+            source.close()
+        os.chmod(partial, 0o600)
+        os.replace(partial, backup_path)
+    except (OSError, sqlite3.Error) as exc:
+        raise MigrationError(f"backup of {db_path} failed, nothing was migrated: {exc}") from exc
+    finally:
+        _remove_with_sidecars(partial)
     return backup_path
 
 
@@ -119,6 +199,151 @@ def ensure_schema_migrations(conn: sqlite3.Connection) -> None:
 
 def foreign_key_check_rows(conn: sqlite3.Connection) -> list[sqlite3.Row]:
     return conn.execute("PRAGMA foreign_key_check").fetchall()
+
+
+def foreign_keys_enabled(conn: sqlite3.Connection) -> bool:
+    return bool(conn.execute("PRAGMA foreign_keys").fetchone()[0])
+
+
+def set_foreign_keys(conn: sqlite3.Connection, enabled: bool) -> None:
+    """Switch enforcement and confirm it took effect.
+
+    SQLite silently ignores this pragma inside a transaction, so it is refused
+    there and the resulting state is read back instead of assumed.
+    """
+    state = "ON" if enabled else "OFF"
+    if conn.in_transaction:
+        raise MigrationError(f"cannot set foreign_keys = {state} inside a transaction")
+    conn.execute(f"PRAGMA foreign_keys = {state}")
+    if foreign_keys_enabled(conn) != enabled:
+        raise MigrationError(f"SQLite did not apply foreign_keys = {state}")
+
+
+def is_table_rebuild_migration(filename: str, sql: str) -> bool:
+    """True when the file opts in to table-rebuild execution.
+
+    The only directive is TABLE_REBUILD_DIRECTIVE, alone on a line, once,
+    before the first SQL statement. Anything else that looks like a directive
+    is refused.
+    """
+    found = False
+    in_header = True
+    for number, raw_line in enumerate(sql.splitlines(), start=1):
+        line = raw_line.strip()
+        if DIRECTIVE_LIKE_LINE.match(line):
+            where = f"{filename}:{number}"
+            if line != TABLE_REBUILD_DIRECTIVE:
+                raise MigrationError(
+                    f"{where}: unsupported migration directive {line!r}; "
+                    f"the only directive is {TABLE_REBUILD_DIRECTIVE!r}"
+                )
+            if not in_header:
+                raise MigrationError(f"{where}: the directive must come before the first SQL statement")
+            if found:
+                raise MigrationError(f"{where}: duplicate migration directive")
+            found = True
+        elif line and not line.startswith("--"):
+            in_header = False
+    return found
+
+
+def read_migration_sql(path: Path) -> str:
+    # utf-8-sig drops a leading byte order mark, which would otherwise hide the
+    # directive on the first line and turn a rebuild into an ordinary migration.
+    return path.read_text(encoding="utf-8-sig")
+
+
+def table_rebuild_migrations(migrations_dir: Path, filenames: list[str]) -> set[str]:
+    return {
+        filename
+        for filename in filenames
+        if is_table_rebuild_migration(filename, read_migration_sql(migrations_dir / filename))
+    }
+
+
+def migration_label(filename: str, rebuilds: set[str]) -> str:
+    return f"{filename} (table-rebuild)" if filename in rebuilds else filename
+
+
+def _allow_every_action(*_args: object) -> int:
+    return sqlite3.SQLITE_OK
+
+
+def remove_authorizer(conn: sqlite3.Connection) -> None:
+    # set_authorizer(None) removes the callback only from Python 3.11 on;
+    # before that it denies every statement, so an allow-all callback stands in.
+    conn.set_authorizer(None if sys.version_info >= (3, 11) else _allow_every_action)
+
+
+def execute_in_runner_transaction(conn: sqlite3.Connection, filename: str, sql: str) -> None:
+    """BEGIN IMMEDIATE, then the file's SQL, leaving the transaction open.
+
+    BEGIN is part of the script because executescript() first commits any
+    transaction opened through the connection. While the script runs, an
+    authorizer lets SQLite's own parser refuse every statement that could end
+    or replace that transaction: the first BEGIN is the runner's and the only
+    transaction statement allowed. The authorizer is removed before returning,
+    whatever happened, so the runner's COMMIT or ROLLBACK is not affected.
+    """
+    runner_began = False
+    denied: list[str] = []
+
+    def authorize(action: int, arg1: str | None, *_rest: object) -> int:
+        nonlocal runner_began
+        if action == sqlite3.SQLITE_TRANSACTION and arg1 == "BEGIN" and not runner_began:
+            runner_began = True
+            return sqlite3.SQLITE_OK
+        if action in REBUILD_DENIED_ACTIONS:
+            denied.append(REBUILD_DENIED_ACTIONS[action])
+            return sqlite3.SQLITE_DENY
+        return sqlite3.SQLITE_OK
+
+    conn.set_authorizer(authorize)
+    try:
+        conn.executescript(f"BEGIN IMMEDIATE;\n{sql}\n")
+    except sqlite3.DatabaseError as exc:
+        if denied:
+            raise MigrationError(
+                f"{filename} rolled back: {denied[0]} statement is not allowed in a "
+                "table-rebuild migration; the runner owns the transaction"
+            ) from exc
+        raise
+    finally:
+        remove_authorizer(conn)
+
+
+def apply_table_rebuild_migration(conn: sqlite3.Connection, filename: str, sql: str) -> None:
+    """Run one opted-in rebuild migration as a single checked transaction.
+
+    Foreign keys are switched off before BEGIN, because with them on DROP TABLE
+    deletes the rows first and cascades into every referencing table. The
+    file's SQL, PRAGMA foreign_key_check and the schema_migrations row then
+    share one transaction: any error or any violation rolls all of it back.
+    Enforcement is switched back on, and confirmed, on every way out.
+    """
+    try:
+        set_foreign_keys(conn, False)
+        execute_in_runner_transaction(conn, filename, sql)
+        if not conn.in_transaction or foreign_keys_enabled(conn):
+            raise MigrationError(
+                f"{filename} ended the runner's transaction or re-enabled foreign keys; "
+                "it was not recorded and the database may be changed: restore the backup"
+            )
+        fk_rows = foreign_key_check_rows(conn)
+        if fk_rows:
+            shown = ", ".join(str(tuple(row)) for row in fk_rows[:5])
+            raise MigrationError(
+                f"{filename} rolled back: foreign_key_check found {len(fk_rows)} "
+                f"violation(s) (table, rowid, parent, fk): {shown}"
+            )
+        conn.execute("INSERT INTO schema_migrations (filename) VALUES (?)", (filename,))
+        conn.commit()
+    except BaseException:
+        if conn.in_transaction:
+            conn.rollback()
+        raise
+    finally:
+        set_foreign_keys(conn, True)
 
 
 def sql_string_literal(value: str) -> str:
@@ -249,7 +474,9 @@ def baseline_status(
     return "manual review required", "no baseline rule defined"
 
 
-def print_plan(db_path: Path, migrations_dir: Path, applied: list[str], pending: list[str], out: TextIO) -> None:
+def print_plan(
+    db_path: Path, migrations_dir: Path, applied: list[str], pending: list[str], rebuilds: set[str], out: TextIO
+) -> None:
     print(f"database path: {db_path}", file=out)
     print(f"migration directory: {migrations_dir}", file=out)
     print("applied migrations:", file=out)
@@ -261,7 +488,7 @@ def print_plan(db_path: Path, migrations_dir: Path, applied: list[str], pending:
     print("pending migrations:", file=out)
     if pending:
         for filename in pending:
-            print(f"  - {filename}", file=out)
+            print(f"  - {migration_label(filename, rebuilds)}", file=out)
     else:
         print("  - none", file=out)
     print("DRY RUN ONLY: no changes applied", file=out)
@@ -275,7 +502,7 @@ def dry_run(db_path: Path, migrations_dir: Path, out: TextIO = sys.stdout) -> No
     finally:
         conn.close()
     pending = pending_migrations(all_migrations, applied)
-    print_plan(db_path, migrations_dir, applied, pending, out)
+    print_plan(db_path, migrations_dir, applied, pending, table_rebuild_migrations(migrations_dir, pending), out)
 
 
 def baseline_dry_run(db_path: Path, migrations_dir: Path, out: TextIO = sys.stdout) -> None:
@@ -390,6 +617,9 @@ def require_empty_database_for_baseline(db_path: Path, all_migrations: list[str]
 def apply_migrations(db_path: Path, migrations_dir: Path, out: TextIO = sys.stdout) -> int:
     all_migrations = migration_filenames(migrations_dir)
     require_empty_database_for_baseline(db_path, all_migrations)
+    # Read every directive first: a malformed file stops the run before the
+    # backup and before any earlier migration is applied.
+    rebuilds = table_rebuild_migrations(migrations_dir, all_migrations)
     if is_default_real_db_path(db_path):
         backup_path = create_backup_for_default_db(db_path)
         print(f"backup path: {backup_path}", file=out)
@@ -417,7 +647,13 @@ def apply_migrations(db_path: Path, migrations_dir: Path, out: TextIO = sys.stdo
             print("  - none", file=out)
 
         for filename in pending:
-            sql = (migrations_dir / filename).read_text(encoding="utf-8")
+            sql = read_migration_sql(migrations_dir / filename)
+            if filename in rebuilds:
+                apply_table_rebuild_migration(conn, filename, sql)
+                print(f"  - {migration_label(filename, rebuilds)}", file=out)
+                continue
+            if not foreign_keys_enabled(conn):
+                raise MigrationError(f"foreign keys are not enforced; refusing to run {filename}")
             script = f"""
 BEGIN;
 {sql}
@@ -457,7 +693,7 @@ def main(argv: list[str] | None = None, out: TextIO = sys.stdout, err: TextIO = 
         if args.apply:
             return apply_migrations(Path(args.db), Path(args.migrations_dir), out)
         dry_run(Path(args.db), Path(args.migrations_dir), out)
-    except (FileNotFoundError, BaselineRequired, sqlite3.Error) as exc:
+    except (FileNotFoundError, BaselineRequired, MigrationError, sqlite3.Error) as exc:
         print(f"error: {exc}", file=err)
         return 1
     return 0
