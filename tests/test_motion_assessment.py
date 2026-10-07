@@ -2,6 +2,7 @@
 
 from pathlib import Path
 
+from tests.auth_helpers import sign_in_admin
 from tests.support import IsolatedAppTestCase, web_app
 from tests.test_homepage_search import _HTMLProbe
 
@@ -59,9 +60,7 @@ class AssessmentMotionTest(IsolatedAppTestCase):
         self.assertIn("{% if not (attempt is defined and attempt) %}", practical)
 
     def test_teacher_dashboard_hook_is_scoped_and_tables_are_static(self):
-        with self.client.session_transaction() as session:
-            session["admin_authenticated"] = True
-            session["ui_profile"] = "admin"
+        sign_in_admin(self.client, web_app.app.config["DB_PATH"])
         response = self.client.get("/teacher")
         self.assertEqual(response.status_code, 200)
         page = _HTMLProbe(response.get_data(as_text=True))
