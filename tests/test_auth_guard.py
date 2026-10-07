@@ -174,7 +174,6 @@ class AuthGuardTest(IsolatedAppTestCase):
 
         for path in (
             "/teacher",
-            "/teacher/assignments",
             "/teacher/dzi-training",
             "/dzi",
             f"/dzi/source/{self.dzi_source_slug}",
@@ -182,6 +181,11 @@ class AuthGuardTest(IsolatedAppTestCase):
             response = self.client.get(path)
             self.assertEqual(response.status_code, 302, path)
             self.assertIn("/admin/login", response.headers["Location"], path)
+
+        # Assignment management (Accounts PR7) sends anonymous to the account login.
+        response = self.client.get("/teacher/assignments")
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response.headers["Location"].startswith("/login?"))
 
     def test_tester_can_only_use_normal_assignment_creation_flow(self):
         response = self.client.get(f"/teacher/new?section={self.section['section_slug']}")
@@ -202,9 +206,7 @@ class AuthGuardTest(IsolatedAppTestCase):
 
         forbidden_paths = (
             "/teacher",
-            "/teacher/assignments",
             "/teacher/dzi-training",
-            f"{assignment_url}/results",
             "/dzi",
             f"/dzi/source/{self.dzi_source_slug}",
         )
@@ -212,6 +214,14 @@ class AuthGuardTest(IsolatedAppTestCase):
             response = self.client.get(path)
             self.assertEqual(response.status_code, 302, path)
             self.assertIn("/admin/login", response.headers["Location"], path)
+
+        # Assignment management needs an admin or a teacher account (Accounts PR7):
+        # the legacy tester is sent to the account login, even for its own unowned row.
+        for path in ("/teacher/assignments", f"{assignment_url}/results",
+                     f"{assignment_url}/results.csv"):
+            response = self.client.get(path)
+            self.assertEqual(response.status_code, 302, path)
+            self.assertTrue(response.headers["Location"].startswith("/login?"), path)
 
     def test_admin_can_access_teacher_and_dzi_pages(self):
         assignment_url = self._create_assignment_as_tester()

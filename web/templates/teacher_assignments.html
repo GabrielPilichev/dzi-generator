@@ -7,8 +7,10 @@
 {% block breadcrumb %}
     <a href="{{ url_for('browsing.index') }}">Начало</a>
     <span>›</span>
+    {% if admin_authenticated %}
     <a href="{{ url_for('teacher.teacher_dashboard') }}">Учител</a>
     <span>›</span>
+    {% endif %}
     Създадени тестове
 {% endblock %}
 

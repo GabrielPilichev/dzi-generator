@@ -33,11 +33,18 @@ SIGNED_IN = "signed_in"
 # Object-level: any session reaches the view, which then checks attempt
 # ownership itself and answers 404 (not 403) so attempt ids cannot be probed.
 ATTEMPT_OWNER = "attempt_owner"
+# Assignment management (Accounts PR7): the route admits an admin or a teacher
+# account; the view then loads the assignment and checks it with
+# ``can_manage_assignment``, answering 404 so ids cannot be probed. A legacy
+# tester session has no account id and is not admitted.
+ASSIGNMENT_OWNER = "assignment_owner"
 # Special case kept from the old guard: switching to the admin UI profile
 # needs an admin session; every other target is public.
 PROFILE_SWITCH = "profile_switch"
 
-ACCESS_LEVELS = frozenset({PUBLIC, TEACHER, ADMIN, SIGNED_IN, ATTEMPT_OWNER, PROFILE_SWITCH})
+ACCESS_LEVELS = frozenset({
+    PUBLIC, TEACHER, ADMIN, SIGNED_IN, ATTEMPT_OWNER, ASSIGNMENT_OWNER, PROFILE_SWITCH,
+})
 
 # Flask's built-in static view cannot be decorated; it is public.
 STATIC_ENDPOINT = "static"
@@ -83,6 +90,44 @@ def account_principal(user_id: int, role: str, display_name: str) -> Principal:
         role=role,
         display_name=display_name,
     )
+
+
+def can_list_assignments(principal: Principal) -> bool:
+    """Whether the principal may use assignment management at all: an admin, or a
+    teacher account. The legacy tester session (teacher capability without an
+    account id) may not."""
+    return principal.is_admin or (principal.is_teacher and principal.user_id is not None)
+
+
+def can_manage_assignment(principal: Principal, owner_user_id: int | None) -> bool:
+    """Strict assignment-management predicate (edit, duplicate, results, export,
+    review of the assignment's answers; practical review reuses it).
+
+    An admin manages every assignment. A teacher account manages only rows it owns.
+    Everything else is denied: anonymous, students, the legacy tester and an
+    unowned (NULL) row for a teacher. Both ids must be present before they are
+    compared, so a missing account id never matches a missing owner.
+    Pure: no session, request or database access.
+    """
+    if principal.is_admin:
+        return True
+    if not principal.is_teacher or principal.user_id is None or owner_user_id is None:
+        return False
+    return owner_user_id == principal.user_id
+
+
+def assignment_management_scope(principal: Principal, owner_column: str) -> tuple[str, tuple]:
+    """SQL condition and parameters limiting rows to assignments the principal manages.
+
+    The SQL counterpart of ``can_manage_assignment`` for listings, so filtering
+    happens in the query. ``owner_column`` is a fixed column reference chosen by
+    the caller (e.g. ``"qa.owner_user_id"``), never user input.
+    """
+    if principal.is_admin:
+        return "1 = 1", ()
+    if principal.is_teacher and principal.user_id is not None:
+        return f"{owner_column} = ?", (principal.user_id,)
+    return "1 = 0", ()
 
 
 def principal_from_session(session_state: Mapping) -> Principal:
@@ -150,14 +195,17 @@ def is_route_allowed(level: str | None, principal: Principal, view_args: Mapping
         return principal.is_admin
     if required == SIGNED_IN:
         return principal.user_id is not None
+    if required == ASSIGNMENT_OWNER:
+        return can_list_assignments(principal)
     return False
 
 
 def denial_login_endpoint(level: str | None, view_args: Mapping | None = None) -> str:
     """Where a denied request is sent to sign in: tester login for teacher
-    routes, the account login for account-only routes, admin login for
-    everything else (including undeclared routes)."""
+    routes, the account login for account-only routes (``signed_in`` and
+    ``assignment_owner``), admin login for everything else (including
+    undeclared routes)."""
     required = _required_level(level, view_args)
-    if required == SIGNED_IN:
+    if required in (SIGNED_IN, ASSIGNMENT_OWNER):
         return "account.login"
     return "auth.tester_login" if required == TEACHER else "auth.admin_login"

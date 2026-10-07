@@ -260,7 +260,7 @@ class AssignmentDuplicateTest(IsolatedAppTestCase):
         try:
             response = self.client.post(f"/teacher/assignment/{source_id}/duplicate")
             self.assertEqual(response.status_code, 302)
-            self.assertIn("/admin/login", response.headers.get("Location", ""))
+            self.assertTrue(response.headers.get("Location", "").startswith("/login?"))
             attempts_after = self._fetch_assignment(source_id)
             self.assertIsNotNone(attempts_after)
             conn = web_app.quiz_db()
@@ -275,13 +275,13 @@ class AssignmentDuplicateTest(IsolatedAppTestCase):
         finally:
             self._delete_assignment(source_id)
 
-    def test_duplicate_blocked_for_tester_only(self):
+    def test_duplicate_of_unowned_source_is_not_found_for_a_teacher(self):
+        # Accounts PR7: an unowned (legacy) assignment is admin-only for management.
         self._login_tester()
         source_id = self._create_assignment(title="Tester Blocked Source")
         try:
             response = self.client.post(f"/teacher/assignment/{source_id}/duplicate")
-            self.assertEqual(response.status_code, 302)
-            self.assertIn("/admin/login", response.headers.get("Location", ""))
+            self.assertEqual(response.status_code, 404)
             conn = web_app.quiz_db()
             try:
                 count = conn.execute(
@@ -333,7 +333,7 @@ class AssignmentDuplicateTest(IsolatedAppTestCase):
         finally:
             self._delete_assignment(source_id)
 
-    def test_detail_shows_duplicate_button_for_admin_only(self):
+    def test_detail_shows_duplicate_button_to_those_who_manage_it(self):
         source_id = self._create_assignment(title="Detail Duplicate Visibility")
         try:
             self._login_admin()
@@ -353,12 +353,29 @@ class AssignmentDuplicateTest(IsolatedAppTestCase):
                 conn.commit()
             finally:
                 conn.close()
+            owner_resp = self.client.get(f"/teacher/assignment/{source_id}")
+            self.assertEqual(owner_resp.status_code, 200)
+            self.assertIn(
+                f"/teacher/assignment/{source_id}/duplicate",
+                owner_resp.data.decode("utf-8"),
+            )
+
+            # The legacy tester may only view an unowned row, without management controls.
+            conn = web_app.quiz_db()
+            try:
+                conn.execute("UPDATE quiz_assignments SET owner_user_id = NULL WHERE id = ?",
+                             (source_id,))
+                conn.commit()
+            finally:
+                conn.close()
+            self.setUp()
+            with self.client.session_transaction() as sess:
+                sess["tester_authenticated"] = True
             tester_resp = self.client.get(f"/teacher/assignment/{source_id}")
             self.assertEqual(tester_resp.status_code, 200)
-            self.assertNotIn(
-                f"/teacher/assignment/{source_id}/duplicate",
-                tester_resp.data.decode("utf-8"),
-            )
+            tester_body = tester_resp.data.decode("utf-8")
+            for control in ("/duplicate", "/edit", "/results"):
+                self.assertNotIn(f"/teacher/assignment/{source_id}{control}", tester_body)
         finally:
             self._delete_assignment(source_id)
 

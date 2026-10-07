@@ -40,8 +40,8 @@ establishes identity:
    on the view function Flask resolved for the request and decides with
    `current_principal()`. A denied request is redirected to the matching login
    with `next=<path>`: `/tester/login` for `teacher` routes, `/login` for
-   `signed_in` routes, `/admin/login` for everything else, including undeclared
-   views. A request that matched no route is left to Flask's own 404/405.
+   `signed_in` and `assignment_owner` routes, `/admin/login` for everything
+   else, including undeclared views. A request that matched no route is left to Flask's own 404/405.
 
 Passing one check never implies the other: an admin's cross-origin post is
 refused, and a same-origin post from a session without access is still sent to
@@ -60,23 +60,54 @@ a coverage test walks `app.url_map` and fails on any undeclared endpoint.
 | `teacher` | teacher or admin account, or a tester or admin session | `/teacher/new`, `/teacher/assignment/<id>` |
 | `admin` | admin account or admin session only | `/admin/...`, `/dzi...`, every other `/teacher...` route, `/admin/logout` |
 | `signed_in` | any active account (student, teacher or admin); a legacy tester/admin session is not an account | `/account/password` |
+| `assignment_owner` | admin (account or legacy session) or teacher account; the view checks the loaded assignment and answers 404 | `/teacher/assignments`, `/teacher/assignment/<id>/edit`, `/duplicate`, `/results` (GET and the open-answer review POST), `/results.csv` |
 | `attempt_owner` | route is reachable; the view checks attempt ownership and answers 404 | `/quiz/attempt/<id>`, `/quiz/attempt/<id>/result`, `/quiz/attempt/<id>/practical/...` |
 | `profile_switch` | `/profile/<profile>`: `admin` needs an admin session, other targets are public | `/profile/<profile>` |
 
 Flask's built-in `static` view cannot be decorated; `web.access` treats it as
 `public` by name.
 
-Assignment detail retains the `teacher` route policy and additionally checks
-the loaded assignment against the current Principal: account teachers can open
-only their own rows; account and legacy admins can open every row; legacy
-testers can open only unowned rows. Missing or inaccessible assignments return
-404 before attempts are read. Creation (including admin-only duplication)
-records the creator's `users.id`, or NULL for a legacy session. Existing rows
-remain NULL without a backfill. List, results, CSV, edit and duplicate routes
-retain their `admin` policy until Accounts PR7.
+## Assignment Ownership (Accounts PR6/PR7)
 
-`assignment_owner` is not yet a declared route policy. `signed_in` is used only
-by `/account/password`.
+Management of an assignment is decided by one pure predicate,
+`web.access.can_manage_assignment(principal, owner_user_id)`:
+
+- an admin Principal (account admin after the second factor, or the legacy
+  admin session) manages every assignment, including unowned ones;
+- a teacher account manages only rows whose `owner_user_id` equals its
+  non-NULL `users.id`;
+- everything else is denied: anonymous, students, the legacy tester, a
+  pending second factor (not a Principal), and a teacher on an unowned (NULL)
+  or foreign row. Both ids must be non-NULL before they are compared, so a
+  missing account id never matches a missing owner.
+
+`web.access.assignment_management_scope` is its SQL counterpart: the list
+filters `qa.owner_user_id = ?` in the query (index
+`idx_quiz_assignments_owner`), with no per-row lookup; an admin gets every row.
+`web/access.py` imports no controller or service, so practical review (PR8) can
+reuse both without import cycles.
+
+The `assignment_owner` routes first pass the central policy (admin or teacher
+account; anonymous, students and the legacy tester are redirected to `/login`),
+then load the assignment and answer 404 when it is missing, foreign or, for a
+teacher, unowned. Results, CSV (filtered or not) and the open-answer review all
+use the same gate; a reviewed answer must also belong to an attempt of the
+assignment in the URL, so an answer id from another assignment is 404. Edit
+changes only the title and time limit; a submitted `owner_user_id` is ignored.
+A duplicate belongs to the acting account (NULL for a legacy admin session),
+never to the source's owner. Student/public quiz loading
+(`quiz_fetch_assignment`) is not owner-scoped.
+
+Assignment detail retains the `teacher` route policy and shows the row to whoever
+may manage it, plus the legacy tester on an unowned row. That legacy branch is
+temporary view-only compatibility until the cutover: it shows no management
+controls and grants none of the routes above. Missing or inaccessible
+assignments return 404 before attempts are read. Creation records the creator's
+`users.id`, or NULL for a legacy session. Existing rows remain NULL without a
+backfill; they are admin-only for management. The `/teacher` dashboard and the
+practical submission review stay `admin` (practical review is PR8).
+
+`signed_in` is used only by `/account/password`.
 
 The tester session satisfies `teacher` exactly as before. Whether a tester
 password should keep standing in for a teacher identity is a deferred product

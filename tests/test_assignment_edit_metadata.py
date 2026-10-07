@@ -320,13 +320,14 @@ class AssignmentEditMetadataTest(IsolatedAppTestCase):
                 data={"title_bg": "Hijacked", "time_limit_minutes": "10"},
             )
             self.assertEqual(response.status_code, 302)
-            self.assertIn("/admin/login", response.headers.get("Location", ""))
+            self.assertTrue(response.headers.get("Location", "").startswith("/login?"))
             row = self._fetch_assignment(assignment_id)
             self.assertEqual(row["title_bg"], "Auth MC")
         finally:
             self._delete_assignment(assignment_id)
 
-    def test_tester_edit_blocked(self):
+    def test_teacher_edit_of_unowned_assignment_is_not_found(self):
+        # Accounts PR7: an unowned (legacy) assignment is admin-only for management.
         self._login_tester()
         assignment_id = self._create_assignment(title="Tester Source")
         try:
@@ -334,8 +335,7 @@ class AssignmentEditMetadataTest(IsolatedAppTestCase):
                 f"/teacher/assignment/{assignment_id}/edit",
                 data={"title_bg": "Hijacked", "time_limit_minutes": "10"},
             )
-            self.assertEqual(response.status_code, 302)
-            self.assertIn("/admin/login", response.headers.get("Location", ""))
+            self.assertEqual(response.status_code, 404)
             row = self._fetch_assignment(assignment_id)
             self.assertEqual(row["title_bg"], "Tester Source")
         finally:
@@ -351,7 +351,7 @@ class AssignmentEditMetadataTest(IsolatedAppTestCase):
 
     # --- UI surfaces ----------------------------------------------------
 
-    def test_detail_shows_edit_form_for_admin_only(self):
+    def test_detail_shows_edit_form_to_those_who_manage_it(self):
         assignment_id = self._create_assignment(title="UI Source")
         try:
             self._login_admin()
@@ -374,6 +374,24 @@ class AssignmentEditMetadataTest(IsolatedAppTestCase):
                 conn.commit()
             finally:
                 conn.close()
+            owner_resp = self.client.get(f"/teacher/assignment/{assignment_id}")
+            self.assertEqual(owner_resp.status_code, 200)
+            self.assertIn(
+                f"/teacher/assignment/{assignment_id}/edit",
+                owner_resp.data.decode("utf-8"),
+            )
+
+            # The legacy tester may only view an unowned row, without the edit form.
+            conn = web_app.quiz_db()
+            try:
+                conn.execute("UPDATE quiz_assignments SET owner_user_id = NULL WHERE id = ?",
+                             (assignment_id,))
+                conn.commit()
+            finally:
+                conn.close()
+            self.setUp()
+            with self.client.session_transaction() as sess:
+                sess["tester_authenticated"] = True
             tester_resp = self.client.get(f"/teacher/assignment/{assignment_id}")
             self.assertEqual(tester_resp.status_code, 200)
             self.assertNotIn(

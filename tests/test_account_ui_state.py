@@ -67,7 +67,7 @@ class AccountUiStateTest(IsolatedAppTestCase):
         for path in ("/teacher/new", self.assignment_path, "/teacher/assignments"):
             self.assertEqual(self.client.get(path).status_code, 302, path)
 
-    def test_teacher_gets_teacher_ui_but_no_admin_controls(self):
+    def test_teacher_gets_teacher_ui_and_manages_its_own_assignment(self):
         owner = sign_in_teacher(self.client, self.db_path)
         conn = web_app.quiz_db()
         try:
@@ -82,10 +82,14 @@ class AccountUiStateTest(IsolatedAppTestCase):
         self.assertIn('aria-controls="nav-menu-classes"', html)
         self.assertNotIn("админ изглед", html)
         self.assertEqual(self.client.get("/teacher/new").status_code, 200)
+        # Accounts PR7: the owner gets the management controls and its list.
         detail = self.detail()
-        self.assertNotIn("/duplicate", detail)
-        self.assertNotIn(f"{self.assignment_path}/edit", detail)
-        self.assertEqual(self.client.get("/teacher/assignments").status_code, 302)
+        self.assertIn(f"{self.assignment_path}/duplicate", detail)
+        self.assertIn(f"{self.assignment_path}/edit", detail)
+        self.assertIn(f"{self.assignment_path}/results", detail)
+        self.assertIn('href="/teacher/assignments"', html)
+        self.assertEqual(self.client.get("/teacher/assignments").status_code, 200)
+        self.assertEqual(self.client.get("/teacher").status_code, 302)
 
     def test_admin_gets_admin_ui_and_edit_duplicate_controls(self):
         sign_in_admin(self.client, self.db_path)
@@ -161,7 +165,7 @@ class AccountUiStateTest(IsolatedAppTestCase):
                 sign_in(client, self.db_path)
                 with client.session_transaction() as sess:
                     sess["ui_profile"] = "admin"
-                self.assertEqual(client.get("/teacher/assignments").status_code, 302)
+                self.assertEqual(client.get("/teacher").status_code, 302)
                 self.assertEqual(client.get("/profile/admin").status_code, 302)
                 self.assertNotIn("админ изглед", self.home(client))
                 with client.session_transaction() as sess:

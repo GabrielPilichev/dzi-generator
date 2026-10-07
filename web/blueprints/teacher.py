@@ -9,6 +9,12 @@ here reads the session to decide who may enter. Queries and quiz rules live in
 :mod:`web.services.practical`. The module imports neither ``web.app`` nor
 another controller. The ``/teacher/...`` URLs are unchanged; the practical
 submission review pages stay on the practical blueprint.
+
+Assignment management (list, edit, duplicate, results, CSV and the review of an
+assignment's open answers) uses the ``assignment_owner`` policy: an admin
+manages every assignment, a teacher account only its own, and anything else is
+a 404 decided by ``web.access.can_manage_assignment`` on the loaded row. The
+list applies the same rule in SQL. Student/public quiz loading is not scoped.
 """
 
 from __future__ import annotations
@@ -28,7 +34,16 @@ from flask import Blueprint, Response, abort, current_app, redirect, render_temp
 from src.subject_assessment import AssessmentScope
 from src.subject_content import IT, canonical_subject
 from src.subject_registry import get_subject
-from web.access import ADMIN, TEACHER, access_policy, current_principal
+from web.access import (
+    ADMIN,
+    ASSIGNMENT_OWNER,
+    TEACHER,
+    access_policy,
+    assignment_management_scope,
+    can_list_assignments,
+    can_manage_assignment,
+    current_principal,
+)
 from web.request_integrity import SAME_ORIGIN, integrity_policy
 from web.services import practical
 from web.services.quiz import (
@@ -272,8 +287,26 @@ def teacher_dashboard():
     )
 
 
+@teacher_bp.app_context_processor
+def inject_assignment_management():
+    """``can_list_assignments`` for navigation: admin or teacher account only."""
+    return {"can_list_assignments": can_list_assignments(current_principal())}
+
+
+def _fetch_managed_assignment(conn, assignment_id: int):
+    """The assignment if the current principal may manage it; otherwise close
+    ``conn`` and answer 404 (missing, foreign and, for a teacher, unowned alike)."""
+    assignment = quiz_fetch_assignment(conn, assignment_id)
+    if assignment is None or not can_manage_assignment(
+        current_principal(), assignment["owner_user_id"]
+    ):
+        conn.close()
+        abort(404)
+    return assignment
+
+
 @teacher_bp.route("/teacher/assignments")
-@access_policy(ADMIN)
+@access_policy(ASSIGNMENT_OWNER)
 def teacher_assignments():
     conn = quiz_db()
 
@@ -281,13 +314,18 @@ def teacher_assignments():
     if type_filter not in {"all", "mc", "mixed"}:
         type_filter = "all"
 
-    where_clause = ""
+    # Ownership is applied in SQL (idx_quiz_assignments_owner); an admin sees all.
+    scope_condition, scope_params = assignment_management_scope(
+        current_principal(), "qa.owner_user_id"
+    )
+    conditions = [scope_condition]
     if type_filter == "mc":
-        where_clause = "WHERE (qa.question_plan_json IS NULL OR TRIM(qa.question_plan_json) = '')"
+        conditions.append("(qa.question_plan_json IS NULL OR TRIM(qa.question_plan_json) = '')")
     elif type_filter == "mixed":
-        where_clause = "WHERE qa.question_plan_json IS NOT NULL AND TRIM(qa.question_plan_json) <> ''"
+        conditions.append("qa.question_plan_json IS NOT NULL AND TRIM(qa.question_plan_json) <> ''")
+    where_clause = "WHERE " + " AND ".join(conditions)
 
-    # SAFE: where_clause is selected from fixed branches after type_filter validation.
+    # SAFE: where_clause is built from fixed fragments; the owner id is a bound parameter.
     assignment_rows = conn.execute(f"""
         SELECT
             qa.id,
@@ -308,7 +346,7 @@ def teacher_assignments():
         {where_clause}
         GROUP BY qa.id
         ORDER BY qa.created_at DESC, qa.id DESC
-    """).fetchall()
+    """, scope_params).fetchall()
 
     assignments = []
     for row in assignment_rows:
@@ -594,10 +632,13 @@ def teacher_new():
 @access_policy(TEACHER)
 def teacher_assignment(assignment_id):
     conn = quiz_db()
+    principal = current_principal()
     assignment = quiz_fetch_assignment(conn, assignment_id)
-    if not quiz_can_access_assignment(assignment, current_principal()):
+    if not quiz_can_access_assignment(assignment, principal):
         conn.close()
         abort(404)
+    # The legacy tester may view an unowned row but never gets management controls.
+    can_manage = can_manage_assignment(principal, assignment["owner_user_id"])
 
     attempts = conn.execute("""
         SELECT *
@@ -619,6 +660,7 @@ def teacher_assignment(assignment_id):
         mixed_status=mixed_status,
         edit_error=None,
         edit_form_values=None,
+        can_manage=can_manage,
     )
 
 
@@ -634,14 +676,11 @@ def quiz_duplicate_title(title: str | None) -> str:
 
 
 @teacher_bp.route("/teacher/assignment/<int:assignment_id>/edit", methods=["POST"])
-@access_policy(ADMIN)
+@access_policy(ASSIGNMENT_OWNER)
 @integrity_policy(SAME_ORIGIN)
 def teacher_assignment_edit(assignment_id):
     conn = quiz_db()
-    assignment = quiz_fetch_assignment(conn, assignment_id)
-    if not assignment:
-        conn.close()
-        abort(404)
+    assignment = _fetch_managed_assignment(conn, assignment_id)
 
     raw_title = (request.form.get("title_bg") or "").replace("\x00", "").strip()
     raw_time = (request.form.get("time_limit_minutes") or "").strip()
@@ -679,9 +718,11 @@ def teacher_assignment_edit(assignment_id):
             mixed_status=mixed_status,
             edit_error=error,
             edit_form_values={"title_bg": raw_title, "time_limit_minutes": raw_time},
+            can_manage=True,
         )
         return rendered, 400
 
+    # Only these two columns are editable; a submitted owner is ignored.
     conn.execute("""
         UPDATE quiz_assignments
         SET title_bg = ?, time_limit_minutes = ?
@@ -695,14 +736,11 @@ def teacher_assignment_edit(assignment_id):
 
 
 @teacher_bp.route("/teacher/assignment/<int:assignment_id>/duplicate", methods=["POST"])
-@access_policy(ADMIN)
+@access_policy(ASSIGNMENT_OWNER)
 @integrity_policy(SAME_ORIGIN)
 def teacher_assignment_duplicate(assignment_id):
     conn = quiz_db()
-    source = quiz_fetch_assignment(conn, assignment_id)
-    if not source:
-        conn.close()
-        abort(404)
+    source = _fetch_managed_assignment(conn, assignment_id)
 
     if source["question_plan_json"]:
         plan = quiz_parse_assignment_question_plan(source["question_plan_json"])
@@ -716,6 +754,8 @@ def teacher_assignment_duplicate(assignment_id):
             conn.close()
             abort(400)
 
+    # The copy belongs to the acting account (NULL for a legacy admin session),
+    # never to the source's owner.
     new_assignment_id = quiz_create_assignment(
         conn, principal=current_principal(), section_id=source["section_id"],
         title_bg=quiz_duplicate_title(source["title_bg"]),
@@ -851,14 +891,11 @@ def quiz_sort_results_attempts(attempts, *, sort, open_subtotal_by_id):
 
 
 @teacher_bp.route("/teacher/assignment/<int:assignment_id>/results", methods=["GET", "POST"])
-@access_policy(ADMIN)
+@access_policy(ASSIGNMENT_OWNER)
 @integrity_policy(SAME_ORIGIN)
 def teacher_assignment_results(assignment_id):
     conn = quiz_db()
-    assignment = quiz_fetch_assignment(conn, assignment_id)
-    if not assignment:
-        conn.close()
-        abort(404)
+    assignment = _fetch_managed_assignment(conn, assignment_id)
 
     if request.method == "POST":
         try:
@@ -885,6 +922,8 @@ def teacher_assignment_results(assignment_id):
             abort(400)
         teacher_note_value = teacher_note or None
 
+        # The answer must belong to an attempt of this (already authorized)
+        # assignment, so an id from another assignment is a 404.
         row = conn.execute("""
             SELECT qta.id, qta.is_correct, qta.points_possible
             FROM quiz_text_answers qta
@@ -1152,13 +1191,10 @@ def _quiz_format_points(value) -> str:
 
 
 @teacher_bp.route("/teacher/assignment/<int:assignment_id>/results.csv")
-@access_policy(ADMIN)
+@access_policy(ASSIGNMENT_OWNER)
 def teacher_assignment_results_export(assignment_id):
     conn = quiz_db()
-    assignment = quiz_fetch_assignment(conn, assignment_id)
-    if not assignment:
-        conn.close()
-        abort(404)
+    assignment = _fetch_managed_assignment(conn, assignment_id)
 
     apply_filters = (request.args.get("filtered") or "").strip().lower() in {
         "1",

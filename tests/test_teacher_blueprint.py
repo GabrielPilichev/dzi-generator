@@ -18,7 +18,7 @@ from web import access, request_integrity
 
 E3_ROUTES = {
     "/teacher": ("teacher.teacher_dashboard", {"GET"}, access.ADMIN, None),
-    "/teacher/assignments": ("teacher.teacher_assignments", {"GET"}, access.ADMIN, None),
+    "/teacher/assignments": ("teacher.teacher_assignments", {"GET"}, access.ASSIGNMENT_OWNER, None),
     "/teacher/new": (
         "teacher.teacher_new", {"GET", "POST"}, access.TEACHER, request_integrity.SAME_ORIGIN),
     "/teacher/dzi-training": (
@@ -27,15 +27,16 @@ E3_ROUTES = {
     "/teacher/assignment/<int:assignment_id>": (
         "teacher.teacher_assignment", {"GET"}, access.TEACHER, None),
     "/teacher/assignment/<int:assignment_id>/edit": (
-        "teacher.teacher_assignment_edit", {"POST"}, access.ADMIN, request_integrity.SAME_ORIGIN),
+        "teacher.teacher_assignment_edit", {"POST"}, access.ASSIGNMENT_OWNER,
+        request_integrity.SAME_ORIGIN),
     "/teacher/assignment/<int:assignment_id>/duplicate": (
-        "teacher.teacher_assignment_duplicate", {"POST"}, access.ADMIN,
+        "teacher.teacher_assignment_duplicate", {"POST"}, access.ASSIGNMENT_OWNER,
         request_integrity.SAME_ORIGIN),
     "/teacher/assignment/<int:assignment_id>/results": (
-        "teacher.teacher_assignment_results", {"GET", "POST"}, access.ADMIN,
+        "teacher.teacher_assignment_results", {"GET", "POST"}, access.ASSIGNMENT_OWNER,
         request_integrity.SAME_ORIGIN),
     "/teacher/assignment/<int:assignment_id>/results.csv": (
-        "teacher.teacher_assignment_results_export", {"GET"}, access.ADMIN, None),
+        "teacher.teacher_assignment_results_export", {"GET"}, access.ASSIGNMENT_OWNER, None),
 }
 OLD_ENDPOINTS = tuple(endpoint.split(".", 1)[1] for endpoint, *_ in E3_ROUTES.values())
 CONTROLLER_MODULES = (
@@ -146,14 +147,17 @@ class TeacherRoutesBehaviorTest(IsolatedAppTestCase):
 
     def test_account_roles_reach_the_same_pages_as_the_legacy_sessions(self):
         db_path = web_app.app.config["DB_PATH"]
-        for sign_in, new_status, admin_status in (
-            (sign_in_student, 302, 302), (sign_in_teacher, 200, 302), (sign_in_admin, 200, 200),
+        for sign_in, new_status, list_status, admin_status in (
+            (sign_in_student, 302, 302, 302), (sign_in_teacher, 200, 200, 302),
+            (sign_in_admin, 200, 200, 200),
         ):
             client = web_app.app.test_client()
             sign_in(client, db_path)
             with self.subTest(sign_in=sign_in.__name__):
                 self.assertEqual(client.get("/teacher/new").status_code, new_status)
-                self.assertEqual(client.get("/teacher/assignments").status_code, admin_status)
+                # Accounts PR7: a teacher account lists its own assignments.
+                self.assertEqual(client.get("/teacher/assignments").status_code, list_status)
+                self.assertEqual(client.get("/teacher").status_code, admin_status)
 
     def test_teacher_new_is_open_to_tester_and_admin_only(self):
         for who, expected in (("anonymous", 302), ("profile_only", 302),
@@ -162,11 +166,15 @@ class TeacherRoutesBehaviorTest(IsolatedAppTestCase):
                 self.assertEqual(self.client_for(who).get("/teacher/new").status_code, expected)
 
     def test_admin_only_pages_deny_a_tester(self):
-        for path in ("/teacher", "/teacher/assignments", "/teacher/dzi-training"):
+        for path in ("/teacher", "/teacher/dzi-training"):
             with self.subTest(path=path):
                 response = self.client_for("tester").get(path)
                 self.assertEqual(response.status_code, 302)
                 self.assertTrue(response.headers["Location"].startswith("/admin/login"))
+        # The assignment list needs an admin or a teacher account (PR7).
+        response = self.client_for("tester").get("/teacher/assignments")
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response.headers["Location"].startswith("/login?"))
 
     def test_admin_reaches_every_get_page(self):
         for path in ("/teacher", "/teacher/assignments", "/teacher/dzi-training", "/teacher/new"):

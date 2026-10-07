@@ -618,7 +618,7 @@ class AssignmentResultsSortTest(IsolatedAppTestCase):
                 f"/teacher/assignment/{assignment_id}/results?sort=mc_desc"
             )
             self.assertEqual(response.status_code, 302)
-            self.assertIn("/admin/login", response.headers.get("Location", ""))
+            self.assertTrue(response.headers.get("Location", "").startswith("/login?"))
         finally:
             self._delete_assignment(assignment_id)
 
@@ -630,8 +630,8 @@ class AssignmentResultsSortTest(IsolatedAppTestCase):
             response = self.client.get(
                 f"/teacher/assignment/{assignment_id}/results?sort=mc_desc"
             )
-            self.assertEqual(response.status_code, 302)
-            self.assertIn("/admin/login", response.headers.get("Location", ""))
+            # Accounts PR7: a teacher account cannot manage an unowned (legacy) row.
+            self.assertEqual(response.status_code, 404)
         finally:
             self._delete_assignment(assignment_id)
 

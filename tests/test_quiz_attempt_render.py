@@ -1805,8 +1805,8 @@ class QuizAttemptRenderTest(IsolatedAppTestCase):
         self._login_tester()
 
         response = self.client.get(f"/teacher/assignment/{assignment_id}/results")
-        self.assertEqual(response.status_code, 302)
-        self.assertIn("/admin/login", response.headers["Location"])
+        # Accounts PR7: a teacher account cannot manage an unowned (legacy) row.
+        self.assertEqual(response.status_code, 404)
 
     def test_admin_teacher_results_hides_open_answer_section_for_mc_only_attempts(self):
         assignment_id, _attempt_id = self._create_attempt(
@@ -1959,8 +1959,8 @@ class QuizAttemptRenderTest(IsolatedAppTestCase):
             "teacher_override": "1",
             "teacher_note": "should not save",
         })
-        self.assertEqual(response.status_code, 302)
-        self.assertIn("/admin/login", response.headers["Location"])
+        # Accounts PR7: a teacher account cannot manage an unowned (legacy) row.
+        self.assertEqual(response.status_code, 404)
         row = self._quiz_text_answer_rows(attempt_id)[0]
         self.assertEqual(row["teacher_override"], 0)
         self.assertIsNone(row["teacher_note"])

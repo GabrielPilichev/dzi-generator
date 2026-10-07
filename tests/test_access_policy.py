@@ -51,12 +51,13 @@ EXPECTED_ACCESS_MATRIX = {
     "dzi.dzi_practical_source": access.ADMIN,
     "practical.dzi_practical_resource_download": access.ADMIN,
     "teacher.teacher_dashboard": access.ADMIN,
-    "teacher.teacher_assignments": access.ADMIN,
     "teacher.teacher_dzi_training": access.ADMIN,
-    "teacher.teacher_assignment_results": access.ADMIN,
-    "teacher.teacher_assignment_results_export": access.ADMIN,
-    "teacher.teacher_assignment_edit": access.ADMIN,
-    "teacher.teacher_assignment_duplicate": access.ADMIN,
+    # Accounts PR7: admin or teacher account; ownership is decided in the view.
+    "teacher.teacher_assignments": access.ASSIGNMENT_OWNER,
+    "teacher.teacher_assignment_results": access.ASSIGNMENT_OWNER,
+    "teacher.teacher_assignment_results_export": access.ASSIGNMENT_OWNER,
+    "teacher.teacher_assignment_edit": access.ASSIGNMENT_OWNER,
+    "teacher.teacher_assignment_duplicate": access.ASSIGNMENT_OWNER,
     "practical.teacher_practical_submissions": access.ADMIN,
     "practical.teacher_practical_submission_file_download": access.ADMIN,
     "quiz.quiz_attempt": access.ATTEMPT_OWNER,
@@ -150,6 +151,20 @@ class AccessPolicyUnitTest(unittest.TestCase):
     def test_attempt_owner_passes_the_route_and_is_decided_in_the_view(self):
         # Object-level ownership stays in the quiz blueprint (404, not 403).
         self.assertTrue(access.is_route_allowed(access.ATTEMPT_OWNER, access.ANONYMOUS))
+
+    def test_assignment_owner_admits_admins_and_teacher_accounts_only(self):
+        for name, principal, allowed in (
+            ("anonymous", access.ANONYMOUS, False),
+            ("legacy tester", access.Principal(is_teacher=True, is_admin=False), False),
+            ("legacy admin", access.Principal(is_teacher=True, is_admin=True), True),
+            ("student", access.account_principal(7, "student", "Ученик"), False),
+            ("teacher", access.account_principal(8, "teacher", "Учител"), True),
+            ("admin", access.account_principal(9, "admin", "Админ"), True),
+        ):
+            with self.subTest(principal=name):
+                self.assertEqual(access.is_route_allowed(access.ASSIGNMENT_OWNER, principal), allowed)
+                self.assertEqual(access.can_list_assignments(principal), allowed)
+        self.assertEqual(access.denial_login_endpoint(access.ASSIGNMENT_OWNER), "account.login")
 
     def test_profile_switch_depends_on_the_target_profile(self):
         admin_session = access.Principal(is_teacher=True, is_admin=True)
@@ -304,6 +319,10 @@ def expected_decision(policy, principal_name, view_args, path):
         return True, None
     if policy == access.SIGNED_IN:
         return False, f"/login?next={path}"
+    if policy == access.ASSIGNMENT_OWNER:
+        # No legacy principal here is an account: only the admin session passes.
+        allowed = principal_name in ADMIN_PRINCIPALS
+        return allowed, None if allowed else f"/login?next={path}"
     if policy == access.TEACHER:
         allowed = principal_name in TEACHER_PRINCIPALS
         return allowed, None if allowed else f"/tester/login?next={path}"
@@ -503,12 +522,17 @@ class AccessPolicyRouteTest(IsolatedAppTestCase):
         self.assertEqual(self.client.get("/teacher/new").status_code, 200)
 
     def test_admin_route_denies_tester_and_allows_admin(self):
-        for path in ("/teacher", "/teacher/assignments", "/teacher/practical-submissions", "/dzi"):
+        for path in ("/teacher", "/teacher/practical-submissions", "/dzi"):
             with self.subTest(path=path):
                 self._as_tester()
                 response = self.client.get(path)
                 self.assertEqual(response.status_code, 302, path)
                 self.assertIn("/admin/login", response.headers["Location"], path)
+        # The assignment list (PR7) also denies the legacy tester, to the account login.
+        self._as_tester()
+        response = self.client.get("/teacher/assignments")
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response.headers["Location"].startswith("/login?"))
 
         self.client = self.app.test_client()
         self._as_admin()
@@ -528,7 +552,7 @@ class AccessPolicyRouteTest(IsolatedAppTestCase):
             sess["ui_profile"] = "admin"
         response = self.client.get("/teacher/assignments")
         self.assertEqual(response.status_code, 302)
-        self.assertIn("/admin/login", response.headers["Location"])
+        self.assertTrue(response.headers["Location"].startswith("/login?"))
 
     def test_profile_switch_to_admin_needs_an_admin_session(self):
         response = self.client.get("/profile/admin")
