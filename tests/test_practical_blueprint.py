@@ -13,6 +13,7 @@ import subprocess
 import sys
 import unittest
 
+from tests.auth_helpers import client_as
 from tests.support import ROOT, IsolatedAppTestCase, web_app
 from web import access, request_integrity
 
@@ -75,11 +76,6 @@ class PracticalRouteOwnershipTest(unittest.TestCase):
             self.assertNotIn(legacy, endpoints)
             self.assertNotIn(legacy, web_app.app.view_functions)
 
-    def test_later_roadmap_views_have_not_moved(self):
-        for endpoint in ("auth.tester_home", "auth.admin_login"):
-            with self.subTest(endpoint=endpoint):
-                self.assertEqual(web_app.app.view_functions[endpoint].__module__, "web.blueprints.auth")
-
     def test_templates_reference_only_blueprint_qualified_endpoints(self):
         for template in (ROOT / "web" / "templates").glob("*.html"):
             text = template.read_text(encoding="utf-8")
@@ -140,35 +136,31 @@ class PracticalDependencyDirectionTest(unittest.TestCase):
 
 class PracticalRoutesBehaviorTest(IsolatedAppTestCase):
     SLUG = "may_2025_v2"
-    SESSIONS = {
-        "anonymous": {},
-        "tester": {"tester_authenticated": True, "ui_profile": "tester"},
-        "admin": {"admin_authenticated": True, "ui_profile": "admin"},
-        "profile_only": {"ui_profile": "admin"},
-    }
-
     def client_for(self, who, attempt_ids=()):
-        client = web_app.app.test_client()
+        client = client_as(web_app.app, web_app.app.config["DB_PATH"], who)
         with client.session_transaction() as state:
-            state.update(self.SESSIONS[who])
             for attempt_id in attempt_ids:
                 state[f"quiz_attempt_owner:{attempt_id}"] = True
         return client
 
     def test_admin_only_routes_deny_everyone_else(self):
-        # The official resource download stays admin-only; the review routes
-        # (Accounts PR8) are assignment_owner and deny to the account login.
+        # The official resource download is admin-only; the review routes (Accounts
+        # PR8) are assignment_owner. Without an account every one asks to sign in.
         paths = (
-            ("/dzi/practical/resource/1/download", "/admin/login"),
-            ("/teacher/practical-submissions", "/login?"),
-            ("/teacher/practical/submission-file/1/download", "/login?"),
+            "/dzi/practical/resource/1/download",
+            "/teacher/practical-submissions",
+            "/teacher/practical/submission-file/1/download",
         )
-        for path, login in paths:
-            for who in ("anonymous", "tester", "profile_only"):
+        for path in paths:
+            for who in ("anonymous", "historical"):
                 with self.subTest(path=path, who=who):
                     response = self.client_for(who).get(path)
                     self.assertEqual(response.status_code, 302)
-                    self.assertTrue(response.headers["Location"].startswith(login))
+                    self.assertEqual(response.headers["Location"], f"/login?next={path}")
+            with self.subTest(path=path, who="student"):
+                self.assertEqual(self.client_for("student").get(path).status_code, 403)
+        # A teacher account is refused the admin-only download, not sent to a login.
+        self.assertEqual(self.client_for("teacher").get(paths[0]).status_code, 403)
 
     def test_admin_reaches_the_review_page(self):
         self.assertEqual(self.client_for("admin").get("/teacher/practical-submissions").status_code, 200)

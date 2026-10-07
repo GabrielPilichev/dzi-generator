@@ -1,13 +1,20 @@
 """Rendered authentication state comes from the request Principal.
 
 The same Principal that decides route access also decides navigation and role-gated
-controls. ``ui_profile`` is presentation only and the account row stays authoritative.
+controls. The account row is the only authority: the session keys of the removed
+shared-password logins and profile switch (``tester_authenticated``,
+``admin_authenticated``, ``ui_profile``) change nothing that is rendered.
 """
 
 import sqlite3
 from unittest.mock import patch
 
-from tests.auth_helpers import sign_in_admin, sign_in_student, sign_in_teacher
+from tests.auth_helpers import (
+    HISTORICAL_SHARED_LOGIN_SESSION,
+    sign_in_admin,
+    sign_in_student,
+    sign_in_teacher,
+)
 from tests.support import IsolatedAppTestCase, web_app
 
 
@@ -48,7 +55,8 @@ class AccountUiStateTest(IsolatedAppTestCase):
         self.assertEqual(response.status_code, 200)
         return response.get_data(as_text=True)
 
-    def legacy_client(self, **state):
+    def historical_client(self, **state):
+        """An anonymous client whose cookie still holds removed shared-login keys."""
         client = web_app.app.test_client()
         with client.session_transaction() as sess:
             sess.update(state)
@@ -65,7 +73,7 @@ class AccountUiStateTest(IsolatedAppTestCase):
         self.assertIn('aria-controls="nav-menu-classes"', html)
         self.assertNotIn("админ изглед", html)
         for path in ("/teacher/new", self.assignment_path, "/teacher/assignments"):
-            self.assertEqual(self.client.get(path).status_code, 302, path)
+            self.assertEqual(self.client.get(path).status_code, 403, path)
 
     def test_teacher_gets_teacher_ui_and_manages_its_own_assignment(self):
         owner = sign_in_teacher(self.client, self.db_path)
@@ -89,7 +97,7 @@ class AccountUiStateTest(IsolatedAppTestCase):
         self.assertIn(f"{self.assignment_path}/results", detail)
         self.assertIn('href="/teacher/assignments"', html)
         self.assertEqual(self.client.get("/teacher/assignments").status_code, 200)
-        self.assertEqual(self.client.get("/teacher").status_code, 302)
+        self.assertEqual(self.client.get("/teacher").status_code, 403)
 
     def test_admin_gets_admin_ui_and_edit_duplicate_controls(self):
         sign_in_admin(self.client, self.db_path)
@@ -101,20 +109,20 @@ class AccountUiStateTest(IsolatedAppTestCase):
         self.assertIn(f"{self.assignment_path}/duplicate", detail)
         self.assertIn(f"{self.assignment_path}/edit", detail)
 
-    def test_account_sessions_use_the_account_logout_not_the_legacy_one(self):
+    def test_account_sessions_use_the_account_logout_only(self):
         for sign_in in (sign_in_student, sign_in_teacher, sign_in_admin):
             with self.subTest(helper=sign_in.__name__):
                 client = web_app.app.test_client()
                 sign_in(client, self.db_path)
                 with client.session_transaction() as sess:
-                    # Legacy keys in the same cookie must not bring the legacy links back.
-                    sess["admin_authenticated"] = True
-                    sess["tester_authenticated"] = True
+                    # Removed shared-login keys in the same cookie bring no removed link back.
+                    sess.update(HISTORICAL_SHARED_LOGIN_SESSION)
                 html = self.home(client)
                 self.assertIn('method="post" action="/logout"', html)
                 self.assertIn('href="/account/password"', html)
-                for legacy in ("/admin/logout", "/tester/logout", "/admin/login", "/tester/login"):
-                    self.assertNotIn(legacy, html)
+                for removed in ("/admin/logout", "/tester/logout", "/admin/login", "/tester/login",
+                                "/profile/"):
+                    self.assertNotIn(removed, html)
 
     def test_account_logout_signs_the_account_out(self):
         sign_in_admin(self.client, self.db_path)
@@ -127,68 +135,76 @@ class AccountUiStateTest(IsolatedAppTestCase):
         self.assertIn('href="/login?next=/"', html)
         self.assertNotIn("админ изглед", html)
 
-    # --- legacy compatibility ----------------------------------------------
+    # --- historical shared-login and profile keys ---------------------------
 
-    def test_legacy_tester_and_admin_ui_is_unchanged(self):
-        tester = self.home(self.legacy_client(tester_authenticated=True, ui_profile="tester"))
-        self.assertIn("Тестер", tester)
-        self.assertIn("/tester/logout", tester)
-        self.assertNotIn('action="/logout"', tester)
-        self.assertNotIn("админ изглед", tester)
-        admin_client = self.legacy_client(admin_authenticated=True, ui_profile="admin")
-        admin = self.home(admin_client)
-        self.assertIn("/admin/logout", admin)
-        self.assertNotIn('action="/logout"', admin)
-        self.assertIn("админ изглед", admin)
-        self.assertIn(f"{self.assignment_path}/duplicate", self.detail(admin_client))
+    def test_historical_keys_render_exactly_the_anonymous_page(self):
+        anonymous = self.home()
+        self.assertIn('href="/login?next=/"', anonymous)
+        for absent in ("Вход за тестер", "Вход за админ", "Тестер", "админ изглед",
+                       "/tester/login", "/admin/login", "/tester/logout", "/admin/logout", "/profile/",
+                       'action="/logout"', 'aria-controls="nav-menu-classes"',
+                       'href="/teacher/assignments"'):
+            self.assertNotIn(absent, anonymous)
+        for state in (
+            {"tester_authenticated": True, "ui_profile": "tester"},
+            {"admin_authenticated": True, "ui_profile": "admin"},
+            {"ui_profile": "admin"},
+            HISTORICAL_SHARED_LOGIN_SESSION,
+        ):
+            with self.subTest(state=state):
+                client = self.historical_client(**state)
+                self.assertEqual(self.home(client), anonymous)
+                for path in ("/teacher", "/teacher/new", "/teacher/assignments", self.assignment_path):
+                    response = client.get(path)
+                    self.assertEqual(response.status_code, 302, path)
+                    self.assertEqual(response.headers["Location"], f"/login?next={path}")
 
-    def test_anonymous_sees_the_account_and_legacy_login_links(self):
-        html = self.home()
-        self.assertIn('href="/login?next=/"', html)
-        self.assertIn("Вход за тестер", html)
-        self.assertIn("Вход за админ", html)
-
-    # --- precedence and ui_profile -----------------------------------------
-
-    def test_legacy_flags_cannot_override_an_account_principal(self):
-        sign_in_student(self.client, self.db_path)
-        with self.client.session_transaction() as sess:
-            sess["admin_authenticated"] = True
-            sess["tester_authenticated"] = True
-        self.assertNotIn("админ изглед", self.home())
-        self.assertEqual(self.client.get(self.assignment_path).status_code, 302)
-
-    def test_ui_profile_cannot_elevate_an_account(self):
-        for sign_in in (sign_in_student, sign_in_teacher):
+    def test_historical_keys_cannot_elevate_an_account(self):
+        for sign_in, new_status in ((sign_in_student, 403), (sign_in_teacher, 200)):
             with self.subTest(helper=sign_in.__name__):
                 client = web_app.app.test_client()
                 sign_in(client, self.db_path)
+                before = self.home(client)
                 with client.session_transaction() as sess:
-                    sess["ui_profile"] = "admin"
-                self.assertEqual(client.get("/teacher").status_code, 302)
-                self.assertEqual(client.get("/profile/admin").status_code, 302)
-                self.assertNotIn("админ изглед", self.home(client))
-                with client.session_transaction() as sess:
-                    self.assertNotEqual(sess.get("ui_profile"), "admin")
+                    sess.update(HISTORICAL_SHARED_LOGIN_SESSION)
+                self.assertEqual(self.home(client), before)
+                self.assertNotIn("админ изглед", before)
+                self.assertEqual(client.get("/teacher").status_code, 403)
+                self.assertEqual(client.get("/teacher/new").status_code, new_status)
+                # The unowned assignment stays admin-only.
+                self.assertEqual(client.get(self.assignment_path).status_code,
+                                 403 if new_status == 403 else 404)
 
-    def test_ui_profile_does_not_downgrade_an_account_admin(self):
+    def test_historical_profile_key_does_not_change_an_account_admin(self):
         sign_in_admin(self.client, self.db_path)
+        before = self.home()
         with self.client.session_transaction() as sess:
-            sess["ui_profile"] = "admin"
-        self.home()
-        with self.client.session_transaction() as sess:
-            self.assertEqual(sess["ui_profile"], "admin")
-            self.assertEqual(set(sess) - {"ui_profile", "_flashes", "_permanent"}, {"uid", "sk", "iat"})
+            sess["ui_profile"] = "tester"
+        self.assertEqual(self.home(), before)
+        self.assertIn("админ изглед", before)
+        self.assertEqual(self.client.get("/teacher").status_code, 200)
 
-    def test_asset_requests_leave_an_account_admins_ui_profile_alone(self):
+    def test_removed_profile_switch_route_is_not_found_for_everyone(self):
+        clients = {"anonymous": web_app.app.test_client(),
+                   "historical": self.historical_client(**HISTORICAL_SHARED_LOGIN_SESSION)}
+        for sign_in in (sign_in_student, sign_in_teacher, sign_in_admin):
+            clients[sign_in.__name__] = web_app.app.test_client()
+            sign_in(clients[sign_in.__name__], self.db_path)
+        for who, client in clients.items():
+            for path in ("/profile/admin", "/profile/tester", "/tester"):
+                with self.subTest(who=who, path=path):
+                    with client.session_transaction() as sess:
+                        before = dict(sess)
+                    self.assertEqual(client.get(path).status_code, 404)
+                    with client.session_transaction() as sess:
+                        self.assertEqual(dict(sess), before)
+
+    def test_asset_requests_set_no_cookie(self):
         sign_in_admin(self.client, self.db_path)
-        with self.client.session_transaction() as sess:
-            sess["ui_profile"] = "admin"
         response = self.client.get("/static/css/tokens.css")
         self.assertEqual(response.status_code, 200)
         self.assertNotIn("Set-Cookie", response.headers)
-        with self.client.session_transaction() as sess:
-            self.assertEqual(sess["ui_profile"], "admin")
+        response.close()
 
     def test_cookie_never_carries_role_authority(self):
         sign_in_admin(self.client, self.db_path)

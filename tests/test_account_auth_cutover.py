@@ -1,22 +1,21 @@
-"""Accounts PR9 — account authentication cutover.
+"""Accounts PR9/PR10 — account authentication is the only authority.
 
-With the legacy shared-password bridge disabled (always in production) account
-authentication is the only authority: the shared-password routes answer 404 for
-every method, the legacy session keys in a cookie signed before the cutover grant
-nothing, every sign-in denial goes to ``/login``, and a signed-in account without
-the needed role gets 403. An account admin still needs the second factor. The
-owner-scoped assignment and practical rules (PR7/PR8) are unchanged, and an unowned
-(NULL) assignment is manageable by an account admin only.
+PR9 switched the shared tester/admin password bridge off in production; PR10 removed
+it. The shared-password login, logout and profile routes do not exist, no
+configuration or environment variable can bring them back, the session keys they
+once wrote grant nothing in a cookie signed before their removal, every sign-in
+denial goes to ``/login``, and a signed-in account without the needed role gets 403.
+An account admin still needs the second factor. The owner-scoped assignment and
+practical rules (PR7/PR8) are unchanged, and an unowned (NULL) assignment is
+manageable by an account admin only.
 
-The bridge stays available outside production; the first classes pin both states.
+The historical session keys appear here only as injected input.
 Every password, key, secret and code here is synthetic.
 """
 
 import os
-import sqlite3
 import tempfile
 import unittest
-import warnings
 from contextlib import closing
 from datetime import timedelta
 from pathlib import Path
@@ -24,17 +23,19 @@ from unittest.mock import patch
 
 from flask import session as flask_session
 
-from tests.auth_helpers import set_account_session
 from tests.support import web_app
 from tests.test_account_login import CROSS_ORIGIN, SAME_ORIGIN, AccountAppTestCase
 from web import access
 from web.access import ANONYMOUS, Principal
 from web.services import dzi_exams, quiz
 
-LEGACY_TESTER = Principal(is_teacher=True, is_admin=False)
-LEGACY_ADMIN = Principal(is_teacher=True, is_admin=True)
+# Teacher capability without an account id: no request can have this principal; it
+# only seeds the unowned assignment.
+IDLESS_TEACHER = Principal(is_teacher=True, is_admin=False)
 LEGACY_LOGIN_PATHS = ("/tester/login", "/admin/login")
 LEGACY_LOGOUT_PATHS = ("/tester/logout", "/admin/logout")
+LEGACY_PROFILE_PATHS = ("/profile/admin", "/profile/tester", "/tester")
+REMOVED_PATHS = (*LEGACY_LOGIN_PATHS, *LEGACY_LOGOUT_PATHS, *LEGACY_PROFILE_PATHS)
 ADMIN_PATHS = ("/teacher", "/teacher/dzi-training", "/dzi", "/admin/open-question-candidates")
 TEACHER_PATHS = ("/teacher/new",)
 ASSIGNMENT_PATHS = ("/teacher/assignments", "/teacher/practical-submissions")
@@ -49,57 +50,8 @@ STALE_SESSIONS = {
 FORBIDDEN = "Нямаш достъп до тази страница с този профил."
 
 
-class LegacyFlagParsingTest(unittest.TestCase):
-    def test_explicit_spellings(self):
-        for value in ("1", "true", "TRUE", "yes", "on", " On "):
-            with self.subTest(value=value):
-                self.assertIs(access.parse_legacy_shared_login(value), True)
-        # A non-empty string is never truthy by itself.
-        for value in ("0", "false", "False", "no", "off", " OFF "):
-            with self.subTest(value=value):
-                self.assertIs(access.parse_legacy_shared_login(value), False)
-        for value in (None, "", "   "):
-            with self.subTest(value=value):
-                self.assertIsNone(access.parse_legacy_shared_login(value))
-
-    def test_malformed_values_raise_without_echoing_the_value(self):
-        for value in ("maybe", "2", "enabled", "fals", "0 1", "tru"):
-            with self.subTest(value=value):
-                with self.assertRaises(ValueError) as caught:
-                    access.parse_legacy_shared_login(value)
-                self.assertNotIn(repr(value), str(caught.exception))
-
-    def build(self, value):
-        env = {} if value is None else {"DZI_LEGACY_SHARED_LOGIN": value}
-        with patch.dict(os.environ, env), warnings.catch_warnings(record=True) as caught:
-            warnings.simplefilter("always")
-            if value is None:
-                os.environ.pop("DZI_LEGACY_SHARED_LOGIN", None)
-            return web_app.build_legacy_shared_login(), caught
-
-    def test_development_default_keeps_the_bridge_and_a_typo_disables_it(self):
-        self.assertEqual(self.build(None)[0], True)
-        self.assertEqual(self.build("")[0], True)
-        for value in ("1", "true", "on"):
-            self.assertIs(self.build(value)[0], True)
-        for value in ("0", "false", "no", "off"):
-            self.assertIs(self.build(value)[0], False)
-        enabled, caught = self.build("ture")
-        self.assertIs(enabled, False)
-        self.assertEqual(len(caught), 1)
-        self.assertIn("legacy shared login is disabled", str(caught[0].message))
-
-
 class CutoverTestCase(AccountAppTestCase):
-    """The application as production runs it: the legacy bridge disabled."""
-
-    legacy_shared_login = False
-
-    def setUp(self):
-        super().setUp()
-        config = patch.dict(self.app.config, {"LEGACY_SHARED_LOGIN": self.legacy_shared_login})
-        config.start()
-        self.addCleanup(config.stop)
+    """The application as every environment runs it: account authentication only."""
 
     def stale_client(self, state):
         client = self.app.test_client()
@@ -125,51 +77,36 @@ class CutoverTestCase(AccountAppTestCase):
                 self.assertEqual(client.get(path).status_code, 200)
 
 
-class LegacyBridgeEnabledTest(CutoverTestCase):
-    """Outside production the transitional bridge still behaves as before."""
-
-    legacy_shared_login = True
-
-    def test_shared_password_logins_still_grant_their_legacy_authority(self):
-        for path, password, key, allowed, denied in (
-            ("/tester/login", "tester-pass", "tester_authenticated", "/teacher/new", "/teacher"),
-            ("/admin/login", "admin-pass", "admin_authenticated", "/teacher", None),
-        ):
-            with self.subTest(path=path):
-                client = self.app.test_client()
-                self.assertEqual(client.get(path).status_code, 200)
-                wrong = client.post(path, data={"password": "wrong"}, headers=SAME_ORIGIN)
-                self.assertEqual(wrong.status_code, 200)
-                self.assertNotIn(key, self.session(client))
-                self.assertEqual(
-                    client.post(path, data={"password": password}, headers=SAME_ORIGIN).status_code, 302)
-                self.assertIs(self.session(client)[key], True)
-                self.assertEqual(client.get(allowed).status_code, 200)
-                if denied:
-                    self.assertIn("/admin/login", client.get(denied).headers["Location"])
-
-    def test_denials_keep_their_role_specific_login_and_accounts_are_redirected(self):
-        self.assertIn("/admin/login?next=/teacher", self.client.get("/teacher").headers["Location"])
-        self.assertIn("/tester/login?next=/teacher/new", self.client.get("/teacher/new").headers["Location"])
-        self.assertTrue(self.client.get("/teacher/assignments").headers["Location"].startswith("/login?"))
-        teacher = self.make("teacher")
-        set_account_session(self.client, teacher["id"], teacher["session_key"])
-        response = self.client.get("/teacher")
-        self.assertEqual(response.status_code, 302)
-        self.assertIn("/admin/login", response.headers["Location"])
-
-    def test_navigation_offers_the_shared_logins(self):
-        body = self.body(self.client.get("/"))
-        for link in ('href="/login?next=/"', 'href="/tester/login?next=/"', 'href="/admin/login?next=/"'):
-            self.assertIn(link, body)
-
-
 class LegacyRoutesAreGoneTest(CutoverTestCase):
-    def test_exactly_the_shared_password_routes_are_marked_legacy(self):
-        marked = {endpoint for endpoint, view in self.app.view_functions.items()
-                  if access.is_legacy_shared_login_view(view)}
-        self.assertEqual(marked, {"auth.tester_login", "auth.tester_logout",
-                                  "auth.admin_login", "auth.admin_logout"})
+    def test_no_rule_endpoint_blueprint_or_template_of_the_bridge_is_left(self):
+        rules = {rule.rule for rule in self.app.url_map.iter_rules()}
+        for path in (*LEGACY_LOGIN_PATHS, *LEGACY_LOGOUT_PATHS, "/tester", "/profile/<profile>"):
+            with self.subTest(path=path):
+                self.assertNotIn(path, rules)
+        self.assertEqual({rule for rule in rules if "login" in rule or "logout" in rule},
+                         {"/login", "/login/totp", "/logout"})
+        self.assertFalse({rule for rule in rules if rule.startswith(("/tester", "/profile"))})
+        self.assertNotIn("auth", self.app.blueprints)
+        self.assertFalse({endpoint for endpoint in self.app.view_functions if endpoint.startswith("auth.")})
+        self.assertFalse(Path(self.app.root_path, "blueprints", "auth.py").exists())
+        for template in ("tester_login.html", "admin_login.html", "tester_home.html"):
+            with self.subTest(template=template):
+                self.assertFalse(Path(self.app.root_path, "templates", template).exists())
+
+    def test_profile_and_tester_routes_are_not_found_for_every_session(self):
+        admin = self.make("admin")
+        signed_in = self.app.test_client()
+        self.sign_in(admin, client=signed_in)
+        for label, client in (("anonymous", self.app.test_client()),
+                              ("stale", self.stale_client(STALE_SESSIONS["everything"])),
+                              ("account admin", signed_in)):
+            before = self.session(client)
+            for path in LEGACY_PROFILE_PATHS:
+                with self.subTest(path=path, session=label):
+                    response = client.get(path)
+                    self.assertEqual(response.status_code, 404)
+                    self.assertNotIn("Location", response.headers)
+            self.assertEqual(self.session(client), before)
 
     def test_login_routes_are_not_found_for_get_and_post(self):
         missing = self.body(self.client.get("/no-such-page"))
@@ -214,15 +151,26 @@ class LegacyRoutesAreGoneTest(CutoverTestCase):
                     self.client.post(path, data={"password": "admin-pass"}, headers=CROSS_ORIGIN).status_code,
                     403)
 
-    def test_missing_configuration_means_disabled(self):
-        with patch.dict(self.app.config):
-            del self.app.config["LEGACY_SHARED_LOGIN"]
-            self.assertEqual(self.client.get("/admin/login").status_code, 404)
+    def test_no_configuration_or_environment_can_bring_the_bridge_back(self):
+        self.assertNotIn("LEGACY_SHARED_LOGIN", self.app.config)
+        # Everything that once enabled or fed the bridge, set at once.
+        environment = {"DZI_LEGACY_SHARED_LOGIN": "1", "DZI_ADMIN_PASSWORD": "admin-pass",
+                       "DZI_TESTER_PASSWORD": "tester-pass"}
+        with patch.dict(os.environ, environment), \
+                patch.dict(self.app.config, {"LEGACY_SHARED_LOGIN": True}):
+            for path, password in zip(LEGACY_LOGIN_PATHS, ("tester-pass", "admin-pass")):
+                with self.subTest(path=path):
+                    client = self.app.test_client()
+                    self.assertEqual(client.get(path).status_code, 404)
+                    response = client.post(path, data={"password": password, "next": "/teacher"},
+                                           headers=SAME_ORIGIN)
+                    self.assertEqual(response.status_code, 404)
+                    self.assertEqual(self.session(client), {})
+                    self.assert_no_authority(client)
             self.assert_no_authority(self.stale_client(STALE_SESSIONS["everything"]))
-        # Only the boolean True enables the bridge; a truthy string does not.
-        with patch.dict(self.app.config, {"LEGACY_SHARED_LOGIN": "true"}):
-            self.assertEqual(self.client.get("/admin/login").status_code, 404)
-            self.assert_no_authority(self.stale_client(STALE_SESSIONS["everything"]))
+            body = self.body(self.client.get("/"))
+            for marker in REMOVED_PATHS:
+                self.assertNotIn(f'"{marker}', body)
 
 
 class StaleLegacySessionTest(CutoverTestCase):
@@ -233,10 +181,12 @@ class StaleLegacySessionTest(CutoverTestCase):
                 flask_session.update(state)
                 self.assertEqual(access.current_principal(), ANONYMOUS)
                 self.assertEqual(dict(flask_session), state)
-        with patch.dict(self.app.config, {"LEGACY_SHARED_LOGIN": True}), \
-                self.app.test_request_context("/teacher"):
-            flask_session.update(STALE_SESSIONS["everything"])
-            self.assertEqual(access.current_principal(), LEGACY_ADMIN)
+        # ... and after the whole before-request chain it is the same answer.
+        for label, state in STALE_SESSIONS.items():
+            with self.subTest(session=label, hooks=True):
+                principal, after = self.principal_for(state)
+                self.assertEqual(principal, ANONYMOUS)
+                self.assertEqual(after, state)
 
     def test_stale_keys_grant_no_route_and_are_sent_to_the_account_login(self):
         for label, state in STALE_SESSIONS.items():
@@ -245,15 +195,21 @@ class StaleLegacySessionTest(CutoverTestCase):
                 self.assert_no_authority(client)
                 response = client.post("/teacher/dzi-training", headers=SAME_ORIGIN)
                 self.assertEqual(response.headers["Location"], "/login?next=/teacher/dzi-training")
-                # Switching to the admin profile needs an admin Principal, not a key.
-                switch = client.get("/profile/admin")
-                self.assertEqual(switch.status_code, 302)
-                self.assertTrue(switch.headers["Location"].startswith("/login?"))
+                # There is no profile to switch to any more.
+                self.assertEqual(client.get("/profile/admin").status_code, 404)
 
-    def test_stale_auth_keys_are_dropped_from_the_cookie(self):
-        client = self.stale_client({**STALE_SESSIONS["everything"], "quiz_attempt_owner:7": True})
-        client.get("/")
-        self.assertEqual(self.session(client), {"quiz_attempt_owner:7": True})
+    def test_stale_keys_are_never_read_or_rewritten(self):
+        # Nothing reads them, so nothing needs to clean them up: the request does not
+        # touch the cookie at all, and the attempt-ownership marker beside them works.
+        state = {**STALE_SESSIONS["everything"], "quiz_attempt_owner:7": True}
+        client = self.stale_client(state)
+        for path in ("/", "/teacher", "/login"):
+            with self.subTest(path=path):
+                self.assertNotIn("Set-Cookie", client.get(path).headers)
+        self.assertEqual(self.session(client), state)
+        # Signing in (or out) replaces the whole session, stale keys included.
+        self.sign_in(self.make("teacher"), client=client)
+        self.assertEqual(self.session(client).keys(), {"uid", "sk", "iat", "quiz_attempt_owner:7"})
 
     def test_navigation_shows_a_stale_session_as_signed_out(self):
         for label, state in STALE_SESSIONS.items():
@@ -261,10 +217,12 @@ class StaleLegacySessionTest(CutoverTestCase):
                 body = self.body(self.stale_client(state).get("/"))
                 self.assertIn('href="/login?next=/"', body)
                 for marker in ("/tester/login", "/admin/login", "/tester/logout", "/admin/logout",
-                               'action="/logout"', 'aria-label="Профил"', "Вход за тестер",
-                               "Вход за админ", ">Админ<", 'href="/teacher/assignments"'):
+                               "/profile/", 'action="/logout"', 'aria-label="Профил"', "Вход за тестер",
+                               "Вход за админ", ">Админ<", "Тестер", 'href="/teacher/assignments"',
+                               'class="nav-links"', "админ изглед"):
                     self.assertNotIn(marker, body)
                 self.assertIn('aria-label="Вход"', body)
+                self.assertEqual(body, self.body(self.app.test_client().get("/")))
 
     def test_a_completed_account_renders_normally(self):
         teacher = self.make("teacher", display_name="Учител Навигация")
@@ -282,7 +240,9 @@ class StaleLegacySessionTest(CutoverTestCase):
             sess.update(STALE_SESSIONS["everything"])
         self.assertEqual(self.client.get("/teacher/new").status_code, 200)
         self.assertEqual(self.client.get("/teacher").status_code, 403)
-        self.assertEqual(set(self.session()), {"uid", "sk", "iat"})
+        self.assertEqual(self.client.get("/dzi").status_code, 403)
+        principal, _ = self.principal_for(self.session())
+        self.assertEqual((principal.user_id, principal.role, principal.is_admin), (teacher["id"], "teacher", False))
 
     def test_stale_keys_do_not_survive_an_account_that_stops_resolving(self):
         teacher = self.make("teacher")
@@ -291,7 +251,9 @@ class StaleLegacySessionTest(CutoverTestCase):
             sess.update(STALE_SESSIONS["everything"])
         self.execute("UPDATE users SET is_active = 0 WHERE id = ?", (teacher["id"],))
         self.assert_no_authority()
-        self.assertEqual(self.session(), {})
+        # The stale identity is dropped; what is left is not one.
+        self.assertEqual(self.session(), STALE_SESSIONS["everything"])
+        self.assert_no_authority()
 
 
 class AccountDenialTest(CutoverTestCase):
@@ -303,8 +265,8 @@ class AccountDenialTest(CutoverTestCase):
 
     def test_signed_in_account_without_the_role_gets_403(self):
         cases = (
-            ("teacher", (*ADMIN_PATHS, "/profile/admin")),
-            ("student", (*ADMIN_PATHS, *TEACHER_PATHS, *ASSIGNMENT_PATHS, "/profile/admin")),
+            ("teacher", ADMIN_PATHS),
+            ("student", (*ADMIN_PATHS, *TEACHER_PATHS, *ASSIGNMENT_PATHS)),
         )
         for role, paths in cases:
             client = self.app.test_client()
@@ -342,7 +304,7 @@ class LogoutTest(CutoverTestCase):
         self.assertEqual((response.status_code, response.headers["Location"]), (302, "/"))
         self.assertEqual(self.session(), {})
         self.assert_no_authority()
-        # The browser replays the cookie it held before the cutover.
+        # The browser replays a cookie it held before the bridge was removed.
         with self.client.session_transaction() as sess:
             sess.update(STALE_SESSIONS["everything"])
         self.assert_no_authority()
@@ -367,8 +329,8 @@ class AdminSecondFactorTest(CutoverTestCase):
         self.assertEqual(self.client.get("/admin/login").status_code, 404)
 
     def test_pending_second_factor_with_stale_legacy_admin_keys_has_no_authority(self):
-        # Before the cutover this exact session was a legacy admin: the shared admin
-        # login could be completed while the account's second factor was still pending.
+        # While the bridge existed this exact session was a shared-password admin: the
+        # shared admin login could be completed while the second factor was still pending.
         admin = self.make("admin")
         self.pending(admin)
         self.inject_stale_admin()
@@ -376,9 +338,9 @@ class AdminSecondFactorTest(CutoverTestCase):
             flask_session.update(self.session())
             self.assertEqual(access.current_principal(), ANONYMOUS)
         self.assert_no_authority()
-        self.assertEqual(self.client.get("/profile/admin").status_code, 302)
-        # The pending sign-in survives the cleanup of the legacy keys, and only it.
-        self.assertEqual(set(self.session()), {"mfa_uid", "mfa_sk", "mfa_iat"})
+        self.assertEqual(self.client.get("/profile/admin").status_code, 404)
+        # The pending sign-in is untouched by all of that.
+        self.assertTrue({"mfa_uid", "mfa_sk", "mfa_iat"} <= set(self.session()))
 
         # A failed code changes nothing, with the stale keys put back again.
         self.inject_stale_admin()
@@ -490,7 +452,7 @@ class OwnershipCompositionTest(CutoverTestCase):
 
     def seed_assignment(self, account, title):
         principal = (access.account_principal(account["id"], "teacher", "Учител") if account
-                     else LEGACY_TESTER)
+                     else IDLESS_TEACHER)
         with closing(web_app.quiz_db()) as conn:
             assignment_id = quiz.quiz_create_assignment(
                 conn, principal=principal, section_id=self.section_id, title_bg=title, question_count=1)
@@ -614,9 +576,16 @@ class OwnershipCompositionTest(CutoverTestCase):
         # Including the unowned row it could open view-only while the bridge existed.
         client = self.stale_client(STALE_SESSIONS["tester"])
         self.assert_stale_session_manages_nothing(client)
-        with patch.dict(self.app.config, {"LEGACY_SHARED_LOGIN": True}):
-            bridged = self.stale_client(STALE_SESSIONS["tester"])
-            self.assertEqual(bridged.get(f"/teacher/assignment/{self.assignments['u']}").status_code, 200)
+
+    def test_denied_downloads_never_reach_the_file_response(self):
+        # Authorization comes first: a denied request is answered before send_file.
+        clients = [(302, self.stale_client(state)) for state in STALE_SESSIONS.values()]
+        clients.append((404, self.signed_in(self.teacher_a)))
+        with patch("web.blueprints.practical.send_file", side_effect=AssertionError("served")):
+            for status, client in clients:
+                for key in ("b", "u"):
+                    with self.subTest(status=status, file=key):
+                        self.assertEqual(client.get(self.download_path(key)).status_code, status)
 
     def test_stale_legacy_admin_has_no_global_management_authority(self):
         for label in ("admin", "admin with profile", "everything"):

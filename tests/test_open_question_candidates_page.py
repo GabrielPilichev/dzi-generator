@@ -93,18 +93,17 @@ class OpenQuestionCandidatesPageTest(IsolatedAppTestCase):
             response.data,
         )
 
-    def test_tester_cannot_access_open_question_candidates_page(self):
+    def test_teacher_cannot_access_open_question_candidates_page(self):
         self._login_tester()
         response = self.client.get("/admin/open-question-candidates")
 
-        self.assertEqual(response.status_code, 302)
-        self.assertIn("/admin/login", response.headers["Location"])
+        self.assertEqual(response.status_code, 403)
 
     def test_sessionless_user_cannot_access_open_question_candidates_page(self):
         response = self.client.get("/admin/open-question-candidates")
 
         self.assertEqual(response.status_code, 302)
-        self.assertIn("/admin/login", response.headers["Location"])
+        self.assertEqual(response.headers["Location"], "/login?next=/admin/open-question-candidates")
 
     def test_page_renders_candidate_count_and_grouping(self):
         conn = web_app.quiz_db()

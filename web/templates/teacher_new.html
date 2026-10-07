@@ -220,7 +220,7 @@
                     {% if mixed_planning_result.closed_shortfall %}MC: {{ mixed_planning_result.closed_shortfall }}{% endif %}
                     {% if mixed_planning_result.open_shortfall %}отворени: {{ mixed_planning_result.open_shortfall }}{% endif %}
                 </p>
-            {% elif admin_authenticated %}
+            {% elif current_account and current_account.is_admin %}
                 <label>
                     <input type="checkbox" name="include_open_answers_in_final_score" value="1">
                     Show combined score including open answers

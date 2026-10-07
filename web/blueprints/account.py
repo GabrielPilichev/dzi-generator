@@ -11,8 +11,8 @@ reads, so it authorizes nothing; ``POST /login/totp`` turns it into the account
 session after a TOTP or recovery code. An admin without a confirmed TOTP credential
 cannot sign in at all.
 Authorization stays in :mod:`web.access` and same-origin request integrity in
-:mod:`web.request_integrity`: this module only declares each view's policy. The
-legacy shared-password logins remain in :mod:`web.blueprints.auth`.
+:mod:`web.request_integrity`: this module only declares each view's policy.
+This is the only sign-in the application has.
 The module imports neither ``web.app`` nor another controller.
 """
 
@@ -88,8 +88,8 @@ def _submitted_next() -> str:
 def issue_account_session(user_id: int, session_key: str, issued_at: int | None = None) -> None:
     """Replace the session with the account identity.
 
-    Everything set before sign-in is dropped, legacy auth keys and ``ui_profile``
-    included; only the attempt-ownership markers carry over. ``issued_at`` is kept
+    Everything set before sign-in is dropped; only the attempt-ownership markers
+    carry over. ``issued_at`` is kept
     when a signed-in session is re-keyed, so re-keying never extends its lifetime.
     """
     carried = {key: value for key, value in session.items() if key.startswith(ATTEMPT_OWNER_KEY_PREFIX)}

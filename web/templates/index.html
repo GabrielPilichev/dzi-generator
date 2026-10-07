@@ -53,7 +53,7 @@
                 <span>Практически задачи 26–28</span>
             </div>
             <span class="mode-action" data-showcase-cta>Към прегледа</span>
-            {% if admin_authenticated %}
+            {% if current_account and current_account.is_admin %}
                 <span class="mode-admin-link">админ изглед: /dzi</span>
             {% endif %}
         </div>

@@ -216,7 +216,7 @@ def quiz_create_assignment(
     question_count: int, time_limit_minutes: int | None = None,
     question_plan_json: str | None = None,
 ) -> int:
-    """Insert with the creator's stable account id; legacy creators stay unowned.
+    """Insert with the creator's stable account id as the owner.
 
     The caller supplies the current Principal and owns the transaction. An
     admin's authorization bypass does not change who owns the new row.
@@ -234,19 +234,14 @@ def quiz_create_assignment(
 
 
 def quiz_can_access_assignment(assignment, principal: Principal) -> bool:
-    """Detail (view) access: whoever may manage the row, plus the legacy tester on
-    an unowned row.
+    """Detail (view) access: exactly whoever may manage the row
+    (``can_manage_assignment``); a missing row is denied.
 
-    The legacy branch is temporary view-only compatibility until the account
-    cutover; it never grants management (``can_manage_assignment``). Takes the
-    already loaded row and Principal; no per-row user lookup.
+    Takes the already loaded row and Principal; no per-row user lookup.
     """
     if assignment is None:
         return False
-    owner_user_id = assignment["owner_user_id"]
-    if can_manage_assignment(principal, owner_user_id):
-        return True
-    return principal.is_teacher and principal.user_id is None and owner_user_id is None
+    return can_manage_assignment(principal, assignment["owner_user_id"])
 
 
 def quiz_fetch_assignment(conn, assignment_id: int):

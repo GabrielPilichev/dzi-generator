@@ -106,7 +106,7 @@ class SeedSubjectRoutesTest(_RouteTestCase):
 
     def test_navigation_follows_registry_order_and_derived_status(self):
         self.login()
-        for path in ("/", "/tester", "/subjects/biology", "/grade/8"):
+        for path in ("/", "/subjects/biology", "/grade/8"):
             with self.subTest(path=path):
                 nav = _subject_nav(self.html(path))
                 self.assertEqual(list(nav), SLUGS)
@@ -296,7 +296,7 @@ class SyntheticBiologySubjectTest(_RouteTestCase):
 
     def test_navigation_status_is_derived_on_pages_that_are_not_subject_pages(self):
         self.login()
-        for path in ("/tester", "/", "/grade/8", "/subjects/information-technologies"):
+        for path in ("/", "/grade/8", "/subjects/information-technologies"):
             with self.subTest(path=path):
                 nav = _subject_nav(self.html(path))
                 self.assertNotIn("nav-menu-link--placeholder", nav["biology"])

@@ -5,6 +5,18 @@ implemented yet. It is the authoritative implementation specification for the
 Accounts phase of `docs/REFACTOR_ACCOUNTS_ROADMAP.md`; where the two differ on
 accounts, this document wins (the approved deviations are listed in §1).
 
+**Implementation status.** Phase 1 is implemented through PR 10: accounts,
+login/session security, assignment and practical-review ownership, admin TOTP,
+the production cutover (PR 9) and the physical removal of the shared
+tester/admin password bridge (PR 10). Account authentication is now the only
+authentication in every environment. Sections that describe the shared
+passwords, `tester_authenticated` / `admin_authenticated`, `ui_profile`,
+`/tester/login`, `/admin/login`, `/profile/<profile>` or
+`DZI_LEGACY_SHARED_LOGIN` (§2 and §8 in particular) record the starting point
+and the transition and are kept as history; none of it exists in the code. The
+current contract is `docs/AUTH_ROUTE_CONTRACT.md`. Phase 2 (student accounts)
+is not started.
+
 Implement it one PR at a time, in the order of §17. The roadmap's rules for
 every PR (feature branch, numbered migrations only, tests never touch
 `data/questions.db`, Bulgarian UI text, no merge without Gabriel's go-ahead)
@@ -19,8 +31,9 @@ apply unchanged.
   random `sk` (session key) and `iat`. Role, active state and name are read
   from the row once per signed-in request.
 - **Seam:** `web/access.py` already isolates every access decision behind
-  `current_principal()`. Accounts plug in there, and the legacy tester/admin
-  session keys keep working as a bridge until the last PR of phase 1.
+  `current_principal()`. Accounts plug in there. The legacy tester/admin
+  session keys kept working as a bridge until the last PR of phase 1 (PR 10),
+  which removed them.
 - **Rollout:** small PRs for teacher/admin accounts and assignment ownership
   (phase 1). Student accounts are phase 2 and additionally need one
   migration-runner fix (§16).
@@ -50,7 +63,10 @@ apply unchanged.
 - TOTP is a separate pre-cutover security PR, not part of the first account
   schema.
 
-## 2. Current auth architecture
+## 2. Auth architecture before accounts (historical)
+
+This section describes the application as it was when the design was written.
+It is the baseline the PR sequence started from, not the current state.
 
 **Mechanisms**
 
@@ -388,8 +404,8 @@ existing `Principal(is_teacher=..., is_admin=...)` constructions stay valid.
 **Access vocabulary additions**
 
 - `signed_in`: any active account. First used in phase 2.
-- `assignment_owner`: the route admits an admin or a teacher account (the
-  legacy tester session, which has no account id, is not admitted), and the
+- `assignment_owner`: the route admits an admin or a teacher account (teacher
+  capability without an account id is never enough), and the
   view checks `can_manage_assignment` (admin, or an owner equal to a non-NULL
   account id) on the loaded row and answers 404. Implemented in PR 7; PR 8
   reuses the same policy, predicate and SQL scope from `web/access.py` for
@@ -399,7 +415,7 @@ existing `Principal(is_teacher=..., is_admin=...)` constructions stay valid.
   attempt → assignment → `owner_user_id`; the list is filtered in SQL and the
   download checks the predicate before the file is looked at on disk. An admin
   keeps every submission; an unowned (NULL) assignment's practical data is
-  admin-only; the legacy tester has no practical-review access.
+  admin-only.
 
 **Target flows**
 
@@ -412,12 +428,17 @@ existing `Principal(is_teacher=..., is_admin=...)` constructions stay valid.
 
 **Where UI state differs from authorization**
 
-- `ui_profile` and `/profile/<profile>` are cosmetic and get retired; the
-  label derives from the role.
-- `tester_authenticated` and `admin_authenticated` in templates become values
-  computed from the principal during the bridge, then are renamed.
+- `ui_profile` and `/profile/<profile>` were cosmetic and were retired by
+  PR 10; the footer label is the account's role.
+- The template variables `tester_authenticated` and `admin_authenticated` were
+  computed from the principal during the bridge and removed by PR 10; templates
+  test `current_account` (the account principal or `None`).
 
-## 8. Tester/admin compatibility strategy
+## 8. Tester/admin compatibility strategy (historical; ended by PR 10)
+
+The bridge below existed from PR 3 to PR 9 and its code was deleted by PR 10.
+The rules are kept to explain the transition; "Removal" at the end of this
+section is the current state.
 
 **Bridge rules (PR 3 until cutover)**
 
@@ -436,29 +457,43 @@ existing `Principal(is_teacher=..., is_admin=...)` constructions stay valid.
   the cutover PR, except the `assignment_owner` routes (PR 7), which send to
   the account login `/login`.
 
-**Switch (implemented by PR 9)**
+**Switch (PR 9, superseded by PR 10)**
 
-- `DZI_LEGACY_SHARED_LOGIN`. When off, the legacy routes 404 and the keys are
-  ignored: account authentication is the only authority.
-- Production is always off. `web/production.py` refuses to start with an
-  enabled or unreadable value and forces the bridge off otherwise; it no longer
-  requires, validates or reads the two shared passwords.
-- Outside production the default stays on, so local smoke testing and the
-  tests that pin legacy behaviour keep working until PR 10.
-- Stale legacy cookies lose their authority centrally, in
-  `current_principal()`; `DZI_SECRET_KEY` is not rotated for the cutover.
+- PR 9 introduced `DZI_LEGACY_SHARED_LOGIN`. When off, the legacy routes
+  answered 404 and the keys were ignored. Production was always off:
+  `web/production.py` refused to start with an enabled or unreadable value and
+  forced the bridge off otherwise, and stopped requiring the two shared
+  passwords. Outside production the default stayed on until PR 10.
+- `DZI_SECRET_KEY` was not rotated for the cutover.
 - `manage_accounts cutover-check` is the read-only operator preflight; the
-  application does not depend on a viable admin at startup.
-- The exact contract is in `docs/AUTH_ROUTE_CONTRACT.md` ("Legacy shared-login
-  cutover"), the rollout and recovery procedure in `docs/DEPLOYMENT.md`
+  application does not depend on a viable admin at startup. It remains.
+
+**Removal (PR 10) — current state**
+
+- Deleted: `web/blueprints/auth.py` and its routes (`/tester`,
+  `/tester/login`, `/tester/logout`, `/admin/login`, `/admin/logout`,
+  `/profile/<profile>`), their templates, the `profile_switch` access level,
+  the session fallback in `web/access.py` (`principal_from_session`), the
+  `ui_profile` hook and context, the `DZI_LEGACY_SHARED_LOGIN` flag with its
+  parsing and production validation, every read of `DZI_ADMIN_PASSWORD` /
+  `DZI_TESTER_PASSWORD`, the view-only tester exception for unowned assignment
+  detail, and the Nginx zones of the two shared logins.
+- `current_principal()` returns the account principal loaded for the request or
+  anonymous. No code reads `tester_authenticated`, `admin_authenticated` or
+  `ui_profile`; a cookie that still carries them is simply anonymous.
+- No environment variable or configuration value can re-enable shared sign-in.
+- No migration, no ownership backfill and no key rotation were involved.
+- The exact contract is in `docs/AUTH_ROUTE_CONTRACT.md` ("Removed
+  shared-password authentication"), the operator notes in `docs/DEPLOYMENT.md`
   (section 23).
 
 **Tests**
 
-- PR 3 adds `tests/auth_helpers.py` (`login_as(client, role)`), and PR 5 moves
-  the duplicated per-file helpers onto it and points it at real account rows.
-- Tests that pin legacy behaviour keep writing the keys explicitly and are
-  deleted with the legacy code in PR 10.
+- PR 3 added `tests/auth_helpers.py` (`login_as(client, role)`), and PR 5 moved
+  the duplicated per-file helpers onto it and pointed it at real account rows.
+- PR 10 deleted the tests that pinned bridge behaviour and moved the remaining
+  authorization tests onto account sessions. The historical keys are injected
+  only by regression tests that prove they grant nothing.
 
 **Phases derived from the repository**
 
@@ -614,7 +649,7 @@ account forms.**
 | Throttled | 429, „Твърде много опити. Опитай отново след няколко минути.“ regardless of whether the account exists. |
 | Duplicate at creation | The CLI reports it plainly (operator context). No public surface in v1. |
 | Anonymous on a protected route | 302 to login with `next=<path>`. |
-| Signed in without the role | With the legacy bridge disabled (production, PR 9): a Bulgarian 403 page (`403.html`). With the bridge enabled (development only): the earlier redirect. |
+| Signed in without the role | A Bulgarian 403 page (`403.html`). |
 | Object not owned (assignment, attempt) | 404, never 403. |
 | Stale, deleted, disabled or key-mismatched session | Identity keys dropped, request continues as anonymous. |
 | Malformed `next` | `safe_redirect_target` falls back by role: admin → `/teacher`, teacher → `/teacher/new`, student → `/`. |
@@ -694,6 +729,9 @@ Notes:
 - PR T does not block PRs 1–8. It must land before PR 9 is deployed with the
   legacy flag off in production and before PR 10. Its design is §23.
 - PRs 4, 6–8 and T each get an independent security review.
+- PRs 1–10 and T are implemented. PR 10 additionally removed the flag that
+  PR 9 introduced and the view-only tester exception of PRs 6–7, which had no
+  remaining principal.
 
 **Phase 2 — student accounts** (after phase 1): the migration-runner
 directive; migration 015 with account-owned attempts and the `signed_in`
@@ -741,6 +779,10 @@ those features are built. Admin TOTP tests are listed in §23.
    (`docs/DEPLOYMENT.md`, section 23). Production then has the legacy bridge
    off unconditionally; the two passwords in the env file are inert and are
    removed once a rollback to pre-cutover code is no longer wanted.
+7. Deploy the removal (PR 10): no migration and no data change. Remove the
+   leftover `DZI_ADMIN_PASSWORD`, `DZI_TESTER_PASSWORD` and
+   `DZI_LEGACY_SHARED_LOGIN` lines from the env file and re-apply the Nginx
+   template when convenient.
 
 Restoring a backup revives the password hashes and session keys of that
 moment. After any restore, run `manage_accounts sign-out` for all users.
@@ -776,8 +818,8 @@ Still open, none of which blocks phase 1:
 
 - **Data loss in the attempts rebuild** if migration 015 runs on the current
   runner. Mitigated by the runner PR and a backup.
-- **Two auth paths during the bridge.** Bounded by the flag and by PR 10; the
-  bridge must not outlive phase 1.
+- **Two auth paths during the bridge.** Closed: PR 10 removed the bridge, so
+  there is one auth path.
 - **Single sync worker.** A password check costs noticeable CPU; a login flood
   stalls every user. The Nginx limit and the pre-hash throttle check are the
   defence.
@@ -791,9 +833,9 @@ Still open, none of which blocks phase 1:
 - **Admin without a second factor between PR 4 and PR T.** Mitigated by the
   14-character minimum, the 12-hour admin session and the login throttle; PR T
   closes it (§23), and migration 016 ends every earlier admin session.
-- **The legacy env-password admin has no second factor.** Closed in production
-  by PR 9 (the bridge cannot be enabled there, and stale legacy cookies are
-  ignored); the code is removed by PR 10. It still exists in development runs.
+- **The legacy env-password admin has no second factor.** Closed: unavailable
+  in production since PR 9, and removed everywhere, development runs included,
+  by PR 10.
 - **Rollback to pre-cutover code revives the bridge**, including legacy cookies
   signed with the unchanged `DZI_SECRET_KEY`. Accepted: rotating the key would
   sign out everyone and break open student attempts, so it is an explicit
@@ -805,7 +847,7 @@ Still open, none of which blocks phase 1:
 ## 23. Admin TOTP (PR T)
 
 Status: implemented by PR T. It touches only the admin second factor; the legacy
-shared-password bridge is unchanged until PRs 9–10.
+shared-password bridge was left unchanged by it and was removed by PRs 9–10.
 
 **Schema — `016_admin_totp.sql`** (014 and 015 stay reserved for assignment
 ownership and the phase-2 attempts rebuild). Both tables are `RUNTIME`.

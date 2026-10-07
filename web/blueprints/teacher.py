@@ -637,7 +637,6 @@ def teacher_assignment(assignment_id):
     if not quiz_can_access_assignment(assignment, principal):
         conn.close()
         abort(404)
-    # The legacy tester may view an unowned row but never gets management controls.
     can_manage = can_manage_assignment(principal, assignment["owner_user_id"])
 
     attempts = conn.execute("""
@@ -754,8 +753,7 @@ def teacher_assignment_duplicate(assignment_id):
             conn.close()
             abort(400)
 
-    # The copy belongs to the acting account (NULL for a legacy admin session),
-    # never to the source's owner.
+    # The copy belongs to the acting account, never to the source's owner.
     new_assignment_id = quiz_create_assignment(
         conn, principal=current_principal(), section_id=source["section_id"],
         title_bg=quiz_duplicate_title(source["title_bg"]),

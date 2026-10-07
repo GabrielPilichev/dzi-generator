@@ -79,11 +79,25 @@ export DZI_SECRET_KEY="$(python3 -c 'import secrets; print(secrets.token_urlsafe
 
 ```bash
 cd ~/dzi-generator
-DZI_ADMIN_PASSWORD=admin123 DZI_TESTER_PASSWORD=tester123 python3 - <<'PY'
+DZI_SESSION_COOKIE_SECURE=0 python3 - <<'PY'
 from web.app import app
 app.run(host="127.0.0.1", port=5001, debug=True, use_reloader=False)
 PY
 ```
+
+Sign-in is by account only, at `/login`; there are no shared passwords. Create
+local accounts with the account CLI, which prompts for the password:
+
+```bash
+python3 -m src.manage_accounts --db data/questions.db create \
+  --email <email> --name "<name>" --role teacher
+```
+
+An admin account additionally needs a confirmed TOTP second factor before it
+can sign in: export `DZI_TOTP_KEY` (the same value for the CLI and the running
+app), then run `totp-enroll --email <email>` and `totp-confirm --email <email>`.
+`docs/DEPLOYMENT.md` (section 22) lists every command and
+`docs/AUTH_ROUTE_CONTRACT.md` describes who may open what.
 
 ## Architecture & Security Assumptions
 
@@ -95,8 +109,8 @@ PY
 - Recent UI polish keeps logged-out navigation simple, the homepage cleaner, and student/teacher/DZI flows easier to scan.
 - These UI-only changes are not intended to change routes, scoring, assignment behavior, filters, or database behavior.
 
-### Tester visibility / multi-tenancy assumptions
-- The tester role is currently a shared role, not an isolated per-teacher account.
-- Tester-visible assignment pages may show assignments/attempts across the local instance.
-- This is intentional for the current deployment/testing model (local/single-school/manual-testing).
-- If per-teacher isolation becomes a goal later, it needs an explicit schema/auth design PR, not a small route guard patch.
+### Accounts and assignment visibility
+- Every signed-in user is an individual account (`student`, `teacher` or `admin`); the former shared "tester" and "admin" passwords no longer exist.
+- A teacher account sees and manages only the assignments it created, and their attempts and practical submissions. Another teacher's assignment answers 404.
+- An admin account (password plus TOTP or a recovery code) sees everything, including assignments without an owner.
+- Assignments created before ownership existed have no owner and are admin-only; nothing assigns them to a teacher automatically.

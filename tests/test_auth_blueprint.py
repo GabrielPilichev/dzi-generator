@@ -1,10 +1,11 @@
-"""Roadmap PR E5 — auth/tester/profile routes live on the auth blueprint, the
-legacy quiz endpoint aliases are gone, and ``web.app`` is a composition root.
+"""The shared-password auth blueprint (roadmap PR E5) is gone (Accounts PR10).
 
-Pins ownership, endpoint names, the unchanged public URLs/methods/policies,
-login/logout/profile behavior (session keys, redirects, same-origin integrity),
-that ``ui_profile`` never authorizes, the removed aliases and wrappers, the
-dependency direction between controllers, and fresh-interpreter startup.
+``/tester``, ``/tester/login``, ``/tester/logout``, ``/admin/login``,
+``/admin/logout`` and ``/profile/<profile>`` were the shared tester/admin password
+bridge and its cosmetic profile switch. This module pins their physical removal
+(module, blueprint, endpoints, rules, templates, helpers), that the URLs answer
+like any unknown URL, the removed quiz aliases and wrappers, the dependency
+direction between the remaining controllers, and fresh-interpreter startup.
 """
 
 import ast
@@ -14,23 +15,25 @@ import sys
 import unittest
 from unittest.mock import patch
 
+from tests.auth_helpers import HISTORICAL_SHARED_LOGIN_SESSION, client_as
 from tests.support import ROOT, IsolatedAppTestCase, web_app
-from web import access, request_integrity
 
-E5_ROUTES = {
-    "/tester": ("auth.tester_home", {"GET"}, access.PUBLIC),
-    "/tester/login": ("auth.tester_login", {"GET", "POST"}, access.PUBLIC),
-    "/tester/logout": ("auth.tester_logout", {"GET"}, access.PUBLIC),
-    "/admin/login": ("auth.admin_login", {"GET", "POST"}, access.PUBLIC),
-    "/admin/logout": ("auth.admin_logout", {"GET"}, access.ADMIN),
-    "/profile/<profile>": ("auth.switch_profile", {"GET"}, access.PROFILE_SWITCH),
+# The rules the removed blueprint owned, and a concrete URL for each.
+REMOVED_RULES = {
+    "/tester": "/tester",
+    "/tester/login": "/tester/login",
+    "/tester/logout": "/tester/logout",
+    "/admin/login": "/admin/login",
+    "/admin/logout": "/admin/logout",
+    "/profile/<profile>": "/profile/admin",
 }
-REMOVED_ENDPOINTS = (
-    "tester_home", "tester_login", "tester_logout", "admin_login", "admin_logout",
-    "switch_profile", "quiz_start", "quiz_attempt", "quiz_result",
+REMOVED_AUTH_VIEWS = (
+    "tester_home", "tester_login", "tester_logout", "admin_login", "admin_logout", "switch_profile",
 )
+REMOVED_ENDPOINTS = (*REMOVED_AUTH_VIEWS, "quiz_start", "quiz_attempt", "quiz_result")
+REMOVED_TEMPLATES = ("tester_home.html", "tester_login.html", "admin_login.html")
 CONTROLLER_MODULES = (
-    "web/blueprints/auth.py", "web/blueprints/browsing.py", "web/blueprints/dzi.py",
+    "web/blueprints/account.py", "web/blueprints/browsing.py", "web/blueprints/dzi.py",
     "web/blueprints/practical.py", "web/blueprints/quiz.py", "web/blueprints/teacher.py",
 )
 CANONICAL_QUIZ_URLS = {
@@ -38,7 +41,8 @@ CANONICAL_QUIZ_URLS = {
     "/quiz/attempt/<int:attempt_id>": ("quiz.quiz_attempt", {"GET", "POST"}),
     "/quiz/attempt/<int:attempt_id>/result": ("quiz.quiz_result", {"GET"}),
 }
-PASSWORDS = {"DZI_TESTER_PASSWORD": "tester-pw", "DZI_ADMIN_PASSWORD": "admin-pw"}
+PASSWORDS = {"DZI_TESTER_PASSWORD": "tester-pw", "DZI_ADMIN_PASSWORD": "admin-pw",
+             "DZI_LEGACY_SHARED_LOGIN": "1"}
 
 
 def imported_modules(relative):
@@ -60,32 +64,31 @@ def rules_by_url():
     return grouped
 
 
-class AuthOwnershipTest(unittest.TestCase):
-    def test_e5_routes_keep_url_methods_and_policy_under_auth_endpoints(self):
+class AuthRemovalTest(unittest.TestCase):
+    def test_the_removed_rules_are_not_in_the_route_map(self):
         grouped = rules_by_url()
-        for url, (endpoint, methods, policy) in E5_ROUTES.items():
+        for url in REMOVED_RULES:
             with self.subTest(url=url):
-                self.assertEqual([r.endpoint for r in grouped[url]], [endpoint])
-                self.assertEqual(grouped[url][0].methods - {"HEAD", "OPTIONS"}, methods)
-                view = web_app.app.view_functions[endpoint]
-                self.assertEqual(view.__module__, "web.blueprints.auth")
-                self.assertEqual(access.policy_for_view(view), policy)
+                self.assertNotIn(url, grouped)
+        self.assertFalse([url for url in grouped if url.startswith(("/tester", "/profile"))])
+        self.assertEqual(sorted(url for url in grouped if "login" in url or "logout" in url),
+                         ["/login", "/login/totp", "/logout"])
 
-    def test_blueprint_owns_exactly_the_e5_routes_without_a_prefix(self):
-        owned = {r.rule for r in web_app.app.url_map.iter_rules() if r.endpoint.startswith("auth.")}
-        self.assertEqual(owned, set(E5_ROUTES))
-
-    def test_unsafe_login_posts_declare_same_origin_and_logouts_are_get_only(self):
-        for endpoint in ("auth.tester_login", "auth.admin_login"):
-            view = web_app.app.view_functions[endpoint]
-            self.assertEqual(request_integrity.integrity_policy_for_view(view), request_integrity.SAME_ORIGIN)
+    def test_the_blueprint_module_and_its_templates_do_not_exist(self):
+        self.assertFalse((ROOT / "web/blueprints/auth.py").exists())
+        self.assertNotIn("web.blueprints.auth", sys.modules)
+        self.assertNotIn("auth", web_app.app.blueprints)
+        for template in REMOVED_TEMPLATES:
+            with self.subTest(template=template):
+                self.assertFalse((ROOT / "web/templates" / template).exists())
 
     def test_old_endpoint_names_and_quiz_aliases_are_gone(self):
         endpoints = {r.endpoint for r in web_app.app.url_map.iter_rules()}
-        for legacy in REMOVED_ENDPOINTS:
+        for legacy in (*REMOVED_ENDPOINTS, *(f"auth.{name}" for name in REMOVED_AUTH_VIEWS)):
             with self.subTest(endpoint=legacy):
                 self.assertNotIn(legacy, endpoints)
                 self.assertNotIn(legacy, web_app.app.view_functions)
+        self.assertFalse({endpoint for endpoint in web_app.app.view_functions if endpoint.startswith("auth.")})
 
     def test_canonical_quiz_urls_have_exactly_one_rule_each(self):
         grouped = rules_by_url()
@@ -96,7 +99,7 @@ class AuthOwnershipTest(unittest.TestCase):
 
     def test_no_url_for_references_a_removed_endpoint(self):
         import re
-        names = "|".join(REMOVED_ENDPOINTS)
+        names = "|".join((*REMOVED_ENDPOINTS, r"auth\.[a-z_]+"))
         pattern = re.compile(rf"""url_for\(\s*['"](?:{names})['"]""")
         sources = list((ROOT / "web" / "templates").glob("*.html"))
         sources += (ROOT / "web").glob("*.py")
@@ -108,7 +111,10 @@ class AuthOwnershipTest(unittest.TestCase):
 
     def test_app_module_no_longer_holds_auth_helpers_or_compat_constants(self):
         for name in ("tester_login", "admin_login", "switch_profile", "tester_home",
-                     "password_matches", "is_admin_authenticated",
+                     "password_matches", "is_admin_authenticated", "is_tester_authenticated",
+                     "auth_bp", "VALID_UI_PROFILES", "load_ui_profile", "inject_ui_profile",
+                     "build_legacy_shared_login", "legacy_shared_login_enabled",
+                     "LEGACY_SHARED_LOGIN_ENV", "LEGACY_SHARED_LOGIN_CONFIG", "LEGACY_AUTH_SESSION_KEYS",
                      "dzi_find_exam", "fetch_dzi_tasks", "PRACTICAL_REFERENCE_ROOT",
                      "PRACTICAL_RESOURCE_ROOTS", "register_legacy_quiz_endpoint_aliases"):
             self.assertFalse(hasattr(web_app, name), name)
@@ -116,7 +122,7 @@ class AuthOwnershipTest(unittest.TestCase):
     def test_every_blueprint_is_registered_exactly_once(self):
         self.assertEqual(
             sorted(web_app.app.blueprints),
-            ["account", "auth", "browsing", "dzi", "practical", "quiz", "teacher"],
+            ["account", "browsing", "dzi", "practical", "quiz", "teacher"],
         )
 
 
@@ -138,17 +144,31 @@ class AuthDependencyDirectionTest(unittest.TestCase):
                         with self.subTest(module=relative, function=func.name):
                             self.assertNotIsInstance(node, (ast.Import, ast.ImportFrom))
 
-    def test_auth_blueprint_uses_no_database(self):
-        source = (ROOT / "web/blueprints/auth.py").read_text(encoding="utf-8")
-        for needle in ("sqlite3", "get_request_db", "get_db"):
-            self.assertNotIn(needle, source)
+    def test_no_runtime_module_or_template_names_the_removed_machinery(self):
+        # The environment variables, session keys and endpoints of the bridge. A test
+        # may inject the keys; application, deployment and template code may not name them.
+        needles = (
+            "DZI_LEGACY_SHARED_LOGIN", "DZI_ADMIN_PASSWORD", "DZI_TESTER_PASSWORD",
+            "LEGACY_SHARED_LOGIN", "tester_authenticated", "admin_authenticated", "ui_profile",
+            "/tester/login", "/admin/login", "/tester/logout", "/admin/logout", "/profile/",
+            "lp_admin_login", "lp_tester_login", "blueprints.auth", "auth_bp",
+        )
+        sources = [*(ROOT / "web").rglob("*.py"), *(ROOT / "web" / "templates").glob("*.html"),
+                   ROOT / "src/run_tunnel_dev.py", ROOT / "src/manage_accounts.py",
+                   *(path for path in (ROOT / "deploy").rglob("*") if path.is_file())]
+        self.assertGreater(len(sources), 40)
+        for path in sources:
+            text = path.read_text(encoding="utf-8")
+            for needle in needles:
+                with self.subTest(path=str(path.relative_to(ROOT)), needle=needle):
+                    self.assertNotIn(needle, text)
 
-    def test_auth_blueprint_imports_in_a_fresh_interpreter_without_web_app(self):
-        code = "import sys, web.blueprints.auth\nprint('web.app' in sys.modules)\n"
+    def test_the_removed_blueprint_cannot_be_imported(self):
+        code = "import web.blueprints.auth\n"
         result = subprocess.run(
             [sys.executable, "-B", "-c", code], cwd=ROOT, capture_output=True, text=True)
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(result.stdout.strip(), "False")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("ModuleNotFoundError", result.stderr)
 
     def test_web_app_imports_once_with_a_complete_route_map_in_a_fresh_interpreter(self):
         code = (
@@ -156,144 +176,108 @@ class AuthDependencyDirectionTest(unittest.TestCase):
             "from web.app import app\n"
             "print(len(app.blueprints), len(list(app.url_map.iter_rules())))\n"
         )
-        env = {**os.environ, "DZI_SECRET_KEY": "x" * 40}
-        result = subprocess.run(
-            [sys.executable, "-B", "-c", code], cwd=ROOT, capture_output=True, text=True, env=env)
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertTrue(result.stdout.strip().startswith("7 "), result.stdout)
+        # Neither the shared passwords nor a bridge flag is needed, and setting them
+        # (second run) changes nothing about what the application serves.
+        base = {key: value for key, value in os.environ.items() if key not in PASSWORDS}
+        outputs = []
+        for extra in ({}, PASSWORDS):
+            env = {**base, "DZI_SECRET_KEY": "x" * 40, "DZI_DB": ":memory:", **extra}
+            result = subprocess.run(
+                [sys.executable, "-B", "-c", code], cwd=ROOT, capture_output=True, text=True, env=env)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertTrue(result.stdout.strip().startswith("6 "), result.stdout)
+            outputs.append(result.stdout)
+        self.assertEqual(outputs[0], outputs[1])
 
 
-class AuthBehaviorTest(IsolatedAppTestCase):
+class RemovedRoutesBehaviorTest(IsolatedAppTestCase):
+    """The removed URLs answer exactly like a URL that never existed."""
+
     def setUp(self):
         super().setUp()
+        # Everything that once enabled or fed the bridge is set: it must change nothing.
         patcher = patch.dict(os.environ, PASSWORDS)
         patcher.start()
         self.addCleanup(patcher.stop)
+        config = patch.dict(web_app.app.config, {"LEGACY_SHARED_LOGIN": True})
+        config.start()
+        self.addCleanup(config.stop)
         self.client = web_app.app.test_client()
 
-    def session(self):
-        with self.client.session_transaction() as sess:
+    def session(self, client=None):
+        with (client or self.client).session_transaction() as sess:
             return dict(sess)
 
-    def test_login_pages_render_for_anonymous_visitors(self):
-        for url in ("/tester", "/tester/login", "/admin/login"):
-            with self.subTest(url=url):
-                self.assertEqual(self.client.get(url).status_code, 200)
+    def clients(self):
+        db_path = web_app.app.config["DB_PATH"]
+        return {who: client_as(web_app.app, db_path, who)
+                for who in ("anonymous", "historical", "student", "teacher", "admin")}
 
-    def test_tester_login_success_sets_the_same_session_keys_and_redirects(self):
-        response = self.client.post(
-            "/tester/login?next=/teacher/new", data={"password": "tester-pw"})
-        self.assertEqual(response.status_code, 302)
-        self.assertTrue(response.headers["Location"].endswith("/teacher/new"))
-        self.assertEqual(self.session(), {"tester_authenticated": True, "ui_profile": "tester"})
+    def test_get_is_not_found_for_every_kind_of_session(self):
+        for who, client in self.clients().items():
+            before = self.session(client)
+            for url in REMOVED_RULES.values():
+                with self.subTest(who=who, url=url):
+                    response = client.get(url, query_string={"next": "/teacher"})
+                    self.assertEqual(response.status_code, 404)
+                    self.assertNotIn("Location", response.headers)
+                    self.assertNotIn('type="password"', response.get_data(as_text=True))
+            self.assertEqual(self.session(client), before)
 
-    def test_tester_login_default_redirect_is_the_tester_page(self):
-        response = self.client.post("/tester/login", data={"password": "tester-pw"})
-        self.assertTrue(response.headers["Location"].endswith("/tester"))
-
-    def test_admin_login_success_sets_the_same_session_keys_and_redirects(self):
-        response = self.client.post("/admin/login", data={"password": "admin-pw"})
-        self.assertEqual(response.status_code, 302)
-        self.assertTrue(response.headers["Location"].endswith("/teacher"))
-        self.assertEqual(self.session(), {"admin_authenticated": True, "ui_profile": "admin"})
-
-    def test_failed_login_renders_the_error_and_leaves_the_session_empty(self):
-        for url, error in (("/tester/login", "Грешна парола."), ("/admin/login", "Грешна парола.")):
-            with self.subTest(url=url):
-                response = self.client.post(url, data={"password": "nope"})
-                self.assertEqual(response.status_code, 200)
-                self.assertIn(error, response.get_data(as_text=True))
-                self.assertNotIn("tester_authenticated", self.session())
-                self.assertNotIn("admin_authenticated", self.session())
-
-    def test_login_with_no_configured_password_fails_closed(self):
-        with patch.dict(os.environ, {"DZI_ADMIN_PASSWORD": "", "DZI_TESTER_PASSWORD": ""}):
-            for url in ("/tester/login", "/admin/login"):
-                response = self.client.post(url, data={"password": ""})
-                self.assertEqual(response.status_code, 200)
-                self.assertIn("не е зададена", response.get_data(as_text=True))
-        self.assertEqual(self.session().get("admin_authenticated"), None)
-
-    def test_unsafe_next_targets_fall_back_to_the_default(self):
-        for bad in ("https://evil.example/x", "//evil.example/x", "javascript:alert(1)", "relative"):
-            with self.subTest(next=bad):
-                client = web_app.app.test_client()
-                response = client.post(
-                    "/admin/login", data={"password": "admin-pw", "next": bad})
-                location = response.headers["Location"]
-                self.assertTrue(location.endswith("/teacher"), location)
-
-    def test_cross_origin_login_posts_are_blocked_before_any_session_write(self):
+    def test_post_is_not_found_and_grants_nothing(self):
+        same_origin = {"Origin": "http://localhost"}
         for url, password in (("/tester/login", "tester-pw"), ("/admin/login", "admin-pw")):
+            for submitted in (password, "wrong", ""):
+                with self.subTest(url=url, submitted=submitted):
+                    client = web_app.app.test_client()
+                    response = client.post(
+                        url, data={"password": submitted, "next": "/teacher"}, headers=same_origin)
+                    self.assertEqual(response.status_code, 404)
+                    self.assertEqual(self.session(client), {})
+                    for protected in ("/teacher", "/teacher/new", "/teacher/assignments", "/dzi"):
+                        denied = client.get(protected)
+                        self.assertEqual((denied.status_code, denied.headers["Location"]),
+                                         (302, f"/login?next={protected}"))
+
+    def test_removed_urls_match_an_unknown_url_byte_for_byte(self):
+        unknown = self.client.get("/no-such-page").get_data(as_text=True)
+        for url in REMOVED_RULES.values():
+            with self.subTest(url=url):
+                body = self.client.get(url).get_data(as_text=True)
+                self.assertEqual(body.replace(url, "/no-such-page"), unknown)
+
+    def test_cross_origin_post_is_refused_like_one_to_an_unknown_url(self):
+        for url in ("/tester/login", "/admin/login", "/no-such-page"):
             with self.subTest(url=url):
                 response = self.client.post(
-                    url, data={"password": password}, headers={"Origin": "http://evil.example"})
+                    url, data={"password": "admin-pw"}, headers={"Origin": "http://evil.example"})
                 self.assertEqual(response.status_code, 403)
         self.assertEqual(self.session(), {})
-        ok = self.client.post(
-            "/tester/login", data={"password": "tester-pw"}, headers={"Origin": "http://localhost"})
-        self.assertEqual(ok.status_code, 302)
 
-    def test_tester_logout_keeps_an_admin_profile(self):
-        self.client.post("/tester/login", data={"password": "tester-pw"})
-        self.client.post("/admin/login", data={"password": "admin-pw"})
-        response = self.client.get("/tester/logout")
-        self.assertTrue(response.headers["Location"].endswith("/tester"))
-        self.assertEqual(self.session(), {"admin_authenticated": True, "ui_profile": "admin"})
+    def test_removed_get_logouts_do_not_sign_an_account_out(self):
+        client = self.clients()["admin"]
+        for url in ("/tester/logout", "/admin/logout"):
+            self.assertEqual(client.get(url).status_code, 404)
+        self.assertEqual(set(self.session(client)), {"uid", "sk", "iat"})
+        self.assertEqual(client.get("/teacher").status_code, 200)
+        # The canonical sign-out is POST /logout only.
+        self.assertEqual(client.get("/logout").status_code, 405)
+        self.assertEqual(client.post("/logout", headers={"Origin": "http://evil.example"}).status_code, 403)
+        self.assertEqual(set(self.session(client)), {"uid", "sk", "iat"})
+        self.assertEqual(client.post("/logout", headers={"Origin": "http://localhost"}).status_code, 302)
+        self.assertEqual(self.session(client), {})
 
-    def test_tester_logout_resets_the_profile_for_a_tester(self):
-        self.client.post("/tester/login", data={"password": "tester-pw"})
-        self.client.get("/tester/logout")
-        self.assertEqual(self.session(), {"ui_profile": "tester"})
-
-    def test_admin_logout_requires_admin_and_clears_only_admin_state(self):
-        anonymous = self.client.get("/admin/logout")
-        self.assertEqual(anonymous.status_code, 302)
-        self.assertIn("/admin/login", anonymous.headers["Location"])
-        self.client.post("/tester/login", data={"password": "tester-pw"})
-        self.client.post("/admin/login", data={"password": "admin-pw"})
-        response = self.client.get("/admin/logout")
-        self.assertEqual(response.status_code, 302)
-        self.assertEqual(self.session(), {"tester_authenticated": True, "ui_profile": "tester"})
-
-    def test_denied_requests_redirect_to_the_auth_login_endpoints(self):
-        teacher = self.client.get("/teacher/new")
-        self.assertIn("/tester/login?next=", teacher.headers["Location"])
-        admin = self.client.get("/teacher")
-        self.assertIn("/admin/login?next=", admin.headers["Location"])
-
-    def test_ui_profile_without_authentication_grants_nothing(self):
+    def test_historical_session_keys_grant_nothing(self):
         with self.client.session_transaction() as sess:
-            sess["ui_profile"] = "admin"
-        for url in ("/teacher", "/dzi", "/teacher/new", "/teacher/assignments"):
+            sess.update(HISTORICAL_SHARED_LOGIN_SESSION)
+        for url in ("/teacher", "/dzi", "/teacher/new", "/teacher/assignments",
+                    "/teacher/practical-submissions", "/admin/open-question-candidates"):
             with self.subTest(url=url):
-                self.assertEqual(self.client.get(url).status_code, 302)
-        # An unauthenticated admin profile is also downgraded on the next request.
-        self.client.get("/tester")
-        self.assertNotIn("ui_profile", self.session())
-
-    def test_switch_profile_is_confined_and_never_authorizes(self):
-        tester = self.client.get("/profile/tester?next=/grade/9")
-        self.assertTrue(tester.headers["Location"].endswith("/grade/9"))
-        self.assertEqual(self.session(), {"ui_profile": "tester"})
-        external = self.client.get("/profile/tester?next=https://evil.example/")
-        self.assertTrue(external.headers["Location"].endswith("/tester"))
-        protocol_relative = self.client.get("/profile/tester?next=//evil.example/")
-        self.assertTrue(protocol_relative.headers["Location"].endswith("/tester"))
-        # Switching to admin without an admin session is denied and sent to admin login.
-        denied = self.client.get("/profile/admin")
-        self.assertIn("/admin/login", denied.headers["Location"])
-        self.assertNotEqual(self.session().get("ui_profile"), "admin")
-        self.assertEqual(self.client.get("/profile/unknown").status_code, 404)
-        self.assertEqual(self.client.get("/teacher").status_code, 302)
-
-    def test_admin_may_switch_to_the_admin_profile(self):
-        self.client.post("/admin/login", data={"password": "admin-pw"})
-        self.client.get("/profile/tester")
-        self.assertEqual(self.session()["ui_profile"], "tester")
-        response = self.client.get("/profile/admin")
-        self.assertTrue(response.headers["Location"].endswith("/"))
-        self.assertEqual(self.session()["ui_profile"], "admin")
+                response = self.client.get(url)
+                self.assertEqual((response.status_code, response.headers["Location"]),
+                                 (302, f"/login?next={url}"))
+        # Never read, so never rewritten either.
+        self.assertEqual(self.session(), HISTORICAL_SHARED_LOGIN_SESSION)
 
     def test_anonymous_attempt_pages_stay_owner_protected_on_canonical_routes(self):
         for url in ("/quiz/attempt/999999", "/quiz/attempt/999999/result"):

@@ -1,9 +1,11 @@
-"""Accounts PR 3 — principal seam and legacy compatibility bridge.
+"""Accounts PR 3 — the principal seam (account-only since PR10).
 
 A request whose session carries an account identity resolves to an
-account-backed ``Principal`` loaded from the database; without one the legacy
-tester/admin keys behave exactly as before. A stale account identity fails
-closed to anonymous and never falls through to legacy keys in the same cookie.
+account-backed ``Principal`` loaded from the database; every other request is
+anonymous. A stale account identity fails closed to anonymous. The session keys
+of the removed shared-password bridge (``tester_authenticated``,
+``admin_authenticated``, ``ui_profile``) are injected here only to prove that
+nothing reads them: they never create, raise or replace a principal.
 """
 
 import ast
@@ -32,15 +34,36 @@ class AccountPrincipalUnitTest(unittest.TestCase):
         self.assertEqual(account_principal(1, "superuser", "X"), ANONYMOUS)
         self.assertEqual(account_principal(1, None, "X"), ANONYMOUS)
 
-    def test_legacy_construction_and_equality_are_unchanged(self):
-        legacy = Principal(is_teacher=True, is_admin=False)
-        self.assertIsNone(legacy.user_id)
-        self.assertEqual(access.principal_from_session({"tester_authenticated": True}), legacy)
-        self.assertEqual(access.principal_from_session({"admin_authenticated": True}), Principal(True, True))
-        self.assertEqual(access.principal_from_session({}), ANONYMOUS)
+    def test_anonymous_has_no_capability_and_no_account(self):
+        self.assertEqual(ANONYMOUS, Principal(is_teacher=False, is_admin=False))
+        self.assertEqual((ANONYMOUS.user_id, ANONYMOUS.role, ANONYMOUS.display_name), (None, None, None))
 
-    def test_session_principal_ignores_account_keys(self):
-        self.assertEqual(access.principal_from_session({"uid": 1, "sk": "x", "iat": 1}), ANONYMOUS)
+    def test_the_session_fallback_and_its_switches_are_gone(self):
+        for name in ("principal_from_session", "legacy_shared_login_enabled", "parse_legacy_shared_login",
+                     "legacy_shared_login_route", "is_legacy_shared_login_view", "denial_login_endpoint",
+                     "LEGACY_SHARED_LOGIN_ENV", "LEGACY_SHARED_LOGIN_CONFIG", "LEGACY_AUTH_SESSION_KEYS",
+                     "PROFILE_SWITCH"):
+            with self.subTest(name=name):
+                self.assertFalse(hasattr(access, name))
+        self.assertNotIn("profile_switch", access.ACCESS_LEVELS)
+
+    def test_access_module_never_reads_the_session(self):
+        tree = ast.parse(Path(ROOT, "web/access.py").read_text(encoding="utf-8"))
+        names = {node.id for node in ast.walk(tree) if isinstance(node, ast.Name)}
+        self.assertNotIn("session", names)
+        self.assertNotIn("current_app", names)
+
+    def test_current_principal_is_anonymous_without_a_loaded_account(self):
+        # No hook has run: whatever the cookie holds, nothing but g.principal is read.
+        from flask import session
+
+        for state in ({}, {"tester_authenticated": True}, {"admin_authenticated": True},
+                      {"ui_profile": "admin"}, {"uid": 1, "sk": "x", "iat": 1},
+                      {"tester_authenticated": True, "admin_authenticated": True, "ui_profile": "admin"}):
+            with self.subTest(state=state), web_app.app.test_request_context("/teacher"):
+                session.update(state)
+                self.assertEqual(access.current_principal(), ANONYMOUS)
+                self.assertEqual(dict(session), state)
 
 
 class LoadSessionUserServiceTest(unittest.TestCase):
@@ -199,8 +222,10 @@ class AccountSessionValidationTest(AccountBridgeTestCase):
     def assert_dropped(self, state):
         principal, session_after = self.principal_for(state)
         self.assertEqual(principal, ANONYMOUS)
-        for key in ("uid", "sk", "iat", "tester_authenticated", "admin_authenticated"):
+        for key in ("uid", "sk", "iat"):
             self.assertNotIn(key, session_after)
+        # Whatever else the cookie holds is not an identity on the next request either.
+        self.assertEqual(self.principal_for(session_after)[0], ANONYMOUS)
         return session_after
 
     def test_nonexistent_user(self):
@@ -248,14 +273,14 @@ class AccountSessionValidationTest(AccountBridgeTestCase):
         self.assertEqual(session_after.get("quiz_attempt_owner:7"), "token")
 
 
-class BridgePrecedenceTest(AccountBridgeTestCase):
+class HistoricalSessionKeysTest(AccountBridgeTestCase):
     LEGACY_KEYS = (
         {"admin_authenticated": True},
         {"tester_authenticated": True},
         {"admin_authenticated": True, "tester_authenticated": True, "ui_profile": "admin"},
     )
 
-    def test_valid_account_identity_overrides_every_legacy_key(self):
+    def test_valid_account_identity_is_unaffected_by_every_historical_key(self):
         for role in ("student", "teacher", "admin"):
             account = create_account(self.db_path, role)
             expected, _ = self.principal_for(self.account_state(account))
@@ -266,36 +291,49 @@ class BridgePrecedenceTest(AccountBridgeTestCase):
                     self.assertEqual(principal.role, role)
                     self.assertEqual(session_after["uid"], account["id"])
 
-    def test_account_student_with_legacy_admin_is_student(self):
+    def test_account_student_with_historical_admin_key_is_student(self):
         account = create_account(self.db_path, "student")
         principal, _ = self.principal_for(self.account_state(account, admin_authenticated=True))
         self.assertEqual((principal.is_teacher, principal.is_admin), (False, False))
 
-    def test_account_teacher_with_legacy_admin_stays_teacher(self):
+    def test_account_teacher_with_historical_admin_key_stays_teacher(self):
         account = create_account(self.db_path, "teacher")
         principal, _ = self.principal_for(self.account_state(account, admin_authenticated=True))
         self.assertEqual((principal.is_teacher, principal.is_admin), (True, False))
 
-    def test_account_admin_with_legacy_tester_is_admin(self):
+    def test_account_admin_with_historical_tester_key_is_admin(self):
         account = create_account(self.db_path, "admin")
         principal, _ = self.principal_for(self.account_state(account, tester_authenticated=True))
         self.assertEqual((principal.is_teacher, principal.is_admin), (True, True))
 
-    def test_legacy_bridge_without_account_identity_is_unchanged(self):
-        for state, expected in (
-            ({}, Principal(False, False)),
-            ({"ui_profile": "admin"}, Principal(False, False)),
-            ({"tester_authenticated": True}, Principal(True, False)),
-            ({"admin_authenticated": True}, Principal(True, True)),
-        ):
+    def test_historical_keys_without_an_account_identity_are_anonymous(self):
+        for state in ({}, {"ui_profile": "admin"}, *self.LEGACY_KEYS):
             with self.subTest(state=state):
-                principal, _ = self.principal_for(state)
-                self.assertEqual(principal, expected)
-                self.assertIsNone(principal.user_id)
+                principal, session_after = self.principal_for(state)
+                self.assertEqual(principal, ANONYMOUS)
+                # Not read, not rewritten: the request does not even touch the cookie.
+                self.assertEqual(session_after, state)
+
+    def test_historical_keys_open_no_protected_route(self):
+        for state in ({"ui_profile": "admin"}, *self.LEGACY_KEYS):
+            client = self.app.test_client()
+            with client.session_transaction() as sess:
+                sess.update(state)
+            for path in ("/teacher", "/teacher/new", "/teacher/assignments", "/dzi",
+                         "/admin/open-question-candidates", "/teacher/practical-submissions",
+                         "/account/password"):
+                with self.subTest(state=state, path=path):
+                    response = client.get(path)
+                    self.assertEqual(response.status_code, 302)
+                    self.assertEqual(response.headers["Location"], f"/login?next={path}")
+                    self.assertNotIn("Set-Cookie", response.headers)
+            with self.subTest(state=state, request="POST"):
+                response = client.post("/teacher/dzi-training", headers={"Origin": "http://localhost"})
+                self.assertEqual(response.headers["Location"], "/login?next=/teacher/dzi-training")
 
 
-class FailClosedBridgeTest(AccountBridgeTestCase):
-    def test_stale_account_identity_never_falls_through_to_legacy_keys(self):
+class FailClosedTest(AccountBridgeTestCase):
+    def test_stale_account_identity_never_falls_through_to_historical_keys(self):
         live = create_account(self.db_path, "student")
         disabled = create_account(self.db_path, "teacher", is_active=False)
         stale = {
@@ -311,7 +349,7 @@ class FailClosedBridgeTest(AccountBridgeTestCase):
                     principal, _ = self.principal_for({**identity, "iat": 1, **legacy})
                     self.assertEqual(principal, ANONYMOUS)
 
-    def test_dropped_cookie_does_not_become_a_legacy_admin_on_the_next_request(self):
+    def test_dropped_cookie_does_not_become_an_admin_on_the_next_request(self):
         with self.client.session_transaction() as sess:
             sess.update({"uid": 987654, "sk": "stale", "iat": 1, "admin_authenticated": True,
                          "ui_profile": "admin"})
@@ -319,9 +357,8 @@ class FailClosedBridgeTest(AccountBridgeTestCase):
             with self.subTest(attempt=attempt):
                 response = self.client.get("/teacher")
                 self.assertEqual(response.status_code, 302)
-                self.assertIn("/admin/login", response.headers["Location"])
+                self.assertEqual(response.headers["Location"], "/login?next=/teacher")
         with self.client.session_transaction() as sess:
-            self.assertNotIn("admin_authenticated", sess)
             self.assertNotIn("uid", sess)
 
     def test_disabling_an_account_ends_its_admin_access(self):
@@ -341,12 +378,13 @@ class AccountRouteMatrixTest(AccountBridgeTestCase):
         return client.get(path).status_code
 
     def test_existing_policies_apply_to_account_principals(self):
-        # (path, student, teacher, admin); anonymous is always a login redirect.
+        # (path, student, teacher, admin); anonymous is always a login redirect and a
+        # signed-in account without the role is refused.
         for path, student, teacher, admin in (
             ("/", 200, 200, 200),
-            ("/teacher/new", 302, 200, 200),
-            ("/teacher", 302, 302, 200),
-            ("/dzi", 302, 302, 200),
+            ("/teacher/new", 403, 200, 200),
+            ("/teacher", 403, 403, 200),
+            ("/dzi", 403, 403, 200),
         ):
             for role, expected in (("student", student), ("teacher", teacher), ("admin", admin)):
                 with self.subTest(path=path, role=role):
@@ -354,22 +392,22 @@ class AccountRouteMatrixTest(AccountBridgeTestCase):
             with self.subTest(path=path, role="anonymous"):
                 self.assertEqual(self.status(None, path), 200 if path == "/" else 302)
 
-    def test_denied_account_principal_redirects_like_the_legacy_one(self):
+    def test_denied_account_principal_is_refused_not_redirected(self):
         client = self.app.test_client()
         login_as(client, self.db_path, "student")
-        self.assertIn("/tester/login", client.get("/teacher/new").headers["Location"])
-        self.assertIn("/admin/login", client.get("/teacher").headers["Location"])
+        for path in ("/teacher/new", "/teacher"):
+            with self.subTest(path=path):
+                response = client.get(path)
+                self.assertEqual(response.status_code, 403)
+                self.assertNotIn("Location", response.headers)
+                self.assertIn("Нямаш достъп до тази страница с този профил.",
+                              response.get_data(as_text=True))
 
-    def test_account_admin_may_use_the_admin_profile_switch(self):
-        client = self.app.test_client()
-        login_as(client, self.db_path, "admin")
-        self.assertEqual(client.get("/profile/admin").status_code, 302)
-        self.assertNotIn("/login", client.get("/profile/admin").headers["Location"])
-
-    def test_student_account_is_denied_the_admin_profile_switch(self):
-        client = self.app.test_client()
-        login_as(client, self.db_path, "student")
-        self.assertIn("/admin/login", client.get("/profile/admin").headers["Location"])
+    def test_the_profile_switch_route_does_not_exist_for_any_role(self):
+        for role in (None, "student", "teacher", "admin"):
+            for profile in ("admin", "tester"):
+                with self.subTest(role=role, profile=profile):
+                    self.assertEqual(self.status(role, f"/profile/{profile}"), 404)
 
 
 class AnonymousAndQueryCountTest(AccountBridgeTestCase):
@@ -380,11 +418,12 @@ class AnonymousAndQueryCountTest(AccountBridgeTestCase):
         self.assertNotIn("Set-Cookie", response.headers)
         self.assertEqual(self.user_lookups(statements), [])
 
-    def test_legacy_session_runs_no_users_query(self):
+    def test_historical_session_keys_run_no_users_query(self):
         with self.client.session_transaction() as sess:
-            sess["tester_authenticated"] = True
+            sess.update({"tester_authenticated": True, "admin_authenticated": True, "ui_profile": "admin"})
         with self.users_statements() as statements:
-            self.assertEqual(self.client.get("/teacher/new").status_code, 200)
+            self.assertEqual(self.client.get("/teacher/new").status_code, 302)
+            self.assertEqual(self.client.get("/").status_code, 200)
         self.assertEqual(self.user_lookups(statements), [])
 
     def test_account_session_runs_exactly_one_users_lookup(self):
@@ -459,12 +498,11 @@ class BridgeBoundariesTest(unittest.TestCase):
         self.assertFalse({name for name in imported if name.split(".")[0] == "flask" or name.startswith("web.app")
                           or name.startswith("web.blueprints")})
 
-    def test_request_integrity_and_auth_blueprint_do_not_know_accounts(self):
-        for relative in ("web/request_integrity.py", "web/blueprints/auth.py"):
-            with self.subTest(module=relative):
-                source = Path(ROOT, relative).read_text(encoding="utf-8")
-                self.assertFalse({name for name in self.imports(relative) if "accounts" in name})
-                self.assertNotIn('"uid"', source)
+    def test_request_integrity_does_not_know_accounts(self):
+        relative = "web/request_integrity.py"
+        source = Path(ROOT, relative).read_text(encoding="utf-8")
+        self.assertFalse({name for name in self.imports(relative) if "accounts" in name})
+        self.assertNotIn('"uid"', source)
 
     def test_hook_order_loads_identity_between_integrity_and_authorization(self):
         hooks = [func.__name__ for func in web_app.app.before_request_funcs[None]]

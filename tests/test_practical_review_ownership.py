@@ -5,8 +5,9 @@ assignment -> ``owner_user_id``, decided by the PR7 predicate
 (``web.access.can_manage_assignment``) and its SQL counterpart. An admin sees and
 downloads everything; a teacher account only what belongs to assignments it
 owns; an unowned (NULL) assignment is admin-only. Foreign, unowned and missing
-files answer 404 before the file is looked at on disk; a wrong role is denied by
-the central route policy. The legacy tester has no practical-review authority.
+files answer 404 before the file is looked at on disk; a wrong role is refused by
+the central route policy (403) and an anonymous visitor is sent to ``/login``. The
+session keys of the removed shared-password logins grant no practical-review authority.
 Student practical pages and uploads are not owner-scoped.
 
 Accounts: Teacher A, Teacher B, an account admin, a student. Assignments: A
@@ -29,7 +30,9 @@ from web.services import dzi_exams
 from web.services import practical as practical_service
 from web.services import quiz
 
-LEGACY_TESTER = Principal(is_teacher=True, is_admin=False)
+# Teacher capability without an account id. No request can have this principal;
+# it seeds the unowned assignment and proves the scope never matches None with None.
+IDLESS_TEACHER = Principal(is_teacher=True, is_admin=False)
 LIST_PATH = "/teacher/practical-submissions"
 
 
@@ -92,7 +95,7 @@ class PracticalReviewOwnershipTest(IsolatedAppTestCase):
 
     def seed_assignment(self, account, title):
         principal = (account_principal(account["id"], "teacher", "Учител") if account
-                     else LEGACY_TESTER)
+                     else IDLESS_TEACHER)
         with closing(web_app.quiz_db()) as conn:
             assignment_id = quiz.quiz_create_assignment(
                 conn, principal=principal, section_id=self.section_id,
@@ -122,13 +125,15 @@ class PracticalReviewOwnershipTest(IsolatedAppTestCase):
         return {"id": int(file_id), "attempt_id": int(attempt_id), "student": student_name,
                 "filename": filename, "content": content, "path": disk_path}
 
-    def client(self, account=None, legacy=None):
+    def client(self, account=None, historical=None):
+        """``historical`` injects a session key of the removed shared-password logins
+        (``tester``/``admin``), which must never change what the client may do."""
         client = web_app.app.test_client()
         if account:
             set_account_session(client, account["id"], account["session_key"])
-        if legacy:
+        if historical:
             with client.session_transaction() as session:
-                session[f"{legacy}_authenticated"] = True
+                session[f"{historical}_authenticated"] = True
         return client
 
     def update_user(self, account, assignment_sql, *params):
@@ -163,7 +168,12 @@ class PracticalReviewOwnershipTest(IsolatedAppTestCase):
     def assert_login_redirect(self, client, path):
         response = client.get(path)
         self.assertEqual(response.status_code, 302, path)
-        self.assertTrue(response.headers["Location"].startswith("/login?"), response.headers["Location"])
+        self.assertEqual(response.headers["Location"], f"/login?next={path}")
+
+    def assert_refused(self, client, path):
+        response = client.get(path)
+        self.assertEqual(response.status_code, 403, path)
+        self.assertNotIn("Location", response.headers)
 
     def record_filesystem_access(self):
         """Record every look at the upload tree: the path helper, ``send_file``
@@ -215,7 +225,8 @@ class PracticalReviewOwnershipTest(IsolatedAppTestCase):
 
     def test_admin_lists_every_submission(self):
         self.assert_lists_exactly(self.client(self.admin), {"a", "b", "u"})
-        self.assert_lists_exactly(self.client(legacy="admin"), {"a", "b", "u"})
+        # The key of the removed shared admin login lists nothing: it is not signed in.
+        self.assert_login_redirect(self.client(historical="admin"), LIST_PATH)
 
     def test_teacher_without_assignments_gets_an_empty_list(self):
         newcomer = create_account(web_app.QUIZ_DB_PATH, "teacher", display_name="Нов учител")
@@ -255,7 +266,7 @@ class PracticalReviewOwnershipTest(IsolatedAppTestCase):
 
     def test_service_scope_denies_a_principal_without_an_account_id(self):
         # None == None must not match: no account id never selects NULL-owner rows.
-        for principal in (LEGACY_TESTER, ANONYMOUS, account_principal(self.student["id"], "student", "У"),
+        for principal in (IDLESS_TEACHER, ANONYMOUS, account_principal(self.student["id"], "student", "У"),
                           Principal(is_teacher=True, is_admin=False, user_id=None, role="teacher")):
             with self.subTest(principal=principal), closing(web_app.quiz_db()) as conn:
                 self.assertEqual(practical_service.fetch_practical_submission_review_rows(
@@ -282,11 +293,11 @@ class PracticalReviewOwnershipTest(IsolatedAppTestCase):
                 self.assertEqual(client.get(download_path(9999999)).status_code, 404)
 
     def test_admin_downloads_every_file(self):
-        for label, client in (("account", self.client(self.admin)), ("legacy", self.client(legacy="admin"))):
-            for key, stored in self.files.items():
-                with self.subTest(admin=label, file=key):
-                    self.assert_downloads(client, stored)
-            self.assertEqual(client.get(download_path(9999999)).status_code, 404)
+        client = self.client(self.admin)
+        for key, stored in self.files.items():
+            with self.subTest(file=key):
+                self.assert_downloads(client, stored)
+        self.assertEqual(client.get(download_path(9999999)).status_code, 404)
 
     def test_foreign_and_missing_files_are_indistinguishable(self):
         client = self.client(self.teacher_a)
@@ -342,23 +353,32 @@ class PracticalReviewOwnershipTest(IsolatedAppTestCase):
         for client in (self.client(self.teacher_a), self.client(self.admin)):
             self.assertEqual(client.get(download_path(self.file_a["id"])).status_code, 404)
 
-    # --- wrong role, legacy, anonymous, pending second factor --------------
+    # --- wrong role, historical keys, anonymous, pending second factor ------
 
-    def test_legacy_tester_student_and_anonymous_are_denied_by_the_route_policy(self):
+    def test_everyone_without_the_role_is_denied_by_the_route_policy(self):
         pending = web_app.app.test_client()
         with pending.session_transaction() as session:
             session.update(mfa_uid=self.admin["id"], mfa_sk=self.admin["session_key"], mfa_iat=1)
+        pending_with_keys = web_app.app.test_client()
+        with pending_with_keys.session_transaction() as session:
+            session.update(mfa_uid=self.admin["id"], mfa_sk=self.admin["session_key"], mfa_iat=1,
+                           admin_authenticated=True, tester_authenticated=True, ui_profile="admin")
         touched = self.record_filesystem_access()
-        for label, client in (("anonymous", self.client()),
-                              ("legacy tester", self.client(legacy="tester")),
-                              ("student", self.client(self.student)),
-                              ("student with legacy admin keys", self.client(self.student, "admin")),
-                              ("pending admin second factor", pending)):
+        # Not signed in: asked to sign in. Signed in without the role: refused (403).
+        for label, client, check in (
+            ("anonymous", self.client(), self.assert_login_redirect),
+            ("historical tester key", self.client(historical="tester"), self.assert_login_redirect),
+            ("historical admin key", self.client(historical="admin"), self.assert_login_redirect),
+            ("pending admin second factor", pending, self.assert_login_redirect),
+            ("pending second factor with historical keys", pending_with_keys, self.assert_login_redirect),
+            ("student", self.client(self.student), self.assert_refused),
+            ("student with a historical admin key", self.client(self.student, "admin"), self.assert_refused),
+        ):
             # Missing ids are denied by role too: no ownership 404 before the policy ran.
             for path in (LIST_PATH, download_path(self.file_a["id"]),
                          download_path(self.file_u["id"]), download_path(9999999)):
                 with self.subTest(principal=label, path=path):
-                    self.assert_login_redirect(client, path)
+                    check(client, path)
         self.assertEqual(touched, [])
 
     def test_route_policy_is_the_shared_assignment_owner_policy(self):
@@ -385,8 +405,8 @@ class PracticalReviewOwnershipTest(IsolatedAppTestCase):
         teacher_client = self.client(self.teacher_a)
         self.assert_downloads(teacher_client, self.file_a)
         self.update_user(self.teacher_a, "role = 'student'")
-        self.assert_login_redirect(teacher_client, LIST_PATH)
-        self.assert_login_redirect(teacher_client, download_path(self.file_a["id"]))
+        self.assert_refused(teacher_client, LIST_PATH)
+        self.assert_refused(teacher_client, download_path(self.file_a["id"]))
 
         admin_client = self.client(self.admin)
         self.assert_downloads(admin_client, self.file_b)
@@ -408,13 +428,12 @@ class PracticalReviewOwnershipTest(IsolatedAppTestCase):
         self.assertNotIn('href="/teacher"', body)
         self.assertIn('href="/teacher/assignments"', body)
         self.assertIn('href="/teacher"', self.list_body(self.client(self.admin)))
-        # The legacy tester gets no practical-review link on the pages it can open.
-        tester = self.client(legacy="tester")
-        for path in ("/", "/teacher/new", f"/teacher/assignment/{self.u}"):
+        # A historical shared-login key gets no practical-review link and no teacher page.
+        historical = self.client(historical="tester")
+        self.assertNotIn(LIST_PATH, historical.get("/").get_data(as_text=True))
+        for path in ("/teacher/new", f"/teacher/assignment/{self.u}"):
             with self.subTest(path=path):
-                response = tester.get(path)
-                self.assertEqual(response.status_code, 200)
-                self.assertNotIn(LIST_PATH, response.get_data(as_text=True))
+                self.assert_login_redirect(historical, path)
 
     # --- student flow and official resources are not owner-scoped ----------
 
@@ -445,8 +464,6 @@ class PracticalReviewOwnershipTest(IsolatedAppTestCase):
     def test_official_resource_and_dzi_practical_pages_stay_admin_only(self):
         for path in ("/dzi/practical/resource/1/download", f"/dzi/source/{self.source_slug}/practical"):
             with self.subTest(path=path, principal="teacher"):
-                response = self.client(self.teacher_a).get(path)
-                self.assertEqual(response.status_code, 302)
-                self.assertIn("/admin/login", response.headers["Location"])
+                self.assert_refused(self.client(self.teacher_a), path)
         self.assertEqual(self.client(self.admin).get(
             f"/dzi/source/{self.source_slug}/practical").status_code, 200)

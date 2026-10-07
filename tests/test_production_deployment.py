@@ -30,8 +30,10 @@ from web.services import accounts
 SECRET_KEY = "test-only-secret-key-" + "k" * 32
 ADMIN_PASSWORD = "test-only-admin-passphrase"
 TESTER_PASSWORD = "test-only-tester-passphrase"
-# The retired shared passwords, as an env file that predates the cutover still has them.
+# The removed shared passwords, as an env file that predates their removal still has them.
 RETIRED_SHARED_PASSWORDS = {"DZI_ADMIN_PASSWORD": ADMIN_PASSWORD, "DZI_TESTER_PASSWORD": TESTER_PASSWORD}
+# The removed bridge switch. No value of it is read, validated or able to enable anything.
+RETIRED_FLAG = "DZI_LEGACY_SHARED_LOGIN"
 TEACHER_EMAIL = "probe-teacher@example.bg"
 TEACHER_PASSWORD = "test-only-teacher-passphrase"
 DEPLOY = ROOT / "deploy"
@@ -101,28 +103,22 @@ class ProductionConfigValidationTest(unittest.TestCase):
 
     def test_shared_passwords_are_neither_required_nor_validated(self):
         self.assertEqual(production.REQUIRED_SECRETS, ("DZI_SECRET_KEY",))
-        # Nothing reads them in production, so leftovers of any shape are inert.
+        # Nothing reads them anywhere, so leftovers of any shape are inert.
         for changes in (RETIRED_SHARED_PASSWORDS,
                         {"DZI_ADMIN_PASSWORD": "admin123", "DZI_TESTER_PASSWORD": "admin123"}):
             with self.subTest(changes=sorted(changes)):
                 self.assertEqual(self.errors(**changes), [])
 
-    def test_legacy_shared_login_is_off_by_default_and_accepts_false_spellings(self):
-        self.assertEqual(self.errors(), [])
-        for value in ("", "  ", "0", "false", "False", "NO", "off", " off "):
+    def test_production_config_has_no_shared_login_switch(self):
+        # The bridge is gone, so there is no flag to parse, validate or force off:
+        # the module does not know the name, and a leftover value of any spelling
+        # is as inert as any other unknown variable.
+        source = Path(production.__file__).read_text(encoding="utf-8")
+        for needle in ("LEGACY", "DZI_ADMIN_PASSWORD", "DZI_TESTER_PASSWORD", "web.access"):
+            self.assertNotIn(needle, source)
+        for value in ("", "0", "false", "off", "1", "true", "on", "maybe"):
             with self.subTest(value=value):
-                self.assertEqual(self.errors(DZI_LEGACY_SHARED_LOGIN=value), [])
-
-    def test_enabled_or_malformed_legacy_shared_login_is_rejected(self):
-        expected = ("DZI_LEGACY_SHARED_LOGIN must be unset or false in production "
-                    "(shared tester/admin logins are not available; use accounts)")
-        for value in ("1", "true", "TRUE", "yes", "on", " On ",
-                      # Malformed is not "off": it fails closed instead of being guessed.
-                      "maybe", "2", "enabled", "disable", "fals", "0 1"):
-            with self.subTest(value=value):
-                errors = self.errors(DZI_LEGACY_SHARED_LOGIN=value)
-                # The exact message: the configured value is never echoed back.
-                self.assertEqual(errors, [expected])
+                self.assertEqual(self.errors(**{RETIRED_FLAG: value}), [])
 
     def test_insecure_cookies_and_debug_are_rejected(self):
         for value in ("0", "false", "off", "maybe"):
@@ -250,7 +246,7 @@ for path, name in (("/tester/login", "DZI_TESTER_PASSWORD"), ("/admin/login", "D
     posted = fresh.post(path, data={"password": os.environ[name]}, headers=same_origin)
     legacy["POST " + path] = posted.status_code
     legacy["cookie " + path] = posted.headers.get("Set-Cookie")
-# A cookie signed before the cutover: its legacy keys authorize nothing.
+# A cookie signed while the bridge existed: its keys authorize nothing.
 stale = app.test_client()
 with stale.session_transaction(base_url="https://learnpilot.example.com") as sess:
     sess["admin_authenticated"] = True
@@ -276,7 +272,10 @@ print(json.dumps({
     "wrong_password": wrong.status_code, "forged_origin": forged.status_code,
     "unproxied": unproxied.status_code,
     "login": [login.status_code, login.headers.get("Set-Cookie", "")],
-    "legacy_shared_login": app.config["LEGACY_SHARED_LOGIN"],
+    "legacy_config_keys": sorted(key for key in app.config if "LEGACY" in key),
+    "auth_rules": sorted(rule.rule for rule in app.url_map.iter_rules()
+                         if any(word in rule.rule for word in ("login", "logout", "tester", "profile"))),
+    "blueprints": sorted(app.blueprints),
     "legacy": legacy,
     "stale_admin": [stale_admin.status_code, stale_admin.headers.get("Location")],
     "stale_teacher": [stale_teacher.status_code, stale_teacher.headers.get("Location")],
@@ -303,10 +302,10 @@ print("started")
 
 class ProductionStartupTest(unittest.TestCase):
     def test_valid_production_startup(self):
-        # An env file from before the cutover: the shared passwords are still set,
-        # and the flag is spelled out as off.
-        env = {**_state_dir(self, populated=True), **RETIRED_SHARED_PASSWORDS,
-               "DZI_LEGACY_SHARED_LOGIN": "false"}
+        # The worst leftover env file: the shared passwords are still set and the
+        # removed switch asks for the bridge. None of it is read; startup succeeds and
+        # serves account authentication only.
+        env = {**_state_dir(self, populated=True), **RETIRED_SHARED_PASSWORDS, RETIRED_FLAG: "1"}
         with sqlite3.connect(env["DZI_DB"]) as conn:
             accounts.create_user(conn, display_name="Проба Учител", email=TEACHER_EMAIL,
                                  password=TEACHER_PASSWORD, role="teacher")
@@ -341,8 +340,10 @@ class ProductionStartupTest(unittest.TestCase):
             self.assertIn(attribute, cookie)
         for secret in (SECRET_KEY, ADMIN_PASSWORD, TESTER_PASSWORD, TEACHER_PASSWORD):
             self.assertNotIn(secret, result.stdout + result.stderr)
-        # Account authentication is the only authority (Accounts PR9).
-        self.assertIs(report["legacy_shared_login"], False)
+        # Account authentication is the only authority (Accounts PR9/PR10).
+        self.assertEqual(report["legacy_config_keys"], [])
+        self.assertEqual(report["auth_rules"], ["/login", "/login/totp", "/logout"])
+        self.assertNotIn("auth", report["blueprints"])
         for path in ("/tester/login", "/admin/login"):
             self.assertEqual(report["legacy"][f"GET {path}"], 404)
             self.assertEqual(report["legacy"][f"POST {path}"], 404)
@@ -350,28 +351,33 @@ class ProductionStartupTest(unittest.TestCase):
         self.assertEqual(report["stale_admin"], [302, "/login?next=/teacher"])
         self.assertEqual(report["stale_teacher"], [302, "/login?next=/teacher/new"])
 
-    def test_startup_without_any_legacy_setting_has_the_bridge_disabled(self):
+    def test_startup_needs_no_shared_login_setting_and_no_shared_password(self):
         env = _state_dir(self, populated=True)
+        for name in (*RETIRED_SHARED_PASSWORDS, RETIRED_FLAG):
+            self.assertNotIn(name, env)
         result = _run_python(
             "from web.wsgi import app\n"
-            "print(app.config['LEGACY_SHARED_LOGIN'], app.test_client().get('/admin/login').status_code)",
+            "client = app.test_client()\n"
+            "print(any('LEGACY' in key for key in app.config),"
+            " client.get('/admin/login').status_code, client.get('/tester/login').status_code,"
+            " client.get('/login', headers={'X-Forwarded-Proto': 'https',"
+            " 'X-Forwarded-Host': 'learnpilot.example.com'}).status_code)",
             env,
         )
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertEqual(result.stdout.strip().splitlines()[-1], "False 404")
+        self.assertEqual(result.stdout.strip().splitlines()[-1], "False 404 404 200")
 
-    def test_enabled_or_malformed_legacy_shared_login_stops_before_the_app_is_imported(self):
-        for value in ("1", "true", "on", "maybe"):
-            with self.subTest(value=value):
-                env = {**_state_dir(self, populated=True), **RETIRED_SHARED_PASSWORDS,
-                       "DZI_LEGACY_SHARED_LOGIN": value}
-                result = _run_python(FAILING_STARTUP_PROBE, env)
-                output = result.stdout + result.stderr
-                self.assertEqual(result.returncode, 3, output)
-                self.assertIn("ProductionConfigError", output)
-                self.assertIn("DZI_LEGACY_SHARED_LOGIN must be unset or false in production", output)
-                self.assertIn("app imported: False", output)
-                self.assertIn("db unchanged: True", output)
+    def test_wsgi_is_the_only_production_entry_point_and_it_is_account_only(self):
+        self.assertEqual((ROOT / "web/wsgi.py").read_text(encoding="utf-8").count("create_production_app"), 2)
+        gunicorn = (ROOT / "deploy/gunicorn.conf.py").read_text(encoding="utf-8")
+        self.assertIn('wsgi_app = "web.wsgi:app"', gunicorn)
+        unit = (ROOT / "deploy/systemd/learnpilot.service").read_text(encoding="utf-8")
+        self.assertEqual(len(re.findall(r"(?m)^ExecStart=", unit)), 1)
+        self.assertIn("gunicorn --config /opt/learnpilot/app/deploy/gunicorn.conf.py", unit)
+        # The local tunnel helper asks for no shared password either.
+        from src import run_tunnel_dev
+
+        self.assertEqual(run_tunnel_dev.REQUIRED_ENV_VARS, ("DZI_SECRET_KEY",))
 
     def test_missing_secret_stops_before_the_app_is_imported(self):
         env = _state_dir(self, populated=True)
@@ -719,16 +725,21 @@ class DeploymentTemplateTest(unittest.TestCase):
     def test_nginx_limits_only_targeted_posts_and_sets_security_headers(self):
         conf = self.read("deploy/nginx/learnpilot.conf")
         self.assertRegex(conf, r"map \$request_method \$learnpilot_post_client\s*\{\s*default \"\";\s*POST \$binary_remote_addr;")
-        for zone, rate, burst in (("lp_admin_login", "5r/m", 10),
-                                  ("lp_tester_login", "5r/m", 10),
-                                  # Account sign-in: classroom-sized, a class shares one NAT.
+        for zone, rate, burst in (# Account sign-in: classroom-sized, a class shares one NAT.
                                   ("lp_login", "1r/s", 40),
                                   ("lp_quiz_write", "20r/s", 90),
                                   ("lp_upload", "2r/s", 45)):
             self.assertIn(f"zone={zone}:1m rate={rate};", conf)
             self.assertIn(f"limit_req zone={zone} burst={burst} nodelay;", conf)
-        for path in ("/admin/login", "/tester/login", "/login", "/login/totp"):
+        # Exactly the zones above: the shared-password logins and their zones are gone.
+        self.assertEqual(sorted(re.findall(r"limit_req_zone \S+ zone=(\w+):", conf)),
+                         ["lp_login", "lp_quiz_write", "lp_upload"])
+        self.assertEqual(sorted(set(re.findall(r"limit_req zone=(\w+)", conf))),
+                         ["lp_login", "lp_quiz_write", "lp_upload"])
+        for path in ("/login", "/login/totp"):
             self.assertIn(f"location = {path}", conf)
+        for removed in ("/admin/login", "/tester/login", "lp_admin_login", "lp_tester_login"):
+            self.assertNotIn(removed, conf)
         self.assertRegex(conf, r"location = /login \{\s+limit_req zone=lp_login burst=40 nodelay;")
         self.assertRegex(conf, r"location = /login/totp \{\s+limit_req zone=lp_login burst=40 nodelay;")
         self.assertEqual(len(re.findall(r"limit_req zone=lp_login\b", conf)), 2)

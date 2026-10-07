@@ -381,7 +381,7 @@ class AssignmentEditMetadataTest(IsolatedAppTestCase):
                 owner_resp.data.decode("utf-8"),
             )
 
-            # The legacy tester may only view an unowned row, without the edit form.
+            # An unowned row is not the teacher's any more: not found, no view-only mode.
             conn = web_app.quiz_db()
             try:
                 conn.execute("UPDATE quiz_assignments SET owner_user_id = NULL WHERE id = ?",
@@ -389,15 +389,7 @@ class AssignmentEditMetadataTest(IsolatedAppTestCase):
                 conn.commit()
             finally:
                 conn.close()
-            self.setUp()
-            with self.client.session_transaction() as sess:
-                sess["tester_authenticated"] = True
-            tester_resp = self.client.get(f"/teacher/assignment/{assignment_id}")
-            self.assertEqual(tester_resp.status_code, 200)
-            self.assertNotIn(
-                f"/teacher/assignment/{assignment_id}/edit",
-                tester_resp.data.decode("utf-8"),
-            )
+            self.assertEqual(self.client.get(f"/teacher/assignment/{assignment_id}").status_code, 404)
         finally:
             self._delete_assignment(assignment_id)
 

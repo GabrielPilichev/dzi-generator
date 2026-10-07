@@ -1,10 +1,11 @@
 """Accounts PR7 — owner-scoped teacher assignment management.
 
 An admin manages every assignment; a teacher account manages only the rows it
-owns; an unowned (legacy) row is admin-only for management. The legacy tester
-keeps only its view-only detail compatibility on unowned rows. Foreign, unowned
-and missing rows answer 404; a wrong role is denied by the central route policy
-(a login redirect until the cutover). Student/public quiz loading is not scoped.
+owns; an unowned (NULL-owner) row is admin-only, for viewing as well as for
+management. Foreign, unowned and missing rows answer 404; a wrong role is refused
+by the central route policy (403), an anonymous visitor is sent to ``/login``, and
+the session keys of the removed shared-password logins grant nothing.
+Student/public quiz loading is not scoped.
 
 Accounts: Teacher A, Teacher B, an account admin, a student. Assignments: A
 (owned by Teacher A), B (owned by Teacher B) and U (unowned).
@@ -28,8 +29,9 @@ from web.access import ANONYMOUS, Principal, account_principal
 from web.blueprints import teacher
 from web.services import quiz
 
-LEGACY_TESTER = Principal(is_teacher=True, is_admin=False)
-LEGACY_ADMIN = Principal(is_teacher=True, is_admin=True)
+# Teacher capability without an account id. No request can have this principal;
+# it seeds unowned rows and proves the predicates never match None with None.
+IDLESS_TEACHER = Principal(is_teacher=True, is_admin=False)
 
 
 def first_section_with_mc_questions(conn):
@@ -47,7 +49,6 @@ class AssignmentManagementPredicateTest(unittest.TestCase):
         teacher_a = account_principal(11, "teacher", "А")
         cases = (
             ("account admin, any owner", account_principal(1, "admin", "Админ"), (11, 12, None)),
-            ("legacy admin, any owner", LEGACY_ADMIN, (11, 12, None)),
             ("teacher, own row", teacher_a, (11,)),
         )
         for label, principal, owners in cases:
@@ -57,8 +58,8 @@ class AssignmentManagementPredicateTest(unittest.TestCase):
         denied = (
             ("teacher, foreign row", teacher_a, 12),
             ("teacher, unowned row", teacher_a, None),
-            ("legacy tester, unowned row", LEGACY_TESTER, None),
-            ("legacy tester, owned row", LEGACY_TESTER, 11),
+            ("teacher capability without an account id, unowned row", IDLESS_TEACHER, None),
+            ("teacher capability without an account id, owned row", IDLESS_TEACHER, 11),
             ("anonymous, unowned row", ANONYMOUS, None),
             ("anonymous, owned row", ANONYMOUS, 11),
             ("student, unowned row", account_principal(13, "student", "У"), None),
@@ -71,7 +72,7 @@ class AssignmentManagementPredicateTest(unittest.TestCase):
 
     def test_a_missing_account_id_never_matches_a_missing_owner(self):
         # None == None must not authorize, whatever the capability flags say.
-        for principal in (LEGACY_TESTER, ANONYMOUS,
+        for principal in (IDLESS_TEACHER, ANONYMOUS,
                           Principal(is_teacher=True, is_admin=False, user_id=None, role="teacher")):
             with self.subTest(principal=principal):
                 self.assertFalse(access.can_manage_assignment(principal, None))
@@ -79,8 +80,8 @@ class AssignmentManagementPredicateTest(unittest.TestCase):
                                  ("1 = 0", ()))
 
     def test_sql_scope_mirrors_the_predicate(self):
-        self.assertEqual(access.assignment_management_scope(LEGACY_ADMIN, "qa.owner_user_id"),
-                         ("1 = 1", ()))
+        self.assertEqual(access.assignment_management_scope(IDLESS_TEACHER, "qa.owner_user_id"),
+                         ("1 = 0", ()))
         self.assertEqual(
             access.assignment_management_scope(account_principal(1, "admin", "А"), "qa.owner_user_id"),
             ("1 = 1", ()))
@@ -91,16 +92,22 @@ class AssignmentManagementPredicateTest(unittest.TestCase):
             access.assignment_management_scope(account_principal(13, "student", "У"), "qa.owner_user_id"),
             ("1 = 0", ()))
 
-    def test_detail_view_keeps_only_the_legacy_unowned_compatibility(self):
+    def test_detail_view_is_exactly_the_management_predicate(self):
         owned = {"owner_user_id": 11}
         unowned = {"owner_user_id": None}
-        self.assertTrue(quiz.quiz_can_access_assignment(unowned, LEGACY_TESTER))
-        self.assertFalse(quiz.quiz_can_access_assignment(owned, LEGACY_TESTER))
-        self.assertFalse(quiz.quiz_can_access_assignment(unowned, account_principal(11, "teacher", "А")))
+        teacher_a = account_principal(11, "teacher", "А")
+        admin = account_principal(1, "admin", "Админ")
+        self.assertTrue(quiz.quiz_can_access_assignment(owned, teacher_a))
+        self.assertTrue(quiz.quiz_can_access_assignment(owned, admin))
+        self.assertTrue(quiz.quiz_can_access_assignment(unowned, admin))
+        # There is no view-only exception: an unowned row is not anyone's but an admin's.
+        self.assertFalse(quiz.quiz_can_access_assignment(unowned, IDLESS_TEACHER))
+        self.assertFalse(quiz.quiz_can_access_assignment(owned, IDLESS_TEACHER))
+        self.assertFalse(quiz.quiz_can_access_assignment(unowned, teacher_a))
         self.assertFalse(quiz.quiz_can_access_assignment(unowned, ANONYMOUS))
         self.assertFalse(quiz.quiz_can_access_assignment(
             unowned, account_principal(13, "student", "У")))
-        self.assertFalse(quiz.quiz_can_access_assignment(None, LEGACY_ADMIN))
+        self.assertFalse(quiz.quiz_can_access_assignment(None, admin))
 
     def test_the_predicate_is_importable_without_controllers_or_services(self):
         # PR8 (practical review) reuses it from web.access without import cycles.
@@ -150,7 +157,7 @@ class AssignmentOwnerRoutesTest(IsolatedAppTestCase):
 
     def seed_assignment(self, account, title):
         principal = (account_principal(account["id"], "teacher", "Учител") if account
-                     else LEGACY_TESTER)
+                     else IDLESS_TEACHER)
         with closing(web_app.quiz_db()) as conn:
             assignment_id = quiz.quiz_create_assignment(
                 conn, principal=principal, section_id=self.section_id,
@@ -174,13 +181,13 @@ class AssignmentOwnerRoutesTest(IsolatedAppTestCase):
             conn.commit()
         return int(answer_id)
 
-    def client(self, account=None, legacy=None):
+    def client(self, account=None, historical=None):
         client = web_app.app.test_client()
         if account:
             set_account_session(client, account["id"], account["session_key"])
-        if legacy:
+        if historical:  # a session key of the removed shared-password logins
             with client.session_transaction() as session:
-                session[f"{legacy}_authenticated"] = True
+                session[f"{historical}_authenticated"] = True
         return client
 
     def row(self, assignment_id):
@@ -245,9 +252,10 @@ class AssignmentOwnerRoutesTest(IsolatedAppTestCase):
         body = self.list_body(self.client(self.admin))
         for assignment_id in (self.a, self.b, self.u):
             self.assertIn(f"/teacher/assignment/{assignment_id}\"", body)
-        legacy_body = self.list_body(self.client(legacy="admin"))
-        for assignment_id in (self.a, self.b, self.u):
-            self.assertIn(f"/teacher/assignment/{assignment_id}\"", legacy_body)
+        # The key of the removed shared admin login lists nothing: it is not signed in.
+        response = self.client(historical="admin").get("/teacher/assignments")
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.headers["Location"], "/login?next=/teacher/assignments")
 
     def test_list_query_is_bounded_and_uses_the_owner_index(self):
         def traced_list(account):
@@ -318,61 +326,60 @@ class AssignmentOwnerRoutesTest(IsolatedAppTestCase):
                     self.assertEqual(request(client).status_code, 404, label)
 
     def test_admin_manages_every_assignment(self):
-        for legacy, account in ((None, self.admin), ("admin", None)):
-            client = self.client(account, legacy)
-            for assignment_id, answer_id in ((self.a, self.answer_a), (self.b, self.answer_b),
-                                             (self.u, self.answer_u)):
-                with self.subTest(legacy=legacy, assignment=assignment_id):
-                    self.assertEqual(client.get(f"/teacher/assignment/{assignment_id}").status_code, 200)
-                    for label, request in self.management_requests(assignment_id, answer_id):
-                        expected = 302 if label in ("edit", "duplicate", "review") else 200
-                        self.assertEqual(request(client).status_code, expected, label)
+        client = self.client(self.admin)
+        for assignment_id, answer_id in ((self.a, self.answer_a), (self.b, self.answer_b),
+                                         (self.u, self.answer_u)):
+            with self.subTest(assignment=assignment_id):
+                self.assertEqual(client.get(f"/teacher/assignment/{assignment_id}").status_code, 200)
+                for label, request in self.management_requests(assignment_id, answer_id):
+                    expected = 302 if label in ("edit", "duplicate", "review") else 200
+                    self.assertEqual(request(client).status_code, expected, label)
 
-    # --- legacy tester -----------------------------------------------------
+    # --- historical shared-login session keys --------------------------------
 
-    def test_legacy_tester_keeps_only_view_only_unowned_detail(self):
-        client = self.client(legacy="tester")
-        detail = client.get(f"/teacher/assignment/{self.u}")
-        self.assertEqual(detail.status_code, 200)
-        body = detail.get_data(as_text=True)
-        for control in ("/edit", "/duplicate", "/results"):
-            self.assertNotIn(f"/teacher/assignment/{self.u}{control}", body)
-        self.assertNotIn('href="/teacher/assignments"', body)
-        for assignment_id in (self.a, self.b):
-            self.assertEqual(client.get(f"/teacher/assignment/{assignment_id}").status_code, 404)
-
-        list_response = client.get("/teacher/assignments")
-        self.assertEqual(list_response.status_code, 302)
-        self.assertTrue(list_response.headers["Location"].startswith("/login?"))
-        for assignment_id, answer_id in ((self.u, self.answer_u), (self.a, self.answer_a)):
-            title = self.row(assignment_id)["title_bg"]
-            count = self.assignment_count()
-            for label, request in self.management_requests(assignment_id, answer_id):
-                with self.subTest(assignment=assignment_id, surface=label):
-                    response = request(client)
-                    self.assertEqual(response.status_code, 302)
-                    self.assertTrue(response.headers["Location"].startswith("/login?"))
-            self.assert_untouched(assignment_id, title, answer_id, count)
+    def test_historical_shared_login_keys_grant_no_view_and_no_management(self):
+        # Including the unowned row the removed tester login could once open view-only.
+        for historical in ("tester", "admin"):
+            client = self.client(historical=historical)
+            for assignment_id in (self.u, self.a, self.b):
+                with self.subTest(historical=historical, assignment=assignment_id, surface="detail"):
+                    self.assert_sent_to_login(client.get(f"/teacher/assignment/{assignment_id}"))
+            self.assert_sent_to_login(client.get("/teacher/assignments"))
+            for assignment_id, answer_id in ((self.u, self.answer_u), (self.a, self.answer_a)):
+                title = self.row(assignment_id)["title_bg"]
+                count = self.assignment_count()
+                for label, request in self.management_requests(assignment_id, answer_id):
+                    with self.subTest(historical=historical, assignment=assignment_id, surface=label):
+                        self.assert_sent_to_login(request(client))
+                self.assert_untouched(assignment_id, title, answer_id, count)
 
     # --- wrong role, anonymous, disabled ----------------------------------
 
+    def assert_sent_to_login(self, response):
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(response.headers["Location"].startswith("/login?next=/teacher/"))
+
+    def assert_refused(self, response):
+        self.assertEqual(response.status_code, 403)
+        self.assertNotIn("Location", response.headers)
+
     def test_student_and_anonymous_are_denied_before_any_lookup(self):
-        for label, client in (("anonymous", self.client()),
-                              ("student", self.client(self.student)),
-                              ("student with legacy admin keys", self.client(self.student, "admin"))):
+        # Anonymous is asked to sign in; a signed-in student is refused (403), and the
+        # removed shared admin key next to its account changes nothing.
+        for label, client, check in (
+            ("anonymous", self.client(), self.assert_sent_to_login),
+            ("student", self.client(self.student), self.assert_refused),
+            ("student with a historical admin key", self.client(self.student, "admin"), self.assert_refused),
+        ):
             with self.subTest(principal=label, surface="list"):
-                response = client.get("/teacher/assignments")
-                self.assertEqual(response.status_code, 302)
-                self.assertTrue(response.headers["Location"].startswith("/login?"))
+                check(client.get("/teacher/assignments"))
             title = self.row(self.a)["title_bg"]
             count = self.assignment_count()
             # Missing ids are denied by role too: no ownership 404 before the policy ran.
             for assignment_id in (self.a, self.u, 9999999):
                 for surface, request in self.management_requests(assignment_id, self.answer_a):
                     with self.subTest(principal=label, assignment=assignment_id, surface=surface):
-                        response = request(client)
-                        self.assertEqual(response.status_code, 302)
-                        self.assertTrue(response.headers["Location"].startswith("/login?"))
+                        check(request(client))
             self.assert_untouched(self.a, title, self.answer_a, count)
 
     def test_disabled_teacher_has_no_stale_management_authority(self):
@@ -451,8 +458,8 @@ class AssignmentOwnerRoutesTest(IsolatedAppTestCase):
             ("teacher", self.client(self.teacher_a), True),
             ("account admin", self.client(self.admin), True),
             ("student", self.client(self.student), False),
-            ("legacy tester", self.client(legacy="tester"), False),
-            ("legacy admin", self.client(legacy="admin"), False),
+            ("historical tester key", self.client(historical="tester"), False),
+            ("historical admin key", self.client(historical="admin"), False),
             ("anonymous", self.client(), False),
         ):
             with self.subTest(principal=label):
@@ -502,7 +509,7 @@ class AssignmentOwnerAdminTotpTest(AccountAppTestCase):
             section_id, _ = first_section_with_mc_questions(conn)
         self.teacher_a = self.make("teacher")
         self.assignments = []
-        for principal in (account_principal(self.teacher_a["id"], "teacher", "А"), LEGACY_TESTER):
+        for principal in (account_principal(self.teacher_a["id"], "teacher", "А"), IDLESS_TEACHER):
             with closing(web_app.quiz_db()) as conn:
                 self.assignments.append(quiz.quiz_create_assignment(
                     conn, principal=principal, section_id=section_id,

@@ -17,10 +17,11 @@ current code and prints the recovery codes once, ``totp-recovery-codes`` replace
 them, and ``totp-reset`` removes the credential. Enrolment and confirmation need
 ``DZI_TOTP_KEY``; no other command prints a secret.
 
-``cutover-check`` is the read-only deployment gate of the account-auth cutover
-(Accounts PR9): it reports PASS only if at least one admin account can complete a
-password + second-factor sign-in with the configured ``DZI_TOTP_KEY``. It changes
-nothing and prints no secret, code or hash. It inspects only a self-contained
+``cutover-check`` is the read-only deployment gate of account-only sign-in
+(introduced with the Accounts PR9 cutover): it reports PASS only if at least one
+admin account can complete a password + second-factor sign-in with the configured
+``DZI_TOTP_KEY``. It changes nothing and prints no secret, code or hash. It
+inspects only a self-contained
 rollback-journal database without sidecar files, i.e. a snapshot made by
 ``src.backup_sqlite``: SQLite cannot read a WAL-mode database without creating or
 changing its ``-wal``/``-shm`` files, so the live database is refused before it is
@@ -41,11 +42,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 try:
-    from web.access import LEGACY_SHARED_LOGIN_ENV, parse_legacy_shared_login
     from web.services import accounts, login_throttle, totp
 except ModuleNotFoundError:  # run as `python3 src/manage_accounts.py`
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-    from web.access import LEGACY_SHARED_LOGIN_ENV, parse_legacy_shared_login
     from web.services import accounts, login_throttle, totp
 
 ADMIN_MIN_PASSWORD_LENGTH = accounts.ADMIN_MIN_PASSWORD_LENGTH
@@ -147,7 +146,7 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser(
         "cutover-check",
         help=(
-            "Read-only preflight for disabling the legacy shared logins: PASS only if an "
+            "Read-only preflight for account-only sign-in: PASS only if an "
             f"admin can sign in with password + TOTP/recovery code (needs {TOTP_KEY_ENV}). "
             "Run it on a src.backup_sqlite snapshot, never on the live WAL database."
         ),
@@ -491,7 +490,7 @@ def _admin_sign_in_problems(conn: sqlite3.Connection, admin, key_usable: bool, k
 
 
 def cmd_cutover_check(conn, args) -> str:
-    """Can at least one admin sign in once the legacy shared logins are gone?
+    """Can at least one admin sign in? Account sign-in is the only one there is.
 
     One viable admin is enough: active, with an email and a structurally valid
     password hash, a confirmed TOTP credential that the configured key decrypts, and
@@ -510,15 +509,6 @@ def cmd_cutover_check(conn, args) -> str:
         )
 
     failures = []
-    try:
-        if parse_legacy_shared_login(os.environ.get(LEGACY_SHARED_LOGIN_ENV)):
-            failures.append(
-                f"{LEGACY_SHARED_LOGIN_ENV} is enabled in this environment; "
-                "production refuses to start with it (unset it or set it to false)"
-            )
-    except ValueError as exc:
-        failures.append(f"{exc}; production refuses to start with it")
-
     key = os.environ.get(TOTP_KEY_ENV)
     key_problem = totp.key_problem(key)
     if key_problem:

@@ -69,6 +69,28 @@ def sign_in_admin(client, db_path, **account_options) -> dict:
     return login_as(client, db_path, "admin", **account_options)
 
 
+# What the removed shared-password logins and profile switch once wrote into a
+# session cookie. Nothing reads these keys any more; tests inject them only to
+# prove that a cookie signed before their removal grants no authority.
+HISTORICAL_SHARED_LOGIN_SESSION = {
+    "tester_authenticated": True,
+    "admin_authenticated": True,
+    "ui_profile": "admin",
+}
+
+
+def client_as(app, db_path, who: str):
+    """A new test client that is ``anonymous``, a ``student``/``teacher``/``admin``
+    account, or ``historical``: anonymous with the removed shared-login keys injected."""
+    client = app.test_client()
+    if who == "historical":
+        with client.session_transaction() as sess:
+            sess.update(HISTORICAL_SHARED_LOGIN_SESSION)
+    elif who != "anonymous":
+        login_as(client, db_path, who)
+    return client
+
+
 def enroll_totp(db_path, user_id: int, key, confirmed_at) -> dict:
     """Give an account a confirmed TOTP credential with a fresh synthetic secret.
 

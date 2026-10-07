@@ -681,7 +681,7 @@ class PracticalStudentUploadsTest(IsolatedAppTestCase):
 
     def test_oversized_non_upload_request_gets_413(self):
         web_app.app.config["MAX_CONTENT_LENGTH"] = 512
-        response = self.client.post("/tester/login", data={"password": "x" * 2048})
+        response = self.client.post("/login", data={"password": "x" * 2048})
         self.assertEqual(response.status_code, 413)
 
 

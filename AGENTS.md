@@ -76,12 +76,15 @@
 - Total: 100 points
 
 ## Localhost smoke/release checklist
-- Local smoke server:
-  `DZI_ADMIN_PASSWORD=admin123 DZI_TESTER_PASSWORD=tester123 python3 -c 'from web.app import app; app.run(host="127.0.0.1", port=5001, debug=True, use_reloader=False)'`
+- Local smoke server (needs a stable `DZI_SECRET_KEY`; `DZI_SESSION_COOKIE_SECURE=0` only for plain-HTTP localhost):
+  `DZI_SESSION_COOKIE_SECURE=0 python3 -c 'from web.app import app; app.run(host="127.0.0.1", port=5001, debug=True, use_reloader=False)'`
 - For Cloudflare tunnel sharing, run Flask with `debug=False`.
-- Local-only passwords: tester `tester123`, admin `admin123`.
-- Tester may use `/teacher/new` and the created assignment detail flow.
-- Tester must not access `/dzi`, `/teacher`, `/teacher/assignments`, `/teacher/dzi-training`, teacher results, or admin-like teacher/DZI pages.
+- Sign-in is by account only, at `/login`. There are no shared tester/admin passwords and no `/tester/login` or `/admin/login`. Create local accounts in the local runtime DB with the repository tooling; it prompts for the password (never put one in a command line, a file or a commit):
+  `python3 -m src.manage_accounts --db data/questions.db create --email <email> --name "<name>" --role teacher`
+  An admin account also needs a second factor before it can sign in: set `DZI_TOTP_KEY` (the same value for the CLI and the server), then run `totp-enroll --email <email>` and `totp-confirm --email <email>`. See `docs/DEPLOYMENT.md`, section 22, for every command.
+- A teacher account may use `/teacher/new` and manages only the assignments it created (detail, edit, duplicate, results, CSV, practical review); another teacher's or an unowned assignment answers 404.
+- A teacher account must get 403 on `/dzi`, `/teacher`, `/teacher/dzi-training` and the other admin-only pages. Signed out, every protected page redirects to `/login?next=...`.
+- An admin account (password, then TOTP or a recovery code) reaches everything, including unowned assignments.
 - Local smoke tests may create notes under `vault/Generated/Quizzes/`; remove those before commits unless intentionally changing vault content. The runtime DB is ignored by Git.
 - Before commit, run:
   `python3 -m unittest tests.test_auth_guard tests.test_quiz_attempt_render`

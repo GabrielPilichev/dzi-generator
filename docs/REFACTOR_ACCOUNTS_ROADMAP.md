@@ -2,6 +2,14 @@
 
 Oct 6, 2026 · @Gabriel Pilichev
 
+> **Status note (Accounts PR 10).** This brief is kept as the original plan.
+> Where it says "today" about authentication (two shared passwords, the tester
+> and admin sessions, `tester_authenticated` / `admin_authenticated`, `/tester`,
+> the tester/admin logins, profile switching) it describes the application
+> before accounts. All of that has been removed: sign-in is by account only.
+> The current contract is `docs/AUTH_ROUTE_CONTRACT.md`; the implementation
+> history is `docs/ACCOUNTS_DESIGN.md`.
+
 ## How to use this brief
 
 This is the agreed plan for LearnPilot's structural refactor and the path to user accounts; implement it one PR at a time, in the order of the PR sequence below. Each task from Gabriel names one PR; this brief is the shared context. Line numbers refer to the LearnPilot Technical Study of `main` at commit `39abbbd`, so verify them against the live code.

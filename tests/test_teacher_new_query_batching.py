@@ -447,11 +447,11 @@ class TeacherNewAccessAndPoliciesTest(IsolatedAppTestCase, TeacherNewPageMixin):
         client = web_app.app.test_client()
         anonymous = client.get("/teacher/new")
         self.assertEqual(anonymous.status_code, 302)
-        self.assertEqual(anonymous.headers["Location"], "/tester/login?next=/teacher/new")
+        self.assertEqual(anonymous.headers["Location"], "/login?next=/teacher/new")
         response, _, _ = self.get_page("/teacher/new?subject=it")
         self.assertEqual(response.status_code, 200)
         tester = self._tester_client()
-        self.assertEqual(tester.get("/dzi").status_code, 302)
+        self.assertEqual(tester.get("/dzi").status_code, 403)
 
     def test_page_runs_read_only_statements_on_policy_connections(self):
         with traced_connections() as statements:

@@ -152,8 +152,9 @@ class TesterFlowSmokeTest(IsolatedAppTestCase):
         self.assertRegex(html, r'<input\b(?=[^>]*id="home-search-input")(?=[^>]*type="search")')
         self.assertRegex(html, r'<section\b(?=[^>]*id="home-search-dzi")(?=[^>]*data-home-search-group="dzi")')
         self.assertRegex(html, r'<details\b(?=[^>]*class="[^"]*\bmobile-profile-menu\b)')
-        self.assertIn('href="/tester/login?next=/"', html)
-        self.assertIn('href="/admin/login?next=/"', html)
+        self.assertIn('href="/login?next=/"', html)
+        for removed in ("/tester/login", "/admin/login"):
+            self.assertNotIn(removed, html)
 
     def test_grade_page_renders_content_cards_and_primary_links(self):
         grade = self.section["class"]
@@ -185,13 +186,12 @@ class TesterFlowSmokeTest(IsolatedAppTestCase):
         self.assertIn('id="question-difficulty-filter"', html)
         self.assertIn('src="/static/js/section-tools.js"', html)
 
-    def test_cyrillic_wrong_passwords_return_normal_login_errors(self):
-        for path in ("/tester/login", "/admin/login"):
-            with self.subTest(path=path):
-                response = self.client.post(path, data={"password": "грешна-парола"})
-                self.assertEqual(response.status_code, 200)
-                self.assertIn("Грешна парола.".encode("utf-8"), response.data)
-                self.assertNotIn("грешна-парола".encode("utf-8"), response.data)
+    def test_cyrillic_wrong_password_returns_the_normal_login_error(self):
+        response = self.client.post(
+            "/login", data={"email": "никой@example.bg", "password": "грешна-парола"})
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("Грешен имейл или парола.".encode("utf-8"), response.data)
+        self.assertNotIn("грешна-парола".encode("utf-8"), response.data)
 
     def test_practical_task_page_and_download_failures_are_safe(self):
         self._login_admin()

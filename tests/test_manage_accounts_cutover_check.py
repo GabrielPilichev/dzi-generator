@@ -39,7 +39,6 @@ class CutoverCheckTestCase(TotpCliTestCase):
 
     def setUp(self):
         super().setUp()
-        os.environ.pop("DZI_LEGACY_SHARED_LOGIN", None)
         self.secrets = []
 
     def viable_admin(self, email=ADMIN):
@@ -102,11 +101,13 @@ class CutoverCheckPassTest(CutoverCheckTestCase):
         for other in ("unenrolled@example.bg", "disabled@example.bg", "spent@example.bg"):
             self.assertNotIn(other, self.out)
 
-    def test_false_legacy_flag_in_the_environment_passes(self):
+    def test_the_removed_shared_login_switch_is_not_part_of_the_check(self):
+        # There is no bridge to switch: a leftover variable of any spelling is ignored.
         self.viable_admin()
-        for value in ("0", "false", "off", ""):
+        for value in ("0", "false", "", "1", "true", "on", "maybe"):
             with self.subTest(value=value), mock.patch.dict(os.environ, {"DZI_LEGACY_SHARED_LOGIN": value}):
                 self.assert_pass(ADMIN)
+                self.assertNotIn("DZI_LEGACY_SHARED_LOGIN", self.out)
 
 
 class CutoverCheckFailTest(CutoverCheckTestCase):
@@ -169,14 +170,6 @@ class CutoverCheckFailTest(CutoverCheckTestCase):
         self.assert_fail(f"admin {ADMIN} has no unused recovery code (run totp-recovery-codes)")
         self.execute("DELETE FROM totp_recovery_codes")
         self.assert_fail("has no unused recovery code")
-
-    def test_enabled_or_malformed_legacy_flag_in_the_environment(self):
-        self.viable_admin()
-        for value in ("1", "true", "on"):
-            with self.subTest(value=value), mock.patch.dict(os.environ, {"DZI_LEGACY_SHARED_LOGIN": value}):
-                self.assert_fail("DZI_LEGACY_SHARED_LOGIN is enabled in this environment")
-        with mock.patch.dict(os.environ, {"DZI_LEGACY_SHARED_LOGIN": "maybe"}):
-            self.assert_fail("DZI_LEGACY_SHARED_LOGIN must be one of")
 
     def test_missing_account_tables(self):
         for migrations, missing in (

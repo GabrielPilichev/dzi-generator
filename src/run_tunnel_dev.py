@@ -9,11 +9,7 @@ import sys
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 
-REQUIRED_ENV_VARS = (
-    "DZI_SECRET_KEY",
-    "DZI_ADMIN_PASSWORD",
-    "DZI_TESTER_PASSWORD",
-)
+REQUIRED_ENV_VARS = ("DZI_SECRET_KEY",)
 
 
 def missing_env_vars() -> list[str]:
@@ -29,8 +25,8 @@ def main() -> int:
             file=sys.stderr,
         )
         print(
-            "Example local-only setup: export DZI_ADMIN_PASSWORD=admin123 "
-            "DZI_TESTER_PASSWORD=tester123 and set a generated DZI_SECRET_KEY.",
+            "Set a generated DZI_SECRET_KEY. Sign-in is by account: create accounts "
+            "with `python3 -m src.manage_accounts` (admins also need DZI_TOTP_KEY).",
             file=sys.stderr,
         )
         return 2

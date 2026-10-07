@@ -41,25 +41,15 @@ from src.practical_uploads import MAX_FILES_PER_REQUEST, MAX_REQUEST_BYTES, MAX_
 from web.blueprints.dzi import dzi_bp
 from web.blueprints.practical import practical_bp
 from web.attempt_access import quiz_attempt_owner_session_key
-from web.blueprints.account import ROLE_LABELS, account_bp
-from web.blueprints.auth import VALID_UI_PROFILES, auth_bp
-from web.redirects import safe_redirect_target
+from web.blueprints.account import account_bp
 from web.blueprints.quiz import quiz_bp
 from web.blueprints.teacher import teacher_bp
 from web.blueprints.browsing import browsing_bp, open_existing_database_read_only
 from web.access import (
     ANONYMOUS,
-    LEGACY_AUTH_SESSION_KEYS,
-    LEGACY_SHARED_LOGIN_CONFIG,
-    LEGACY_SHARED_LOGIN_ENV,
-    PROFILE_SWITCH,
     account_principal,
     current_principal,
-    denial_login_endpoint,
-    is_legacy_shared_login_view,
     is_route_allowed,
-    legacy_shared_login_enabled,
-    parse_legacy_shared_login,
     policy_for_endpoint,
 )
 from web.request_db import get_request_db
@@ -168,34 +158,12 @@ def build_session_cookie_secure() -> bool:
     return True
 
 
-def build_legacy_shared_login() -> bool:
-    """Whether the legacy shared-password bridge is enabled for a development run.
-
-    Unset keeps the transitional bridge on outside production. An unsupported value
-    disables it: a typo must never enable shared authentication. Production never
-    uses this default: ``web.production`` rejects a truthy or malformed value and
-    forces the bridge off.
-    """
-    configured = os.environ.get(LEGACY_SHARED_LOGIN_ENV)
-    try:
-        enabled = parse_legacy_shared_login(configured)
-    except ValueError as exc:
-        warnings.warn(
-            f"{exc}; legacy shared login is disabled.",
-            RuntimeWarning,
-            stacklevel=2,
-        )
-        return False
-    return True if enabled is None else enabled
-
-
 app = Flask(__name__)
 app.config["DB_PATH"] = str(DB_PATH)
 app.config["SECRET_KEY"] = build_secret_key()
 app.config["SESSION_COOKIE_SAMESITE"] = "Strict"
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SECURE"] = build_session_cookie_secure()
-app.config[LEGACY_SHARED_LOGIN_CONFIG] = build_legacy_shared_login()
 # Admin TOTP secrets are encrypted with this key. Optional: when unset, admin TOTP
 # sign-in fails closed (there is no generated or derived fallback key).
 app.config["TOTP_ENCRYPTION_KEY"] = os.environ.get("DZI_TOTP_KEY") or None
@@ -211,7 +179,7 @@ app.config["MAX_CONTENT_LENGTH"] = MAX_REQUEST_BYTES
 
 
 # ---------------------------------------------------------------------------
-# Local UI profiles
+# Display labels
 # ---------------------------------------------------------------------------
 
 QUESTION_DIFFICULTY_LABELS = {
@@ -337,8 +305,6 @@ def protect_same_origin_unsafe_methods():
 # Session identity of an account (Accounts design §6). Role, name and active state
 # are never in the cookie; they are read from the users row on every request.
 ACCOUNT_SESSION_KEYS = ("uid", "sk", "iat")
-# The legacy shared-login keys (web.access.LEGACY_AUTH_SESSION_KEYS) are ignored while
-# an account identity is present, and always while the legacy bridge is disabled.
 ACCOUNT_LOADING_SKIPPED_ENDPOINTS = frozenset({"browsing.healthz", "static"})
 
 
@@ -346,26 +312,17 @@ ACCOUNT_LOADING_SKIPPED_ENDPOINTS = frozenset({"browsing.healthz", "static"})
 def load_current_user():
     """Resolve an account session to ``g.principal`` (authentication only).
 
-    No account key in the session: nothing happens, no query, no cookie, and
-    ``web.access.current_principal`` falls back to the legacy keys. Any account
-    key present means an account session was attempted: it either resolves to the
-    account's principal or the request is anonymous. It never falls back to
-    legacy keys in the same cookie, and the stale identity is dropped together
-    with those keys so the next request cannot fall through to them either.
+    No account key in the session: nothing happens, no query, no cookie, and the
+    request is anonymous (``web.access.current_principal``). Any account key
+    present means an account session was attempted: it either resolves to the
+    account's principal or the request is anonymous, and the stale identity is
+    dropped from the cookie. Nothing else in the cookie is ever read as authority.
 
     A session older than its role's absolute lifetime is stale too. The role
     is the one in the users row; a missing or malformed ``iat`` is expired.
-
-    With the legacy bridge disabled the legacy keys carry no authority at all
-    (``current_principal`` never reads them); a cookie still holding them is
-    cleaned up here, which is hygiene and not what removes the authority.
     """
     if request.endpoint in ACCOUNT_LOADING_SKIPPED_ENDPOINTS:
         return
-    if not legacy_shared_login_enabled():
-        for key in LEGACY_AUTH_SESSION_KEYS:
-            if key in session:
-                session.pop(key)
     if not any(key in session for key in ACCOUNT_SESSION_KEYS):
         return
     user = accounts_service.load_session_user(
@@ -377,7 +334,7 @@ def load_current_user():
     ):
         principal = account_principal(user["id"], user["role"], user["display_name"])
     if principal.user_id is None:
-        for key in (*ACCOUNT_SESSION_KEYS, *LEGACY_AUTH_SESSION_KEYS):
+        for key in ACCOUNT_SESSION_KEYS:
             session.pop(key, None)
     g.principal = principal
 
@@ -385,35 +342,12 @@ def load_current_user():
 @app.after_request
 def prevent_caching_for_accounts(response):
     # A signed-in account's pages must not be replayed from the browser cache or the
-    # back button on a shared computer. Anonymous, legacy, static and health
-    # responses are left alone.
+    # back button on a shared computer. Anonymous, static and health responses
+    # are left alone.
     principal = g.get("principal")
     if principal is not None and principal.user_id is not None:
         response.headers["Cache-Control"] = "no-store"
     return response
-
-
-@app.before_request
-def load_ui_profile():
-    if request.endpoint in ACCOUNT_LOADING_SKIPPED_ENDPOINTS:
-        # Monitoring probes get no session cookie, and neither endpoint renders a
-        # template or loads the account principal the profile is clamped against.
-        return
-    profile = session.get("ui_profile", "tester")
-    if profile not in VALID_UI_PROFILES:
-        profile = "tester"
-
-    # Presentation only: the profile is clamped to what the request Principal may use.
-    is_admin = current_principal().is_admin
-    if profile == "admin" and not is_admin:
-        profile = "tester"
-
-    if session.get("ui_profile") not in VALID_UI_PROFILES or (
-        session.get("ui_profile") == "admin" and not is_admin
-    ):
-        session.pop("ui_profile", None)
-    g.ui_profile = profile
-
 
 
 @app.context_processor
@@ -492,24 +426,15 @@ def inject_subject_navigation():
 
 
 @app.context_processor
-def inject_ui_profile():
-    profile = getattr(g, "ui_profile", "admin")
-    label = "Админ" if profile == "admin" else "Тестер"
-    principal = g.get("principal")
-    if principal is not None and principal.user_id is not None:
-        # An account has no cosmetic profile to switch: the label is its role.
-        profile = "admin" if principal.is_admin else "tester"
-        label = ROLE_LABELS.get(principal.role, label)
+def inject_question_labels():
     return {
-        "ui_profile": profile,
-        "ui_profile_label": label,
         "question_difficulty_label": question_difficulty_label,
         "question_kind_label": question_kind_label,
     }
 
 
 # ---------------------------------------------------------------------------
-# Admin password protection
+# Route access policy
 # ---------------------------------------------------------------------------
 
 @app.before_request
@@ -524,36 +449,18 @@ def enforce_access_policy():
     if request.routing_exception is not None:
         return  # No view matched; Flask answers with its own 404/405/redirect.
 
-    legacy_shared_login = legacy_shared_login_enabled()
-    if not legacy_shared_login and is_legacy_shared_login_view(
-        app.view_functions.get(request.endpoint or "")
-    ):
-        # The shared-password routes do not exist while the bridge is disabled:
-        # the same 404 as an unknown URL, for every method and every session.
-        abort(404)
-
-    view_args = request.view_args or {}
     level = policy_for_endpoint(app, request.endpoint)
     principal = current_principal()
-    if is_route_allowed(level, principal, view_args):
+    if is_route_allowed(level, principal):
         return
 
-    if not legacy_shared_login and principal.user_id is not None:
+    if principal.user_id is not None:
         # A signed-in account without the needed role is not anonymous: signing in
         # again cannot help, so it is refused instead of being sent to the login.
         return render_template("403.html"), 403
 
-    if level == PROFILE_SWITCH:
-        next_url = safe_redirect_target(
-            request.args.get("next") or request.referrer,
-            "browsing.index",
-        )
-    else:
-        next_url = request.path
-    return redirect(url_for(
-        denial_login_endpoint(level, view_args, legacy_shared_login=legacy_shared_login),
-        next=next_url,
-    ))
+    # Anonymous: the account login is the only sign-in there is.
+    return redirect(url_for("account.login", next=request.path))
 
 
 # ---------------------------------------------------------------------------
@@ -653,7 +560,6 @@ warn_if_schema_migrations_pending(DB_PATH, open_existing_database_read_only)
 
 
 app.register_blueprint(account_bp)
-app.register_blueprint(auth_bp)
 app.register_blueprint(browsing_bp)
 app.register_blueprint(dzi_bp)
 app.register_blueprint(practical_bp)
