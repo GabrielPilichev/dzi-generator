@@ -119,8 +119,8 @@ sudoedit /etc/learnpilot/learnpilot.env
 | Variable | Required | Rule |
 | --- | --- | --- |
 | `DZI_SECRET_KEY` | yes | at least 32 characters; keep stable (rotating it signs everyone out) |
-| `DZI_ADMIN_PASSWORD` | yes | at least 12 characters, not a documented local value |
-| `DZI_TESTER_PASSWORD` | yes | at least 12 characters, different from the admin password |
+| `DZI_LEGACY_SHARED_LOGIN` | no | leave unset. Production serves account sign-in only: an enabled (`1`/`true`/`yes`/`on`) or unrecognised value stops startup; only a false spelling (`0`/`false`/`no`/`off`) or an empty value is accepted, and the bridge is forced off regardless (section 23) |
+| `DZI_ADMIN_PASSWORD`, `DZI_TESTER_PASSWORD` | no | retired shared passwords. Production does not read, require or validate them; a line left in an older env file has no effect and can be deleted (keep it only while a rollback to pre-cutover code must stay possible, section 21) |
 | `DZI_TOTP_KEY` | for admin accounts | Fernet key that encrypts admin TOTP secrets (`python3 -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'`). Normal TOTP verification needs it: unset or wrong, a TOTP code fails closed (503). Single-use recovery codes do not need it and stay usable as the temporary recovery path. Unset: startup is allowed. A malformed configured value is a configuration error and stops startup. Keep it stable and backed up apart from database backups; if it is lost, restore the correct key, or use `totp-reset` and re-enrol each admin |
 | `DZI_DB` | yes | absolute path of the existing live database, outside the checkout |
 | `DZI_UPLOAD_ROOT` | yes | absolute, existing, writable directory outside the checkout |
@@ -641,8 +641,8 @@ curl -fsS -H 'Host: learnpilot.bg' http://127.0.0.1:8000/healthz
 curl -fsS https://learnpilot.bg/healthz
 ```
 
-**12. Smoke-test** over HTTPS: the homepage, a subject page, tester login and
-test creation; check `journalctl -u learnpilot --since "10 minutes ago" -p warning`.
+**12. Smoke-test** over HTTPS: the homepage, a subject page, a teacher account
+sign-in at `/login` and test creation; check `journalctl -u learnpilot --since "10 minutes ago" -p warning`.
 With one worker, a restart causes a few seconds of unavailability.
 
 **13. Rollback** if a step fails: see section 21, using `$PREV` from step 2 and
@@ -661,13 +661,18 @@ the step 3 snapshot.
   (section 17), which discards database writes, uploads and vault changes made
   after it; decide that explicitly.
 - If no migration was applied, a code rollback needs no data restore.
+- Rolling back to code from before the account-auth cutover (section 23) brings
+  the shared-password logins back: that code requires `DZI_ADMIN_PASSWORD` and
+  `DZI_TESTER_PASSWORD` again (startup fails without them) and honours the legacy
+  keys in any cookie signed with the current `DZI_SECRET_KEY`, including cookies
+  issued before the cutover. Read section 23, "Rollback", before doing it.
 - Browsers may keep old CSS/JS for up to one hour (static cache lifetime).
 
 ## 22. Account management CLI
 
 `src.manage_accounts` is operator tooling for the `users` table (migration 012).
-It is a command reference only: the application does not use account
-authentication yet, so this is not a rollout step.
+Accounts are the only way to sign in to production (section 23), and this CLI is
+the only way to create them and the only recovery path for a locked-out admin.
 
 The target database is never defaulted to `data/questions.db`. Pass `--db <path>`
 or set `DZI_DB` (`--db` wins). The file must already exist and already have the
@@ -688,6 +693,11 @@ python3 -m src.manage_accounts --db "$DZI_DB" totp-enroll --email admin@example.
 python3 -m src.manage_accounts --db "$DZI_DB" totp-confirm --email admin@example.bg
 python3 -m src.manage_accounts --db "$DZI_DB" totp-recovery-codes --email admin@example.bg
 python3 -m src.manage_accounts --db "$DZI_DB" totp-reset --email admin@example.bg
+
+# Read-only preflight of the account-auth cutover (needs DZI_TOTP_KEY; section 23).
+# It reads a src.backup_sqlite snapshot, never the live WAL database.
+python3 -m src.backup_sqlite --db "$DZI_DB" --output /var/backups/learnpilot/cutover-check.db
+python3 -m src.manage_accounts --db /var/backups/learnpilot/cutover-check.db cutover-check
 ```
 
 - Accounts are addressed by (normalized) email. Roles: `student`, `teacher`, `admin`.
@@ -725,8 +735,187 @@ python3 -m src.manage_accounts --db "$DZI_DB" totp-reset --email admin@example.b
   `DZI_TOTP_KEY` values must match the running application's; the key is never
   printed. Migration 016 itself rotates the session keys of existing admin
   accounts, so no admin session issued before it survives the upgrade.
+- `cutover-check` changes nothing: no row, no database file and no `-wal`,
+  `-shm` or `-journal` file. It prints `cutover-check: PASS` (exit 0) only if at
+  least one admin account is active, has an email, has a password hash that
+  sign-in can verify, has a confirmed TOTP credential that the `DZI_TOTP_KEY` in
+  the command's environment decrypts, and has an unused recovery code; the
+  tables of migrations 012, 013 and 016 must exist and `DZI_LEGACY_SHARED_LOGIN`
+  must not be enabled or malformed. Otherwise it prints `cutover-check: FAIL`
+  with the reasons (exit 1). One viable admin is enough; other admins may be
+  unenrolled or disabled.
+  - The password hash is checked structurally only (`method$salt$digest` as the
+    account service stores it: `scrypt` with its three parameters, or the older
+    `pbkdf2` form sign-in still accepts, a salt, and a hex digest of the right
+    length). No password is tried, nothing is hashed and no hash is upgraded; a
+    damaged hash is reported as "cannot verify" and repaired with `set-password`.
+  - It verifies no code, so no TOTP step or recovery code is consumed, and it
+    prints no secret, code, key or hash.
+  - **It does not read the live database.** The live database is in WAL mode,
+    and SQLite cannot read a WAL database, even read-only, without creating or
+    rewriting its `-wal`/`-shm` files; ignoring those files instead would miss
+    commits that are still only in the WAL. The command therefore reads the
+    file header first and refuses, before SQLite opens anything, a WAL-mode
+    database or one with a sidecar file next to it. The refusal (exit 1, on
+    stderr) names the two commands above; it is a restriction of the preflight
+    and says nothing about the health of the database. Give it a snapshot made
+    by `src.backup_sqlite`, which reads one consistent view including the
+    committed WAL content and writes a single self-contained file. Never give
+    it a file made with `cp`: a copy of the live main file omits the WAL, and
+    the command refuses it for the same reason.
+  - The result describes the snapshot. Take a new snapshot after any account
+    change and before relying on the result.
 - Errors go to stderr with a nonzero exit status; each command commits only after
   it fully succeeds.
+
+## 23. Account-auth cutover (Accounts PR9)
+
+From this release account authentication is the only authority in production.
+
+- The shared-password routes `/tester/login`, `/admin/login`, `/tester/logout`
+  and `/admin/logout` answer 404 for every method.
+- The legacy session keys (`tester_authenticated`, `admin_authenticated`) grant
+  nothing, in every cookie, including cookies signed before the deployment;
+  `ui_profile` never granted anything. The application ignores the keys when it
+  decides who the request is and drops them from the cookie when it sees them.
+- An account admin still needs the second factor: the password alone grants
+  nothing until a TOTP or recovery code completes the sign-in.
+- Teachers manage only their own assignments and practical submissions.
+  Assignments without an owner (`owner_user_id IS NULL`) stay unowned and are
+  manageable by an account admin only; nothing claims or backfills them.
+- A denied anonymous request goes to `/login`; a signed-in account without the
+  needed role gets 403.
+
+Production cannot run with the shared logins: `web.wsgi` refuses to start when
+`DZI_LEGACY_SHARED_LOGIN` is enabled or unreadable, and forces the bridge off
+otherwise. This does not depend on the env file being edited correctly.
+
+**`DZI_SECRET_KEY` is not rotated for the cutover.** Rotating it would sign out
+every account and discard the attempt-ownership markers of students who are in
+the middle of a quiz. It is not needed: old cookies stay valid as cookies, but
+their legacy keys no longer authorize anything.
+
+### Cutover sequence
+
+Run as in section 20 (complete snapshot first); this release has no migration.
+
+The preflight never touches the live database (section 22): it reads a fresh
+`src.backup_sqlite` snapshot of it. Take the snapshot while the application
+runs; it contains everything committed up to that moment, including what is
+still in the WAL. Then run the check on the snapshot with the service's own
+environment, so that it uses the application's `DZI_TOTP_KEY` (the same
+`systemd-run` form as the Gunicorn check in section 10; `--db` overrides the
+`DZI_DB` of the environment file):
+
+```bash
+cd /opt/learnpilot/app
+CHECK_DB=/var/backups/learnpilot/cutover-check-$(date -u +%Y%m%dT%H%M%SZ).db
+
+# 1. Consistent snapshot of the current committed state (WAL-safe; not `cp`).
+sudo -u learnpilot /opt/learnpilot/venv/bin/python -m src.backup_sqlite \
+  --db /var/lib/learnpilot/data/questions.db --output "$CHECK_DB"
+
+# 2. Read-only check of the snapshot.
+sudo systemd-run --quiet --pipe --wait --uid=learnpilot --gid=learnpilot \
+  -p EnvironmentFile=/etc/learnpilot/learnpilot.env -p WorkingDirectory=/opt/learnpilot/app \
+  /opt/learnpilot/venv/bin/python -m src.manage_accounts --db "$CHECK_DB" cutover-check
+
+# 3. The snapshot holds password hashes and encrypted TOTP secrets: remove it.
+sudo rm -- "$CHECK_DB"
+```
+
+Pointing the check at `/var/lib/learnpilot/data/questions.db` itself is refused
+with these instructions. The application never runs this check, at startup or
+otherwise; it is the operator's gate.
+
+1. **Before deploying**, while the previous release still runs: make sure
+   `DZI_TOTP_KEY` is set in `/etc/learnpilot/learnpilot.env` and unchanged since
+   the admin was enrolled, and that the env file has no
+   `DZI_LEGACY_SHARED_LOGIN` line.
+2. **Preflight** (read-only, repeatable):
+   the three commands above. Continue only on `cutover-check: PASS`. On `FAIL`,
+   fix what it names on the live database with the commands of section 22
+   (`create --role admin`, `enable`, `set-password`, `totp-enroll` +
+   `totp-confirm`, `totp-recovery-codes`), then take a **new** snapshot and run
+   it again; the old snapshot does not see the repair. The
+   preflight proves the stored state is usable; it cannot prove the operator
+   still holds the password, the authenticator and the recovery codes.
+3. **Prove a real admin sign-in on the running release**: sign in at `/login`
+   with the admin account's password and a TOTP code, and open `/teacher`.
+4. **Check the recovery path without spending the last code.** Confirm the
+   printed recovery codes are where they are supposed to be stored. If you want
+   to exercise one, sign in with it once (it is consumed) and then issue a fresh
+   set with `totp-recovery-codes`, which voids the old ones; never test with the
+   only remaining code.
+5. **Deploy** this release (section 20). Startup validation now rejects an
+   enabled `DZI_LEGACY_SHARED_LOGIN`.
+6. **Verify the account flows:**
+   - admin: password, then TOTP, then `/teacher`, `/teacher/assignments`
+     (every assignment, unowned ones included) and
+     `/teacher/practical-submissions`;
+   - teacher: sign in at `/login`, create a test at `/teacher/new`, see only own
+     rows in `/teacher/assignments` and `/teacher/practical-submissions`, and get
+     404 for another teacher's assignment URL and 403 for `/teacher`;
+   - sign out with the "Изход" button (`POST /logout`) and sign in again.
+7. **Verify the shared logins are gone:**
+
+   ```bash
+   curl -s -o /dev/null -w '%{http_code}\n' https://learnpilot.bg/tester/login   # 404
+   curl -s -o /dev/null -w '%{http_code}\n' https://learnpilot.bg/admin/login    # 404
+   curl -s -o /dev/null -w '%{http_code}\n' -X POST -H 'Origin: https://learnpilot.bg' \
+     -d 'password=x' https://learnpilot.bg/admin/login                            # 404
+   ```
+
+8. **Verify a stale session authorizes nothing:** in a browser that was signed
+   in through `/tester/login` or `/admin/login` before the deployment (do not
+   clear its cookies), open `/teacher` and `/teacher/new`: both must redirect to
+   `/login`, and the header must show "Вход", not a profile.
+9. Keep shell access for `src.manage_accounts`: it is the recovery path.
+
+### Recovering a locked-out admin
+
+There is no shared-password or other break-glass login. Everything goes through
+the CLI on the server, and none of it needs the application to be reconfigured:
+
+| Problem | Recovery |
+| --- | --- |
+| Forgotten password | `set-password --email <admin>` |
+| Too many failed attempts (429) | `clear-throttle --email <admin>` (needs `DZI_SECRET_KEY`) |
+| Lost authenticator, recovery codes at hand | sign in with a recovery code, then `totp-reset`, `totp-enroll`, `totp-confirm` |
+| Lost authenticator and recovery codes | `totp-reset --email <admin>`, then `totp-enroll` and `totp-confirm` |
+| Recovery codes used up or lost | `totp-recovery-codes --email <admin>` |
+| `DZI_TOTP_KEY` lost or replaced (TOTP answers 503) | restore the key; or sign in with a recovery code; or `totp-reset` and enrol again under the new key |
+| Account disabled or demoted | `enable --email <admin>`, `set-role --email <admin> --role admin` |
+| No admin account at all | `create --email <admin> --name "<name>" --role admin`, then `totp-enroll`, `totp-confirm` |
+
+Run `cutover-check` on a new snapshot afterwards to confirm an admin can sign in
+again.
+
+The application does not check any of this at startup, deliberately: a server
+whose only admin has lost the second factor must still start, so that teachers
+and students keep working and the operator can repair the account with the CLI.
+Startup guarantees that shared authentication cannot be enabled; the preflight,
+run by the operator, guarantees that an admin can get in.
+
+### Rollback
+
+A rollback to this release or later keeps the cutover. A rollback to code from
+before it (section 21) undoes it: that code requires both shared passwords,
+serves `/tester/login` and `/admin/login` again and honours the legacy keys of
+any cookie signed with the current `DZI_SECRET_KEY`. Browsers that held a legacy
+session before the cutover and have not been closed or cleaned up by a request to
+the new release would be signed in again.
+
+If that matters for a rollback, change the shared passwords in the env file
+before starting the old code and, to void the old cookies as well, rotate
+`DZI_SECRET_KEY`. Rotation is a deliberate emergency measure with a real cost: it
+signs out every account and invalidates the quiz attempts students have open. It
+is never part of a normal deployment or of this cutover.
+
+The dead bridge code (the shared-login views and templates, `ui_profile`, the
+Nginx `lp_admin_login`/`lp_tester_login` zones) is still in the repository and is
+removed by a later cleanup release (PR10); until then it is unreachable in
+production.
 
 ## 2 GB VPS sizing
 

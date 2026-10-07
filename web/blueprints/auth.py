@@ -6,6 +6,9 @@ and redirects are unchanged; only the owner and the endpoint names
 (``auth.*``) moved. Authorization stays in :mod:`web.access` and same-origin
 request integrity in :mod:`web.request_integrity`: this module only declares
 each view's policy. ``ui_profile`` is cosmetic UI state, never authorization.
+The four shared-password routes (both logins and both logouts) are marked
+``legacy_shared_login_route``: while the bridge is disabled (always in production)
+they answer 404 and the keys they write grant nothing.
 The module imports neither ``web.app`` nor another controller.
 """
 
@@ -16,7 +19,15 @@ import os
 
 from flask import Blueprint, abort, redirect, render_template, request, session, url_for
 
-from web.access import ADMIN, PROFILE_SWITCH, PUBLIC, access_policy, current_principal
+from web.access import (
+    ADMIN,
+    PROFILE_SWITCH,
+    PUBLIC,
+    access_policy,
+    current_principal,
+    legacy_shared_login_enabled,
+    legacy_shared_login_route,
+)
 from web.redirects import safe_redirect_target
 from web.request_integrity import SAME_ORIGIN, integrity_policy
 
@@ -63,6 +74,8 @@ def inject_tester_auth():
         "tester_authenticated": is_tester_authenticated(),
         "tester_password_configured": tester_password_configured(),
         "can_generate_tests": can_generate_tests(),
+        # Templates offer the shared-password links only while the bridge exists.
+        "legacy_shared_login_enabled": legacy_shared_login_enabled(),
     }
 
 
@@ -95,6 +108,7 @@ def tester_home():
 @auth_bp.route("/tester/login", methods=["GET", "POST"])
 @access_policy(PUBLIC)
 @integrity_policy(SAME_ORIGIN)
+@legacy_shared_login_route
 def tester_login():
     error = None
     next_url = safe_redirect_target(
@@ -120,6 +134,7 @@ def tester_login():
 
 @auth_bp.route("/tester/logout")
 @access_policy(PUBLIC)
+@legacy_shared_login_route
 def tester_logout():
     session.pop("tester_authenticated", None)
     if not session.get("admin_authenticated"):
@@ -130,6 +145,7 @@ def tester_logout():
 @auth_bp.route("/admin/login", methods=["GET", "POST"])
 @access_policy(PUBLIC)
 @integrity_policy(SAME_ORIGIN)
+@legacy_shared_login_route
 def admin_login():
     error = None
     next_url = safe_redirect_target(
@@ -155,6 +171,7 @@ def admin_login():
 
 @auth_bp.route("/admin/logout")
 @access_policy(ADMIN)
+@legacy_shared_login_route
 def admin_logout():
     session.pop("admin_authenticated", None)
     session["ui_profile"] = "tester"

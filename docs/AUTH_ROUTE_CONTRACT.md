@@ -2,13 +2,17 @@
 
 Four separate concerns, deliberately kept apart:
 
-- **Authentication** — who the session is. Two mechanisms coexist during the
-  accounts bridge:
+- **Authentication** — who the session is. Since the cutover (Accounts PR9)
+  account authentication is the only authority in production:
   - an **account** identity (`uid`, `sk`, `iat`), issued by `web/blueprints/account.py`
     (endpoints `account.login`, `account.login_totp`, `account.logout`, `account.password`) and resolved
     to a principal on every request by `load_current_user()` in `web/app.py`;
   - the **legacy shared passwords** (`tester_authenticated`,
-    `admin_authenticated`), owned by the login/logout routes in `web/blueprints/auth.py` (endpoints `auth.tester_login`, `auth.admin_login`, `auth.tester_logout`, `auth.admin_logout`, `auth.switch_profile`, `auth.tester_home`).
+    `admin_authenticated`), owned by the login/logout routes in `web/blueprints/auth.py` (endpoints `auth.tester_login`, `auth.admin_login`, `auth.tester_logout`, `auth.admin_logout`, `auth.switch_profile`, `auth.tester_home`),
+    are a transitional bridge that exists only while `DZI_LEGACY_SHARED_LOGIN`
+    is enabled, which production never allows. See "Legacy shared-login
+    cutover" below; wherever this document describes a legacy tester or admin
+    session, it describes that bridge and nothing that can happen in production.
 - **Authorization (access policy)** — whether that session may use a route,
   declared per view function in `web/access.py`.
 - **Request integrity** — how an unsafe or external request proves it is
@@ -38,14 +42,68 @@ establishes identity:
    happens (no query, no cookie). See "Account sessions" below.
 3. `enforce_access_policy()` — authorization. It looks up the policy declared
    on the view function Flask resolved for the request and decides with
-   `current_principal()`. A denied request is redirected to the matching login
-   with `next=<path>`: `/tester/login` for `teacher` routes, `/login` for
-   `signed_in` and `assignment_owner` routes, `/admin/login` for everything
-   else, including undeclared views. A request that matched no route is left to Flask's own 404/405.
+   `current_principal()`. With the legacy bridge disabled: a shared-password
+   route answers 404 first; a denied request without an account is redirected
+   to `/login` with `next=<path>`, whatever the route's policy; a denied
+   request from a signed-in account gets 403 (`403.html`), because signing in
+   again cannot help. With the bridge enabled the transitional behaviour
+   applies: every denial is a redirect, to `/tester/login` for `teacher`
+   routes, `/login` for `signed_in` and `assignment_owner` routes, and
+   `/admin/login` for everything else, including undeclared views. A request
+   that matched no route is left to Flask's own 404/405.
 
 Passing one check never implies the other: an admin's cross-origin post is
 refused, and a same-origin post from a session without access is still sent to
 login.
+
+## Legacy shared-login cutover (Accounts PR9)
+
+One setting decides whether the shared-password bridge exists:
+`DZI_LEGACY_SHARED_LOGIN`, held as the boolean `app.config["LEGACY_SHARED_LOGIN"]`
+and read through `web.access.legacy_shared_login_enabled()`. Only the boolean
+`True` enables it; a missing value means disabled.
+
+| Where | Value |
+| --- | --- |
+| Production (`web.wsgi`) | Always disabled. `web/production.py` refuses to start when the variable is enabled (`1`/`true`/`yes`/`on`) or not a recognised spelling, accepts unset, empty or a false spelling (`0`/`false`/`no`/`off`), and then forces the configuration to `False`. |
+| Development (`web.app` imported directly) | Enabled when unset, so the documented local tester/admin smoke flow keeps working. An explicit value is parsed with the same spellings; an unrecognised one disables the bridge with a warning. |
+| Tests | `tests.support.isolated_app` enables it explicitly; the cutover tests disable it. |
+
+With the bridge **disabled**:
+
+- `/tester/login`, `/admin/login`, `/tester/logout` and `/admin/logout`
+  (the views marked `legacy_shared_login_route`) answer 404 for GET and POST,
+  for every session, before any access decision and without touching the
+  session. A correct shared password gets the same 404.
+- `current_principal()` never reads `tester_authenticated` or
+  `admin_authenticated`. A request without a resolved account is anonymous
+  whatever its cookie holds, so a cookie signed before the cutover authorizes
+  nothing. This is the decision itself, not a cleanup: `load_current_user()`
+  additionally drops the two keys from any cookie that still carries them, but
+  no authority depends on that having happened. No signing-key rotation is
+  involved.
+- `ui_profile` remains cosmetic and is clamped to the Principal; with stale
+  keys it cannot show an admin profile.
+- A pending second factor (`mfa_*`) next to stale legacy admin keys is still
+  anonymous. Before the cutover that combination was a legacy admin, because
+  `/admin/login` could be completed while the account's second factor was
+  pending; now only `POST /login/totp` creates the admin Principal.
+- Every sign-in denial targets `account.login`; no redirect points at a
+  shared-password route. A signed-in account that lacks the role gets 403.
+  Object-level ownership answers are unchanged: a foreign, unowned or missing
+  assignment, attempt or practical file is still 404.
+- Templates receive `legacy_shared_login_enabled` and offer only „Вход“
+  (`/login`); `tester_authenticated` and `admin_authenticated` are computed
+  from the Principal and are therefore false for stale keys.
+- The legacy tester and the legacy admin do not exist as principals. The
+  tester's view-only access to unowned assignment detail is unreachable;
+  unowned (`owner_user_id IS NULL`) assignments and their practical data are
+  manageable by an account admin only. Nothing claims or backfills ownership.
+
+The bridge code itself (views, templates, `ui_profile`, `/profile/<profile>`,
+`/tester`, the Nginx zones for the two logins) is still present and is removed
+by PR10. The operator's preflight and recovery procedure are in
+`docs/DEPLOYMENT.md`, section 23.
 
 ## Declared Access Policies
 
@@ -224,8 +282,10 @@ role decides: admin → `/teacher`, teacher → `/teacher/new`, student → `/`.
 **Logout (`POST /logout`).** Clears the whole session of this browser and
 redirects to `/`. It does not rotate `session_key`, so other devices stay signed
 in; "sign out everywhere" is `manage_accounts sign-out`. There is no `GET
-/logout` (405). The legacy `GET /tester/logout` and `GET /admin/logout` are
-unchanged.
+/logout` (405). Clearing the session also removes any legacy key, and with the
+bridge disabled such a key would grant nothing anyway. The legacy
+`GET /tester/logout` and `GET /admin/logout` exist only while the bridge is
+enabled (404 otherwise).
 
 **Password change (`/account/password`).** Requires the current password, a new
 password that meets the account policy (10 characters, 14 for an admin, at most
@@ -251,8 +311,10 @@ responses are not changed.
 argument:
 
 - switching to `tester` is allowed;
-- switching to `admin` redirects to admin login unless the session is already
-  admin-authenticated;
+- switching to `admin` needs an admin Principal: with the bridge disabled an
+  anonymous request is redirected to `/login` and a non-admin account gets 403;
+  with the bridge enabled it redirects to admin login unless the session is
+  already admin-authenticated;
 - redirect targets are passed through `safe_redirect_target`, which accepts
   only a same-site absolute path and rejects `//host`, a scheme or host, a
   backslash (`/\host` is read as `//host` by browsers) and control characters.

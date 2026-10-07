@@ -189,6 +189,9 @@ def isolated_app(profile: str = CANONICAL):
                 TESTING=True,
                 DB_PATH=str(db_path),
                 PRACTICAL_UPLOAD_ROOT=str(upload_root),
+                # The transitional bridge, whatever the developer's shell exports.
+                # Cutover behaviour (production) is pinned by tests that turn it off.
+                LEGACY_SHARED_LOGIN=True,
             )
             os.environ.update(
                 DZI_DB=str(db_path), DZI_VAULT=str(vault_path),

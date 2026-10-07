@@ -176,6 +176,24 @@ def has_confirmed_credential(conn: sqlite3.Connection, user_id: int) -> bool:
     return credential_state(conn, user_id) == "confirmed"
 
 
+def secret_is_readable(conn: sqlite3.Connection, user_id: int, key) -> bool:
+    """Whether the account's stored secret decrypts with ``key``. Reads only.
+
+    ``False`` without a credential or when the ciphertext does not decrypt (wrong key
+    or corrupt row). Raises :class:`TotpKeyError` when ``key`` itself is unusable. The
+    secret is discarded; no step is consumed and nothing is written.
+    """
+    fernet = _fernet(key)
+    row = credential(conn, user_id)
+    if row is None:
+        return False
+    try:
+        fernet.decrypt(row["secret_ciphertext"].encode("ascii"))
+    except (InvalidToken, UnicodeError, ValueError, AttributeError):
+        return False
+    return True
+
+
 def _replace_recovery_codes(conn: sqlite3.Connection, user_id: int) -> list[str]:
     conn.execute("DELETE FROM totp_recovery_codes WHERE user_id = ?", (user_id,))
     codes = [_new_recovery_code() for _ in range(RECOVERY_CODE_COUNT)]

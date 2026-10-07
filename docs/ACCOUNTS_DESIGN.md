@@ -436,11 +436,22 @@ existing `Principal(is_teacher=..., is_admin=...)` constructions stay valid.
   the cutover PR, except the `assignment_owner` routes (PR 7), which send to
   the account login `/login`.
 
-**Switch**
+**Switch (implemented by PR 9)**
 
-- `DZI_LEGACY_SHARED_LOGIN` (default on). When off, the legacy routes 404 and
-  the keys are ignored.
-- `web/production.py` requires the two passwords only while it is on.
+- `DZI_LEGACY_SHARED_LOGIN`. When off, the legacy routes 404 and the keys are
+  ignored: account authentication is the only authority.
+- Production is always off. `web/production.py` refuses to start with an
+  enabled or unreadable value and forces the bridge off otherwise; it no longer
+  requires, validates or reads the two shared passwords.
+- Outside production the default stays on, so local smoke testing and the
+  tests that pin legacy behaviour keep working until PR 10.
+- Stale legacy cookies lose their authority centrally, in
+  `current_principal()`; `DZI_SECRET_KEY` is not rotated for the cutover.
+- `manage_accounts cutover-check` is the read-only operator preflight; the
+  application does not depend on a viable admin at startup.
+- The exact contract is in `docs/AUTH_ROUTE_CONTRACT.md` ("Legacy shared-login
+  cutover"), the rollout and recovery procedure in `docs/DEPLOYMENT.md`
+  (section 23).
 
 **Tests**
 
@@ -603,7 +614,7 @@ account forms.**
 | Throttled | 429, „Твърде много опити. Опитай отново след няколко минути.“ regardless of whether the account exists. |
 | Duplicate at creation | The CLI reports it plainly (operator context). No public surface in v1. |
 | Anonymous on a protected route | 302 to login with `next=<path>`. |
-| Signed in without the role | Until cutover, the existing redirect. From the cutover PR, a Bulgarian 403 page (new `403.html`). |
+| Signed in without the role | With the legacy bridge disabled (production, PR 9): a Bulgarian 403 page (`403.html`). With the bridge enabled (development only): the earlier redirect. |
 | Object not owned (assignment, attempt) | 404, never 403. |
 | Stale, deleted, disabled or key-mismatched session | Identity keys dropped, request continues as anonymous. |
 | Malformed `next` | `safe_redirect_target` falls back by role: admin → `/teacher`, teacher → `/teacher/new`, student → `/`. |
@@ -725,8 +736,11 @@ those features are built. Admin TOTP tests are listed in §23.
 4. Deploy ownership (014). Existing production assignments stay unowned and
    admin-only.
 5. Land and deploy admin TOTP (PR T) and enrol the admin account.
-6. Turn the legacy flag off (PR 9), then remove both passwords from the env
-   file after PR 10.
+6. Deploy the cutover (PR 9) after `manage_accounts cutover-check` passes and a
+   real admin password + TOTP sign-in has been verified
+   (`docs/DEPLOYMENT.md`, section 23). Production then has the legacy bridge
+   off unconditionally; the two passwords in the env file are inert and are
+   removed once a rollback to pre-cutover code is no longer wanted.
 
 Restoring a backup revives the password hashes and session keys of that
 moment. After any restore, run `manage_accounts sign-out` for all users.
@@ -777,8 +791,13 @@ Still open, none of which blocks phase 1:
 - **Admin without a second factor between PR 4 and PR T.** Mitigated by the
   14-character minimum, the 12-hour admin session and the login throttle; PR T
   closes it (§23), and migration 016 ends every earlier admin session.
-- **The legacy env-password admin has no second factor.** It is bounded by the
-  legacy flag and removed by PRs 9–10; PR T does not change it.
+- **The legacy env-password admin has no second factor.** Closed in production
+  by PR 9 (the bridge cannot be enabled there, and stale legacy cookies are
+  ignored); the code is removed by PR 10. It still exists in development runs.
+- **Rollback to pre-cutover code revives the bridge**, including legacy cookies
+  signed with the unchanged `DZI_SECRET_KEY`. Accepted: rotating the key would
+  sign out everyone and break open student attempts, so it is an explicit
+  emergency choice documented in `docs/DEPLOYMENT.md`, not part of the cutover.
 - **Loss of `DZI_TOTP_KEY`** makes every TOTP secret unreadable (TOTP codes fail
   closed; a malformed configured key stops production startup); recovery codes
   still work, and `totp-reset` plus re-enrolment restores access.

@@ -24,11 +24,16 @@ from werkzeug.test import create_environ
 from src.practical_uploads import MAX_REQUEST_BYTES, MAX_UPLOAD_BYTES
 from tests.support import ROOT, IsolatedAppTestCase, build_legacy_database, build_test_database, web_app
 from web import production
+from web.services import accounts
 
 
 SECRET_KEY = "test-only-secret-key-" + "k" * 32
 ADMIN_PASSWORD = "test-only-admin-passphrase"
 TESTER_PASSWORD = "test-only-tester-passphrase"
+# The retired shared passwords, as an env file that predates the cutover still has them.
+RETIRED_SHARED_PASSWORDS = {"DZI_ADMIN_PASSWORD": ADMIN_PASSWORD, "DZI_TESTER_PASSWORD": TESTER_PASSWORD}
+TEACHER_EMAIL = "probe-teacher@example.bg"
+TEACHER_PASSWORD = "test-only-teacher-passphrase"
 DEPLOY = ROOT / "deploy"
 
 
@@ -51,8 +56,6 @@ def _state_dir(test: unittest.TestCase, *, populated: bool, baseline: bool = Tru
     (root / "vault").mkdir()
     return {
         "DZI_SECRET_KEY": SECRET_KEY,
-        "DZI_ADMIN_PASSWORD": ADMIN_PASSWORD,
-        "DZI_TESTER_PASSWORD": TESTER_PASSWORD,
         "DZI_DB": str(db),
         "DZI_UPLOAD_ROOT": str(root / "uploads"),
         "DZI_VAULT": str(root / "vault"),
@@ -91,19 +94,35 @@ class ProductionConfigValidationTest(unittest.TestCase):
                 for value in (SECRET_KEY, ADMIN_PASSWORD, TESTER_PASSWORD):
                     self.assertNotIn(value, joined)
 
-    def test_weak_local_only_or_shared_credentials_are_rejected(self):
-        cases = {
-            "short secret key": {"DZI_SECRET_KEY": "too-short"},
-            "local admin password": {"DZI_ADMIN_PASSWORD": "admin123"},
-            "local tester password": {"DZI_TESTER_PASSWORD": "tester123"},
-            "short password": {"DZI_ADMIN_PASSWORD": "short-pw"},
-            "shared password": {"DZI_TESTER_PASSWORD": ADMIN_PASSWORD},
-        }
-        for label, changes in cases.items():
-            with self.subTest(label):
-                errors = self.errors(**changes)
-                self.assertTrue(errors, label)
-                self.assertNotIn(next(iter(changes.values())), "\n".join(errors))
+    def test_short_secret_key_is_rejected(self):
+        errors = self.errors(DZI_SECRET_KEY="too-short")
+        self.assertTrue(errors)
+        self.assertNotIn("too-short", "\n".join(errors))
+
+    def test_shared_passwords_are_neither_required_nor_validated(self):
+        self.assertEqual(production.REQUIRED_SECRETS, ("DZI_SECRET_KEY",))
+        # Nothing reads them in production, so leftovers of any shape are inert.
+        for changes in (RETIRED_SHARED_PASSWORDS,
+                        {"DZI_ADMIN_PASSWORD": "admin123", "DZI_TESTER_PASSWORD": "admin123"}):
+            with self.subTest(changes=sorted(changes)):
+                self.assertEqual(self.errors(**changes), [])
+
+    def test_legacy_shared_login_is_off_by_default_and_accepts_false_spellings(self):
+        self.assertEqual(self.errors(), [])
+        for value in ("", "  ", "0", "false", "False", "NO", "off", " off "):
+            with self.subTest(value=value):
+                self.assertEqual(self.errors(DZI_LEGACY_SHARED_LOGIN=value), [])
+
+    def test_enabled_or_malformed_legacy_shared_login_is_rejected(self):
+        expected = ("DZI_LEGACY_SHARED_LOGIN must be unset or false in production "
+                    "(shared tester/admin logins are not available; use accounts)")
+        for value in ("1", "true", "TRUE", "yes", "on", " On ",
+                      # Malformed is not "off": it fails closed instead of being guessed.
+                      "maybe", "2", "enabled", "disable", "fals", "0 1"):
+            with self.subTest(value=value):
+                errors = self.errors(DZI_LEGACY_SHARED_LOGIN=value)
+                # The exact message: the configured value is never echoed back.
+                self.assertEqual(errors, [expected])
 
     def test_insecure_cookies_and_debug_are_rejected(self):
         for value in ("0", "false", "off", "maybe"):
@@ -215,12 +234,30 @@ client = app.test_client()
 health = client.get("/healthz", headers=proxy)
 public = client.get("/", headers=proxy)
 foreign_host = client.get("/", headers={**proxy, "X-Forwarded-Host": "evil.example"})
-wrong = client.post("/tester/login", data={"password": "wrong"}, headers={**proxy, **origin})
-forged = client.post("/tester/login", data={"password": "wrong"},
+same_origin = {**proxy, **origin}
+wrong = client.post("/login", data={"email": "nobody@example.bg", "password": "wrong"}, headers=same_origin)
+forged = client.post("/login", data={"email": "nobody@example.bg", "password": "wrong"},
                      headers={**proxy, "Origin": "https://evil.example"})
-unproxied = client.post("/tester/login", data={"password": "wrong"}, headers=origin)
-login = app.test_client().post("/tester/login", data={"password": os.environ["DZI_TESTER_PASSWORD"]},
-                               headers={**proxy, **origin})
+unproxied = client.post("/login", data={"email": "nobody@example.bg", "password": "wrong"}, headers=origin)
+login = app.test_client().post(
+    "/login", data={"email": os.environ["PROBE_EMAIL"], "password": os.environ["PROBE_PASSWORD"]},
+    headers=same_origin)
+# The shared-password routes do not exist, even with the right shared password.
+legacy = {}
+for path, name in (("/tester/login", "DZI_TESTER_PASSWORD"), ("/admin/login", "DZI_ADMIN_PASSWORD")):
+    fresh = app.test_client()
+    legacy["GET " + path] = fresh.get(path, headers=proxy).status_code
+    posted = fresh.post(path, data={"password": os.environ[name]}, headers=same_origin)
+    legacy["POST " + path] = posted.status_code
+    legacy["cookie " + path] = posted.headers.get("Set-Cookie")
+# A cookie signed before the cutover: its legacy keys authorize nothing.
+stale = app.test_client()
+with stale.session_transaction(base_url="https://learnpilot.example.com") as sess:
+    sess["admin_authenticated"] = True
+    sess["tester_authenticated"] = True
+    sess["ui_profile"] = "admin"
+stale_admin = stale.get("/teacher", headers=proxy)
+stale_teacher = stale.get("/teacher/new", headers=proxy)
 wsgi = app.wsgi_app
 print(json.dumps({
     "unchanged_by_import": before == after_import,
@@ -239,6 +276,10 @@ print(json.dumps({
     "wrong_password": wrong.status_code, "forged_origin": forged.status_code,
     "unproxied": unproxied.status_code,
     "login": [login.status_code, login.headers.get("Set-Cookie", "")],
+    "legacy_shared_login": app.config["LEGACY_SHARED_LOGIN"],
+    "legacy": legacy,
+    "stale_admin": [stale_admin.status_code, stale_admin.headers.get("Location")],
+    "stale_teacher": [stale_teacher.status_code, stale_teacher.headers.get("Location")],
 }))
 '''
 
@@ -262,8 +303,16 @@ print("started")
 
 class ProductionStartupTest(unittest.TestCase):
     def test_valid_production_startup(self):
-        env = _state_dir(self, populated=True)
-        result = _run_python(PRODUCTION_PROBE, env)
+        # An env file from before the cutover: the shared passwords are still set,
+        # and the flag is spelled out as off.
+        env = {**_state_dir(self, populated=True), **RETIRED_SHARED_PASSWORDS,
+               "DZI_LEGACY_SHARED_LOGIN": "false"}
+        with sqlite3.connect(env["DZI_DB"]) as conn:
+            accounts.create_user(conn, display_name="Проба Учител", email=TEACHER_EMAIL,
+                                 password=TEACHER_PASSWORD, role="teacher")
+        conn.close()
+        result = _run_python(PRODUCTION_PROBE, {**env, "PROBE_EMAIL": TEACHER_EMAIL,
+                                                "PROBE_PASSWORD": TEACHER_PASSWORD})
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         report = json.loads(result.stdout.strip().splitlines()[-1])
         self.assertTrue(report["unchanged_by_import"])
@@ -290,22 +339,52 @@ class ProductionStartupTest(unittest.TestCase):
         self.assertEqual(status, 302)
         for attribute in ("Secure", "HttpOnly", "SameSite=Strict"):
             self.assertIn(attribute, cookie)
-        for secret in (SECRET_KEY, ADMIN_PASSWORD, TESTER_PASSWORD):
+        for secret in (SECRET_KEY, ADMIN_PASSWORD, TESTER_PASSWORD, TEACHER_PASSWORD):
             self.assertNotIn(secret, result.stdout + result.stderr)
+        # Account authentication is the only authority (Accounts PR9).
+        self.assertIs(report["legacy_shared_login"], False)
+        for path in ("/tester/login", "/admin/login"):
+            self.assertEqual(report["legacy"][f"GET {path}"], 404)
+            self.assertEqual(report["legacy"][f"POST {path}"], 404)
+            self.assertIsNone(report["legacy"][f"cookie {path}"])
+        self.assertEqual(report["stale_admin"], [302, "/login?next=/teacher"])
+        self.assertEqual(report["stale_teacher"], [302, "/login?next=/teacher/new"])
+
+    def test_startup_without_any_legacy_setting_has_the_bridge_disabled(self):
+        env = _state_dir(self, populated=True)
+        result = _run_python(
+            "from web.wsgi import app\n"
+            "print(app.config['LEGACY_SHARED_LOGIN'], app.test_client().get('/admin/login').status_code)",
+            env,
+        )
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertEqual(result.stdout.strip().splitlines()[-1], "False 404")
+
+    def test_enabled_or_malformed_legacy_shared_login_stops_before_the_app_is_imported(self):
+        for value in ("1", "true", "on", "maybe"):
+            with self.subTest(value=value):
+                env = {**_state_dir(self, populated=True), **RETIRED_SHARED_PASSWORDS,
+                       "DZI_LEGACY_SHARED_LOGIN": value}
+                result = _run_python(FAILING_STARTUP_PROBE, env)
+                output = result.stdout + result.stderr
+                self.assertEqual(result.returncode, 3, output)
+                self.assertIn("ProductionConfigError", output)
+                self.assertIn("DZI_LEGACY_SHARED_LOGIN must be unset or false in production", output)
+                self.assertIn("app imported: False", output)
+                self.assertIn("db unchanged: True", output)
 
     def test_missing_secret_stops_before_the_app_is_imported(self):
         env = _state_dir(self, populated=True)
-        del env["DZI_ADMIN_PASSWORD"]
+        del env["DZI_SECRET_KEY"]
         result = _run_python(FAILING_STARTUP_PROBE, env)
         output = result.stdout + result.stderr
         self.assertEqual(result.returncode, 3, output)
         self.assertIn("ProductionConfigError", output)
         self.assertIn("Refusing to start LearnPilot in production", output)
-        self.assertIn("DZI_ADMIN_PASSWORD is not set", output)
+        self.assertIn("DZI_SECRET_KEY is not set", output)
         self.assertIn("app imported: False", output)
         self.assertIn("db unchanged: True", output)
-        for secret in (SECRET_KEY, TESTER_PASSWORD):
-            self.assertNotIn(secret, output)
+        self.assertNotIn(SECRET_KEY, output)
 
     def test_invalid_reference_root_stops_before_the_app_is_imported(self):
         env = _state_dir(self, populated=True)

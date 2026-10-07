@@ -22,7 +22,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 
-from flask import g, session
+from flask import current_app, g, session
 
 # Access levels in use today.
 PUBLIC = "public"
@@ -50,6 +50,38 @@ ACCESS_LEVELS = frozenset({
 STATIC_ENDPOINT = "static"
 
 _POLICY_ATTRIBUTE = "access_policy"
+
+# The legacy shared-password bridge (Accounts PR9). While it is disabled, account
+# authentication is the only authority: the legacy routes answer 404 and the legacy
+# session keys are ignored. Production always runs with it disabled
+# (``web.production``); a missing configuration value also means disabled.
+LEGACY_SHARED_LOGIN_ENV = "DZI_LEGACY_SHARED_LOGIN"
+LEGACY_SHARED_LOGIN_CONFIG = "LEGACY_SHARED_LOGIN"
+LEGACY_AUTH_SESSION_KEYS = ("tester_authenticated", "admin_authenticated")
+_LEGACY_SHARED_LOGIN_ATTRIBUTE = "legacy_shared_login"
+_TRUE_VALUES = frozenset({"1", "true", "yes", "on"})
+_FALSE_VALUES = frozenset({"0", "false", "no", "off"})
+
+
+def parse_legacy_shared_login(raw: str | None) -> bool | None:
+    """An explicit ``DZI_LEGACY_SHARED_LOGIN`` value as a boolean.
+
+    ``None`` for an unset or empty value (the caller's default applies). Raises
+    ``ValueError`` for any other spelling: a non-empty string is never simply truthy.
+    """
+    normalized = (raw or "").strip().lower()
+    if not normalized:
+        return None
+    if normalized in _TRUE_VALUES:
+        return True
+    if normalized in _FALSE_VALUES:
+        return False
+    raise ValueError(f"{LEGACY_SHARED_LOGIN_ENV} must be one of: 1/true/yes/on or 0/false/no/off")
+
+
+def legacy_shared_login_enabled() -> bool:
+    """Whether the legacy shared-password bridge may grant authority in this app."""
+    return current_app.config.get(LEGACY_SHARED_LOGIN_CONFIG) is True
 
 
 @dataclass(frozen=True)
@@ -133,7 +165,9 @@ def assignment_management_scope(principal: Principal, owner_column: str) -> tupl
 def principal_from_session(session_state: Mapping) -> Principal:
     """The only place access decisions read session keys.
 
-    ``ui_profile`` is a cosmetic display choice and never grants access.
+    ``ui_profile`` is a cosmetic display choice and never grants access. These are
+    the legacy shared-login keys: ``current_principal`` consults them only while the
+    bridge is enabled.
     """
     is_admin = bool(session_state.get("admin_authenticated"))
     is_teacher = bool(session_state.get("tester_authenticated")) or is_admin
@@ -145,10 +179,14 @@ def current_principal() -> Principal:
 
     ``g.principal`` is set by ``web.app``'s ``load_current_user`` hook whenever the
     session carried an account identity (valid, or ``ANONYMOUS`` when stale), and
-    then wins over any legacy key. Without it the legacy session keys apply.
+    then wins over any legacy key. Without it the legacy session keys apply, but
+    only while the legacy shared-login bridge is enabled: with it disabled a session
+    without a resolved account is anonymous whatever else its cookie holds.
     """
     if "principal" in g:
         return g.principal
+    if not legacy_shared_login_enabled():
+        return ANONYMOUS
     return principal_from_session(session)
 
 
@@ -162,6 +200,20 @@ def access_policy(level: str):
         return view_func
 
     return decorate
+
+
+def legacy_shared_login_route(view_func):
+    """Mark a view as part of the legacy shared-password bridge.
+
+    ``web.app``'s policy hook answers 404 for it, on every method and before any
+    access decision, while the bridge is disabled.
+    """
+    setattr(view_func, _LEGACY_SHARED_LOGIN_ATTRIBUTE, True)
+    return view_func
+
+
+def is_legacy_shared_login_view(view_func) -> bool:
+    return getattr(view_func, _LEGACY_SHARED_LOGIN_ATTRIBUTE, False) is True
 
 
 def policy_for_view(view_func) -> str | None:
@@ -200,12 +252,16 @@ def is_route_allowed(level: str | None, principal: Principal, view_args: Mapping
     return False
 
 
-def denial_login_endpoint(level: str | None, view_args: Mapping | None = None) -> str:
-    """Where a denied request is sent to sign in: tester login for teacher
-    routes, the account login for account-only routes (``signed_in`` and
-    ``assignment_owner``), admin login for everything else (including
-    undeclared routes)."""
+def denial_login_endpoint(
+    level: str | None, view_args: Mapping | None = None, *, legacy_shared_login: bool = False
+) -> str:
+    """Where a denied request is sent to sign in.
+
+    Always the account login unless the legacy bridge is enabled. With the bridge:
+    tester login for teacher routes, the account login for account-only routes
+    (``signed_in`` and ``assignment_owner``), admin login for everything else
+    (including undeclared routes)."""
     required = _required_level(level, view_args)
-    if required in (SIGNED_IN, ASSIGNMENT_OWNER):
+    if not legacy_shared_login or required in (SIGNED_IN, ASSIGNMENT_OWNER):
         return "account.login"
     return "auth.tester_login" if required == TEACHER else "auth.admin_login"
