@@ -217,10 +217,101 @@ sudo -u learnpilot /opt/learnpilot/venv/bin/python -m src.manage_migrations \
   --db /var/lib/learnpilot/data/questions.db --apply
 ```
 
-The runner's own automatic backup covers only the repository database, so
-always back up the production database first. The development-only
-request-time `ALTER TABLE` guard for teacher answer review is disabled in
-production as well, so no request path runs schema code.
+The runner's own automatic backup covers only the repository database
+(`data/questions.db` in a checkout), so always back up the production database
+first. That automatic backup is taken with the SQLite backup API, so it is a
+consistent standalone file that includes committed pages still in the WAL, and
+if it cannot be created or fails `quick_check` nothing is migrated. It is a
+developer convenience, not a substitute for the section 16 snapshot. The
+development-only request-time `ALTER TABLE` guard for teacher answer review is
+disabled in production as well, so no request path runs schema code.
+
+### Table-rebuild migrations
+
+SQLite cannot alter or drop a table-level constraint; the table has to be
+rebuilt (create the new table, copy the rows, drop the old table, rename the
+new one). On the runner's normal connection foreign keys are enforced, and
+there `DROP TABLE` first deletes the table's rows: that cascades into every
+`ON DELETE CASCADE` child and fails on every other referencing table. A
+migration that needs a rebuild therefore opts in with this exact comment line,
+alone on its line, before the file's first SQL statement:
+
+```sql
+-- learnpilot-migration: table-rebuild
+```
+
+Use it only for a rebuild of a table that other tables reference. Additive
+migrations (new table, new column, new index) stay ordinary and keep foreign
+keys enforced. Any other comment line starting with `-- learnpilot` is refused
+as a malformed directive, in `--dry-run` as well as `--apply`. `--dry-run`
+marks such a file `(table-rebuild)`.
+
+What the runner does for a marked file, and only for a marked file:
+
+1. Switches `foreign_keys` off **before** the transaction (SQLite ignores the
+   pragma inside one) and confirms it is off.
+2. Opens one transaction (`BEGIN IMMEDIATE`) and runs the file's SQL in it.
+   While the file runs, a SQLite authorizer refuses every statement that could
+   end or replace that transaction or reach another database file: `COMMIT`,
+   `END`, `ROLLBACK`, a second `BEGIN`, `SAVEPOINT`, `RELEASE`, `ROLLBACK TO`,
+   `ATTACH` and `DETACH`. SQLite's own parser makes that decision, so the
+   position of the statement in the file does not matter, and the same words
+   in comments, string literals or a trigger body are not affected.
+3. Runs `PRAGMA foreign_key_check` **before** committing.
+4. Inserts the `schema_migrations` row in the same transaction and commits.
+5. Switches `foreign_keys` back on and confirms it, on success and on every
+   failure. An ordinary migration is refused while enforcement is off.
+
+If the SQL fails, contains a refused statement, the check reports any
+violation, or the ledger row cannot be written, the whole transaction rolls
+back: schema, data and `schema_migrations` are exactly as before, the run stops
+with a non-zero exit status and later migrations are not attempted. Schema and
+ledger can only commit together, in the runner's single `COMMIT`. Because the
+check covers the whole database, a violation that existed before the migration
+also blocks it; fix it first.
+
+The runner guarantees that the transaction is atomic. `PRAGMA
+foreign_key_check` validates only the foreign-key relationships of rows that
+exist: it does not validate the resulting schema, and with empty referencing
+tables (a fresh database) it has nothing to check. Nor does it show that the
+copy is complete: a rebuild that silently leaves rows behind without orphaning
+any child row passes. The migration's own tests remain responsible for the
+resulting schema (every expected table, index, trigger and view, also on a
+fresh database) and for row completeness (row counts and ids of the old and
+the rebuilt table).
+
+Rules for the author of such a file:
+
+- No transaction, savepoint, `ATTACH` or `DETACH` statement: the runner owns
+  the transaction and the file is rolled back at the first one. A leading
+  `PRAGMA foreign_keys = ON;` is inert inside the transaction; do not set any
+  other pragma, because connection-level pragmas outlive the transaction.
+- Use exactly this order: create the replacement table, copy the rows, `DROP`
+  the old table, `RENAME` the replacement to the original name. It is the only
+  supported order and behaves the same on every tested SQLite build. Do not
+  rename the old table away first: depending on the SQLite build and its
+  `legacy_alter_table` setting, the referencing tables may follow the renamed
+  table, even with foreign keys off. Test the migration on the interpreter
+  that production runs.
+- The runner preserves nothing by itself. The file must recreate every index,
+  trigger and view of the rebuilt table and copy rows with their ids.
+- Carry the `AUTOINCREMENT` high-water mark over explicitly, by updating the
+  new table's `sqlite_sequence` row from the old one before dropping the old
+  table. Otherwise the sequence drops to `MAX(id)` and the id of a deleted row
+  is reused.
+
+A table-rebuild migration is a **high-risk migration**. On production, apply it
+only with the service stopped (no other writer) and a complete section 16
+snapshot taken immediately before and confirmed; restoring that snapshot
+(section 17) is the only way back after a successful apply. Run
+`PRAGMA foreign_key_check` on the snapshot beforehand so a pre-existing
+violation is found before the maintenance window.
+
+No migration in the repository uses the directive yet. `015` remains reserved
+for the account-owned quiz-attempt rebuild and does not exist; a database that
+already recorded `016` still plans and applies `015` when it arrives, because
+pending migrations are every file not in `schema_migrations`, in filename
+order.
 
 ### One-time baseline adoption (`000_baseline.sql`)
 
@@ -615,7 +706,9 @@ sudo -u learnpilot /opt/learnpilot/venv/bin/python -m src.manage_migrations \
 ```
 
 If nothing is pending, skip this step. The runner's own automatic backup covers
-only the repository database, not production.
+only the repository database, not production. A pending migration that the dry
+run marks `(table-rebuild)` is high-risk: read "Table-rebuild migrations" in
+section 9 and apply it only with the service stopped.
 
 **9. Check Gunicorn configuration** (section 10):
 

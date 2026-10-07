@@ -1,9 +1,11 @@
 # LearnPilot — Accounts Design Specification
 
-Status: **approved design, documentation only.** Nothing in this document is
-implemented yet. It is the authoritative implementation specification for the
-Accounts phase of `docs/REFACTOR_ACCOUNTS_ROADMAP.md`; where the two differ on
-accounts, this document wins (the approved deviations are listed in §1).
+Status: **approved design; phase 1 is implemented** (see "Implementation
+status" and "Current status and next dependency" below, which override any
+older wording in the sections). It is the authoritative implementation
+specification for the Accounts phase of `docs/REFACTOR_ACCOUNTS_ROADMAP.md`;
+where the two differ on accounts, this document wins (the approved deviations
+are listed in §1).
 
 **Implementation status.** Phase 1 is implemented through PR 10: accounts,
 login/session security, assignment and practical-review ownership, admin TOTP,
@@ -16,6 +18,26 @@ passwords, `tester_authenticated` / `admin_authenticated`, `ui_profile`,
 and the transition and are kept as history; none of it exists in the code. The
 current contract is `docs/AUTH_ROUTE_CONTRACT.md`. Phase 2 (student accounts)
 is not started.
+
+**Current status and next dependency.** Do not redo any of this:
+
+- Done: `users` with `users.password_hash` (the roadmap's separate
+  `password_credentials` table was superseded and does not exist), the
+  `manage_accounts` CLI, login/logout/throttle, assignment ownership (014),
+  owner-scoped teacher and practical-review routes, admin TOTP with recovery
+  codes (016), the cutover and the removal of the shared passwords.
+- A student account can already be created by the CLI (`--role student` is its
+  default) and sign in with a password. What remains for students is attempt
+  ownership and onboarding, not the account or the login.
+- Application startup only checks that every migration is recorded and refuses
+  to start otherwise; it never migrates.
+- Done: the migration runner supports explicit table-rebuild migrations
+  (`-- learnpilot-migration: table-rebuild`, `docs/DEPLOYMENT.md` section 9).
+- **Next:** migration `015` (account-owned quiz attempts, §5 and §16). The
+  number stays reserved and the file does not exist yet. It must carry the
+  rebuild directive; without it the rebuild of `quiz_attempts` is still unsafe.
+- The DZI visibility gate depends on account identity (a signed-in principal),
+  not on OIDC specifically; OIDC is one way to obtain student accounts.
 
 Implement it one PR at a time, in the order of §17. The roadmap's rules for
 every PR (feature branch, numbered migrations only, tests never touch
@@ -137,8 +159,9 @@ It is the baseline the PR sequence started from, not the current state.
    teachers to see their own.
 7. **`Strict` cookies break inbound links.** A signed-in student clicking a
    quiz link from Teams or Classroom arrives without a session.
-8. **The migration runner cannot safely rebuild `quiz_attempts`** (§16), which
-   the roadmap's uniqueness change requires.
+8. **The migration runner could not safely rebuild `quiz_attempts`** (§16),
+   which the roadmap's uniqueness change requires. Resolved by the opt-in
+   table-rebuild directive; migration 015 must use it.
 
 ## 4. V1 account model
 
@@ -682,17 +705,38 @@ account forms.**
 | `014_assignment_owner.sql` | Nullable column and index | None; legacy rows stay NULL | Restart only | Old code inserts with explicit column lists and is unaffected. |
 | `015_quiz_attempts_user.sql` (phase 2) | Table rebuild | Copy all rows with `user_id NULL`, preserving ids and the `sqlite_sequence` value | Service stopped, seconds | Restore from the pre-migration backup. |
 
-**Runner constraint (blocks 015 only)**
+**Runner constraint (applies to 015 only; runner support is in place)**
 
-- `src/manage_migrations.py::apply_migrations` wraps each file in
+- `src/manage_migrations.py::apply_migrations` runs an ordinary file in
   `BEGIN … COMMIT` on a connection with `foreign_keys=ON`, and that pragma
   cannot be changed inside a transaction.
 - Dropping `quiz_attempts` in that state runs an implicit delete, which
   cascades into `quiz_text_answers` and `practical_submissions` (both
-  `ON DELETE CASCADE`).
-- Migration 015 therefore needs a prior runner PR: an opt-in file directive
-  that turns foreign keys off before `BEGIN`, runs `PRAGMA foreign_key_check`
-  before `COMMIT`, and rolls back on any row.
+  `ON DELETE CASCADE`). This is still what happens to a rebuild file that
+  lacks the directive.
+- The runner therefore has an opt-in file directive,
+  `-- learnpilot-migration: table-rebuild`: foreign keys are turned off before
+  `BEGIN`, `PRAGMA foreign_key_check` runs before `COMMIT`, the
+  `schema_migrations` row is part of the same transaction, the file's SQL
+  cannot commit or leave that transaction, and any error or violation rolls
+  everything back. Contract and author rules: `docs/DEPLOYMENT.md` section 9,
+  "Table-rebuild migrations".
+- Migration 015 is not written yet. Requirements for it:
+  - start with the directive;
+  - create the replacement table, copy every row with its id, drop
+    `quiz_attempts`, then rename the replacement to `quiz_attempts`, in that
+    order (renaming the old table first can redirect the child foreign keys,
+    depending on the SQLite build);
+  - carry the old `sqlite_sequence` value over explicitly, or a deleted
+    attempt id is reused;
+  - recreate `idx_quiz_attempts_assignment` and every other index explicitly;
+  - leave the rows of `quiz_answers`, `quiz_text_answers` and
+    `practical_submissions` untouched;
+  - have its tests compare source and copied row counts: the runner does not
+    detect silent row loss;
+  - have its tests assert the resulting schema explicitly, also on a fresh
+    database, and run them on the interpreter that production uses: the
+    foreign-key check validates rows, not the schema.
 
 **Interaction with the operational database**
 
@@ -734,7 +778,7 @@ Notes:
   remaining principal.
 
 **Phase 2 — student accounts** (after phase 1): the migration-runner
-directive; migration 015 with account-owned attempts and the `signed_in`
+directive (done); migration 015 with account-owned attempts and the `signed_in`
 policy; the `Lax` cookie; assignment `public_token` links; Google/Microsoft
 OIDC sign-in with `user_identities`; a "my attempts" page. The DZI gate and
 entitlements follow, as in the roadmap. Phase 2 gets its own PR breakdown
@@ -816,8 +860,10 @@ Still open, none of which blocks phase 1:
 
 ## 22. Risks
 
-- **Data loss in the attempts rebuild** if migration 015 runs on the current
-  runner. Mitigated by the runner PR and a backup.
+- **Data loss in the attempts rebuild** if migration 015 runs without the
+  table-rebuild directive. Mitigated by the directive (§16), the
+  foreign-key check before commit, and a snapshot taken with the service
+  stopped.
 - **Two auth paths during the bridge.** Closed: PR 10 removed the bridge, so
   there is one auth path.
 - **Single sync worker.** A password check costs noticeable CPU; a login flood
@@ -951,7 +997,13 @@ logout, lifetime, leaks, legacy bridge); and the CLI commands.
 
 ## Recommended next PR
 
-**PR 1 — `users` schema and accounts service**
+**Current:** PRs 1–10 and T are implemented, and so is the runner's
+table-rebuild support. The next PR is migration `015_quiz_attempts_user.sql`
+with account-owned attempts (§5, §16), as the first PR of phase 2. The text
+below is the original recommendation, kept as history; do not implement it
+again.
+
+**PR 1 — `users` schema and accounts service** (implemented)
 
 - **Scope:** add the table and a service module with no caller in the web app.
 - **Migration:** `012_users.sql`, exactly as in §5.
