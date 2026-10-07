@@ -2,7 +2,7 @@
   "format": "learnpilot-canonical-content",
   "format_version": 1,
   "schema": {
-    "migration_level": "013_login_throttle.sql",
+    "migration_level": "014_assignment_owner.sql",
     "migrations": [
       "000_baseline.sql",
       "001_quiz_tables.sql",
@@ -17,7 +17,8 @@
       "010_topic_section_display_order.sql",
       "011_questions_topic_id_index.sql",
       "012_users.sql",
-      "013_login_throttle.sql"
+      "013_login_throttle.sql",
+      "014_assignment_owner.sql"
     ]
   },
   "classification": {

@@ -366,7 +366,14 @@ class AssignmentEditMetadataTest(IsolatedAppTestCase):
             self.assertIn("фиксиран при създаване", admin_body)
 
             self.setUp()
-            self._login_tester()
+            owner = sign_in_teacher(self.client, web_app.app.config["DB_PATH"])
+            conn = web_app.quiz_db()
+            try:
+                conn.execute("UPDATE quiz_assignments SET owner_user_id = ? WHERE id = ?",
+                             (owner["id"], assignment_id))
+                conn.commit()
+            finally:
+                conn.close()
             tester_resp = self.client.get(f"/teacher/assignment/{assignment_id}")
             self.assertEqual(tester_resp.status_code, 200)
             self.assertNotIn(
