@@ -17,10 +17,27 @@ from werkzeug.security import check_password_hash, generate_password_hash
 ROLES = ("student", "teacher", "admin")
 PASSWORD_METHOD = "scrypt"
 MIN_PASSWORD_LENGTH = 10
+ADMIN_MIN_PASSWORD_LENGTH = 14
 MAX_PASSWORD_LENGTH = 256
 MAX_EMAIL_LENGTH = 254
 MIN_DISPLAY_NAME_LENGTH = 2
 MAX_DISPLAY_NAME_LENGTH = 80
+
+# Absolute account-session lifetime, measured from the session's ``iat`` (design §6).
+SESSION_LIFETIME_SECONDS = {
+    "student": 30 * 24 * 3600,
+    "teacher": 30 * 24 * 3600,
+    "admin": 12 * 3600,
+}
+# An ``iat`` further in the future than this is not a session this server issued now.
+SESSION_CLOCK_SKEW_SECONDS = 300
+
+# Verified instead of a real hash when no account or no password exists, so an unknown
+# email costs the same scrypt work as a known one. Generated once per process from a
+# discarded random password; it matches nothing and is never stored.
+_DUMMY_PASSWORD_HASH = generate_password_hash(secrets.token_urlsafe(32), method=PASSWORD_METHOD)
+# Werkzeug's "method:params" prefix for hashes created now, e.g. ``scrypt:32768:8:1``.
+_CURRENT_HASH_METHOD = _DUMMY_PASSWORD_HASH.split("$", 1)[0]
 
 # Never includes password_hash; ``has_password`` tells whether a credential exists.
 _USER_COLUMNS = (
@@ -55,12 +72,31 @@ def normalize_email(value: str) -> str:
     return email
 
 
-def password_problem(password: str, email: str | None = None) -> str | None:
-    """Return a Bulgarian problem description, or ``None`` when the password is acceptable."""
+def throttle_identifier(value) -> str:
+    """What a submitted login identifier is throttled under.
+
+    The normalized email, or for malformed input a bounded folded form behind a NUL
+    marker that no valid email can equal. Malformed identifiers are thereby throttled
+    like unknown ones instead of bypassing the limit.
+    """
+    try:
+        return normalize_email(value)
+    except ValueError:
+        folded = _fold(value) if isinstance(value, str) else ""
+        return "\0malformed\0" + folded[:MAX_EMAIL_LENGTH]
+
+
+def password_problem(password: str, email: str | None = None, role: str | None = None) -> str | None:
+    """Return a Bulgarian problem description, or ``None`` when the password is acceptable.
+
+    With ``role="admin"`` the longer administrator minimum applies.
+    """
     if not isinstance(password, str):
         return "Невалидна парола."
     if len(password) < MIN_PASSWORD_LENGTH:
         return f"Паролата трябва да е поне {MIN_PASSWORD_LENGTH} символа."
+    if role == "admin" and len(password) < ADMIN_MIN_PASSWORD_LENGTH:
+        return f"Паролата на администратор трябва да е поне {ADMIN_MIN_PASSWORD_LENGTH} символа."
     if len(password) > MAX_PASSWORD_LENGTH:
         return f"Паролата трябва да е най-много {MAX_PASSWORD_LENGTH} символа."
     if email is not None and _fold(password) == _fold(email):
@@ -128,6 +164,20 @@ def load_session_user(conn: sqlite3.Connection, user_id, session_key) -> dict | 
     return user
 
 
+def session_expired(role, issued_at, now) -> bool:
+    """Has an account session issued at ``issued_at`` (epoch seconds) outlived its role?
+
+    Fails closed: a missing or malformed ``iat``, one from the future, and an unknown
+    role are all expired. ``role`` must come from the users row, never from the cookie.
+    """
+    lifetime = SESSION_LIFETIME_SECONDS.get(role)
+    if lifetime is None or not isinstance(issued_at, int) or isinstance(issued_at, bool):
+        return True
+    if issued_at <= 0 or issued_at > now + SESSION_CLOCK_SKEW_SECONDS:
+        return True
+    return now - issued_at >= lifetime
+
+
 def get_user_by_email(conn: sqlite3.Connection, email: str) -> dict | None:
     """Look up by email, normalizing first; a malformed email simply finds nobody."""
     try:
@@ -170,6 +220,44 @@ def verify_password(conn: sqlite3.Connection, user_id: int, password: str) -> bo
     if row is None or not row[0] or not isinstance(password, str):
         return False
     return check_password_hash(row[0], password)
+
+
+def authenticate(conn: sqlite3.Connection, email, password) -> dict | None:
+    """The active user these credentials belong to, or ``None``.
+
+    Unknown email, wrong password, disabled account and account without a password are
+    indistinguishable: each returns ``None`` after exactly one scrypt verification (the
+    dummy hash stands in when there is no real one). On success a hash made with an
+    older method or parameters is replaced; the session key is left alone because the
+    password did not change. The caller commits.
+    """
+    row = None
+    try:
+        normalized = normalize_email(email)
+    except ValueError:
+        normalized = None
+    if normalized is not None:
+        cursor = conn.execute(
+            f"SELECT {_USER_COLUMNS}, password_hash FROM users WHERE email = ?", (normalized,)
+        )
+        fetched = cursor.fetchone()
+        if fetched is not None:
+            row = dict(zip([col[0] for col in cursor.description], tuple(fetched)))
+    stored_hash = row.pop("password_hash") if row is not None else None
+    usable = isinstance(password, str) and len(password) <= MAX_PASSWORD_LENGTH
+    matches = check_password_hash(stored_hash or _DUMMY_PASSWORD_HASH, password if usable else "")
+    if row is None or not stored_hash or not usable or not matches or not row["is_active"]:
+        return None
+    if stored_hash.split("$", 1)[0] != _CURRENT_HASH_METHOD:
+        conn.execute(
+            "UPDATE users SET password_hash = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+            (generate_password_hash(password, method=PASSWORD_METHOD), row["id"]),
+        )
+    return row
+
+
+def record_login(conn: sqlite3.Connection, user_id: int) -> None:
+    conn.execute("UPDATE users SET last_login_at = CURRENT_TIMESTAMP WHERE id = ?", (user_id,))
 
 
 def _update_user(conn: sqlite3.Connection, user_id: int, assignments: str, params: tuple) -> str:

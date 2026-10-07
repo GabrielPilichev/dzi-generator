@@ -17,6 +17,7 @@ from web import access, request_integrity
 # (rule, methods without HEAD/OPTIONS, access policy, request-integrity policy)
 EXPECTED_URL_MAP = (
     ('/', ('GET',), 'public', None),
+    ('/account/password', ('GET', 'POST'), 'signed_in', 'same_origin'),
     ('/admin/login', ('GET', 'POST'), 'public', 'same_origin'),
     ('/admin/logout', ('GET',), 'admin', None),
     ('/admin/open-question-candidates', ('GET',), 'admin', None),
@@ -27,6 +28,8 @@ EXPECTED_URL_MAP = (
     ('/favicon.ico', ('GET',), 'public', None),
     ('/grade/<int:grade>', ('GET',), 'public', None),
     ('/healthz', ('GET',), 'public', None),
+    ('/login', ('GET', 'POST'), 'public', 'same_origin'),
+    ('/logout', ('POST',), 'public', 'same_origin'),
     ('/physics', ('GET',), 'public', None),
     ('/physics/grade/<int:grade>', ('GET',), 'public', None),
     ('/profile/<profile>', ('GET',), 'profile_switch', None),
