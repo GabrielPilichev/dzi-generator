@@ -40,6 +40,7 @@ from src.subject_content import (
     IT, canonical_subject, question_ownerships, section_ownership, sql_chunks,
 )
 from web import db as web_db
+from web.access import Principal
 from web.services import dzi_exams
 from web.services.question_visuals import (
     attach_question_visual_assets,
@@ -176,6 +177,41 @@ def quiz_attempt_note_path(assignment_id: int, student_name: str, submitted_at: 
     date = (submitted_at or _quiz_datetime.now().isoformat())[:10]
     filename = f"{date}-assignment-{assignment_id}-{quiz_slugify(student_name)}.md"
     return quiz_vault_path() / "Generated" / "Quizzes" / "attempts" / filename
+
+
+def quiz_create_assignment(
+    conn, *, principal: Principal, section_id: int, title_bg: str,
+    question_count: int, time_limit_minutes: int | None = None,
+    question_plan_json: str | None = None,
+) -> int:
+    """Insert with the creator's stable account id; legacy creators stay unowned.
+
+    The caller supplies the current Principal and owns the transaction. An
+    admin's authorization bypass does not change who owns the new row.
+    """
+    if not principal.is_teacher:
+        raise ValueError("Assignment creation requires teacher capability")
+    cursor = conn.execute("""
+        INSERT INTO quiz_assignments (
+            section_id, title_bg, question_count, time_limit_minutes,
+            question_plan_json, owner_user_id
+        ) VALUES (?, ?, ?, ?, ?, ?)
+    """, (section_id, title_bg, question_count, time_limit_minutes,
+          question_plan_json, principal.user_id))
+    return int(cursor.lastrowid)
+
+
+def quiz_can_access_assignment(assignment, principal: Principal) -> bool:
+    """Detail access: admin, account owner, or legacy teacher on an unowned row.
+
+    Takes the already loaded row and Principal; no per-row user lookup. Other
+    teacher routes retain their admin policy until the PR7 rollout.
+    """
+    if assignment is None:
+        return False
+    if principal.is_admin:
+        return True
+    return principal.is_teacher and assignment["owner_user_id"] == principal.user_id
 
 
 def quiz_fetch_assignment(conn, assignment_id: int):

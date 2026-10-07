@@ -66,8 +66,17 @@ a coverage test walks `app.url_map` and fails on any undeclared endpoint.
 Flask's built-in `static` view cannot be decorated; `web.access` treats it as
 `public` by name.
 
-`assignment_owner` from the roadmap's vocabulary is not used yet: there is no
-assignment ownership. `signed_in` is used only by `/account/password`.
+Assignment detail retains the `teacher` route policy and additionally checks
+the loaded assignment against the current Principal: account teachers can open
+only their own rows; account and legacy admins can open every row; legacy
+testers can open only unowned rows. Missing or inaccessible assignments return
+404 before attempts are read. Creation (including admin-only duplication)
+records the creator's `users.id`, or NULL for a legacy session. Existing rows
+remain NULL without a backfill. List, results, CSV, edit and duplicate routes
+retain their `admin` policy until Accounts PR7.
+
+`assignment_owner` is not yet a declared route policy. `signed_in` is used only
+by `/account/password`.
 
 The tester session satisfies `teacher` exactly as before. Whether a tester
 password should keep standing in for a teacher identity is a deferred product
