@@ -1,3 +1,4 @@
+import contextlib
 import os
 import sqlite3
 import stat
@@ -78,7 +79,7 @@ class _Layout:
         self.out = self.root / "backups"
         for path in (self.uploads, self.vault / "Generated", self.out):
             path.mkdir(parents=True)
-        with sqlite3.connect(self.db) as conn:
+        with contextlib.closing(sqlite3.connect(self.db)) as conn, conn:
             conn.execute("PRAGMA journal_mode=WAL")
             conn.execute("CREATE TABLE t (v TEXT)")
             conn.execute("INSERT INTO t VALUES ('row')")
