@@ -7,6 +7,7 @@ transaction. Passwords and hashes are never logged or returned by lookups.
 
 from __future__ import annotations
 
+import hashlib
 import hmac
 import secrets
 import sqlite3
@@ -212,6 +213,57 @@ def create_user(
         (normalized, name, role, password_hash, 1 if is_active else 0, _new_session_key(), password_hash),
     )
     return cursor.lastrowid
+
+
+# Hex digest length of werkzeug's scrypt hashes (hashlib.scrypt's default dklen of 64).
+_SCRYPT_DIGEST_HEX_LENGTH = 128
+
+
+def _positive_int(text: str) -> int | None:
+    return int(text) if text.isascii() and text.isdigit() and int(text) > 0 else None
+
+
+def password_hash_is_verifiable(stored) -> bool:
+    """Whether :func:`authenticate` could ever verify a password against ``stored``.
+
+    Structural only, for operator preflight checks: nothing is hashed, no password is
+    tried and nothing is written or upgraded. The format is the one this module stores
+    and verifies through werkzeug, ``method$salt$digest``: ``scrypt[:n:r:p]`` (what
+    ``PASSWORD_METHOD`` generates) or ``pbkdf2[:hash[:iterations]]`` (still verified at
+    sign-in and then upgraded), a non-empty salt, and the lower-case hex digest of that
+    method's length. ``False`` for a missing, malformed or truncated value.
+    """
+    if not isinstance(stored, str):
+        return False
+    parts = stored.split("$")
+    if len(parts) != 3:
+        return False
+    method, salt, digest = parts
+    name, *args = method.split(":")
+    if name == "scrypt":
+        if args:
+            numbers = [_positive_int(arg) for arg in args]
+            if len(numbers) != 3 or None in numbers:
+                return False
+            n = numbers[0]
+            if n < 2 or n & (n - 1):  # hashlib.scrypt: n is a power of two above 1
+                return False
+        digest_length = _SCRYPT_DIGEST_HEX_LENGTH
+    elif name == "pbkdf2":
+        if len(args) > 2 or (len(args) == 2 and _positive_int(args[1]) is None):
+            return False
+        try:
+            digest_length = hashlib.new(args[0] if args else "sha256").digest_size * 2
+        except (ValueError, TypeError):
+            return False
+    else:
+        return False
+    return bool(
+        salt
+        and digest_length
+        and len(digest) == digest_length
+        and all(ch in "0123456789abcdef" for ch in digest)
+    )
 
 
 def verify_password(conn: sqlite3.Connection, user_id: int, password: str) -> bool:

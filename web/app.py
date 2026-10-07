@@ -49,11 +49,17 @@ from web.blueprints.teacher import teacher_bp
 from web.blueprints.browsing import browsing_bp, open_existing_database_read_only
 from web.access import (
     ANONYMOUS,
+    LEGACY_AUTH_SESSION_KEYS,
+    LEGACY_SHARED_LOGIN_CONFIG,
+    LEGACY_SHARED_LOGIN_ENV,
     PROFILE_SWITCH,
     account_principal,
     current_principal,
     denial_login_endpoint,
+    is_legacy_shared_login_view,
     is_route_allowed,
+    legacy_shared_login_enabled,
+    parse_legacy_shared_login,
     policy_for_endpoint,
 )
 from web.request_db import get_request_db
@@ -162,12 +168,34 @@ def build_session_cookie_secure() -> bool:
     return True
 
 
+def build_legacy_shared_login() -> bool:
+    """Whether the legacy shared-password bridge is enabled for a development run.
+
+    Unset keeps the transitional bridge on outside production. An unsupported value
+    disables it: a typo must never enable shared authentication. Production never
+    uses this default: ``web.production`` rejects a truthy or malformed value and
+    forces the bridge off.
+    """
+    configured = os.environ.get(LEGACY_SHARED_LOGIN_ENV)
+    try:
+        enabled = parse_legacy_shared_login(configured)
+    except ValueError as exc:
+        warnings.warn(
+            f"{exc}; legacy shared login is disabled.",
+            RuntimeWarning,
+            stacklevel=2,
+        )
+        return False
+    return True if enabled is None else enabled
+
+
 app = Flask(__name__)
 app.config["DB_PATH"] = str(DB_PATH)
 app.config["SECRET_KEY"] = build_secret_key()
 app.config["SESSION_COOKIE_SAMESITE"] = "Strict"
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SECURE"] = build_session_cookie_secure()
+app.config[LEGACY_SHARED_LOGIN_CONFIG] = build_legacy_shared_login()
 # Admin TOTP secrets are encrypted with this key. Optional: when unset, admin TOTP
 # sign-in fails closed (there is no generated or derived fallback key).
 app.config["TOTP_ENCRYPTION_KEY"] = os.environ.get("DZI_TOTP_KEY") or None
@@ -309,8 +337,8 @@ def protect_same_origin_unsafe_methods():
 # Session identity of an account (Accounts design §6). Role, name and active state
 # are never in the cookie; they are read from the users row on every request.
 ACCOUNT_SESSION_KEYS = ("uid", "sk", "iat")
-# Legacy shared-login keys, ignored while an account identity is present.
-LEGACY_AUTH_SESSION_KEYS = ("tester_authenticated", "admin_authenticated")
+# The legacy shared-login keys (web.access.LEGACY_AUTH_SESSION_KEYS) are ignored while
+# an account identity is present, and always while the legacy bridge is disabled.
 ACCOUNT_LOADING_SKIPPED_ENDPOINTS = frozenset({"browsing.healthz", "static"})
 
 
@@ -327,9 +355,17 @@ def load_current_user():
 
     A session older than its role's absolute lifetime is stale too. The role
     is the one in the users row; a missing or malformed ``iat`` is expired.
+
+    With the legacy bridge disabled the legacy keys carry no authority at all
+    (``current_principal`` never reads them); a cookie still holding them is
+    cleaned up here, which is hygiene and not what removes the authority.
     """
     if request.endpoint in ACCOUNT_LOADING_SKIPPED_ENDPOINTS:
         return
+    if not legacy_shared_login_enabled():
+        for key in LEGACY_AUTH_SESSION_KEYS:
+            if key in session:
+                session.pop(key)
     if not any(key in session for key in ACCOUNT_SESSION_KEYS):
         return
     user = accounts_service.load_session_user(
@@ -488,10 +524,24 @@ def enforce_access_policy():
     if request.routing_exception is not None:
         return  # No view matched; Flask answers with its own 404/405/redirect.
 
+    legacy_shared_login = legacy_shared_login_enabled()
+    if not legacy_shared_login and is_legacy_shared_login_view(
+        app.view_functions.get(request.endpoint or "")
+    ):
+        # The shared-password routes do not exist while the bridge is disabled:
+        # the same 404 as an unknown URL, for every method and every session.
+        abort(404)
+
     view_args = request.view_args or {}
     level = policy_for_endpoint(app, request.endpoint)
-    if is_route_allowed(level, current_principal(), view_args):
+    principal = current_principal()
+    if is_route_allowed(level, principal, view_args):
         return
+
+    if not legacy_shared_login and principal.user_id is not None:
+        # A signed-in account without the needed role is not anonymous: signing in
+        # again cannot help, so it is refused instead of being sent to the login.
+        return render_template("403.html"), 403
 
     if level == PROFILE_SWITCH:
         next_url = safe_redirect_target(
@@ -500,7 +550,10 @@ def enforce_access_policy():
         )
     else:
         next_url = request.path
-    return redirect(url_for(denial_login_endpoint(level, view_args), next=next_url))
+    return redirect(url_for(
+        denial_login_endpoint(level, view_args, legacy_shared_login=legacy_shared_login),
+        next=next_url,
+    ))
 
 
 # ---------------------------------------------------------------------------

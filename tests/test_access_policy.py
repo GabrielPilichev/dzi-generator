@@ -183,14 +183,30 @@ class AccessPolicyUnitTest(unittest.TestCase):
                 self.assertFalse(access.is_route_allowed(level, admin_session))
 
     def test_denied_requests_are_sent_to_the_matching_login(self):
-        self.assertEqual(access.denial_login_endpoint(access.TEACHER), "auth.tester_login")
-        self.assertEqual(access.denial_login_endpoint(access.ADMIN), "auth.admin_login")
-        self.assertEqual(access.denial_login_endpoint(None), "auth.admin_login")
-        self.assertEqual(access.denial_login_endpoint(access.SIGNED_IN), "account.login")
-        self.assertEqual(
-            access.denial_login_endpoint(access.PROFILE_SWITCH, {"profile": "admin"}),
-            "auth.admin_login",
-        )
+        # Legacy bridge enabled (development/tests only): the transitional targets.
+        def bridged(level, view_args=None):
+            return access.denial_login_endpoint(level, view_args, legacy_shared_login=True)
+
+        self.assertEqual(bridged(access.TEACHER), "auth.tester_login")
+        self.assertEqual(bridged(access.ADMIN), "auth.admin_login")
+        self.assertEqual(bridged(None), "auth.admin_login")
+        self.assertEqual(bridged(access.SIGNED_IN), "account.login")
+        self.assertEqual(bridged(access.ASSIGNMENT_OWNER), "account.login")
+        self.assertEqual(bridged(access.PROFILE_SWITCH, {"profile": "admin"}), "auth.admin_login")
+
+    def test_denied_requests_go_to_the_account_login_without_the_legacy_bridge(self):
+        # The default, and the only behaviour in production: no role-specific target.
+        for level, view_args in (
+            (access.TEACHER, None), (access.ADMIN, None), (None, None), ("unknown", None),
+            (access.SIGNED_IN, None), (access.ASSIGNMENT_OWNER, None),
+            (access.PROFILE_SWITCH, {"profile": "admin"}),
+        ):
+            with self.subTest(level=level):
+                self.assertEqual(access.denial_login_endpoint(level, view_args), "account.login")
+                self.assertEqual(
+                    access.denial_login_endpoint(level, view_args, legacy_shared_login=False),
+                    "account.login",
+                )
 
     def test_principal_reads_authentication_state_only(self):
         self.assertEqual(access.principal_from_session({}), access.ANONYMOUS)
