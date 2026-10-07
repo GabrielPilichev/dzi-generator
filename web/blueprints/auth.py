@@ -16,7 +16,7 @@ import os
 
 from flask import Blueprint, abort, redirect, render_template, request, session, url_for
 
-from web.access import ADMIN, PROFILE_SWITCH, PUBLIC, access_policy
+from web.access import ADMIN, PROFILE_SWITCH, PUBLIC, access_policy, current_principal
 from web.redirects import safe_redirect_target
 from web.request_integrity import SAME_ORIGIN, integrity_policy
 
@@ -42,16 +42,19 @@ def password_matches(submitted_password: str | None, configured_password: str | 
     )
 
 
+# Template state follows the request principal, so an account identity decides it
+# and legacy keys in the same cookie cannot contradict it. For a legacy session the
+# values are what the keys always produced.
 def is_admin_authenticated() -> bool:
-    return bool(session.get("admin_authenticated"))
+    return current_principal().is_admin
 
 
 def is_tester_authenticated() -> bool:
-    return bool(session.get("tester_authenticated")) or is_admin_authenticated()
+    return current_principal().is_teacher
 
 
 def can_generate_tests() -> bool:
-    return is_tester_authenticated() or is_admin_authenticated()
+    return current_principal().is_teacher
 
 
 @auth_bp.app_context_processor

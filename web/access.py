@@ -28,6 +28,8 @@ from flask import g, session
 PUBLIC = "public"
 TEACHER = "teacher"  # the tester session (or an admin session) satisfies it
 ADMIN = "admin"
+# Any active account. A legacy tester/admin session is not an account.
+SIGNED_IN = "signed_in"
 # Object-level: any session reaches the view, which then checks attempt
 # ownership itself and answers 404 (not 403) so attempt ids cannot be probed.
 ATTEMPT_OWNER = "attempt_owner"
@@ -35,7 +37,7 @@ ATTEMPT_OWNER = "attempt_owner"
 # needs an admin session; every other target is public.
 PROFILE_SWITCH = "profile_switch"
 
-ACCESS_LEVELS = frozenset({PUBLIC, TEACHER, ADMIN, ATTEMPT_OWNER, PROFILE_SWITCH})
+ACCESS_LEVELS = frozenset({PUBLIC, TEACHER, ADMIN, SIGNED_IN, ATTEMPT_OWNER, PROFILE_SWITCH})
 
 # Flask's built-in static view cannot be decorated; it is public.
 STATIC_ENDPOINT = "static"
@@ -146,10 +148,16 @@ def is_route_allowed(level: str | None, principal: Principal, view_args: Mapping
         return principal.is_teacher
     if required == ADMIN:
         return principal.is_admin
+    if required == SIGNED_IN:
+        return principal.user_id is not None
     return False
 
 
 def denial_login_endpoint(level: str | None, view_args: Mapping | None = None) -> str:
     """Where a denied request is sent to sign in: tester login for teacher
-    routes, admin login for everything else (including undeclared routes)."""
-    return "auth.tester_login" if _required_level(level, view_args) == TEACHER else "auth.admin_login"
+    routes, the account login for account-only routes, admin login for
+    everything else (including undeclared routes)."""
+    required = _required_level(level, view_args)
+    if required == SIGNED_IN:
+        return "account.login"
+    return "auth.tester_login" if required == TEACHER else "auth.admin_login"

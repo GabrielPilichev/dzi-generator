@@ -22,13 +22,15 @@ import sys
 from pathlib import Path
 
 try:
-    from web.services import accounts
+    from web.services import accounts, login_throttle
 except ModuleNotFoundError:  # run as `python3 src/manage_accounts.py`
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-    from web.services import accounts
+    from web.services import accounts, login_throttle
 
-ADMIN_MIN_PASSWORD_LENGTH = 14
+ADMIN_MIN_PASSWORD_LENGTH = accounts.ADMIN_MIN_PASSWORD_LENGTH
 MAX_STDIN_BYTES = 4096
+# The application's secret key: login-throttle rows are keyed with it.
+SECRET_KEY_ENV = "DZI_SECRET_KEY"
 REQUIRED_USER_COLUMNS = {
     "id", "email", "display_name", "role", "password_hash", "is_active", "session_key",
     "password_changed_at", "last_login_at", "created_at", "updated_at",
@@ -71,6 +73,11 @@ def build_parser() -> argparse.ArgumentParser:
         ("sign-out", "Invalidate all existing sessions of an account."),
     ):
         sub.add_parser(name, help=text).add_argument("--email", required=True)
+
+    sub.add_parser(
+        "clear-throttle",
+        help=f"Lift the login lockout of an email (needs the application's {SECRET_KEY_ENV}).",
+    ).add_argument("--email", required=True)
 
     sub.add_parser("list", help="List accounts (no secrets).")
     return parser
@@ -125,9 +132,7 @@ def read_password(use_stdin: bool, prompt_name: str = "Password") -> str:
 
 
 def check_password(password: str, email: str | None, role: str) -> None:
-    problem = accounts.password_problem(password, email)
-    if problem is None and role == "admin" and len(password) < ADMIN_MIN_PASSWORD_LENGTH:
-        problem = f"Паролата на администратор трябва да е поне {ADMIN_MIN_PASSWORD_LENGTH} символа."
+    problem = accounts.password_problem(password, email, role)
     if problem:
         raise OperatorError(problem)
 
@@ -197,6 +202,33 @@ def cmd_sign_out(conn, args) -> str:
     return f"sessions of {user['email']} invalidated"
 
 
+def cmd_clear_throttle(conn, args) -> str:
+    """Forget the failed sign-in attempts counted for one email.
+
+    The email need not belong to an account: unknown identifiers are throttled too.
+    The row is keyed with the application's secret, which must therefore be the one
+    the running application uses; there is no fallback key.
+    """
+    try:
+        email = accounts.normalize_email(args.email)
+    except ValueError as exc:
+        raise OperatorError("invalid email") from exc
+    secret_key = os.environ.get(SECRET_KEY_ENV)
+    if not secret_key:
+        raise OperatorError(
+            f"{SECRET_KEY_ENV} is not set: the throttle is keyed with the application's secret"
+        )
+    if conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'login_throttle'"
+    ).fetchone() is None:
+        raise OperatorError(
+            "database has no login_throttle table (migration 013 required); "
+            "apply migrations with src.manage_migrations first"
+        )
+    login_throttle.clear(conn, login_throttle.identifier_hash(secret_key, email))
+    return f"login throttle cleared for {email}"
+
+
 def cmd_list(conn, args) -> str:
     rows = conn.execute(
         "SELECT id, email, display_name, role, is_active, created_at, last_login_at "
@@ -221,6 +253,7 @@ COMMANDS = {
     "disable": cmd_set_active(False),
     "enable": cmd_set_active(True),
     "sign-out": cmd_sign_out,
+    "clear-throttle": cmd_clear_throttle,
     "list": cmd_list,
 }
 

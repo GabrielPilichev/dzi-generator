@@ -24,6 +24,7 @@ import os
 import json
 import math
 import secrets
+import time
 import warnings
 
 import sqlite3
@@ -40,6 +41,7 @@ from src.practical_uploads import MAX_FILES_PER_REQUEST, MAX_REQUEST_BYTES, MAX_
 from web.blueprints.dzi import dzi_bp
 from web.blueprints.practical import practical_bp
 from web.attempt_access import quiz_attempt_owner_session_key
+from web.blueprints.account import ROLE_LABELS, account_bp
 from web.blueprints.auth import VALID_UI_PROFILES, auth_bp
 from web.redirects import safe_redirect_target
 from web.blueprints.quiz import quiz_bp
@@ -319,6 +321,9 @@ def load_current_user():
     account's principal or the request is anonymous. It never falls back to
     legacy keys in the same cookie, and the stale identity is dropped together
     with those keys so the next request cannot fall through to them either.
+
+    A session older than its role's absolute lifetime is stale too. The role
+    is the one in the users row; a missing or malformed ``iat`` is expired.
     """
     if request.endpoint in ACCOUNT_LOADING_SKIPPED_ENDPOINTS:
         return
@@ -328,12 +333,25 @@ def load_current_user():
         get_request_db(), session.get("uid"), session.get("sk")
     )
     principal = ANONYMOUS
-    if user is not None:
+    if user is not None and not accounts_service.session_expired(
+        user["role"], session.get("iat"), time.time()
+    ):
         principal = account_principal(user["id"], user["role"], user["display_name"])
     if principal.user_id is None:
         for key in (*ACCOUNT_SESSION_KEYS, *LEGACY_AUTH_SESSION_KEYS):
             session.pop(key, None)
     g.principal = principal
+
+
+@app.after_request
+def prevent_caching_for_accounts(response):
+    # A signed-in account's pages must not be replayed from the browser cache or the
+    # back button on a shared computer. Anonymous, legacy, static and health
+    # responses are left alone.
+    principal = g.get("principal")
+    if principal is not None and principal.user_id is not None:
+        response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 @app.before_request
@@ -433,9 +451,15 @@ def inject_subject_navigation():
 @app.context_processor
 def inject_ui_profile():
     profile = getattr(g, "ui_profile", "admin")
+    label = "Админ" if profile == "admin" else "Тестер"
+    principal = g.get("principal")
+    if principal is not None and principal.user_id is not None:
+        # An account has no cosmetic profile to switch: the label is its role.
+        profile = "admin" if principal.is_admin else "tester"
+        label = ROLE_LABELS.get(principal.role, label)
     return {
         "ui_profile": profile,
-        "ui_profile_label": "Админ" if profile == "admin" else "Тестер",
+        "ui_profile_label": label,
         "question_difficulty_label": question_difficulty_label,
         "question_kind_label": question_kind_label,
     }
@@ -568,6 +592,7 @@ warn_if_schema_migrations_pending(DB_PATH, open_existing_database_read_only)
 
 
 
+app.register_blueprint(account_bp)
 app.register_blueprint(auth_bp)
 app.register_blueprint(browsing_bp)
 app.register_blueprint(dzi_bp)

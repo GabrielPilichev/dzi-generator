@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block title %}Вход{% endblock %}
+
+{% block body_class %}management-page management-login-page{% endblock %}
+
+{% block breadcrumb %}
+    <a href="{{ url_for('browsing.index') }}">Начало</a>
+    <span>›</span>
+    Вход
+{% endblock %}
+
+{% block content %}
+<section class="hero login-hero">
+    <p class="eyebrow">Профил</p>
+    <h1>Вход в LearnPilot</h1>
+    <p class="subtitle">Влез с имейла и паролата на своя профил.</p>
+</section>
+
+{% if error %}
+    <div class="error login-message" role="alert">{{ error }}</div>
+{% endif %}
+
+<form method="post" action="{{ url_for('account.login') }}" class="card form-card login-card">
+    <input type="hidden" name="next" value="{{ next_url }}">
+
+    <label for="email">Имейл</label>
+    <input id="email" name="email" type="email" value="{{ email }}" autocomplete="username" maxlength="254" required autofocus>
+
+    <label for="password">Парола</label>
+    <input id="password" name="password" type="password" autocomplete="current-password" maxlength="256" required>
+
+    <button type="submit">Влез</button>
+</form>
+{% endblock %}

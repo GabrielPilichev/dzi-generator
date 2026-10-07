@@ -68,6 +68,7 @@ TABLE_CLASSIFICATION: dict[str, tuple[str, str]] = {
     "quiz_text_answers": (RUNTIME, "student text answers"),
     "users": (RUNTIME, "local accounts: credentials and session keys, never canonical content"),
     "generated_exams": (OPERATIONAL, "generated exam log"),
+    "login_throttle": (OPERATIONAL, "per-identifier login throttle counters (keyed hashes, no emails)"),
     "note_question_links": (OPERATIONAL, "vault note mirror"),
     "obsidian_notes": (OPERATIONAL, "vault sync mirror"),
     "schema_migrations": (OPERATIONAL, "migration bookkeeping"),

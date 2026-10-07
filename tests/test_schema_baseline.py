@@ -54,7 +54,9 @@ def content_digests(db_path):
             if table == "schema_migrations":
                 continue
             digest = hashlib.sha256()
-            for row in conn.execute(f'SELECT * FROM "{table}" ORDER BY rowid'):
+            without_rowid = "WITHOUT ROWID" in conn.execute(
+                "SELECT sql FROM sqlite_master WHERE type='table' AND name=?", (table,)).fetchone()[0].upper()
+            for row in conn.execute(f'SELECT * FROM "{table}" ORDER BY {"1" if without_rowid else "rowid"}'):
                 digest.update(repr(row).encode("utf-8"))
             digests[table] = (conn.execute(f'SELECT COUNT(*) FROM "{table}"').fetchone()[0], digest.hexdigest())
     return digests
@@ -162,7 +164,7 @@ class FreshDatabaseTest(BaselineTestCase):
         self.assertEqual(code, 0, out + err)
         self.assertEqual([name for name, _ in migration_rows(path)], ALL_MIGRATIONS)
         self.assertEqual(ALL_MIGRATIONS[0], "000_baseline.sql")
-        self.assertEqual(ALL_MIGRATIONS[-1], "012_users.sql")
+        self.assertEqual(ALL_MIGRATIONS[-1], "013_login_throttle.sql")
         self.assertIn("foreign_key_check: ok", out)
 
     def test_fresh_database_has_no_content_rows(self):

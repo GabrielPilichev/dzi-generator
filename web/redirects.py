@@ -1,8 +1,10 @@
 """Post-login and profile-switch redirect confinement.
 
 ``safe_redirect_target`` accepts only a same-site absolute path. Anything else
-(missing, relative, protocol-relative ``//host``, or carrying a scheme or
-netloc) falls back to the supplied endpoint or path.
+(missing, relative, protocol-relative ``//host``, carrying a scheme or netloc,
+or containing a backslash or a control character) falls back to the supplied
+endpoint or path. Browsers read ``/\\host`` as ``//host``, and a control
+character can neither be sent in a ``Location`` header nor be trusted in one.
 """
 
 from __future__ import annotations
@@ -17,6 +19,8 @@ def safe_redirect_target(candidate: str | None, fallback: str) -> str:
     if not isinstance(candidate, str) or not candidate:
         return fallback_url
     if not candidate.startswith("/") or candidate.startswith("//"):
+        return fallback_url
+    if "\\" in candidate or any(ord(ch) < 0x20 or ord(ch) == 0x7F for ch in candidate):
         return fallback_url
 
     parsed = urlparse(candidate)

@@ -108,7 +108,7 @@ class ClassificationTest(CanonicalTestCase):
             "practical_submissions", "practical_submission_files", "users"]))
         self.assertEqual(ct.tables_of(ct.OPERATIONAL), sorted([
             "obsidian_notes", "note_question_links", "generated_exams", "scrape_log",
-            "schema_migrations", "sqlite_sequence"]))
+            "schema_migrations", "sqlite_sequence", "login_throttle"]))
         self.assertIn("assessment_events", ct.tables_of(ct.CANONICAL))
 
     def test_canonical_tables_only_reference_canonical_tables(self):

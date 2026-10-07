@@ -679,6 +679,7 @@ python3 -m src.manage_accounts --db "$DZI_DB" set-role --email teacher@example.b
 python3 -m src.manage_accounts --db "$DZI_DB" disable --email teacher@example.bg
 python3 -m src.manage_accounts --db "$DZI_DB" enable --email teacher@example.bg
 python3 -m src.manage_accounts --db "$DZI_DB" sign-out --email teacher@example.bg
+python3 -m src.manage_accounts --db "$DZI_DB" clear-throttle --email teacher@example.bg
 python3 -m src.manage_accounts --db "$DZI_DB" list
 ```
 
@@ -693,6 +694,14 @@ python3 -m src.manage_accounts --db "$DZI_DB" list
   `set-password` if the current one is shorter than 14 characters.
 - `set-password`, `set-role`, `disable`, `enable` and `sign-out` rotate the
   account's session key, invalidating its future sessions.
+- `clear-throttle` lifts the login lockout of one email (ten failed sign-ins in
+  fifteen minutes block it for fifteen minutes) and touches no other email. The
+  email need not belong to an account. Throttle rows are keyed with the
+  application's secret, so `DZI_SECRET_KEY` must be set in the command's
+  environment to the value the running application uses; without it the command
+  fails and changes nothing. It needs the `login_throttle` table (migration
+  013), succeeds when the email has no lockout, and never prints the secret or
+  the stored key.
 - `list` prints id, email, name, role, active state, created and last login
   times; never password hashes or session keys.
 - Errors go to stderr with a nonzero exit status; each command commits only after
