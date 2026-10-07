@@ -40,7 +40,9 @@ CODE_INVALID = "Грешен или вече използван код."
 CODE_EXPIRED = "Времето за въвеждане на кода изтече. Влез отново."
 CODE_UNAVAILABLE = "Двуфакторното удостоверяване временно не е достъпно. Опитай по-късно."
 NOT_ENROLLED = "Профилът изисква двуфакторно удостоверяване, което още не е настроено."
-ADMIN_PATHS = ("/teacher", "/teacher/assignments", "/teacher/dzi-training", "/dzi")
+ADMIN_PATHS = ("/teacher", "/teacher/dzi-training", "/dzi")
+# assignment_owner routes (Accounts PR7) deny to the account login.
+ASSIGNMENT_PATHS = ("/teacher/assignments",)
 
 
 class AdminTotpTestCase(AccountAppTestCase):
@@ -62,6 +64,11 @@ class AdminTotpTestCase(AccountAppTestCase):
                 response = client.get(path)
                 self.assertEqual(response.status_code, 302)
                 self.assertIn("/admin/login", response.headers["Location"])
+        for path in ASSIGNMENT_PATHS:
+            with self.subTest(path=path):
+                response = client.get(path)
+                self.assertEqual(response.status_code, 302)
+                self.assertTrue(response.headers["Location"].startswith("/login?"))
         self.assertIn("/login", client.get("/account/password").headers["Location"])
         self.assertIn("/tester/login", client.get("/teacher/new").headers["Location"])
 
@@ -167,7 +174,7 @@ class SecondFactorTest(AdminTotpTestCase):
             self.assertNotIn(leaked, repr(state))
         principal, _ = self.principal_for(state)
         self.assertEqual((principal.user_id, principal.role, principal.is_admin), (admin["id"], "admin", True))
-        for path in ADMIN_PATHS:
+        for path in ADMIN_PATHS + ASSIGNMENT_PATHS:
             self.assertEqual(self.client.get(path).status_code, 200)
         self.assertIsNotNone(self.user(admin["id"], "last_login_at"))
         self.assertEqual(self.failures(admin["email"]), 0)

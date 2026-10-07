@@ -141,6 +141,13 @@
                         <a class="{% if is_dzi_current %}nav-current{% else %}nav-link{% endif %}"
                            href="{{ url_for('browsing.section_view', slug='grade12-dzi-preparation') }}"
                            {% if is_dzi_current %}aria-current="page"{% endif %}>ДЗИ</a>
+
+                        {% if current_account and can_list_assignments %}
+                            {% set is_assignments_current = request.endpoint == 'teacher.teacher_assignments' %}
+                            <a class="{% if is_assignments_current %}nav-current{% else %}nav-link{% endif %}"
+                               href="{{ url_for('teacher.teacher_assignments') }}"
+                               {% if is_assignments_current %}aria-current="page"{% endif %}>{{ 'Създадени тестове' if admin_authenticated else 'Моите тестове' }}</a>
+                        {% endif %}
                     </nav>
                 {% endif %}
 

@@ -8,10 +8,14 @@
 {% block breadcrumb %}
     <a href="{{ url_for('browsing.index') }}">Начало</a>
     <span>›</span>
+    {% if admin_authenticated %}
     <a href="{{ url_for('teacher.teacher_dashboard') }}">Учител</a>
     <span>›</span>
+    {% endif %}
+    {% if can_list_assignments %}
     <a href="{{ url_for('teacher.teacher_assignments') }}">Създадени тестове</a>
     <span>›</span>
+    {% endif %}
     <a href="{{ url_for('teacher.teacher_assignment', assignment_id=assignment.id) }}">Тест #{{ assignment.id }}</a>
     <span>›</span>
     Резултати

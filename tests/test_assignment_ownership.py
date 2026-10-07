@@ -1,4 +1,4 @@
-"""PR6 creation and detail boundary; the admin-only PR7 routes stay admin-only."""
+"""PR6 creation and detail boundary (PR7 management is in test_assignment_owner_routes)."""
 
 from contextlib import closing
 from unittest.mock import patch
@@ -155,20 +155,6 @@ class AssignmentOwnershipTest(IsolatedAppTestCase):
             response = client.post("/teacher/new", data={"section_id": self.section_id},
                                    headers={"Origin": "http://localhost"})
             self.assertEqual(response.status_code, 302)
-
-    def test_pr7_routes_stay_admin_only_even_for_owner(self):
-        assignment_id = self.seed_assignment(self.owner)
-        client = self.client(self.owner)
-        for path in ("/teacher/assignments", f"/teacher/assignment/{assignment_id}/results",
-                     f"/teacher/assignment/{assignment_id}/results.csv"):
-            response = client.get(path)
-            self.assertEqual(response.status_code, 302)
-            self.assertIn("/admin/login", response.headers["Location"])
-        for suffix in ("edit", "duplicate", "results"):
-            response = client.post(f"/teacher/assignment/{assignment_id}/{suffix}",
-                                   headers={"Origin": "http://localhost"})
-            self.assertEqual(response.status_code, 302)
-            self.assertIn("/admin/login", response.headers["Location"])
 
     def test_reads_include_owner_and_predicate_adds_no_queries(self):
         assignment_id = self.seed_assignment(self.owner)

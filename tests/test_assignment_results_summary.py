@@ -404,7 +404,7 @@ class AssignmentResultsSummaryTest(IsolatedAppTestCase):
         try:
             response = self._get_results(assignment_id)
             self.assertEqual(response.status_code, 302)
-            self.assertIn("/admin/login", response.headers.get("Location", ""))
+            self.assertTrue(response.headers.get("Location", "").startswith("/login?"))
         finally:
             self._delete_assignment(assignment_id)
 
@@ -414,8 +414,8 @@ class AssignmentResultsSummaryTest(IsolatedAppTestCase):
         self._seed_attempt(assignment_id, student_name="A")
         try:
             response = self._get_results(assignment_id)
-            self.assertEqual(response.status_code, 302)
-            self.assertIn("/admin/login", response.headers.get("Location", ""))
+            # Accounts PR7: a teacher account cannot manage an unowned (legacy) row.
+            self.assertEqual(response.status_code, 404)
         finally:
             self._delete_assignment(assignment_id)
 

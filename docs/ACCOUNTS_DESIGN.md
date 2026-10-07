@@ -388,8 +388,11 @@ existing `Principal(is_teacher=..., is_admin=...)` constructions stay valid.
 **Access vocabulary additions**
 
 - `signed_in`: any active account. First used in phase 2.
-- `assignment_owner`: the route requires teacher capability, and the view
-  checks owner-or-admin and answers 404.
+- `assignment_owner`: the route admits an admin or a teacher account (the
+  legacy tester session, which has no account id, is not admitted), and the
+  view checks `can_manage_assignment` (admin, or an owner equal to a non-NULL
+  account id) on the loaded row and answers 404. Implemented in PR 7; PR 8
+  reuses the same predicate from `web/access.py`.
 
 **Target flows**
 
@@ -418,9 +421,12 @@ existing `Principal(is_teacher=..., is_admin=...)` constructions stay valid.
 - A legacy tester session has teacher capability but no `user_id`. After
   ownership lands it creates unowned assignments and can open only unowned
   ones, which is today's behaviour and never exposes an account teacher's
-  assignments.
+  assignments. From PR 7 this is view-only detail compatibility: the tester
+  cannot list, edit, duplicate, read results or CSV, or review answers of any
+  assignment, unowned ones included.
 - Denial redirects keep pointing at `/tester/login` and `/admin/login` until
-  the cutover PR.
+  the cutover PR, except the `assignment_owner` routes (PR 7), which send to
+  the account login `/login`.
 
 **Switch**
 

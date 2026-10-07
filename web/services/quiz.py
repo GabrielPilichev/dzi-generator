@@ -40,7 +40,7 @@ from src.subject_content import (
     IT, canonical_subject, question_ownerships, section_ownership, sql_chunks,
 )
 from web import db as web_db
-from web.access import Principal
+from web.access import Principal, can_manage_assignment
 from web.services import dzi_exams
 from web.services.question_visuals import (
     attach_question_visual_assets,
@@ -202,16 +202,19 @@ def quiz_create_assignment(
 
 
 def quiz_can_access_assignment(assignment, principal: Principal) -> bool:
-    """Detail access: admin, account owner, or legacy teacher on an unowned row.
+    """Detail (view) access: whoever may manage the row, plus the legacy tester on
+    an unowned row.
 
-    Takes the already loaded row and Principal; no per-row user lookup. Other
-    teacher routes retain their admin policy until the PR7 rollout.
+    The legacy branch is temporary view-only compatibility until the account
+    cutover; it never grants management (``can_manage_assignment``). Takes the
+    already loaded row and Principal; no per-row user lookup.
     """
     if assignment is None:
         return False
-    if principal.is_admin:
+    owner_user_id = assignment["owner_user_id"]
+    if can_manage_assignment(principal, owner_user_id):
         return True
-    return principal.is_teacher and assignment["owner_user_id"] == principal.user_id
+    return principal.is_teacher and principal.user_id is None and owner_user_id is None
 
 
 def quiz_fetch_assignment(conn, assignment_id: int):
