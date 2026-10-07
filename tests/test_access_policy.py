@@ -64,6 +64,10 @@ EXPECTED_ACCESS_MATRIX = {
     "practical.quiz_practical_attempt": access.ATTEMPT_OWNER,
     "practical.quiz_practical_upload": access.ATTEMPT_OWNER,
     "auth.switch_profile": access.PROFILE_SWITCH,
+    # Accounts PR 4. No legacy principal below is an account.
+    "account.login": access.PUBLIC,
+    "account.logout": access.PUBLIC,
+    "account.password": access.SIGNED_IN,
 }
 
 PRINCIPAL_SESSIONS = {
@@ -134,6 +138,13 @@ class AccessPolicyUnitTest(unittest.TestCase):
         self.assertTrue(access.is_route_allowed(
             access.ADMIN, access.Principal(is_teacher=True, is_admin=True)))
 
+    def test_signed_in_requires_an_account_not_a_legacy_session(self):
+        self.assertFalse(access.is_route_allowed(access.SIGNED_IN, access.ANONYMOUS))
+        self.assertFalse(access.is_route_allowed(
+            access.SIGNED_IN, access.Principal(is_teacher=True, is_admin=True)))
+        self.assertTrue(access.is_route_allowed(
+            access.SIGNED_IN, access.account_principal(7, "student", "Ученик")))
+
     def test_attempt_owner_passes_the_route_and_is_decided_in_the_view(self):
         # Object-level ownership stays in the quiz blueprint (404, not 403).
         self.assertTrue(access.is_route_allowed(access.ATTEMPT_OWNER, access.ANONYMOUS))
@@ -157,6 +168,7 @@ class AccessPolicyUnitTest(unittest.TestCase):
         self.assertEqual(access.denial_login_endpoint(access.TEACHER), "auth.tester_login")
         self.assertEqual(access.denial_login_endpoint(access.ADMIN), "auth.admin_login")
         self.assertEqual(access.denial_login_endpoint(None), "auth.admin_login")
+        self.assertEqual(access.denial_login_endpoint(access.SIGNED_IN), "account.login")
         self.assertEqual(
             access.denial_login_endpoint(access.PROFILE_SWITCH, {"profile": "admin"}),
             "auth.admin_login",
@@ -288,6 +300,8 @@ def expected_decision(policy, principal_name, view_args, path):
         return False, "/admin/login?next=/"
     if policy in (access.PUBLIC, access.ATTEMPT_OWNER):
         return True, None
+    if policy == access.SIGNED_IN:
+        return False, f"/login?next={path}"
     if policy == access.TEACHER:
         allowed = principal_name in TEACHER_PRINCIPALS
         return allowed, None if allowed else f"/tester/login?next={path}"

@@ -140,6 +140,14 @@ h2 {
   border-color: var(--color-primary);
 }
 
+/* The account sign-out is a POST form; its button looks like the other profile links. */
+.profile-logout-form { display: contents; }
+.profile-logout-button {
+  appearance: none;
+  font-family: inherit;
+  cursor: pointer;
+}
+
 .nav-current,
 .profile-link.active {
   background: var(--color-primary);

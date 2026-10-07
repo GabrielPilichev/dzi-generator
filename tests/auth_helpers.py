@@ -22,10 +22,12 @@ def add_users_schema(conn: sqlite3.Connection) -> None:
 
 
 def create_account(db_path, role: str = "student", *, display_name: str = "Тест Потребител",
-                   is_active: bool = True) -> dict:
-    """Insert an account (no email, no password) and return its id and session key."""
+                   is_active: bool = True, email: str | None = None,
+                   password: str | None = None) -> dict:
+    """Insert an account (no email or password unless given); return its id and session key."""
     with closing(sqlite3.connect(str(db_path))) as conn:
-        user_id = accounts.create_user(conn, display_name=display_name, role=role, is_active=is_active)
+        user_id = accounts.create_user(conn, display_name=display_name, role=role, is_active=is_active,
+                                       email=email, password=password)
         conn.commit()
         session_key = conn.execute(
             "SELECT session_key FROM users WHERE id = ?", (user_id,)

@@ -4,13 +4,14 @@ import sqlite3
 import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
+from datetime import datetime, timezone
 from pathlib import Path
 from unittest import mock
 
 from werkzeug.security import check_password_hash
 
 from src import manage_accounts
-from web.services import accounts
+from web.services import accounts, login_throttle
 
 ROOT = Path(__file__).resolve().parents[1]
 GOOD = "correct horse"
@@ -264,6 +265,159 @@ class TransactionTest(CliTestCase):
         with mock.patch.object(accounts, "create_user", side_effect=sqlite3.OperationalError("boom")):
             self.assertEqual(self.create(), 1)
         self.assertEqual(self.count(), 0)
+
+
+class ClearThrottleTest(CliTestCase):
+    SECRET = "s3cr3t-application-key-of-at-least-32-chars"
+    TARGET = "ana@example.bg"
+    OTHER = "boris@example.bg"
+    NOW = datetime(2026, 1, 1, 12, 0, 0, tzinfo=timezone.utc)
+
+    def setUp(self):
+        super().setUp()
+        os.environ["DZI_SECRET_KEY"] = self.SECRET
+        conn = sqlite3.connect(self.db)
+        conn.executescript(
+            (ROOT / "web" / "migrations" / "013_login_throttle.sql").read_text(encoding="utf-8"))
+        # Lock both identifiers out exactly as the login route does.
+        for email in (self.TARGET, self.OTHER):
+            for _ in range(login_throttle.MAX_FAILURES):
+                login_throttle.record_failure(conn, self.key(email), self.NOW)
+        conn.commit()
+        conn.close()
+
+    def key(self, email, secret=None):
+        return login_throttle.identifier_hash(secret or self.SECRET, accounts.throttle_identifier(email))
+
+    def rows(self):
+        conn = sqlite3.connect(self.db)
+        try:
+            return conn.execute("SELECT * FROM login_throttle ORDER BY identifier_hash").fetchall()
+        finally:
+            conn.close()
+
+    def blocked(self, email):
+        conn = sqlite3.connect(self.db)
+        try:
+            return login_throttle.is_blocked(conn, self.key(email), self.NOW)
+        finally:
+            conn.close()
+
+    def test_clears_only_the_requested_identifier(self):
+        self.assertTrue(self.blocked(self.TARGET))
+        self.assertEqual(self.run_cli("clear-throttle", "--email", self.TARGET), 0, self.err)
+        self.assertFalse(self.blocked(self.TARGET))
+        self.assertTrue(self.blocked(self.OTHER))
+        self.assertEqual([row[0] for row in self.rows()], [self.key(self.OTHER)])
+        self.assertEqual(self.out.strip(), f"login throttle cleared for {self.TARGET}")
+
+    def test_email_is_normalized_like_the_login_form(self):
+        self.assertEqual(self.run_cli("clear-throttle", "--email", "  ANA@Example.BG "), 0, self.err)
+        self.assertFalse(self.blocked(self.TARGET))
+
+    def test_account_need_not_exist_and_a_missing_row_is_not_an_error(self):
+        self.assertEqual(self.count(), 0)  # no users at all
+        before = self.rows()
+        for _ in range(2):  # idempotent
+            self.assertEqual(self.run_cli("clear-throttle", "--email", "nobody@example.bg"), 0, self.err)
+        self.assertEqual(self.rows(), before)
+
+    def test_missing_or_empty_secret_fails_without_mutation(self):
+        before = self.rows()
+        for value in (None, ""):
+            with self.subTest(secret=value):
+                os.environ.pop("DZI_SECRET_KEY", None)
+                if value is not None:
+                    os.environ["DZI_SECRET_KEY"] = value
+                self.assertEqual(self.run_cli("clear-throttle", "--email", self.TARGET), 1)
+                self.assertIn("DZI_SECRET_KEY is not set", self.err)
+                self.assertNotIn("Traceback", self.err)
+                self.assertEqual(self.out, "")
+                self.assertEqual(self.rows(), before)
+
+    def test_there_is_no_fallback_key(self):
+        # A different secret addresses a different row: nothing of the real lockout is touched.
+        before = self.rows()
+        os.environ["DZI_SECRET_KEY"] = "another-secret-entirely-also-32-chars-long"
+        self.assertEqual(self.run_cli("clear-throttle", "--email", self.TARGET), 0)
+        self.assertEqual(self.rows(), before)
+        source = (ROOT / "src" / "manage_accounts.py").read_text(encoding="utf-8")
+        self.assertNotIn("token_urlsafe", source)
+        self.assertNotIn("import secrets", source)
+
+    def test_malformed_email_fails_without_mutation(self):
+        before = self.rows()
+        for bad in ("", "not-an-email", "a@@b.bg", "a b@c.bg", "x" * 300 + "@b.bg"):
+            with self.subTest(email=bad[:20]):
+                self.assertEqual(self.run_cli("clear-throttle", "--email", bad), 1)
+                self.assertEqual(self.err.strip(), "error: invalid email")
+                self.assertEqual(self.rows(), before)
+
+    def test_database_without_the_throttle_table_is_reported(self):
+        bare = self.dir / "users-only.db"
+        conn = sqlite3.connect(bare)
+        conn.executescript((ROOT / "web" / "migrations" / "012_users.sql").read_text(encoding="utf-8"))
+        conn.close()
+        out, err = io.StringIO(), io.StringIO()
+        with redirect_stdout(out), redirect_stderr(err):
+            code = manage_accounts.main(["--db", str(bare), "clear-throttle", "--email", self.TARGET])
+        self.assertEqual(code, 1)
+        self.assertIn("migration 013 required", err.getvalue())
+        self.assertNotIn("Traceback", err.getvalue())
+        conn = sqlite3.connect(bare)
+        tables = {r[0] for r in conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+        conn.close()
+        self.assertNotIn("login_throttle", tables)  # never created by the CLI
+
+    def test_database_targeting_safety_is_unchanged(self):
+        cwd = os.getcwd()
+        os.chdir(self.dir)
+        self.addCleanup(os.chdir, cwd)
+        before = self.rows()
+        self.assertEqual(self.run_cli("clear-throttle", "--email", self.TARGET, db=False), 1)
+        self.assertIn("--db", self.err)
+        missing = self.dir / "nope.db"
+        with redirect_stderr(io.StringIO()):
+            self.assertEqual(
+                manage_accounts.main(["--db", str(missing), "clear-throttle", "--email", self.TARGET]), 1)
+        self.assertFalse(missing.exists())
+        self.assertEqual(sorted(p.name for p in self.dir.iterdir()), ["t.db"])
+        self.assertEqual(self.rows(), before)
+
+    def test_rollback_when_clearing_fails(self):
+        before = self.rows()
+        with mock.patch.object(login_throttle, "clear", side_effect=sqlite3.OperationalError("boom")):
+            self.assertEqual(self.run_cli("clear-throttle", "--email", self.TARGET), 1)
+        self.assertNotIn("Traceback", self.err)
+        self.assertEqual(self.rows(), before)
+
+    def test_output_never_contains_the_secret_or_the_stored_key(self):
+        outputs = []
+        for argv in (("clear-throttle", "--email", self.TARGET),
+                     ("clear-throttle", "--email", "nobody@example.bg"),
+                     ("clear-throttle", "--email", "not-an-email"),
+                     ("list",)):
+            self.run_cli(*argv)
+            outputs.append(self.out + self.err)
+        os.environ.pop("DZI_SECRET_KEY")
+        self.run_cli("clear-throttle", "--email", self.OTHER)
+        outputs.append(self.out + self.err)
+        text = "\n".join(outputs)
+        for leaked in (self.SECRET, self.key(self.TARGET), self.key(self.OTHER),
+                       self.key("nobody@example.bg"), "not-an-email"):
+            self.assertNotIn(leaked, text)
+
+    def test_command_takes_no_secret_hash_or_password_argument(self):
+        for flag in ("--secret", "--secret-key", "--hash", "--key", "--password", "--password-stdin"):
+            with self.subTest(flag=flag), self.assertRaises(SystemExit), redirect_stderr(io.StringIO()):
+                manage_accounts.main(["--db", str(self.db), "clear-throttle", "--email", self.TARGET, flag, "x"])
+
+    def test_throttle_sql_and_hashing_are_not_duplicated_in_the_cli(self):
+        source = (ROOT / "src" / "manage_accounts.py").read_text(encoding="utf-8")
+        for forbidden in ("hmac", "sha256", "DELETE FROM login_throttle", "identifier_hash ="):
+            self.assertNotIn(forbidden, source)
+        self.assertIn("login_throttle.clear(", source)
+        self.assertIn("login_throttle.identifier_hash(", source)
 
 
 class ImportBoundaryTest(unittest.TestCase):

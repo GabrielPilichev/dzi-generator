@@ -1,4 +1,4 @@
-"""Accounts PR 5.1 — rendered authentication state comes from the request Principal.
+"""Rendered authentication state comes from the request Principal.
 
 The same Principal that decides route access also decides navigation and role-gated
 controls. ``ui_profile`` is presentation only and the account row stays authoritative.
@@ -60,8 +60,11 @@ class AccountUiStateTest(IsolatedAppTestCase):
         html = self.home()
         self.assertIn("Ученик", html)
         self.assertNotIn("Вход за тестер", html)
-        self.assertNotIn('aria-controls="nav-menu-classes"', html)  # teacher navigation
-        self.assertEqual(self.client.get(self.assignment_path).status_code, 302)
+        # Content navigation is for every signed-in account; teacher pages are not.
+        self.assertIn('aria-controls="nav-menu-classes"', html)
+        self.assertNotIn("админ изглед", html)
+        for path in ("/teacher/new", self.assignment_path, "/teacher/assignments"):
+            self.assertEqual(self.client.get(path).status_code, 302, path)
 
     def test_teacher_gets_teacher_ui_but_no_admin_controls(self):
         sign_in_teacher(self.client, self.db_path)
@@ -70,7 +73,10 @@ class AccountUiStateTest(IsolatedAppTestCase):
         self.assertNotIn("Вход за тестер", html)
         self.assertIn('aria-controls="nav-menu-classes"', html)
         self.assertNotIn("админ изглед", html)
-        self.assertNotIn("/duplicate", self.detail())
+        self.assertEqual(self.client.get("/teacher/new").status_code, 200)
+        detail = self.detail()
+        self.assertNotIn("/duplicate", detail)
+        self.assertNotIn(f"{self.assignment_path}/edit", detail)
         self.assertEqual(self.client.get("/teacher/assignments").status_code, 302)
 
     def test_admin_gets_admin_ui_and_edit_duplicate_controls(self):
@@ -83,9 +89,31 @@ class AccountUiStateTest(IsolatedAppTestCase):
         self.assertIn(f"{self.assignment_path}/duplicate", detail)
         self.assertIn(f"{self.assignment_path}/edit", detail)
 
-    def test_account_sessions_offer_no_legacy_logout_links(self):
+    def test_account_sessions_use_the_account_logout_not_the_legacy_one(self):
+        for sign_in in (sign_in_student, sign_in_teacher, sign_in_admin):
+            with self.subTest(helper=sign_in.__name__):
+                client = web_app.app.test_client()
+                sign_in(client, self.db_path)
+                with client.session_transaction() as sess:
+                    # Legacy keys in the same cookie must not bring the legacy links back.
+                    sess["admin_authenticated"] = True
+                    sess["tester_authenticated"] = True
+                html = self.home(client)
+                self.assertIn('method="post" action="/logout"', html)
+                self.assertIn('href="/account/password"', html)
+                for legacy in ("/admin/logout", "/tester/logout", "/admin/login", "/tester/login"):
+                    self.assertNotIn(legacy, html)
+
+    def test_account_logout_signs_the_account_out(self):
         sign_in_admin(self.client, self.db_path)
-        self.assertNotIn("/admin/logout", self.home())
+        self.assertEqual(self.client.get("/logout").status_code, 405)
+        response = self.client.post("/logout")
+        self.assertEqual(response.status_code, 302)
+        with self.client.session_transaction() as sess:
+            self.assertEqual(dict(sess), {})
+        html = self.home()
+        self.assertIn('href="/login?next=/"', html)
+        self.assertNotIn("админ изглед", html)
 
     # --- legacy compatibility ----------------------------------------------
 
@@ -93,15 +121,20 @@ class AccountUiStateTest(IsolatedAppTestCase):
         tester = self.home(self.legacy_client(tester_authenticated=True, ui_profile="tester"))
         self.assertIn("Тестер", tester)
         self.assertIn("/tester/logout", tester)
+        self.assertNotIn('action="/logout"', tester)
         self.assertNotIn("админ изглед", tester)
         admin_client = self.legacy_client(admin_authenticated=True, ui_profile="admin")
         admin = self.home(admin_client)
         self.assertIn("/admin/logout", admin)
+        self.assertNotIn('action="/logout"', admin)
         self.assertIn("админ изглед", admin)
         self.assertIn(f"{self.assignment_path}/duplicate", self.detail(admin_client))
 
-    def test_anonymous_still_sees_the_login_links(self):
-        self.assertIn("Вход за тестер", self.home())
+    def test_anonymous_sees_the_account_and_legacy_login_links(self):
+        html = self.home()
+        self.assertIn('href="/login?next=/"', html)
+        self.assertIn("Вход за тестер", html)
+        self.assertIn("Вход за админ", html)
 
     # --- precedence and ui_profile -----------------------------------------
 
@@ -134,6 +167,16 @@ class AccountUiStateTest(IsolatedAppTestCase):
         with self.client.session_transaction() as sess:
             self.assertEqual(sess["ui_profile"], "admin")
             self.assertEqual(set(sess) - {"ui_profile", "_flashes", "_permanent"}, {"uid", "sk", "iat"})
+
+    def test_asset_requests_leave_an_account_admins_ui_profile_alone(self):
+        sign_in_admin(self.client, self.db_path)
+        with self.client.session_transaction() as sess:
+            sess["ui_profile"] = "admin"
+        response = self.client.get("/static/css/tokens.css")
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn("Set-Cookie", response.headers)
+        with self.client.session_transaction() as sess:
+            self.assertEqual(sess["ui_profile"], "admin")
 
     def test_cookie_never_carries_role_authority(self):
         sign_in_admin(self.client, self.db_path)

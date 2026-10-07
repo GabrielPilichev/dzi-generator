@@ -216,8 +216,10 @@ class TopicIdIndexTest(unittest.TestCase):
 
     def test_migration_is_idempotent_and_changes_no_rows(self):
         conn = self.connect()
+        # WITHOUT ROWID tables (login_throttle) have no rowid to total.
         tables = [r[0] for r in conn.execute(
-            "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'")]
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' "
+            "AND sql NOT LIKE '%WITHOUT ROWID%'")]
 
         def digest():
             return {t: conn.execute(f'SELECT COUNT(*), TOTAL(rowid) FROM "{t}"').fetchone()[:] for t in tables}

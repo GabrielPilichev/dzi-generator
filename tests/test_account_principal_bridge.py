@@ -8,6 +8,7 @@ closed to anonymous and never falls through to legacy keys in the same cookie.
 
 import ast
 import sqlite3
+import time
 import unittest
 from contextlib import closing, contextmanager
 from pathlib import Path
@@ -126,7 +127,7 @@ class AccountBridgeTestCase(IsolatedAppTestCase):
             return access.current_principal(), dict(session)
 
     def account_state(self, account, **extra):
-        return {"uid": account["id"], "sk": account["session_key"], "iat": 1, **extra}
+        return {"uid": account["id"], "sk": account["session_key"], "iat": int(time.time()), **extra}
 
     @contextmanager
     def users_statements(self):
@@ -173,15 +174,17 @@ class AccountPrincipalTest(AccountBridgeTestCase):
         principal, _ = self.principal_for(self.account_state(account))
         self.assertEqual((principal.role, principal.is_teacher), ("teacher", True))
 
-    def test_iat_is_neither_required_nor_enforced_in_this_pr(self):
+    def test_iat_is_required_and_enforced_since_pr_4(self):
+        # The lifetime rules themselves are pinned in tests/test_account_login.py.
         account = create_account(self.db_path, "teacher")
-        for iat in (None, 0, 10**12):
+        for iat in (None, 0, 1, 10**12):
             with self.subTest(iat=iat):
                 state = {"uid": account["id"], "sk": account["session_key"]}
                 if iat is not None:
                     state["iat"] = iat
-                principal, _ = self.principal_for(state)
-                self.assertEqual(principal.role, "teacher")
+                principal, session_after = self.principal_for(state)
+                self.assertEqual(principal, ANONYMOUS)
+                self.assertNotIn("uid", session_after)
 
     def test_valid_account_session_does_not_change_the_cookie(self):
         account = login_as(self.client, self.db_path, "teacher")
@@ -469,9 +472,11 @@ class BridgeBoundariesTest(unittest.TestCase):
         self.assertLess(hooks.index("protect_same_origin_unsafe_methods"), hooks.index("load_current_user"))
         self.assertLess(hooks.index("load_current_user"), hooks.index("enforce_access_policy"))
 
-    def test_no_login_logout_or_password_routes_exist(self):
+    def test_account_routes_exist_and_no_registration_route_does(self):
         paths = {rule.rule for rule in web_app.app.url_map.iter_rules()}
-        for forbidden in ("/login", "/logout", "/account/password", "/register"):
+        for expected in ("/login", "/logout", "/account/password"):
+            self.assertIn(expected, paths)
+        for forbidden in ("/register", "/signup", "/account/reset", "/oauth"):
             self.assertNotIn(forbidden, paths)
 
 

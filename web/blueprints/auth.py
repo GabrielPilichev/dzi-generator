@@ -42,9 +42,9 @@ def password_matches(submitted_password: str | None, configured_password: str | 
     )
 
 
-# The request Principal is the one source of authentication state for the UI as well
-# as for route policies: an account principal wins, and without an account session the
-# legacy tester/admin keys are read by ``web.access.principal_from_session``.
+# Template state follows the request principal, so an account identity decides it
+# and legacy keys in the same cookie cannot contradict it. For a legacy session the
+# values are what the keys always produced.
 def is_admin_authenticated() -> bool:
     return current_principal().is_admin
 
@@ -53,12 +53,8 @@ def is_tester_authenticated() -> bool:
     return current_principal().is_teacher
 
 
-def is_account_session() -> bool:
-    return current_principal().user_id is not None
-
-
 def can_generate_tests() -> bool:
-    return is_tester_authenticated() or is_admin_authenticated()
+    return current_principal().is_teacher
 
 
 @auth_bp.app_context_processor
@@ -67,7 +63,6 @@ def inject_tester_auth():
         "tester_authenticated": is_tester_authenticated(),
         "tester_password_configured": tester_password_configured(),
         "can_generate_tests": can_generate_tests(),
-        "account_session": is_account_session(),
     }
 
 

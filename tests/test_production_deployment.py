@@ -642,12 +642,16 @@ class DeploymentTemplateTest(unittest.TestCase):
         self.assertRegex(conf, r"map \$request_method \$learnpilot_post_client\s*\{\s*default \"\";\s*POST \$binary_remote_addr;")
         for zone, rate, burst in (("lp_admin_login", "5r/m", 10),
                                   ("lp_tester_login", "5r/m", 10),
+                                  # Account sign-in: classroom-sized, a class shares one NAT.
+                                  ("lp_login", "1r/s", 40),
                                   ("lp_quiz_write", "20r/s", 90),
                                   ("lp_upload", "2r/s", 45)):
             self.assertIn(f"zone={zone}:1m rate={rate};", conf)
             self.assertIn(f"limit_req zone={zone} burst={burst} nodelay;", conf)
-        for path in ("/admin/login", "/tester/login"):
+        for path in ("/admin/login", "/tester/login", "/login"):
             self.assertIn(f"location = {path}", conf)
+        self.assertRegex(conf, r"location = /login \{\s+limit_req zone=lp_login burst=40 nodelay;")
+        self.assertEqual(len(re.findall(r"limit_req zone=lp_login\b", conf)), 1)
         self.assertIn("location ~ ^/quiz/[0-9]+$", conf)
         self.assertIn("location ~ ^/quiz/attempt/[0-9]+$", conf)
         self.assertIn("location ~ ^/quiz/attempt/[0-9]+/practical/[^/]+/task/[0-9]+/upload$", conf)
