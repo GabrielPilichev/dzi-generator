@@ -58,8 +58,9 @@ EXPECTED_ACCESS_MATRIX = {
     "teacher.teacher_assignment_results_export": access.ASSIGNMENT_OWNER,
     "teacher.teacher_assignment_edit": access.ASSIGNMENT_OWNER,
     "teacher.teacher_assignment_duplicate": access.ASSIGNMENT_OWNER,
-    "practical.teacher_practical_submissions": access.ADMIN,
-    "practical.teacher_practical_submission_file_download": access.ADMIN,
+    # Accounts PR8: same route policy; ownership follows the submission's assignment.
+    "practical.teacher_practical_submissions": access.ASSIGNMENT_OWNER,
+    "practical.teacher_practical_submission_file_download": access.ASSIGNMENT_OWNER,
     "quiz.quiz_attempt": access.ATTEMPT_OWNER,
     "quiz.quiz_result": access.ATTEMPT_OWNER,
     "practical.quiz_practical_attempt": access.ATTEMPT_OWNER,
@@ -522,21 +523,25 @@ class AccessPolicyRouteTest(IsolatedAppTestCase):
         self.assertEqual(self.client.get("/teacher/new").status_code, 200)
 
     def test_admin_route_denies_tester_and_allows_admin(self):
-        for path in ("/teacher", "/teacher/practical-submissions", "/dzi"):
+        for path in ("/teacher", "/dzi"):
             with self.subTest(path=path):
                 self._as_tester()
                 response = self.client.get(path)
                 self.assertEqual(response.status_code, 302, path)
                 self.assertIn("/admin/login", response.headers["Location"], path)
-        # The assignment list (PR7) also denies the legacy tester, to the account login.
-        self._as_tester()
-        response = self.client.get("/teacher/assignments")
-        self.assertEqual(response.status_code, 302)
-        self.assertTrue(response.headers["Location"].startswith("/login?"))
+        # The assignment list (PR7) and practical review (PR8) also deny the
+        # legacy tester, to the account login.
+        for path in ("/teacher/assignments", "/teacher/practical-submissions",
+                     "/teacher/practical/submission-file/1/download"):
+            with self.subTest(path=path):
+                self._as_tester()
+                response = self.client.get(path)
+                self.assertEqual(response.status_code, 302, path)
+                self.assertTrue(response.headers["Location"].startswith("/login?"), path)
 
         self.client = self.app.test_client()
         self._as_admin()
-        for path in ("/teacher", "/teacher/assignments", "/dzi"):
+        for path in ("/teacher", "/teacher/assignments", "/teacher/practical-submissions", "/dzi"):
             with self.subTest(path=path, principal="admin"):
                 self.assertEqual(self.client.get(path).status_code, 200, path)
 

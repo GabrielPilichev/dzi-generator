@@ -41,8 +41,8 @@ CODE_EXPIRED = "Времето за въвеждане на кода изтеч�
 CODE_UNAVAILABLE = "Двуфакторното удостоверяване временно не е достъпно. Опитай по-късно."
 NOT_ENROLLED = "Профилът изисква двуфакторно удостоверяване, което още не е настроено."
 ADMIN_PATHS = ("/teacher", "/teacher/dzi-training", "/dzi")
-# assignment_owner routes (Accounts PR7) deny to the account login.
-ASSIGNMENT_PATHS = ("/teacher/assignments",)
+# assignment_owner routes (Accounts PR7/PR8) deny to the account login.
+ASSIGNMENT_PATHS = ("/teacher/assignments", "/teacher/practical-submissions")
 
 
 class AdminTotpTestCase(AccountAppTestCase):

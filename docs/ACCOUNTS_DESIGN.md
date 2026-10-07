@@ -392,7 +392,14 @@ existing `Principal(is_teacher=..., is_admin=...)` constructions stay valid.
   legacy tester session, which has no account id, is not admitted), and the
   view checks `can_manage_assignment` (admin, or an owner equal to a non-NULL
   account id) on the loaded row and answers 404. Implemented in PR 7; PR 8
-  reuses the same predicate from `web/access.py`.
+  reuses the same policy, predicate and SQL scope from `web/access.py` for
+  practical review.
+- Practical review (PR 8, implemented): the submission list and the stored-file
+  download are `assignment_owner`. Ownership follows file → submission →
+  attempt → assignment → `owner_user_id`; the list is filtered in SQL and the
+  download checks the predicate before the file is looked at on disk. An admin
+  keeps every submission; an unowned (NULL) assignment's practical data is
+  admin-only; the legacy tester has no practical-review access.
 
 **Target flows**
 
@@ -423,7 +430,8 @@ existing `Principal(is_teacher=..., is_admin=...)` constructions stay valid.
   ones, which is today's behaviour and never exposes an account teacher's
   assignments. From PR 7 this is view-only detail compatibility: the tester
   cannot list, edit, duplicate, read results or CSV, or review answers of any
-  assignment, unowned ones included.
+  assignment, unowned ones included. PR 8 adds no tester exception: practical
+  review and submission-file downloads are closed to the tester.
 - Denial redirects keep pointing at `/tester/login` and `/admin/login` until
   the cutover PR, except the `assignment_owner` routes (PR 7), which send to
   the account login `/login`.
@@ -663,7 +671,7 @@ account forms.**
 | 5 | Move test helpers to `tests/auth_helpers.py` | `tests/` only | — | Suite green; query budgets re-baselined by exactly the one user lookup | Any app change | 3 |
 | 6 | Assignment ownership | `web/migrations/014_assignment_owner.sql`, `web/blueprints/teacher.py`, `web/services/quiz.py` | 014 | Stamped on create; foreign teacher gets 404; admin sees all; legacy tester sees unowned only | Changing which routes are admin-only | 4 |
 | 7 | Owner-scoped teacher routes | `web/blueprints/teacher.py`, templates, access matrix test, contract doc | — | Results, CSV, edit, duplicate, list for owner; 404 for others; list query count bounded | Practical review, dashboard | 6 |
-| 8 | Practical review for owning teachers | `web/blueprints/practical.py`, `web/services/practical.py` | — | Owner scope on listing and file download; path safety unchanged | Upload limits | 7 |
+| 8 | Practical review for owning teachers | `web/blueprints/practical.py`, `web/services/practical.py`, review templates, contract doc | — | Owner scope on listing and file download; 404 for foreign and unowned files before any file access; path safety unchanged | Upload limits, student practical flow, official resource downloads | 7 |
 | T | Admin TOTP (separate security PR; design in §23) | `web/migrations/016_admin_totp.sql`, `web/services/totp.py`, `web/blueprints/account.py`, `login_totp.html`, `src/manage_accounts.py`, `web/production.py`, `requirements.txt`, Nginx, docs | 016 | §23 | Anything outside admin second factor; web enrolment | 4 |
 | 9 | Cutover | `web/access.py`, `web/app.py`, `web/production.py`, `403.html`, env template, docs | — | Denials go to `/login`; 403 for wrong role; flag off disables legacy; production config validation | Deleting legacy code | 4, 5, T |
 | 10 | Remove legacy | `web/blueprints/auth.py`, legacy templates, `ui_profile`, Nginx zones, `AGENTS.md` smoke checklist | — | Legacy routes gone; url-map snapshots updated; no reference to the removed keys | — | 9 |

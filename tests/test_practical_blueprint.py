@@ -25,9 +25,9 @@ E2_ROUTES = {
         "practical.quiz_practical_upload", {"POST"}, access.ATTEMPT_OWNER,
         request_integrity.SAME_ORIGIN),
     "/teacher/practical-submissions": (
-        "practical.teacher_practical_submissions", {"GET"}, access.ADMIN, None),
+        "practical.teacher_practical_submissions", {"GET"}, access.ASSIGNMENT_OWNER, None),
     "/teacher/practical/submission-file/<int:file_id>/download": (
-        "practical.teacher_practical_submission_file_download", {"GET"}, access.ADMIN, None),
+        "practical.teacher_practical_submission_file_download", {"GET"}, access.ASSIGNMENT_OWNER, None),
 }
 OLD_ENDPOINTS = (
     "dzi_practical_resource_download", "quiz_practical_attempt", "quiz_practical_upload",
@@ -156,17 +156,19 @@ class PracticalRoutesBehaviorTest(IsolatedAppTestCase):
         return client
 
     def test_admin_only_routes_deny_everyone_else(self):
+        # The official resource download stays admin-only; the review routes
+        # (Accounts PR8) are assignment_owner and deny to the account login.
         paths = (
-            "/dzi/practical/resource/1/download",
-            "/teacher/practical-submissions",
-            "/teacher/practical/submission-file/1/download",
+            ("/dzi/practical/resource/1/download", "/admin/login"),
+            ("/teacher/practical-submissions", "/login?"),
+            ("/teacher/practical/submission-file/1/download", "/login?"),
         )
-        for path in paths:
+        for path, login in paths:
             for who in ("anonymous", "tester", "profile_only"):
                 with self.subTest(path=path, who=who):
                     response = self.client_for(who).get(path)
                     self.assertEqual(response.status_code, 302)
-                    self.assertTrue(response.headers["Location"].startswith("/admin/login"))
+                    self.assertTrue(response.headers["Location"].startswith(login))
 
     def test_admin_reaches_the_review_page(self):
         self.assertEqual(self.client_for("admin").get("/teacher/practical-submissions").status_code, 200)
