@@ -4,6 +4,7 @@ import unittest
 from pathlib import Path
 
 
+from tests.auth_helpers import add_users_schema, sign_in_admin, sign_in_teacher
 from tests.support import IsolatedAppTestCase, web_app
 
 
@@ -39,14 +40,13 @@ class PracticalSubmissionReviewTest(IsolatedAppTestCase):
         web_app.app.config["PRACTICAL_UPLOAD_ROOT"] = self.old_upload_root
 
     def _admin_client(self):
-        with self.client.session_transaction() as sess:
-            sess["admin_authenticated"] = True
-            sess["ui_profile"] = "admin"
+        sign_in_admin(self.client, web_app.app.config["DB_PATH"])
         return self.client
 
     def _create_db(self):
         conn = sqlite3.connect(self.db_path)
         try:
+            add_users_schema(conn)  # real account rows for the helpers; the rest is minimal
             conn.executescript("""
                 CREATE TABLE exams (
                     id INTEGER PRIMARY KEY,
@@ -242,9 +242,7 @@ class PracticalSubmissionReviewTest(IsolatedAppTestCase):
         self.assertEqual(response.status_code, 404)
 
     def test_tester_without_admin_cannot_access_review_or_download(self):
-        with self.client.session_transaction() as sess:
-            sess["tester_authenticated"] = True
-            sess["ui_profile"] = "tester"
+        sign_in_teacher(self.client, web_app.app.config["DB_PATH"])
 
         page = self.client.get("/teacher/practical-submissions")
         download = self.client.get("/teacher/practical/submission-file/1/download")

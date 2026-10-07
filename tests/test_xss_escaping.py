@@ -19,6 +19,7 @@ import unittest
 from pathlib import Path
 
 
+from tests.auth_helpers import add_users_schema, sign_in_admin
 from tests.support import IsolatedAppTestCase, web_app
 
 
@@ -66,9 +67,7 @@ class PracticalTeacherReviewPageEscapingTest(IsolatedAppTestCase):
             PRACTICAL_UPLOAD_ROOT=str(self.upload_root),
         )
         self.client = web_app.app.test_client()
-        with self.client.session_transaction() as sess:
-            sess["admin_authenticated"] = True
-            sess["ui_profile"] = "admin"
+        sign_in_admin(self.client, self.db_path)
 
     def _restore_app_config(self):
         web_app.PROJECT_ROOT = self.old_project_root
@@ -78,6 +77,7 @@ class PracticalTeacherReviewPageEscapingTest(IsolatedAppTestCase):
     def _create_db(self):
         conn = sqlite3.connect(self.db_path)
         try:
+            add_users_schema(conn)
             conn.executescript("""
                 CREATE TABLE exams (
                     id INTEGER PRIMARY KEY,

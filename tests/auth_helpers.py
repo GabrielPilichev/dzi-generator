@@ -1,9 +1,9 @@
 """Account session helpers for tests (Accounts PR 3).
 
 Creates a real ``users`` row and injects the approved session shape
-(``uid``, ``sk``, ``iat``) into a test client, without going through ``/login``
-(which costs a scrypt verification per call). PR 5 moves the legacy per-file
-helpers onto this module.
+(``uid``, ``sk``, ``iat``) into a test client, bypassing the login POST (and its
+password hashing). Role and active state are never written into the cookie; the
+request's principal loader reads them from the temporary test database.
 """
 
 from __future__ import annotations
@@ -12,7 +12,13 @@ import sqlite3
 import time
 from contextlib import closing
 
+from tests.support import ROOT
 from web.services import accounts
+
+
+def add_users_schema(conn: sqlite3.Connection) -> None:
+    """Create the real ``users`` table (migration 012) in a hand-built minimal-schema test DB."""
+    conn.executescript((ROOT / "web" / "migrations" / "012_users.sql").read_text(encoding="utf-8"))
 
 
 def create_account(db_path, role: str = "student", *, display_name: str = "Тест Потребител",
@@ -42,3 +48,20 @@ def login_as(client, db_path, role: str = "student", **account_options) -> dict:
     account = create_account(db_path, role, **account_options)
     set_account_session(client, account["id"], account["session_key"])
     return account
+
+
+def sign_in_account(client, db_path, role: str = "student", **account_options) -> dict:
+    """Alias of :func:`login_as`: sign ``client`` in as a new account of ``role``."""
+    return login_as(client, db_path, role, **account_options)
+
+
+def sign_in_student(client, db_path, **account_options) -> dict:
+    return login_as(client, db_path, "student", **account_options)
+
+
+def sign_in_teacher(client, db_path, **account_options) -> dict:
+    return login_as(client, db_path, "teacher", **account_options)
+
+
+def sign_in_admin(client, db_path, **account_options) -> dict:
+    return login_as(client, db_path, "admin", **account_options)

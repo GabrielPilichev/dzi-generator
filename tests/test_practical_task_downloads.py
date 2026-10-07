@@ -17,6 +17,7 @@ from src.practical_resource_resolution import (
     resolve_resource_reference,
 )
 
+from tests.auth_helpers import add_users_schema, sign_in_admin, sign_in_teacher
 from tests.support import IsolatedAppTestCase, web_app
 from web.services import practical as practical_service
 
@@ -60,9 +61,7 @@ class PracticalTaskDownloadsTest(IsolatedAppTestCase):
             PRACTICAL_TASK_BATCH_DIR=str(self.batch_dir),
         )
         self.client = web_app.app.test_client()
-        with self.client.session_transaction() as sess:
-            sess["admin_authenticated"] = True
-            sess["ui_profile"] = "admin"
+        sign_in_admin(self.client, self.db_path)
 
     def _restore_app_config(self):
         web_app.app.config.update(self.old_config)
@@ -72,6 +71,7 @@ class PracticalTaskDownloadsTest(IsolatedAppTestCase):
     def _create_db(self):
         conn = sqlite3.connect(self.db_path)
         try:
+            add_users_schema(conn)
             conn.executescript("""
                 CREATE TABLE exams (
                     id INTEGER PRIMARY KEY,
@@ -570,9 +570,7 @@ class PracticalTaskDownloadsTest(IsolatedAppTestCase):
                 self.assertEqual(denied.status_code, 302)
                 self.assertIn("/admin/login", denied.headers["Location"])
                 denied.close()
-                with anonymous.session_transaction() as sess:
-                    sess["tester_authenticated"] = True
-                    sess["ui_profile"] = "tester"
+                sign_in_teacher(anonymous, self.db_path)
                 denied_tester = anonymous.get(url)
                 self.assertEqual(denied_tester.status_code, 302)
                 self.assertIn("/admin/login", denied_tester.headers["Location"])
