@@ -22,6 +22,7 @@ from src.subject_content import (
     IT, canonical_subject, question_ownership, question_ownerships, section_ownership,
     section_ownerships, topic_ownership, topic_ownerships,
 )
+from tests.auth_helpers import sign_in_teacher
 from tests.subject_fixtures import (
     add_curriculum, add_membership, add_question, add_section, add_topic, four_options,
 )
@@ -64,9 +65,7 @@ def statement_families(statements):
 class TeacherNewPageMixin:
     def _tester_client(self):
         client = web_app.app.test_client()
-        with client.session_transaction() as session:
-            session["tester_authenticated"] = True
-            session["ui_profile"] = "tester"
+        sign_in_teacher(client, web_app.app.config["DB_PATH"])
         return client
 
     def get_page(self, url="/teacher/new?subject=physics", client=None):

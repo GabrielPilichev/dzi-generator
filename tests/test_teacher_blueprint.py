@@ -12,6 +12,7 @@ import subprocess
 import sys
 import unittest
 
+from tests.auth_helpers import sign_in_admin, sign_in_student, sign_in_teacher
 from tests.support import ROOT, IsolatedAppTestCase, web_app
 from web import access, request_integrity
 
@@ -142,6 +143,17 @@ class TeacherRoutesBehaviorTest(IsolatedAppTestCase):
         with client.session_transaction() as state:
             state.update(self.SESSIONS[who])
         return client
+
+    def test_account_roles_reach_the_same_pages_as_the_legacy_sessions(self):
+        db_path = web_app.app.config["DB_PATH"]
+        for sign_in, new_status, admin_status in (
+            (sign_in_student, 302, 302), (sign_in_teacher, 200, 302), (sign_in_admin, 200, 200),
+        ):
+            client = web_app.app.test_client()
+            sign_in(client, db_path)
+            with self.subTest(sign_in=sign_in.__name__):
+                self.assertEqual(client.get("/teacher/new").status_code, new_status)
+                self.assertEqual(client.get("/teacher/assignments").status_code, admin_status)
 
     def test_teacher_new_is_open_to_tester_and_admin_only(self):
         for who, expected in (("anonymous", 302), ("profile_only", 302),

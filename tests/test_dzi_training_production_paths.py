@@ -7,6 +7,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from tests.auth_helpers import sign_in_admin
 from tests.support import ROOT, IsolatedAppTestCase, build_test_database, web_app
 
 
@@ -49,9 +50,7 @@ class TrainingGeneratorPathTest(unittest.TestCase):
 class TrainingRoutePathTest(IsolatedAppTestCase):
     def test_teacher_route_passes_configured_external_paths(self):
         client = web_app.app.test_client()
-        with client.session_transaction() as sess:
-            sess["admin_authenticated"] = True
-            sess["ui_profile"] = "admin"
+        sign_in_admin(client, web_app.app.config["DB_PATH"])
         with patch("subprocess.run", return_value=subprocess.CompletedProcess([], 0, "ok", "")) as run:
             response = client.post("/teacher/dzi-training", data={"count": "1"})
         self.assertEqual(response.status_code, 200)

@@ -9,6 +9,7 @@ from unittest.mock import patch
 from src.dzi_open_questions import fetch_dzi_open_questions
 from src.generate_dzi_training_set import get_pool, choose_questions, allocate_counts
 from src.subject_assessment import AssessmentScope
+from tests.auth_helpers import sign_in_admin
 from tests.dzi_open_fixtures import mark_dzi_question
 from tests.subject_fixtures import add_curriculum, add_membership, add_question, add_section, add_topic, four_options
 from tests.support import IsolatedAppTestCase, web_app
@@ -100,10 +101,7 @@ class OpenQuestionScopeTest(IsolatedAppTestCase):
 
     def setUp(self):
         self.client = self.app.test_client()
-        with self.client.session_transaction() as session:
-            session['tester_authenticated'] = True
-            session['admin_authenticated'] = True
-            session['ui_profile'] = 'admin'
+        sign_in_admin(self.client, web_app.app.config["DB_PATH"])
 
     def summary(self, key):
         conn = web_app.quiz_db()
