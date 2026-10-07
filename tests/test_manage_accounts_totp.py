@@ -255,6 +255,82 @@ class RecoveryAndResetTest(TotpCliTestCase):
         self.assertNotIn("otpauth", self.out)
 
 
+class RoleSemanticsTest(TotpCliTestCase):
+    """enrol/confirm/recovery-codes need a current admin; reset works for any role."""
+
+    def snapshot(self):
+        return (self.query("SELECT email, role, session_key FROM users ORDER BY id"),
+                self.query("SELECT user_id, secret_ciphertext, confirmed_at, last_used_step "
+                           "FROM totp_credentials"),
+                self.query("SELECT user_id, code_hash, used_at FROM totp_recovery_codes ORDER BY id"))
+
+    def demote(self, email="admin@example.bg", role="teacher"):
+        self.assertEqual(self.run_cli("set-role", "--email", email, "--role", role), 0, self.err)
+
+    def assert_rejected(self, *argv, stdin=None):
+        before = self.snapshot()
+        self.assertEqual(self.run_cli(*argv, stdin=stdin), 1)
+        self.assertIn("not an admin", self.err)
+        self.assertNotIn("otpauth", self.out)
+        self.assertEqual(CODE_LINE.findall(self.out), [])
+        self.assertEqual(self.snapshot(), before)  # no credential, code or session-key change
+
+    def test_current_admin_can_run_every_command(self):
+        self.create()
+        secret = self.enroll()
+        self.assertEqual(len(self.confirm(secret)), totp.RECOVERY_CODE_COUNT)
+        self.assertEqual(self.run_cli("totp-recovery-codes", "--email", "admin@example.bg"), 0, self.err)
+        self.assertEqual(len(CODE_LINE.findall(self.out)), totp.RECOVERY_CODE_COUNT)
+        self.assertEqual(self.run_cli("totp-reset", "--email", "admin@example.bg"), 0, self.err)
+        self.assertIsNone(self.state())
+
+    def test_demoted_confirmed_admin_cannot_enrol_confirm_or_regenerate(self):
+        self.create()
+        self.confirm(self.enroll())
+        self.demote()
+        for argv, stdin in ((("totp-enroll", "--email", "admin@example.bg"), None),
+                            (("totp-recovery-codes", "--email", "admin@example.bg"), None),
+                            (("totp-confirm", "--email", "admin@example.bg", "--code-stdin"), "123456\n")):
+            with self.subTest(command=argv[0]):
+                self.assert_rejected(*argv, stdin=stdin)
+
+    def test_demoted_unconfirmed_admin_cannot_confirm(self):
+        self.create()
+        secret = self.enroll()
+        self.demote()
+        self.assert_rejected("totp-confirm", "--email", "admin@example.bg", "--code-stdin",
+                             stdin=pyotp.TOTP(secret).now() + "\n")
+        self.assertEqual(self.state(), "unconfirmed")
+
+    def test_reset_cleans_up_a_demoted_account(self):
+        self.create()
+        self.confirm(self.enroll())
+        self.demote()
+        before = self.session_key()
+        self.assertEqual(self.run_cli("totp-reset", "--email", "admin@example.bg"), 0, self.err)
+        self.assertIsNone(self.state())
+        self.assertEqual(self.query("SELECT COUNT(*) FROM totp_recovery_codes")[0][0], 0)
+        self.assertNotEqual(self.session_key(), before)
+        self.assertEqual(self.query("SELECT role FROM users")[0][0], "teacher")  # role untouched
+        self.assert_rejected("totp-enroll", "--email", "admin@example.bg")  # and still no re-enrolment
+
+    def test_teachers_and_students_without_credentials_are_rejected(self):
+        for role in ("teacher", "student"):
+            email = f"{role}@example.bg"
+            self.create(email, role)
+            for argv, stdin in ((("totp-enroll", "--email", email), None),
+                                (("totp-recovery-codes", "--email", email), None),
+                                (("totp-confirm", "--email", email, "--code-stdin"), "123456\n")):
+                with self.subTest(role=role, command=argv[0]):
+                    self.assert_rejected(*argv, stdin=stdin)
+        self.assertIsNone(self.state())
+
+    def test_reset_on_an_account_without_credentials_still_works(self):
+        self.create("teacher@example.bg", "teacher")
+        self.assertEqual(self.run_cli("totp-reset", "--email", "teacher@example.bg"), 0, self.err)
+        self.assertIn("no TOTP was enrolled", self.out)
+
+
 class DatabaseTargetingTest(TotpCliTestCase):
     migrations = ("012_users.sql",)
 

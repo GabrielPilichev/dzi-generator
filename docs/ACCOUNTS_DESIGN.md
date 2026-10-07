@@ -765,7 +765,8 @@ Still open, none of which blocks phase 1:
   closes it (§23), and migration 016 ends every earlier admin session.
 - **The legacy env-password admin has no second factor.** It is bounded by the
   legacy flag and removed by PRs 9–10; PR T does not change it.
-- **Loss of `DZI_TOTP_KEY`** makes every TOTP secret unreadable; recovery codes
+- **Loss of `DZI_TOTP_KEY`** makes every TOTP secret unreadable (TOTP codes fail
+  closed; a malformed configured key stops production startup); recovery codes
   still work, and `totp-reset` plus re-enrolment restores access.
 
 ## 23. Admin TOTP (PR T)
@@ -806,8 +807,11 @@ startup rejects a malformed value. Keys, secrets and codes are never logged.
 unconfirmed credential and prints the `otpauth://` URI once. `totp-confirm`
 activates it only after a current code verifies; that step becomes
 `last_used_step`, and ten recovery codes are printed once. `totp-recovery-codes`
-replaces them. `totp-reset` deletes the credential and its codes; it is the
-administrative recovery path. Enrol, confirm and reset rotate `session_key`.
+replaces them. `totp-enroll`, `totp-confirm` and `totp-recovery-codes` require a
+current admin, so a demoted account cannot establish or regenerate usable admin
+MFA. `totp-reset` works for any role (it only removes material, e.g. after a
+demotion); it deletes the credential and its codes and is the administrative
+recovery path. Enrol, confirm and reset rotate `session_key`.
 There is no web enrolment or recovery route.
 
 **Sign-in.**

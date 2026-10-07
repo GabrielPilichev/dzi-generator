@@ -121,7 +121,7 @@ sudoedit /etc/learnpilot/learnpilot.env
 | `DZI_SECRET_KEY` | yes | at least 32 characters; keep stable (rotating it signs everyone out) |
 | `DZI_ADMIN_PASSWORD` | yes | at least 12 characters, not a documented local value |
 | `DZI_TESTER_PASSWORD` | yes | at least 12 characters, different from the admin password |
-| `DZI_TOTP_KEY` | for admin accounts | Fernet key that encrypts admin TOTP secrets (`python3 -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'`). Unset: startup is allowed, but admin TOTP sign-in fails closed (503). A malformed value stops startup. Keep it stable and backed up apart from database backups; losing it means `totp-reset` and re-enrolment for every admin |
+| `DZI_TOTP_KEY` | for admin accounts | Fernet key that encrypts admin TOTP secrets (`python3 -c 'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())'`). Normal TOTP verification needs it: unset or wrong, a TOTP code fails closed (503). Single-use recovery codes do not need it and stay usable as the temporary recovery path. Unset: startup is allowed. A malformed configured value is a configuration error and stops startup. Keep it stable and backed up apart from database backups; if it is lost, restore the correct key, or use `totp-reset` and re-enrol each admin |
 | `DZI_DB` | yes | absolute path of the existing live database, outside the checkout |
 | `DZI_UPLOAD_ROOT` | yes | absolute, existing, writable directory outside the checkout |
 | `DZI_VAULT` | yes | absolute, existing, writable directory outside the checkout |
@@ -718,8 +718,10 @@ python3 -m src.manage_accounts --db "$DZI_DB" totp-reset --email admin@example.b
   inactive until `totp-confirm` verifies a current code (prompted without echo,
   or `--code-stdin`); it then prints ten single-use recovery codes once, stored
   only as scrypt hashes. `totp-recovery-codes` replaces them all.
-  `totp-reset` removes the credential and its codes (the operator recovery path
-  for a lost device). Enrol, confirm and reset rotate the session key. Both
+  `totp-enroll`, `totp-confirm` and `totp-recovery-codes` require the account to
+  currently be an admin; a demoted account is rejected without any change.
+  `totp-reset` works for any role, because it only removes credentials (the
+  operator recovery path for a lost device, and cleanup after a demotion). Enrol, confirm and reset rotate the session key. Both
   `DZI_TOTP_KEY` values must match the running application's; the key is never
   printed. Migration 016 itself rotates the session keys of existing admin
   accounts, so no admin session issued before it survives the upgrade.

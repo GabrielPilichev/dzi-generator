@@ -275,6 +275,19 @@ def require_totp_tables(conn: sqlite3.Connection) -> None:
         )
 
 
+def require_admin(user: dict) -> None:
+    """TOTP credentials are established and regenerated only for a current admin.
+
+    ``totp-reset`` deliberately skips this check: it removes authentication material, so
+    a demoted account's leftover credential can still be cleaned up.
+    """
+    if user["role"] != "admin":
+        raise OperatorError(
+            "TOTP is the admin second factor; this account is not an admin "
+            "(use totp-reset to remove leftover TOTP state)"
+        )
+
+
 def require_totp_key() -> str:
     """The configured TOTP key; there is no fallback and its value is never printed."""
     key = os.environ.get(TOTP_KEY_ENV)
@@ -299,8 +312,7 @@ def read_code(use_stdin: bool) -> str:
 def cmd_totp_enroll(conn, args) -> str:
     require_totp_tables(conn)
     user = find_user(conn, args.email)
-    if user["role"] != "admin":
-        raise OperatorError("TOTP is the admin second factor; this account is not an admin")
+    require_admin(user)
     key = require_totp_key()
     try:
         uri = totp.enroll(conn, user["id"], key, user["email"])
@@ -319,6 +331,7 @@ def cmd_totp_enroll(conn, args) -> str:
 def cmd_totp_confirm(conn, args) -> str:
     require_totp_tables(conn)
     user = find_user(conn, args.email)
+    require_admin(user)
     key = require_totp_key()
     code = read_code(args.code_stdin)
     try:
@@ -338,6 +351,7 @@ def cmd_totp_confirm(conn, args) -> str:
 def cmd_totp_recovery_codes(conn, args) -> str:
     require_totp_tables(conn)
     user = find_user(conn, args.email)
+    require_admin(user)
     try:
         codes = totp.regenerate_recovery_codes(conn, user["id"])
     except LookupError as exc:
