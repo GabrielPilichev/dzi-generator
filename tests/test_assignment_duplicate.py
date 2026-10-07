@@ -52,18 +52,6 @@ class AssignmentDuplicateTest(IsolatedAppTestCase):
     def _login_tester(self):
         sign_in_teacher(self.client, web_app.app.config["DB_PATH"])
 
-    def _login_legacy_admin(self):
-        # The assignment templates still read the legacy session keys directly, so
-        # UI-visibility assertions need the legacy admin session until the cutover.
-        with self.client.session_transaction() as sess:
-            sess["admin_authenticated"] = True
-            sess["ui_profile"] = "admin"
-
-    def _login_legacy_tester(self):
-        with self.client.session_transaction() as sess:
-            sess["tester_authenticated"] = True
-            sess["ui_profile"] = "tester"
-
     def _create_assignment(
         self,
         *,
@@ -348,7 +336,7 @@ class AssignmentDuplicateTest(IsolatedAppTestCase):
     def test_detail_shows_duplicate_button_for_admin_only(self):
         source_id = self._create_assignment(title="Detail Duplicate Visibility")
         try:
-            self._login_legacy_admin()
+            self._login_admin()
             admin_resp = self.client.get(f"/teacher/assignment/{source_id}")
             self.assertEqual(admin_resp.status_code, 200)
             self.assertIn(
@@ -357,7 +345,7 @@ class AssignmentDuplicateTest(IsolatedAppTestCase):
             )
 
             self.setUp()  # fresh client without admin session
-            self._login_legacy_tester()
+            self._login_tester()
             tester_resp = self.client.get(f"/teacher/assignment/{source_id}")
             self.assertEqual(tester_resp.status_code, 200)
             self.assertNotIn(

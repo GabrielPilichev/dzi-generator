@@ -344,11 +344,13 @@ def load_ui_profile():
     if profile not in VALID_UI_PROFILES:
         profile = "tester"
 
-    if profile == "admin" and not session.get("admin_authenticated"):
+    # Presentation only: the profile is clamped to what the request Principal may use.
+    is_admin = current_principal().is_admin
+    if profile == "admin" and not is_admin:
         profile = "tester"
 
     if session.get("ui_profile") not in VALID_UI_PROFILES or (
-        session.get("ui_profile") == "admin" and not session.get("admin_authenticated")
+        session.get("ui_profile") == "admin" and not is_admin
     ):
         session.pop("ui_profile", None)
     g.ui_profile = profile

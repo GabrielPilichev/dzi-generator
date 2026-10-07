@@ -144,15 +144,18 @@
                     </nav>
                 {% endif %}
 
-                <div class="profile-switch" aria-label="{{ 'Профил' if tester_authenticated or admin_authenticated else 'Вход' }}">
+                <div class="profile-switch" aria-label="{{ 'Профил' if tester_authenticated or admin_authenticated or account_session else 'Вход' }}">
                     {% if admin_authenticated %}
                         <span class="profile-label">Профил</span>
                         <span class="profile-link active">Админ</span>
-                        <a class="profile-link" href="{{ url_for('auth.admin_logout') }}">Изход</a>
+                        {% if not account_session %}<a class="profile-link" href="{{ url_for('auth.admin_logout') }}">Изход</a>{% endif %}
                     {% elif tester_authenticated %}
                         <span class="profile-label">Профил</span>
-                        <span class="profile-link active">Тестер</span>
-                        <a class="profile-link" href="{{ url_for('auth.tester_logout') }}">Изход</a>
+                        <span class="profile-link active">{{ 'Учител' if account_session else 'Тестер' }}</span>
+                        {% if not account_session %}<a class="profile-link" href="{{ url_for('auth.tester_logout') }}">Изход</a>{% endif %}
+                    {% elif account_session %}
+                        <span class="profile-label">Профил</span>
+                        <span class="profile-link active">Ученик</span>
                     {% else %}
                         <a class="profile-link" href="{{ url_for('auth.tester_login', next=request.path) }}">Вход за тестер</a>
                         <a class="profile-link" href="{{ url_for('auth.admin_login', next=request.path) }}">Вход за админ</a>
@@ -165,15 +168,17 @@
                         <div class="mobile-profile-panel">
                             {% if admin_authenticated %}
                                 <span class="profile-link active">Админ</span>
-                                <a class="profile-link" href="{{ url_for('auth.admin_logout') }}">Изход</a>
+                                {% if not account_session %}<a class="profile-link" href="{{ url_for('auth.admin_logout') }}">Изход</a>{% endif %}
                             {% elif tester_authenticated %}
                                 <span class="profile-link active">Тестер</span>
+                                {% if not account_session %}
                                 <a class="profile-link" href="{{ url_for('auth.tester_logout') }}">Изход</a>
                                 <a class="profile-link" href="{{ url_for('auth.admin_login', next=request.path) }}">Вход за админ</a>
+                                {% endif %}
                             {% endif %}
                         </div>
                     </details>
-                {% else %}
+                {% elif not account_session %}
                     <details class="mobile-profile-menu">
                         <summary>Вход</summary>
                         <div class="mobile-profile-panel">

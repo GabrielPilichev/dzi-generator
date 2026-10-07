@@ -16,7 +16,7 @@ import os
 
 from flask import Blueprint, abort, redirect, render_template, request, session, url_for
 
-from web.access import ADMIN, PROFILE_SWITCH, PUBLIC, access_policy
+from web.access import ADMIN, PROFILE_SWITCH, PUBLIC, access_policy, current_principal
 from web.redirects import safe_redirect_target
 from web.request_integrity import SAME_ORIGIN, integrity_policy
 
@@ -42,12 +42,19 @@ def password_matches(submitted_password: str | None, configured_password: str | 
     )
 
 
+# The request Principal is the one source of authentication state for the UI as well
+# as for route policies: an account principal wins, and without an account session the
+# legacy tester/admin keys are read by ``web.access.principal_from_session``.
 def is_admin_authenticated() -> bool:
-    return bool(session.get("admin_authenticated"))
+    return current_principal().is_admin
 
 
 def is_tester_authenticated() -> bool:
-    return bool(session.get("tester_authenticated")) or is_admin_authenticated()
+    return current_principal().is_teacher
+
+
+def is_account_session() -> bool:
+    return current_principal().user_id is not None
 
 
 def can_generate_tests() -> bool:
@@ -60,6 +67,7 @@ def inject_tester_auth():
         "tester_authenticated": is_tester_authenticated(),
         "tester_password_configured": tester_password_configured(),
         "can_generate_tests": can_generate_tests(),
+        "account_session": is_account_session(),
     }
 
 

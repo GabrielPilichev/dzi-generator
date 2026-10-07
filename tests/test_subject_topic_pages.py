@@ -8,6 +8,7 @@ import unittest
 
 from src.subject_assessment import AssessmentScope
 from src.subject_browsing import public_description, public_slug, stored_slug_candidates
+from tests.auth_helpers import sign_in_admin
 from tests.subject_fixtures import (
     add_curriculum, add_membership, add_module, add_question, add_section, add_topic,
     four_options,
@@ -44,9 +45,7 @@ class _PageTestCase(IsolatedAppTestCase):
         self.client = web_app.app.test_client()
 
     def login(self):
-        with self.client.session_transaction() as session:
-            session["tester_authenticated"] = True
-            session["admin_authenticated"] = True
+        sign_in_admin(self.client, web_app.app.config["DB_PATH"])
 
     def page(self, path, status=200):
         response = self.client.get(path)
