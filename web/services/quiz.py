@@ -150,19 +150,51 @@ def quiz_markdown_escape(value: str | None) -> str:
     return (value or "").replace("\r\n", "\n").replace("\r", "\n")
 
 
+# Characters json.dumps(ensure_ascii=False) leaves raw but that YAML treats as a
+# line break, a BOM or a non-printable: C1 controls (incl. NEL), DEL, LS/PS, lone
+# surrogates (not encodable as UTF-8).
+_QUIZ_FRONTMATTER_UNSAFE_RE = _quiz_re.compile("[\x7f-\x9f\u2028\u2029\ufeff\ud800-\udfff]")
+_QUIZ_FRONTMATTER_PLAIN_ITEM_RE = _quiz_re.compile(r"[\w-]+")
+
+
+def quiz_frontmatter_string(value: str) -> str:
+    """Serialize ``value`` as one double-quoted, single-line frontmatter scalar.
+
+    A JSON string is a valid YAML double-quoted scalar: quotes, backslashes,
+    newlines, tabs and control characters are escaped, so the content can never
+    end the scalar, start another key or emit a ``---`` delimiter line. Ordinary
+    Unicode (Bulgarian text) stays readable.
+    """
+    encoded = _quiz_json.dumps(str(value), ensure_ascii=False)
+    return _QUIZ_FRONTMATTER_UNSAFE_RE.sub(lambda m: f"\\u{ord(m.group()):04x}", encoded)
+
+
+def _quiz_frontmatter_list(values: list) -> str:
+    numbers = (int, float)
+    # Plain tags/classes keep their bare form; if any item is not plain, every
+    # string item is quoted so the whole list is a JSON-readable flow sequence.
+    plain = all(
+        isinstance(v, numbers) or _QUIZ_FRONTMATTER_PLAIN_ITEM_RE.fullmatch(str(v))
+        for v in values
+    )
+    items = [
+        str(v) if isinstance(v, numbers) or plain else quiz_frontmatter_string(str(v))
+        for v in values
+    ]
+    return "[" + ", ".join(items) + "]"
+
+
 def quiz_frontmatter(data: dict) -> str:
     lines = ["---"]
     for key, value in data.items():
         if isinstance(value, list):
-            inner = ", ".join(str(v) for v in value)
-            lines.append(f"{key}: [{inner}]")
+            lines.append(f"{key}: {_quiz_frontmatter_list(value)}")
         elif value is None:
             lines.append(f"{key}: null")
-        elif isinstance(value, str):
-            safe = value.replace('"', '\\"')
-            lines.append(f'{key}: "{safe}"')
-        else:
+        elif isinstance(value, (int, float)):
             lines.append(f"{key}: {value}")
+        else:
+            lines.append(f"{key}: {quiz_frontmatter_string(value)}")
     lines.append("---")
     return "\n".join(lines)
 

@@ -64,7 +64,17 @@ def parse_frontmatter(text: str) -> tuple[dict, str]:
     body = text[match.end():]
 
     def convert_scalar(value: str):
-        value = value.strip().strip('"').strip("'")
+        value = value.strip()
+        # A double-quoted scalar with JSON/YAML escapes (what the quiz note
+        # writer emits) decodes to exactly one string, never to structure.
+        if len(value) >= 2 and value.startswith('"') and value.endswith('"'):
+            try:
+                decoded = json.loads(value)
+            except ValueError:
+                decoded = None
+            if isinstance(decoded, str):
+                return decoded
+        value = value.strip('"').strip("'")
         try:
             return int(value)
         except ValueError:
@@ -111,7 +121,18 @@ def parse_frontmatter(text: str) -> tuple[dict, str]:
             current_list_key = key
         elif value.startswith("[") and value.endswith("]"):
             inner = value[1:-1].strip()
-            if not inner:
+            quoted_items = None
+            if '"' in inner:
+                # Quoted items may contain commas: read the list as JSON.
+                try:
+                    quoted_items = json.loads(value)
+                except ValueError:
+                    quoted_items = None
+            if isinstance(quoted_items, list) and all(
+                isinstance(x, (str, int)) and not isinstance(x, bool) for x in quoted_items
+            ):
+                fm[key] = quoted_items
+            elif not inner:
                 fm[key] = []
             else:
                 fm[key] = [convert_scalar(x.strip()) for x in inner.split(",")]
