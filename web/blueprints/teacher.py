@@ -44,8 +44,10 @@ from web.access import (
     can_manage_assignment,
     current_principal,
 )
+from web.public_url import trusted_public_base_url
 from web.request_integrity import SAME_ORIGIN, integrity_policy
 from web.services import practical
+from web.services.qr import qr_svg
 from web.services.quiz import (
     QUIZ_DURATION_FALLBACK_BG,
     QUIZ_SUCCESS_RATE_FALLBACK_BG,
@@ -307,11 +309,13 @@ def _fetch_managed_assignment(conn, assignment_id: int):
 
 
 def _student_quiz_url(assignment) -> str | None:
-    """The absolute student link shown for sharing, on the host this request was
-    served from (validated against ``TRUSTED_HOSTS`` in production). ``None`` while
-    the assignment has no public token; the page then says so instead of a link."""
+    """The absolute student link on the trusted public base URL
+    (:mod:`web.public_url`), never on this request's ``Host``. ``None`` without a
+    valid public token or without a trusted base; the page then says so instead of
+    a link. The link shown for sharing and the one a QR code encodes are both this."""
     entry_path = quiz_student_entry_path(assignment)
-    return request.host_url.rstrip("/") + entry_path if entry_path else None
+    base_url = trusted_public_base_url()
+    return base_url + entry_path if entry_path and base_url else None
 
 
 @teacher_bp.route("/teacher/assignments")
@@ -666,10 +670,46 @@ def teacher_assignment(assignment_id):
         assignment=assignment,
         attempts=attempts,
         quiz_url=quiz_url,
+        qr_available=can_manage and quiz_url is not None,
         mixed_status=mixed_status,
         edit_error=None,
         edit_form_values=None,
         can_manage=can_manage,
+    )
+
+
+QR_SVG_HEADERS = {
+    "Cache-Control": "no-store",
+    "X-Content-Type-Options": "nosniff",
+    # Opened directly, the image is an inert document: nothing loads or runs.
+    "Content-Security-Policy": "default-src 'none'; sandbox",
+}
+
+
+@teacher_bp.route("/teacher/assignment/<int:assignment_id>/qr.svg")
+@access_policy(ASSIGNMENT_OWNER)
+def teacher_assignment_qr(assignment_id):
+    """The student link of a managed assignment as a QR code (SVG).
+
+    Owner or admin only, decided before anything is generated. What is encoded
+    comes from the stored token and the configured public base URL alone; the only
+    request input, ``download=1``, picks attachment over inline. Nothing is stored.
+    """
+    conn = quiz_db()
+    assignment = _fetch_managed_assignment(conn, assignment_id)
+    conn.close()
+    if quiz_student_entry_path(assignment) is None:
+        abort(404)
+    student_url = _student_quiz_url(assignment)
+    if student_url is None:
+        abort(503)  # no trusted public base URL: refuse rather than encode request data
+
+    disposition = "attachment" if request.args.get("download") == "1" else "inline"
+    filename = f"assignment_{int(assignment['id'])}_qr.svg"
+    return Response(
+        qr_svg(student_url),
+        mimetype="image/svg+xml",
+        headers={**QR_SVG_HEADERS, "Content-Disposition": f'{disposition}; filename="{filename}"'},
     )
 
 
@@ -724,6 +764,7 @@ def teacher_assignment_edit(assignment_id):
             assignment=assignment,
             attempts=attempts,
             quiz_url=quiz_url,
+            qr_available=quiz_url is not None,
             mixed_status=mixed_status,
             edit_error=error,
             edit_form_values={"title_bg": raw_title, "time_limit_minutes": raw_time},

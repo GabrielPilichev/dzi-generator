@@ -56,6 +56,7 @@ EXPECTED_ACCESS_MATRIX = {
     "teacher.teacher_assignments": access.ASSIGNMENT_OWNER,
     "teacher.teacher_assignment_results": access.ASSIGNMENT_OWNER,
     "teacher.teacher_assignment_results_export": access.ASSIGNMENT_OWNER,
+    "teacher.teacher_assignment_qr": access.ASSIGNMENT_OWNER,
     "teacher.teacher_assignment_edit": access.ASSIGNMENT_OWNER,
     "teacher.teacher_assignment_duplicate": access.ASSIGNMENT_OWNER,
     # Accounts PR8: same route policy; ownership follows the submission's assignment.

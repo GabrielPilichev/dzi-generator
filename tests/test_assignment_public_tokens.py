@@ -569,19 +569,31 @@ class StudentLinkTest(PublicTokenAppTestCase):
                 with self.subTest(value=value):
                     self.assertIsNone(quiz.quiz_student_entry_path({"public_token": value}))
 
-    def test_shared_link_uses_the_trusted_request_host_only(self):
+    def test_shared_link_uses_the_configured_public_base_not_the_request_host(self):
+        # Production shape: one trusted host and https://<that host> as the configured
+        # base (web.public_url). The request's Host never builds the link.
         path = f"/teacher/assignment/{self.assignment_id}"
-        with patch.dict(web_app.app.config, {"TRUSTED_HOSTS": ["learnpilot.test"]}):
-            client = web_app.app.test_client()
-            with client.session_transaction(base_url="https://learnpilot.test") as session:
-                session.update(uid=self.teacher["id"], sk=self.teacher["session_key"], iat=int(time.time()))
-            trusted = client.get(path, base_url="https://learnpilot.test")
-            self.assertEqual(trusted.status_code, 200)
-            self.assertIn(f'value="https://learnpilot.test/quiz/s/{self.public_token}"',
-                          trusted.get_data(as_text=True))
-            untrusted = client.get(path, base_url="https://evil.example")
-            self.assertEqual(untrusted.status_code, 400)
-            self.assertNotIn(self.public_token, untrusted.get_data(as_text=True))
+        link = f'value="https://learnpilot.test/quiz/s/{self.public_token}"'
+        with patch.dict(web_app.app.config, {"TRUSTED_HOSTS": ["learnpilot.test", "localhost"]}):
+            client = web_app.app.test_client(use_cookies=False)
+            with web_app.app.test_client() as signed_in:
+                with signed_in.session_transaction() as session:
+                    session.update(uid=self.teacher["id"], sk=self.teacher["session_key"], iat=int(time.time()))
+                client.environ_base["HTTP_COOKIE"] = f"session={signed_in.get_cookie('session').value}"
+            with patch.dict(web_app.app.config, {"PUBLIC_BASE_URL": "https://learnpilot.test"}):
+                for base_url in ("https://learnpilot.test", "http://localhost"):
+                    with self.subTest(base_url=base_url):
+                        trusted = client.get(path, base_url=base_url)
+                        self.assertEqual(trusted.status_code, 200)
+                        self.assertIn(link, trusted.get_data(as_text=True))
+                untrusted = client.get(path, base_url="https://evil.example")
+                self.assertEqual(untrusted.status_code, 400)
+                self.assertNotIn(self.public_token, untrusted.get_data(as_text=True))
+            # Nothing configured: a non-loopback host, even a trusted one, builds no link.
+            html = client.get(path, base_url="https://learnpilot.test").get_data(as_text=True)
+            self.assertNotIn("learnpilot.test/quiz", html)
+            self.assertNotIn('id="share-link"', html)
+            self.assertIn('id="share-link-unavailable"', html)
 
     def test_no_template_or_view_builds_the_numeric_student_url(self):
         for path in sorted((ROOT / "web" / "templates").glob("*.html")):

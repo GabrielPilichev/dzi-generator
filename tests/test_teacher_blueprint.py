@@ -1,7 +1,7 @@
 """Roadmap PR E3 — the teacher routes live on their own blueprint.
 
 The application route map (rule, methods, policy, integrity) is pinned in
-``test_dzi_blueprint``; this file pins who owns the nine E3 views, their
+``test_dzi_blueprint``; this file pins who owns the ten teacher views, their
 endpoint names, the dependency direction of the new modules, and the behavior
 of the moved routes that the route map cannot show.
 """
@@ -37,6 +37,8 @@ E3_ROUTES = {
         request_integrity.SAME_ORIGIN),
     "/teacher/assignment/<int:assignment_id>/results.csv": (
         "teacher.teacher_assignment_results_export", {"GET"}, access.ASSIGNMENT_OWNER, None),
+    "/teacher/assignment/<int:assignment_id>/qr.svg": (
+        "teacher.teacher_assignment_qr", {"GET"}, access.ASSIGNMENT_OWNER, None),
 }
 OLD_ENDPOINTS = tuple(endpoint.split(".", 1)[1] for endpoint, *_ in E3_ROUTES.values())
 CONTROLLER_MODULES = (
@@ -168,7 +170,8 @@ class TeacherRoutesBehaviorTest(IsolatedAppTestCase):
 
     def test_missing_assignment_is_not_found(self):
         for path in ("/teacher/assignment/987654", "/teacher/assignment/987654/results",
-                     "/teacher/assignment/987654/results.csv"):
+                     "/teacher/assignment/987654/results.csv",
+                     "/teacher/assignment/987654/qr.svg"):
             with self.subTest(path=path):
                 self.assertEqual(self.client_for("admin").get(path).status_code, 404)
 

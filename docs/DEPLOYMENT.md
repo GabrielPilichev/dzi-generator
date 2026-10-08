@@ -100,6 +100,8 @@ sudo /opt/learnpilot/venv/bin/pip install -r /opt/learnpilot/app/requirements.tx
 ```
 
 `requirements.txt` constrains Flask, Werkzeug and Gunicorn (the production server).
+It also declares `segno` (pure Python, no dependencies of its own), which draws the
+assignment QR codes of section 25; the application does not start without it.
 Record the first-deploy runtime and installed versions as deployment evidence:
 
 ```bash
@@ -125,6 +127,7 @@ sudoedit /etc/learnpilot/learnpilot.env
 | `DZI_VAULT` | yes | absolute, existing, writable directory outside the checkout |
 | `DZI_REFERENCE_ROOT` | no | absolute, existing, readable directory outside the checkout holding the contents of `data/reference/`. Unset: the app looks in the checkout's `data/reference/`, which production does not have, so practical-task downloads show as unavailable |
 | `DZI_PUBLIC_HOST` | yes | the real public DNS hostname in Nginx `server_name`, without scheme or port. It is exactly **one** trusted hostname: a future `www` alias must be deliberately supported in the application (and Certbot), not merely added to Nginx, or Flask answers it with 400 |
+| `DZI_PUBLIC_BASE_URL` | **must be unset** | development-only override of the address in student links and QR codes (section 25). Production always uses `https://` + `DZI_PUBLIC_HOST`; startup rejects this variable when it is set |
 | `DZI_SOURCE_URL` | no | optional footer link |
 | `DZI_SESSION_COOKIE_SECURE` | no | leave unset; any false value is rejected (HTTPS-only cookies) |
 | `FLASK_DEBUG` | no | must not be enabled; startup rejects it |
@@ -1180,6 +1183,80 @@ again, run the backfill once more.
 
 Rolling back only the retirement release (to the token release) needs no data
 change: token links keep working and the numeric entry answers again.
+
+## 25. QR sharing of assignment links
+
+The teacher's assignment page (`/teacher/assignment/<id>`) shows the student
+link, a copy button and a QR code of that link with a download button. No
+migration and no new production setting are involved.
+
+- **What is encoded.** Exactly the absolute student link
+  `https://<DZI_PUBLIC_HOST>/quiz/s/<public_token>`, the same one shown on the
+  page. Never the numeric `/quiz/<id>` (retired), an attempt or result URL, a
+  management URL or anything from the session.
+- **Canonical public URL.** In production the base is always
+  `https://` + `DZI_PUBLIC_HOST`, set at startup by `web.wsgi`
+  (`PUBLIC_BASE_URL` in the Flask configuration; `web/public_url.py`). The
+  `Host` and `X-Forwarded-*` headers of the request never reach the QR code or
+  the displayed link, so a request on a loopback address (a local probe) still
+  yields the public HTTPS link. `DZI_PUBLIC_HOST` is already required and
+  validated (section 6); `DZI_PUBLIC_BASE_URL` must stay unset and startup
+  refuses it. Startup and link building share one hostname check
+  (`normalize_public_host`): an ASCII DNS name of two or more labels, with an
+  internationalized name only in its `xn--` form, and no IP address or other
+  numeric-looking host. If the configured base is ever unusable the endpoint
+  answers 503 and the page shows neither a link nor a QR code but a notice
+  that the public address is not configured; it never falls back to the
+  request.
+- **Endpoint.** `GET /teacher/assignment/<id>/qr.svg` (inline) and the same
+  with `?download=1` (attachment, `assignment_<id>_qr.svg`, named from the
+  numeric id only). No other parameter is read. Policy `assignment_owner`: the
+  owning teacher or an admin (after the second factor); another teacher and a
+  missing assignment are the same 404, a student gets 403 and an anonymous
+  session (a pending second factor included) is redirected to sign-in. An
+  assignment with no valid token (not yet backfilled, section 24) is 404 and
+  its page keeps the backfill notice instead of a link and QR code.
+- **No storage.** The SVG is generated in memory on each request by `segno`
+  (error correction M or better, 4-module quiet zone, black on white). Nothing
+  is written to the database, the vault, uploads or a cache, and no external
+  service, CDN or browser-side library is used. Responses carry
+  `Cache-Control: no-store`, `X-Content-Type-Options: nosniff` and
+  `Content-Security-Policy: default-src 'none'; sandbox`; the SVG is one group
+  of two paths with no scripts, styles, links or remote references.
+- **Deployment.** Install requirements (step 6 of section 20) before the
+  restart, because the release adds `segno`. Nginx needs no change: the route
+  is proxied by `location /` and is not rate limited separately.
+
+Verify after deploying, signed in as a teacher who owns an assignment:
+
+```bash
+# Anonymous: redirected to sign-in, no image.
+curl -sS -o /dev/null -w '%{http_code} %{redirect_url}\n' \
+  https://learnpilot.bg/teacher/assignment/<id>/qr.svg
+```
+
+1. Open `/teacher/assignment/<id>`: the QR code is shown under the student
+   link and "Изтегли QR кода (SVG)" downloads `assignment_<id>_qr.svg`.
+2. Scan the code on the screen with a phone camera (and once from a printed
+   copy of the downloaded file). The phone must offer exactly the link in the
+   "Линк за ученици" field: `https://`, the public hostname and
+   `/quiz/s/<43 characters>`.
+3. Open it on the phone: the assignment's start page appears, and starting
+   asks for sign-in as for any student link.
+4. Signed in as a different teacher, the same `qr.svg` URL answers 404.
+
+For a development run reached from another device, set
+`DZI_PUBLIC_BASE_URL` to the address that device uses before starting the app
+(for example the `https://<name>.trycloudflare.com` of a quick tunnel, or
+`http://<LAN address>:5001`). Unset, a QR code is produced only for requests
+made to `localhost`, `127.0.0.1` or `::1` and encodes that loopback address,
+which a phone cannot open; requests on any other host get neither a student
+link nor a QR code on the page, only the notice that the public address is
+not configured.
+
+Rollback: redeploying the previous release removes the QR code and the route;
+student links and tokens are unaffected, and already printed codes keep working
+because they contain only the token link.
 
 ## 2 GB VPS sizing
 

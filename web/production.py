@@ -11,12 +11,17 @@ from __future__ import annotations
 
 import logging
 import os
-import re
 from pathlib import Path
 from typing import Mapping
 
 from werkzeug.middleware.proxy_fix import ProxyFix
 
+from web.public_url import (
+    PUBLIC_BASE_URL_CONFIG,
+    PUBLIC_BASE_URL_ENV,
+    normalize_public_host,
+    public_base_url_for_host,
+)
 from web.services.totp import TOTP_KEY_ENV
 from web.services.totp import key_problem as totp_key_problem
 
@@ -110,12 +115,18 @@ def production_config_errors(environ: Mapping[str, str]) -> list[str]:
     if flask_debug and flask_debug not in FLASK_DEBUG_OFF_VALUES:
         errors.append("FLASK_DEBUG must not be enabled in production")
 
-    host = (environ.get(PUBLIC_HOST_ENV) or "").strip()
-    if not host or len(host) > 253 or any(len(label) > 63 for label in host.split(".")) or not re.fullmatch(
-        r"(?i)[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+",
-        host,
-    ):
+    # The same check the shared-link base URL is built with (web.public_url), so a
+    # host accepted here can never fail later, when a link or QR code is made.
+    if normalize_public_host(environ.get(PUBLIC_HOST_ENV)) is None:
         errors.append("DZI_PUBLIC_HOST must be a configured DNS hostname without scheme or port")
+
+    # Shared links are built on https://DZI_PUBLIC_HOST; a second, possibly
+    # different, public address would make that ambiguous.
+    if environ.get(PUBLIC_BASE_URL_ENV):
+        errors.append(
+            f"{PUBLIC_BASE_URL_ENV} must not be set in production "
+            f"(the public URL is https://{PUBLIC_HOST_ENV})"
+        )
 
     return errors + _state_path_errors(environ) + _reference_root_errors(environ)
 
@@ -194,13 +205,17 @@ def create_production_app(environ: Mapping[str, str] | None = None):
         )
 
     flask_app = web_app.app
+    public_host = normalize_public_host(environ[PUBLIC_HOST_ENV])
     flask_app.config.update(
         DEBUG=False,
         TESTING=False,
         SESSION_COOKIE_SECURE=True,
         PREFERRED_URL_SCHEME="https",
-        TRUSTED_HOSTS=[environ[PUBLIC_HOST_ENV].strip().lower(), "localhost", "127.0.0.1"],
+        TRUSTED_HOSTS=[public_host, "localhost", "127.0.0.1"],
     )
+    # Student links and their QR codes always name the public host over HTTPS,
+    # whichever trusted Host (a loopback probe included) a request arrived on.
+    flask_app.config[PUBLIC_BASE_URL_CONFIG] = public_base_url_for_host(public_host)
     if not isinstance(flask_app.wsgi_app, ProxyFix):
         flask_app.wsgi_app = trusted_proxy(flask_app.wsgi_app)
     return flask_app
