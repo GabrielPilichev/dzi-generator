@@ -2,7 +2,7 @@
   "format": "learnpilot-canonical-content",
   "format_version": 1,
   "schema": {
-    "migration_level": "016_admin_totp.sql",
+    "migration_level": "017_assignment_public_token.sql",
     "migrations": [
       "000_baseline.sql",
       "001_quiz_tables.sql",
@@ -20,7 +20,8 @@
       "013_login_throttle.sql",
       "014_assignment_owner.sql",
       "015_quiz_attempts_user.sql",
-      "016_admin_totp.sql"
+      "016_admin_totp.sql",
+      "017_assignment_public_token.sql"
     ]
   },
   "classification": {

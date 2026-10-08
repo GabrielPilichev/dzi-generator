@@ -110,7 +110,7 @@ It is the baseline the PR sequence started from, not the current state.
 
 | Policy | Routes |
 | --- | --- |
-| `public` | browsing, `/tester`, both logins, `/tester/logout`, `/quiz/<assignment_id>`, `/healthz` |
+| `public` | browsing, `/tester`, both logins, `/tester/logout`, `/quiz/<assignment_id>`, `/quiz/s/<public_token>` (migration 017), `/healthz` |
 | `teacher` (tester or admin) | `/teacher/new`, `/teacher/assignment/<id>` |
 | `admin` | `/teacher`, `/teacher/assignments`, results, `results.csv`, edit, duplicate, `/teacher/dzi-training`, `/dzi...`, practical review and downloads, `/admin/...`, `/admin/logout` |
 | `attempt_owner` | `/quiz/attempt/<id>`, `/result`, practical page and upload |
@@ -1063,8 +1063,9 @@ gets 404 on it until signing in again (the attempt is then in "my attempts").
 A teacher's or admin's own attempt is an ordinary attempt: it appears in the
 assignment's results and exports next to the students' (a separate preview
 mode does not exist).
-Assignment links are still the sequential `/quiz/<id>`; the unguessable token
-is a later PR. How students get accounts is not solved here: accounts are
+New student links use the unguessable `/quiz/s/<public_token>` (migration 017;
+`docs/DEPLOYMENT.md` section 24); the sequential `/quiz/<id>` still works for
+compatibility until a later PR retires it. How students get accounts is not solved here: accounts are
 created by the operator CLI (§10).
 
 **Rollout prerequisite.** After this version is deployed, a student without an

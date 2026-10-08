@@ -160,8 +160,9 @@ class RunnerUpgradeThrough014And016Test(unittest.TestCase):
             self.assertEqual(conn.execute("PRAGMA foreign_key_check").fetchall(), [])
             history = [row[0] for row in conn.execute("SELECT filename FROM schema_migrations ORDER BY filename")]
             self.assertEqual(
-                history[-3:],
-                ["014_assignment_owner.sql", "015_quiz_attempts_user.sql", "016_admin_totp.sql"],
+                history[-4:],
+                ["014_assignment_owner.sql", "015_quiz_attempts_user.sql", "016_admin_totp.sql",
+                 "017_assignment_public_token.sql"],
             )
 
     def test_reapplying_is_a_noop_and_does_not_rotate_again(self):
@@ -190,8 +191,8 @@ class AdminTotpClassificationTest(unittest.TestCase):
 
     def test_manifest_records_the_level_and_the_exclusions(self):
         manifest = json.loads((ROOT / "data" / "canonical" / "manifest.json").read_text(encoding="utf-8"))
-        self.assertEqual(manifest["schema"]["migration_level"], "016_admin_totp.sql")
-        self.assertEqual(manifest["schema"]["migrations"][-1], "016_admin_totp.sql")
+        self.assertGreaterEqual(manifest["schema"]["migration_level"], "016_admin_totp.sql")
+        self.assertIn("016_admin_totp.sql", manifest["schema"]["migrations"])
         for table in ("totp_credentials", "totp_recovery_codes"):
             self.assertIn(table, manifest["runtime_exclusions"])
             self.assertIn(table, manifest["classification"]["runtime"])
@@ -205,7 +206,7 @@ class AdminTotpClassificationTest(unittest.TestCase):
                     self.assertEqual(conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0], 0)
                 self.assertEqual(conn.execute("SELECT * FROM pragma_foreign_key_check").fetchall(), [])
                 applied = [r[0] for r in conn.execute("SELECT filename FROM schema_migrations ORDER BY filename")]
-                self.assertEqual(applied[-1], "016_admin_totp.sql")
+                self.assertIn("016_admin_totp.sql", applied)
                 self.assertEqual(ct.classification_problems(conn), [])
 
 

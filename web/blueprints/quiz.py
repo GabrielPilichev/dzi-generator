@@ -25,18 +25,38 @@ from web.services import quiz as quiz_service
 
 quiz_bp = Blueprint("quiz", __name__)
 
+# Templates build student links only through this (None: the assignment has no token yet).
+quiz_bp.add_app_template_global(quiz_service.quiz_student_entry_path, "student_quiz_path")
+
 
 @quiz_bp.route("/quiz/<int:assignment_id>", methods=["GET", "POST"])
 @access_policy(PUBLIC)
 @integrity_policy(SAME_ORIGIN)
 def quiz_start(assignment_id):
+    # Compatibility entry by sequential id. New student links use the token route
+    # below; this one never redirects to it and never reveals a token.
+    return _quiz_start(lambda conn: quiz_service.quiz_fetch_assignment(conn, assignment_id))
+
+
+@quiz_bp.route("/quiz/s/<public_token>", methods=["GET", "POST"])
+@access_policy(PUBLIC)
+@integrity_policy(SAME_ORIGIN)
+def quiz_start_public(public_token):
+    # The link a teacher shares. A malformed, unknown or not yet assigned token is
+    # the same 404 and says nothing about which assignments exist.
+    return _quiz_start(
+        lambda conn: quiz_service.quiz_fetch_assignment_by_public_token(conn, public_token)
+    )
+
+
+def _quiz_start(fetch_assignment):
     # The page itself is public (the link is what a teacher shares), but an
     # attempt is only ever started for the signed-in account. Nothing submitted
     # with the form says whose attempt it is.
     principal = current_principal()
     start = None
     with quiz_service.quiz_connection() as conn:
-        assignment = quiz_service.quiz_fetch_assignment(conn, assignment_id)
+        assignment = fetch_assignment(conn)
         if not assignment:
             abort(404)
 

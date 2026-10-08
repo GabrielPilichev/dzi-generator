@@ -65,6 +65,7 @@ from web.services.quiz import (
     quiz_create_assignment,
     quiz_db,
     quiz_fetch_assignment,
+    quiz_student_entry_path,
     quiz_parse_assignment_question_plan,
     quiz_parse_attempt_question_plan,
     quiz_section_question_ids_by_section,
@@ -305,6 +306,14 @@ def _fetch_managed_assignment(conn, assignment_id: int):
     return assignment
 
 
+def _student_quiz_url(assignment) -> str | None:
+    """The absolute student link shown for sharing, on the host this request was
+    served from (validated against ``TRUSTED_HOSTS`` in production). ``None`` while
+    the assignment has no public token; the page then says so instead of a link."""
+    entry_path = quiz_student_entry_path(assignment)
+    return request.host_url.rstrip("/") + entry_path if entry_path else None
+
+
 @teacher_bp.route("/teacher/assignments")
 @access_policy(ASSIGNMENT_OWNER)
 def teacher_assignments():
@@ -334,6 +343,7 @@ def teacher_assignments():
             qa.question_count,
             qa.time_limit_minutes,
             qa.question_plan_json,
+            qa.public_token,
             qa.created_at,
             cs.class,
             cs.title_bg AS section_title,
@@ -647,7 +657,7 @@ def teacher_assignment(assignment_id):
     """, (assignment_id,)).fetchall()
     attempts = attach_attempt_question_image_counts(conn, attempts)
 
-    quiz_url = request.host_url.rstrip("/") + url_for("quiz.quiz_start", assignment_id=assignment_id)
+    quiz_url = _student_quiz_url(assignment)
     mixed_status = quiz_assignment_mixed_status(assignment["question_plan_json"])
     conn.close()
 
@@ -706,7 +716,7 @@ def teacher_assignment_edit(assignment_id):
             WHERE assignment_id = ?
             ORDER BY started_at
         """, (assignment_id,)).fetchall()
-        quiz_url = request.host_url.rstrip("/") + url_for("quiz.quiz_start", assignment_id=assignment_id)
+        quiz_url = _student_quiz_url(assignment)
         mixed_status = quiz_assignment_mixed_status(assignment["question_plan_json"])
         conn.close()
         rendered = render_template(

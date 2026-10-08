@@ -184,6 +184,15 @@ def inject_account():
 def login():
     next_url = _submitted_next()
     if request.method == "GET":
+        # Already signed in (for example after following an external link, whose
+        # first cross-site request carries no SameSite=Strict cookie): go on instead
+        # of asking again. Only a fully validated account counts; a pending second
+        # factor is not a principal and still gets the form.
+        principal = current_principal()
+        if principal.user_id is not None:
+            return redirect(safe_redirect_target(
+                next_url, ROLE_HOME_ENDPOINTS.get(principal.role, "browsing.index")
+            ))
         return render_template("login.html", error=None, next_url=next_url, email="")
 
     submitted_email = request.form.get("email", "")

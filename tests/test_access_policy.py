@@ -42,6 +42,8 @@ EXPECTED_ACCESS_MATRIX = {
     "browsing.healthz": access.PUBLIC,
     "browsing.favicon": access.PUBLIC,
     "quiz.quiz_start": access.PUBLIC,
+    # Student entry by public token; the numeric entry above stays for compatibility.
+    "quiz.quiz_start_public": access.PUBLIC,
     "teacher.teacher_new": access.TEACHER,
     "teacher.teacher_assignment": access.TEACHER,
     "dzi.admin_open_question_candidates": access.ADMIN,
@@ -99,6 +101,7 @@ SAMPLE_VIEW_ARGS = {
     "topic_slug": "sample-topic",
     "source_slug": "may_2025_v2",
     "assignment_id": 1,
+    "public_token": "A" * 43,
     "attempt_id": 1,
     "exam_task_id": 1,
     "resource_id": 1,

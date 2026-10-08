@@ -29,6 +29,7 @@ from tests.support import ROOT, IsolatedAppTestCase, web_app
 from tests.test_account_login import SAME_ORIGIN
 from web import access
 from web.access import ANONYMOUS, Principal, account_principal
+from web.assignment_tokens import new_public_token
 from web.services import accounts as accounts_service
 from web.services import dzi_exams
 from web.services import quiz
@@ -166,8 +167,14 @@ class AccountAttemptTestCase(IsolatedAppTestCase):
             if owner is not None:
                 conn.execute("UPDATE quiz_assignments SET owner_user_id = ? WHERE id = ?",
                              (owner["id"], assignment_id))
+            # Like every assignment the application creates, it has a public token.
+            conn.execute("UPDATE quiz_assignments SET public_token = ? WHERE id = ?",
+                         (new_public_token(), assignment_id))
             conn.commit()
         return assignment_id
+
+    def public_token(self, assignment_id):
+        return self.query("SELECT public_token FROM quiz_assignments WHERE id = ?", (assignment_id,))[0][0]
 
     def historical_attempt(self, assignment_id, student_name="Исторически Ученик", *, submitted=False):
         """An attempt from before accounts: no user_id."""
@@ -541,17 +548,19 @@ class RoleMatrixTest(AccountAttemptTestCase):
             with self.subTest(who=label):
                 client = self.client(account)
                 html = client.get(f"/teacher/assignment/{self.assignment_id}").get_data(as_text=True)
-                self.assertIn(f'<a class="button" href="/quiz/{self.assignment_id}">Отвори теста</a>', html)
+                token = self.public_token(self.assignment_id)
+                self.assertIn(f'<a class="button" href="/quiz/s/{token}">Отвори теста</a>', html)
                 # The link students receive is still there to copy, with honest copy.
                 self.assertIn("Линк за ученици", html)
-                self.assertIn(f'value="http://localhost/quiz/{self.assignment_id}"', html)
+                self.assertIn(f'value="http://localhost/quiz/s/{token}"', html)
+                self.assertNotIn(f'"/quiz/{self.assignment_id}"', html)
                 self.assertIn("Всеки потребител с активен профил може да отвори теста от този линк.", html)
                 self.assertNotIn("Всеки с този линк може да реши теста", html)
                 self.assertIn("Виж резултати", html)
                 self.assertIn("Дублирай теста", html)
 
                 # Following the action: the start page, then the account's own attempt.
-                start_page = client.get(f"/quiz/{self.assignment_id}")
+                start_page = client.get(f"/quiz/s/{token}")
                 self.assertEqual(start_page.status_code, 200)
                 self.assertIn('type="submit">Продължи към теста', start_page.get_data(as_text=True))
                 attempt_id = self.start(client, self.assignment_id)
