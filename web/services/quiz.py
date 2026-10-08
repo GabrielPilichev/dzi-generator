@@ -1997,6 +1997,38 @@ def _quiz_find_account_attempt(conn, assignment_id: int, user_id: int):
     """, (assignment_id, user_id)).fetchone()
 
 
+def _quiz_attempt_order_rng(seed: str) -> "_quiz_random.Random":
+    return _quiz_random.Random(f"{seed}|question-order")
+
+
+def quiz_shuffle_plan_within_groups(assignment_question_plan: dict, rng) -> dict:
+    """A copy of a mixed plan with the closed and the open questions shuffled separately.
+
+    The two groups never trade places: every position that held an open question
+    still holds an open one, and likewise for closed. Membership, the mixed flags
+    and the assignment's own plan are untouched. The result is what an attempt
+    stores in ``question_ids_json``; it is computed once, when the attempt is
+    created, and only ever read back afterwards.
+    """
+    question_ids = [int(qid) for qid in assignment_question_plan["question_ids"]]
+    open_ids = {int(qid) for qid in assignment_question_plan["open_question_ids"]}
+    is_open_slot = [qid in open_ids for qid in question_ids]
+    closed_group = [qid for qid in question_ids if qid not in open_ids]
+    open_group = [qid for qid in question_ids if qid in open_ids]
+    rng.shuffle(closed_group)
+    rng.shuffle(open_group)
+
+    closed_iter = iter(closed_group)
+    open_iter = iter(open_group)
+    shuffled_plan = dict(assignment_question_plan)
+    shuffled_plan["question_ids"] = [
+        next(open_iter) if is_open else next(closed_iter)
+        for is_open in is_open_slot
+    ]
+    shuffled_plan["open_question_ids"] = list(dict.fromkeys(open_group))
+    return shuffled_plan
+
+
 def quiz_start_or_resume_attempt(conn, assignment, *, user_id: int, display_name: str) -> QuizAttemptStart:
     """Return the account's attempt at the assignment, or create and commit one.
 
@@ -2008,7 +2040,9 @@ def quiz_start_or_resume_attempt(conn, assignment, *, user_id: int, display_name
     (``user_id`` NULL) are never matched, whatever their name.
 
     A concurrent insert for the same (assignment, account) is resolved to the
-    competing attempt through the unique index. Raises :class:`QuizPlanError`
+    competing attempt through the unique index. A mixed assignment's questions
+    are shuffled within their closed and open groups for the new attempt only;
+    an existing attempt is returned as stored. Raises :class:`QuizPlanError`
     for an unreadable stored plan; the caller decides the HTTP response.
     """
     if not isinstance(user_id, int) or isinstance(user_id, bool) or user_id <= 0:
@@ -2025,7 +2059,12 @@ def quiz_start_or_resume_attempt(conn, assignment, *, user_id: int, display_name
     seed_identity = quiz_account_seed_identity(user_id)
     if assignment_question_plan:
         seed = quiz_seed(assignment_id, seed_identity)
-        question_ids_json = _quiz_json.dumps(assignment_question_plan, ensure_ascii=False)
+        # The attempt's own order: shuffled once here, from the attempt seed, and
+        # persisted. Racing starts of one account therefore compute the same plan.
+        attempt_question_plan = quiz_shuffle_plan_within_groups(
+            assignment_question_plan, _quiz_attempt_order_rng(seed)
+        )
+        question_ids_json = _quiz_json.dumps(attempt_question_plan, ensure_ascii=False)
         score_total = len([
             qid
             for qid in assignment_question_plan["question_ids"]
