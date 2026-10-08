@@ -54,6 +54,7 @@ from web.access import (
 )
 from web.request_db import get_request_db
 from web.production import warn_if_schema_migrations_pending
+from web.public_url import PUBLIC_BASE_URL_CONFIG, PUBLIC_BASE_URL_ENV, normalize_public_base_url
 from web.services import accounts as accounts_service
 from web.services.subject_catalog import subject_catalog, subject_topic_groups
 from web.services import quiz as quiz_service
@@ -173,6 +174,18 @@ app.config["PRACTICAL_UPLOAD_ROOT"] = (
 )
 app.config["PRACTICAL_MAX_UPLOAD_BYTES"] = MAX_UPLOAD_BYTES
 app.config["PRACTICAL_MAX_FILES_PER_REQUEST"] = MAX_FILES_PER_REQUEST
+# Optional, non-production only: the address student links and QR codes are built
+# on when the app is reached through a tunnel or the LAN. A malformed value stays
+# configured as None, so those links are refused rather than taken from the request.
+if os.environ.get(PUBLIC_BASE_URL_ENV):
+    app.config[PUBLIC_BASE_URL_CONFIG] = normalize_public_base_url(os.environ[PUBLIC_BASE_URL_ENV])
+    if app.config[PUBLIC_BASE_URL_CONFIG] is None:
+        warnings.warn(
+            f"{PUBLIC_BASE_URL_ENV} is not a usable base URL (expected e.g. "
+            "https://host or http://host:port); QR sharing is unavailable.",
+            RuntimeWarning,
+            stacklevel=2,
+        )
 # Request-wide body limit for every route; uploads are the only large requests.
 app.config["MAX_CONTENT_LENGTH"] = MAX_REQUEST_BYTES
 

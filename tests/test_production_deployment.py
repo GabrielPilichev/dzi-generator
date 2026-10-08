@@ -138,6 +138,39 @@ class ProductionConfigValidationTest(unittest.TestCase):
                 self.assertTrue(any("DZI_PUBLIC_HOST" in error for error in
                                     self.errors(DZI_PUBLIC_HOST=value)))
 
+    def test_public_host_validation_agrees_with_the_shared_link_base_url(self):
+        # Each of these once passed startup and then broke (or misdirected) the student
+        # link and its QR code: letters that only case-fold to ASCII, hosts a URL
+        # parser reads as an IPv4 address, and malformed IDNA labels.
+        from web.public_url import normalize_public_base_url, public_base_url_for_host
+
+        for value in ("examp\u017fe.com", "ex\u0131mple.com", "\u0130stanbul.com", "\u212aelvin.example.com",
+                      "127.1", "1.2.3.4", "0x7f.1", "999.999.999.999", "school.1",
+                      "xn--zz.example.com", "xn--a.com", "localhost"):
+            with self.subTest(value=ascii(value)):
+                errors = self.errors(DZI_PUBLIC_HOST=value)
+                self.assertEqual(len(errors), 1)
+                self.assertIn("DZI_PUBLIC_HOST must be a configured DNS hostname", errors[0])
+                self.assertNotIn(value, errors[0])
+                self.assertIsNone(public_base_url_for_host(value))
+        for value, base in (("learnpilot.example.com", "https://learnpilot.example.com"),
+                            (" LearnPilot.BG ", "https://learnpilot.bg"),
+                            ("xn--e1aybc.xn--90ae", "https://xn--e1aybc.xn--90ae")):
+            with self.subTest(value=value):
+                self.assertEqual(self.errors(DZI_PUBLIC_HOST=value), [])
+                self.assertEqual(public_base_url_for_host(value), base)
+                self.assertEqual(normalize_public_base_url(base), base)
+
+    def test_separate_public_base_url_is_rejected_in_production(self):
+        # Shared links and QR codes are always https://DZI_PUBLIC_HOST in production.
+        for value in ("https://learnpilot.example.com", "https://evil.example", "http://127.0.0.1:5001"):
+            with self.subTest(value=value):
+                errors = self.errors(DZI_PUBLIC_BASE_URL=value)
+                self.assertEqual(len(errors), 1)
+                self.assertIn("DZI_PUBLIC_BASE_URL must not be set in production", errors[0])
+                self.assertNotIn(value, errors[0])
+        self.assertEqual(self.errors(DZI_PUBLIC_BASE_URL=""), [])
+
     def test_state_paths_must_be_explicit_absolute_and_outside_checkout(self):
         cases = {
             "DZI_DB": [None, "data/questions.db", str(ROOT / "data/questions.db"),
@@ -269,6 +302,7 @@ print(json.dumps({
     "health_cookie": health.headers.get("Set-Cookie"),
     "foreign_host": foreign_host.status_code,
     "trusted_hosts": app.config["TRUSTED_HOSTS"],
+    "public_base_url": app.config["PUBLIC_BASE_URL"],
     "wrong_password": wrong.status_code, "forged_origin": forged.status_code,
     "unproxied": unproxied.status_code,
     "login": [login.status_code, login.headers.get("Set-Cookie", "")],
@@ -330,6 +364,7 @@ class ProductionStartupTest(unittest.TestCase):
         self.assertIsNone(report["health_cookie"])
         self.assertEqual(report["foreign_host"], 400)
         self.assertIn(env["DZI_PUBLIC_HOST"], report["trusted_hosts"])
+        self.assertEqual(report["public_base_url"], "https://" + env["DZI_PUBLIC_HOST"])
         # Same-origin POST guard sees the public HTTPS origin only via the proxy.
         self.assertEqual(report["wrong_password"], 200)
         self.assertEqual(report["forged_origin"], 403)
@@ -456,6 +491,7 @@ print(json.dumps({
     "reference_root": web_app.app.config["PRACTICAL_REFERENCE_ROOT"]
     and str(web_app.app.config["PRACTICAL_REFERENCE_ROOT"]),
     "resource_roots": [str(root) for root in web_app.app.config["PRACTICAL_RESOURCE_ROOTS"]],
+    "public_base_url": web_app.app.config.get("PUBLIC_BASE_URL", "unset"),
 }))
 '''
 
@@ -479,6 +515,15 @@ class DatabaseAndStartupSchemaConfigTest(unittest.TestCase):
         self.assertEqual((report["db"], report["db_global"], report["quiz_db"]),
                          (env["DZI_DB"],) * 3)
         self.assertEqual(report["uploads"], env["DZI_UPLOAD_ROOT"])
+
+    def test_public_base_url_is_optional_normalized_and_never_guessed(self):
+        self.assertEqual(self.probe({})["public_base_url"], "unset")
+        self.assertEqual(self.probe({"DZI_PUBLIC_BASE_URL": "HTTPS://Abc-Def.trycloudflare.com/"})["public_base_url"],
+                         "https://abc-def.trycloudflare.com")
+        # Malformed: configured as None, so links are refused, not built from the request.
+        for value in ("abc.trycloudflare.com", "https://abc.trycloudflare.com/app", "ftp://host"):
+            with self.subTest(value=value):
+                self.assertIsNone(self.probe({"DZI_PUBLIC_BASE_URL": value})["public_base_url"])
 
     def test_reference_root_defaults_to_the_checkout_and_follows_the_setting(self):
         assets = str(ROOT / "data" / "assets")

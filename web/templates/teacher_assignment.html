@@ -36,7 +36,7 @@
         <button type="submit" class="button secondary">Дублирай теста</button>
       </form>
     {% endif %}
-    {% if quiz_url %}
+    {% if student_quiz_path(assignment) %}
     <a class="button" href="{{ student_quiz_path(assignment) }}">Отвори теста</a>
     {% endif %}
   </div>
@@ -104,8 +104,27 @@
       <input type="text" id="share-link" class="share-input" value="{{ quiz_url }}" readonly>
       <button type="button" class="button" id="share-copy" data-target="share-link">Копирай</button>
     </div>
+    {% if qr_available %}
+    <div class="share-qr" id="share-qr">
+      <img class="share-qr-image"
+           src="{{ url_for('teacher.teacher_assignment_qr', assignment_id=assignment.id) }}"
+           width="220" height="220"
+           alt="QR код с линка за ученици към този тест">
+      <div class="share-qr-text">
+        <div class="label">QR код за ученици</div>
+        <p class="muted">Покажи кода на екрана или го разпечатай. Той води към същия линк за ученици.</p>
+        <a class="button secondary" id="share-qr-download"
+           href="{{ url_for('teacher.teacher_assignment_qr', assignment_id=assignment.id, download=1) }}"
+           download="assignment_{{ assignment.id }}_qr.svg">Изтегли QR кода (SVG)</a>
+      </div>
+    </div>
+    {% endif %}
     <div class="warning warning--spaced form-message">
       Внимание: това е реален линк за ученици. Всеки потребител с активен профил може да отвори теста от този линк. След предаване ученикът вижда резултата и правилните отговори. Не споделяй страницата с резултатите, ако искаш отговорите да останат скрити.
+    </div>
+    {% elif student_quiz_path(assignment) %}
+    <div class="warning warning--spaced form-message" role="status" id="share-link-unavailable">
+      Линкът за ученици и QR кодът не са налични: публичният адрес на приложението липсва или е невалиден в настройките на сървъра. Обърни се към администратора на сървъра.
     </div>
     {% else %}
     <div class="warning warning--spaced form-message" role="status" id="share-link-missing">

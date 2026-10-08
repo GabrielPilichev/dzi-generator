@@ -5,3 +5,6 @@ gunicorn>=23,<24
 # secrets under DZI_TOTP_KEY.
 pyotp>=2.9,<3
 cryptography>=44,<51
+# QR code of an assignment's student link (teacher page): pure Python, no
+# dependencies, SVG output generated in memory.
+segno>=1.6,<2

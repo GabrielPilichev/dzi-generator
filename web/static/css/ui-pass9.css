@@ -3375,6 +3375,29 @@ form .quiz-option-card {
   font-family: var(--font-mono);
   font-size: 0.86rem;
 }
+/* QR code of the student link: always black on white so a camera can read it. */
+.share-qr {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  align-items: center;
+  margin-top: var(--space-3);
+}
+.share-qr-image {
+  display: block;
+  width: min(220px, 100%);
+  height: auto;
+  aspect-ratio: 1;
+  border-radius: var(--radius-sm);
+  background: #fff;
+}
+.share-qr-text {
+  flex: 1 1 14rem;
+  min-width: 0;
+}
+.share-qr-text .muted {
+  margin: var(--space-1) 0 var(--space-3);
+}
 
 pre {
   white-space: pre-wrap;

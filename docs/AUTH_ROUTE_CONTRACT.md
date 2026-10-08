@@ -109,7 +109,7 @@ a coverage test walks `app.url_map` and fails on any undeclared endpoint.
 | `admin` | admin account only (after the second factor) | `/admin/open-question-candidates`, `/dzi...`, every other `/teacher...` route |
 | `signed_in` | any active account (student, teacher or admin) | `/account/password` |
 | `quiz_taker` | any account that may take quizzes: student, teacher or admin (`can_take_quizzes`) | `/account/attempts` |
-| `assignment_owner` | admin account or teacher account; the view checks the loaded assignment and answers 404 | `/teacher/assignments`, `/teacher/assignment/<id>/edit`, `/duplicate`, `/results` (GET and the open-answer review POST), `/results.csv`, `/teacher/practical-submissions`, `/teacher/practical/submission-file/<file_id>/download` |
+| `assignment_owner` | admin account or teacher account; the view checks the loaded assignment and answers 404 | `/teacher/assignments`, `/teacher/assignment/<id>/edit`, `/duplicate`, `/results` (GET and the open-answer review POST), `/results.csv`, `/qr.svg`, `/teacher/practical-submissions`, `/teacher/practical/submission-file/<file_id>/download` |
 | `attempt_owner` | route is reachable; the view checks attempt ownership and answers 404 | `/quiz/attempt/<id>`, `/quiz/attempt/<id>/result`, `/quiz/attempt/<id>/practical/...` |
 
 Flask's built-in `static` view cannot be decorated; `web.access` treats it as
@@ -323,9 +323,21 @@ page, generated assignment notes) is built by `quiz_student_entry_path` and
 uses the token; an assignment without a token gets no link rather than a
 numeric one.
 
+The teacher's assignment page also offers that link as a QR code:
+`GET /teacher/assignment/<id>/qr.svg` (`?download=1` for an attachment),
+policy `assignment_owner`, so the owner or an admin only and 404 for any other
+teacher or a missing assignment. It encodes the absolute token link on the
+trusted public base URL (`web/public_url.py`: `https://DZI_PUBLIC_HOST` in
+production), never the request's `Host`, and reads no parameter that could
+change what is encoded. An assignment without a valid token has no QR code
+(404), and without a trusted base URL the endpoint answers 503 and the page
+shows a notice instead of the link and the QR code; the displayed link is the
+same canonical one and is never built from the request's `Host`. Nothing is
+stored. See `docs/DEPLOYMENT.md`, section 25.
+
 Numeric ids remain in two other, unrelated places and keep working: the
 teacher-management routes (`/teacher/assignment/<id>` and its `/edit`,
-`/duplicate`, `/results`, `/results.csv`), which are owner/admin only, and the
+`/duplicate`, `/results`, `/results.csv`, `/qr.svg`), which are owner/admin only, and the
 account-owned attempt routes (`/quiz/attempt/<attempt_id>...`) described below.
 
 `GET /login` with an already valid account session redirects to the validated

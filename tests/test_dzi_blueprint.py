@@ -48,6 +48,7 @@ EXPECTED_URL_MAP = (
     ('/teacher/assignment/<int:assignment_id>', ('GET',), 'teacher', None),
     ('/teacher/assignment/<int:assignment_id>/duplicate', ('POST',), 'assignment_owner', 'same_origin'),
     ('/teacher/assignment/<int:assignment_id>/edit', ('POST',), 'assignment_owner', 'same_origin'),
+    ('/teacher/assignment/<int:assignment_id>/qr.svg', ('GET',), 'assignment_owner', None),
     ('/teacher/assignment/<int:assignment_id>/results', ('GET', 'POST'), 'assignment_owner', 'same_origin'),
     ('/teacher/assignment/<int:assignment_id>/results.csv', ('GET',), 'assignment_owner', None),
     ('/teacher/assignments', ('GET',), 'assignment_owner', None),
