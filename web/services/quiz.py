@@ -41,6 +41,7 @@ from src.subject_content import (
 )
 from web import db as web_db
 from web.access import Principal, can_manage_assignment
+from web.assignment_tokens import is_valid_public_token, write_with_new_public_token
 from web.services import dzi_exams
 from web.services.question_visuals import (
     attach_question_visual_assets,
@@ -241,21 +242,27 @@ def quiz_create_assignment(
     question_count: int, time_limit_minutes: int | None = None,
     question_plan_json: str | None = None,
 ) -> int:
-    """Insert with the creator's stable account id as the owner.
+    """Insert with the creator's stable account id as the owner and a new public token.
 
     The caller supplies the current Principal and owns the transaction. An
-    admin's authorization bypass does not change who owns the new row.
+    admin's authorization bypass does not change who owns the new row. Every
+    assignment created here, a duplicate included, gets its own
+    ``public_token``; nothing updates it afterwards.
     """
     if not principal.is_teacher:
         raise ValueError("Assignment creation requires teacher capability")
-    cursor = conn.execute("""
-        INSERT INTO quiz_assignments (
-            section_id, title_bg, question_count, time_limit_minutes,
-            question_plan_json, owner_user_id
-        ) VALUES (?, ?, ?, ?, ?, ?)
-    """, (section_id, title_bg, question_count, time_limit_minutes,
-          question_plan_json, principal.user_id))
-    return int(cursor.lastrowid)
+
+    def insert(public_token: str) -> int:
+        cursor = conn.execute("""
+            INSERT INTO quiz_assignments (
+                section_id, title_bg, question_count, time_limit_minutes,
+                question_plan_json, owner_user_id, public_token
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (section_id, title_bg, question_count, time_limit_minutes,
+              question_plan_json, principal.user_id, public_token))
+        return int(cursor.lastrowid)
+
+    return write_with_new_public_token(conn, insert)
 
 
 def quiz_can_access_assignment(assignment, principal: Principal) -> bool:
@@ -269,17 +276,45 @@ def quiz_can_access_assignment(assignment, principal: Principal) -> bool:
     return can_manage_assignment(principal, assignment["owner_user_id"])
 
 
+_QUIZ_ASSIGNMENT_SELECT = """
+    SELECT
+        qa.*,
+        cs.section_slug,
+        cs.title_bg AS section_title,
+        cs.class AS section_class
+    FROM quiz_assignments qa
+    JOIN curriculum_sections cs ON cs.id = qa.section_id
+"""
+
+
 def quiz_fetch_assignment(conn, assignment_id: int):
-    return conn.execute("""
-        SELECT
-            qa.*,
-            cs.section_slug,
-            cs.title_bg AS section_title,
-            cs.class AS section_class
-        FROM quiz_assignments qa
-        JOIN curriculum_sections cs ON cs.id = qa.section_id
-        WHERE qa.id = ?
-    """, (assignment_id,)).fetchone()
+    return conn.execute(_QUIZ_ASSIGNMENT_SELECT + " WHERE qa.id = ?", (assignment_id,)).fetchone()
+
+
+def quiz_fetch_assignment_by_public_token(conn, public_token: object):
+    """The assignment a student link names, or ``None``.
+
+    Anything that is not a well-formed token is refused before the database is
+    asked, so a NULL (not yet backfilled) ``public_token`` can never match.
+    """
+    if not is_valid_public_token(public_token):
+        return None
+    return conn.execute(
+        _QUIZ_ASSIGNMENT_SELECT + " WHERE qa.public_token = ?", (public_token,)
+    ).fetchone()
+
+
+def quiz_student_entry_path(assignment) -> str | None:
+    """The student link path ``/quiz/s/<public_token>`` of an assignment row.
+
+    The one place a student-facing assignment URL is built. ``None`` for a row
+    without a valid token (created before migration 017 and not yet backfilled):
+    callers show that no link exists rather than fall back to the numeric id.
+    """
+    public_token = assignment["public_token"]
+    if not is_valid_public_token(public_token):
+        return None
+    return _quiz_url_for("quiz.quiz_start_public", public_token=public_token)
 
 
 def quiz_clean_answer_text(value: object) -> str:
@@ -1708,6 +1743,9 @@ def quiz_remaining_seconds(assignment, attempt) -> int | None:
         return int(limit) * 60
 
 
+QUIZ_NO_PUBLIC_LINK_NOTE = "няма (тестът още няма защитен линк за ученици)"
+
+
 def quiz_write_assignment_note(assignment_id: int, base_url: str) -> None:
     try:
         conn = quiz_db()
@@ -1732,7 +1770,8 @@ def quiz_write_assignment_note(assignment_id: int, base_url: str) -> None:
             ]
             avg = round(sum(percentages) / len(percentages), 1)
 
-        quiz_link = base_url.rstrip("/") + _quiz_url_for("quiz.quiz_start", assignment_id=assignment_id)
+        entry_path = quiz_student_entry_path(a)
+        quiz_link = base_url.rstrip("/") + entry_path if entry_path else QUIZ_NO_PUBLIC_LINK_NOTE
         path = quiz_assignment_note_path(assignment_id, a["section_slug"], a["created_at"])
 
         rows = []

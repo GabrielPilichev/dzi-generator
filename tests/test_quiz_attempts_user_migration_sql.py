@@ -198,7 +198,9 @@ class ExistingDatabaseUpgradeTest(MigrationTestCase):
         self.assertIn("foreign_key_check: ok", report)
         conn = self.connect()
         self.assertEqual(ledger(conn), [*self.ledger_before, MIGRATION])
-        self.assertEqual(ledger(conn).index("016_admin_totp.sql") + 1, ledger(conn).index(MIGRATION))
+        # Recorded last, after 016 and every later migration the database already had.
+        self.assertLess(ledger(conn).index("016_admin_totp.sql"), ledger(conn).index(MIGRATION))
+        self.assertEqual(ledger(conn)[-1], MIGRATION)
 
         code, report = self.apply()  # nothing left to do, nothing recorded twice
         self.assertEqual(code, 0, report)

@@ -104,7 +104,7 @@ a coverage test walks `app.url_map` and fails on any undeclared endpoint.
 
 | Policy | Meaning | Routes |
 | --- | --- | --- |
-| `public` | any session, signed in or not | `/`, `/grade/<n>`, `/section/<slug>`, `/subjects/...`, `/physics...`, `/healthz`, `/favicon.ico`, sign-in (`/login`, `POST /login/totp`), `POST /logout`, `/quiz/<assignment_id>` |
+| `public` | any session, signed in or not | `/`, `/grade/<n>`, `/section/<slug>`, `/subjects/...`, `/physics...`, `/healthz`, `/favicon.ico`, sign-in (`/login`, `POST /login/totp`), `POST /logout`, `/quiz/s/<public_token>`, `/quiz/<assignment_id>` |
 | `teacher` | teacher or admin account | `/teacher/new`, `/teacher/assignment/<id>` |
 | `admin` | admin account only (after the second factor) | `/admin/open-question-candidates`, `/dzi...`, every other `/teacher...` route |
 | `signed_in` | any active account (student, teacher or admin) | `/account/password` |
@@ -294,14 +294,35 @@ a client-supplied target or the `Referer`.
 
 ## Quiz Attempts
 
-**Starting.** `/quiz/<assignment_id>` is `public`: the page shows the
-assignment to anyone. `POST` starts or resumes an attempt only for a signed-in
-account (`web.access.can_take_quizzes`: student, teacher or admin): the attempt
-is the one with that `(assignment_id, user_id)`, where `user_id` is the
-validated principal's id and nothing submitted with the request. An anonymous
-`POST` (also a pending admin second factor or a disabled account's session) is
-redirected to `/login?next=/quiz/<assignment_id>`.
-Knowing an assignment id gives no access to any attempt.
+**Starting.** The student link is `/quiz/s/<public_token>`, where the token is
+the assignment's `quiz_assignments.public_token` (`secrets.token_urlsafe(32)`,
+43 URL-safe characters; `web/assignment_tokens.py`). The route is `public`: the
+page shows the assignment to anyone who has the link. A malformed or unknown
+token, and the missing token of an assignment that has not been backfilled yet,
+are the same generic 404. `POST` starts or resumes an attempt only for a
+signed-in account (`web.access.can_take_quizzes`: student, teacher or admin):
+the attempt is the one with that `(assignment_id, user_id)`, where `user_id` is
+the validated principal's id and nothing submitted with the request. An
+anonymous `POST` (also a pending admin second factor or a disabled account's
+session) is redirected to `/login?next=<the request path>`.
+Knowing a token or an assignment id gives no access to any attempt.
+
+`/quiz/<assignment_id>` is the earlier, sequential entry. It stays available
+for compatibility with links already shared and behaves identically (both
+routes run the same view code); it never redirects to the token URL and never
+reveals a token. Its retirement is a separate later change. Every link the
+application now produces for students (teacher pages, the result page,
+generated assignment notes) is built by `quiz_student_entry_path` and uses the
+token; an assignment without a token gets no link rather than a numeric one.
+Management routes keep the numeric id.
+
+`GET /login` with an already valid account session redirects to the validated
+`next` (or the role's home) instead of showing the form. A student who follows
+an external link arrives without the `SameSite=Strict` cookie on that first
+cross-site request and so sees the sign-in link; following it is a same-site
+request, the session is recognised, and the student lands back on the
+assignment without signing in again. A pending admin second factor is not an
+account session and still gets the form.
 
 **Attempt routes** have the `attempt_owner` policy: the route-level check lets
 every session through, and the view makes the object-level decision, answering

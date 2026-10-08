@@ -36,7 +36,9 @@
         <button type="submit" class="button secondary">Дублирай теста</button>
       </form>
     {% endif %}
-    <a class="button" href="{{ url_for('quiz.quiz_start', assignment_id=assignment.id) }}">Отвори теста</a>
+    {% if quiz_url %}
+    <a class="button" href="{{ student_quiz_path(assignment) }}">Отвори теста</a>
+    {% endif %}
   </div>
 </section>
 
@@ -97,6 +99,7 @@
 
   <div class="share-box">
     <div class="label">Линк за ученици</div>
+    {% if quiz_url %}
     <div class="share-row">
       <input type="text" id="share-link" class="share-input" value="{{ quiz_url }}" readonly>
       <button type="button" class="button" id="share-copy" data-target="share-link">Копирай</button>
@@ -104,6 +107,11 @@
     <div class="warning warning--spaced form-message">
       Внимание: това е реален линк за ученици. Всеки потребител с активен профил може да отвори теста от този линк. След предаване ученикът вижда резултата и правилните отговори. Не споделяй страницата с резултатите, ако искаш отговорите да останат скрити.
     </div>
+    {% else %}
+    <div class="warning warning--spaced form-message" role="status" id="share-link-missing">
+      Този тест още няма защитен линк за ученици. Администраторът на сървъра трябва да генерира липсващите линкове (src.manage_assignment_tokens), след което линкът ще се появи тук.
+    </div>
+    {% endif %}
   </div>
 </div>
 

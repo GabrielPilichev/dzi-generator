@@ -59,7 +59,10 @@
       </p>
     </div>
     <div class="result-actions">
-      <a class="button" href="{{ url_for('quiz.quiz_start', assignment_id=assignment.id) }}">Нов опит</a>
+      {% set student_path = student_quiz_path(assignment) %}
+      {% if student_path %}
+      <a class="button" href="{{ student_path }}">Нов опит</a>
+      {% endif %}
       <a class="button secondary" href="{{ url_for('browsing.index') }}">Към началото</a>
     </div>
   </div>

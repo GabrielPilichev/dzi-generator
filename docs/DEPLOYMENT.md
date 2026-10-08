@@ -415,7 +415,9 @@ configured public Host after ProxyFix; only local health probes may use
 
 Only POSTs are rate limited per public IP: each login has 5 requests/minute
 with burst 10; quiz start/submission has 20 requests/second with burst 90;
-practical uploads have 2 requests/second with burst 45. Empty GET keys are
+practical uploads have 2 requests/second with burst 45. "Quiz start" covers both
+student entries, `/quiz/s/<public_token>` and the numeric `/quiz/<id>` kept for
+compatibility (section 24), in the same bucket. Empty GET keys are
 not charged. These bursts allow at least 30 students behind one school NAT to
 submit together; Flask ownership, file quotas and the disk floor still enforce
 the application rules. Nginx responds 429 when a bucket is exhausted.
@@ -1034,6 +1036,110 @@ starting the old code and, to void the old cookies as well, rotate
 signs out every account and makes the attempts started before accounts
 unreachable for their students (account-owned attempts are reached again by
 signing in). It is never part of a normal deployment.
+
+## 24. Public assignment links (migration 017)
+
+Students open an assignment at `/quiz/s/<public_token>` instead of the
+sequential `/quiz/<assignment_id>`. The token is stored in
+`quiz_assignments.public_token` (nullable, unique index
+`idx_quiz_assignments_public_token`).
+
+- **Format.** `secrets.token_urlsafe(32)`: 256 bits from the operating system's
+  CSPRNG, 43 URL-safe characters (`A-Z a-z 0-9 - _`), no padding.
+- **Generation.** Every assignment created by the application, a duplicate
+  included, gets its own token at creation. A token is never changed
+  afterwards: editing title or time limit keeps it. Uniqueness is enforced by
+  the index; a collision is retried a bounded number of times.
+- **What the token is.** It names an assignment and nothing else. The page is
+  public; starting an attempt still needs a signed-in account, and attempts stay
+  account-owned (`docs/AUTH_ROUTE_CONTRACT.md`, "Quiz Attempts"). A malformed,
+  unknown or missing token is one generic 404.
+- **Management URLs** (`/teacher/assignment/<id>...`) keep the numeric id.
+
+### Deployment order
+
+Migration `017_assignment_public_token.sql` is additive (`ALTER TABLE ... ADD
+COLUMN` and a unique index; no table rebuild) and generates no tokens:
+assignments that already exist keep `public_token` NULL. SQLite's
+`randomblob()` is deliberately not used for them. They get tokens from an
+explicit operator command.
+
+The order matters: the rate limit for the new route is in place before the
+application starts serving it.
+
+1. Section 20, steps 1-8: snapshot, update the checkout, apply migration 017.
+   Do **not** restart yet. The running (old) application ignores the new column.
+2. Add the token-route limit to the installed Nginx site and validate it. The
+   installed file is a locally edited copy (server name, Certbot's TLS block),
+   so copy the `location ~ ^/quiz/s/[A-Za-z0-9_-]+$ { ... }` block from
+   `deploy/nginx/learnpilot.conf` into `/etc/nginx/sites-available/learnpilot`
+   next to the existing `/quiz/[0-9]+` block, then:
+
+```bash
+sudo nginx -t && sudo systemctl reload nginx
+sudo nginx -T 2>/dev/null | grep -A2 'location ~ \^/quiz/s/'   # expect the lp_quiz_write limit
+```
+
+   Do not continue if `nginx -t` fails. Until the application is restarted the
+   old code answers 404 on `/quiz/s/...`, so the new block changes nothing yet.
+3. Section 20, steps 9-12: check the Gunicorn configuration, restart the
+   application, verify `/healthz`, smoke-test. `/quiz/s/<token>` is now served,
+   already rate limited.
+4. Backfill the existing assignments, after the restart so that no assignment
+   is created by the old code in between. Dry run first:
+
+```bash
+sudo -u learnpilot /opt/learnpilot/venv/bin/python -m src.manage_assignment_tokens \
+  --db /var/lib/learnpilot/data/questions.db --dry-run
+sudo -u learnpilot /opt/learnpilot/venv/bin/python -m src.manage_assignment_tokens \
+  --db /var/lib/learnpilot/data/questions.db
+```
+
+The command needs the database named explicitly (`--db` or `DZI_DB`), never
+creates or migrates it, and is never run by the application. `--dry-run` only
+reads: it opens the database read-only, generates no token, starts no
+transaction and takes no writer lock, so it is safe next to the running
+service. Without `--dry-run` it fills only
+NULL tokens, never replaces an existing one and touches no other column or
+table. The run is a single transaction: if it is interrupted nothing is
+changed, and running it again fills whatever is still NULL. It prints counts
+and assignment ids, never a token. Exit status 0 with
+`OK: all N assignment(s) have a unique valid token` means it is complete; 1
+means an existing token is not a valid token (the ids are listed and nothing
+was changed: inspect those rows by hand); 2 is an operator or database error.
+Running it again later is harmless and is also the verification step.
+
+Until the backfill has run, an older assignment has no student link: its
+teacher page and the assignments list say that the link is missing instead of
+offering one, and its generated note records that there is none. Nothing falls
+back to the numeric link in these places, and the token route answers 404 for
+such an assignment.
+
+### Numeric links during the transition
+
+`/quiz/<assignment_id>` (GET and POST) still works exactly as before, so links
+shared earlier keep opening. It does not redirect to the token URL and never
+shows a token. Retiring it (404 for numeric student entry) is a separate, later
+release, to be made only after this one is deployed and verified **and the
+backfill has reported `OK`**: without tokens, older assignments would have no
+student link at all. Vault notes written before this release keep the numeric
+link they were written with; they are not rewritten.
+
+QR codes for the student link are not part of this release; they are planned
+as a separate change on top of the token URL.
+
+### Rollback
+
+The migration is additive, so code from before this release runs on the
+migrated schema (the column is simply ignored) and no data restore is needed.
+Token links do **not** survive such a rollback, though: the older code has no
+`/quiz/s/<public_token>` route, so every token link already shared with
+students (copied links, generated notes) answers 404 until the new version is
+deployed again. The tokens stay in the database and the same links work again
+afterwards. While rolled back, students can only enter through the numeric
+`/quiz/<assignment_id>` link, which the older code shows on the teacher pages.
+Assignments created by the older code have no token; after rolling forward
+again, run the backfill once more.
 
 ## 2 GB VPS sizing
 
