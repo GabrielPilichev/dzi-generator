@@ -30,15 +30,20 @@ TEACHER = "teacher"  # a teacher account (or an admin account) satisfies it
 ADMIN = "admin"
 # Any active account.
 SIGNED_IN = "signed_in"
+# An account that may take quizzes and own attempts (``can_take_quizzes``): a
+# student, teacher or admin account. It only ever reaches its own attempts;
+# managing assignments is a different authority and never implies this one.
+QUIZ_TAKER = "quiz_taker"
 # Object-level: any session reaches the view, which then checks attempt
-# ownership itself and answers 404 (not 403) so attempt ids cannot be probed.
+# ownership itself (``can_access_attempt``) and answers 404 (not 403) so attempt
+# ids cannot be probed.
 ATTEMPT_OWNER = "attempt_owner"
 # Assignment management (Accounts PR7): the route admits an admin or a teacher
 # account; the view then loads the assignment and checks it with
 # ``can_manage_assignment``, answering 404 so ids cannot be probed.
 ASSIGNMENT_OWNER = "assignment_owner"
 
-ACCESS_LEVELS = frozenset({PUBLIC, TEACHER, ADMIN, SIGNED_IN, ATTEMPT_OWNER, ASSIGNMENT_OWNER})
+ACCESS_LEVELS = frozenset({PUBLIC, TEACHER, ADMIN, SIGNED_IN, QUIZ_TAKER, ATTEMPT_OWNER, ASSIGNMENT_OWNER})
 
 # Flask's built-in static view cannot be decorated; it is public.
 STATIC_ENDPOINT = "static"
@@ -123,6 +128,44 @@ def assignment_management_scope(principal: Principal, owner_column: str) -> tupl
     return "1 = 0", ()
 
 
+def can_take_quizzes(principal: Principal) -> bool:
+    """Whether the principal may start, own and answer quiz attempts.
+
+    Every account role: student, teacher and admin (a teacher or admin takes a
+    test to see what students see). It needs the account itself, an id and a
+    known role, so anonymous, a pending second factor and a disabled or stale
+    session (none of which has a principal with an id) never qualify.
+
+    This is only the right to have attempts of one's own. Which attempt is
+    one's own is ``can_access_attempt``; assignment-management authority plays
+    no part in either.
+    """
+    return principal.user_id is not None and principal.role in _ROLE_CAPABILITIES
+
+
+def can_access_attempt(
+    principal: Principal, attempt_user_id: int | None, has_browser_marker: bool
+) -> bool:
+    """Student-side access to one quiz attempt (page, answers, result, practical work).
+
+    Two disjoint cases, chosen by the attempt row alone:
+
+    * account-owned (``attempt_user_id`` is set): only the account with that id,
+      whatever its role. A teacher who owns the assignment and an admin who
+      manages everything are not that account and get nothing here. The browser
+      marker is never consulted, so it neither grants nor is needed.
+    * historical (``attempt_user_id`` is NULL, started before accounts): only the
+      browser that started it, by its session marker. Being signed in changes
+      nothing; such an attempt is never matched to an account.
+
+    A principal without an account id never matches the NULL owner of a
+    historical row. Pure: no session, request or database access.
+    """
+    if attempt_user_id is not None:
+        return can_take_quizzes(principal) and principal.user_id == attempt_user_id
+    return has_browser_marker is True
+
+
 def current_principal() -> Principal:
     """The request's principal.
 
@@ -171,6 +214,8 @@ def is_route_allowed(level: str | None, principal: Principal) -> bool:
         return principal.is_admin
     if level == SIGNED_IN:
         return principal.user_id is not None
+    if level == QUIZ_TAKER:
+        return can_take_quizzes(principal)
     if level == ASSIGNMENT_OWNER:
         return can_list_assignments(principal)
     return False

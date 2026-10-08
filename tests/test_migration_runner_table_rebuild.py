@@ -1,7 +1,8 @@
 """Table-rebuild migrations and the runner's automatic backup.
 
 Every database here is a temporary file built from synthetic migrations; the
-repository's migrations are only parsed, never extended, and 015 stays unused.
+repository's migrations are only parsed, never applied or extended. The real
+rebuild migration (015) has its own tests in test_quiz_attempts_user_migration_sql.
 """
 
 import io

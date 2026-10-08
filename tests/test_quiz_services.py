@@ -13,6 +13,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from tests.auth_helpers import create_account
 from tests.support import IsolatedAppTestCase, web_app
 from web import db as web_db
 from web.services import quiz as quiz_service
@@ -161,6 +162,11 @@ class QuizAttemptTransactionTest(IsolatedAppTestCase):
         conn.commit()
         return quiz_service.quiz_fetch_assignment(conn, int(cursor.lastrowid))
 
+    def _student(self):
+        """Start arguments of a new account: the only identity an attempt has."""
+        account = create_account(web_app.app.config["DB_PATH"], display_name="Ана Тестова")
+        return {"user_id": account["id"], "display_name": "Ана Тестова"}
+
     def _attempt_rows(self, assignment_id):
         with quiz_service.quiz_connection() as conn:  # a separate connection: sees only commits
             return conn.execute(
@@ -170,15 +176,20 @@ class QuizAttemptTransactionTest(IsolatedAppTestCase):
     def test_new_attempt_is_committed_and_a_repeat_returns_the_same_attempt(self):
         with quiz_service.quiz_connection() as conn:
             assignment = self._assignment(conn)
-            first = quiz_service.quiz_start_or_resume_attempt(conn, assignment, "Ана Тестова")
+            student = self._student()
+            first = quiz_service.quiz_start_or_resume_attempt(conn, assignment, **student)
             self.assertTrue(first.created)
             self.assertFalse(first.submitted)
 
             rows = self._attempt_rows(int(assignment["id"]))
             self.assertEqual([int(row["id"]) for row in rows], [first.attempt_id])
-            self.assertEqual(rows[0]["seed"], quiz_service.quiz_seed(int(assignment["id"]), "Ана Тестова"))
+            # Seeded from the account id, never from the display name.
+            self.assertEqual(rows[0]["seed"],
+                             quiz_service.quiz_seed(int(assignment["id"]), f"user:{student['user_id']}"))
+            self.assertEqual((rows[0]["user_id"], rows[0]["student_name"]),
+                             (student["user_id"], "Ана Тестова"))
 
-            again = quiz_service.quiz_start_or_resume_attempt(conn, assignment, "Ана Тестова")
+            again = quiz_service.quiz_start_or_resume_attempt(conn, assignment, **student)
         self.assertEqual(again, quiz_service.QuizAttemptStart(first.attempt_id, False, False))
         self.assertEqual(len(self._attempt_rows(int(assignment["id"]))), 1)
 
@@ -186,13 +197,13 @@ class QuizAttemptTransactionTest(IsolatedAppTestCase):
         with quiz_service.quiz_connection() as conn:
             assignment = self._assignment(conn, plan_json="{not json")
             with self.assertRaises(quiz_service.QuizPlanError):
-                quiz_service.quiz_start_or_resume_attempt(conn, assignment, "Ана Тестова")
+                quiz_service.quiz_start_or_resume_attempt(conn, assignment, **self._student())
         self.assertEqual(self._attempt_rows(int(assignment["id"])), [])
 
     def test_submission_grades_stores_and_commits_in_one_step(self):
         with quiz_service.quiz_connection() as conn:
             assignment = self._assignment(conn)
-            start = quiz_service.quiz_start_or_resume_attempt(conn, assignment, "Ана Тестова")
+            start = quiz_service.quiz_start_or_resume_attempt(conn, assignment, **self._student())
             attempt = quiz_service.quiz_fetch_attempt(conn, start.attempt_id)
             plan = quiz_service.quiz_parse_attempt_question_plan(attempt["question_ids_json"])
             mc_ids = quiz_service.quiz_multiple_choice_question_ids(conn, plan["question_ids"])
@@ -222,7 +233,7 @@ class QuizAttemptTransactionTest(IsolatedAppTestCase):
     def test_failed_submission_leaves_no_partial_state(self):
         with quiz_service.quiz_connection() as conn:
             assignment = self._assignment(conn)
-            start = quiz_service.quiz_start_or_resume_attempt(conn, assignment, "Ана Тестова")
+            start = quiz_service.quiz_start_or_resume_attempt(conn, assignment, **self._student())
             attempt = quiz_service.quiz_fetch_attempt(conn, start.attempt_id)
             plan = quiz_service.quiz_parse_attempt_question_plan(attempt["question_ids_json"])
             mc_ids = quiz_service.quiz_multiple_choice_question_ids(conn, plan["question_ids"])

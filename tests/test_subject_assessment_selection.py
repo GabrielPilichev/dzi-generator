@@ -4,7 +4,7 @@ import json
 
 from src.generate_dzi_training_set import get_pool
 from src.subject_assessment import AssessmentScope
-from tests.auth_helpers import sign_in_admin
+from tests.auth_helpers import sign_in_admin, student_client
 from tests.subject_fixtures import (
     add_curriculum, add_membership, add_question, add_section, add_topic, four_options,
 )
@@ -188,7 +188,8 @@ class SubjectAssessmentSelectionTest(IsolatedAppTestCase):
         assignment_id = self._create(self.physics_section, "physics")
         assignment = self._assignment(assignment_id)
         self.assertIsNone(assignment["question_plan_json"])
-        start = self.client.post(f"/quiz/{assignment_id}", data={"student_name": "F3 Physics Student"})
+        student = student_client(web_app.app, web_app.app.config["DB_PATH"])
+        start = student.post(f"/quiz/{assignment_id}")
         self.assertEqual(start.status_code, 302)
         attempt_id = int(start.headers["Location"].split("/")[-1])
         conn = web_app.quiz_db()
@@ -199,14 +200,14 @@ class SubjectAssessmentSelectionTest(IsolatedAppTestCase):
         finally:
             conn.close()
         self.assertEqual(json.loads(snapshot), [self.physics_mc])
-        attempt = self.client.get(f"/quiz/attempt/{attempt_id}")
+        attempt = student.get(f"/quiz/attempt/{attempt_id}")
         self.assertIn(b"F3 question 3", attempt.data)
         self.assertNotIn(b"F3 question 1", attempt.data)
-        submitted = self.client.post(
+        submitted = student.post(
             f"/quiz/attempt/{attempt_id}", data={f"q_{self.physics_mc}": "A"}
         )
         self.assertEqual(submitted.status_code, 302)
-        result = self.client.get(f"/quiz/attempt/{attempt_id}/result")
+        result = student.get(f"/quiz/attempt/{attempt_id}/result")
         self.assertEqual(result.status_code, 200)
         self.assertIn(b"F3 question 3", result.data)
         self.assertNotIn(b"F3 question 1", result.data)
@@ -225,9 +226,7 @@ class SubjectAssessmentSelectionTest(IsolatedAppTestCase):
             self.it_dzi_section, "it", count=2, open_count=1, source="f3-synthetic"
         )
         plan_before = self._assignment(assignment_id)["question_plan_json"]
-        started = self.client.post(
-            f"/quiz/{assignment_id}", data={"student_name": "F3 Snapshot Student"}
-        )
+        started = student_client(web_app.app, web_app.app.config["DB_PATH"]).post(f"/quiz/{assignment_id}")
         attempt_id = int(started.headers["Location"].split("/")[-1])
         conn = web_app.quiz_db()
         try:

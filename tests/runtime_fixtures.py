@@ -48,15 +48,17 @@ def add_assignment(conn: sqlite3.Connection, *, section_id: int | None = None,
 
 def add_attempt(conn: sqlite3.Connection, assignment_id: int, *, student_name: str = "Fixture student",
                 question_ids: list[int] | None = None, submitted: bool = False,
-                score_correct: int | None = None) -> int:
-    """An attempt on ``assignment_id``; ``submitted`` stamps a submission time and score."""
+                score_correct: int | None = None, user_id: int | None = None) -> int:
+    """An attempt on ``assignment_id``; ``submitted`` stamps a submission time and score.
+
+    Without ``user_id`` it is a historical attempt (no account, browser-bound)."""
     ids = list(question_ids) if question_ids is not None else first_multiple_choice_question_ids(conn)
     if submitted and score_correct is None:
         score_correct = len(ids)
     cursor = conn.execute(
-        "INSERT INTO quiz_attempts (assignment_id, student_name, seed, question_ids_json, started_at, "
-        "submitted_at, score_correct, score_total) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        (assignment_id, student_name, FIXTURE_SEED, json.dumps(ids), FIXTURE_STARTED_AT,
+        "INSERT INTO quiz_attempts (assignment_id, user_id, student_name, seed, question_ids_json, started_at, "
+        "submitted_at, score_correct, score_total) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        (assignment_id, user_id, student_name, FIXTURE_SEED, json.dumps(ids), FIXTURE_STARTED_AT,
          FIXTURE_SUBMITTED_AT if submitted else None,
          score_correct if submitted else None, len(ids) if submitted else None))
     return int(cursor.lastrowid)

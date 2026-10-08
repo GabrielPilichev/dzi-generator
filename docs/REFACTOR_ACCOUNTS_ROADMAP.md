@@ -36,7 +36,7 @@ LearnPilot moves from two shared passwords to individual accounts with subscript
 | --- | --- | --- | --- | --- |
 | Browse the question bank (non-DZI) | yes | yes | yes | yes |
 | See official DZI questions | no | yes | yes | yes |
-| Take a test (account required) | no | yes | no | yes |
+| Take a test (account required) | no | yes | yes | yes |
 | Create tests | no | no | yes | yes |
 | Results and CSV export | no | own attempts | own tests | all |
 | Review practical submissions | no | no | own tests | all |
@@ -332,6 +332,8 @@ Apple's form-post callback is deferred from v1 because a route exemption cannot 
 Nginx currently limits each login by IP, and a whole class can share one school NAT IP. Before student accounts launch, use a looser per-IP safety limit plus per-account/per-identifier throttling for login and registration. Add teacher-side creation quotas/rate limits appropriate to early access.
 
 ### Ownership and the quiz flow
+
+Status: assignment ownership and account-owned quiz attempts (`quiz_attempts.user_id`, migration 015) are implemented; a new attempt requires a signed-in account (student, teacher or admin) and belongs to that account alone — teacher/admin management authority never grants answer access to another account's attempt — and attempts from before accounts stay `user_id = NULL`, bound to their browser and unlinked. The unguessable assignment token and the landing after registration are not implemented. Current behavior: `docs/ACCOUNTS_DESIGN.md` §24 and `docs/AUTH_ROUTE_CONTRACT.md`.
 
 - Add nullable `quiz_assignments.owner_user_id`. New teacher-created assignments are owner-scoped; admin sees everything. Legacy rows may remain unowned until Gabriel decides whether to assign them manually.
 - Add nullable `quiz_attempts.user_id`. Existing name-based attempts stay `user_id = NULL`; do not guess identities from typed names.

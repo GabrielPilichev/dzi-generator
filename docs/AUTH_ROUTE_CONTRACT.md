@@ -108,6 +108,7 @@ a coverage test walks `app.url_map` and fails on any undeclared endpoint.
 | `teacher` | teacher or admin account | `/teacher/new`, `/teacher/assignment/<id>` |
 | `admin` | admin account only (after the second factor) | `/admin/open-question-candidates`, `/dzi...`, every other `/teacher...` route |
 | `signed_in` | any active account (student, teacher or admin) | `/account/password` |
+| `quiz_taker` | any account that may take quizzes: student, teacher or admin (`can_take_quizzes`) | `/account/attempts` |
 | `assignment_owner` | admin account or teacher account; the view checks the loaded assignment and answers 404 | `/teacher/assignments`, `/teacher/assignment/<id>/edit`, `/duplicate`, `/results` (GET and the open-answer review POST), `/results.csv`, `/teacher/practical-submissions`, `/teacher/practical/submission-file/<file_id>/download` |
 | `attempt_owner` | route is reachable; the view checks attempt ownership and answers 404 | `/quiz/attempt/<id>`, `/quiz/attempt/<id>/result`, `/quiz/attempt/<id>/practical/...` |
 
@@ -293,18 +294,45 @@ a client-supplied target or the `Referer`.
 
 ## Quiz Attempts
 
-Quiz attempt routes have the `attempt_owner` policy: the route-level check lets
-every session through, and the view makes the object-level decision with the
-owner-session check, answering 404 (not 403) so attempt ids cannot be probed:
+**Starting.** `/quiz/<assignment_id>` is `public`: the page shows the
+assignment to anyone. `POST` starts or resumes an attempt only for a signed-in
+account (`web.access.can_take_quizzes`: student, teacher or admin): the attempt
+is the one with that `(assignment_id, user_id)`, where `user_id` is the
+validated principal's id and nothing submitted with the request. An anonymous
+`POST` (also a pending admin second factor or a disabled account's session) is
+redirected to `/login?next=/quiz/<assignment_id>`.
+Knowing an assignment id gives no access to any attempt.
+
+**Attempt routes** have the `attempt_owner` policy: the route-level check lets
+every session through, and the view makes the object-level decision, answering
+404 (not 403) so attempt ids cannot be probed:
 
 - `/quiz/attempt/<attempt_id>`
 - `/quiz/attempt/<attempt_id>/result`
 - `/quiz/attempt/<attempt_id>/practical/<source_slug>`
 - `/quiz/attempt/<attempt_id>/practical/<source_slug>/task/<exam_task_id>/upload`
 
-Each route must call `require_quiz_attempt_access(attempt_id)` before exposing or
-mutating attempt data. Attempts created through the normal start flow are marked
-with `mark_quiz_attempt_owner(attempt_id)`.
+Each route must call `require_quiz_attempt_access(conn, attempt_id)` and use the
+row it returns before exposing or mutating attempt data. It applies
+`web.access.can_access_attempt`:
+
+| `quiz_attempts.user_id` | Allowed |
+| --- | --- |
+| set (account-owned) | the account with that id (student, teacher or admin), from any browser; the browser marker is not consulted |
+| NULL (started before accounts) | the browser whose session holds `quiz_attempt_owner:<attempt_id>`; the signed-in account is not consulted |
+
+Management authority is separate and never grants answer access: the teacher
+who owns the assignment and an admin reach only their own attempts here, like
+everyone else, and review other accounts' answers only on the `/teacher...`
+pages. A missing attempt, another account's attempt (whoever asks), a disabled
+or signed-out account and a historical attempt without the marker all answer
+the same 404. New attempts
+are always account-owned, so the marker is no longer written; it is only read,
+for historical attempts, and is still carried across a sign-in. Historical
+attempts are never linked to an account.
+
+`/account/attempts` (`quiz_taker`) lists the signed-in account's own account-owned
+attempts.
 
 ## Refactor Note
 

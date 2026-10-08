@@ -5,7 +5,7 @@ from unittest.mock import patch
 from pathlib import Path
 
 
-from tests.auth_helpers import sign_in_admin, sign_in_teacher
+from tests.auth_helpers import sign_in_admin, sign_in_teacher, student_client
 from tests.support import IsolatedAppTestCase, web_app
 from web.services import quiz as quiz_service
 
@@ -526,10 +526,6 @@ class QuizAttemptRenderTest(IsolatedAppTestCase):
             student_name="Mixed Result",
         )
 
-        response = self.client.post(f"/quiz/{assignment_id}", data={"student_name": "Mixed Result"})
-        self.assertEqual(response.status_code, 302)
-        self.assertIn(f"/quiz/attempt/{attempt_id}/result", response.headers["Location"])
-
         response = self.client.get(f"/quiz/attempt/{attempt_id}/result")
         self.assertEqual(response.status_code, 200)
         self.assertIn(self.valid_prompt.encode("utf-8"), response.data)
@@ -539,26 +535,36 @@ class QuizAttemptRenderTest(IsolatedAppTestCase):
         self.assertIn("Първоначално зададени: 2".encode("utf-8"), response.data)
         self.assertIn("Пропуснати: 1 невалидни въпроса".encode("utf-8"), response.data)
 
-    def test_student_name_one_character_is_rejected(self):
+    def test_submitted_name_is_ignored_and_the_account_name_is_the_snapshot(self):
+        # The start form carries no identity: whatever name (or account id) a
+        # request adds, the attempt belongs to the signed-in account and shows
+        # that account's display name.
+        for submitted in ("А", "А" * 10000, "   \n\t  ", "Чуждо Име"):
+            with self.subTest(submitted=submitted[:10]):
+                assignment_id = self._create_assignment()
+                student = student_client(self.app, web_app.app.config["DB_PATH"], display_name="Иван Петров")
+                response = student.post(
+                    f"/quiz/{assignment_id}", data={"student_name": submitted, "user_id": "1"}
+                )
+                self.assertEqual(response.status_code, 302)
+                self.assertIn("/quiz/attempt/", response.headers["Location"])
+                conn = web_app.quiz_db()
+                try:
+                    rows = conn.execute(
+                        "SELECT student_name, user_id FROM quiz_attempts WHERE assignment_id = ?",
+                        (assignment_id,),
+                    ).fetchall()
+                finally:
+                    conn.close()
+                self.assertEqual(len(rows), 1)
+                self.assertEqual(rows[0]["student_name"], "Иван Петров")
+                with student.session_transaction() as sess:
+                    self.assertEqual(rows[0]["user_id"], sess["uid"])
+
+    def test_longest_account_name_is_stored_as_the_snapshot(self):
         assignment_id = self._create_assignment()
-
-        response = self.client.post(f"/quiz/{assignment_id}", data={"student_name": "А"})
-
-        self.assertEqual(response.status_code, 400)
-        self.assertIn("Името трябва да съдържа поне 2 символа.".encode("utf-8"), response.data)
-        conn = web_app.quiz_db()
-        try:
-            count = conn.execute(
-                "SELECT COUNT(*) FROM quiz_attempts WHERE assignment_id = ?",
-                (assignment_id,),
-            ).fetchone()[0]
-        finally:
-            conn.close()
-        self.assertEqual(count, 0)
-
-    def test_student_name_80_characters_is_accepted(self):
-        assignment_id = self._create_assignment()
-        response = self.client.post(f"/quiz/{assignment_id}", data={"student_name": "А" * 80})
+        student = student_client(self.app, web_app.app.config["DB_PATH"], display_name="А" * 80)
+        response = student.post(f"/quiz/{assignment_id}")
         self.assertEqual(response.status_code, 302)
         conn = web_app.quiz_db()
         try:
@@ -568,61 +574,19 @@ class QuizAttemptRenderTest(IsolatedAppTestCase):
             conn.close()
         self.assertEqual(stored, "А" * 80)
 
-    def test_student_name_over_80_cannot_enter_database(self):
-        for length in (81, 10000):
-            with self.subTest(length=length):
-                assignment_id = self._create_assignment()
-                response = self.client.post(f"/quiz/{assignment_id}",
-                                            data={"student_name": "А" * length})
-                self.assertEqual(response.status_code, 400)
-                self.assertIn("най-много 80 символа".encode(), response.data)
-                conn = web_app.quiz_db()
-                try:
-                    count = conn.execute("SELECT COUNT(*) FROM quiz_attempts WHERE assignment_id = ?",
-                                         (assignment_id,)).fetchone()[0]
-                finally:
-                    conn.close()
-                self.assertEqual(count, 0)
-
-    def test_student_name_whitespace_only_is_rejected(self):
+    def test_quiz_start_gives_the_attempt_to_the_account_not_the_browser(self):
         assignment_id = self._create_assignment()
+        student = student_client(self.app, web_app.app.config["DB_PATH"])
 
-        response = self.client.post(f"/quiz/{assignment_id}", data={"student_name": "   \n\t  "})
-
-        self.assertEqual(response.status_code, 400)
-        self.assertIn("Името трябва да съдържа поне 2 символа.".encode("utf-8"), response.data)
-
-    def test_normal_bulgarian_student_name_is_accepted(self):
-        assignment_id = self._create_assignment()
-
-        response = self.client.post(f"/quiz/{assignment_id}", data={"student_name": "Иван"})
-
-        self.assertEqual(response.status_code, 302)
-        self.assertIn("/quiz/attempt/", response.headers["Location"])
-        conn = web_app.quiz_db()
-        try:
-            row = conn.execute(
-                "SELECT student_name FROM quiz_attempts WHERE assignment_id = ?",
-                (assignment_id,),
-            ).fetchone()
-        finally:
-            conn.close()
-        self.assertEqual(row["student_name"], "Иван")
-
-    def test_quiz_start_marks_attempt_owner_for_current_session(self):
-        assignment_id = self._create_assignment()
-
-        response = self.client.post(
-            f"/quiz/{assignment_id}",
-            data={"student_name": "Owned Student Flow"},
-            follow_redirects=False,
-        )
+        response = student.post(f"/quiz/{assignment_id}", follow_redirects=False)
 
         self.assertEqual(response.status_code, 302)
         attempt_path = response.headers["Location"]
         self.assertIn("/quiz/attempt/", attempt_path)
-        own_response = self.client.get(attempt_path)
-        self.assertEqual(own_response.status_code, 200)
+        self.assertEqual(student.get(attempt_path).status_code, 200)
+        # No browser marker is written for an account-owned attempt.
+        with student.session_transaction() as sess:
+            self.assertFalse([key for key in sess if key.startswith("quiz_attempt_owner:")])
 
         other_client = self.app.test_client()
         other_response = other_client.get(attempt_path)
@@ -2247,9 +2211,14 @@ class QuizAttemptRenderTest(IsolatedAppTestCase):
         self.assertEqual(start.status_code, 200)
         start_html = start.get_data(as_text=True)
         self.assertIn('<h1 data-motion="feedback">', start_html)
-        self.assertIn('name="student_name"', start_html)
-        self.assertIn('type="submit">Продължи към теста', start_html)
-        self.assertNotRegex(start_html, r'<form[^>]*data-motion=')
+        # Anonymous: no name field any more, only the way to the sign-in.
+        self.assertNotIn('name="student_name"', start_html)
+        self.assertIn(f'href="/login?next=/quiz/{assignment_id}"', start_html)
+        student_html = student_client(self.app, web_app.app.config["DB_PATH"]).get(
+            f"/quiz/{assignment_id}").get_data(as_text=True)
+        self.assertNotIn('name="student_name"', student_html)
+        self.assertIn('type="submit">Продължи към теста', student_html)
+        self.assertNotRegex(student_html, r'<form[^>]*data-motion=')
 
         attempt = self.client.get(f"/quiz/attempt/{attempt_id}")
         self.assertEqual(attempt.status_code, 200)

@@ -17,7 +17,7 @@ passwords, `tester_authenticated` / `admin_authenticated`, `ui_profile`,
 `DZI_LEGACY_SHARED_LOGIN` (§2 and §8 in particular) record the starting point
 and the transition and are kept as history; none of it exists in the code. The
 current contract is `docs/AUTH_ROUTE_CONTRACT.md`. Phase 2 (student accounts)
-is not started.
+has started with account-owned quiz attempts (migration 015, §24).
 
 **Current status and next dependency.** Do not redo any of this:
 
@@ -27,15 +27,17 @@ is not started.
   owner-scoped teacher and practical-review routes, admin TOTP with recovery
   codes (016), the cutover and the removal of the shared passwords.
 - A student account can already be created by the CLI (`--role student` is its
-  default) and sign in with a password. What remains for students is attempt
-  ownership and onboarding, not the account or the login.
+  default) and sign in with a password. Attempt ownership is done (§24). What
+  remains for students is onboarding (how they get accounts), not the account,
+  the login or ownership.
 - Application startup only checks that every migration is recorded and refuses
   to start otherwise; it never migrates.
 - Done: the migration runner supports explicit table-rebuild migrations
   (`-- learnpilot-migration: table-rebuild`, `docs/DEPLOYMENT.md` section 9).
-- **Next:** migration `015` (account-owned quiz attempts, §5 and §16). The
-  number stays reserved and the file does not exist yet. It must carry the
-  rebuild directive; without it the rebuild of `quiz_attempts` is still unsafe.
+- Done: migration `015_quiz_attempts_user.sql` and account-owned quiz attempts
+  (§5, §16, §24). A new attempt needs a signed-in account; attempts
+  from before accounts stay `user_id` NULL and bound to their browser.
+- **Next:** the remaining phase-2 items of §17. None of them is started.
 - The DZI visibility gate depends on account identity (a signed-in principal),
   not on OIDC specifically; OIDC is one way to obtain student accounts.
 
@@ -220,7 +222,8 @@ CREATE TABLE IF NOT EXISTS users (
 
 - `UNIQUE` on `email` provides the login index, and the primary key serves the
   per-request lookup. No other index is needed.
-- The 2–80 name bound mirrors `quiz_student_name_error`.
+- The 2–80 name bound is the one the typed quiz name had; `display_name` is
+  now what an attempt's `student_name` snapshot is copied from (§24).
 
 **`013_login_throttle.sql`**
 
@@ -250,14 +253,18 @@ CREATE INDEX IF NOT EXISTS idx_quiz_assignments_owner
     ON quiz_assignments(owner_user_id, created_at, id);
 ```
 
-**`015_quiz_attempts_user.sql`** (phase 2; table rebuild, see §16)
+**`015_quiz_attempts_user.sql`** (phase 2; table rebuild, see §16; implemented)
 
-- Adds `user_id INTEGER REFERENCES users(id)` and drops the table-level
-  `UNIQUE`.
-- Replaces it with:
-  - `CREATE UNIQUE INDEX uniq_quiz_attempts_legacy_name ON quiz_attempts(assignment_id, student_name) WHERE user_id IS NULL;`
+- Adds `user_id INTEGER REFERENCES users(id) ON DELETE RESTRICT` and drops the
+  table-level `UNIQUE`. `RESTRICT`, never `SET NULL`: NULL means "historical
+  attempt", so an owned attempt must not be able to turn into one. Accounts are
+  disabled, not deleted, so the restriction is not hit in normal operation.
+- Replaces the `UNIQUE` with:
   - `CREATE UNIQUE INDEX uniq_quiz_attempts_user ON quiz_attempts(assignment_id, user_id) WHERE user_id IS NOT NULL;`
-  - `CREATE INDEX idx_quiz_attempts_user ON quiz_attempts(user_id, started_at);`
+  - `CREATE UNIQUE INDEX uniq_quiz_attempts_legacy_name ON quiz_attempts(assignment_id, student_name) WHERE user_id IS NULL;`
+  - `CREATE INDEX idx_quiz_attempts_user ON quiz_attempts(user_id, started_at, id) WHERE user_id IS NOT NULL;`
+    (the "my attempts" list, newest first; historical rows are not in it)
+- Recreates `idx_quiz_attempts_assignment`.
 
 **Future `user_identities`** (with OAuth in phase 2, not now)
 
@@ -444,10 +451,10 @@ existing `Principal(is_teacher=..., is_admin=...)` constructions stay valid.
 
 | Who | Access |
 | --- | --- |
-| Anonymous | Browsing as today; `/login`; the legacy name-based quiz flow until student accounts ship. |
-| Student (phase 2) | Sign in, take assigned quizzes, see own attempts and results, upload practical work for own attempts. |
-| Teacher | `/teacher/new`; own assignments' detail, edit, duplicate, results, CSV; practical review for own assignments. |
-| Admin | Everything, including unowned legacy assignments, `/teacher` dashboard, `/teacher/dzi-training`, `/dzi...`, candidates, resource downloads. |
+| Anonymous | Browsing as today; `/login`; the assignment entry page (it only offers the sign-in); an attempt started before accounts, from the browser that started it. No new attempt. |
+| Student | Sign in, take assigned quizzes, see own attempts (`/account/attempts`) and results, upload practical work for own attempts (§24). |
+| Teacher | `/teacher/new`; own assignments' detail, edit, duplicate, results, CSV; practical review for own assignments. May also take any quiz with an attempt of its own (§24). |
+| Admin | Management of everything (never answer access to another account's attempt, §24), including unowned legacy assignments, `/teacher` dashboard, `/teacher/dzi-training`, `/dzi...`, candidates, resource downloads. |
 
 **Where UI state differs from authorization**
 
@@ -549,8 +556,10 @@ section is the current state.
 - The seed for account attempts becomes
   `quiz_seed(assignment_id, f"user:{user_id}")`.
 - `student_name` stays as a display snapshot copied from `display_name`.
-- Vault notes under `vault/Generated/Quizzes/` embed the name in filenames and
-  will carry account names too.
+- Vault notes under `vault/Generated/Quizzes/` embed the name in filenames.
+  The note of an account-owned attempt also carries the attempt id
+  (`<date>-assignment-<id>-attempt-<attempt id>-<name>.md`), because two
+  accounts may share a display name; historical notes keep their old names.
 
 ## 10. Registration
 
@@ -721,7 +730,8 @@ account forms.**
   cannot commit or leave that transaction, and any error or violation rolls
   everything back. Contract and author rules: `docs/DEPLOYMENT.md` section 9,
   "Table-rebuild migrations".
-- Migration 015 is not written yet. Requirements for it:
+- Migration 015 is written to these requirements
+  (`tests/test_quiz_attempts_user_migration_sql.py` checks them):
   - start with the directive;
   - create the replacement table, copy every row with its id, drop
     `quiz_attempts`, then rename the replacement to `quiz_attempts`, in that
@@ -778,11 +788,10 @@ Notes:
   remaining principal.
 
 **Phase 2 — student accounts** (after phase 1): the migration-runner
-directive (done); migration 015 with account-owned attempts and the `signed_in`
-policy; the `Lax` cookie; assignment `public_token` links; Google/Microsoft
-OIDC sign-in with `user_identities`; a "my attempts" page. The DZI gate and
-entitlements follow, as in the roadmap. Phase 2 gets its own PR breakdown
-before it starts.
+directive (done); migration 015 with account-owned attempts, the `quiz_taker`
+policy and a minimal "my attempts" page (done, §24); the `Lax` cookie;
+assignment `public_token` links; Google/Microsoft OIDC sign-in with
+`user_identities`. The DZI gate and entitlements follow, as in the roadmap.
 
 ## 18. Test matrix
 
@@ -995,13 +1004,80 @@ recovery codes, reset, missing key); the two-step web flow (no authority before
 the code, pending expiry and tampering, throttle, same-origin, redirects,
 logout, lifetime, leaks, legacy bridge); and the CLI commands.
 
+## 24. Account-owned quiz attempts (phase 2)
+
+**Rule.** `quiz_attempts.user_id` decides which of two disjoint cases an
+attempt is in; nothing else does.
+
+| Attempt | Who may open, answer, see the result, upload practical work |
+| --- | --- |
+| Account-owned (`user_id` set) | Only the account with that id, whatever its role (student, teacher or admin). Any browser it is signed in on. The browser marker is never consulted. |
+| Historical (`user_id` NULL) | Only the browser holding the attempt's `quiz_attempt_owner:<id>` session marker, exactly as before accounts. Being signed in changes nothing. |
+
+- The decision is `web.access.can_access_attempt`; every student-side attempt
+  route reaches it through `web.attempt_access.require_quiz_attempt_access`,
+  which loads the row and answers 404 for a missing attempt, a foreign one
+  and a missing marker alike. It has no teacher or admin bypass.
+- **Who takes quizzes:** every account role — student, teacher and admin
+  (`can_take_quizzes`, route policy `quiz_taker`). A teacher or admin takes a
+  test to see what students see ("Отвори теста" on the assignment page) and
+  gets an ordinary account-owned attempt of their own. Anonymous visitors, a
+  pending admin second factor and disabled or stale sessions have no
+  principal and do not qualify.
+- **Management is not ownership.** Assignment ownership and the admin's
+  global management authority (§9) cover managing assignments and reviewing
+  submitted answers on the teacher pages. They never grant answer access to
+  another account's attempt: the teacher who owns the assignment and the
+  admin get the same 404 on a student's attempt as any stranger. Each account
+  reaches only the attempts whose `user_id` is its own id.
+- **New attempts need an account.** `POST /quiz/<assignment_id>` starts or
+  resumes the attempt of the signed-in account, found by
+  `(assignment_id, user_id)`. `user_id` comes only from the validated
+  principal; nothing in the request names an account. An anonymous visitor
+  sees the assignment page with a sign-in link and is redirected to
+  `/login?next=/quiz/<id>` on POST. No new browser-owned attempt is created
+  any more and no marker is written.
+- **`student_name` is a display snapshot** of the account's `display_name` at
+  the start, for teachers, exports and notes. It identifies nobody: renaming
+  the account neither creates a second attempt nor changes the first, and two
+  accounts with one name get separate attempts.
+- **Seed.** `quiz_seed(assignment_id, "user:<user_id>")`. The stored seed and
+  question plan stay authoritative; historical attempts keep theirs.
+- **No linking of historical attempts.** They are never matched to an account
+  by name, email or anything else, and signing in does not claim them. The
+  NULL state is historical compatibility, not anonymous ownership.
+- **Concurrency.** Two simultaneous starts of one account are resolved by
+  `uniq_quiz_attempts_user`: the loser of the insert resumes the winner's row.
+- **Practical work** has no owner column: student access follows submission →
+  attempt, teacher review follows attempt → assignment → owner (unchanged).
+- **My attempts.** `GET /account/attempts` (`quiz_taker`: any account) lists the account's own
+  attempts, newest first, with a resume or result link; one query on
+  `idx_quiz_attempts_user`. Historical attempts are not listed.
+- **Disabled accounts.** Ownership is checked against the principal loaded
+  from the `users` row on every request, so a disabled or re-keyed account
+  loses its attempts with its session. The row keeps its `user_id`, so the
+  account reaches it again once it can sign in.
+
+**Known limits.** An account whose session ends in the middle of an attempt
+gets 404 on it until signing in again (the attempt is then in "my attempts").
+A teacher's or admin's own attempt is an ordinary attempt: it appears in the
+assignment's results and exports next to the students' (a separate preview
+mode does not exist).
+Assignment links are still the sequential `/quiz/<id>`; the unguessable token
+is a later PR. How students get accounts is not solved here: accounts are
+created by the operator CLI (§10).
+
+**Rollout prerequisite.** After this version is deployed, a student without an
+account cannot start a quiz. Create the accounts of the affected students
+(`src.manage_accounts create`, `docs/DEPLOYMENT.md` section 22) before
+deploying it for a class.
+
 ## Recommended next PR
 
-**Current:** PRs 1–10 and T are implemented, and so is the runner's
-table-rebuild support. The next PR is migration `015_quiz_attempts_user.sql`
-with account-owned attempts (§5, §16), as the first PR of phase 2. The text
-below is the original recommendation, kept as history; do not implement it
-again.
+**Current:** PRs 1–10 and T are implemented, and so are the runner's
+table-rebuild support and migration `015_quiz_attempts_user.sql` with
+account-owned attempts (§24), the first PR of phase 2. The text below is the
+original recommendation, kept as history; do not implement it again.
 
 **PR 1 — `users` schema and accounts service** (implemented)
 

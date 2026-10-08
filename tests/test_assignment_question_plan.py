@@ -10,6 +10,7 @@ from src import manage_migrations
 
 _ROOT = Path(__file__).resolve().parents[1]
 
+from tests.auth_helpers import student_client
 from tests.support import IsolatedAppTestCase, web_app
 
 
@@ -174,7 +175,8 @@ class AssignmentQuestionPlanHelperTest(IsolatedAppTestCase):
         return question_id
 
     def setUp(self):
-        self.client = self.app.test_client()
+        # Quiz attempts are started by a signed-in account.
+        self.client = student_client(self.app, web_app.app.config["DB_PATH"])
 
     def _create_assignment(self, *, question_plan_json=None):
         conn = web_app.quiz_db()
@@ -234,7 +236,7 @@ class AssignmentQuestionPlanHelperTest(IsolatedAppTestCase):
     def test_quiz_start_null_assignment_plan_keeps_plain_mc_attempt_format(self):
         assignment_id = self._create_assignment()
 
-        response = self.client.post(f"/quiz/{assignment_id}", data={"student_name": "MC Plan Student"})
+        response = self.client.post(f"/quiz/{assignment_id}")
 
         self.assertEqual(response.status_code, 302)
         attempt = self._attempt_for_assignment(assignment_id)
@@ -250,7 +252,7 @@ class AssignmentQuestionPlanHelperTest(IsolatedAppTestCase):
         }
         assignment_id = self._create_assignment(question_plan_json=json.dumps(plan))
 
-        response = self.client.post(f"/quiz/{assignment_id}", data={"student_name": "Mixed Plan Student"})
+        response = self.client.post(f"/quiz/{assignment_id}")
 
         self.assertEqual(response.status_code, 302)
         attempt = self._attempt_for_assignment(assignment_id)
@@ -268,7 +270,7 @@ class AssignmentQuestionPlanHelperTest(IsolatedAppTestCase):
             "open_question_ids": [self.open_question_id],
         }
         assignment_id = self._create_assignment(question_plan_json=json.dumps(plan))
-        self.client.post(f"/quiz/{assignment_id}", data={"student_name": "Mixed Open Submit"})
+        self.client.post(f"/quiz/{assignment_id}")
         attempt = self._attempt_for_assignment(assignment_id)
 
         response = self.client.get(f"/quiz/attempt/{attempt['id']}")
@@ -300,7 +302,7 @@ class AssignmentQuestionPlanHelperTest(IsolatedAppTestCase):
             "open_question_ids": [self.open_question_id],
         }))
 
-        response = self.client.post(f"/quiz/{assignment_id}", data={"student_name": "Bad Plan"})
+        response = self.client.post(f"/quiz/{assignment_id}")
 
         self.assertEqual(response.status_code, 400)
         self.assertIsNone(self._attempt_for_assignment(assignment_id))

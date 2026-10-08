@@ -70,6 +70,8 @@ EXPECTED_ACCESS_MATRIX = {
     # Admin TOTP (PR T): public because a pending second factor is not a principal.
     "account.login_totp": access.PUBLIC,
     "account.password": access.SIGNED_IN,
+    # Accounts phase 2: the signed-in account's own attempts (any role).
+    "quiz.my_attempts": access.QUIZ_TAKER,
 }
 
 # Who makes the request. The first three have no account: "historical_*" are
@@ -85,6 +87,7 @@ ACCOUNT_ROLES = ("student", "teacher", "admin")
 PRINCIPALS = (*ANONYMOUS_PRINCIPALS, *ACCOUNT_ROLES)
 # Who the D1 matrix lets through, written out independently of web.access.
 SIGNED_IN_PRINCIPALS = {"student", "teacher", "admin"}
+QUIZ_TAKER_PRINCIPALS = {"student", "teacher", "admin"}
 TEACHER_PRINCIPALS = {"teacher", "admin"}
 ADMIN_PRINCIPALS = {"admin"}
 
@@ -292,6 +295,8 @@ def expected_decision(policy, principal_name):
         return True
     if policy == access.SIGNED_IN:
         return principal_name in SIGNED_IN_PRINCIPALS
+    if policy == access.QUIZ_TAKER:
+        return principal_name in QUIZ_TAKER_PRINCIPALS
     if policy in (access.TEACHER, access.ASSIGNMENT_OWNER):
         return principal_name in TEACHER_PRINCIPALS
     return policy == access.ADMIN and principal_name in ADMIN_PRINCIPALS

@@ -148,6 +148,12 @@
                                href="{{ url_for('teacher.teacher_assignments') }}"
                                {% if is_assignments_current %}aria-current="page"{% endif %}>{{ 'Създадени тестове' if current_account.is_admin else 'Моите тестове' }}</a>
                         {% endif %}
+                        {% if current_account %}
+                            {% set is_my_attempts_current = request.endpoint == 'quiz.my_attempts' %}
+                            <a class="{% if is_my_attempts_current %}nav-current{% else %}nav-link{% endif %}"
+                               href="{{ url_for('quiz.my_attempts') }}"
+                               {% if is_my_attempts_current %}aria-current="page"{% endif %}>Моите опити</a>
+                        {% endif %}
                     </nav>
                 {% endif %}
 

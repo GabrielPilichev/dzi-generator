@@ -64,6 +64,7 @@ class PracticalSubmissionReviewTest(IsolatedAppTestCase):
                 );
                 CREATE TABLE quiz_attempts (
                     id INTEGER PRIMARY KEY,
+                    user_id INTEGER,
                     assignment_id INTEGER,
                     student_name TEXT,
                     seed TEXT,

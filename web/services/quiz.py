@@ -205,10 +205,35 @@ def quiz_assignment_note_path(assignment_id: int, section_slug: str, created_at:
     return quiz_vault_path() / "Generated" / "Quizzes" / filename
 
 
-def quiz_attempt_note_path(assignment_id: int, student_name: str, submitted_at: str | None = None) -> _QuizPath:
+def quiz_attempt_note_path(
+    assignment_id: int, student_name: str, submitted_at: str | None = None,
+    *, attempt_id: int | None = None,
+) -> _QuizPath:
+    """Vault note of one attempt.
+
+    Without ``attempt_id`` this is the historical name (date, assignment, name),
+    kept so existing notes and links stay where they are. It is unique only
+    because historical attempts are unique per assignment and name. Account-owned
+    attempts are not (two accounts may share a display name), so their path
+    carries the attempt id; the name stays in it only for readability.
+    """
     date = (submitted_at or _quiz_datetime.now().isoformat())[:10]
-    filename = f"{date}-assignment-{assignment_id}-{quiz_slugify(student_name)}.md"
+    identity = quiz_slugify(student_name)
+    if attempt_id is not None:
+        identity = f"attempt-{int(attempt_id)}-{identity}"
+    filename = f"{date}-assignment-{assignment_id}-{identity}.md"
     return quiz_vault_path() / "Generated" / "Quizzes" / "attempts" / filename
+
+
+def quiz_attempt_row_note_path(attempt) -> _QuizPath:
+    """:func:`quiz_attempt_note_path` of a ``quiz_attempts`` row: id-based for an
+    account-owned attempt, the historical name for one without an account."""
+    return quiz_attempt_note_path(
+        int(attempt["assignment_id"]),
+        attempt["student_name"],
+        attempt["submitted_at"],
+        attempt_id=int(attempt["id"]) if attempt["user_id"] is not None else None,
+    )
 
 
 def quiz_create_assignment(
@@ -1115,6 +1140,12 @@ def quiz_seed(assignment_id: int, student_name: str) -> str:
     return _quiz_hashlib.sha256(raw).hexdigest()
 
 
+def quiz_account_seed_identity(user_id: int) -> str:
+    """What an account-owned attempt is seeded with instead of a name: the stable
+    account id, so renaming the account cannot change its questions."""
+    return f"user:{int(user_id)}"
+
+
 def quiz_pick_questions(
     conn, assignment, student_name: str, *, scope: AssessmentScope | None = None
 ) -> tuple[str, list[int]]:
@@ -1242,17 +1273,7 @@ STALE_ATTEMPT_MESSAGE = (
     "Този тест съдържа стари или непълни въпроси и не може да бъде показан коректно. "
     "Моля, създайте нов тест."
 )
-QUIZ_STUDENT_NAME_TOO_SHORT_MESSAGE = "Името трябва да съдържа поне 2 символа."
-QUIZ_STUDENT_NAME_TOO_LONG_MESSAGE = "Името трябва да е най-много 80 символа."
 QUIZ_EMPTY_SUBMISSION_MESSAGE = "Попълни поне един отговор, преди да предадеш теста."
-
-
-def quiz_student_name_error(student_name: str) -> str | None:
-    if len(student_name) < 2:
-        return QUIZ_STUDENT_NAME_TOO_SHORT_MESSAGE
-    if len(student_name) > 80:
-        return QUIZ_STUDENT_NAME_TOO_LONG_MESSAGE
-    return None
 
 
 def quiz_has_any_submitted_answer(form, *, mc_question_ids: list[int], question_ids: list[int], open_question_ids: list[int]) -> bool:
@@ -1716,7 +1737,7 @@ def quiz_write_assignment_note(assignment_id: int, base_url: str) -> None:
 
         rows = []
         for x in attempts:
-            attempt_path = quiz_attempt_note_path(assignment_id, x["student_name"], x["submitted_at"])
+            attempt_path = quiz_attempt_row_note_path(x)
             # Use basename without .md so Obsidian wikilink resolution finds the file
             # regardless of where it sits in the vault. Filesystem-relative paths like
             # "attempts/foo.md" don't resolve in Obsidian.
@@ -1781,7 +1802,7 @@ def quiz_write_attempt_note(attempt_id: int) -> None:
         qids, _skipped_count = filter_renderable_attempt_question_ids(conn, qids)
         questions = quiz_load_result_questions(conn, attempt, qids, seed)
 
-        path = quiz_attempt_note_path(int(assignment["id"]), attempt["student_name"], attempt["submitted_at"])
+        path = quiz_attempt_row_note_path(attempt)
         seconds = quiz_time_taken_seconds(attempt)
         pct = round((float(attempt["score_correct"] or 0) / max(1, int(attempt["score_total"] or 1))) * 100, 1)
 
@@ -1928,24 +1949,33 @@ def quiz_fetch_attempt(conn, attempt_id: int):
     return conn.execute("SELECT * FROM quiz_attempts WHERE id = ?", (attempt_id,)).fetchone()
 
 
-def _quiz_find_attempt(conn, assignment_id: int, student_name: str):
+def _quiz_find_account_attempt(conn, assignment_id: int, user_id: int):
     return conn.execute("""
-        SELECT *
+        SELECT id, submitted_at
         FROM quiz_attempts
         WHERE assignment_id = ?
-          AND student_name = ?
-    """, (assignment_id, student_name)).fetchone()
+          AND user_id = ?
+    """, (assignment_id, user_id)).fetchone()
 
 
-def quiz_start_or_resume_attempt(conn, assignment, student_name: str) -> QuizAttemptStart:
-    """Return the student's existing attempt, or create and commit a new one.
+def quiz_start_or_resume_attempt(conn, assignment, *, user_id: int, display_name: str) -> QuizAttemptStart:
+    """Return the account's attempt at the assignment, or create and commit one.
 
-    A concurrent insert for the same (assignment, student) is resolved to the
-    competing attempt through the unique constraint. Raises :class:`QuizPlanError`
+    ``user_id`` is the id of the validated current account and the only identity
+    used: the attempt is looked up by ``(assignment_id, user_id)`` and seeded from
+    the id. ``display_name`` is stored as the ``student_name`` snapshot teachers
+    see; it identifies nobody, so a later rename finds the same attempt and two
+    accounts with one name get separate attempts. Historical attempts
+    (``user_id`` NULL) are never matched, whatever their name.
+
+    A concurrent insert for the same (assignment, account) is resolved to the
+    competing attempt through the unique index. Raises :class:`QuizPlanError`
     for an unreadable stored plan; the caller decides the HTTP response.
     """
+    if not isinstance(user_id, int) or isinstance(user_id, bool) or user_id <= 0:
+        raise ValueError("A quiz attempt requires an account id")
     assignment_id = int(assignment["id"])
-    existing = _quiz_find_attempt(conn, assignment_id, student_name)
+    existing = _quiz_find_account_attempt(conn, assignment_id, user_id)
     if existing:
         return QuizAttemptStart(int(existing["id"]), bool(existing["submitted_at"]), False)
 
@@ -1953,8 +1983,9 @@ def quiz_start_or_resume_attempt(conn, assignment, student_name: str) -> QuizAtt
     if (assignment["question_plan_json"] or "").strip() and assignment_question_plan is None:
         raise QuizPlanError("unreadable assignment question plan")
 
+    seed_identity = quiz_account_seed_identity(user_id)
     if assignment_question_plan:
-        seed = quiz_seed(assignment_id, student_name)
+        seed = quiz_seed(assignment_id, seed_identity)
         question_ids_json = _quiz_json.dumps(assignment_question_plan, ensure_ascii=False)
         score_total = len([
             qid
@@ -1962,29 +1993,63 @@ def quiz_start_or_resume_attempt(conn, assignment, student_name: str) -> QuizAtt
             if qid not in set(assignment_question_plan["open_question_ids"])
         ])
     else:
-        seed, question_ids = quiz_pick_questions(conn, assignment, student_name)
+        seed, question_ids = quiz_pick_questions(conn, assignment, seed_identity)
         question_ids_json = _quiz_json.dumps(question_ids)
         score_total = len(question_ids)
 
     try:
         cur = conn.execute("""
-            INSERT INTO quiz_attempts (assignment_id, student_name, seed, question_ids_json, score_total)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO quiz_attempts (
+                assignment_id, user_id, student_name, seed, question_ids_json, score_total
+            )
+            VALUES (?, ?, ?, ?, ?, ?)
         """, (
             assignment_id,
-            student_name,
+            user_id,
+            display_name,
             seed,
             question_ids_json,
             score_total,
         ))
     except sqlite3.IntegrityError:
-        existing = _quiz_find_attempt(conn, assignment_id, student_name)
+        # Lost a race against this account's own other request: the unique index
+        # on (assignment_id, user_id) kept one row, so resume that one.
+        existing = _quiz_find_account_attempt(conn, assignment_id, user_id)
         if existing:
             return QuizAttemptStart(int(existing["id"]), bool(existing["submitted_at"]), False)
         raise
     attempt_id = cur.lastrowid
     conn.commit()
     return QuizAttemptStart(attempt_id, False, True)
+
+
+def fetch_account_attempts(conn, user_id: int) -> list[dict]:
+    """Every attempt owned by one account, newest first, with its assignment.
+
+    One query, driven by ``idx_quiz_attempts_user``. ``user_id = ?`` never
+    matches a historical attempt, whose ``user_id`` is NULL.
+    """
+    if not isinstance(user_id, int) or isinstance(user_id, bool):
+        return []
+    rows = conn.execute("""
+        SELECT
+            qt.id,
+            qt.assignment_id,
+            qt.started_at,
+            qt.submitted_at,
+            qt.score_correct,
+            qt.score_total,
+            qa.title_bg AS assignment_title,
+            qa.question_count,
+            qa.time_limit_minutes,
+            cs.title_bg AS section_title
+        FROM quiz_attempts qt
+        JOIN quiz_assignments qa ON qa.id = qt.assignment_id
+        JOIN curriculum_sections cs ON cs.id = qa.section_id
+        WHERE qt.user_id = ?
+        ORDER BY qt.started_at DESC, qt.id DESC
+    """, (user_id,)).fetchall()
+    return [dict(row) for row in rows]
 
 
 def quiz_attempt_open_question_ids(attempt_question_plan: dict) -> list[int]:

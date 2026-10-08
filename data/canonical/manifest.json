@@ -19,6 +19,7 @@
       "012_users.sql",
       "013_login_throttle.sql",
       "014_assignment_owner.sql",
+      "015_quiz_attempts_user.sql",
       "016_admin_totp.sql"
     ]
   },

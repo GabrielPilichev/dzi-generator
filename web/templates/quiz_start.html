@@ -14,7 +14,7 @@
 <section class="quiz-hero student-assignment-hero">
   <p class="eyebrow">Задание за ученик</p>
   <h1 data-motion="feedback">{{ assignment.title_bg }}</h1>
-  <p class="subtitle">Прегледай условията. Със същото име можеш да започнеш, да продължиш или да отвориш вече предаден резултат.</p>
+  <p class="subtitle">Прегледай условията. Със своя профил можеш да започнеш, да продължиш или да отвориш вече предаден резултат.</p>
 
   <div class="quiz-start-summary" aria-label="Обобщение на теста">
     <div class="quiz-start-summary-item">
@@ -60,17 +60,25 @@
   {% endif %}
 </section>
 
+{% if can_start %}
 <form method="post" class="card form-card quiz-start-card student-assignment-card">
-  <label for="student_name">Име на ученик</label>
-  <input id="student_name" name="student_name" autocomplete="name" required minlength="2" placeholder="Например: Иван Петров" value="{{ student_name_value or '' }}">
-  {% if name_error %}
-    <div class="warning warning--spaced form-message" role="alert">{{ name_error }}</div>
-  {% endif %}
+  <p>Решаваш като <strong>{{ current_account.display_name }}</strong>.</p>
 
   <div class="help">
-    Ако вече си започнал тест със същото име, ще продължиш съществуващия опит. Ако е предаден, ще видиш резултата.
+    Опитът се пази в профила ти. Ако вече си започнал този тест, ще продължиш същия опит, и от друго устройство. Ако е предаден, ще видиш резултата.
   </div>
 
   <button type="submit">Продължи към теста</button>
 </form>
+{% else %}
+<section class="card form-card quiz-start-card student-assignment-card">
+  <p>За да решаваш теста, влез в своя профил.</p>
+
+  <div class="help">
+    След входа ще се върнеш на тази страница. Ако нямаш профил, обърни се към учителя си.
+  </div>
+
+  <a class="button" href="{{ login_url }}">Вход</a>
+</section>
+{% endif %}
 {% endblock %}

@@ -307,11 +307,22 @@ snapshot taken immediately before and confirmed; restoring that snapshot
 `PRAGMA foreign_key_check` on the snapshot beforehand so a pre-existing
 violation is found before the maintenance window.
 
-No migration in the repository uses the directive yet. `015` remains reserved
-for the account-owned quiz-attempt rebuild and does not exist; a database that
-already recorded `016` still plans and applies `015` when it arrives, because
-pending migrations are every file not in `schema_migrations`, in filename
-order.
+`015_quiz_attempts_user.sql` is the one migration that uses the directive. It
+rebuilds `quiz_attempts`: adds the nullable `user_id` (the owning account;
+every existing row keeps NULL and nothing is linked to an account by name),
+removes the table-level `UNIQUE (assignment_id, student_name)` and replaces it
+with two partial unique indexes (one attempt per account and assignment; one
+per name among the attempts without an account), keeps every row, id and the
+`AUTOINCREMENT` high-water mark, and leaves the rows of `quiz_answers`,
+`quiz_text_answers` and `practical_submissions` untouched. A database that
+already recorded `016` plans and applies `015` when it arrives, because pending
+migrations are every file not in `schema_migrations`, in filename order; a
+fresh database runs it before `016`.
+
+**Before deploying the version that contains 015 for a class:** starting a quiz
+now requires a signed-in account. Students without an account can no
+longer start one, so create their accounts first (section 22). Attempts started
+before the deployment stay reachable from the browser that started them.
 
 ### One-time baseline adoption (`000_baseline.sql`)
 
@@ -897,8 +908,8 @@ answers 404 behind them); to remove them, re-apply the template as in section
 (`lp_login`) are unchanged and must stay.
 
 **`DZI_SECRET_KEY` is not rotated for any of this.** Rotating it would sign out
-every account and discard the attempt-ownership markers of students who are in
-the middle of a quiz. It is not needed: old cookies stay valid as cookies, but
+every account and discard the browser markers of attempts started before
+accounts (an account-owned attempt is reached again by signing in). It is not needed: old cookies stay valid as cookies, but
 nothing in them other than an account identity is read.
 
 ### Admin sign-in preflight
@@ -1020,8 +1031,9 @@ Browsers that still hold such a cookie from that time would be signed in again.
 If that matters for a rollback, set new shared passwords in the env file before
 starting the old code and, to void the old cookies as well, rotate
 `DZI_SECRET_KEY`. Rotation is a deliberate emergency measure with a real cost: it
-signs out every account and invalidates the quiz attempts students have open. It
-is never part of a normal deployment.
+signs out every account and makes the attempts started before accounts
+unreachable for their students (account-owned attempts are reached again by
+signing in). It is never part of a normal deployment.
 
 ## 2 GB VPS sizing
 

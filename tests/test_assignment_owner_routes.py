@@ -469,9 +469,11 @@ class AssignmentOwnerRoutesTest(IsolatedAppTestCase):
 
     # --- student/public quiz flow ------------------------------------------
 
-    def test_student_quiz_flow_is_not_owner_scoped(self):
-        for label, account in (("anonymous", None), ("student account", self.student),
-                               ("teacher B as a visitor", self.teacher_b)):
+    def test_quiz_flow_is_not_owner_scoped(self):
+        # Any account takes any assignment, whoever owns it (or nobody): a
+        # student, a teacher who does not own it, its owner, the admin.
+        for label, account in (("student account", self.student), ("teacher B as a visitor", self.teacher_b),
+                               ("owning teacher A", self.teacher_a), ("admin", self.admin)):
             for assignment_id in (self.a, self.b, self.u):
                 with self.subTest(visitor=label, assignment=assignment_id):
                     client = self.client(account)
@@ -480,6 +482,10 @@ class AssignmentOwnerRoutesTest(IsolatedAppTestCase):
                     self.assertEqual(start.status_code, 302)
                     attempt_path = start.headers["Location"]
                     self.assertRegex(attempt_path, r"^/quiz/attempt/\d+$")
+                    with closing(web_app.quiz_db()) as conn:
+                        owner = conn.execute("SELECT user_id FROM quiz_attempts WHERE id = ?",
+                                             (int(attempt_path.rsplit("/", 1)[1]),)).fetchone()[0]
+                    self.assertEqual(owner, account["id"])
                     page = client.get(attempt_path)
                     self.assertEqual(page.status_code, 200)
                     question_id = self.first_rendered_question(attempt_path)
@@ -487,6 +493,18 @@ class AssignmentOwnerRoutesTest(IsolatedAppTestCase):
                     self.assertEqual(submit.status_code, 302)
                     self.assertTrue(submit.headers["Location"].endswith("/result"))
                     self.assertEqual(client.get(submit.headers["Location"]).status_code, 200)
+
+    def test_anonymous_cannot_start_an_attempt(self):
+        # The entry page is public; starting needs an account.
+        client = self.client()
+        with closing(web_app.quiz_db()) as conn:
+            before = conn.execute("SELECT COUNT(*) FROM quiz_attempts").fetchone()[0]
+        self.assertEqual(client.get(f"/quiz/{self.a}").status_code, 200)
+        start = self.post(client, f"/quiz/{self.a}", {"student_name": "Иван анонимен"})
+        self.assertEqual(start.status_code, 302)
+        self.assertEqual(start.headers["Location"], f"/login?next=/quiz/{self.a}")
+        with closing(web_app.quiz_db()) as conn:
+            self.assertEqual(conn.execute("SELECT COUNT(*) FROM quiz_attempts").fetchone()[0], before)
 
     def first_rendered_question(self, attempt_path):
         attempt_id = int(attempt_path.rsplit("/", 1)[1])

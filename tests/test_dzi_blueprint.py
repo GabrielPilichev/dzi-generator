@@ -18,6 +18,7 @@ from web import access, request_integrity
 # (rule, methods without HEAD/OPTIONS, access policy, request-integrity policy)
 EXPECTED_URL_MAP = (
     ('/', ('GET',), 'public', None),
+    ('/account/attempts', ('GET',), 'quiz_taker', None),
     ('/account/password', ('GET', 'POST'), 'signed_in', 'same_origin'),
     ('/admin/open-question-candidates', ('GET',), 'admin', None),
     ('/dzi', ('GET',), 'admin', None),
