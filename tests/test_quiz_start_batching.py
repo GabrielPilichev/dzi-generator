@@ -9,7 +9,7 @@ import unittest
 from unittest.mock import patch
 
 from src.subject_assessment import AssessmentScope
-from tests.auth_helpers import sign_in_admin
+from tests.auth_helpers import sign_in_admin, student_client
 from tests.subject_fixtures import add_curriculum, add_membership, add_question, add_section, add_topic, four_options
 from tests.support import CANONICAL, IT_ONLY, IsolatedAppTestCase, isolated_app, web_app
 from web.services import quiz as quiz_service
@@ -47,8 +47,10 @@ def create_assignment(subject, section_id, count):
 
 
 def start(assignment_id, name="Batch Student"):
-    return traced(lambda: web_app.app.test_client().post(
-        f"/quiz/{assignment_id}", data={"student_name": name}, headers=ORIGIN))
+    # The account is created outside the trace; the traced request still
+    # includes loading it (one lookup per request, whatever the pool size).
+    client = student_client(web_app.app, web_app.app.config["DB_PATH"], display_name=name)
+    return traced(lambda: client.post(f"/quiz/{assignment_id}", headers=ORIGIN))
 
 
 class QuizStartOnCanonicalDataTest(IsolatedAppTestCase):

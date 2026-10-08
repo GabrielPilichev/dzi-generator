@@ -2,6 +2,7 @@ import json
 import unittest
 
 
+from tests.auth_helpers import student_client
 from tests.support import IsolatedAppTestCase, web_app
 
 
@@ -70,7 +71,8 @@ class StudentMixedIndicatorsTest(IsolatedAppTestCase):
         return question_id
 
     def setUp(self):
-        self.client = self.app.test_client()
+        # Quiz attempts are started by a signed-in account.
+        self.client = student_client(self.app, web_app.app.config["DB_PATH"])
 
     def _create_assignment(self, *, question_plan_json=None, title="Student Mixed"):
         conn = web_app.quiz_db()
@@ -186,10 +188,7 @@ class StudentMixedIndicatorsTest(IsolatedAppTestCase):
             title="Start POST Still Works",
         )
         try:
-            response = self.client.post(
-                f"/quiz/{assignment_id}",
-                data={"student_name": "Student Indicator"},
-            )
+            response = self.client.post(f"/quiz/{assignment_id}")
             self.assertEqual(response.status_code, 302)
             self.assertEqual(self._attempt_count(assignment_id), 1)
         finally:
@@ -211,10 +210,7 @@ class StudentMixedIndicatorsTest(IsolatedAppTestCase):
     # --- quiz_attempt --------------------------------------------------
 
     def _start_attempt(self, assignment_id, *, student_name):
-        response = self.client.post(
-            f"/quiz/{assignment_id}",
-            data={"student_name": student_name},
-        )
+        response = self.client.post(f"/quiz/{assignment_id}")
         self.assertEqual(response.status_code, 302)
         location = response.headers.get("Location", "")
         return int(location.rstrip("/").rsplit("/", 1)[-1])

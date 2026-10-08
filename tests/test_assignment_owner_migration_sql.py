@@ -78,6 +78,9 @@ class AssignmentOwnerMigrationTest(unittest.TestCase):
         after = self.contents()
         self.assertEqual(after.pop("quiz_assignments"),
                          [(*row, None) for row in before.pop("quiz_assignments")])
+        # 015 rebuilds quiz_attempts with a trailing user_id, NULL for every old row.
+        self.assertEqual(after.pop("quiz_attempts"),
+                         [(*row, None) for row in before.pop("quiz_attempts")])
         # Tables created by later migrations (016's TOTP tables) start empty.
         for table in set(after) - set(before):
             self.assertEqual(after.pop(table), [], table)

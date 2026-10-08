@@ -1,14 +1,24 @@
+"""Student quiz pages: assignment entry, the attempt, its result and "my attempts".
+
+Starting an attempt needs an account (:func:`web.access.can_take_quizzes`:
+student, teacher or admin); the attempt then belongs to that account alone. Every attempt page goes through
+:func:`web.attempt_access.require_quiz_attempt_access`, which also keeps the
+attempts started before accounts reachable from the browser that started them.
+"""
+
 from __future__ import annotations
 
 from flask import Blueprint, abort, redirect, render_template, request, url_for
 
-from web.access import ATTEMPT_OWNER, PUBLIC, access_policy
-from web.attempt_access import (
-    has_quiz_attempt_access,
-    mark_quiz_attempt_owner,
-    quiz_attempt_owner_session_key,
-    require_quiz_attempt_access,
+from web.access import (
+    ATTEMPT_OWNER,
+    PUBLIC,
+    QUIZ_TAKER,
+    access_policy,
+    can_take_quizzes,
+    current_principal,
 )
+from web.attempt_access import require_quiz_attempt_access
 from web.request_integrity import SAME_ORIGIN, integrity_policy
 from web.services import quiz as quiz_service
 
@@ -20,38 +30,32 @@ quiz_bp = Blueprint("quiz", __name__)
 @access_policy(PUBLIC)
 @integrity_policy(SAME_ORIGIN)
 def quiz_start(assignment_id):
+    # The page itself is public (the link is what a teacher shares), but an
+    # attempt is only ever started for the signed-in account. Nothing submitted
+    # with the form says whose attempt it is.
+    principal = current_principal()
     start = None
-    name_error = None
-    student_name = ""
     with quiz_service.quiz_connection() as conn:
         assignment = quiz_service.quiz_fetch_assignment(conn, assignment_id)
         if not assignment:
             abort(404)
 
         if request.method == "POST":
-            student_name = " ".join((request.form.get("student_name") or "").strip().split())
-            name_error = quiz_service.quiz_student_name_error(student_name)
-            if not name_error:
-                try:
-                    start = quiz_service.quiz_start_or_resume_attempt(conn, assignment, student_name)
-                except quiz_service.QuizPlanError:
-                    abort(400)
-
-    mixed_status = quiz_service.quiz_assignment_mixed_status(assignment["question_plan_json"])
-    if name_error:
-        return render_template(
-            "quiz_start.html",
-            assignment=assignment,
-            mixed_status=mixed_status,
-            name_error=name_error,
-            student_name_value=student_name,
-        ), 400
+            if principal.user_id is None:
+                return redirect(url_for("account.login", next=request.path))
+            if not can_take_quizzes(principal):
+                return render_template("403.html"), 403
+            try:
+                start = quiz_service.quiz_start_or_resume_attempt(
+                    conn,
+                    assignment,
+                    user_id=principal.user_id,
+                    display_name=principal.display_name,
+                )
+            except quiz_service.QuizPlanError:
+                abort(400)
 
     if start is not None:
-        if start.created:
-            mark_quiz_attempt_owner(start.attempt_id)
-            return redirect(url_for("quiz.quiz_attempt", attempt_id=start.attempt_id))
-        require_quiz_attempt_access(start.attempt_id)
         if start.submitted:
             return redirect(url_for("quiz.quiz_result", attempt_id=start.attempt_id))
         return redirect(url_for("quiz.quiz_attempt", attempt_id=start.attempt_id))
@@ -59,22 +63,27 @@ def quiz_start(assignment_id):
     return render_template(
         "quiz_start.html",
         assignment=assignment,
-        mixed_status=mixed_status,
-        name_error=None,
-        student_name_value="",
+        mixed_status=quiz_service.quiz_assignment_mixed_status(assignment["question_plan_json"]),
+        can_start=can_take_quizzes(principal),
+        login_url=url_for("account.login", next=request.path),
     )
+
+
+@quiz_bp.route("/account/attempts")
+@access_policy(QUIZ_TAKER)
+def my_attempts():
+    with quiz_service.quiz_connection() as conn:
+        attempts = quiz_service.fetch_account_attempts(conn, current_principal().user_id)
+    return render_template("my_attempts.html", attempts=attempts)
 
 
 @quiz_bp.route("/quiz/attempt/<int:attempt_id>", methods=["GET", "POST"])
 @access_policy(ATTEMPT_OWNER)
 @integrity_policy(SAME_ORIGIN)
 def quiz_attempt(attempt_id):
-    require_quiz_attempt_access(attempt_id)
     submitted_now = False
     with quiz_service.quiz_connection() as conn:
-        attempt = quiz_service.quiz_fetch_attempt(conn, attempt_id)
-        if not attempt:
-            abort(404)
+        attempt = require_quiz_attempt_access(conn, attempt_id)
 
         assignment = quiz_service.quiz_fetch_assignment(conn, int(attempt["assignment_id"]))
         if not assignment:
@@ -166,11 +175,8 @@ def quiz_attempt(attempt_id):
 @quiz_bp.route("/quiz/attempt/<int:attempt_id>/result")
 @access_policy(ATTEMPT_OWNER)
 def quiz_result(attempt_id):
-    require_quiz_attempt_access(attempt_id)
     with quiz_service.quiz_connection() as conn:
-        attempt = quiz_service.quiz_fetch_attempt(conn, attempt_id)
-        if not attempt:
-            abort(404)
+        attempt = require_quiz_attempt_access(conn, attempt_id)
 
         assignment = quiz_service.quiz_fetch_assignment(conn, int(attempt["assignment_id"]))
         if not assignment:

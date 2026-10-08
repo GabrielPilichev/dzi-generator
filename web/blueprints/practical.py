@@ -10,7 +10,10 @@
 Every view declares its access policy (:mod:`web.access`) and, for the one
 unsafe method, its request-integrity policy (:mod:`web.request_integrity`);
 nothing here reads the session to decide who may enter, except the attempt
-ownership check shared with the quiz pages (:mod:`web.attempt_access`). Review
+ownership check shared with the quiz pages (:mod:`web.attempt_access`): the
+student pages belong to the attempt's account, or for an attempt started before
+accounts to the browser that started it. A submission has no owner of its own;
+student access always follows submission -> attempt. Review
 ownership follows the submission's assignment (file -> submission -> attempt ->
 assignment) and is decided by :func:`web.access.can_manage_assignment` before
 any stored file is looked at on disk.
@@ -145,8 +148,8 @@ def dzi_practical_resource_download(resource_id: int):
 @practical_bp.route("/quiz/attempt/<int:attempt_id>/practical/<source_slug>")
 @access_policy(ATTEMPT_OWNER)
 def quiz_practical_attempt(attempt_id: int, source_slug: str):
-    require_quiz_attempt_access(attempt_id)
     with closing(_request_db()) as db:
+        require_quiz_attempt_access(db, attempt_id)
         resolved = practical.fetch_practical_attempt_page(
             db, attempt_id, source_slug,
             batch_dir=current_app.config["PRACTICAL_TASK_BATCH_DIR"],
@@ -169,8 +172,8 @@ def quiz_practical_attempt(attempt_id: int, source_slug: str):
 @access_policy(ATTEMPT_OWNER)
 @integrity_policy(SAME_ORIGIN)
 def quiz_practical_upload(attempt_id: int, source_slug: str, exam_task_id: int):
-    require_quiz_attempt_access(attempt_id)
     with closing(_request_db()) as conn:
+        require_quiz_attempt_access(conn, attempt_id)
         return _store_upload(conn, attempt_id, source_slug, exam_task_id)
 
 

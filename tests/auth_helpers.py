@@ -69,6 +69,13 @@ def sign_in_admin(client, db_path, **account_options) -> dict:
     return login_as(client, db_path, "admin", **account_options)
 
 
+def student_client(app, db_path, **account_options):
+    """A new test client signed in as a new student account, ready to take a quiz."""
+    client = app.test_client()
+    login_as(client, db_path, "student", **account_options)
+    return client
+
+
 # What the removed shared-password logins and profile switch once wrote into a
 # session cookie. Nothing reads these keys any more; tests inject them only to
 # prove that a cookie signed before their removal grants no authority.

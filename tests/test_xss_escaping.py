@@ -87,6 +87,7 @@ class PracticalTeacherReviewPageEscapingTest(IsolatedAppTestCase):
                 CREATE TABLE quiz_assignments (id INTEGER PRIMARY KEY, title_bg TEXT);
                 CREATE TABLE quiz_attempts (
                     id INTEGER PRIMARY KEY,
+                    user_id INTEGER,
                     assignment_id INTEGER, student_name TEXT,
                     seed TEXT, question_ids_json TEXT, submitted_at TEXT
                 );
@@ -226,6 +227,7 @@ class PracticalStudentPageEscapingTest(IsolatedAppTestCase):
                 );
                 CREATE TABLE quiz_attempts (
                     id INTEGER PRIMARY KEY, assignment_id INTEGER,
+                    user_id INTEGER,
                     student_name TEXT, seed TEXT,
                     question_ids_json TEXT, submitted_at TEXT
                 );

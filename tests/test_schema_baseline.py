@@ -165,9 +165,10 @@ class FreshDatabaseTest(BaselineTestCase):
         self.assertEqual([name for name, _ in migration_rows(path)], ALL_MIGRATIONS)
         self.assertEqual(ALL_MIGRATIONS[0], "000_baseline.sql")
         self.assertEqual(ALL_MIGRATIONS[-1], "016_admin_totp.sql")
-        # Both parallel account migrations are present; 015 stays reserved for phase 2.
+        # 015 (the phase-2 quiz-attempt rebuild) sits between the account migrations.
         self.assertIn("014_assignment_owner.sql", ALL_MIGRATIONS)
-        self.assertFalse([name for name in ALL_MIGRATIONS if name.startswith("015_")])
+        self.assertEqual([name for name in ALL_MIGRATIONS if name.startswith("015_")],
+                         ["015_quiz_attempts_user.sql"])
         self.assertIn("foreign_key_check: ok", out)
 
     def test_fresh_database_has_no_content_rows(self):
@@ -287,7 +288,10 @@ class ExistingDatabaseAdoptionTest(BaselineTestCase):
         rows = migration_rows(path)
         code, out, err = run_runner(path, "--apply")
         self.assertEqual(code, 0, out + err)
-        self.assertIn("applied migrations:\n  - " + "\n  - ".join(PENDING_ON_LEGACY), out)
+        # The apply report marks the one table-rebuild migration.
+        applied = [f"{name} (table-rebuild)" if name == "015_quiz_attempts_user.sql" else name
+                   for name in PENDING_ON_LEGACY]
+        self.assertIn("applied migrations:\n  - " + "\n  - ".join(applied), out)
         self.assertEqual([name for name, _ in migration_rows(path)], ALL_MIGRATIONS)
         code, out, err = run_runner(path, "--apply")
         self.assertIn("applied migrations:\n  - none", out)

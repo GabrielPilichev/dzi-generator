@@ -145,8 +145,9 @@ class RunnerUpgradeThrough014And016Test(unittest.TestCase):
         out = io.StringIO()
         self.assertEqual(manage_migrations.apply_migrations(self.path, MIGRATIONS, out=out), 0)
         applied = out.getvalue().split("applied migrations:")[1]
-        self.assertLess(applied.index("014_assignment_owner.sql"), applied.index("016_admin_totp.sql"))
-        self.assertNotIn("015_", applied)
+        # 015 (the quiz-attempt rebuild) arrived after 016 but runs between them.
+        self.assertLess(applied.index("014_assignment_owner.sql"), applied.index("015_quiz_attempts_user.sql"))
+        self.assertLess(applied.index("015_quiz_attempts_user.sql"), applied.index("016_admin_totp.sql"))
         with closing(sqlite3.connect(self.path)) as conn:
             self.assertEqual(conn.execute("SELECT id, title_bg, owner_user_id FROM quiz_assignments").fetchall(),
                              [(71, "Стар тест", None)])  # nothing backfilled
@@ -158,7 +159,10 @@ class RunnerUpgradeThrough014And016Test(unittest.TestCase):
                 self.assertEqual(conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0], 0)
             self.assertEqual(conn.execute("PRAGMA foreign_key_check").fetchall(), [])
             history = [row[0] for row in conn.execute("SELECT filename FROM schema_migrations ORDER BY filename")]
-            self.assertEqual(history[-2:], ["014_assignment_owner.sql", "016_admin_totp.sql"])
+            self.assertEqual(
+                history[-3:],
+                ["014_assignment_owner.sql", "015_quiz_attempts_user.sql", "016_admin_totp.sql"],
+            )
 
     def test_reapplying_is_a_noop_and_does_not_rotate_again(self):
         self.assertEqual(manage_migrations.apply_migrations(self.path, MIGRATIONS, out=io.StringIO()), 0)

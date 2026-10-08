@@ -4,7 +4,7 @@ import unittest
 from unittest.mock import patch
 
 
-from tests.auth_helpers import sign_in_admin, sign_in_teacher
+from tests.auth_helpers import sign_in_admin, sign_in_teacher, student_client
 from tests.support import IsolatedAppTestCase, web_app
 from web.blueprints import teacher as teacher_module
 from web.services import quiz as quiz_service
@@ -342,15 +342,16 @@ class MixedQuizPlanningControlsTest(IsolatedAppTestCase):
         plan = json.loads(self._assignment(assignment_id)["question_plan_json"])
         open_question_id = plan["open_question_ids"][0]
 
-        start_response = self.client.post(f"/quiz/{assignment_id}", data={"student_name": "Mixed Assignment Student"})
+        student = student_client(self.app, web_app.app.config["DB_PATH"])
+        start_response = student.post(f"/quiz/{assignment_id}")
         self.assertEqual(start_response.status_code, 302)
         attempt_id = int(start_response.headers["Location"].rstrip("/").split("/")[-1])
 
-        attempt_response = self.client.get(f"/quiz/attempt/{attempt_id}")
+        attempt_response = student.get(f"/quiz/attempt/{attempt_id}")
         self.assertEqual(attempt_response.status_code, 200)
         self.assertIn(f'name="open_q_{open_question_id}_1"'.encode("utf-8"), attempt_response.data)
 
-        submit_response = self.client.post(f"/quiz/attempt/{attempt_id}", data={
+        submit_response = student.post(f"/quiz/attempt/{attempt_id}", data={
             f"open_q_{open_question_id}_1": "клиент",
         })
         self.assertEqual(submit_response.status_code, 302)
@@ -374,7 +375,7 @@ class MixedQuizPlanningControlsTest(IsolatedAppTestCase):
         self.assertEqual(stored_attempt["score_total"], 1)
         self.assertGreaterEqual(text_count, 1)
 
-        result_response = self.client.get(f"/quiz/attempt/{attempt_id}/result")
+        result_response = student.get(f"/quiz/attempt/{attempt_id}/result")
         self.assertEqual(result_response.status_code, 200)
         self.assertNotIn("Комбиниран резултат".encode("utf-8"), result_response.data)
 
@@ -394,11 +395,12 @@ class MixedQuizPlanningControlsTest(IsolatedAppTestCase):
         plan = json.loads(self._assignment(assignment_id)["question_plan_json"])
         open_question_id = plan["open_question_ids"][0]
 
-        start_response = self.client.post(f"/quiz/{assignment_id}", data={"student_name": "Combined Score Student"})
+        student = student_client(self.app, web_app.app.config["DB_PATH"])
+        start_response = student.post(f"/quiz/{assignment_id}")
         self.assertEqual(start_response.status_code, 302)
         attempt_id = int(start_response.headers["Location"].rstrip("/").split("/")[-1])
 
-        submit_response = self.client.post(f"/quiz/attempt/{attempt_id}", data={
+        submit_response = student.post(f"/quiz/attempt/{attempt_id}", data={
             f"open_q_{open_question_id}_1": "клиент",
         })
         self.assertEqual(submit_response.status_code, 302)
@@ -415,7 +417,7 @@ class MixedQuizPlanningControlsTest(IsolatedAppTestCase):
         self.assertTrue(json.loads(stored_attempt["question_ids_json"])["include_open_answers_in_final_score"])
         self.assertEqual(stored_attempt["score_total"], 1)
 
-        result_response = self.client.get(f"/quiz/attempt/{attempt_id}/result")
+        result_response = student.get(f"/quiz/attempt/{attempt_id}/result")
         self.assertEqual(result_response.status_code, 200)
         self.assertIn("Комбиниран резултат".encode("utf-8"), result_response.data)
         self.assertIn(b'<span class="result-score">0/1</span>', result_response.data)
@@ -474,7 +476,7 @@ class MixedQuizPlanningControlsTest(IsolatedAppTestCase):
 
         self.assertEqual(response.status_code, 403)
 
-    def test_quiz_start_integrity_error_does_not_claim_existing_attempt(self):
+    def test_quiz_start_never_claims_a_historical_attempt_with_the_same_name(self):
         self._login_tester()
         create_response = self.client.post("/teacher/new", data={
             "section_id": str(self.section["id"]),
@@ -492,23 +494,32 @@ class MixedQuizPlanningControlsTest(IsolatedAppTestCase):
                     assignment_id, student_name, seed, question_ids_json, score_total
                 )
                 VALUES (?, ?, ?, ?, ?)
-            """, (int(assignment["id"]), name, 12345, "[]", 0))
+            """, (int(assignment["id"]), student_name, 12345, "[]", 0))
             inserted_attempt_id = int(cur.lastrowid)
             conn.commit()
             return 12345, []
 
+        # A historical (no-account) attempt under the account's display name
+        # appears while the account starts: it is neither a conflict nor claimed.
+        student = student_client(self.app, web_app.app.config["DB_PATH"], display_name=student_name)
         with patch.object(quiz_service, "quiz_pick_questions", side_effect=insert_competing_attempt):
-            response = self.client.post(
-                f"/quiz/{assignment_id}",
-                data={"student_name": student_name},
-            )
+            response = student.post(f"/quiz/{assignment_id}")
 
-        self.assertEqual(response.status_code, 404)
-        with self.client.session_transaction() as sess:
+        self.assertEqual(response.status_code, 302)
+        own_attempt_id = int(response.headers["Location"].rsplit("/", 1)[-1])
+        self.assertNotEqual(own_attempt_id, inserted_attempt_id)
+        with student.session_transaction() as sess:
             self.assertNotIn(web_app.quiz_attempt_owner_session_key(inserted_attempt_id), sess)
-        self.assertEqual(
-            self.client.get(f"/quiz/attempt/{inserted_attempt_id}").status_code, 404
-        )
+        self.assertEqual(student.get(f"/quiz/attempt/{inserted_attempt_id}").status_code, 404)
+        conn = web_app.quiz_db()
+        try:
+            owners = dict(conn.execute(
+                "SELECT id, user_id FROM quiz_attempts WHERE assignment_id = ?", (assignment_id,)
+            ).fetchall())
+        finally:
+            conn.close()
+        self.assertIsNone(owners[inserted_attempt_id])
+        self.assertIsNotNone(owners[own_attempt_id])
 
 
 if __name__ == "__main__":

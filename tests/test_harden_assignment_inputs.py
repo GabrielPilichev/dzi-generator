@@ -2,7 +2,7 @@ from unittest.mock import patch
 import unittest
 
 
-from tests.auth_helpers import sign_in_admin
+from tests.auth_helpers import sign_in_admin, student_client
 from tests.support import IsolatedAppTestCase, web_app
 from web.blueprints import teacher as teacher_module
 from web.services import quiz as quiz_service
@@ -146,7 +146,7 @@ class HardenAssignmentInputsTest(IsolatedAppTestCase):
         self.assertLessEqual(len(new_row["title_bg"]), teacher_module.QUIZ_TITLE_MAX_LENGTH)
         self.assertTrue(new_row["title_bg"].endswith(teacher_module.QUIZ_DUPLICATE_TITLE_SUFFIX))
         
-    def test_quiz_start_integrity_error_does_not_claim_attempt(self):
+    def test_quiz_start_never_claims_a_historical_attempt_with_the_same_name(self):
         # Create an assignment
         conn = web_app.quiz_db()
         cur = conn.execute("""
@@ -167,24 +167,30 @@ class HardenAssignmentInputsTest(IsolatedAppTestCase):
                     assignment_id, student_name, seed, question_ids_json, score_total
                 )
                 VALUES (?, ?, ?, ?, ?)
-            """, (int(assignment["id"]), name, 12345, "[]", 0))
+            """, (int(assignment["id"]), student_name, 12345, "[]", 0))
             inserted_attempt_id = int(cur.lastrowid)
             conn.commit()
             return 12345, []
 
+        # A historical (no-account) attempt under the account's display name
+        # appears while the account starts: it is neither a conflict nor claimed.
+        student = student_client(self.app, web_app.app.config["DB_PATH"], display_name=student_name)
         with patch.object(quiz_service, "quiz_pick_questions", side_effect=insert_competing_attempt):
-            resp = self.client.post(
-                f"/quiz/{assignment_id}",
-                data={"student_name": student_name},
-                follow_redirects=False,
-            )
+            resp = student.post(f"/quiz/{assignment_id}", follow_redirects=False)
 
-        self.assertEqual(resp.status_code, 404)
-        with self.client.session_transaction() as sess:
+        self.assertEqual(resp.status_code, 302)
+        own_attempt_id = int(resp.headers["Location"].rsplit("/", 1)[-1])
+        self.assertNotEqual(own_attempt_id, inserted_attempt_id)
+        with student.session_transaction() as sess:
             self.assertNotIn(web_app.quiz_attempt_owner_session_key(inserted_attempt_id), sess)
-        self.assertEqual(
-            self.client.get(f"/quiz/attempt/{inserted_attempt_id}").status_code, 404
-        )
+        self.assertEqual(student.get(f"/quiz/attempt/{inserted_attempt_id}").status_code, 404)
+        conn = web_app.quiz_db()
+        owners = dict(conn.execute(
+            "SELECT id, user_id FROM quiz_attempts WHERE assignment_id = ?", (assignment_id,)
+        ).fetchall())
+        conn.close()
+        self.assertIsNone(owners[inserted_attempt_id])
+        self.assertIsNotNone(owners[own_attempt_id])
 
 if __name__ == "__main__":
     unittest.main()
