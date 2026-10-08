@@ -42,9 +42,14 @@
 - /teacher/dzi-training
 - /teacher/assignment/<id>
 - /teacher/assignment/<id>/results
-- /quiz/<assignment_id>
+- /quiz/s/<public_token>
 - /quiz/attempt/<id>
 - /quiz/attempt/<id>/result
+
+Retired, must stay a generic 404 (no redirect, no id-to-token lookup):
+- /quiz/<assignment_id> — the numeric student entry. Students enter only through
+  /quiz/s/<public_token>. Numeric teacher-management URLs and numeric
+  account-owned attempt/result URLs above are unaffected.
 
 ## Obsidian
 - Vault path: vault/

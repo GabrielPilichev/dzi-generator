@@ -6,7 +6,8 @@ from pathlib import Path
 
 
 from tests.auth_helpers import sign_in_admin, sign_in_teacher, student_client
-from tests.support import IsolatedAppTestCase, web_app
+from tests.support import IsolatedAppTestCase, web_app, student_entry_path
+from web.assignment_tokens import new_public_token
 from web.services import quiz as quiz_service
 
 
@@ -287,9 +288,11 @@ class QuizAttemptRenderTest(IsolatedAppTestCase):
         conn = web_app.quiz_db()
         try:
             cur = conn.execute("""
-                INSERT INTO quiz_assignments (section_id, title_bg, question_count, time_limit_minutes)
-                VALUES (?, ?, 2, ?)
-            """, (self.section["id"], self.section["title_bg"], time_limit_minutes))
+                INSERT INTO quiz_assignments (
+                    section_id, title_bg, question_count, time_limit_minutes, public_token
+                )
+                VALUES (?, ?, 2, ?, ?)
+            """, (self.section["id"], self.section["title_bg"], time_limit_minutes, new_public_token()))
             assignment_id = int(cur.lastrowid)
             conn.commit()
             return assignment_id
@@ -544,7 +547,7 @@ class QuizAttemptRenderTest(IsolatedAppTestCase):
                 assignment_id = self._create_assignment()
                 student = student_client(self.app, web_app.app.config["DB_PATH"], display_name="Иван Петров")
                 response = student.post(
-                    f"/quiz/{assignment_id}", data={"student_name": submitted, "user_id": "1"}
+                    student_entry_path(assignment_id), data={"student_name": submitted, "user_id": "1"}
                 )
                 self.assertEqual(response.status_code, 302)
                 self.assertIn("/quiz/attempt/", response.headers["Location"])
@@ -564,7 +567,7 @@ class QuizAttemptRenderTest(IsolatedAppTestCase):
     def test_longest_account_name_is_stored_as_the_snapshot(self):
         assignment_id = self._create_assignment()
         student = student_client(self.app, web_app.app.config["DB_PATH"], display_name="А" * 80)
-        response = student.post(f"/quiz/{assignment_id}")
+        response = student.post(student_entry_path(assignment_id))
         self.assertEqual(response.status_code, 302)
         conn = web_app.quiz_db()
         try:
@@ -578,7 +581,7 @@ class QuizAttemptRenderTest(IsolatedAppTestCase):
         assignment_id = self._create_assignment()
         student = student_client(self.app, web_app.app.config["DB_PATH"])
 
-        response = student.post(f"/quiz/{assignment_id}", follow_redirects=False)
+        response = student.post(student_entry_path(assignment_id), follow_redirects=False)
 
         self.assertEqual(response.status_code, 302)
         attempt_path = response.headers["Location"]
@@ -2207,15 +2210,15 @@ class QuizAttemptRenderTest(IsolatedAppTestCase):
             [self.valid_question_id], submitted=False, student_name="Motion Attempt",
             time_limit_minutes=30,
         )
-        start = self.client.get(f"/quiz/{assignment_id}")
+        start = self.client.get(student_entry_path(assignment_id))
         self.assertEqual(start.status_code, 200)
         start_html = start.get_data(as_text=True)
         self.assertIn('<h1 data-motion="feedback">', start_html)
         # Anonymous: no name field any more, only the way to the sign-in.
         self.assertNotIn('name="student_name"', start_html)
-        self.assertIn(f'href="/login?next=/quiz/{assignment_id}"', start_html)
+        self.assertIn(f'href=\"/login?next={student_entry_path(assignment_id)}\"', start_html)
         student_html = student_client(self.app, web_app.app.config["DB_PATH"]).get(
-            f"/quiz/{assignment_id}").get_data(as_text=True)
+            student_entry_path(assignment_id)).get_data(as_text=True)
         self.assertNotIn('name="student_name"', student_html)
         self.assertIn('type="submit">Продължи към теста', student_html)
         self.assertNotRegex(student_html, r'<form[^>]*data-motion=')

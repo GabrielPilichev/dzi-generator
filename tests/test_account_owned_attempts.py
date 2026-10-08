@@ -25,7 +25,7 @@ from pathlib import Path
 
 from tests import runtime_fixtures
 from tests.auth_helpers import create_account, set_account_session
-from tests.support import ROOT, IsolatedAppTestCase, web_app
+from tests.support import ROOT, IsolatedAppTestCase, web_app, student_entry_path
 from tests.test_account_login import SAME_ORIGIN
 from web import access
 from web.access import ANONYMOUS, Principal, account_principal
@@ -162,14 +162,13 @@ class AccountAttemptTestCase(IsolatedAppTestCase):
 
     def assignment(self, *, owner=None, title="Тест за профили"):
         with closing(web_app.quiz_db()) as conn:
+            # Like every assignment the application creates, it has a public token.
             assignment_id = runtime_fixtures.add_assignment(
-                conn, section_id=self.section_id, title=title, question_count=2)
+                conn, section_id=self.section_id, title=title, question_count=2,
+                public_token=new_public_token())
             if owner is not None:
                 conn.execute("UPDATE quiz_assignments SET owner_user_id = ? WHERE id = ?",
                              (owner["id"], assignment_id))
-            # Like every assignment the application creates, it has a public token.
-            conn.execute("UPDATE quiz_assignments SET public_token = ? WHERE id = ?",
-                         (new_public_token(), assignment_id))
             conn.commit()
         return assignment_id
 
@@ -186,7 +185,7 @@ class AccountAttemptTestCase(IsolatedAppTestCase):
         return attempt_id
 
     def start(self, client, assignment_id, data=None):
-        response = client.post(f"/quiz/{assignment_id}", data=data or {}, headers=SAME_ORIGIN)
+        response = client.post(student_entry_path(assignment_id), data=data or {}, headers=SAME_ORIGIN)
         self.assertEqual(response.status_code, 302, response.get_data(as_text=True)[:300])
         self.assertRegex(response.headers["Location"], r"^/quiz/attempt/\d+(/result)?$")
         return int(response.headers["Location"].split("/")[3])
@@ -287,7 +286,7 @@ class AccountAttemptCreationTest(AccountAttemptTestCase):
         }
         with self.client(student) as client:
             attempt_id = self.start(client, assignment_id, spoof)
-            response = client.post(f"/quiz/{assignment_id}?user_id={victim['id']}", data=spoof,
+            response = client.post(f"{student_entry_path(assignment_id)}?user_id={victim['id']}", data=spoof,
                                    headers=SAME_ORIGIN)
         self.assertEqual(response.headers["Location"], f"/quiz/attempt/{attempt_id}")
         rows = self.attempts_of(assignment_id)
@@ -317,7 +316,7 @@ class AccountAttemptCreationTest(AccountAttemptTestCase):
         self.assertEqual(self.submit(second_browser, attempt_id).status_code, 302)
         # Submitted: starting again leads to the result, from either browser.
         for browser in (first_browser, second_browser):
-            response = browser.post(f"/quiz/{assignment_id}", headers=SAME_ORIGIN)
+            response = browser.post(student_entry_path(assignment_id), headers=SAME_ORIGIN)
             self.assertEqual(response.headers["Location"], f"/quiz/attempt/{attempt_id}/result")
             self.assertEqual(browser.get(response.headers["Location"]).status_code, 200)
 
@@ -330,7 +329,7 @@ class AccountAttemptCreationTest(AccountAttemptTestCase):
 
         self.execute("UPDATE users SET display_name = 'Ново Име' WHERE id = ?", (student["id"],))
 
-        self.assertIn("Ново Име", client.get(f"/quiz/{assignment_id}").get_data(as_text=True))
+        self.assertIn("Ново Име", client.get(student_entry_path(assignment_id)).get_data(as_text=True))
         self.assertEqual(self.start(client, assignment_id), attempt_id)
         self.assertEqual(self.start(self.client(student), assignment_id), attempt_id)
         self.assertEqual(len(self.attempts_of(assignment_id)), 1)
@@ -373,19 +372,19 @@ class AnonymousStartTest(AccountAttemptTestCase):
         assignment_id = self.assignment(title="Публична връзка")
         client = self.client()
 
-        page = client.get(f"/quiz/{assignment_id}")
+        page = client.get(student_entry_path(assignment_id))
         self.assertEqual(page.status_code, 200)
         html = page.get_data(as_text=True)
         self.assertIn("Публична връзка", html)
         self.assertIn("влез в своя профил", html)
-        self.assertIn(f'href="/login?next=/quiz/{assignment_id}"', html)
+        self.assertIn(f'href=\"/login?next={student_entry_path(assignment_id)}\"', html)
         self.assertNotIn("<form method=\"post\" class=\"card form-card quiz-start-card", html)
         self.assertNotIn('name="student_name"', html)
 
-        response = client.post(f"/quiz/{assignment_id}", data={"student_name": "Анонимен"},
+        response = client.post(student_entry_path(assignment_id), data={"student_name": "Анонимен"},
                                headers=SAME_ORIGIN)
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.headers["Location"], f"/login?next=/quiz/{assignment_id}")
+        self.assertEqual(response.headers["Location"], f"/login?next={student_entry_path(assignment_id)}")
         self.assertEqual(self.attempts_of(assignment_id), [])
         self.assertEqual(self.markers(client), [])
 
@@ -395,10 +394,10 @@ class AnonymousStartTest(AccountAttemptTestCase):
         client = self.client()
 
         login = client.post("/login", data={"email": "start@example.bg", "password": PASSWORD,
-                                            "next": f"/quiz/{assignment_id}"}, headers=SAME_ORIGIN)
+                                            "next": student_entry_path(assignment_id)}, headers=SAME_ORIGIN)
         self.assertEqual(login.status_code, 302)
-        self.assertEqual(login.headers["Location"], f"/quiz/{assignment_id}")
-        html = client.get(f"/quiz/{assignment_id}").get_data(as_text=True)
+        self.assertEqual(login.headers["Location"], student_entry_path(assignment_id))
+        html = client.get(student_entry_path(assignment_id)).get_data(as_text=True)
         self.assertIn("Решаваш като <strong>Влязъл Ученик</strong>", html)
         self.assertEqual(self.attempt(self.start(client, assignment_id))["user_id"], student["id"])
 
@@ -414,7 +413,7 @@ class AnonymousStartTest(AccountAttemptTestCase):
     def test_start_post_stays_same_origin_protected(self):
         assignment_id = self.assignment()
         client = self.client(self.account())
-        response = client.post(f"/quiz/{assignment_id}", headers={"Origin": "http://evil.example"})
+        response = client.post(student_entry_path(assignment_id), headers={"Origin": "http://evil.example"})
         self.assertEqual(response.status_code, 403)
         self.assertEqual(self.attempts_of(assignment_id), [])
 
@@ -424,7 +423,8 @@ class AnonymousStartTest(AccountAttemptTestCase):
                               ("admin", self.client(self.account("admin")))):
             for method in ("get", "post"):
                 with self.subTest(who=label, method=method):
-                    self.assertEqual(getattr(client, method)("/quiz/987654321").status_code, 404)
+                    self.assertEqual(
+                        getattr(client, method)("/quiz/s/" + "Z" * 43, headers=SAME_ORIGIN).status_code, 404)
 
 
 class RoleMatrixTest(AccountAttemptTestCase):
@@ -454,7 +454,7 @@ class RoleMatrixTest(AccountAttemptTestCase):
         for label, account, display_name in self.roles:
             with self.subTest(role=label):
                 client = self.client(account)
-                page = client.get(f"/quiz/{self.assignment_id}")
+                page = client.get(student_entry_path(self.assignment_id))
                 self.assertEqual(page.status_code, 200)
                 self.assertIn(f"Решаваш като <strong>{display_name}</strong>", page.get_data(as_text=True))
                 self.assertIn('type="submit">Продължи към теста', page.get_data(as_text=True))
@@ -478,7 +478,7 @@ class RoleMatrixTest(AccountAttemptTestCase):
                 self.assertEqual(self.submit(other_browser, attempt_id).status_code, 302)
                 self.assertIsNotNone(self.attempt(attempt_id)["submitted_at"])
                 self.assertEqual(client.get(f"/quiz/attempt/{attempt_id}/result").status_code, 200)
-                again = client.post(f"/quiz/{self.assignment_id}", headers=SAME_ORIGIN)
+                again = client.post(student_entry_path(self.assignment_id), headers=SAME_ORIGIN)
                 self.assertEqual(again.headers["Location"], f"/quiz/attempt/{attempt_id}/result")
         # One attempt per account, each its own.
         self.assertEqual(sorted(row["user_id"] for row in self.attempts_of(self.assignment_id)),
@@ -568,9 +568,9 @@ class RoleMatrixTest(AccountAttemptTestCase):
                 self.assertEqual(client.get(f"/quiz/attempt/{attempt_id}").status_code, 200)
 
     def test_anonymous_is_the_only_one_sent_to_the_sign_in(self):
-        response = self.client().post(f"/quiz/{self.assignment_id}", headers=SAME_ORIGIN)
+        response = self.client().post(student_entry_path(self.assignment_id), headers=SAME_ORIGIN)
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.headers["Location"], f"/login?next=/quiz/{self.assignment_id}")
+        self.assertEqual(response.headers["Location"], f"/login?next={student_entry_path(self.assignment_id)}")
         self.assertEqual(self.attempts_of(self.assignment_id), [])
 
 
@@ -639,8 +639,8 @@ class RevokedAuthorityTest(AccountAttemptTestCase):
         self.set_active(False)
         self.assert_denied_everywhere(self.client_, self.attempt_id, "disabled student")
         # The stale identity is anonymous: it cannot start, and the list asks for a sign-in.
-        start = self.client_.post(f"/quiz/{self.assignment_id}", headers=SAME_ORIGIN)
-        self.assertEqual(start.headers["Location"], f"/login?next=/quiz/{self.assignment_id}")
+        start = self.client_.post(student_entry_path(self.assignment_id), headers=SAME_ORIGIN)
+        self.assertEqual(start.headers["Location"], f"/login?next={student_entry_path(self.assignment_id)}")
         self.assertEqual(self.client_.get("/account/attempts").headers["Location"],
                          "/login?next=/account/attempts")
         self.assertEqual(len(self.attempts_of(self.assignment_id)), 1)
@@ -694,11 +694,11 @@ class RevokedAuthorityTest(AccountAttemptTestCase):
             with client.session_transaction() as session:
                 session.update(mfa_uid=account["id"], mfa_sk=account["session_key"], mfa_iat=int(time.time()))
             self.assert_denied_everywhere(client, attempt_id, label)
-            start = client.post(f"/quiz/{self.assignment_id}", headers=SAME_ORIGIN)
-            self.assertEqual(start.headers["Location"], f"/login?next=/quiz/{self.assignment_id}")
+            start = client.post(student_entry_path(self.assignment_id), headers=SAME_ORIGIN)
+            self.assertEqual(start.headers["Location"], f"/login?next={student_entry_path(self.assignment_id)}")
             self.assertEqual(client.get("/account/attempts").headers["Location"],
                              "/login?next=/account/attempts")
-            self.assertIn("влез в своя профил", client.get(f"/quiz/{self.assignment_id}").get_data(as_text=True))
+            self.assertIn("влез в своя профил", client.get(student_entry_path(self.assignment_id)).get_data(as_text=True))
         self.assertEqual(len(self.attempts_of(self.assignment_id)), attempts_before)
 
     def test_disabled_teacher_and_admin_lose_their_own_attempts_too(self):
@@ -710,8 +710,8 @@ class RevokedAuthorityTest(AccountAttemptTestCase):
                 accounts_service.set_active(conn, account["id"], False)
                 conn.commit()
             self.assert_denied_everywhere(client, attempt_id, f"disabled {role}")
-            start = client.post(f"/quiz/{self.assignment_id}", headers=SAME_ORIGIN)
-            self.assertEqual(start.headers["Location"], f"/login?next=/quiz/{self.assignment_id}")
+            start = client.post(student_entry_path(self.assignment_id), headers=SAME_ORIGIN)
+            self.assertEqual(start.headers["Location"], f"/login?next={student_entry_path(self.assignment_id)}")
             self.assertEqual(self.attempt(attempt_id)["user_id"], account["id"])
 
 
@@ -805,7 +805,7 @@ class HistoricalAttemptTest(AccountAttemptTestCase):
         before = self.query("SELECT COUNT(*) FROM quiz_attempts WHERE user_id IS NULL")[0][0]
         for client in (self.client(), self.client(markers=[self.attempt_id]), self.client(self.account()),
                        self.client(self.account("teacher")), self.client(self.account("admin"))):
-            client.post(f"/quiz/{self.assignment()}", data={"student_name": "Нов Анонимен"},
+            client.post(student_entry_path(self.assignment()), data={"student_name": "Нов Анонимен"},
                         headers=SAME_ORIGIN)
         self.assertEqual(self.query("SELECT COUNT(*) FROM quiz_attempts WHERE user_id IS NULL")[0][0], before)
 

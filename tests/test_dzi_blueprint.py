@@ -33,7 +33,6 @@ EXPECTED_URL_MAP = (
     ('/logout', ('POST',), 'public', 'same_origin'),
     ('/physics', ('GET',), 'public', None),
     ('/physics/grade/<int:grade>', ('GET',), 'public', None),
-    ('/quiz/<int:assignment_id>', ('GET', 'POST'), 'public', 'same_origin'),
     ('/quiz/attempt/<int:attempt_id>', ('GET', 'POST'), 'attempt_owner', 'same_origin'),
     ('/quiz/s/<public_token>', ('GET', 'POST'), 'public', 'same_origin'),
     ('/quiz/attempt/<int:attempt_id>/practical/<source_slug>', ('GET',), 'attempt_owner', None),

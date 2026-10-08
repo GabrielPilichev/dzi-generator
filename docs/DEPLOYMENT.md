@@ -415,9 +415,10 @@ configured public Host after ProxyFix; only local health probes may use
 
 Only POSTs are rate limited per public IP: each login has 5 requests/minute
 with burst 10; quiz start/submission has 20 requests/second with burst 90;
-practical uploads have 2 requests/second with burst 45. "Quiz start" covers both
-student entries, `/quiz/s/<public_token>` and the numeric `/quiz/<id>` kept for
-compatibility (section 24), in the same bucket. Empty GET keys are
+practical uploads have 2 requests/second with burst 45. "Quiz start" is the
+student entry `/quiz/s/<public_token>`; the retired numeric `/quiz/<id>`
+(section 24) stays in the same bucket as defense in depth, although the
+application answers 404 for it. Empty GET keys are
 not charged. These bursts allow at least 30 students behind one school NAT to
 submit together; Flask ownership, file quotas and the disk floor still enforce
 the application rules. Nginx responds 429 when a bucket is exhausted.
@@ -1039,8 +1040,9 @@ signing in). It is never part of a normal deployment.
 
 ## 24. Public assignment links (migration 017)
 
-Students open an assignment at `/quiz/s/<public_token>` instead of the
-sequential `/quiz/<assignment_id>`. The token is stored in
+Students open an assignment only at `/quiz/s/<public_token>`. The sequential
+`/quiz/<assignment_id>` entry is retired (see "Numeric student links are
+retired" below). The token is stored in
 `quiz_assignments.public_token` (nullable, unique index
 `idx_quiz_assignments_public_token`).
 
@@ -1115,15 +1117,50 @@ offering one, and its generated note records that there is none. Nothing falls
 back to the numeric link in these places, and the token route answers 404 for
 such an assignment.
 
-### Numeric links during the transition
+### Numeric student links are retired
 
-`/quiz/<assignment_id>` (GET and POST) still works exactly as before, so links
-shared earlier keep opening. It does not redirect to the token URL and never
-shows a token. Retiring it (404 for numeric student entry) is a separate, later
-release, to be made only after this one is deployed and verified **and the
-backfill has reported `OK`**: without tokens, older assignments would have no
-student link at all. Vault notes written before this release keep the numeric
-link they were written with; they are not rewritten.
+`/quiz/<assignment_id>` no longer exists as a student entry. Every such URL,
+GET or POST, for any session, answers the generic 404 of an unknown URL:
+
+- no redirect to the token URL and no numeric-to-token lookup of any kind;
+- no difference between an existing assignment, one without a token and a
+  missing one;
+- no sign-in redirect, no token in the response, no attempt started or resumed.
+
+Consequences for operation:
+
+- **Previously distributed numeric student links stop working** the moment
+  this release is deployed (links pasted in chats or class pages, and the
+  "Споделяем линк" line of vault notes written before migration 017, which are
+  not rewritten). Teachers share the token link from the assignment page
+  instead; students who already started keep their attempt and find it under
+  "Моите опити" (`/account/attempts`).
+- **Still numeric and unaffected:** the teacher-management URLs
+  (`/teacher/assignment/<id>`, `/edit`, `/duplicate`, `/results`,
+  `/results.csv`; owner or admin only) and the account-owned attempt URLs
+  (`/quiz/attempt/<id>`, `/quiz/attempt/<id>/result`).
+- The Nginx template keeps the `^/quiz/[0-9]+$` location with the quiz-write
+  limit as defense in depth; the installed site needs no change for this
+  release, and the `/quiz/s/` limit from the token release must stay.
+
+**Prerequisites before deploying the retirement release.** Both must already
+be true on the production database, otherwise older assignments are left with
+no student link at all:
+
+1. Migration `017_assignment_public_token.sql` is applied and the token release
+   is deployed and verified (the "Deployment order" above, including the Nginx
+   `/quiz/s/` limit).
+2. The backfill reports complete. Run it again as the check; `--dry-run` only
+   reads, and the result must show `without a token: 0` and exit status 0:
+
+```bash
+sudo -u learnpilot /opt/learnpilot/venv/bin/python -m src.manage_assignment_tokens \
+  --db /var/lib/learnpilot/data/questions.db --dry-run
+```
+
+The retirement release itself has no migration. Tell teachers beforehand that
+old numeric links will stop opening and that they should re-share the link
+shown on each assignment page.
 
 QR codes for the student link are not part of this release; they are planned
 as a separate change on top of the token URL.
@@ -1140,6 +1177,9 @@ afterwards. While rolled back, students can only enter through the numeric
 `/quiz/<assignment_id>` link, which the older code shows on the teacher pages.
 Assignments created by the older code have no token; after rolling forward
 again, run the backfill once more.
+
+Rolling back only the retirement release (to the token release) needs no data
+change: token links keep working and the numeric entry answers again.
 
 ## 2 GB VPS sizing
 

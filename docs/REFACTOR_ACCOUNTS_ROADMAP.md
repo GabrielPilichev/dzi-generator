@@ -341,7 +341,7 @@ Status: assignment ownership and account-owned quiz attempts (`quiz_attempts.use
 - New authenticated attempts are unique on `(assignment_id, user_id)` for rows where `user_id IS NOT NULL`.
 - The old `(assignment_id, student_name)` uniqueness must apply only to legacy rows where `user_id IS NULL`; otherwise two real students with the same display name could not take the same test. If the existing uniqueness is a table constraint, use a numbered SQLite table-rebuild migration to replace it with the required partial unique indexes.
 - Derive the new question seed from the user id rather than the typed name. Ownership checks use the account instead of `quiz_attempt_owner:<id>` session keys and keep returning 404.
-- New student links use a random, unguessable token instead of sequential `/quiz/<assignment_id>`. Existing numeric links keep working during the compatibility period.
+- New student links use a random, unguessable token instead of sequential `/quiz/<assignment_id>`. Numeric links kept working during a compatibility period that has ended: the numeric student entry is now retired and answers a generic 404 with no redirect to the token link (`docs/DEPLOYMENT.md` section 24). Numeric teacher-management and account-owned attempt URLs remain.
 - After registering, the student lands back on the test through `next` and `safe_redirect_target`.
 - Do not auto-link legacy attempts to future accounts. Any later manual reconciliation must be explicit and auditable.
 - Rate-limit assignment creation per teacher.

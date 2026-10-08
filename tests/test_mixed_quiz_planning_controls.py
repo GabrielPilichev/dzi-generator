@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 
 from tests.auth_helpers import sign_in_admin, sign_in_teacher, student_client
-from tests.support import IsolatedAppTestCase, web_app
+from tests.support import IsolatedAppTestCase, web_app, student_entry_path
 from web.blueprints import teacher as teacher_module
 from web.services import quiz as quiz_service
 
@@ -343,7 +343,7 @@ class MixedQuizPlanningControlsTest(IsolatedAppTestCase):
         open_question_id = plan["open_question_ids"][0]
 
         student = student_client(self.app, web_app.app.config["DB_PATH"])
-        start_response = student.post(f"/quiz/{assignment_id}")
+        start_response = student.post(student_entry_path(assignment_id))
         self.assertEqual(start_response.status_code, 302)
         attempt_id = int(start_response.headers["Location"].rstrip("/").split("/")[-1])
 
@@ -396,7 +396,7 @@ class MixedQuizPlanningControlsTest(IsolatedAppTestCase):
         open_question_id = plan["open_question_ids"][0]
 
         student = student_client(self.app, web_app.app.config["DB_PATH"])
-        start_response = student.post(f"/quiz/{assignment_id}")
+        start_response = student.post(student_entry_path(assignment_id))
         self.assertEqual(start_response.status_code, 302)
         attempt_id = int(start_response.headers["Location"].rstrip("/").split("/")[-1])
 
@@ -503,7 +503,7 @@ class MixedQuizPlanningControlsTest(IsolatedAppTestCase):
         # appears while the account starts: it is neither a conflict nor claimed.
         student = student_client(self.app, web_app.app.config["DB_PATH"], display_name=student_name)
         with patch.object(quiz_service, "quiz_pick_questions", side_effect=insert_competing_attempt):
-            response = student.post(f"/quiz/{assignment_id}")
+            response = student.post(student_entry_path(assignment_id))
 
         self.assertEqual(response.status_code, 302)
         own_attempt_id = int(response.headers["Location"].rsplit("/", 1)[-1])

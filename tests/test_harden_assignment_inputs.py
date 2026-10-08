@@ -3,7 +3,8 @@ import unittest
 
 
 from tests.auth_helpers import sign_in_admin, student_client
-from tests.support import IsolatedAppTestCase, web_app
+from tests.support import IsolatedAppTestCase, web_app, student_entry_path
+from web.assignment_tokens import new_public_token
 from web.blueprints import teacher as teacher_module
 from web.services import quiz as quiz_service
 
@@ -150,9 +151,9 @@ class HardenAssignmentInputsTest(IsolatedAppTestCase):
         # Create an assignment
         conn = web_app.quiz_db()
         cur = conn.execute("""
-            INSERT INTO quiz_assignments (section_id, title_bg, question_count)
-            VALUES (?, ?, ?)
-        """, (self.section["id"], "Integrity Test", 5))
+            INSERT INTO quiz_assignments (section_id, title_bg, question_count, public_token)
+            VALUES (?, ?, ?, ?)
+        """, (self.section["id"], "Integrity Test", 5, new_public_token()))
         assignment_id = cur.lastrowid
         conn.commit()
         conn.close()
@@ -176,7 +177,7 @@ class HardenAssignmentInputsTest(IsolatedAppTestCase):
         # appears while the account starts: it is neither a conflict nor claimed.
         student = student_client(self.app, web_app.app.config["DB_PATH"], display_name=student_name)
         with patch.object(quiz_service, "quiz_pick_questions", side_effect=insert_competing_attempt):
-            resp = student.post(f"/quiz/{assignment_id}", follow_redirects=False)
+            resp = student.post(student_entry_path(assignment_id), follow_redirects=False)
 
         self.assertEqual(resp.status_code, 302)
         own_attempt_id = int(resp.headers["Location"].rsplit("/", 1)[-1])

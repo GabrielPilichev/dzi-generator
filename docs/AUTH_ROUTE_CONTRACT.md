@@ -104,7 +104,7 @@ a coverage test walks `app.url_map` and fails on any undeclared endpoint.
 
 | Policy | Meaning | Routes |
 | --- | --- | --- |
-| `public` | any session, signed in or not | `/`, `/grade/<n>`, `/section/<slug>`, `/subjects/...`, `/physics...`, `/healthz`, `/favicon.ico`, sign-in (`/login`, `POST /login/totp`), `POST /logout`, `/quiz/s/<public_token>`, `/quiz/<assignment_id>` |
+| `public` | any session, signed in or not | `/`, `/grade/<n>`, `/section/<slug>`, `/subjects/...`, `/physics...`, `/healthz`, `/favicon.ico`, sign-in (`/login`, `POST /login/totp`), `POST /logout`, `/quiz/s/<public_token>` |
 | `teacher` | teacher or admin account | `/teacher/new`, `/teacher/assignment/<id>` |
 | `admin` | admin account only (after the second factor) | `/admin/open-question-candidates`, `/dzi...`, every other `/teacher...` route |
 | `signed_in` | any active account (student, teacher or admin) | `/account/password` |
@@ -307,14 +307,26 @@ anonymous `POST` (also a pending admin second factor or a disabled account's
 session) is redirected to `/login?next=<the request path>`.
 Knowing a token or an assignment id gives no access to any attempt.
 
-`/quiz/<assignment_id>` is the earlier, sequential entry. It stays available
-for compatibility with links already shared and behaves identically (both
-routes run the same view code); it never redirects to the token URL and never
-reveals a token. Its retirement is a separate later change. Every link the
-application now produces for students (teacher pages, the result page,
-generated assignment notes) is built by `quiz_student_entry_path` and uses the
-token; an assignment without a token gets no link rather than a numeric one.
-Management routes keep the numeric id.
+The token route is the only student entry. The earlier sequential entry
+`/quiz/<assignment_id>` is **retired**: the application has no rule for it, so
+every such URL, for any method and any session, is the generic 404 of an
+unknown URL. There is no lookup, so an existing assignment, one without a
+token and a missing one are indistinguishable; there is no redirect to the
+token URL, no sign-in redirect, no token in the response and no attempt is
+started or resumed. (A cross-origin `POST` is refused with 403 by request
+integrity before routing matters.) Numeric student links shared before the
+retirement stop working; the teacher shares the token link from the assignment
+page instead. Do not reintroduce a numeric entry or an id-to-token redirect.
+
+Every link the application produces for students (teacher pages, the result
+page, generated assignment notes) is built by `quiz_student_entry_path` and
+uses the token; an assignment without a token gets no link rather than a
+numeric one.
+
+Numeric ids remain in two other, unrelated places and keep working: the
+teacher-management routes (`/teacher/assignment/<id>` and its `/edit`,
+`/duplicate`, `/results`, `/results.csv`), which are owner/admin only, and the
+account-owned attempt routes (`/quiz/attempt/<attempt_id>...`) described below.
 
 `GET /login` with an already valid account session redirects to the validated
 `next` (or the role's home) instead of showing the form. A student who follows

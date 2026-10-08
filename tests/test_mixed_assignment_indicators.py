@@ -3,7 +3,8 @@ import unittest
 
 
 from tests.auth_helpers import sign_in_admin
-from tests.support import IsolatedAppTestCase, web_app
+from tests.support import IsolatedAppTestCase, web_app, student_entry_path
+from web.assignment_tokens import new_public_token
 
 
 def _register_dzi_default_denied_test_route(app):
@@ -53,10 +54,11 @@ class MixedAssignmentIndicatorTest(IsolatedAppTestCase):
         try:
             cur = conn.execute("""
                 INSERT INTO quiz_assignments (
-                    section_id, title_bg, question_count, time_limit_minutes, question_plan_json
+                    section_id, title_bg, question_count, time_limit_minutes, question_plan_json,
+                    public_token
                 )
-                VALUES (?, ?, 2, NULL, ?)
-            """, (self.section["id"], title, question_plan_json))
+                VALUES (?, ?, 2, NULL, ?, ?)
+            """, (self.section["id"], title, question_plan_json, new_public_token()))
             assignment_id = int(cur.lastrowid)
             conn.commit()
             return assignment_id
@@ -317,7 +319,7 @@ class MixedAssignmentIndicatorTest(IsolatedAppTestCase):
             title="Start Mixed",
         )
         try:
-            response = self.client.get(f"/quiz/{mixed_id}")
+            response = self.client.get(student_entry_path(mixed_id))
             self.assertEqual(response.status_code, 200)
             body = response.data.decode("utf-8")
             # Hint now includes the open question count.
@@ -333,7 +335,7 @@ class MixedAssignmentIndicatorTest(IsolatedAppTestCase):
             title="Start Mixed Combined",
         )
         try:
-            response = self.client.get(f"/quiz/{mixed_id}")
+            response = self.client.get(student_entry_path(mixed_id))
             self.assertEqual(response.status_code, 200)
             body = response.data.decode("utf-8")
             self.assertIn("Този тест съдържа 1 отворени въпроса.", body)
@@ -344,7 +346,7 @@ class MixedAssignmentIndicatorTest(IsolatedAppTestCase):
     def test_quiz_start_mc_only_has_no_open_hint(self):
         mc_id = self._create_assignment(title="Start MC Only")
         try:
-            response = self.client.get(f"/quiz/{mc_id}")
+            response = self.client.get(student_entry_path(mc_id))
             self.assertEqual(response.status_code, 200)
             body = response.data.decode("utf-8")
             self.assertNotIn("Този тест съдържа отворени въпроси.", body)
@@ -357,7 +359,7 @@ class MixedAssignmentIndicatorTest(IsolatedAppTestCase):
             title="Start Broken Plan",
         )
         try:
-            response = self.client.get(f"/quiz/{broken_id}")
+            response = self.client.get(student_entry_path(broken_id))
             self.assertEqual(response.status_code, 200)
             body = response.data.decode("utf-8")
             self.assertNotIn("Този тест съдържа отворени въпроси.", body)

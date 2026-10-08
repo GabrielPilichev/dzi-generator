@@ -220,3 +220,25 @@ class IsolatedAppTestCase(unittest.TestCase):
     def run(self, result=None):
         with preserved_app_state():
             return super().run(result)
+
+
+def student_entry_path(assignment_id: int) -> str:
+    """The student link (``/quiz/s/<public_token>``) of an assignment in the current test database.
+
+    Read-only: it returns the token the assignment already has and fails if there is
+    none or it is not a valid token. It never generates or stores one, so a test that
+    reaches an assignment through here proves that whatever created the assignment
+    (the application, or a fixture that supplied a token explicitly) gave it a token.
+    The numeric ``/quiz/<id>`` entry is retired; this is the only way to a start page.
+    """
+    from web.assignment_tokens import is_valid_public_token
+
+    with closing(web_app.quiz_db()) as conn:
+        row = conn.execute("SELECT public_token FROM quiz_assignments WHERE id = ?", (assignment_id,)).fetchone()
+    if row is None:
+        raise AssertionError(f"no assignment {assignment_id} in the test database")
+    if not is_valid_public_token(row[0]):
+        raise AssertionError(
+            f"assignment {assignment_id} has no valid public token: create it through the application "
+            "or give the fixture row a token explicitly")
+    return f"/quiz/s/{row[0]}"

@@ -3,7 +3,8 @@ import unittest
 
 
 from tests.auth_helpers import student_client
-from tests.support import IsolatedAppTestCase, web_app
+from tests.support import IsolatedAppTestCase, web_app, student_entry_path
+from web.assignment_tokens import new_public_token
 
 
 def _register_dzi_default_denied_test_route(app):
@@ -79,10 +80,11 @@ class StudentMixedIndicatorsTest(IsolatedAppTestCase):
         try:
             cur = conn.execute("""
                 INSERT INTO quiz_assignments (
-                    section_id, title_bg, question_count, time_limit_minutes, question_plan_json
+                    section_id, title_bg, question_count, time_limit_minutes, question_plan_json,
+                    public_token
                 )
-                VALUES (?, ?, ?, ?, ?)
-            """, (self.section["id"], title, 2, None, question_plan_json))
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (self.section["id"], title, 2, None, question_plan_json, new_public_token()))
             assignment_id = int(cur.lastrowid)
             conn.commit()
             return assignment_id
@@ -129,7 +131,7 @@ class StudentMixedIndicatorsTest(IsolatedAppTestCase):
     def test_quiz_start_mc_only_has_no_mixed_badge(self):
         assignment_id = self._create_assignment(title="MC Only Start")
         try:
-            response = self.client.get(f"/quiz/{assignment_id}")
+            response = self.client.get(student_entry_path(assignment_id))
             self.assertEqual(response.status_code, 200)
             body = response.data.decode("utf-8")
             self.assertNotIn("отворени въпроса", body)
@@ -144,7 +146,7 @@ class StudentMixedIndicatorsTest(IsolatedAppTestCase):
             title="Mixed Start",
         )
         try:
-            response = self.client.get(f"/quiz/{assignment_id}")
+            response = self.client.get(student_entry_path(assignment_id))
             self.assertEqual(response.status_code, 200)
             body = response.data.decode("utf-8")
             self.assertIn("1 отворени въпроса", body)
@@ -161,7 +163,7 @@ class StudentMixedIndicatorsTest(IsolatedAppTestCase):
             title="Mixed Combined Start",
         )
         try:
-            response = self.client.get(f"/quiz/{assignment_id}")
+            response = self.client.get(student_entry_path(assignment_id))
             body = response.data.decode("utf-8")
             self.assertIn("pill pill--combined", body)
             self.assertIn("сборен резултат", body)
@@ -176,7 +178,7 @@ class StudentMixedIndicatorsTest(IsolatedAppTestCase):
         )
         try:
             self.assertEqual(self._attempt_count(assignment_id), 0)
-            response = self.client.get(f"/quiz/{assignment_id}")
+            response = self.client.get(student_entry_path(assignment_id))
             self.assertEqual(response.status_code, 200)
             self.assertEqual(self._attempt_count(assignment_id), 0)
         finally:
@@ -188,7 +190,7 @@ class StudentMixedIndicatorsTest(IsolatedAppTestCase):
             title="Start POST Still Works",
         )
         try:
-            response = self.client.post(f"/quiz/{assignment_id}")
+            response = self.client.post(student_entry_path(assignment_id))
             self.assertEqual(response.status_code, 302)
             self.assertEqual(self._attempt_count(assignment_id), 1)
         finally:
@@ -200,7 +202,7 @@ class StudentMixedIndicatorsTest(IsolatedAppTestCase):
             title="Broken Plan Start",
         )
         try:
-            response = self.client.get(f"/quiz/{assignment_id}")
+            response = self.client.get(student_entry_path(assignment_id))
             self.assertEqual(response.status_code, 200)
             body = response.data.decode("utf-8")
             self.assertNotIn("отворени въпроса", body)
@@ -210,7 +212,7 @@ class StudentMixedIndicatorsTest(IsolatedAppTestCase):
     # --- quiz_attempt --------------------------------------------------
 
     def _start_attempt(self, assignment_id, *, student_name):
-        response = self.client.post(f"/quiz/{assignment_id}")
+        response = self.client.post(student_entry_path(assignment_id))
         self.assertEqual(response.status_code, 302)
         location = response.headers.get("Location", "")
         return int(location.rstrip("/").rsplit("/", 1)[-1])
