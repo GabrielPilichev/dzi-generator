@@ -41,8 +41,7 @@ EXPECTED_ACCESS_MATRIX = {
     "browsing.physics_grade": access.PUBLIC,
     "browsing.healthz": access.PUBLIC,
     "browsing.favicon": access.PUBLIC,
-    "quiz.quiz_start": access.PUBLIC,
-    # Student entry by public token; the numeric entry above stays for compatibility.
+    # Student entry by public token: the only one (the numeric entry is retired).
     "quiz.quiz_start_public": access.PUBLIC,
     "teacher.teacher_new": access.TEACHER,
     "teacher.teacher_assignment": access.TEACHER,

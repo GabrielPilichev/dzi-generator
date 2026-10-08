@@ -23,7 +23,7 @@ from unittest.mock import patch
 
 from flask import session as flask_session
 
-from tests.support import web_app
+from tests.support import web_app, student_entry_path
 from tests.test_account_login import CROSS_ORIGIN, SAME_ORIGIN, AccountAppTestCase
 from web import access
 from web.access import ANONYMOUS, Principal
@@ -598,7 +598,7 @@ class OwnershipCompositionTest(CutoverTestCase):
         self.assertEqual(self.owners(), {"a": self.teacher_a["id"], "b": self.teacher_b["id"], "u": None})
         # The public quiz start page is not an auth route and needs no account.
         anonymous = self.app.test_client()
-        self.assertEqual(anonymous.get(f"/quiz/{self.assignments['u']}").status_code, 200)
+        self.assertEqual(anonymous.get(student_entry_path(self.assignments['u'])).status_code, 200)
         self.assertEqual(anonymous.get("/quiz/attempt/999999").status_code, 404)
 
 

@@ -110,7 +110,7 @@ It is the baseline the PR sequence started from, not the current state.
 
 | Policy | Routes |
 | --- | --- |
-| `public` | browsing, `/tester`, both logins, `/tester/logout`, `/quiz/<assignment_id>`, `/quiz/s/<public_token>` (migration 017), `/healthz` |
+| `public` | browsing, `/tester`, both logins, `/tester/logout`, `/quiz/s/<public_token>` (migration 017; the numeric `/quiz/<assignment_id>` entry is retired and answers 404), `/healthz` |
 | `teacher` (tester or admin) | `/teacher/new`, `/teacher/assignment/<id>` |
 | `admin` | `/teacher`, `/teacher/assignments`, results, `results.csv`, edit, duplicate, `/teacher/dzi-training`, `/dzi...`, practical review and downloads, `/admin/...`, `/admin/logout` |
 | `attempt_owner` | `/quiz/attempt/<id>`, `/result`, practical page and upload |
@@ -1030,12 +1030,12 @@ attempt is in; nothing else does.
   another account's attempt: the teacher who owns the assignment and the
   admin get the same 404 on a student's attempt as any stranger. Each account
   reaches only the attempts whose `user_id` is its own id.
-- **New attempts need an account.** `POST /quiz/<assignment_id>` starts or
+- **New attempts need an account.** `POST /quiz/s/<public_token>` starts or
   resumes the attempt of the signed-in account, found by
   `(assignment_id, user_id)`. `user_id` comes only from the validated
   principal; nothing in the request names an account. An anonymous visitor
   sees the assignment page with a sign-in link and is redirected to
-  `/login?next=/quiz/<id>` on POST. No new browser-owned attempt is created
+  `/login?next=/quiz/s/<public_token>` on POST. No new browser-owned attempt is created
   any more and no marker is written.
 - **`student_name` is a display snapshot** of the account's `display_name` at
   the start, for teachers, exports and notes. It identifies nobody: renaming
@@ -1063,9 +1063,10 @@ gets 404 on it until signing in again (the attempt is then in "my attempts").
 A teacher's or admin's own attempt is an ordinary attempt: it appears in the
 assignment's results and exports next to the students' (a separate preview
 mode does not exist).
-New student links use the unguessable `/quiz/s/<public_token>` (migration 017;
-`docs/DEPLOYMENT.md` section 24); the sequential `/quiz/<id>` still works for
-compatibility until a later PR retires it. How students get accounts is not solved here: accounts are
+Students enter only through the unguessable `/quiz/s/<public_token>` (migration
+017; `docs/DEPLOYMENT.md` section 24). The sequential `/quiz/<id>` entry is
+retired and answers a generic 404 without any redirect; numeric
+teacher-management and attempt URLs are unaffected. How students get accounts is not solved here: accounts are
 created by the operator CLI (§10).
 
 **Rollout prerequisite.** After this version is deployed, a student without an

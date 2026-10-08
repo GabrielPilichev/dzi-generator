@@ -37,12 +37,14 @@ def first_multiple_choice_question_ids(conn: sqlite3.Connection, count: int = 3)
 
 def add_assignment(conn: sqlite3.Connection, *, section_id: int | None = None,
                    title: str = "Fixture assignment", question_count: int = 3,
-                   question_plan: list | None = None) -> int:
+                   question_plan: list | None = None, public_token: str | None = None) -> int:
+    """A raw assignment row. Without ``public_token`` it has none, like an assignment from
+    before migration 017, and therefore no student link; pass one to make it enterable."""
     cursor = conn.execute(
         "INSERT INTO quiz_assignments (section_id, title_bg, question_count, time_limit_minutes, "
-        "created_at, question_plan_json) VALUES (?, ?, ?, NULL, ?, ?)",
+        "created_at, question_plan_json, public_token) VALUES (?, ?, ?, NULL, ?, ?, ?)",
         (section_id if section_id is not None else first_section_id(conn), title, question_count,
-         FIXTURE_STARTED_AT, None if question_plan is None else json.dumps(question_plan)))
+         FIXTURE_STARTED_AT, None if question_plan is None else json.dumps(question_plan), public_token))
     return int(cursor.lastrowid)
 
 

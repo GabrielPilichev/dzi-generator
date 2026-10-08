@@ -13,7 +13,7 @@ from src.subject_assessment import AssessmentScope
 from src.subject_registry import SUBJECTS, SubjectDefinition, grade_paths
 from tests.auth_helpers import sign_in_admin
 from tests.subject_fixtures import registered_subject
-from tests.support import ROOT, IsolatedAppTestCase, web_app
+from tests.support import ROOT, IsolatedAppTestCase, web_app, student_entry_path
 from tests.test_homepage_search import _HTMLProbe
 
 EXTRA = SubjectDefinition(
@@ -170,7 +170,7 @@ class RegisteredSubjectWithContentTest(_ExtraSubjectTestCase):
         finally:
             conn.close()
         self.page(f"/teacher/assignment/{assignment_id}")
-        self.page(f"/quiz/{assignment_id}")
+        self.page(student_entry_path(assignment_id))
 
         # Another subject cannot use this section.
         response = self.client.post("/teacher/new", data={

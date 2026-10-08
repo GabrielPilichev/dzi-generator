@@ -37,7 +37,7 @@ CONTROLLER_MODULES = (
     "web/blueprints/practical.py", "web/blueprints/quiz.py", "web/blueprints/teacher.py",
 )
 CANONICAL_QUIZ_URLS = {
-    "/quiz/<int:assignment_id>": ("quiz.quiz_start", {"GET", "POST"}),
+    "/quiz/s/<public_token>": ("quiz.quiz_start_public", {"GET", "POST"}),
     "/quiz/attempt/<int:attempt_id>": ("quiz.quiz_attempt", {"GET", "POST"}),
     "/quiz/attempt/<int:attempt_id>/result": ("quiz.quiz_result", {"GET"}),
 }

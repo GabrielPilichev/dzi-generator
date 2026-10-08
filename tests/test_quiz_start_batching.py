@@ -11,7 +11,7 @@ from unittest.mock import patch
 from src.subject_assessment import AssessmentScope
 from tests.auth_helpers import sign_in_admin, student_client
 from tests.subject_fixtures import add_curriculum, add_membership, add_question, add_section, add_topic, four_options
-from tests.support import CANONICAL, IT_ONLY, IsolatedAppTestCase, isolated_app, web_app
+from tests.support import CANONICAL, IT_ONLY, IsolatedAppTestCase, isolated_app, web_app, student_entry_path
 from web.services import quiz as quiz_service
 
 ORIGIN = {"Origin": "http://localhost"}
@@ -50,7 +50,8 @@ def start(assignment_id, name="Batch Student"):
     # The account is created outside the trace; the traced request still
     # includes loading it (one lookup per request, whatever the pool size).
     client = student_client(web_app.app, web_app.app.config["DB_PATH"], display_name=name)
-    return traced(lambda: client.post(f"/quiz/{assignment_id}", headers=ORIGIN))
+    path = student_entry_path(assignment_id)  # resolved outside the trace
+    return traced(lambda: client.post(path, headers=ORIGIN))
 
 
 class QuizStartOnCanonicalDataTest(IsolatedAppTestCase):

@@ -1,9 +1,9 @@
 """Public assignment tokens: creation, the /quiz/s/<public_token> entry, student links.
 
 The token names an assignment; it is not a credential. Starting an attempt still
-needs an account, attempts stay account-owned, and the numeric entry keeps working
-until its retirement in a later change. Everything runs on the class's temporary
-database and vault.
+needs an account and attempts stay account-owned. The numeric /quiz/<id> entry is
+retired (tests/test_numeric_quiz_entry_retired.py). Everything runs on the class's
+temporary database and vault.
 """
 
 import re
@@ -274,12 +274,6 @@ class TokenRouteTest(PublicTokenAppTestCase):
         self.assertEqual(len(set(attempts.values())), 3)
         self.assertEqual(len(self.attempts_of(self.assignment_id)), 3)
 
-    def test_token_and_numeric_entries_lead_to_the_same_account_attempt(self):
-        by_token = self.start(self.client(self.student), self.path)
-        by_number = self.start(self.client(self.student), f"/quiz/{self.assignment_id}")
-        self.assertEqual(by_token, by_number)
-        self.assertEqual(len(self.attempts_of(self.assignment_id)), 1)
-
     def test_submitted_attempt_resumes_to_its_result(self):
         client = self.client(self.student)
         attempt_id = self.start(client, self.path)
@@ -387,25 +381,6 @@ class TokenRouteTest(PublicTokenAppTestCase):
         self.assertNotEqual(own, historical)
         self.assertIsNone(self.query("SELECT user_id FROM quiz_attempts WHERE id = ?", (historical,))[0][0])
         self.assertEqual(self.client(self.student).get(f"/quiz/attempt/{historical}").status_code, 404)
-
-    def test_numeric_entry_still_works_and_reveals_no_token(self):
-        numeric = f"/quiz/{self.assignment_id}"
-        for label, account in (("anonymous", None), ("student", self.student)):
-            with self.subTest(who=label):
-                response = self.client(account).get(numeric)
-                self.assertEqual(response.status_code, 200)  # served, not redirected
-                self.assertNotIn("Location", response.headers)
-                html = response.get_data(as_text=True)
-                self.assertNotIn(self.public_token, html)
-                self.assertNotIn("/quiz/s/", html)
-        anonymous = self.client().post(numeric, headers=SAME_ORIGIN)
-        self.assertEqual(anonymous.headers["Location"], f"/login?next={numeric}")
-        self.assertRegex(self.client(self.student).post(numeric, headers=SAME_ORIGIN).headers["Location"],
-                         r"^/quiz/attempt/\d+$")
-        # A legacy assignment without a token is still reachable by its number.
-        legacy_id = self.legacy()
-        self.assertEqual(self.client().get(f"/quiz/{legacy_id}").status_code, 200)
-        self.assertEqual(self.client().get("/quiz/999999999").status_code, 404)
 
 
 class LoginReturnTest(PublicTokenAppTestCase):
@@ -553,7 +528,11 @@ class StudentLinkTest(PublicTokenAppTestCase):
 
     def test_quiz_result_of_a_legacy_assignment_has_no_entry_link(self):
         client = self.client(self.student)
-        attempt_id = self.start(client, f"/quiz/{self.legacy_id}")
+        # A legacy assignment has no entry URL; its attempt predates the retirement.
+        with closing(web_app.quiz_db()) as conn:
+            attempt_id = quiz.quiz_start_or_resume_attempt(
+                conn, quiz.quiz_fetch_assignment(conn, self.legacy_id),
+                user_id=self.student["id"], display_name="Ученик").attempt_id
         self.assertEqual(self.submit(client, attempt_id).status_code, 302)
         response = client.get(f"/quiz/attempt/{attempt_id}/result")
         self.assertEqual(response.status_code, 200)

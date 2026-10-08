@@ -8,7 +8,7 @@ from tests.auth_helpers import sign_in_admin, student_client
 from tests.subject_fixtures import (
     add_curriculum, add_membership, add_question, add_section, add_topic, four_options,
 )
-from tests.support import IsolatedAppTestCase, web_app
+from tests.support import IsolatedAppTestCase, web_app, student_entry_path
 from tests.dzi_open_fixtures import mark_dzi_question
 
 
@@ -189,7 +189,7 @@ class SubjectAssessmentSelectionTest(IsolatedAppTestCase):
         assignment = self._assignment(assignment_id)
         self.assertIsNone(assignment["question_plan_json"])
         student = student_client(web_app.app, web_app.app.config["DB_PATH"])
-        start = student.post(f"/quiz/{assignment_id}")
+        start = student.post(student_entry_path(assignment_id))
         self.assertEqual(start.status_code, 302)
         attempt_id = int(start.headers["Location"].split("/")[-1])
         conn = web_app.quiz_db()
@@ -226,7 +226,7 @@ class SubjectAssessmentSelectionTest(IsolatedAppTestCase):
             self.it_dzi_section, "it", count=2, open_count=1, source="f3-synthetic"
         )
         plan_before = self._assignment(assignment_id)["question_plan_json"]
-        started = student_client(web_app.app, web_app.app.config["DB_PATH"]).post(f"/quiz/{assignment_id}")
+        started = student_client(web_app.app, web_app.app.config["DB_PATH"]).post(student_entry_path(assignment_id))
         attempt_id = int(started.headers["Location"].split("/")[-1])
         conn = web_app.quiz_db()
         try:

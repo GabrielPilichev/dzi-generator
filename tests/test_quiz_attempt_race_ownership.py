@@ -11,7 +11,8 @@ import sqlite3
 from unittest.mock import patch
 
 from tests.auth_helpers import create_account, set_account_session
-from tests.support import IsolatedAppTestCase, web_app
+from tests.support import IsolatedAppTestCase, web_app, student_entry_path
+from web.assignment_tokens import new_public_token
 from web.services import quiz as quiz_service
 
 
@@ -79,17 +80,17 @@ class QuizAttemptRaceOwnershipTest(IsolatedAppTestCase):
         try:
             cursor = connection.execute(
                 """
-                INSERT INTO quiz_assignments (section_id, title_bg, question_count)
-                VALUES (?, ?, 1)
+                INSERT INTO quiz_assignments (section_id, title_bg, question_count, public_token)
+                VALUES (?, ?, 1, ?)
                 """,
-                (self.section_id, self.section_title),
+                (self.section_id, self.section_title, new_public_token()),
             )
             assignment_id = int(cursor.lastrowid)
             connection.commit()
         finally:
             connection.close()
 
-        response = self.owner.post(f"/quiz/{assignment_id}")
+        response = self.owner.post(student_entry_path(assignment_id))
         self.assertEqual(response.status_code, 302)
         attempt_id = int(response.headers["Location"].rsplit("/", 1)[-1])
 
@@ -112,7 +113,7 @@ class QuizAttemptRaceOwnershipTest(IsolatedAppTestCase):
 
     def _start(self, client, assignment_id, *, force_conflict):
         if not force_conflict:
-            return client.post(f"/quiz/{assignment_id}"), None
+            return client.post(student_entry_path(assignment_id)), None
 
         wrappers = []
 
@@ -122,7 +123,7 @@ class QuizAttemptRaceOwnershipTest(IsolatedAppTestCase):
             return wrapper
 
         with patch.object(quiz_service, "quiz_db", side_effect=racing_quiz_db):
-            response = client.post(f"/quiz/{assignment_id}")
+            response = client.post(student_entry_path(assignment_id))
         self.assertEqual(len(wrappers), 1)
         return response, wrappers[0]
 

@@ -11,7 +11,8 @@ from src import manage_migrations
 _ROOT = Path(__file__).resolve().parents[1]
 
 from tests.auth_helpers import student_client
-from tests.support import IsolatedAppTestCase, web_app
+from tests.support import IsolatedAppTestCase, web_app, student_entry_path
+from web.assignment_tokens import new_public_token
 
 
 MIGRATION_SQL = (_ROOT / "web" / "migrations" / "006_assignment_question_plan.sql").read_text(encoding="utf-8")
@@ -183,10 +184,11 @@ class AssignmentQuestionPlanHelperTest(IsolatedAppTestCase):
         try:
             cur = conn.execute("""
                 INSERT INTO quiz_assignments (
-                    section_id, title_bg, question_count, time_limit_minutes, question_plan_json
+                    section_id, title_bg, question_count, time_limit_minutes, question_plan_json,
+                    public_token
                 )
-                VALUES (?, ?, 1, NULL, ?)
-            """, (self.section["id"], self.section["title_bg"], question_plan_json))
+                VALUES (?, ?, 1, NULL, ?, ?)
+            """, (self.section["id"], self.section["title_bg"], question_plan_json, new_public_token()))
             assignment_id = int(cur.lastrowid)
             conn.commit()
             return assignment_id
@@ -236,7 +238,7 @@ class AssignmentQuestionPlanHelperTest(IsolatedAppTestCase):
     def test_quiz_start_null_assignment_plan_keeps_plain_mc_attempt_format(self):
         assignment_id = self._create_assignment()
 
-        response = self.client.post(f"/quiz/{assignment_id}")
+        response = self.client.post(student_entry_path(assignment_id))
 
         self.assertEqual(response.status_code, 302)
         attempt = self._attempt_for_assignment(assignment_id)
@@ -252,7 +254,7 @@ class AssignmentQuestionPlanHelperTest(IsolatedAppTestCase):
         }
         assignment_id = self._create_assignment(question_plan_json=json.dumps(plan))
 
-        response = self.client.post(f"/quiz/{assignment_id}")
+        response = self.client.post(student_entry_path(assignment_id))
 
         self.assertEqual(response.status_code, 302)
         attempt = self._attempt_for_assignment(assignment_id)
@@ -270,7 +272,7 @@ class AssignmentQuestionPlanHelperTest(IsolatedAppTestCase):
             "open_question_ids": [self.open_question_id],
         }
         assignment_id = self._create_assignment(question_plan_json=json.dumps(plan))
-        self.client.post(f"/quiz/{assignment_id}")
+        self.client.post(student_entry_path(assignment_id))
         attempt = self._attempt_for_assignment(assignment_id)
 
         response = self.client.get(f"/quiz/attempt/{attempt['id']}")
@@ -302,7 +304,7 @@ class AssignmentQuestionPlanHelperTest(IsolatedAppTestCase):
             "open_question_ids": [self.open_question_id],
         }))
 
-        response = self.client.post(f"/quiz/{assignment_id}")
+        response = self.client.post(student_entry_path(assignment_id))
 
         self.assertEqual(response.status_code, 400)
         self.assertIsNone(self._attempt_for_assignment(assignment_id))

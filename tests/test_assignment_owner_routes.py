@@ -22,7 +22,7 @@ from datetime import timedelta
 from unittest.mock import patch
 
 from tests.auth_helpers import create_account, set_account_session
-from tests.support import ROOT, IsolatedAppTestCase, web_app
+from tests.support import ROOT, IsolatedAppTestCase, web_app, student_entry_path
 from tests.test_account_login import SAME_ORIGIN, AccountAppTestCase
 from web import access
 from web.access import ANONYMOUS, Principal, account_principal
@@ -477,8 +477,8 @@ class AssignmentOwnerRoutesTest(IsolatedAppTestCase):
             for assignment_id in (self.a, self.b, self.u):
                 with self.subTest(visitor=label, assignment=assignment_id):
                     client = self.client(account)
-                    self.assertEqual(client.get(f"/quiz/{assignment_id}").status_code, 200)
-                    start = self.post(client, f"/quiz/{assignment_id}", {"student_name": f"Иван {label}"})
+                    self.assertEqual(client.get(student_entry_path(assignment_id)).status_code, 200)
+                    start = self.post(client, student_entry_path(assignment_id), {"student_name": f"Иван {label}"})
                     self.assertEqual(start.status_code, 302)
                     attempt_path = start.headers["Location"]
                     self.assertRegex(attempt_path, r"^/quiz/attempt/\d+$")
@@ -499,10 +499,10 @@ class AssignmentOwnerRoutesTest(IsolatedAppTestCase):
         client = self.client()
         with closing(web_app.quiz_db()) as conn:
             before = conn.execute("SELECT COUNT(*) FROM quiz_attempts").fetchone()[0]
-        self.assertEqual(client.get(f"/quiz/{self.a}").status_code, 200)
-        start = self.post(client, f"/quiz/{self.a}", {"student_name": "Иван анонимен"})
+        self.assertEqual(client.get(student_entry_path(self.a)).status_code, 200)
+        start = self.post(client, student_entry_path(self.a), {"student_name": "Иван анонимен"})
         self.assertEqual(start.status_code, 302)
-        self.assertEqual(start.headers["Location"], f"/login?next=/quiz/{self.a}")
+        self.assertEqual(start.headers["Location"], f"/login?next={student_entry_path(self.a)}")
         with closing(web_app.quiz_db()) as conn:
             self.assertEqual(conn.execute("SELECT COUNT(*) FROM quiz_attempts").fetchone()[0], before)
 
