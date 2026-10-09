@@ -23,6 +23,7 @@ from web.request_db import get_request_db, request_db_if_open
 from web.services import browsing as browsing_service
 from web.services import subject_catalog as catalog_module
 from web.services.subject_catalog import CONTENT_GRADES_KEY, subject_catalog
+from tests.auth_helpers import login_as
 from tests.support import IT_ONLY, build_test_database, isolated_app, web_app
 
 # Physics owns sections only where a section's class equals its curriculum's grade.
@@ -264,6 +265,124 @@ class SubjectAvailabilityCacheTest(_CacheTestCase):
                     self.assertEqual(set(current_statuses().values()), {"in_preparation"})
                     self.assertIsNotNone(request_db_if_open())
                 self.assertTrue(any(FAILED in line for line in logs.output))
+
+
+class SubjectAvailabilityProductionShapesTest(_CacheTestCase):
+    """Production opens one connection per request and keeps no writer open."""
+
+    def enable_wal(self):
+        with closing(sqlite3.connect(self.db)) as conn:
+            self.assertEqual(conn.execute("PRAGMA journal_mode=WAL").fetchone()[0], "wal")
+
+    def test_wal_commits_with_the_writer_closed_are_read_by_the_next_request(self):
+        self.enable_wal()
+        self.assertEqual(statuses()["physics"], "active")
+        self.assertIn(CONTENT_GRADES_KEY, self.cache._values)
+        for sql, expected in ((HIDE_PHYSICS, "in_preparation"), (SHOW_PHYSICS, "active")):
+            with self.subTest(expected=expected):
+                self.commit(sql)  # opens, commits and closes its own connection
+                self.assertEqual(statuses()["physics"], expected)
+                self.assertEqual(statuses()["physics"], expected)  # and again, warm
+                self.assertEqual(self.cache._values[CONTENT_GRADES_KEY]["physics"] == frozenset(),
+                                 expected == "in_preparation")
+
+    @unittest.skipUnless(hasattr(sqlite3.Connection, "setconfig"), "needs Python 3.12 setconfig")
+    def test_leftover_wal_frames_are_read_and_never_published_under_a_stale_identity(self):
+        self.enable_wal()
+        self.assertEqual(statuses()["physics"], "active")
+        writer = sqlite3.connect(self.db)
+        writer.setconfig(sqlite3.SQLITE_DBCONFIG_NO_CKPT_ON_CLOSE, True)
+        writer.execute(HIDE_PHYSICS)
+        writer.commit()
+        writer.close()
+        wal = Path(str(self.db) + "-wal")
+        self.assertGreater(wal.stat().st_size, 0, "committed frames must remain in the WAL")
+        before = database_identity(self.db)
+
+        self.assertEqual(statuses()["physics"], "in_preparation")  # frames are visible to a new reader
+        # The reader may checkpoint the WAL as it closes, changing the identity it was
+        # computed under; whatever is cached must still be the committed content.
+        published = self.cache._values.get(CONTENT_GRADES_KEY)
+        if published is not None:
+            self.assertEqual(published["physics"], frozenset())
+        self.assertNotEqual(database_identity(self.db), before)
+
+        self.assertEqual(statuses()["physics"], "in_preparation")
+        self.assertEqual(self.cache._values[CONTENT_GRADES_KEY]["physics"], frozenset())
+        self.assertEqual(statuses()["physics"], "in_preparation")
+
+    def test_commit_during_a_pending_cold_read_reaches_later_requests(self):
+        self.enable_wal()
+        started, release = Event(), Event()
+        computations = []
+
+        def slow_first(conn):
+            result = subject_content_grades(conn)  # the owner has read the old content
+            computations.append(result["physics"])
+            if len(computations) == 1:
+                started.set()
+                if not release.wait(10):
+                    raise AssertionError("test did not release the first read")
+            return result
+
+        with patch.object(catalog_module, "subject_content_grades", slow_first), \
+                ThreadPoolExecutor(2) as pool:
+            owner = pool.submit(statuses)
+            self.assertTrue(started.wait(10), "the first read must be in flight")
+            self.commit(HIDE_PHYSICS)
+            try:
+                late = pool.submit(statuses).result(timeout=10)  # arrives after the commit
+            finally:
+                release.set()
+            owner_result = owner.result(timeout=10)
+        self.assertEqual(owner_result["physics"], "active")  # the read began before the commit
+        self.assertEqual(late["physics"], "in_preparation")
+        self.assertEqual(len(computations), 2)
+        self.assertEqual(statuses()["physics"], "in_preparation")
+        self.assertEqual(self.cache._values[CONTENT_GRADES_KEY]["physics"], frozenset())
+        self.assertFalse(self.cache._pending)
+
+
+class SignedInAvailabilityTest(_CacheTestCase):
+    def test_signed_in_requests_query_their_own_connection_and_publish_nothing(self):
+        statuses()  # an anonymous request warms the shared entry
+        self.assertIn(CONTENT_GRADES_KEY, self.cache._values)
+        for role in ("student", "teacher", "admin"):
+            with self.subTest(role=role):
+                self.cache._values.clear()
+                client = web_app.app.test_client()
+                login_as(client, self.db, role)
+                reads = Mock(wraps=subject_content_grades)
+                with patch.object(catalog_module, "subject_content_grades", reads):
+                    for path in ("/", "/subjects/physics"):
+                        self.assertEqual(client.get(path).status_code, 200)
+                self.assertEqual(reads.call_count, 2)  # one direct read per request
+                self.assertNotIn(CONTENT_GRADES_KEY, self.cache._values)
+
+    def test_signed_in_requests_see_commits_while_the_shared_entry_is_warm(self):
+        client = web_app.app.test_client()
+        login_as(client, self.db, "teacher")
+        statuses()
+        self.assertEqual(self.cache._values[CONTENT_GRADES_KEY]["physics"], frozenset({8, 9, 10}))
+        self.commit(HIDE_PHYSICS)
+        ACTIVE = 'subject-pill">Активен'  # the page's own status pill, not the navigation's
+        self.assertNotIn(ACTIVE, client.get("/subjects/physics").get_data(as_text=True))
+        # The signed-in request neither reads nor refreshes the shared entry: it is still
+        # the old value, and only the next anonymous lookup notices the new identity.
+        self.assertEqual(self.cache._values[CONTENT_GRADES_KEY]["physics"], frozenset({8, 9, 10}))
+        self.assertEqual(statuses()["physics"], "in_preparation")
+        self.assertEqual(self.cache._values[CONTENT_GRADES_KEY]["physics"], frozenset())
+        self.commit(SHOW_PHYSICS)
+        self.assertIn(ACTIVE, client.get("/subjects/physics").get_data(as_text=True))
+
+    def test_an_open_request_connection_sees_its_own_uncommitted_change(self):
+        statuses()
+        with web_app.app.app_context():
+            conn = get_request_db()
+            conn.execute(HIDE_PHYSICS)
+            self.assertEqual(current_statuses()["physics"], "in_preparation")
+            self.assertEqual(statuses()["physics"], "active")  # others still see committed data
+            conn.rollback()
 
 
 class HomeOverviewTest(_CacheTestCase):
