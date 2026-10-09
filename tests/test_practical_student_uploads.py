@@ -16,6 +16,7 @@ from werkzeug.test import encode_multipart
 from src.practical_uploads import MAX_FILES_PER_REQUEST, MAX_REQUEST_BYTES, MAX_UPLOAD_BYTES
 import src.practical_uploads as upload_policy
 from tests.support import IsolatedAppTestCase, web_app
+from tests.support import add_lifecycle_schema
 
 
 class PracticalStudentUploadsTest(IsolatedAppTestCase):
@@ -133,6 +134,7 @@ class PracticalStudentUploadsTest(IsolatedAppTestCase):
                 )
                 VALUES (6, 'informatika_it', 'DZI', 2025, 'may', 2, 'dzi_it_pp_2025_format')
             """)
+            add_lifecycle_schema(conn, assignment_ids=(1,))
             conn.execute("""
                 INSERT INTO quiz_attempts (
                     id, assignment_id, student_name, seed, question_ids_json

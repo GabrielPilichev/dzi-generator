@@ -8,6 +8,9 @@ After=network.target
 # Stop restart loops caused by configuration errors (missing secret, pending migration).
 StartLimitIntervalSec=120
 StartLimitBurst=5
+# Not started while a restore is in progress or was left unfinished, after a
+# reboot either (deploy/learnpilot-restore.sh; web.wsgi refuses as well).
+ConditionPathExists=!/var/lib/learnpilot/data/restore-in-progress
 
 [Service]
 Type=notify

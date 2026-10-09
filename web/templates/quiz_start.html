@@ -19,8 +19,19 @@
   <div class="quiz-start-summary" aria-label="Обобщение на теста">
     <div class="quiz-start-summary-item">
       <span class="label">Статус</span>
-      <strong>готов за решаване</strong>
+      {% if assignment_closed %}
+        <strong>затворен</strong>
+      {% else %}
+        <strong>готов за решаване</strong>
+      {% endif %}
     </div>
+    {% if lifecycle.deadline and not assignment_closed %}
+      <div class="quiz-start-summary-item">
+        <span class="label">Краен срок</span>
+        <strong>{{ lifecycle.deadline.text }}</strong>
+        <span class="muted">({{ lifecycle.zone }})</span>
+      </div>
+    {% endif %}
     <div class="quiz-start-summary-item">
       <span class="label">Въпроси</span>
       <strong>{{ assignment.question_count }}</strong>
@@ -60,7 +71,27 @@
   {% endif %}
 </section>
 
-{% if can_start %}
+{% if assignment_closed %}
+<section class="card form-card quiz-start-card student-assignment-card" id="assignment-closed-notice" role="status">
+  <p><strong>Тестът е затворен и вече не приема нови опити.</strong></p>
+  {% if lifecycle.effective_closure %}
+    <div class="help">
+      Затворен на {{ lifecycle.effective_closure }} ({{ lifecycle.zone }}).
+    </div>
+  {% endif %}
+  {% if not can_start %}
+    <div class="help">
+      Ако вече си започнал този тест, влез в профила си, за да отвориш опита си или резултата.
+    </div>
+    <a class="button secondary" href="{{ login_url }}">Вход</a>
+  {% endif %}
+</section>
+{% elif starts_unavailable %}
+<section class="card form-card quiz-start-card student-assignment-card" id="assignment-unavailable-notice" role="status">
+  <p><strong>В момента не могат да се започват нови опити.</strong></p>
+  <div class="help">Опитай отново малко по-късно.</div>
+</section>
+{% elif can_start %}
 <form method="post" class="card form-card quiz-start-card student-assignment-card">
   <p>Решаваш като <strong>{{ current_account.display_name }}</strong>.</p>
 

@@ -13,6 +13,7 @@ from contextlib import closing
 from src.sync_vault import detect_note_type, parse_frontmatter, sync_vault
 from tests.auth_helpers import create_account, set_account_session
 from tests.support import IsolatedAppTestCase, web_app
+from tests.support import NO_DEADLINE_FORM
 from tests.test_account_login import SAME_ORIGIN
 from tests.test_assignment_owner_routes import first_section_with_mc_questions
 from web.access import account_principal
@@ -176,7 +177,7 @@ class AssignmentNoteFrontmatterTest(IsolatedAppTestCase):
 
     def edit_title(self, title):
         return self.client.post(f"/teacher/assignment/{self.assignment_id}/edit",
-                                data={"title_bg": title, "time_limit_minutes": "10"},
+                                data={**NO_DEADLINE_FORM, "title_bg": title, "time_limit_minutes": "10"},
                                 headers=SAME_ORIGIN)
 
     def stored_title(self):

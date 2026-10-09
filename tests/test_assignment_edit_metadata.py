@@ -4,6 +4,7 @@ import unittest
 
 from tests.auth_helpers import sign_in_admin, sign_in_teacher
 from tests.support import IsolatedAppTestCase, web_app
+from tests.support import NO_DEADLINE_FORM
 
 
 def _register_dzi_default_denied_test_route(app):
@@ -140,7 +141,7 @@ class AssignmentEditMetadataTest(IsolatedAppTestCase):
         try:
             response = self.client.post(
                 f"/teacher/assignment/{assignment_id}/edit",
-                data={"title_bg": "Нов МСИ заглавие", "time_limit_minutes": "25"},
+                data={**NO_DEADLINE_FORM, "title_bg": "Нов МСИ заглавие", "time_limit_minutes": "25"},
             )
             self.assertEqual(response.status_code, 302)
             self.assertIn(
@@ -166,7 +167,7 @@ class AssignmentEditMetadataTest(IsolatedAppTestCase):
         try:
             response = self.client.post(
                 f"/teacher/assignment/{assignment_id}/edit",
-                data={"title_bg": "Edited Mixed", "time_limit_minutes": ""},
+                data={**NO_DEADLINE_FORM, "title_bg": "Edited Mixed", "time_limit_minutes": ""},
             )
             self.assertEqual(response.status_code, 302)
             row = self._fetch_assignment(assignment_id)
@@ -187,7 +188,7 @@ class AssignmentEditMetadataTest(IsolatedAppTestCase):
         try:
             response = self.client.post(
                 f"/teacher/assignment/{assignment_id}/edit",
-                data={"title_bg": "With Time", "time_limit_minutes": ""},
+                data={**NO_DEADLINE_FORM, "title_bg": "With Time", "time_limit_minutes": ""},
             )
             self.assertEqual(response.status_code, 302)
             row = self._fetch_assignment(assignment_id)
@@ -205,7 +206,7 @@ class AssignmentEditMetadataTest(IsolatedAppTestCase):
             before = self._fetch_attempt(attempt_id)
             response = self.client.post(
                 f"/teacher/assignment/{assignment_id}/edit",
-                data={"title_bg": "Renamed", "time_limit_minutes": "45"},
+                data={**NO_DEADLINE_FORM, "title_bg": "Renamed", "time_limit_minutes": "45"},
             )
             self.assertEqual(response.status_code, 302)
             after = self._fetch_attempt(attempt_id)
@@ -226,7 +227,7 @@ class AssignmentEditMetadataTest(IsolatedAppTestCase):
         try:
             response = self.client.post(
                 f"/teacher/assignment/{assignment_id}/edit",
-                data={"title_bg": "   ", "time_limit_minutes": "20"},
+                data={**NO_DEADLINE_FORM, "title_bg": "   ", "time_limit_minutes": "20"},
             )
             self.assertEqual(response.status_code, 400)
             self.assertIn(b"\xd0\x97\xd0\xb0\xd0\xb3\xd0\xbb\xd0\xb0\xd0\xb2\xd0\xb8\xd0\xb5\xd1\x82\xd0\xbe", response.data)
@@ -242,7 +243,7 @@ class AssignmentEditMetadataTest(IsolatedAppTestCase):
         try:
             response = self.client.post(
                 f"/teacher/assignment/{assignment_id}/edit",
-                data={"title_bg": "x" * 201, "time_limit_minutes": "10"},
+                data={**NO_DEADLINE_FORM, "title_bg": "x" * 201, "time_limit_minutes": "10"},
             )
             self.assertEqual(response.status_code, 400)
             row = self._fetch_assignment(assignment_id)
@@ -256,7 +257,7 @@ class AssignmentEditMetadataTest(IsolatedAppTestCase):
         try:
             response = self.client.post(
                 f"/teacher/assignment/{assignment_id}/edit",
-                data={"title_bg": "Keep", "time_limit_minutes": "abc"},
+                data={**NO_DEADLINE_FORM, "title_bg": "Keep", "time_limit_minutes": "abc"},
             )
             self.assertEqual(response.status_code, 400)
             row = self._fetch_assignment(assignment_id)
@@ -270,7 +271,7 @@ class AssignmentEditMetadataTest(IsolatedAppTestCase):
         try:
             response = self.client.post(
                 f"/teacher/assignment/{assignment_id}/edit",
-                data={"title_bg": "Keep", "time_limit_minutes": "0"},
+                data={**NO_DEADLINE_FORM, "title_bg": "Keep", "time_limit_minutes": "0"},
             )
             self.assertEqual(response.status_code, 400)
             row = self._fetch_assignment(assignment_id)
@@ -284,7 +285,7 @@ class AssignmentEditMetadataTest(IsolatedAppTestCase):
         try:
             response = self.client.post(
                 f"/teacher/assignment/{assignment_id}/edit",
-                data={"title_bg": "Keep", "time_limit_minutes": "601"},
+                data={**NO_DEADLINE_FORM, "title_bg": "Keep", "time_limit_minutes": "601"},
             )
             self.assertEqual(response.status_code, 400)
             row = self._fetch_assignment(assignment_id)
@@ -298,7 +299,7 @@ class AssignmentEditMetadataTest(IsolatedAppTestCase):
         try:
             response = self.client.post(
                 f"/teacher/assignment/{assignment_id}/edit",
-                data={
+                data={**NO_DEADLINE_FORM,
                     "title_bg": "Fixed Count",
                     "time_limit_minutes": "5",
                     "question_count": "999",
@@ -317,7 +318,7 @@ class AssignmentEditMetadataTest(IsolatedAppTestCase):
         try:
             response = self.client.post(
                 f"/teacher/assignment/{assignment_id}/edit",
-                data={"title_bg": "Hijacked", "time_limit_minutes": "10"},
+                data={**NO_DEADLINE_FORM, "title_bg": "Hijacked", "time_limit_minutes": "10"},
             )
             self.assertEqual(response.status_code, 302)
             self.assertTrue(response.headers.get("Location", "").startswith("/login?"))
@@ -333,7 +334,7 @@ class AssignmentEditMetadataTest(IsolatedAppTestCase):
         try:
             response = self.client.post(
                 f"/teacher/assignment/{assignment_id}/edit",
-                data={"title_bg": "Hijacked", "time_limit_minutes": "10"},
+                data={**NO_DEADLINE_FORM, "title_bg": "Hijacked", "time_limit_minutes": "10"},
             )
             self.assertEqual(response.status_code, 404)
             row = self._fetch_assignment(assignment_id)
@@ -345,7 +346,7 @@ class AssignmentEditMetadataTest(IsolatedAppTestCase):
         self._login_admin()
         response = self.client.post(
             "/teacher/assignment/99999999/edit",
-            data={"title_bg": "x", "time_limit_minutes": "5"},
+            data={**NO_DEADLINE_FORM, "title_bg": "x", "time_limit_minutes": "5"},
         )
         self.assertEqual(response.status_code, 404)
 
@@ -402,7 +403,7 @@ class AssignmentEditMetadataTest(IsolatedAppTestCase):
         try:
             response = self.client.post(
                 f"/teacher/assignment/{assignment_id}/edit",
-                data={"title_bg": "Indicator Renamed", "time_limit_minutes": "15"},
+                data={**NO_DEADLINE_FORM, "title_bg": "Indicator Renamed", "time_limit_minutes": "15"},
             )
             self.assertEqual(response.status_code, 302)
             detail = self.client.get(f"/teacher/assignment/{assignment_id}")

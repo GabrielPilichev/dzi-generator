@@ -14,6 +14,7 @@ from tests.subject_fixtures import (
     four_options,
 )
 from tests.support import IsolatedAppTestCase, web_app, IT_ONLY
+from tests.support import NO_DEADLINE_FORM
 from tests.test_homepage_search import _HTMLProbe
 
 TOOLBAR_IDS = ("question-search", "question-type-filter", "question-difficulty-filter",
@@ -233,11 +234,13 @@ class SubjectTopicPagesTest(_PageTestCase):
         _, topic_page = self.page("/subjects/physics/8/mechanics/motion")
         action = next(href for href in topic_page.hrefs() if href.startswith("/teacher/new"))
         html, form = self.page(action)
-        selected = [attrs for _, attrs in form.elements("option") if "selected" in attrs]
+        # The selected section (a numeric id); the form's timezone selector has its own selection.
+        selected = [attrs for _, attrs in form.elements("option")
+                    if "selected" in attrs and attrs.get("value", "").isdigit()]
         self.assertEqual(len(selected), 1)
         self.assertIn("Физика — 8. клас — Synthetic mechanics section (3 въпроса)", html)
 
-        response = self.client.post("/teacher/new", data={
+        response = self.client.post("/teacher/new", data={**NO_DEADLINE_FORM,
             "subject": "physics", "section_id": selected[0]["value"],
             "question_count": "10", "open_count": "0",
         })

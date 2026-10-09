@@ -22,6 +22,7 @@ from src.subject_content import IT
 from src.subject_registry import PLATFORM_GRADES, subject_supports_grade
 from web.access import PUBLIC, access_policy
 from web import db as web_db
+from web.services import lifecycle
 from web.services.browsing import (
     fetch_questions_in_section,
     fetch_section,
@@ -240,20 +241,30 @@ def favicon():
 @browsing_bp.route("/healthz")
 @access_policy(PUBLIC)
 def healthz():
-    """Liveness plus one cheap database header read; no templates or content queries."""
+    """Liveness plus two cheap reads: the database header and the lifecycle clock
+    row. No templates or content queries.
+
+    ``degraded``: the database answers, but the lifecycle clock row is missing,
+    malformed or ``suspect``, so every lifecycle write (start, submit, upload,
+    close, edit, duplicate) is refused until an operator confirms the clock.
+    """
     try:
         conn = open_existing_database_read_only(
             current_app.config["DB_PATH"], timeout=HEALTH_DB_TIMEOUT_SECONDS
         )
         try:
             conn.execute("PRAGMA schema_version").fetchone()
+            try:
+                clock_ok = lifecycle.read_clock_row(conn).state == lifecycle.CLOCK_STATE_OK
+            except lifecycle.ClockRowError:
+                clock_ok = False
         finally:
             conn.close()
     except (sqlite3.Error, OSError, ValueError) as exc:
         current_app.logger.warning("Health check failed: %s", type(exc).__name__)
         status, body = 503, "unavailable\n"
     else:
-        status, body = 200, "ok\n"
+        status, body = (200, "ok\n") if clock_ok else (503, "degraded\n")
     return current_app.response_class(
         body, status=status, mimetype="text/plain",
         headers={"Cache-Control": "no-store"},

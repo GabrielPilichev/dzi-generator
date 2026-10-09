@@ -1,12 +1,11 @@
 from datetime import datetime
 import json
 import unittest
-from unittest.mock import patch
 from pathlib import Path
 
 
 from tests.auth_helpers import sign_in_admin, sign_in_teacher, student_client
-from tests.support import IsolatedAppTestCase, web_app, student_entry_path
+from tests.support import IsolatedAppTestCase, lifecycle_time, web_app, student_entry_path
 from web.assignment_tokens import new_public_token
 from web.services import quiz as quiz_service
 
@@ -339,7 +338,9 @@ class QuizAttemptRenderTest(IsolatedAppTestCase):
                     SET started_at = ?
                     WHERE id = ?
                 """, (started_at, attempt_id))
-            elif self.valid_question_id in question_ids:
+            elif submitted and self.valid_question_id in question_ids:
+                # Answer rows exist only for a submitted attempt: an unsubmitted one
+                # has none, and its submission inserts them (never overwrites).
                 wrong_letter = self._wrong_letter(conn, self.valid_question_id)
                 conn.execute("""
                     INSERT INTO quiz_answers (attempt_id, question_id, chosen_letter, is_correct)
@@ -719,7 +720,7 @@ class QuizAttemptRenderTest(IsolatedAppTestCase):
             started_at="2026-05-13 12:00:00",
         )
 
-        with patch.object(quiz_service, "quiz_current_timestamp", return_value=fixed_now):
+        with lifecycle_time(fixed_now):
             response = self.client.get(f"/quiz/attempt/{attempt_id}")
 
         self.assertEqual(response.status_code, 200)
@@ -736,7 +737,7 @@ class QuizAttemptRenderTest(IsolatedAppTestCase):
             started_at="2026-05-13 12:00:00",
         )
 
-        with patch.object(quiz_service, "quiz_current_timestamp", return_value=fixed_now):
+        with lifecycle_time(fixed_now):
             response = self.client.get(f"/quiz/attempt/{attempt_id}")
 
         self.assertEqual(response.status_code, 200)
@@ -757,7 +758,7 @@ class QuizAttemptRenderTest(IsolatedAppTestCase):
             started_at="2026-05-13 12:00:00",
         )
 
-        with patch.object(quiz_service, "quiz_current_timestamp", return_value=fixed_now):
+        with lifecycle_time(fixed_now):
             response = self.client.get(f"/quiz/attempt/{attempt_id}")
 
         self.assertEqual(response.status_code, 200)
@@ -779,7 +780,7 @@ class QuizAttemptRenderTest(IsolatedAppTestCase):
             started_at="2026-05-13 12:00:00",
         )
 
-        with patch.object(quiz_service, "quiz_current_timestamp", return_value=fixed_now):
+        with lifecycle_time(fixed_now):
             response = self.client.get(f"/quiz/attempt/{attempt_id}")
 
         self.assertEqual(response.status_code, 200)
@@ -796,7 +797,7 @@ class QuizAttemptRenderTest(IsolatedAppTestCase):
             started_at="2026-05-13 12:00:00",
         )
 
-        with patch.object(quiz_service, "quiz_current_timestamp", return_value=fixed_now):
+        with lifecycle_time(fixed_now):
             response = self.client.get(f"/quiz/attempt/{attempt_id}")
 
         self.assertEqual(response.status_code, 200)
@@ -813,7 +814,7 @@ class QuizAttemptRenderTest(IsolatedAppTestCase):
             started_at="2026-05-13 12:00:00",
         )
 
-        with patch.object(quiz_service, "quiz_current_timestamp", return_value=fixed_now):
+        with lifecycle_time(fixed_now):
             response = self.client.get(f"/quiz/attempt/{attempt_id}")
 
         self.assertEqual(response.status_code, 200)
@@ -830,7 +831,7 @@ class QuizAttemptRenderTest(IsolatedAppTestCase):
             started_at="2026-05-13 12:00:00",
         )
 
-        with patch.object(quiz_service, "quiz_current_timestamp", return_value=fixed_now):
+        with lifecycle_time(fixed_now):
             response = self.client.get(f"/quiz/attempt/{attempt_id}")
 
         self.assertEqual(response.status_code, 200)

@@ -6,6 +6,7 @@ from pathlib import Path
 
 from tests.auth_helpers import add_users_schema, sign_in_admin, sign_in_teacher
 from tests.support import IsolatedAppTestCase, web_app
+from tests.support import add_lifecycle_schema
 
 
 class PracticalSubmissionReviewTest(IsolatedAppTestCase):
@@ -104,6 +105,7 @@ class PracticalSubmissionReviewTest(IsolatedAppTestCase):
                 )
                 VALUES (6, 'informatika_it', 'DZI', 2025, 'may', 2, 'dzi_it_pp_2025_format')
             """)
+            add_lifecycle_schema(conn)
             conn.execute("INSERT INTO quiz_assignments (id, title_bg) VALUES (1, 'ДЗИ проба')")
             conn.execute("""
                 INSERT INTO quiz_attempts (

@@ -56,6 +56,7 @@ from web.request_db import get_request_db
 from web.production import warn_if_schema_migrations_pending
 from web.public_url import PUBLIC_BASE_URL_CONFIG, PUBLIC_BASE_URL_ENV, normalize_public_base_url
 from web.services import accounts as accounts_service
+from web.services import lifecycle as lifecycle_service
 from web.services.subject_catalog import subject_catalog, subject_topic_groups
 from web.services import quiz as quiz_service
 from web.services.dzi_exams import (
@@ -522,6 +523,17 @@ def internal_server_error(e):
     return render_template("500.html"), 500
 
 
+@app.errorhandler(lifecycle_service.LifecycleUnavailable)
+def lifecycle_unavailable(e):
+    # A held assignment, or a clock no lifecycle write may rely on: a temporary
+    # refusal that wrote nothing. The same page for every reason, so it reveals
+    # nothing about the assignment; authorization was decided before it.
+    app.logger.warning("Lifecycle request refused: reason=%s endpoint=%s", e.reason, request.endpoint)
+    response = app.make_response((render_template("503.html"), 503))
+    response.headers["Cache-Control"] = "no-store"
+    return response
+
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -561,6 +573,13 @@ quiz_service.configure_runtime(
     vault_path=lambda: QUIZ_VAULT_PATH,
     project_root=lambda: PROJECT_ROOT,
 )
+
+
+# Lifecycle clock evidence for development and manual smoke testing: a developer
+# machine has no synchronisation report to read. web.wsgi replaces this with the
+# real host environment (web.production.create_production_app); operator tools
+# never import this module and use the real one too.
+lifecycle_service.configure_clock_environment(lifecycle_service.DevelopmentClockEnvironment())
 
 
 # The web application never changes schema: that is the explicit

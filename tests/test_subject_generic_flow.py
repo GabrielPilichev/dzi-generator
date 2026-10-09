@@ -14,6 +14,7 @@ from src.subject_registry import SUBJECTS, SubjectDefinition, grade_paths
 from tests.auth_helpers import sign_in_admin
 from tests.subject_fixtures import registered_subject
 from tests.support import ROOT, IsolatedAppTestCase, web_app, student_entry_path
+from tests.support import NO_DEADLINE_FORM
 from tests.test_homepage_search import _HTMLProbe
 
 EXTRA = SubjectDefinition(
@@ -152,10 +153,12 @@ class RegisteredSubjectWithContentTest(_ExtraSubjectTestCase):
         html, form = self.page(f"/teacher/new?subject=testology&section={SECTION_SLUG}")
         self.assertIn("Тестология — 11. клас — Synthetic testology section (3 въпроса)", html)
         self.assertNotIn("practical-assignment-panel", html)
-        selected = [attrs for _, attrs in form.elements("option") if "selected" in attrs]
+        # The selected section (a numeric id); the form's timezone selector has its own selection.
+        selected = [attrs for _, attrs in form.elements("option")
+                    if "selected" in attrs and attrs.get("value", "").isdigit()]
         self.assertEqual(len(selected), 1)
 
-        response = self.client.post("/teacher/new", data={
+        response = self.client.post("/teacher/new", data={**NO_DEADLINE_FORM,
             "subject": "testology", "section_id": selected[0]["value"],
             "question_count": "2", "open_count": "0",
         })
@@ -173,7 +176,7 @@ class RegisteredSubjectWithContentTest(_ExtraSubjectTestCase):
         self.page(student_entry_path(assignment_id))
 
         # Another subject cannot use this section.
-        response = self.client.post("/teacher/new", data={
+        response = self.client.post("/teacher/new", data={**NO_DEADLINE_FORM,
             "subject": "it", "section_id": selected[0]["value"],
             "question_count": "1", "open_count": "0",
         })

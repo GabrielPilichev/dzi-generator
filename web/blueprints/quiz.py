@@ -4,6 +4,13 @@ Starting an attempt needs an account (:func:`web.access.can_take_quizzes`:
 student, teacher or admin); the attempt then belongs to that account alone. Every attempt page goes through
 :func:`web.attempt_access.require_quiz_attempt_access`, which also keeps the
 attempts started before accounts reachable from the browser that started them.
+
+Lifecycle (docs/ASSIGNMENT_LIFECYCLE_DESIGN.md): authorization is decided first,
+then the assignment's hold, then its state. Whether an attempt may be started or
+submitted is decided by the service inside its writer transaction; what a page
+shows comes from the same state function (:func:`web.services.lifecycle.evaluate`).
+A held assignment and an unusable clock raise
+``lifecycle.LifecycleUnavailable``, which ``web.app`` answers with 503.
 """
 
 from __future__ import annotations
@@ -20,6 +27,7 @@ from web.access import (
 )
 from web.attempt_access import require_quiz_attempt_access
 from web.request_integrity import SAME_ORIGIN, integrity_policy
+from web.services import lifecycle
 from web.services import quiz as quiz_service
 
 
@@ -44,12 +52,21 @@ def quiz_start_public(public_token):
     # assignments exist. The page itself is public, but an attempt is only ever
     # started for the signed-in account. Nothing submitted with the form says
     # whose attempt it is.
+    #
+    # The token keeps resolving after closure: the page then shows a closed
+    # notice instead of the start form, and an account that already has an
+    # attempt is sent to it (or to its result).
     principal = current_principal()
     start = None
+    existing = None
     with quiz_service.quiz_connection() as conn:
         assignment = quiz_service.quiz_fetch_assignment_by_public_token(conn, public_token)
         if not assignment:
             abort(404)
+        lifecycle.require_served(assignment)
+        assignment_id = int(assignment["id"])
+        clock = lifecycle.read_clock(conn)
+        view = lifecycle.evaluate(assignment, clock.now)
 
         if request.method == "POST":
             if principal.user_id is None:
@@ -65,11 +82,25 @@ def quiz_start_public(public_token):
                 )
             except quiz_service.QuizPlanError:
                 abort(400)
+        else:
+            if view.is_closed and can_take_quizzes(principal):
+                existing = quiz_service.quiz_find_account_attempt(conn, assignment_id, principal.user_id)
+            lifecycle.observe_if_needed(conn, assignment_id, view)
 
+    closed = view.is_closed
+    status_code = 200
     if start is not None:
-        if start.submitted:
+        if start.closed:
+            # Decided under the writer lock, at the instant the lock was obtained.
+            closed, status_code = True, 409
+        elif start.submitted:
             return redirect(url_for("quiz.quiz_result", attempt_id=start.attempt_id))
-        return redirect(url_for("quiz.quiz_attempt", attempt_id=start.attempt_id))
+        else:
+            return redirect(url_for("quiz.quiz_attempt", attempt_id=start.attempt_id))
+    elif existing is not None:
+        if existing["submitted_at"]:
+            return redirect(url_for("quiz.quiz_result", attempt_id=int(existing["id"])))
+        return redirect(url_for("quiz.quiz_attempt", attempt_id=int(existing["id"])))
 
     return render_template(
         "quiz_start.html",
@@ -77,7 +108,10 @@ def quiz_start_public(public_token):
         mixed_status=quiz_service.quiz_assignment_mixed_status(assignment["question_plan_json"]),
         can_start=can_take_quizzes(principal),
         login_url=url_for("account.login", next=request.path),
-    )
+        lifecycle=lifecycle.describe(view),
+        assignment_closed=closed,
+        starts_unavailable=not clock.healthy,
+    ), status_code
 
 
 @quiz_bp.route("/account/attempts")
@@ -99,9 +133,16 @@ def quiz_attempt(attempt_id):
         assignment = quiz_service.quiz_fetch_assignment(conn, int(attempt["assignment_id"]))
         if not assignment:
             abort(404)
+        lifecycle.require_served(assignment)
 
         if attempt["submitted_at"]:
             return redirect(url_for("quiz.quiz_result", attempt_id=attempt_id))
+
+        clock = lifecycle.read_clock(conn)
+        view = lifecycle.evaluate(assignment, clock.now)
+        # What this request shows. Whether a POST is accepted is decided again by
+        # the submission service, under the writer lock.
+        attempt_closed = not lifecycle.attempt_submittable(view, attempt)
 
         attempt_question_plan = quiz_service.quiz_parse_attempt_question_plan(attempt["question_ids_json"])
         open_question_ids = quiz_service.quiz_attempt_open_question_ids(attempt_question_plan)
@@ -122,14 +163,17 @@ def quiz_attempt(attempt_id):
 
         if request.method == "POST":
             if not question_ids:
-                stale_attempt_message = quiz_service.STALE_ATTEMPT_MESSAGE
+                if attempt_closed:
+                    status_code = 409
+                else:
+                    stale_attempt_message = quiz_service.STALE_ATTEMPT_MESSAGE
             else:
                 mc_question_ids = quiz_service.quiz_multiple_choice_question_ids(conn, question_ids)
 
                 remaining = quiz_service.quiz_remaining_seconds(assignment, attempt)
                 server_timer_expired = remaining is not None and remaining <= 0
                 is_timer_submit = request.form.get("submission_reason") == "timer_expired"
-                if not (
+                empty_submission = not (
                     is_timer_submit
                     and server_timer_expired
                 ) and not quiz_service.quiz_has_any_submitted_answer(
@@ -137,7 +181,26 @@ def quiz_attempt(attempt_id):
                     mc_question_ids=mc_question_ids,
                     question_ids=question_ids,
                     open_question_ids=open_question_ids,
-                ):
+                )
+                # ``submission_reason`` and the client timer only ever allow an
+                # empty submission; they decide nothing about the lifecycle cutoff.
+                submission = quiz_service.quiz_submit_attempt(
+                    conn,
+                    attempt_id,
+                    mc_question_ids=mc_question_ids,
+                    question_ids=question_ids,
+                    open_question_ids=open_question_ids,
+                    form=request.form,
+                    empty_submission=empty_submission,
+                )
+                if submission.outcome == quiz_service.SUBMIT_SUBMITTED:
+                    submitted_now = True
+                elif submission.outcome == quiz_service.SUBMIT_ALREADY_SUBMITTED:
+                    return redirect(url_for("quiz.quiz_result", attempt_id=attempt_id))
+                elif submission.outcome == quiz_service.SUBMIT_CLOSED:
+                    attempt_closed, status_code = True, 409
+                    remaining = None
+                else:
                     questions = quiz_service.quiz_load_questions(conn, question_ids, seed, include_correct=False)
                     if not questions:
                         remaining = None
@@ -145,25 +208,21 @@ def quiz_attempt(attempt_id):
                     stale_attempt_message = quiz_service.STALE_ATTEMPT_MESSAGE if not questions else None
                     submit_error = quiz_service.QUIZ_EMPTY_SUBMISSION_MESSAGE
                     status_code = 400
-                else:
-                    quiz_service.quiz_submit_attempt(
-                        conn,
-                        attempt_id,
-                        mc_question_ids=mc_question_ids,
-                        question_ids=question_ids,
-                        open_question_ids=open_question_ids,
-                        form=request.form,
-                    )
-                    submitted_now = True
         else:
-            questions = quiz_service.quiz_load_questions(conn, question_ids, seed, include_correct=False)
-            remaining = quiz_service.quiz_remaining_seconds(assignment, attempt)
-            if not questions:
-                remaining = None
-            timer_expired = remaining is not None and remaining <= 0
-            stale_attempt_message = quiz_service.STALE_ATTEMPT_MESSAGE if not questions else None
+            if not attempt_closed:
+                questions = quiz_service.quiz_load_questions(conn, question_ids, seed, include_correct=False)
+                remaining = quiz_service.quiz_remaining_seconds(assignment, attempt)
+                if not questions:
+                    remaining = None
+                timer_expired = remaining is not None and remaining <= 0
+                stale_attempt_message = quiz_service.STALE_ATTEMPT_MESSAGE if not questions else None
+                if remaining is not None and view.in_grace:
+                    # In grace the page shows the earlier of the timer end and E + G.
+                    remaining = min(remaining, max(0, int((view.submit_cutoff - view.now).total_seconds())))
+            lifecycle.observe_if_needed(conn, int(assignment["id"]), view)
 
     if submitted_now:
+        # Side effects belong to the request that returned ``submitted``, and to no other.
         quiz_service.quiz_write_attempt_note(attempt_id)
         quiz_service.quiz_write_assignment_note(int(assignment["id"]), request.host_url)
 
@@ -173,25 +232,31 @@ def quiz_attempt(attempt_id):
         "quiz_attempt.html",
         assignment=assignment,
         attempt=attempt,
-        questions=questions,
-        remaining_seconds=remaining,
+        questions=[] if attempt_closed else questions,
+        remaining_seconds=None if attempt_closed else remaining,
         timer_expired=timer_expired,
-        stale_attempt_message=stale_attempt_message,
+        stale_attempt_message=None if attempt_closed else stale_attempt_message,
         submit_error=submit_error,
         skipped_question_count=skipped_count,
         mixed_status=attempt_mixed_status,
+        lifecycle=lifecycle.describe(view),
+        attempt_closed=attempt_closed,
+        attempt_in_grace=view.is_closed and not attempt_closed,
+        submissions_unavailable=not clock.healthy,
     ), status_code
 
 
 @quiz_bp.route("/quiz/attempt/<int:attempt_id>/result")
 @access_policy(ATTEMPT_OWNER)
 def quiz_result(attempt_id):
-    with quiz_service.quiz_connection() as conn:
+    # One read transaction: access is decided on the same snapshot that is rendered.
+    with quiz_service.quiz_connection() as conn, lifecycle.read_snapshot(conn):
         attempt = require_quiz_attempt_access(conn, attempt_id)
 
         assignment = quiz_service.quiz_fetch_assignment(conn, int(attempt["assignment_id"]))
         if not assignment:
             abort(404)
+        lifecycle.require_served(assignment)
 
         if not attempt["submitted_at"]:
             return redirect(url_for("quiz.quiz_attempt", attempt_id=attempt_id))

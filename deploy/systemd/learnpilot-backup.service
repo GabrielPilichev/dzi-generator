@@ -4,6 +4,8 @@
 [Unit]
 Description=LearnPilot application snapshot (SQLite, uploads, generated vault)
 After=learnpilot.service
+# No snapshot of a partly replaced state (the tool refuses as well).
+ConditionPathExists=!/var/lib/learnpilot/data/restore-in-progress
 
 [Service]
 Type=oneshot

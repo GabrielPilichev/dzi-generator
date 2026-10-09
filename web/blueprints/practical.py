@@ -18,6 +18,13 @@ ownership follows the submission's assignment (file -> submission -> attempt ->
 assignment) and is decided by :func:`web.access.can_manage_assignment` before
 any stored file is looked at on disk.
 
+Lifecycle (docs/ASSIGNMENT_LIFECYCLE_DESIGN.md): an upload is a student detail
+write and uses the same submittable rule as a quiz submission, checked under the
+writer lock with ``now`` sampled after it: accepted while the assignment is open
+or the attempt is in its grace window, refused after the cutoff, after
+``submissions_closed_at`` and for a held assignment. Student pages of a held
+assignment are not served; neither are its submissions in the review pages.
+
 Data, resource roots and upload-path confinement live in
 :mod:`web.services.practical`; the upload limits and file-name rules stay in
 ``src.practical_uploads``. The module imports neither ``web.app`` nor another
@@ -60,7 +67,7 @@ from web.access import (
 )
 from web.attempt_access import require_quiz_attempt_access
 from web.request_integrity import SAME_ORIGIN, integrity_policy
-from web.services import practical
+from web.services import lifecycle, practical
 
 
 practical_bp = Blueprint("practical", __name__)
@@ -77,6 +84,16 @@ def uploaded_file_size(file_storage) -> int:
     size = stream.tell()
     stream.seek(current_position)
     return int(size)
+
+
+UPLOAD_ERROR_CLOSED = "closed"
+
+
+def _require_attempt_assignment_served(conn, attempt_row) -> None:
+    """Refuse the student pages of a held assignment (after the ownership check)."""
+    assignment = lifecycle.fetch_lifecycle_row(conn, int(attempt_row["assignment_id"]))
+    if assignment is not None:
+        lifecycle.require_served(assignment)
 
 
 def upload_error_redirect(attempt_id: int, source_slug: str, error_code: str):
@@ -149,7 +166,8 @@ def dzi_practical_resource_download(resource_id: int):
 @access_policy(ATTEMPT_OWNER)
 def quiz_practical_attempt(attempt_id: int, source_slug: str):
     with closing(_request_db()) as db:
-        require_quiz_attempt_access(db, attempt_id)
+        attempt_row = require_quiz_attempt_access(db, attempt_id)
+        _require_attempt_assignment_served(db, attempt_row)
         resolved = practical.fetch_practical_attempt_page(
             db, attempt_id, source_slug,
             batch_dir=current_app.config["PRACTICAL_TASK_BATCH_DIR"],
@@ -165,6 +183,7 @@ def quiz_practical_attempt(attempt_id: int, source_slug: str):
         attempt=attempt,
         upload_success=request.args.get("uploaded") == "1",
         upload_error=request.args.get("upload_error"),
+        upload_closed=request.args.get("upload_error") == UPLOAD_ERROR_CLOSED,
     )
 
 
@@ -173,7 +192,10 @@ def quiz_practical_attempt(attempt_id: int, source_slug: str):
 @integrity_policy(SAME_ORIGIN)
 def quiz_practical_upload(attempt_id: int, source_slug: str, exam_task_id: int):
     with closing(_request_db()) as conn:
-        require_quiz_attempt_access(conn, attempt_id)
+        # Ownership first: another account gets 404 before any lifecycle check
+        # or file handling.
+        attempt_row = require_quiz_attempt_access(conn, attempt_id)
+        _require_attempt_assignment_served(conn, attempt_row)
         return _store_upload(conn, attempt_id, source_slug, exam_task_id)
 
 
@@ -250,79 +272,100 @@ def _store_upload(conn, attempt_id: int, source_slug: str, exam_task_id: int):
         return upload_error_redirect(attempt_id, source_slug, "invalid")
 
     saved_paths = []
+    upload_closed = False
     try:
-        # Serialize quota checks and inserts across workers. The existing route
-        # already held a write transaction while saving files.
-        conn.execute("BEGIN IMMEDIATE")
-        current_attempt = conn.execute(
-            "SELECT submitted_at FROM quiz_attempts WHERE id = ?", (attempt_id,)
-        ).fetchone()
-        if current_attempt is None or current_attempt["submitted_at"] is not None:
-            raise PracticalUploadError("quiz attempt is closed")
-        submission = conn.execute("""
-            SELECT id, status
-            FROM practical_submissions
-            WHERE quiz_attempt_id = ? AND exam_task_id = ?
-        """, (attempt_id, exam_task_id)).fetchone()
-        if submission is not None and submission["status"] != "draft":
-            raise PracticalUploadError("practical submission is closed")
-        totals = conn.execute("""
-            SELECT COUNT(*), COALESCE(SUM(psf.size_bytes), 0)
-            FROM practical_submission_files psf
-            JOIN practical_submissions ps ON ps.id = psf.practical_submission_id
-            WHERE ps.quiz_attempt_id = ? AND ps.exam_task_id = ?
-        """, (attempt_id, exam_task_id)).fetchone()
-        validate_upload_capacity(
-            Path(current_app.config["PRACTICAL_UPLOAD_ROOT"]),
-            sum(size for _, _, size in prepared_files),
-            existing_bytes=int(totals[1]), existing_files=int(totals[0]),
-            incoming_files=len(prepared_files),
-        )
-        if submission is None:
-            cur = conn.execute("""
-                INSERT INTO practical_submissions (
-                    quiz_attempt_id, exam_task_id, status, updated_at
-                )
-                VALUES (?, ?, 'draft', CURRENT_TIMESTAMP)
-            """, (attempt_id, exam_task_id))
-            submission_id = int(cur.lastrowid)
-        else:
-            submission_id = int(submission["id"])
-            conn.execute("""
-                UPDATE practical_submissions
-                SET updated_at = CURRENT_TIMESTAMP
-                WHERE id = ?
-            """, (submission_id,))
+        # One lifecycle writer transaction: it serializes quota checks and inserts
+        # across workers, and decides the upload at the instant the writer lock
+        # was obtained. A held assignment or an unusable clock raises here, before
+        # any file is written.
+        with lifecycle.write_transaction(conn) as transaction:
+            current_attempt = conn.execute(
+                "SELECT id, assignment_id, started_at, submitted_at FROM quiz_attempts WHERE id = ?",
+                (attempt_id,)
+            ).fetchone()
+            if current_attempt is None:
+                raise PracticalUploadError("quiz attempt is closed")
+            assignment_id = int(current_attempt["assignment_id"])
+            lifecycle_row = lifecycle.fetch_lifecycle_row(conn, assignment_id)
+            if lifecycle_row is None:
+                raise PracticalUploadError("quiz attempt is closed")
+            # ``examine`` records a passed deadline and an ended grace window. An
+            # upload accepted in the grace window therefore persists the expiry it
+            # observed in the same transaction as its rows.
+            view = transaction.examine(lifecycle_row, attempt_row=current_attempt)
+            if current_attempt["submitted_at"] is not None:
+                raise PracticalUploadError("quiz attempt is closed")
 
-        for file_storage, original_filename, size_bytes in prepared_files:
-            stored = build_practical_upload_path(
-                upload_root=Path(current_app.config["PRACTICAL_UPLOAD_ROOT"]),
-                attempt_id=attempt_id,
-                exam_task_id=exam_task_id,
-                submission_id=submission_id,
-                original_filename=original_filename,
-                size_bytes=size_bytes,
-            )
-            stored.absolute_path.parent.mkdir(parents=True, exist_ok=True)
-            saved_paths.append(stored.absolute_path)
-            file_storage.save(stored.absolute_path)
-            if stored.absolute_path.stat().st_size != size_bytes:
-                raise PracticalUploadError("incomplete practical upload")
-            conn.execute("""
-                INSERT INTO practical_submission_files (
-                    practical_submission_id, stored_path, original_filename,
-                    size_bytes, mime_type
+            if not lifecycle.attempt_submittable(view, current_attempt):
+                # The same four checks as a submission (7.5). Nothing is stored;
+                # the transaction commits only to keep the observation stamp.
+                upload_closed = True
+            else:
+                submission = conn.execute("""
+                    SELECT id, status
+                    FROM practical_submissions
+                    WHERE quiz_attempt_id = ? AND exam_task_id = ?
+                """, (attempt_id, exam_task_id)).fetchone()
+                if submission is not None and submission["status"] != "draft":
+                    raise PracticalUploadError("practical submission is closed")
+                totals = conn.execute("""
+                    SELECT COUNT(*), COALESCE(SUM(psf.size_bytes), 0)
+                    FROM practical_submission_files psf
+                    JOIN practical_submissions ps ON ps.id = psf.practical_submission_id
+                    WHERE ps.quiz_attempt_id = ? AND ps.exam_task_id = ?
+                """, (attempt_id, exam_task_id)).fetchone()
+                validate_upload_capacity(
+                    Path(current_app.config["PRACTICAL_UPLOAD_ROOT"]),
+                    sum(size for _, _, size in prepared_files),
+                    existing_bytes=int(totals[1]), existing_files=int(totals[0]),
+                    incoming_files=len(prepared_files),
                 )
-                VALUES (?, ?, ?, ?, ?)
-            """, (
-                submission_id,
-                stored.stored_path,
-                stored.original_filename,
-                size_bytes,
-                file_storage.mimetype,
-            ))
+                # Stored instants are the transaction's ``now``, the same clock
+                # the decision used, not SQLite's CURRENT_TIMESTAMP.
+                if submission is None:
+                    cur = conn.execute("""
+                        INSERT INTO practical_submissions (
+                            quiz_attempt_id, exam_task_id, status, created_at, updated_at
+                        )
+                        VALUES (?, ?, 'draft', ?, ?)
+                    """, (attempt_id, exam_task_id, transaction.now_text, transaction.now_text))
+                    submission_id = int(cur.lastrowid)
+                else:
+                    submission_id = int(submission["id"])
+                    conn.execute("""
+                        UPDATE practical_submissions
+                        SET updated_at = ?
+                        WHERE id = ?
+                    """, (transaction.now_text, submission_id))
 
-        conn.commit()
+                for file_storage, original_filename, size_bytes in prepared_files:
+                    stored = build_practical_upload_path(
+                        upload_root=Path(current_app.config["PRACTICAL_UPLOAD_ROOT"]),
+                        attempt_id=attempt_id,
+                        exam_task_id=exam_task_id,
+                        submission_id=submission_id,
+                        original_filename=original_filename,
+                        size_bytes=size_bytes,
+                    )
+                    stored.absolute_path.parent.mkdir(parents=True, exist_ok=True)
+                    saved_paths.append(stored.absolute_path)
+                    file_storage.save(stored.absolute_path)
+                    if stored.absolute_path.stat().st_size != size_bytes:
+                        raise PracticalUploadError("incomplete practical upload")
+                    conn.execute("""
+                        INSERT INTO practical_submission_files (
+                            practical_submission_id, stored_path, original_filename,
+                            size_bytes, mime_type, uploaded_at
+                        )
+                        VALUES (?, ?, ?, ?, ?, ?)
+                    """, (
+                        submission_id,
+                        stored.stored_path,
+                        stored.original_filename,
+                        size_bytes,
+                        file_storage.mimetype,
+                        transaction.now_text,
+                    ))
     except (OSError, sqlite3.Error, PracticalUploadError) as exc:
         conn.rollback()
         for path in saved_paths:
@@ -339,6 +382,15 @@ def _store_upload(conn, attempt_id: int, source_slug: str, exam_task_id: int):
             type(exc).__name__,
         )
         return upload_error_redirect(attempt_id, source_slug, "invalid")
+
+    if upload_closed:
+        current_app.logger.info(
+            "Practical upload rejected: reason=assignment_closed attempt_id=%s source_slug=%s exam_task_id=%s",
+            attempt_id,
+            source_slug,
+            exam_task_id,
+        )
+        return upload_error_redirect(attempt_id, source_slug, UPLOAD_ERROR_CLOSED)
 
     return redirect(url_for(
         "practical.quiz_practical_attempt",
@@ -380,6 +432,8 @@ def teacher_practical_submission_file_download(file_id: int):
             file_id,
         )
         abort(404)
+    if file_row.get("lifecycle_hold") is not None:
+        raise lifecycle.AssignmentHeld()
     if file_row["is_deleted"]:
         current_app.logger.warning(
             "Practical submission download rejected: reason=deleted file_id=%s attempt_id=%s exam_task_id=%s",

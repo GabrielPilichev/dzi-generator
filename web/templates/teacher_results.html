@@ -34,6 +34,12 @@
         · без ограничение във времето
       {% endif %}
     </p>
+    <p class="subtitle" id="results-lifecycle-state">
+      Състояние: <strong>{{ lifecycle.state_label }}</strong>
+      {% if lifecycle.deadline %}· срок {{ lifecycle.deadline.text }}{% endif %}
+      {% if lifecycle.closed_at %}· затворен на {{ lifecycle.closed_at }}{% endif %}
+      {% if lifecycle.deadline or lifecycle.closed_at %}({{ lifecycle.zone }}){% endif %}
+    </p>
     {% if mixed_status and mixed_status.is_mixed %}
       <div class="badges">
         <span class="pill pill--mixed">Смесен тест · {{ mixed_status.open_count }} отворени</span>

@@ -37,7 +37,11 @@
     <section class="success form-message" role="status">Файловете са качени успешно.</section>
 {% endif %}
 
-{% if upload_error %}
+{% if upload_closed %}
+    <section class="warning warning--spaced form-message" id="upload-closed-notice" role="alert">
+        Тестът е затворен и вече не приема файлове. Файлът не беше качен.
+    </section>
+{% elif upload_error %}
     <section class="warning warning--spaced form-message" role="alert">
         Файлът не беше приет. Провери името, разширението и размера, след което опитай отново.
     </section>

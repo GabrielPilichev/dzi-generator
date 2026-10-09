@@ -69,6 +69,19 @@
               {% if a.time_limit_minutes %}
                 <div class="muted">Време: {{ a.time_limit_minutes }} мин.</div>
               {% endif %}
+              <div class="muted">
+                Състояние:
+                {% if a.lifecycle.is_held %}
+                  временно недостъпен
+                {% else %}
+                  {{ a.lifecycle.state_label }}
+                  {% if a.lifecycle.is_open and a.lifecycle.deadline %}
+                    · срок {{ a.lifecycle.deadline.text }} ({{ a.lifecycle.zone }})
+                  {% elif a.lifecycle.is_open %}
+                    · без краен срок
+                  {% endif %}
+                {% endif %}
+              </div>
             </td>
             <td>
               {{ a.section_title }}
@@ -91,12 +104,8 @@
                 {% else %}
                 <span class="muted">Няма линк за ученици</span>
                 {% endif %}
-                <form method="post"
-                      action="{{ url_for('teacher.teacher_assignment_duplicate', assignment_id=a.id) }}"
-                      class="inline-form"
-                      onsubmit="return confirm('Това ще създаде копие на теста „{{ a.title_bg|e }}“ с ново ID. Опитите и отговорите няма да се копират. Продължи?');">
-                  <button type="submit" class="link-button">Дублирай</button>
-                </form>
+                {# A copy needs its own deadline choice: the form is on the assignment page. #}
+                <a href="{{ url_for('teacher.teacher_assignment', assignment_id=a.id) }}#duplicate">Дублирай</a>
               </div>
             </td>
           </tr>

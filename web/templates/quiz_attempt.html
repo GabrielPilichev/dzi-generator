@@ -64,11 +64,36 @@
   </section>
 {% endif %}
 
-{% if stale_attempt_message %}
+{% if attempt_closed %}
+  <section class="card warning warning--spaced form-message" id="attempt-closed-notice" role="alert">
+    <p><strong>Тестът е затворен. Времето за предаване изтече.</strong></p>
+    {% if lifecycle.submit_cutoff %}
+      <p class="muted">Предаването беше възможно до {{ lifecycle.submit_cutoff }} ({{ lifecycle.zone }}).</p>
+    {% endif %}
+    <p class="muted">Този опит не е предаден и вече не може да бъде предаден.</p>
+  </section>
+{% elif stale_attempt_message %}
   <section class="card warning warning--spaced form-message" role="alert">
     {{ stale_attempt_message }}
   </section>
 {% else %}
+  {% if attempt_in_grace %}
+    <section class="card warning warning--spaced form-message" id="attempt-grace-notice" role="alert">
+      <p><strong>Тестът е затворен.</strong> Предай отговорите си най-късно до
+        <strong>{{ lifecycle.submit_cutoff }}</strong> ({{ lifecycle.zone }}).</p>
+      <p class="muted">След този час опитът не може да бъде предаден.</p>
+    </section>
+  {% endif %}
+  {% if lifecycle.deadline and not attempt_in_grace %}
+    <p class="muted" id="attempt-deadline-note">
+      Краен срок на теста: {{ lifecycle.deadline.text }} ({{ lifecycle.zone }}). След него започнатите опити могат да се предадат още {{ lifecycle.grace_minutes }} минути.
+    </p>
+  {% endif %}
+  {% if submissions_unavailable %}
+    <section class="card warning warning--spaced form-message" id="attempt-unavailable-notice" role="status">
+      В момента предаването е временно недостъпно. Не затваряй страницата: отговорите ти се пазят в този браузър. Опитай отново малко по-късно.
+    </section>
+  {% endif %}
   <form method="post" id="quiz-form" class="quiz-attempt-form" data-attempt-id="{{ attempt.id }}">
     <input type="hidden" name="submission_reason" id="submission-reason" value="manual">
     <p id="draft-status" class="muted draft-status" hidden></p>

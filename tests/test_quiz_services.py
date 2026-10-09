@@ -212,13 +212,13 @@ class QuizAttemptTransactionTest(IsolatedAppTestCase):
             # first answer right, the rest left unanswered
             form = {f"q_{mc_ids[0]}": correct[mc_ids[0]]}
 
-            score, total = quiz_service.quiz_submit_attempt(
+            submission = quiz_service.quiz_submit_attempt(
                 conn, start.attempt_id,
                 mc_question_ids=mc_ids, question_ids=plan["question_ids"],
                 open_question_ids=[], form=form,
             )
 
-        self.assertEqual((score, total), (1, len(mc_ids)))
+        self.assertEqual(submission, (quiz_service.SUBMIT_SUBMITTED, 1, len(mc_ids)))
         with quiz_service.quiz_connection() as conn:
             stored = quiz_service.quiz_fetch_attempt(conn, start.attempt_id)
             answers = conn.execute(

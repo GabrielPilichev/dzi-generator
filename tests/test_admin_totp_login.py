@@ -28,6 +28,7 @@ from tests.test_account_login import (
     AccountAppTestCase,
 )
 from tests.support import web_app
+from tests.support import NO_DEADLINE_FORM
 from web import production
 from web.access import ANONYMOUS, account_principal
 from web.blueprints import account as account_blueprint
@@ -539,7 +540,7 @@ class AssignmentOwnershipInteractionTest(AdminTotpTestCase):
         self.assertEqual(response.headers["Location"], f"/login?next={detail}")
         before = self.query("SELECT COUNT(*) FROM quiz_assignments")[0][0]
         with patch.object(teacher_blueprint, "quiz_write_assignment_note"):
-            response = self.client.post("/teacher/new", data={"section_id": section_id, "question_count": 1},
+            response = self.client.post("/teacher/new", data={**NO_DEADLINE_FORM, "section_id": section_id, "question_count": 1},
                                         headers=SAME_ORIGIN)
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.headers["Location"], "/login?next=/teacher/new")

@@ -13,6 +13,7 @@ from tests.auth_helpers import sign_in_admin
 from tests.dzi_open_fixtures import mark_dzi_question
 from tests.subject_fixtures import add_curriculum, add_membership, add_question, add_section, add_topic, four_options
 from tests.support import IsolatedAppTestCase, web_app
+from tests.support import NO_DEADLINE_FORM
 from web.services import dzi_exams
 from web.services import practical as practical_service
 from web.services import quiz as quiz_service
@@ -125,7 +126,7 @@ class OpenQuestionScopeTest(IsolatedAppTestCase):
 
     def create(self, key, **fields):
         subject = key if key in OTHER_SUBJECTS else 'information-technologies'
-        return self.client.post('/teacher/new', data={'subject': subject, 'section_id': self.sections[key],
+        return self.client.post('/teacher/new', data={**NO_DEADLINE_FORM, 'subject': subject, 'section_id': self.sections[key],
                                                      'question_count': 3, **fields})
 
     def assert_rejected(self, response, before):
@@ -305,7 +306,7 @@ class OpenQuestionScopeTest(IsolatedAppTestCase):
                        {'open_count': 1, 'source_slug': 'oq-answerless'},
                        {'open_count': 1, 'source_slug': 'unknown'}):
             self.assert_rejected(self.create('dzi', **fields), before)
-        html = self.client.post('/teacher/new', data={'subject': 'it', 'section_id': self.sections['dzi'],
+        html = self.client.post('/teacher/new', data={**NO_DEADLINE_FORM, 'subject': 'it', 'section_id': self.sections['dzi'],
                                                     'question_count': 3, 'open_count': 2,
                                                     'source_slug': 'oq-source-b'}).get_data(as_text=True)
         self.assertRegex(html, r'<input id="open_count"[^>]*max="1"')
@@ -362,7 +363,7 @@ class OpenQuestionScopeTest(IsolatedAppTestCase):
     def test_duplicate_valid_dzi_plan_keeps_snapshot(self):
         source = self.plan(self.create('dzi', open_count=1, source_slug='oq-source-a'))
         copy = self.plan(self.client.post(f"/teacher/assignment/{source['id']}/duplicate",
-                                         data={'section_id': self.sections['it8']}))
+                                         data={**NO_DEADLINE_FORM, 'section_id': self.sections['it8']}))
         self.assertEqual(copy['section_id'], self.sections['dzi'])  # No target-context API.
         self.assertEqual(copy['question_plan_json'], source['question_plan_json'])
 
@@ -378,7 +379,7 @@ class OpenQuestionScopeTest(IsolatedAppTestCase):
             finally:
                 conn.close()
             before = self.assignments()
-            self.assert_rejected(self.client.post(f'/teacher/assignment/{assignment}/duplicate'), before)
+            self.assert_rejected(self.client.post(f'/teacher/assignment/{assignment}/duplicate', data=NO_DEADLINE_FORM), before)
 
     def test_duplicate_rechecks_current_readiness(self):
         source = self.plan(self.create('dzi', open_count=1, source_slug='oq-source-b'))
@@ -386,7 +387,7 @@ class OpenQuestionScopeTest(IsolatedAppTestCase):
         try:
             conn.execute('UPDATE questions SET level=NULL WHERE id=?', (self.opens['b'],))
             conn.commit()
-            self.assert_rejected(self.client.post(f"/teacher/assignment/{source['id']}/duplicate"), self.assignments())
+            self.assert_rejected(self.client.post(f"/teacher/assignment/{source['id']}/duplicate", data=NO_DEADLINE_FORM), self.assignments())
         finally:
             conn.execute("UPDATE questions SET level='DZI' WHERE id=?", (self.opens['b'],))
             conn.commit()

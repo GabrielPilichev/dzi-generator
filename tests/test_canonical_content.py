@@ -106,7 +106,7 @@ class ClassificationTest(CanonicalTestCase):
         self.assertEqual(ct.tables_of(ct.RUNTIME), sorted([
             "quiz_assignments", "quiz_attempts", "quiz_answers", "quiz_text_answers",
             "practical_submissions", "practical_submission_files", "users",
-            "totp_credentials", "totp_recovery_codes"]))
+            "totp_credentials", "totp_recovery_codes", "lifecycle_clock"]))
         self.assertEqual(ct.tables_of(ct.OPERATIONAL), sorted([
             "obsidian_notes", "note_question_links", "generated_exams", "scrape_log",
             "schema_migrations", "sqlite_sequence", "login_throttle"]))
@@ -148,7 +148,9 @@ class ExclusionTest(CanonicalTestCase):
         for table in ct.tables_of(ct.RUNTIME) + ct.tables_of(ct.OPERATIONAL):
             if table in ("schema_migrations", "sqlite_sequence"):
                 continue
-            self.assertEqual(conn.execute(f'SELECT COUNT(*) FROM "{table}"').fetchone()[0], 0, table)
+            # Empty, except the rows a migration itself seeds (the lifecycle clock row).
+            self.assertEqual(conn.execute(f'SELECT COUNT(*) FROM "{table}"').fetchone()[0],
+                             ct.MIGRATION_SEEDED_ROWS.get(table, 0), table)
 
 
 class DeterminismTest(CanonicalTestCase):

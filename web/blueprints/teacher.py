@@ -15,6 +15,14 @@ assignment's open answers) uses the ``assignment_owner`` policy: an admin
 manages every assignment, a teacher account only its own, and anything else is
 a 404 decided by ``web.access.can_manage_assignment`` on the loaded row. The
 list applies the same rule in SQL. Student/public quiz loading is not scoped.
+
+Lifecycle (docs/ASSIGNMENT_LIFECYCLE_DESIGN.md): create, edit, duplicate and
+manual close are lifecycle writes. Each validates its deadline against a ``now``
+sampled under the writer lock and restates its precondition in SQL
+(:mod:`web.services.lifecycle`). Ownership is decided first, then the hold, then
+the state, so a lifecycle response never reveals a foreign assignment. A held
+assignment and an unusable clock raise ``lifecycle.LifecycleUnavailable``, which
+``web.app`` answers with 503.
 """
 
 from __future__ import annotations
@@ -46,7 +54,7 @@ from web.access import (
 )
 from web.public_url import trusted_public_base_url
 from web.request_integrity import SAME_ORIGIN, integrity_policy
-from web.services import practical
+from web.services import lifecycle, practical
 from web.services.qr import qr_svg
 from web.services.quiz import (
     QUIZ_DURATION_FALLBACK_BG,
@@ -308,6 +316,104 @@ def _fetch_managed_assignment(conn, assignment_id: int):
     return assignment
 
 
+def _list_lifecycle(row, now) -> dict:
+    """Lifecycle summary of one listed assignment. A held one is listed, not served."""
+    summary = lifecycle.describe(lifecycle.evaluate(row, now))
+    summary["is_held"] = lifecycle.is_held(row)
+    return summary
+
+
+def _submitted_deadline_form(form) -> dict:
+    """The deadline fields exactly as submitted, to show a refused form again."""
+    return {
+        "choice": form.get("deadline_choice") or "",
+        "form_date": form.get("deadline_date") or "",
+        "form_time": form.get("deadline_time") or "",
+        "zone": form.get("display_timezone") or "",
+        "max_days": lifecycle.MAX_DEADLINE_DAYS,
+    }
+
+
+def _create_assignment_with_deadline(conn, deadline_request, **fields) -> tuple[int | None, str | None]:
+    """Create an assignment in one lifecycle writer transaction.
+
+    ``(assignment_id, None)``, or ``(None, error_code)`` when the deadline is
+    refused; nothing is stored then. The deadline is validated against the ``now``
+    sampled after the writer lock was taken: later than ``now`` and at most 180
+    local calendar days ahead. The server never invents a deadline: the request
+    states one, or states "no deadline".
+    """
+    principal = current_principal()
+    with lifecycle.write_transaction(conn) as transaction:
+        transaction.admit()
+        try:
+            deadline_at = lifecycle.resolve_deadline(deadline_request, transaction.now)
+        except lifecycle.DeadlineError as exc:
+            transaction.discard()
+            return None, exc.code
+        assignment_id = quiz_create_assignment(
+            conn, principal=principal, deadline_at=deadline_at,
+            display_timezone=deadline_request.timezone, **fields)
+        created_at = transaction.now_text
+    # After the commit, for diagnosis only: no tool reads an assignment's state from the log.
+    lifecycle.logger.info(
+        "lifecycle event=create assignment_id=%s at=%r deadline_at=%r display_timezone=%r actor_user_id=%s",
+        assignment_id, created_at, deadline_at, deadline_request.timezone, principal.user_id)
+    return assignment_id, None
+
+
+def _duplicate_assignment_with_deadline(conn, assignment_id: int, deadline_request) -> tuple[int | None, str | None]:
+    """Create a copy of an assignment in one lifecycle writer transaction.
+
+    ``(new_assignment_id, None)``, or ``(None, error_code)`` when the deadline is
+    refused. Everything the copy is made from is decided under the writer lock,
+    on the source row re-read inside the transaction, in the fixed order:
+    authorization (404), the source's hold (503), its factual lifecycle
+    timestamps against the clock, its plan, and only then the fields that are
+    copied. A hold that another connection committed after the request first
+    looked at the source is therefore seen, and no copy is made of a held source.
+
+    Nothing of the source's lifecycle is copied: the copy gets the deadline and
+    zone this request states, and a new owner and public token.
+    """
+    principal = current_principal()
+    with lifecycle.write_transaction(conn) as transaction:
+        source = quiz_fetch_assignment(conn, assignment_id)
+        if source is None or not can_manage_assignment(principal, source["owner_user_id"]):
+            abort(404)
+        transaction.examine(source)  # hold, factual timestamps, admission
+
+        if source["question_plan_json"]:
+            plan = quiz_parse_assignment_question_plan(source["question_plan_json"])
+            try:
+                if plan is None:
+                    raise ValueError("Invalid mixed plan")
+                AssessmentScope(conn, source["section_id"]).validate_plan(
+                    plan["question_ids"], plan["open_question_ids"]
+                )
+            except ValueError:
+                abort(400)
+
+        try:
+            deadline_at = lifecycle.resolve_deadline(deadline_request, transaction.now)
+        except lifecycle.DeadlineError as exc:
+            return None, exc.code
+        # The copy belongs to the acting account, never to the source's owner.
+        new_assignment_id = quiz_create_assignment(
+            conn, principal=principal, section_id=source["section_id"],
+            title_bg=quiz_duplicate_title(source["title_bg"]),
+            question_count=source["question_count"],
+            time_limit_minutes=source["time_limit_minutes"],
+            question_plan_json=source["question_plan_json"],
+            deadline_at=deadline_at, display_timezone=deadline_request.timezone)
+        created_at = transaction.now_text
+    # After the commit, for diagnosis only: no tool reads an assignment's state from the log.
+    lifecycle.logger.info(
+        "lifecycle event=create assignment_id=%s at=%r deadline_at=%r display_timezone=%r actor_user_id=%s",
+        new_assignment_id, created_at, deadline_at, deadline_request.timezone, principal.user_id)
+    return new_assignment_id, None
+
+
 def _student_quiz_url(assignment) -> str | None:
     """The absolute student link on the trusted public base URL
     (:mod:`web.public_url`), never on this request's ``Host``. ``None`` without a
@@ -349,6 +455,8 @@ def teacher_assignments():
             qa.question_plan_json,
             qa.public_token,
             qa.created_at,
+            qa.deadline_at, qa.display_timezone, qa.closed_at, qa.expiry_observed_at,
+            qa.submissions_closed_at, qa.retention_base_at, qa.lifecycle_hold,
             cs.class,
             cs.title_bg AS section_title,
             cs.section_slug,
@@ -362,11 +470,13 @@ def teacher_assignments():
         ORDER BY qa.created_at DESC, qa.id DESC
     """, scope_params).fetchall()
 
+    lifecycle_now = lifecycle.read_clock(conn).now
     assignments = []
     for row in assignment_rows:
         row_dict = dict(row)
         row_dict["mixed_status"] = quiz_assignment_mixed_status(row_dict.pop("question_plan_json", None))
         row_dict["teacher_label"] = "не е посочен"
+        row_dict["lifecycle"] = _list_lifecycle(row, lifecycle_now)
         assignments.append(row_dict)
 
     conn.close()
@@ -395,6 +505,7 @@ def teacher_new():
     preselected_section_id = None
     mixed_planning_result = None
     teacher_new_error = None
+    deadline_request = None
     form_values = {
         "question_count": 10,
         "time_limit_minutes": "",
@@ -446,6 +557,14 @@ def teacher_new():
                 teacher_new_error = "time_out_of_range"
             elif open_count > requested_count:
                 teacher_new_error = "open_count_exceeds_total"
+
+        if teacher_new_error is None:
+            # The deadline choice is explicit: a deadline, or "no deadline", and
+            # always a zone. A request without a valid choice creates nothing.
+            try:
+                deadline_request = lifecycle.parse_deadline_request(request.form)
+            except lifecycle.DeadlineError as exc:
+                teacher_new_error = exc.code
 
         if teacher_new_error is None:
             section = conn.execute("""
@@ -529,29 +648,39 @@ def teacher_new():
                         teacher_new_error = "invalid_question_plan"
                         preselected_section_id = section_id
                     else:
-                        assignment_id = quiz_create_assignment(
-                            conn, principal=current_principal(), section_id=section_id,
-                            title_bg=section["title_bg"],
-                            question_count=len(question_plan["question_ids"]),
-                            time_limit_minutes=time_limit,
-                            question_plan_json=json.dumps(question_plan, ensure_ascii=False),
-                        )
-                        conn.commit()
-                        conn.close()
+                        try:
+                            assignment_id, teacher_new_error = _create_assignment_with_deadline(
+                                conn, deadline_request, section_id=section_id,
+                                title_bg=section["title_bg"],
+                                question_count=len(question_plan["question_ids"]),
+                                time_limit_minutes=time_limit,
+                                question_plan_json=json.dumps(question_plan, ensure_ascii=False),
+                            )
+                        except lifecycle.LifecycleUnavailable:
+                            conn.close()
+                            raise
+                        if assignment_id is not None:
+                            conn.close()
 
-                        quiz_write_assignment_note(assignment_id, request.host_url)
-                        return redirect(url_for("teacher.teacher_assignment", assignment_id=assignment_id))
+                            quiz_write_assignment_note(assignment_id, request.host_url)
+                            return redirect(url_for("teacher.teacher_assignment", assignment_id=assignment_id))
+                        preselected_section_id = section_id
             else:
-                assignment_id = quiz_create_assignment(
-                    conn, principal=current_principal(), section_id=section_id,
-                    title_bg=section["title_bg"], question_count=question_count,
-                    time_limit_minutes=time_limit,
-                )
-                conn.commit()
-                conn.close()
+                try:
+                    assignment_id, teacher_new_error = _create_assignment_with_deadline(
+                        conn, deadline_request, section_id=section_id,
+                        title_bg=section["title_bg"], question_count=question_count,
+                        time_limit_minutes=time_limit,
+                    )
+                except lifecycle.LifecycleUnavailable:
+                    conn.close()
+                    raise
+                if assignment_id is not None:
+                    conn.close()
 
-                quiz_write_assignment_note(assignment_id, request.host_url)
-                return redirect(url_for("teacher.teacher_assignment", assignment_id=assignment_id))
+                    quiz_write_assignment_note(assignment_id, request.host_url)
+                    return redirect(url_for("teacher.teacher_assignment", assignment_id=assignment_id))
+                preselected_section_id = section_id
 
     section_rows = conn.execute("""
         SELECT id, class, title_bg
@@ -611,6 +740,14 @@ def teacher_new():
     )
     practical_source_options = practical_source_options or []
 
+    if request.method == "POST":
+        deadline_form = _submitted_deadline_form(request.form)
+    else:
+        # The offer: 23:59 local time, 14 calendar days ahead, in the preselected zone.
+        deadline_form = lifecycle.default_deadline_form(
+            lifecycle.read_clock(conn).now,
+            lifecycle.preselected_timezone(conn, current_principal().user_id))
+
     conn.close()
 
     teacher_subject_options = [
@@ -639,18 +776,24 @@ def teacher_new():
             if selected_section and form_values["source_slug"]
             else selected_section["open"]["count"] if selected_section else 0,
         practical_source_options=practical_source_options,
+        deadline_form=deadline_form,
+        deadline_error_message=lifecycle.DEADLINE_ERROR_MESSAGES_BG.get(teacher_new_error),
+        timezone_names=lifecycle.timezone_names(),
     ), 400 if teacher_new_error else 200
 
 
-@teacher_bp.route("/teacher/assignment/<int:assignment_id>")
-@access_policy(TEACHER)
-def teacher_assignment(assignment_id):
-    conn = quiz_db()
+def _render_assignment_detail(conn, assignment, *, status_code: int = 200, edit_error: str | None = None,
+                              edit_form_values: dict | None = None, duplicate_error: str | None = None,
+                              duplicate_form_values: dict | None = None, lifecycle_message: str | None = None):
+    """The teacher's assignment page, with its lifecycle state, on ``conn``.
+
+    The caller has authorized the principal and checked the hold. Lifecycle times
+    are shown in the assignment's stored zone, the zone named; a row created
+    before the lifecycle migration has no zone and is shown in the application
+    default.
+    """
     principal = current_principal()
-    assignment = quiz_fetch_assignment(conn, assignment_id)
-    if not quiz_can_access_assignment(assignment, principal):
-        conn.close()
-        abort(404)
+    assignment_id = int(assignment["id"])
     can_manage = can_manage_assignment(principal, assignment["owner_user_id"])
 
     attempts = conn.execute("""
@@ -661,21 +804,64 @@ def teacher_assignment(assignment_id):
     """, (assignment_id,)).fetchall()
     attempts = attach_attempt_question_image_counts(conn, attempts)
 
-    quiz_url = _student_quiz_url(assignment)
-    mixed_status = quiz_assignment_mixed_status(assignment["question_plan_json"])
-    conn.close()
+    clock = lifecycle.read_clock(conn)
+    view = lifecycle.evaluate(assignment, clock.now)
+    presentation = lifecycle.describe(view)
+    preselected_zone = lifecycle.preselected_timezone(conn, principal.user_id)
+    default_form = lifecycle.default_deadline_form(clock.now, preselected_zone)
 
+    # Edit form: the stored deadline and zone; a row from before the lifecycle
+    # migration has no zone yet, so the teacher is asked to select one.
+    if presentation["deadline"]:
+        edit_deadline_form = {
+            "choice": lifecycle.DEADLINE_CHOICE_DEADLINE,
+            "form_date": presentation["deadline"]["form_date"],
+            "form_time": presentation["deadline"]["form_time"],
+        }
+    else:
+        edit_deadline_form = {
+            "choice": lifecycle.DEADLINE_CHOICE_NONE,
+            "form_date": default_form["form_date"],
+            "form_time": default_form["form_time"],
+        }
+    edit_deadline_form["zone"] = presentation["zone"] if presentation["zone_is_stored"] else preselected_zone
+    edit_deadline_form["max_days"] = lifecycle.MAX_DEADLINE_DAYS
+
+    quiz_url = _student_quiz_url(assignment)
     return render_template(
         "teacher_assignment.html",
         assignment=assignment,
         attempts=attempts,
         quiz_url=quiz_url,
         qr_available=can_manage and quiz_url is not None,
-        mixed_status=mixed_status,
-        edit_error=None,
-        edit_form_values=None,
+        mixed_status=quiz_assignment_mixed_status(assignment["question_plan_json"]),
+        edit_error=edit_error,
+        edit_error_message=lifecycle.DEADLINE_ERROR_MESSAGES_BG.get(edit_error),
+        edit_form_values=edit_form_values,
+        edit_deadline_form=(edit_form_values or {}).get("deadline") or edit_deadline_form,
+        duplicate_error=duplicate_error,
+        duplicate_error_message=lifecycle.DEADLINE_ERROR_MESSAGES_BG.get(duplicate_error),
+        duplicate_deadline_form=duplicate_form_values or default_form,
         can_manage=can_manage,
-    )
+        lifecycle=presentation,
+        lifecycle_message=lifecycle_message,
+        lifecycle_writes_unavailable=not clock.healthy,
+        timezone_names=lifecycle.timezone_names(),
+    ), status_code
+
+
+@teacher_bp.route("/teacher/assignment/<int:assignment_id>")
+@access_policy(TEACHER)
+def teacher_assignment(assignment_id):
+    with quiz_connection() as conn:
+        assignment = quiz_fetch_assignment(conn, assignment_id)
+        if not quiz_can_access_assignment(assignment, current_principal()):
+            abort(404)
+        lifecycle.require_served(assignment)
+        rendered = _render_assignment_detail(conn, assignment)
+        lifecycle.observe_if_needed(
+            conn, assignment_id, lifecycle.evaluate(assignment, lifecycle.read_clock(conn).now))
+    return rendered
 
 
 QR_SVG_HEADERS = {
@@ -694,10 +880,13 @@ def teacher_assignment_qr(assignment_id):
     Owner or admin only, decided before anything is generated. What is encoded
     comes from the stored token and the configured public base URL alone; the only
     request input, ``download=1``, picks attachment over inline. Nothing is stored.
+    The code keeps working for a closed assignment: the link it encodes then leads
+    to the closed notice.
     """
     conn = quiz_db()
     assignment = _fetch_managed_assignment(conn, assignment_id)
     conn.close()
+    lifecycle.require_served(assignment)
     if quiz_student_entry_path(assignment) is None:
         abort(404)
     student_url = _student_quiz_url(assignment)
@@ -717,6 +906,8 @@ QUIZ_DUPLICATE_TITLE_SUFFIX = " (копие)"
 QUIZ_TITLE_MAX_LENGTH = 200
 QUIZ_TIME_LIMIT_MAX_MINUTES = 600
 
+ASSIGNMENT_CLOSED_MESSAGE = "Тестът е затворен и вече не може да се редактира."
+
 
 def quiz_duplicate_title(title: str | None) -> str:
     base_title = title or ""
@@ -728,58 +919,59 @@ def quiz_duplicate_title(title: str | None) -> str:
 @access_policy(ASSIGNMENT_OWNER)
 @integrity_policy(SAME_ORIGIN)
 def teacher_assignment_edit(assignment_id):
-    conn = quiz_db()
-    assignment = _fetch_managed_assignment(conn, assignment_id)
+    """Edit the title, the time limit and the deadline with its zone of an open assignment.
 
-    raw_title = (request.form.get("title_bg") or "").replace("\x00", "").strip()
-    raw_time = (request.form.get("time_limit_minutes") or "").strip()
+    Exactly these inputs are read (the whitelist of the design, 6.4): a submitted
+    owner, token, closure or hold field is ignored. After closure, manual or by
+    expiry, everything is frozen: a direct POST changes nothing and gets the page
+    with status 409. The freeze is the predicate of the update, not a hidden form.
+    """
+    with quiz_connection() as conn:
+        assignment = _fetch_managed_assignment(conn, assignment_id)
+        lifecycle.require_served(assignment)
 
-    error = None
-    new_time_limit = None
-    if not raw_title:
-        error = "title_required"
-    elif len(raw_title) > QUIZ_TITLE_MAX_LENGTH:
-        error = "title_too_long"
-    elif raw_time:
-        try:
-            new_time_limit = int(raw_time)
-        except ValueError:
-            error = "time_invalid"
-        else:
-            if new_time_limit < 1 or new_time_limit > QUIZ_TIME_LIMIT_MAX_MINUTES:
-                error = "time_out_of_range"
+        raw_title = (request.form.get("title_bg") or "").replace("\x00", "").strip()
+        raw_time = (request.form.get("time_limit_minutes") or "").strip()
 
-    if error is not None:
-        attempts = conn.execute("""
-            SELECT *
-            FROM quiz_attempts
-            WHERE assignment_id = ?
-            ORDER BY started_at
-        """, (assignment_id,)).fetchall()
-        quiz_url = _student_quiz_url(assignment)
-        mixed_status = quiz_assignment_mixed_status(assignment["question_plan_json"])
-        conn.close()
-        rendered = render_template(
-            "teacher_assignment.html",
-            assignment=assignment,
-            attempts=attempts,
-            quiz_url=quiz_url,
-            qr_available=quiz_url is not None,
-            mixed_status=mixed_status,
-            edit_error=error,
-            edit_form_values={"title_bg": raw_title, "time_limit_minutes": raw_time},
-            can_manage=True,
-        )
-        return rendered, 400
+        error = None
+        new_time_limit = None
+        deadline_request = None
+        if not raw_title:
+            error = "title_required"
+        elif len(raw_title) > QUIZ_TITLE_MAX_LENGTH:
+            error = "title_too_long"
+        elif raw_time:
+            try:
+                new_time_limit = int(raw_time)
+            except ValueError:
+                error = "time_invalid"
+            else:
+                if new_time_limit < 1 or new_time_limit > QUIZ_TIME_LIMIT_MAX_MINUTES:
+                    error = "time_out_of_range"
+        if error is None:
+            try:
+                deadline_request = lifecycle.parse_deadline_request(request.form)
+            except lifecycle.DeadlineError as exc:
+                error = exc.code
 
-    # Only these two columns are editable; a submitted owner is ignored.
-    conn.execute("""
-        UPDATE quiz_assignments
-        SET title_bg = ?, time_limit_minutes = ?
-        WHERE id = ?
-    """, (raw_title, new_time_limit, assignment_id))
-    conn.commit()
-    conn.close()
+        # Closure is decided inside the writer transaction, before any input
+        # error is reported: a closed assignment is frozen whatever was sent.
+        result = lifecycle.edit_assignment(
+            conn, assignment_id, title=raw_title, time_limit_minutes=new_time_limit,
+            deadline=deadline_request, input_error=error, actor_user_id=current_principal().user_id)
+
+        if result.outcome != lifecycle.EDIT_UPDATED:
+            assignment = quiz_fetch_assignment(conn, assignment_id)
+            if result.outcome == lifecycle.EDIT_CLOSED:
+                return _render_assignment_detail(
+                    conn, assignment, status_code=409, lifecycle_message=ASSIGNMENT_CLOSED_MESSAGE)
+            return _render_assignment_detail(
+                conn, assignment, status_code=400, edit_error=result.error,
+                edit_form_values={
+                    "title_bg": raw_title,
+                    "time_limit_minutes": raw_time,
+                    "deadline": _submitted_deadline_form(request.form),
+                })
 
     quiz_write_assignment_note(assignment_id, request.host_url)
     return redirect(url_for("teacher.teacher_assignment", assignment_id=assignment_id))
@@ -789,34 +981,59 @@ def teacher_assignment_edit(assignment_id):
 @access_policy(ASSIGNMENT_OWNER)
 @integrity_policy(SAME_ORIGIN)
 def teacher_assignment_duplicate(assignment_id):
-    conn = quiz_db()
-    source = _fetch_managed_assignment(conn, assignment_id)
+    """Create a copy with its own deadline choice, owner and public token.
 
-    if source["question_plan_json"]:
-        plan = quiz_parse_assignment_question_plan(source["question_plan_json"])
+    The form carries the same deadline or no-deadline choice and zone selector as
+    creation and is validated the same way; a request without a valid choice
+    creates nothing. Nothing of the source's lifecycle is copied: not its
+    deadline, zone, closure or markers. Duplicating a closed assignment stays
+    allowed: it is the way to correct one. A held source is never duplicated,
+    also when the hold is added while this request is being handled.
+    """
+    with quiz_connection() as conn:
+        # A first look, so that a foreign, missing or held source is answered
+        # before the form is read. It decides nothing about the copy: the source
+        # is read again, and checked again, under the writer lock.
+        source = _fetch_managed_assignment(conn, assignment_id)
+        lifecycle.require_served(source)
+
+        new_assignment_id = None
         try:
-            if plan is None:
-                raise ValueError("Invalid mixed plan")
-            AssessmentScope(conn, source["section_id"]).validate_plan(
-                plan["question_ids"], plan["open_question_ids"]
-            )
-        except ValueError:
-            conn.close()
-            abort(400)
+            deadline_request = lifecycle.parse_deadline_request(request.form)
+        except lifecycle.DeadlineError as exc:
+            duplicate_error = exc.code
+        else:
+            new_assignment_id, duplicate_error = _duplicate_assignment_with_deadline(
+                conn, assignment_id, deadline_request)
 
-    # The copy belongs to the acting account, never to the source's owner.
-    new_assignment_id = quiz_create_assignment(
-        conn, principal=current_principal(), section_id=source["section_id"],
-        title_bg=quiz_duplicate_title(source["title_bg"]),
-        question_count=source["question_count"],
-        time_limit_minutes=source["time_limit_minutes"],
-        question_plan_json=source["question_plan_json"],
-    )
-    conn.commit()
-    conn.close()
+        if new_assignment_id is None:
+            return _render_assignment_detail(
+                conn, source, status_code=400, duplicate_error=duplicate_error,
+                duplicate_form_values=_submitted_deadline_form(request.form))
 
     quiz_write_assignment_note(new_assignment_id, request.host_url)
     return redirect(url_for("teacher.teacher_assignment", assignment_id=new_assignment_id))
+
+
+@teacher_bp.route("/teacher/assignment/<int:assignment_id>/close", methods=["POST"])
+@access_policy(ASSIGNMENT_OWNER)
+@integrity_policy(SAME_ORIGIN)
+def teacher_assignment_close(assignment_id):
+    """Close an assignment manually. Irreversible: there is no reopening.
+
+    POST only, same-origin, owner or admin. The request body is not read: the
+    closure time is the server's ``now`` and the actor is the session principal.
+    Closing an assignment that is already closed (manually or by its deadline)
+    changes nothing and answers with the same redirect; the page shows the state.
+    """
+    with quiz_connection() as conn:
+        _fetch_managed_assignment(conn, assignment_id)
+        outcome = lifecycle.close_assignment(
+            conn, assignment_id, principal_user_id=current_principal().user_id)
+
+    if outcome != lifecycle.CLOSE_ALREADY_CLOSED:
+        quiz_write_assignment_note(assignment_id, request.host_url)
+    return redirect(url_for("teacher.teacher_assignment", assignment_id=assignment_id))
 
 
 TEACHER_NOTE_MAX_LENGTH = 1000
@@ -939,18 +1156,21 @@ def quiz_sort_results_attempts(attempts, *, sort, open_subtotal_by_id):
     return list(attempts)
 
 
-@teacher_bp.route("/teacher/assignment/<int:assignment_id>/results", methods=["GET", "POST"])
-@access_policy(ASSIGNMENT_OWNER)
-@integrity_policy(SAME_ORIGIN)
-def teacher_assignment_results(assignment_id):
-    conn = quiz_db()
-    assignment = _fetch_managed_assignment(conn, assignment_id)
+def _review_open_answer(assignment_id: int):
+    """Store a teacher's review of one open answer, in one writer transaction.
 
-    if request.method == "POST":
+    Review stays allowed after closure: closure ends student input, not teacher
+    grading. The answer is looked up and updated under the writer lock, so the
+    row that was authorized is the row that is changed. A held assignment is not
+    served.
+    """
+    with quiz_connection() as conn:
+        assignment = _fetch_managed_assignment(conn, assignment_id)
+        lifecycle.require_served(assignment)
+
         try:
             answer_id = int(request.form.get("text_answer_id", ""))
         except (TypeError, ValueError):
-            conn.close()
             abort(400)
 
         override_raw = (request.form.get("teacher_override") or "").strip()
@@ -961,28 +1181,29 @@ def teacher_assignment_results(assignment_id):
         elif override_raw in TEACHER_OPEN_ANSWER_STATUSES:
             teacher_status = override_raw
         else:
-            conn.close()
             abort(400)
         override_value = 1 if teacher_status else 0
 
         teacher_note = (request.form.get("teacher_note") or "").replace("\x00", "").strip()
         if len(teacher_note) > TEACHER_NOTE_MAX_LENGTH:
-            conn.close()
             abort(400)
         teacher_note_value = teacher_note or None
 
+        conn.execute("BEGIN IMMEDIATE")
         # The answer must belong to an attempt of this (already authorized)
         # assignment, so an id from another assignment is a 404.
         row = conn.execute("""
-            SELECT qta.id, qta.is_correct, qta.points_possible
+            SELECT qta.id, qta.is_correct, qta.points_possible, qa.lifecycle_hold
             FROM quiz_text_answers qta
-            JOIN quiz_attempts qa ON qa.id = qta.attempt_id
+            JOIN quiz_attempts qt ON qt.id = qta.attempt_id
+            JOIN quiz_assignments qa ON qa.id = qt.assignment_id
             WHERE qta.id = ?
-              AND qa.assignment_id = ?
+              AND qa.id = ?
         """, (answer_id, assignment_id)).fetchone()
         if not row:
-            conn.close()
             abort(404)
+        if row["lifecycle_hold"] is not None:
+            raise lifecycle.AssignmentHeld()
 
         try:
             points_possible = float(row["points_possible"] or 0)
@@ -996,7 +1217,6 @@ def teacher_assignment_results(assignment_id):
                 try:
                     points_awarded = quiz_parse_review_points(points_raw, points_possible=points_possible)
                 except (TypeError, ValueError):
-                    conn.close()
                     abort(400)
         else:
             points_awarded = quiz_text_auto_points(row)
@@ -1010,8 +1230,30 @@ def teacher_assignment_results(assignment_id):
             WHERE id = ?
         """, (override_value, teacher_status, points_awarded, teacher_note_value, answer_id))
         conn.commit()
+        # Best effort, in its own clock-checked transaction: a passed deadline or an
+        # ended grace window this request saw is recorded. Never changes the response.
+        lifecycle.observe(conn, assignment_id)
+    return redirect(url_for("teacher.teacher_assignment_results", assignment_id=assignment_id))
+
+
+@teacher_bp.route("/teacher/assignment/<int:assignment_id>/results", methods=["GET", "POST"])
+@access_policy(ASSIGNMENT_OWNER)
+@integrity_policy(SAME_ORIGIN)
+def teacher_assignment_results(assignment_id):
+    if request.method == "POST":
+        return _review_open_answer(assignment_id)
+
+    conn = quiz_db()
+    # One read transaction for the whole response: the authorization read and
+    # every result row come from the same snapshot.
+    conn.execute("BEGIN")
+    assignment = _fetch_managed_assignment(conn, assignment_id)
+    try:
+        lifecycle.require_served(assignment)
+    except lifecycle.LifecycleUnavailable:
         conn.close()
-        return redirect(url_for("teacher.teacher_assignment_results", assignment_id=assignment_id))
+        raise
+    lifecycle_view = lifecycle.evaluate(assignment, lifecycle.read_clock(conn).now)
 
     mixed_status = quiz_assignment_mixed_status(assignment["question_plan_json"])
     filters = quiz_parse_results_filter_args(
@@ -1135,6 +1377,8 @@ def teacher_assignment_results(assignment_id):
     """, (assignment_id,)).fetchone()
     difficulty_breakdown = quiz_teacher_difficulty_breakdown(conn, submitted_attempt_ids)
 
+    conn.rollback()  # end of the read transaction; nothing was written
+    lifecycle.observe_if_needed(conn, assignment_id, lifecycle_view)
     conn.close()
 
     summary = {
@@ -1179,6 +1423,7 @@ def teacher_assignment_results(assignment_id):
         filters=filters,
         filter_active=filter_active,
         sort_active=sort_active,
+        lifecycle=lifecycle.describe(lifecycle_view),
     )
 
 
@@ -1210,6 +1455,11 @@ QUIZ_RESULTS_EXPORT_COLUMNS = [
     "teacher_override",
     "teacher_note",
     "is_correct",
+    # Lifecycle of the assignment (UTC as stored; the state as computed at export
+    # time). Appended, never inserted, so earlier columns keep their positions.
+    "assignment_deadline_at",
+    "assignment_closed_at",
+    "assignment_lifecycle_state",
 ]
 
 
@@ -1243,7 +1493,21 @@ def _quiz_format_points(value) -> str:
 @access_policy(ASSIGNMENT_OWNER)
 def teacher_assignment_results_export(assignment_id):
     conn = quiz_db()
+    # One read transaction: the file is entirely before or entirely after any
+    # concurrent commit, and is built in memory before the transaction ends.
+    conn.execute("BEGIN")
     assignment = _fetch_managed_assignment(conn, assignment_id)
+    try:
+        lifecycle.require_served(assignment)
+    except lifecycle.LifecycleUnavailable:
+        conn.close()
+        raise
+    lifecycle_view = lifecycle.evaluate(assignment, lifecycle.read_clock(conn).now)
+    lifecycle_cells = [
+        _quiz_csv_value(assignment["deadline_at"]),
+        _quiz_csv_value(assignment["closed_at"]),
+        lifecycle_view.state,
+    ]
 
     apply_filters = (request.args.get("filtered") or "").strip().lower() in {
         "1",
@@ -1344,6 +1608,7 @@ def teacher_assignment_results_export(assignment_id):
                 "",
                 "",
                 "", "", "", "", "", "", "", "", "", "", "",
+                *lifecycle_cells,
             ])
             continue
 
@@ -1388,6 +1653,7 @@ def teacher_assignment_results_export(assignment_id):
             _quiz_format_points(combined_score["combined_awarded"]) if combined_score else "",
             _quiz_format_points(combined_score["combined_possible"]) if combined_score else "",
             "", "", "", "", "", "", "", "", "", "", "",
+            *lifecycle_cells,
         ])
 
         for ans in attempt_answers:
@@ -1419,8 +1685,10 @@ def teacher_assignment_results_export(assignment_id):
                 _quiz_csv_value(ans.get("teacher_override")),
                 _quiz_csv_text(ans.get("teacher_note")),
                 _quiz_csv_value(ans.get("is_correct")),
+                *lifecycle_cells,
             ])
 
+    conn.rollback()  # end of the read transaction; nothing was written
     conn.close()
 
     return Response(

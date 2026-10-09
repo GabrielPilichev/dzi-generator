@@ -15,6 +15,7 @@ from tests.auth_helpers import (
     sign_in_teacher,
 )
 from tests.support import IsolatedAppTestCase, web_app
+from tests.support import NO_DEADLINE_FORM
 
 # A synthetic account the same-origin tests sign in with through the real form.
 LOGIN_EMAIL = "guard-teacher@example.bg"
@@ -136,7 +137,7 @@ class AuthGuardTest(IsolatedAppTestCase):
 
     def _create_assignment_as_teacher(self):
         self._login_teacher()
-        response = self.client.post("/teacher/new", data={
+        response = self.client.post("/teacher/new", data={**NO_DEADLINE_FORM,
             "section_id": str(self.section["id"]),
             "question_count": "1",
             "time_limit_minutes": "",
@@ -493,7 +494,7 @@ class AuthGuardTest(IsolatedAppTestCase):
 
         response = self.client.post(
             "/teacher/new",
-            data={
+            data={**NO_DEADLINE_FORM,
                 "section_id": str(self.section["id"]),
                 "question_count": "1",
                 "time_limit_minutes": "",
@@ -510,7 +511,7 @@ class AuthGuardTest(IsolatedAppTestCase):
 
         response = self.client.post(
             "/teacher/new",
-            data={
+            data={**NO_DEADLINE_FORM,
                 "section_id": str(self.section["id"]),
                 "question_count": "1",
                 "time_limit_minutes": "",

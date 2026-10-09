@@ -27,14 +27,17 @@ from tests.subject_fixtures import (
     add_curriculum, add_membership, add_question, add_section, add_topic, four_options,
 )
 from tests.support import IsolatedAppTestCase, web_app, web_db, IT_ONLY
+from tests.support import NO_DEADLINE_FORM
 from web.services import practical as practical_service
 from web.services import quiz as quiz_service
 
 # Statements on a seed-sized page: ~12 set-based families plus one extra statement per
 # 900 ids in each id-list family. The per-question implementation issued ~52,000.
 SEED_IT_PAGE_STATEMENT_CEILING = 40
-# Fixed families only (no per-section, per-topic or per-question statements).
-SYNTHETIC_PAGE_STATEMENT_CEILING = 12
+# Fixed families only (no per-section, per-topic or per-question statements). Two of
+# them belong to the deadline offer: the lifecycle clock row and the account's most
+# recent timezone.
+SYNTHETIC_PAGE_STATEMENT_CEILING = 14
 
 VISUAL_PROMPT = "Даденото изображение показва уеб страница. Кой е верният извод?"
 
@@ -403,7 +406,7 @@ class TeacherNewCreateAssignmentTest(SyntheticPhysicsContent):
         with traced_connections() as statements:
             response = client.post(
                 "/teacher/new",
-                data={"subject": "physics", "section_id": str(section), "question_count": "500",
+                data={**NO_DEADLINE_FORM, "subject": "physics", "section_id": str(section), "question_count": "500",
                       "time_limit_minutes": ""},
                 headers={"Origin": "http://localhost"},
             )
@@ -417,7 +420,7 @@ class TeacherNewCreateAssignmentTest(SyntheticPhysicsContent):
         # Page filter is untouched: a mismatching subject is still rejected.
         mismatch = client.post(
             "/teacher/new",
-            data={"subject": "it", "section_id": str(section), "question_count": "1",
+            data={**NO_DEADLINE_FORM, "subject": "it", "section_id": str(section), "question_count": "1",
                   "time_limit_minutes": ""},
             headers={"Origin": "http://localhost"},
         )
@@ -437,7 +440,7 @@ class TeacherNewSparseSubjectTest(IsolatedAppTestCase, TeacherNewPageMixin):
         self.assertEqual(context["practical_source_options"], [])
         self.assertFalse(context["any_dzi_sections"])
         self.assertEqual(context["selected_open_available"], 0)
-        self.assertLessEqual(len(statements), 6)
+        self.assertLessEqual(len(statements), 8)  # 6, plus the two reads of the deadline offer
         response, _, _ = self.get_page("/teacher/new?subject=not-a-subject")
         self.assertEqual(response.status_code, 404)
 

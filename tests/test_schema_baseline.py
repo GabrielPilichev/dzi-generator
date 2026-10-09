@@ -164,7 +164,8 @@ class FreshDatabaseTest(BaselineTestCase):
         self.assertEqual(code, 0, out + err)
         self.assertEqual([name for name, _ in migration_rows(path)], ALL_MIGRATIONS)
         self.assertEqual(ALL_MIGRATIONS[0], "000_baseline.sql")
-        self.assertEqual(ALL_MIGRATIONS[-2:], ["016_admin_totp.sql", "017_assignment_public_token.sql"])
+        self.assertEqual(ALL_MIGRATIONS[-3:], ["016_admin_totp.sql", "017_assignment_public_token.sql",
+                                               "018_assignment_lifecycle.sql"])
         # 015 (the phase-2 quiz-attempt rebuild) sits between the account migrations.
         self.assertIn("014_assignment_owner.sql", ALL_MIGRATIONS)
         self.assertEqual([name for name in ALL_MIGRATIONS if name.startswith("015_")],
@@ -173,7 +174,9 @@ class FreshDatabaseTest(BaselineTestCase):
 
     def test_fresh_database_has_no_content_rows(self):
         digests = content_digests(self.fresh_db())
-        self.assertEqual({table: count for table, (count, _) in digests.items() if count}, {})
+        # No content rows; the only row a migration seeds is the lifecycle clock's.
+        self.assertEqual({table: count for table, (count, _) in digests.items() if count},
+                         {"lifecycle_clock": 1})
 
     def test_fresh_schema_equals_an_adopted_existing_database(self):
         """Hard gate: building from scratch and adopting a pre-baseline database agree, logically."""

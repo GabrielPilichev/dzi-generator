@@ -35,9 +35,11 @@ def tree_digest(*roots):
 
 
 def runtime_counts(path):
+    """Row counts of the runtime tables that hold user state. A table a migration
+    seeds (the single lifecycle clock row) is not user state and is checked apart."""
     with closing(sqlite3.connect(path)) as conn:
         return {table: conn.execute(f'SELECT COUNT(*) FROM "{table}"').fetchone()[0]
-                for table in ct.tables_of(ct.RUNTIME)}
+                for table in ct.tables_of(ct.RUNTIME) if table not in ct.MIGRATION_SEEDED_ROWS}
 
 
 class TemporaryDirectoryTestCase(unittest.TestCase):
@@ -149,8 +151,15 @@ class IsolationTest(TemporaryDirectoryTestCase):
 
 class RuntimeFixtureTest(TemporaryDirectoryTestCase):
     def test_a_fresh_test_database_has_no_runtime_rows(self):
-        counts = runtime_counts(build_test_database(self.root / "fresh.db"))
-        self.assertEqual(counts, {table: 0 for table in ct.tables_of(ct.RUNTIME)})
+        path = build_test_database(self.root / "fresh.db")
+        counts = runtime_counts(path)
+        self.assertEqual(counts, {table: 0 for table in ct.tables_of(ct.RUNTIME)
+                                  if table not in ct.MIGRATION_SEEDED_ROWS})
+        # The one seeded runtime row: the lifecycle clock, at its fixed sentinel.
+        with closing(sqlite3.connect(path)) as conn:
+            self.assertEqual(
+                conn.execute("SELECT id, high_water_at, state, ref_boot_id FROM lifecycle_clock").fetchall(),
+                [(1, "1970-01-01 00:00:00", "ok", None)])
 
     def test_fixtures_create_only_the_requested_deterministic_rows(self):
         path = build_test_database(self.root / "fixture.db")

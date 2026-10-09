@@ -159,8 +159,9 @@ class RunnerUpgradeThrough014And016Test(unittest.TestCase):
                 self.assertEqual(conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0], 0)
             self.assertEqual(conn.execute("PRAGMA foreign_key_check").fetchall(), [])
             history = [row[0] for row in conn.execute("SELECT filename FROM schema_migrations ORDER BY filename")]
+            start = history.index("014_assignment_owner.sql")
             self.assertEqual(
-                history[-4:],
+                history[start:start + 4],
                 ["014_assignment_owner.sql", "015_quiz_attempts_user.sql", "016_admin_totp.sql",
                  "017_assignment_public_token.sql"],
             )

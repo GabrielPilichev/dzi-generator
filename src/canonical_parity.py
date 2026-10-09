@@ -95,7 +95,11 @@ def compare_to_canonical(conn: sqlite3.Connection, canonical_dir: Path = ct.CANO
     for table in ct.tables_of(ct.RUNTIME) + [t for t in ct.tables_of(ct.OPERATIONAL)
                                              if t not in ("schema_migrations", "sqlite_sequence")]:
         count = conn.execute(f'SELECT COUNT(*) FROM "{table}"').fetchone()[0]
-        if count:
+        seeded = ct.MIGRATION_SEEDED_ROWS.get(table, 0)
+        if seeded and count != seeded:
+            problems.append(f"{table}: {count} rows; a canonical rebuild must hold exactly the "
+                            f"{seeded} row(s) its migration seeds")
+        elif not seeded and count:
             problems.append(f"{table}: {count} rows; a canonical rebuild must leave non-canonical tables empty")
     return problems
 

@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "_question_visuals.html" import render_question_image_indicator %}
+{% from "_lifecycle_fields.html" import deadline_fields %}
 
 {% block title %}{{ assignment.title_bg }} — Задание{% endblock %}
 
@@ -29,18 +30,86 @@
   <div class="header-actions">
     {% if can_manage %}
       <a class="button secondary" href="{{ url_for('teacher.teacher_assignment_results', assignment_id=assignment.id) }}">Виж резултати</a>
-      <form method="post"
-            action="{{ url_for('teacher.teacher_assignment_duplicate', assignment_id=assignment.id) }}"
-            class="inline-form"
-            onsubmit="return confirm('Това ще създаде копие на теста с ново ID. Опитите и отговорите няма да се копират. Продължи?');">
-        <button type="submit" class="button secondary">Дублирай теста</button>
-      </form>
+      <a class="button secondary" href="#duplicate">Дублирай теста</a>
     {% endif %}
     {% if student_quiz_path(assignment) %}
     <a class="button" href="{{ student_quiz_path(assignment) }}">Отвори теста</a>
     {% endif %}
   </div>
 </section>
+
+{% if lifecycle_message %}
+  <div class="warning warning--spaced form-message" id="lifecycle-message" role="alert">{{ lifecycle_message }}</div>
+{% endif %}
+
+<div class="card" id="lifecycle-state">
+  <div class="section-heading">
+    <h2>Състояние на теста</h2>
+    <span class="pill" id="lifecycle-state-label">{{ lifecycle.state_label }}</span>
+  </div>
+  <div class="detail-grid">
+    <div>
+      <div class="label">Краен срок</div>
+      <div class="value-small" id="lifecycle-deadline">
+        {% if lifecycle.deadline %}
+          {{ lifecycle.deadline.text }}
+        {% else %}
+          без краен срок
+        {% endif %}
+      </div>
+    </div>
+    <div>
+      <div class="label">Часова зона</div>
+      <div class="value-small" id="lifecycle-zone">
+        {{ lifecycle.zone }}
+        {% if not lifecycle.zone_is_stored %}
+          <div class="muted">Зона по подразбиране: тестът е създаден преди сроковете. Избери зона при редакция.</div>
+        {% endif %}
+      </div>
+    </div>
+    {% if lifecycle.is_closed %}
+      <div>
+        <div class="label">Затворен</div>
+        <div class="value-small" id="lifecycle-closed-at">
+          {% if lifecycle.effective_closure %}{{ lifecycle.effective_closure }}{% else %}да{% endif %}
+        </div>
+      </div>
+      {% if lifecycle.submit_cutoff %}
+        <div>
+          <div class="label">Предаване на започнати опити</div>
+          <div class="value-small" id="lifecycle-submit-cutoff">
+            {% if lifecycle.in_grace %}
+              до {{ lifecycle.submit_cutoff }}
+            {% else %}
+              приключи на {{ lifecycle.submit_cutoff }}
+            {% endif %}
+          </div>
+        </div>
+      {% endif %}
+    {% endif %}
+  </div>
+
+  {% if lifecycle.is_closed %}
+    <p class="muted" id="lifecycle-closed-note">
+      Тестът не приема нови опити и не може да бъде отворен отново или редактиран.
+      {% if lifecycle.in_grace %}
+        Учениците, започнали преди затварянето, могат да предадат до посочения час ({{ lifecycle.grace_minutes }} минути след затварянето).
+      {% endif %}
+      За корекция създай копие с нов линк.
+    </p>
+  {% elif can_manage %}
+    {% if lifecycle_writes_unavailable %}
+      <p class="muted" id="lifecycle-writes-unavailable">Промените по теста са временно недостъпни. Опитай отново малко по-късно.</p>
+    {% else %}
+      <form method="post"
+            action="{{ url_for('teacher.teacher_assignment_close', assignment_id=assignment.id) }}"
+            class="inline-form" id="close-assignment-form"
+            onsubmit="return confirm('Затварянето е окончателно: тестът няма да приема нови опити и не може да бъде отворен отново. Учениците, които вече решават, ще могат да предадат още {{ lifecycle.grace_minutes }} минути. Продължи?');">
+        <button type="submit" class="button secondary">Затвори теста</button>
+      </form>
+    {% endif %}
+  {% endif %}
+</div>
 
 <div class="card">
   <div class="detail-grid">
@@ -119,6 +188,11 @@
       </div>
     </div>
     {% endif %}
+    {% if lifecycle.is_closed %}
+    <div class="warning warning--spaced form-message" id="share-link-closed" role="status">
+      Тестът е затворен: линкът и QR кодът вече не приемат нови опити и водят към съобщение, че тестът е затворен.
+    </div>
+    {% endif %}
     <div class="warning warning--spaced form-message">
       Внимание: това е реален линк за ученици. Всеки потребител с активен профил може да отвори теста от този линк. След предаване ученикът вижда резултата и правилните отговори. Не споделяй страницата с резултатите, ако искаш отговорите да останат скрити.
     </div>
@@ -134,13 +208,22 @@
   </div>
 </div>
 
-{% if can_manage %}
+{% if can_manage and lifecycle.is_closed %}
+<section class="card" id="edit-metadata">
+  <div class="section-heading">
+    <h2>Редакция на метаданни</h2>
+  </div>
+  <p class="muted" id="edit-frozen-note">
+    Тестът е затворен: заглавието, времето и крайният срок вече не могат да се променят.
+  </p>
+</section>
+{% elif can_manage %}
 <section class="card" id="edit-metadata">
   <div class="section-heading">
     <h2>Редакция на метаданни</h2>
   </div>
   <p class="muted">
-    Промяната засяга само заглавието и времевото ограничение. Броят въпроси, планът на теста, опитите и отговорите остават непроменени.
+    Промяната засяга заглавието, времевото ограничение и крайния срок. Броят въпроси, планът на теста, опитите и отговорите остават непроменени.
   </p>
   {% if edit_error %}
     <div class="warning warning--spaced form-message" role="alert">
@@ -152,6 +235,8 @@
         Невалидно време. Въведи цяло число минути или остави полето празно.
       {% elif edit_error == 'time_out_of_range' %}
         Времето трябва да е между 1 и 600 минути.
+      {% elif edit_error_message %}
+        {{ edit_error_message }}
       {% else %}
         Невалидни стойности. Провери полетата и опитай отново.
       {% endif %}
@@ -166,11 +251,34 @@
     <input id="edit-time" name="time_limit_minutes" type="number" min="1" max="600"
            value="{{ (edit_form_values.time_limit_minutes if edit_form_values else (assignment.time_limit_minutes or '')) }}">
 
+    {{ deadline_fields("edit", edit_deadline_form, timezone_names) }}
+
     <div class="muted">
       Брой въпроси: <strong>{{ assignment.question_count }}</strong> — фиксиран при създаване и не може да се редактира.
     </div>
 
     <button type="submit" class="button">Запази промените</button>
+  </form>
+</section>
+{% endif %}
+
+{% if can_manage %}
+<section class="card" id="duplicate">
+  <div class="section-heading">
+    <h2>Копие на теста</h2>
+  </div>
+  <p class="muted">
+    Копието е нов тест с ново ID, нов линк за ученици и собствен краен срок. Опитите и отговорите не се копират, а срокът и състоянието на този тест не се пренасят.
+  </p>
+  {% if duplicate_error %}
+    <div class="warning warning--spaced form-message" id="duplicate-error" role="alert">
+      {{ duplicate_error_message or "Невалидни стойности. Провери полетата и опитай отново." }}
+    </div>
+  {% endif %}
+  <form method="post" action="{{ url_for('teacher.teacher_assignment_duplicate', assignment_id=assignment.id) }}"
+        class="form-card" id="duplicate-form">
+    {{ deadline_fields("duplicate", duplicate_deadline_form, timezone_names) }}
+    <button type="submit" class="button secondary">Създай копие</button>
   </form>
 </section>
 {% endif %}

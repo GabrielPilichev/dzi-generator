@@ -694,11 +694,14 @@ class HealthEndpointTest(IsolatedAppTestCase):
             response = self.client.get("/healthz")
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(connections), 1)
-        # The two connection-local policy pragmas from web.db, then the one header read.
-        self.assertEqual(
-            [s.strip().upper() for s in statements],
-            ["PRAGMA FOREIGN_KEYS=ON", "PRAGMA QUERY_ONLY=ON", "PRAGMA SCHEMA_VERSION"],
-        )
+        # The two connection-local policy pragmas from web.db, the one header read,
+        # then the single lifecycle clock row (a suspect clock reports "degraded").
+        normalized = [" ".join(s.split()).upper() for s in statements]
+        self.assertEqual(normalized[:3],
+                         ["PRAGMA FOREIGN_KEYS=ON", "PRAGMA QUERY_ONLY=ON", "PRAGMA SCHEMA_VERSION"])
+        self.assertEqual(len(normalized), 4)
+        self.assertTrue(normalized[3].startswith("SELECT ID, HIGH_WATER_AT, STATE"), normalized[3])
+        self.assertTrue(normalized[3].endswith("FROM LIFECYCLE_CLOCK"), normalized[3])
 
     def test_missing_or_corrupt_database_reports_unavailable_without_details(self):
         tmp = tempfile.TemporaryDirectory()
@@ -821,11 +824,20 @@ class DeploymentTemplateTest(unittest.TestCase):
                          "python --version", "pip freeze", "snapshot-", "off-server",
                          "-mtime +14", "systemctl --failed",
                          "DZI_REFERENCE_ROOT=/var/lib/learnpilot/data/reference",
-                         "mv /var/lib/learnpilot/data/questions.db* "):
+                         "only the database files are moved out of `/var/lib/learnpilot/data`, never the\ndirectory"):
             self.assertIn(expected, guide)
-        # Reference data lives outside the checkout and survives a restore.
+        # Reference data lives outside the checkout and survives a restore: the restore script
+        # moves the database files, never the data directory they share with it.
         self.assertNotIn("/opt/learnpilot/app/data/reference", guide)
         self.assertNotIn("mv /var/lib/learnpilot/data /var", guide)
+        restore = self.read("deploy/learnpilot-restore.sh")
+        self.assertIn("for tree in uploads vault; do", restore)
+        self.assertIn('sudo mv -f -- "$STAGED_DB" "$LIVE_DB"', restore)
+        # What it moves out of the state directory: the two trees, and the database with its sidecars.
+        moved = set(re.findall(r'sh -c "\$MOVE" sh "(\$[A-Z_]+[^"]*)" "\$REPLACED', restore))
+        self.assertEqual(moved, {"$STATE/$tree", "$LIVE_DB$sidecar", "$LIVE_DB$part"})
+        self.assertNotIn('"$STATE/data"', restore)
+        self.assertNotIn("reference", restore)
 
     def test_templates_and_docs_contain_no_secret_values(self):
         env_example = self.read("deploy/learnpilot.env.example")

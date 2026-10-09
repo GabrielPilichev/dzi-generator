@@ -13,7 +13,7 @@ from contextlib import closing
 from werkzeug.exceptions import NotFound
 
 from tests import runtime_fixtures
-from tests.support import ROOT, student_entry_path
+from tests.support import NO_DEADLINE_FORM, ROOT, student_entry_path
 from tests.test_assignment_public_tokens import CROSS_ORIGIN, SAME_ORIGIN, PublicTokenAppTestCase, web_app
 from web.services import quiz
 
@@ -213,11 +213,12 @@ class TokenEntryAndNumericManagementStillWorkTest(PublicTokenAppTestCase):
                 with self.subTest(who=label, route=suffix or "detail"):
                     self.assertEqual(client.get(base + suffix).status_code, 200 if allowed else 404)
             with self.subTest(who=label, route="edit"):
-                edit = client.post(base + "/edit", data={"title_bg": "Тест по токен", "time_limit_minutes": ""},
+                edit = client.post(base + "/edit", data={**NO_DEADLINE_FORM, "title_bg": "Тест по токен",
+                                                         "time_limit_minutes": ""},
                                    headers=SAME_ORIGIN)
                 self.assertEqual(edit.status_code, 302 if allowed else 404)
             with self.subTest(who=label, route="duplicate"):
-                duplicate = client.post(base + "/duplicate", headers=SAME_ORIGIN)
+                duplicate = client.post(base + "/duplicate", data=NO_DEADLINE_FORM, headers=SAME_ORIGIN)
                 self.assertEqual(duplicate.status_code, 302 if allowed else 404)
                 if allowed:
                     self.assertRegex(duplicate.headers["Location"], r"^/teacher/assignment/\d+$")
@@ -291,7 +292,7 @@ class NoNumericStudentEntryProducerTest(unittest.TestCase):
         self.assertEqual((assignment_tokens.PUBLIC_TOKEN_BYTES, assignment_tokens.PUBLIC_TOKEN_LENGTH), (32, 43))
         self.assertRegex(assignment_tokens.new_public_token(), r"^[A-Za-z0-9_-]{43}$")
         migrations = sorted(path.name for path in (ROOT / "web" / "migrations").glob("*.sql"))
-        self.assertEqual(migrations[-1], "017_assignment_public_token.sql")
+        self.assertIn("017_assignment_public_token.sql", migrations)
         self.assertTrue((ROOT / "src" / "manage_assignment_tokens.py").is_file())
 
     def test_nginx_still_limits_the_token_entry(self):

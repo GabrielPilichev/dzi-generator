@@ -42,7 +42,7 @@ from src.subject_content import (
 from web import db as web_db
 from web.access import Principal, can_manage_assignment
 from web.assignment_tokens import is_valid_public_token, write_with_new_public_token
-from web.services import dzi_exams
+from web.services import dzi_exams, lifecycle
 from web.services.question_visuals import (
     attach_question_visual_assets,
     fetch_question_visual_assets,
@@ -241,6 +241,8 @@ def quiz_create_assignment(
     conn, *, principal: Principal, section_id: int, title_bg: str,
     question_count: int, time_limit_minutes: int | None = None,
     question_plan_json: str | None = None,
+    deadline_at: str | None = None,
+    display_timezone: str = lifecycle.DEFAULT_TIMEZONE,
 ) -> int:
     """Insert with the creator's stable account id as the owner and a new public token.
 
@@ -248,6 +250,10 @@ def quiz_create_assignment(
     admin's authorization bypass does not change who owns the new row. Every
     assignment created here, a duplicate included, gets its own
     ``public_token``; nothing updates it afterwards.
+
+    ``deadline_at`` is the validated exclusive cutoff (``lifecycle.resolve_deadline``)
+    or ``None`` for "no deadline"; ``display_timezone`` is stored either way. A
+    duplicate passes its own choice: nothing of the source's lifecycle is copied.
     """
     if not principal.is_teacher:
         raise ValueError("Assignment creation requires teacher capability")
@@ -262,7 +268,10 @@ def quiz_create_assignment(
               question_plan_json, principal.user_id, public_token))
         return int(cursor.lastrowid)
 
-    return write_with_new_public_token(conn, insert)
+    assignment_id = write_with_new_public_token(conn, insert)
+    lifecycle.set_new_assignment_deadline(
+        conn, assignment_id, deadline_at=deadline_at, display_timezone=display_timezone)
+    return assignment_id
 
 
 def quiz_can_access_assignment(assignment, principal: Principal) -> bool:
@@ -1730,6 +1739,11 @@ def quiz_current_timestamp() -> _quiz_datetime:
     return _quiz_datetime.utcnow()
 
 
+# Lifecycle time is this clock, once the clock-health check has accepted it. Looked
+# up on every use, so a test that patches ``quiz_current_timestamp`` moves both.
+lifecycle.configure_wall_clock(lambda: quiz_current_timestamp())
+
+
 def quiz_remaining_seconds(assignment, attempt) -> int | None:
     limit = assignment["time_limit_minutes"]
     if not limit:
@@ -1772,6 +1786,7 @@ def quiz_write_assignment_note(assignment_id: int, base_url: str) -> None:
 
         entry_path = quiz_student_entry_path(a)
         quiz_link = base_url.rstrip("/") + entry_path if entry_path else QUIZ_NO_PUBLIC_LINK_NOTE
+        lifecycle_state = lifecycle.evaluate(a, lifecycle.read_clock(conn).now).state
         path = quiz_assignment_note_path(assignment_id, a["section_slug"], a["created_at"])
 
         rows = []
@@ -1796,7 +1811,7 @@ def quiz_write_assignment_note(assignment_id: int, base_url: str) -> None:
             "created_at": a["created_at"],
             "attempts_count": len(attempts),
             "average_score": avg,
-            "status": "open",
+            "status": lifecycle_state,
             "tags": ["quiz", "assignment"],
         })
 
@@ -1979,9 +1994,13 @@ class QuizPlanError(ValueError):
 
 
 class QuizAttemptStart(NamedTuple):
-    attempt_id: int
+    """``closed``: the assignment accepts no new attempt and the account has none;
+    ``attempt_id`` is then ``None`` and nothing was created."""
+
+    attempt_id: int | None
     submitted: bool
     created: bool
+    closed: bool = False
 
 
 def quiz_fetch_attempt(conn, attempt_id: int):
@@ -1995,6 +2014,13 @@ def _quiz_find_account_attempt(conn, assignment_id: int, user_id: int):
         WHERE assignment_id = ?
           AND user_id = ?
     """, (assignment_id, user_id)).fetchone()
+
+
+def quiz_find_account_attempt(conn, assignment_id: int, user_id: int | None):
+    """The account's attempt at the assignment (id and ``submitted_at``), or ``None``."""
+    if not isinstance(user_id, int) or isinstance(user_id, bool):
+        return None
+    return _quiz_find_account_attempt(conn, assignment_id, user_id)
 
 
 def _quiz_attempt_order_rng(seed: str) -> "_quiz_random.Random":
@@ -2039,11 +2065,19 @@ def quiz_start_or_resume_attempt(conn, assignment, *, user_id: int, display_name
     accounts with one name get separate attempts. Historical attempts
     (``user_id`` NULL) are never matched, whatever their name.
 
-    A concurrent insert for the same (assignment, account) is resolved to the
-    competing attempt through the unique index. A mixed assignment's questions
-    are shuffled within their closed and open groups for the new attempt only;
-    an existing attempt is returned as stored. Raises :class:`QuizPlanError`
-    for an unreadable stored plan; the caller decides the HTTP response.
+    A new attempt is inserted only while the assignment is ``OPEN`` at the ``now``
+    sampled under the writer lock: the open check and the insert are one
+    statement, and ``started_at`` is that ``now``. Resuming is never blocked by
+    closure. A start that finds the assignment closed creates nothing, stamps the
+    passed deadline if no transaction has recorded it yet, and returns
+    ``closed``. Two starts of one account are ordered by the writer lock, so the
+    second finds the first's row. A mixed assignment's questions are shuffled
+    within their closed and open groups for the new attempt only; an existing
+    attempt is returned as stored.
+
+    Raises :class:`QuizPlanError` for an unreadable stored plan and
+    ``lifecycle.LifecycleUnavailable`` for a held assignment or an unusable
+    clock; the caller decides the HTTP response.
     """
     if not isinstance(user_id, int) or isinstance(user_id, bool) or user_id <= 0:
         raise ValueError("A quiz attempt requires an account id")
@@ -2056,6 +2090,8 @@ def quiz_start_or_resume_attempt(conn, assignment, *, user_id: int, display_name
     if (assignment["question_plan_json"] or "").strip() and assignment_question_plan is None:
         raise QuizPlanError("unreadable assignment question plan")
 
+    # The plan and the seed do not depend on time: they are computed before the
+    # writer lock is taken.
     seed_identity = quiz_account_seed_identity(user_id)
     if assignment_question_plan:
         seed = quiz_seed(assignment_id, seed_identity)
@@ -2075,30 +2111,51 @@ def quiz_start_or_resume_attempt(conn, assignment, *, user_id: int, display_name
         question_ids_json = _quiz_json.dumps(question_ids)
         score_total = len(question_ids)
 
-    try:
-        cur = conn.execute("""
-            INSERT INTO quiz_attempts (
-                assignment_id, user_id, student_name, seed, question_ids_json, score_total
-            )
-            VALUES (?, ?, ?, ?, ?, ?)
-        """, (
-            assignment_id,
-            user_id,
-            display_name,
-            seed,
-            question_ids_json,
-            score_total,
-        ))
-    except sqlite3.IntegrityError:
-        # Lost a race against this account's own other request: the unique index
-        # on (assignment_id, user_id) kept one row, so resume that one.
+    with lifecycle.write_transaction(conn) as transaction:
         existing = _quiz_find_account_attempt(conn, assignment_id, user_id)
         if existing:
+            transaction.discard()
             return QuizAttemptStart(int(existing["id"]), bool(existing["submitted_at"]), False)
-        raise
-    attempt_id = cur.lastrowid
-    conn.commit()
-    return QuizAttemptStart(attempt_id, False, True)
+
+        lifecycle_row = lifecycle.fetch_lifecycle_row(conn, assignment_id)
+        if lifecycle_row is None:
+            raise LookupError(f"assignment {assignment_id} does not exist")
+        view = transaction.examine(lifecycle_row)
+        if not view.malformed:
+            # The open check and the insert are one statement: there is no gap
+            # between them, and started_at is the instant that satisfied it.
+            try:
+                cur = conn.execute("""
+                    INSERT INTO quiz_attempts (
+                        assignment_id, user_id, student_name, seed, question_ids_json,
+                        score_total, started_at
+                    )
+                    SELECT :assignment_id, :user_id, :student_name, :seed, :question_ids_json,
+                           :score_total, :now
+                    FROM quiz_assignments
+                    WHERE id = :assignment_id
+                      AND """ + lifecycle.OPEN_PREDICATE_SQL, {
+                    "assignment_id": assignment_id,
+                    "user_id": user_id,
+                    "student_name": display_name,
+                    "seed": seed,
+                    "question_ids_json": question_ids_json,
+                    "score_total": score_total,
+                    "now": transaction.now_text,
+                })
+            except sqlite3.IntegrityError:
+                # The unique index on (assignment_id, user_id) kept one row: resume it.
+                existing = _quiz_find_account_attempt(conn, assignment_id, user_id)
+                if existing:
+                    transaction.discard()
+                    return QuizAttemptStart(int(existing["id"]), bool(existing["submitted_at"]), False)
+                raise
+            if cur.rowcount == 1:
+                return QuizAttemptStart(int(cur.lastrowid), False, True)
+
+        # Closed: nothing was inserted. The transaction commits, to keep the
+        # observation ``examine`` stamped.
+        return QuizAttemptStart(None, False, False, closed=True)
 
 
 def fetch_account_attempts(conn, user_id: int) -> list[dict]:
@@ -2120,6 +2177,7 @@ def fetch_account_attempts(conn, user_id: int) -> list[dict]:
             qa.title_bg AS assignment_title,
             qa.question_count,
             qa.time_limit_minutes,
+            qa.lifecycle_hold IS NOT NULL AS is_held,
             cs.title_bg AS section_title
         FROM quiz_attempts qt
         JOIN quiz_assignments qa ON qa.id = qt.assignment_id
@@ -2161,6 +2219,20 @@ def quiz_multiple_choice_question_ids(conn, question_ids: list[int]) -> list[int
     ]
 
 
+SUBMIT_SUBMITTED = "submitted"
+SUBMIT_ALREADY_SUBMITTED = "already_submitted"
+SUBMIT_CLOSED = "closed"
+SUBMIT_EMPTY = "empty"
+
+
+class QuizSubmission(NamedTuple):
+    """The outcome of one submission request; ``score``/``total`` only for ``submitted``."""
+
+    outcome: str
+    score: int | None = None
+    total: int | None = None
+
+
 def quiz_submit_attempt(
     conn,
     attempt_id: int,
@@ -2169,51 +2241,102 @@ def quiz_submit_attempt(
     question_ids: list[int],
     open_question_ids: list[int],
     form,
-) -> tuple[int, int]:
-    """Grade the multiple-choice answers, store all answers and mark the attempt submitted.
+    empty_submission: bool = False,
+) -> QuizSubmission:
+    """Decide and, if permitted, store one submission in one writer transaction.
 
-    Answers, planned open-text answers and the attempt update are one transaction,
-    committed at the end; an error before that leaves nothing stored. Returns
-    ``(score, total)``.
+    The decision is made under the writer lock, on rows re-read inside the
+    transaction, with ``now`` sampled after the lock. Nothing in ``form`` takes
+    part in it. Exactly one outcome, checked in this order:
+
+    * ``already_submitted``: ``submitted_at`` is set. No write of any kind, at any
+      time, including after the grace cutoff.
+    * ``closed``: not submittable (the assignment is closed and submissions have
+      ended, the attempt was not in flight at the closure, or the grace window is
+      over; the cutoff ``E + G`` is exclusive). No answer rows; observation
+      markers may be stamped.
+    * ``empty``: ``empty_submission`` was passed for an attempt that could still
+      be submitted. Nothing stored.
+    * ``submitted``: answers written, graded and the attempt marked, all in this
+      transaction; an error before the commit leaves nothing stored. A submission
+      accepted in the grace window also persists ``expiry_observed_at`` in that
+      same transaction.
+
+    A held assignment or an unusable clock is none of these:
+    ``lifecycle.LifecycleUnavailable`` is raised before any outcome is evaluated.
+    Side effects (vault notes) belong to ``submitted`` alone.
     """
-    correct_by_qid = quiz_correct_mc_letters_by_id(conn, mc_question_ids)
+    with lifecycle.write_transaction(conn) as transaction:
+        attempt = conn.execute(
+            "SELECT id, assignment_id, started_at, submitted_at FROM quiz_attempts WHERE id = ?",
+            (attempt_id,)).fetchone()
+        if attempt is None:
+            raise LookupError(f"attempt {attempt_id} does not exist")
+        assignment_id = int(attempt["assignment_id"])
+        lifecycle_row = lifecycle.fetch_lifecycle_row(conn, assignment_id)
+        if lifecycle_row is None:
+            raise LookupError(f"assignment {assignment_id} does not exist")
+        # ``examine`` records a passed deadline and an ended grace window for every
+        # outcome below, an accepted grace submission included: the expiry it
+        # observed commits together with the answers it stores.
+        view = transaction.examine(lifecycle_row, attempt_row=attempt)
 
-    score = 0
-    # Stale invalid IDs and planned open fields are excluded from MC scoring.
-    total = len(mc_question_ids)
+        if attempt["submitted_at"] is not None:
+            # Write-free, the stamps included: a retry changes no row in any table.
+            transaction.discard()
+            return QuizSubmission(SUBMIT_ALREADY_SUBMITTED)
 
-    for qid in mc_question_ids:
-        chosen = form.get(f"q_{qid}")
-        correct_letter = correct_by_qid.get(int(qid))
-        is_correct = 1 if chosen and correct_letter and chosen == correct_letter else 0
-        score += is_correct
+        if not lifecycle.attempt_submittable(view, attempt):
+            # Late submissions do not exist as a category: logged without answer content.
+            lifecycle.logger.info(
+                "lifecycle event=submission_refused attempt_id=%s assignment_id=%s at=%r",
+                attempt_id, assignment_id, transaction.now_text)
+            return QuizSubmission(SUBMIT_CLOSED)
 
-        conn.execute("""
-            INSERT INTO quiz_answers (attempt_id, question_id, chosen_letter, is_correct)
-            VALUES (?, ?, ?, ?)
-            ON CONFLICT(attempt_id, question_id)
-            DO UPDATE SET chosen_letter = excluded.chosen_letter,
-                          is_correct = excluded.is_correct
-        """, (attempt_id, qid, chosen, is_correct))
+        if empty_submission:
+            return QuizSubmission(SUBMIT_EMPTY)
 
-    quiz_record_planned_open_text_answers(
-        conn,
-        attempt_id=attempt_id,
-        question_ids=question_ids,
-        open_question_ids=open_question_ids,
-        form=form,
-    )
+        # A question is graded once, whatever the stored plan repeats.
+        graded_question_ids = list(dict.fromkeys(int(qid) for qid in mc_question_ids))
+        correct_by_qid = quiz_correct_mc_letters_by_id(conn, graded_question_ids)
 
-    conn.execute("""
-        UPDATE quiz_attempts
-        SET submitted_at = CURRENT_TIMESTAMP,
-            score_correct = ?,
-            score_total = ?
-        WHERE id = ?
-    """, (score, total, attempt_id))
+        score = 0
+        # Stale invalid IDs and planned open fields are excluded from MC scoring.
+        total = len(graded_question_ids)
 
-    conn.commit()
-    return score, total
+        for qid in graded_question_ids:
+            chosen = form.get(f"q_{qid}")
+            correct_letter = correct_by_qid.get(qid)
+            is_correct = 1 if chosen and correct_letter and chosen == correct_letter else 0
+            score += is_correct
+
+            # A plain insert: with the guard below a conflict can only mean a bug,
+            # and it fails the transaction instead of overwriting an answer.
+            conn.execute("""
+                INSERT INTO quiz_answers (attempt_id, question_id, chosen_letter, is_correct)
+                VALUES (?, ?, ?, ?)
+            """, (attempt_id, qid, chosen, is_correct))
+
+        quiz_record_planned_open_text_answers(
+            conn,
+            attempt_id=attempt_id,
+            question_ids=question_ids,
+            open_question_ids=open_question_ids,
+            form=form,
+        )
+
+        cur = conn.execute("""
+            UPDATE quiz_attempts
+            SET submitted_at = ?,
+                score_correct = ?,
+                score_total = ?
+            WHERE id = ?
+              AND submitted_at IS NULL
+        """, (transaction.now_text, score, total, attempt_id))
+        if cur.rowcount != 1:
+            conn.rollback()
+            raise lifecycle.LifecycleInvariantError("submission matched no unsubmitted attempt")
+        return QuizSubmission(SUBMIT_SUBMITTED, score, total)
 
 
 def quiz_result_context(conn, attempt, attempt_question_plan: dict) -> dict:

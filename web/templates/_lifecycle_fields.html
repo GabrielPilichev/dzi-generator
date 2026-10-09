@@ -1,0 +1,47 @@
+{# Deadline choice shared by the create, edit and duplicate forms.
+
+   The choice is explicit: "with deadline" or "no deadline", and always a zone.
+   The displayed time is the last usable minute; the server stores the instant
+   one minute later. Nothing here is trusted: the server validates every field. #}
+{% macro deadline_fields(prefix, values, timezone_names) %}
+<fieldset class="deadline-fields" id="{{ prefix }}-deadline-fields">
+    <legend class="label">Краен срок</legend>
+
+    <label for="{{ prefix }}-deadline-choice-deadline">
+        <input type="radio" id="{{ prefix }}-deadline-choice-deadline" name="deadline_choice" value="deadline"
+               {% if values.choice == 'deadline' %}checked{% endif %} required>
+        С краен срок
+    </label>
+    <div class="detail-grid teacher-form-grid">
+        <div>
+            <label for="{{ prefix }}-deadline-date">Последен ден</label>
+            <input type="date" id="{{ prefix }}-deadline-date" name="deadline_date" value="{{ values.form_date }}">
+        </div>
+        <div>
+            <label for="{{ prefix }}-deadline-time">Валиден до (час)</label>
+            <input type="time" id="{{ prefix }}-deadline-time" name="deadline_time" value="{{ values.form_time }}">
+        </div>
+    </div>
+
+    <label for="{{ prefix }}-deadline-choice-none">
+        <input type="radio" id="{{ prefix }}-deadline-choice-none" name="deadline_choice" value="none"
+               {% if values.choice == 'none' %}checked{% endif %} required>
+        Без краен срок
+    </label>
+
+    <label for="{{ prefix }}-timezone">Часова зона</label>
+    <select id="{{ prefix }}-timezone" name="display_timezone" required>
+        {% if values.zone not in timezone_names %}
+            <option value="" selected>— избери часова зона —</option>
+        {% endif %}
+        {% for name in timezone_names %}
+            <option value="{{ name }}" {% if name == values.zone %}selected{% endif %}>{{ name }}</option>
+        {% endfor %}
+    </select>
+
+    <div class="help">
+        Тестът приема опити до посочения час включително, в избраната часова зона. Срокът може да е най-много
+        {{ values.max_days }} дни напред. След срока тестът се затваря и не може да бъде отворен отново.
+    </div>
+</fieldset>
+{% endmacro %}
