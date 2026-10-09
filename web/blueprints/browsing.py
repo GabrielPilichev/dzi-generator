@@ -42,6 +42,7 @@ from web.services.subject_catalog import (
 browsing_bp = Blueprint("browsing", __name__)
 
 HEALTH_DB_TIMEOUT_SECONDS = 2.0
+DZI_SECTION_SLUG = "grade12-dzi-preparation"
 
 
 def open_existing_database_read_only(path, *, timeout: float = 5.0) -> sqlite3.Connection:
@@ -60,15 +61,14 @@ def index():
         subject["search_content"] = ""
         if subject["content_grades"]:
             browser = subject_browser(subject["id"])
-            overview = browser.overview(subject["content_grades"])
+            overview = browser.overview(
+                subject["content_grades"],
+                section_slug=DZI_SECTION_SLUG if subject["dzi"] else None,
+            )
             subject["question_count"] = overview["question_count"]
             subject["search_content"] = overview["search_content"]
             if subject["dzi"]:
-                dzi_section = next(
-                    (section for section in overview["sections"]
-                     if section["section_slug"] == "grade12-dzi-preparation"),
-                    None,
-                )
+                dzi_section = overview["section"]
         subjects.append(subject)
 
     return render_template(

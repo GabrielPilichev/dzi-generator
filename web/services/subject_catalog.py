@@ -6,13 +6,43 @@ lives here rather than in ``web.app``.
 
 from __future__ import annotations
 
+import os
 import sqlite3
 
 from flask import current_app, g
 
+from src import subject_browse_cache
 from src.subject_browsing import subject_content_grades
 from src.subject_registry import all_subjects, subject_for_route_slug
-from web.request_db import get_request_db
+from web.request_db import get_request_db, request_db_if_open
+
+# Key of the availability read in the browse cache; browser keys are
+# ``(subject id, legacy flag, ...)``, so the two cannot collide.
+CONTENT_GRADES_KEY = ("subject_content_grades",)
+
+
+def _database_file(path) -> str | None:
+    """``path`` as a request connection would open it, if it is an existing file."""
+    raw = str(path)
+    return raw if raw not in ("", ":memory:") and os.path.isfile(raw) else None
+
+
+def _content_grades() -> dict[str, frozenset[int]]:
+    """Subject availability; shared across requests only without a request connection.
+
+    A request that has opened no connection has no transaction-local data: it
+    would open one only to read the committed content of the configured file.
+    That read comes from the browse cache instead, which is keyed by the
+    database's identity (file and WAL), computes on a fresh query-only connection,
+    never caches a failure and gives every caller its own copy. A request that
+    already has a connection keeps querying it, uncommitted changes included.
+    """
+    if request_db_if_open() is None:
+        database_file = _database_file(current_app.config["DB_PATH"])
+        if database_file is not None:
+            return subject_browse_cache.browse_cache.get(
+                database_file, CONTENT_GRADES_KEY, subject_content_grades)
+    return subject_content_grades(get_request_db())
 
 
 def subject_catalog() -> tuple[dict, ...]:
@@ -25,7 +55,7 @@ def subject_catalog() -> tuple[dict, ...]:
     if "subject_catalog" in g:
         return g.subject_catalog
     try:
-        content_grades = subject_content_grades(get_request_db())
+        content_grades = _content_grades()
     except sqlite3.Error as exc:
         current_app.logger.warning("Subject availability lookup failed: %s", exc)
         content_grades = {}
