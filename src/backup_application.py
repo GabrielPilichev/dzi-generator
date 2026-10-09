@@ -190,11 +190,17 @@ def _add_entry(tar: tarfile.TarFile, parent: int, name: str, arcname: str) -> No
         finally:
             os.close(descriptor)
     elif stat.S_ISREG(info.st_mode):
-        with os.fdopen(os.open(name, _READ_HERE, dir_fd=parent), "rb") as handle:
-            member = tar.gettarinfo(arcname=arcname, fileobj=handle)
-            if member is None or not (member.isreg() or member.islnk()):
-                raise OSError(f"changed while it was being archived: {arcname}")
-            tar.addfile(member, handle if member.isreg() else None)   # a hard link carries no data
+        # The descriptor is closed here and nowhere else (``closefd=False``). ``os.fdopen`` refuses
+        # what has become a directory since the look above, and closes nothing when it refuses.
+        descriptor = os.open(name, _READ_HERE, dir_fd=parent)
+        try:
+            with os.fdopen(descriptor, "rb", closefd=False) as handle:
+                member = tar.gettarinfo(arcname=arcname, fileobj=handle)
+                if member is None or not (member.isreg() or member.islnk()):
+                    raise OSError(f"changed while it was being archived: {arcname}")
+                tar.addfile(member, handle if member.isreg() else None)   # a hard link carries no data
+        finally:
+            os.close(descriptor)
     else:
         member = _other_member(tar, parent, name, arcname, info)
         if member is not None:

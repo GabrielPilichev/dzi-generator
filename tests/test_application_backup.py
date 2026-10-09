@@ -8,6 +8,7 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import threading
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -621,6 +622,84 @@ class ArchiveThroughDescriptorsTest(unittest.TestCase):
                     self.by_descriptor(descriptor, "by-descriptor.tar.gz")
         finally:
             os.close(descriptor)
+
+
+class ChangedEntryTest(unittest.TestCase):
+    """Follow-up to the independent review of PR #326. A file in the uploads can become something
+    else between the look at it and its opening. Whatever it became, the backup ends, publishes
+    nothing, and leaves nothing open and nothing staged."""
+
+    PATIENCE = 10       # seconds; a backup of these few files takes a small fraction of one
+
+    def setUp(self):
+        self.layout = _Layout(self)
+        self.entry = self.layout.uploads / "answer.csv"
+        self.descriptors = ReplacedStateTest.open_descriptors()
+
+    def becomes(self, put_in_its_place):
+        """The entry is looked at as the file it is; when it is opened, something else has its name."""
+        real_stat = os.stat
+
+        def and_then_something_else(name, *args, **kwargs):
+            result = real_stat(name, *args, **kwargs)
+            if name == self.entry.name and kwargs.get("dir_fd") is not None:
+                self.entry.unlink()
+                put_in_its_place(self.entry)
+            return result
+
+        return patch.object(backup_module.os, "stat", and_then_something_else)
+
+    def outcome(self):
+        """What the backup ends with. It runs aside, so that one that waits fails this test
+        instead of stopping the suite."""
+        ended = []
+
+        def run():
+            try:
+                ended.append(self.layout.run())
+            except BaseException as raised:      # the test looks at it
+                ended.append(raised)
+
+        backup = threading.Thread(target=run, daemon=True)
+        backup.start()
+        backup.join(self.PATIENCE)
+        if backup.is_alive():
+            # A writer lets the opening return, and the suite goes on to report this.
+            writer = os.open(self.entry, os.O_WRONLY | os.O_NONBLOCK)
+            backup.join(self.PATIENCE)
+            os.close(writer)
+            self.fail("the backup waited for a writer on the pipe")
+        return ended[0]
+
+    def assert_nothing_published_staged_or_left_open(self):
+        self.assertEqual(self.layout.artifacts(), [])               # no snapshot-*, no .snapshot-* staging
+        self.assertEqual(ReplacedStateTest.open_descriptors(), self.descriptors)
+
+    def test_a_file_that_became_a_directory_leaves_no_descriptor_open(self):
+        # A directory opens for reading as a file does, and it is ``os.fdopen`` that refuses it. The
+        # descriptor it had been handed stayed open then, one more for every entry met like this.
+        with self.becomes(Path.mkdir):
+            with self.assertRaisesRegex(BackupError, "file archive failed.*no snapshot was published") as caught:
+                self.layout.run()
+        self.assertIsInstance(caught.exception.__cause__, IsADirectoryError)    # refused there, closed once
+        self.assertTrue(self.entry.is_dir())
+        self.assert_nothing_published_staged_or_left_open()
+
+    def test_a_file_that_became_a_pipe_is_refused_without_being_waited_for(self):
+        # Opening a pipe for reading waits for a writer, for ever when there is none, and the backup
+        # would stand still with its staging directory in place. It is opened with O_NONBLOCK, found
+        # to be no file any more, and refused.
+        with self.becomes(os.mkfifo):
+            ended = self.outcome()
+        self.assertIsInstance(ended, BackupError, ended)
+        self.assertIn("file archive failed (changed while it was being archived: uploads/practical/answer.csv)",
+                      str(ended))
+        self.assertIn("no snapshot was published", str(ended))
+        self.assertTrue(stat.S_ISFIFO(self.entry.lstat().st_mode))  # it was the pipe that was met
+        self.assert_nothing_published_staged_or_left_open()
+        # A pipe that is there when it is looked at is archived as the pipe it is, as before.
+        with tarfile.open(self.layout.run() / "files.tar.gz") as archive:
+            self.assertTrue(archive.getmember("uploads/practical/answer.csv").isfifo())
 
 
 class RestoreDocumentationTest(unittest.TestCase):

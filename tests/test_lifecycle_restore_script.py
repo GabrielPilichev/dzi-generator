@@ -178,9 +178,12 @@ _shims: dict = {}
 
 
 def shim_directory() -> Path:
-    """The shims, written once for the module (they keep no state of their own)."""
+    """The shims, written once each time the module is set up (they keep no state of their own)."""
     if "path" not in _shims:
         directory = tempfile.TemporaryDirectory(prefix="lifecycle-restore-shims-")
+        # Forgotten when they are removed: the runner cleans the module up when a class of another
+        # module comes next, and sets it up again when one of this module's follows that one.
+        unittest.addModuleCleanup(_shims.clear)
         unittest.addModuleCleanup(directory.cleanup)
         path = Path(directory.name).resolve()
         (path / "inject.sh").write_text(INJECT, encoding="utf-8")
@@ -467,6 +470,26 @@ class RestoreScriptTestCase(unittest.TestCase):
         kept = server.everything()
         for relative, content in server.original.items():
             self.assertIn(content, kept, f"{relative} as it was live is no longer anywhere")
+
+
+class ShimLifecycleTest(unittest.TestCase):
+    """Follow-up to the independent review of PR #326. The shims were removed with the module and
+    still remembered when it was set up again, which the runner does when a class of another module
+    ran in between. Every restore after that ran without them: "a program this script needs is not
+    installed: systemctl"."""
+
+    def test_the_shims_are_written_again_when_the_module_is_set_up_again(self):
+        self.addCleanup(shim_directory)             # however this ends, the classes after it have shims
+        first = shim_directory()
+        self.assertTrue((first / "inject.sh").is_file())
+        unittest.doModuleCleanups()                 # the runner, when a class of another module comes next
+        self.assertFalse(first.exists())
+        setUpModule()                               # and when one of this module's follows that one
+        again = shim_directory()
+        self.assertNotEqual(again, first)
+        self.assertTrue((again / "inject.sh").is_file())
+        for program in (*SHIMS, *WRAPPED_TOOLS):   # each where a server's PATH has it first
+            self.assertEqual(shutil.which(program, path=str(again)), str(again / program))
 
 
 class RestoreScriptSourceTest(unittest.TestCase):
