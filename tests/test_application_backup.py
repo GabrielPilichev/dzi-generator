@@ -1,5 +1,7 @@
 import contextlib
+import gc
 import os
+import shutil
 import sqlite3
 import stat
 import subprocess
@@ -271,6 +273,354 @@ class RestoreLockTest(unittest.TestCase):
         self.assertEqual(layout.artifacts(), [])                             # nothing published, nothing staged
         lock.rmdir()
         self.assertTrue((layout.run() / "questions.db").is_file())
+
+
+class ReplacedStateTest(unittest.TestCase):
+    """Independent review of PR #326, low 1. A backup started by hand, outside systemd, can span a
+    whole restore: the lock is absent when it looks first and absent again when it looks last. It
+    then published the database from before the restore with the uploads and the vault from after
+    it, as one complete snapshot. What it reads is now identified as objects, not as paths."""
+
+    def setUp(self):
+        from web.services import lifecycle
+
+        self.layout = _Layout(self)
+        self.lock = Path(lifecycle.restore_lock_path(self.layout.db))
+        self.aside = self.layout.root / "replaced-20261001T000000Z"
+        self.descriptors = self.open_descriptors()
+        self.working_directory = os.getcwd()
+        self.addCleanup(self.assert_nothing_left_open_or_changed)
+
+    @staticmethod
+    def open_descriptors():
+        gc.collect()        # what an earlier test left to be collected is not this one's to count
+        return len(os.listdir("/dev/fd"))
+
+    def assert_nothing_left_open_or_changed(self):
+        self.assertEqual(self.open_descriptors(), self.descriptors)       # whichever way the backup ended
+        self.assertEqual(os.getcwd(), self.working_directory)
+
+    # --- what a restore does to the state, step by step (deploy/learnpilot-restore.sh) ---
+
+    def set_aside(self, path, name):
+        self.aside.mkdir(exist_ok=True)
+        path.rename(self.aside / name)
+
+    def replace_uploads(self):
+        self.set_aside(self.layout.uploads, "uploads")
+        self.layout.uploads.mkdir()
+        (self.layout.uploads / "restored.csv").write_bytes(b"from the snapshot that was restored")
+
+    def replace_vault(self):
+        self.set_aside(self.layout.vault, "vault")
+        (self.layout.vault / "Generated").mkdir(parents=True)
+        (self.layout.vault / "Generated" / "restored.md").write_text("restored")
+
+    def replace_database(self):
+        staged = self.layout.root / "staged.db"
+        with contextlib.closing(sqlite3.connect(staged)) as conn, conn:
+            conn.execute("CREATE TABLE t (v TEXT)")
+            conn.execute("INSERT INTO t VALUES ('restored')")
+        self.aside.mkdir(exist_ok=True)
+        os.link(self.layout.db, self.aside / "questions.db")       # the one that was live keeps a name,
+        os.replace(staged, self.layout.db)                          # and loses its place in one rename
+
+    def a_whole_restore(self):
+        self.lock.mkdir()
+        self.replace_uploads()
+        self.replace_vault()
+        self.replace_database()
+        self.lock.rmdir()
+
+    # --- when it happens: after the database was copied, or after the files were archived too ---
+
+    def after_the_database_was_copied(self, happens):
+        copy_the_database = backup_module.backup_database
+
+        def copy_and_then(source, target):
+            result = copy_the_database(source, target)
+            happens()
+            return result
+
+        return patch.object(backup_module, "backup_database", copy_and_then)
+
+    def before_the_last_look(self, happens):
+        """Just before the lock is looked for the second time: everything has been read by then."""
+        look = backup_module.restore_lock_present
+        looks = []
+
+        def look_again(db):
+            looks.append(db)
+            if len(looks) == 2:
+                happens()
+            return look(db)
+
+        return patch.object(backup_module, "restore_lock_present", look_again)
+
+    def members(self, snapshot):
+        with tarfile.open(snapshot / "files.tar.gz") as archive:
+            return {member.name for member in archive.getmembers() if member.isfile()}
+
+    def rows(self, snapshot):
+        with contextlib.closing(sqlite3.connect(snapshot / "questions.db")) as conn:
+            return [row[0] for row in conn.execute("SELECT v FROM t")]
+
+    def assert_refused(self, *because):
+        with self.assertRaises(BackupError) as caught:
+            self.layout.run()
+        message = str(caught.exception)
+        self.assertIn("the state changed hands while the snapshot was being made", message)
+        self.assertIn("nothing was published", message)
+        for text in because:
+            self.assertIn(text, message)
+        self.assertEqual(self.layout.artifacts(), [])               # nothing published, nothing staged
+        return message
+
+    def test_a_backup_that_spans_a_whole_restore_publishes_nothing(self):
+        # The database is copied; then a restore begins, replaces everything and finishes. Both
+        # looks for the lock find none.
+        with self.after_the_database_was_copied(self.a_whole_restore):
+            message = self.assert_refused(
+                f"the database was replaced by another ({self.layout.db})",
+                f"the uploads directory was replaced by another ({self.layout.uploads})",
+                f"the vault directory was replaced by another ({self.layout.vault})")
+        self.assertFalse(self.lock.exists())
+        self.assertNotIn("a restore of this database", message)     # it was not the lock that stopped it
+        # The same backup afterwards is a snapshot of the restored state, all of it.
+        snapshot = self.layout.run()
+        self.assertEqual(self.rows(snapshot), ["restored"])
+        self.assertEqual(self.members(snapshot), {"uploads/practical/restored.csv", "vault/Generated/restored.md"})
+
+    def test_the_same_when_the_restore_falls_after_everything_was_read(self):
+        with self.before_the_last_look(self.a_whole_restore):
+            self.assert_refused("the database was replaced", "the uploads directory was replaced",
+                                "the vault directory was replaced")
+
+    def test_each_of_the_three_is_told_apart_by_what_it_is(self):
+        def remake(path):
+            shutil.rmtree(path)
+            path.mkdir()
+
+        def rewrite(database):
+            database.unlink()
+            with contextlib.closing(sqlite3.connect(database)) as conn, conn:
+                conn.execute("CREATE TABLE t (v TEXT)")
+
+        def a_link_in_place_of(path):
+            elsewhere = path.with_name("elsewhere")
+            elsewhere.mkdir()
+            self.set_aside(path, path.name)
+            path.symlink_to(elsewhere)
+
+        replaced, gone = "was replaced by another", "is no longer there"
+        cases = {
+            "the database replaced by a rename": ("database", replaced, lambda path: self.replace_database()),
+            "the database deleted and written again": ("database", replaced, rewrite),
+            "the database gone": ("database", gone, lambda path: self.set_aside(path, "questions.db")),
+            "the uploads replaced": ("uploads directory", replaced, lambda path: self.replace_uploads()),
+            "the uploads deleted and made again": ("uploads directory", replaced, remake),
+            "the uploads gone": ("uploads directory", gone, lambda path: self.set_aside(path, "uploads")),
+            "a link where the uploads were": ("uploads directory", replaced, a_link_in_place_of),
+            "the vault replaced": ("vault directory", replaced, lambda path: self.replace_vault()),
+            "the vault deleted and made again": ("vault directory", replaced, remake),
+            "the vault gone": ("vault directory", gone, lambda path: self.set_aside(path, "vault")),
+            "a link where the vault was": ("vault directory", replaced, a_link_in_place_of),
+        }
+        for label, (name, what, change) in cases.items():
+            with self.subTest(changed=label):
+                self.layout = layout = _Layout(self)
+                self.aside = layout.root / "replaced-20261001T000000Z"
+                path = {"database": layout.db, "uploads directory": layout.uploads,
+                        "vault directory": layout.vault}[name]
+                with self.before_the_last_look(lambda: change(path)):
+                    message = self.assert_refused()
+                # That one is named, with its path, and neither of the other two.
+                found = message.split("being made: ", 1)[1].split(". The copy may hold", 1)[0]
+                self.assertEqual(found, f"the {name} {what} ({path})")
+
+    def test_a_restore_that_is_taken_back_leaves_a_snapshot_of_one_state(self):
+        # The restore replaces the uploads and the vault, fails at a later gate and moves everything
+        # back, and the files are archived exactly while the other directories are in place. At the
+        # end every path leads where it led at the start, so a comparison finds nothing. The archive
+        # is therefore read from the directories the backup began with, wherever they are.
+        def begins():
+            self.lock.mkdir()
+            self.replace_uploads()
+            self.replace_vault()
+
+        def is_taken_back():
+            for name in ("uploads", "vault"):
+                path = self.layout.root / name
+                path.rename(self.layout.root / f"staged-{name}")
+                (self.aside / name).rename(path)
+            self.lock.rmdir()
+
+        with self.after_the_database_was_copied(begins), self.before_the_last_look(is_taken_back):
+            snapshot = self.layout.run()
+        self.assertEqual(self.rows(snapshot), ["row"])
+        self.assertEqual(self.members(snapshot), {"uploads/practical/answer.csv", "vault/Generated/note.md"})
+
+    def test_a_backup_while_the_service_writes_is_published_as_before(self):
+        # What changes inside the database and the directories is not a replacement of them.
+        def the_service_writes():
+            with contextlib.closing(sqlite3.connect(self.layout.db)) as conn, conn:
+                conn.execute("INSERT INTO t VALUES ('written during the backup')")
+            (self.layout.uploads / "class-12").mkdir()
+            (self.layout.uploads / "class-12" / "late.zip").write_bytes(b"z" * 100)
+            (self.layout.uploads / "answer.csv").unlink()
+            (self.layout.vault / "Generated" / "later.md").write_text("later")
+            os.chmod(self.layout.uploads, 0o750)
+
+        with self.after_the_database_was_copied(the_service_writes):
+            snapshot = self.layout.run()
+        self.assertEqual(self.rows(snapshot), ["row"])                       # the database as it was copied,
+        self.assertEqual(self.members(snapshot),                             # the files slightly newer
+                         {"uploads/practical/class-12/late.zip", "vault/Generated/note.md", "vault/Generated/later.md"})
+        self.assertEqual(self.layout.artifacts(), [snapshot.name])
+
+    def test_paths_given_through_links_are_followed_once_and_asked_again_at_the_end(self):
+        # DZI_UPLOAD_ROOT may be a link to a volume. The link is followed when the backup starts.
+        link = self.layout.root / "uploads-by-link"
+        link.symlink_to(self.layout.uploads)
+        arguments = (self.layout.db, link, self.layout.vault, self.layout.out)
+        snapshot = backup_application(*arguments, stamp="20261001T010203Z")
+        self.assertEqual(self.members(snapshot), {"uploads/practical/answer.csv", "vault/Generated/note.md"})
+
+        # Pointed at another directory while the backup runs: what was archived is no longer what
+        # the name stands for.
+        def repointed():
+            other = self.layout.root / "other-uploads"
+            other.mkdir()
+            link.unlink()
+            link.symlink_to(other)
+
+        with self.before_the_last_look(repointed):
+            with self.assertRaises(BackupError) as caught:
+                backup_application(*arguments, stamp="20261001T020304Z")
+        self.assertIn(f"the uploads directory was replaced by another ({link})", str(caught.exception))
+        self.assertEqual(self.layout.artifacts(), [snapshot.name])
+
+    def test_a_database_that_is_not_there_is_reported_as_before(self):
+        self.layout.db.unlink()
+        with self.assertRaisesRegex(BackupError, "source database not found"):
+            self.layout.run()
+        self.assertEqual(self.layout.artifacts(), [])
+
+    def test_the_database_file_is_never_opened_in_a_way_that_could_drop_its_locks(self):
+        # Closing an ordinary descriptor of the database would release the POSIX locks of every
+        # SQLite connection this process has on it. It is held with O_PATH or not at all.
+        opened = []
+        real_open = os.open
+
+        def recording(path, flags, *args, **kwargs):
+            opened.append((os.fspath(path), flags))
+            return real_open(path, flags, *args, **kwargs)
+
+        with patch.object(backup_module.os, "open", recording):
+            self.layout.run()
+        of_the_database = [flags for path, flags in opened if path == str(self.layout.db)]
+        for flags in of_the_database:
+            self.assertTrue(hasattr(os, "O_PATH") and flags & os.O_PATH, flags)
+        self.assertEqual(len(of_the_database), 1 if hasattr(os, "O_PATH") else 0)
+        self.assertEqual(sorted(path for path, _flags in opened if path in (str(self.layout.uploads), str(self.layout.vault))),
+                         sorted([str(self.layout.uploads), str(self.layout.vault)]))
+
+
+class ArchiveThroughDescriptorsTest(unittest.TestCase):
+    """The uploads and the vault are archived from open directories, not from paths (see
+    ``ReplacedStateTest``). The archive has to be the one ``TarFile.add`` wrote before."""
+
+    def setUp(self):
+        directory = tempfile.TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        self.root = Path(directory.name).resolve()
+        tree = self.tree = self.root / "practical"
+        (tree / "class 12" / "Задача 26").mkdir(parents=True)
+        (tree / "empty").mkdir()
+        (tree / "class 12" / "answer.xlsx").write_bytes(os.urandom(70_000))
+        (tree / "class 12" / "Задача 26" / "решение.html").write_text("<p>решение</p>", encoding="utf-8")
+        (tree / "empty.txt").write_bytes(b"")
+        os.link(tree / "class 12" / "answer.xlsx", tree / "the-same-answer.xlsx")      # a hard link
+        (tree / "link-to-a-file").symlink_to("class 12/answer.xlsx")
+        (tree / "link-to-a-directory").symlink_to("class 12")
+        (tree / "link-to-nothing").symlink_to("nowhere")
+        os.mkfifo(tree / "a-pipe")
+        os.chmod(tree / "class 12", 0o750)
+        os.chmod(tree / "empty.txt", 0o640)
+        os.utime(tree / "empty.txt", (1_700_000_000, 1_700_000_123.5))
+
+    def described(self, path):
+        with tarfile.open(path) as archive:
+            return [(member.name, member.type, member.mode, member.uid, member.gid, member.size, member.mtime,
+                     member.linkname, member.uname, member.gname, member.devmajor, member.devminor,
+                     archive.extractfile(member).read() if member.isreg() else None)
+                    for member in archive.getmembers()]
+
+    def by_path(self, tree, name, **options):
+        with tarfile.open(self.root / name, "w:gz") as tar:
+            tar.add(tree, arcname="uploads/practical", **options)
+        return self.described(self.root / name)
+
+    def by_descriptor(self, descriptor, name, **options):
+        with tarfile.open(self.root / name, "w:gz") as tar:
+            backup_module._add_directory(tar, descriptor, "uploads/practical", **options)
+        return self.described(self.root / name)
+
+    def test_the_archive_is_member_for_member_the_one_tarfile_add_writes(self):
+        expected = self.by_path(self.tree, "by-path.tar.gz")
+        kinds = {member[1] for member in expected}
+        self.assertEqual(kinds, {tarfile.DIRTYPE, tarfile.REGTYPE, tarfile.LNKTYPE, tarfile.SYMTYPE, tarfile.FIFOTYPE})
+        self.assertEqual(len(expected), 12)
+        gc.collect()
+        before = len(os.listdir("/dev/fd"))
+        descriptor = os.open(self.tree, os.O_RDONLY)
+        try:
+            self.assertEqual(self.by_descriptor(descriptor, "by-descriptor.tar.gz"), expected)
+            # A link to a directory is archived as the link it is, and not walked into.
+            self.assertNotIn("uploads/practical/link-to-a-directory/answer.xlsx", [member[0] for member in expected])
+            # The top directory alone, as for the vault.
+            self.assertEqual(self.by_descriptor(descriptor, "top-by-descriptor.tar.gz", recursive=False),
+                             self.by_path(self.tree, "top-by-path.tar.gz", recursive=False))
+        finally:
+            os.close(descriptor)
+        self.assertEqual(len(os.listdir("/dev/fd")), before)        # every descriptor it opened is closed again
+
+    def test_what_is_archived_is_the_directory_that_was_opened_wherever_it_is_by_now(self):
+        expected = self.by_path(self.tree, "by-path.tar.gz")
+        descriptor = os.open(self.tree, os.O_RDONLY)
+        try:
+            # Set aside, and another directory put at its path, as a restore does.
+            aside = self.root / "replaced-20261001T000000Z"
+            aside.mkdir()
+            self.tree.rename(aside / "practical")
+            self.tree.mkdir()
+            (self.tree / "restored.csv").write_bytes(b"from another state")
+            self.assertEqual(self.by_descriptor(descriptor, "by-descriptor.tar.gz"), expected)
+        finally:
+            os.close(descriptor)
+        self.assertEqual([member[0] for member in self.by_path(self.tree, "the-other.tar.gz")],
+                         ["uploads/practical", "uploads/practical/restored.csv"])
+
+    def test_an_entry_that_stops_being_a_file_while_it_is_read_stops_the_backup(self):
+        # Between the look at an entry and its opening a link is put in its place: it is not followed.
+        outside = self.root / "outside.txt"
+        outside.write_text("not part of the uploads")
+        real_stat = os.stat
+
+        def and_then_a_link(name, *args, **kwargs):
+            result = real_stat(name, *args, **kwargs)
+            if name == "empty.txt" and kwargs.get("dir_fd") is not None:
+                (self.tree / "empty.txt").unlink()
+                (self.tree / "empty.txt").symlink_to(outside)
+            return result
+
+        descriptor = os.open(self.tree, os.O_RDONLY)
+        try:
+            with patch.object(backup_module.os, "stat", and_then_a_link):
+                with self.assertRaises(OSError):
+                    self.by_descriptor(descriptor, "by-descriptor.tar.gz")
+        finally:
+            os.close(descriptor)
 
 
 class RestoreDocumentationTest(unittest.TestCase):

@@ -13,6 +13,10 @@ restore half-way:
   ``PRAGMA quick_check``, and ``files.tar.gz`` can be read to its end and holds
   only regular files and directories under ``uploads/`` and ``vault/``;
 * the state directory and its ``data`` directory are writable by this user;
+* the state directory is itself not a symbolic link. One that is, is refused
+  as it stands: the kernel lists mount points under their real paths, and a
+  filesystem mounted inside the directory the link leads to would not be found
+  under the name that was given;
 * the state directory, ``data``, ``uploads`` and ``vault`` are on one filesystem,
   **all the way down**: no filesystem is mounted on or anywhere inside
   ``uploads`` or ``vault`` (``uploads/practical`` on a volume of its own, for
@@ -128,6 +132,15 @@ def _mount_points(listing: str = "/proc/self/mountinfo") -> list[Path]:
 MAX_REPORTED = 5
 
 
+def state_root_link_problem(state_root: Path) -> str | None:
+    """Why a state directory that is a symbolic link is not looked into at all."""
+    if not state_root.is_symlink():
+        return None
+    return (f"the state directory {state_root} is a symbolic link (to {os.path.realpath(state_root)}): what is "
+            "mounted inside it cannot be told under that name. Give the directory itself as the state directory, "
+            "in the service's settings and to the restore, or make it a real directory")
+
+
 def nested_filesystem_problems(state_root: Path) -> list[str]:
     """Why ``uploads``, ``vault`` and the database cannot be replaced by renaming them.
 
@@ -135,7 +148,18 @@ def nested_filesystem_problems(state_root: Path) -> list[str]:
     directory in them therefore has to be a plain directory of the state
     directory's own filesystem. ``data`` is not moved, only files in it are, so
     only ``data`` itself matters there (``data/reference`` may be a mount).
+
+    Every path below is built on the state directory's real path, the one the
+    kernel uses for it. A directory above it may be a symbolic link
+    (``/var/lib`` on another disk); compared under the name that goes through
+    that link, a mount point from the kernel's list would never match, and a
+    filesystem mounted inside ``vault`` would pass. The state directory itself
+    may not be a link, so that its real path differs from its name only above it.
     """
+    link = state_root_link_problem(state_root)
+    if link:
+        return [link]
+    state_root = Path(os.path.realpath(state_root))
     device = _device(state_root)
     data, database = state_root / "data", state_root / "data" / "questions.db"
     moved = [tree for tree in (state_root / "uploads", state_root / "vault") if os.path.lexists(tree)]
@@ -177,6 +201,9 @@ def nested_filesystem_problems(state_root: Path) -> list[str]:
 
 
 def layout_problems(state_root: Path) -> list[str]:
+    link = state_root_link_problem(state_root)
+    if link:
+        return [link]   # before anything else is asked of what it points to
     problems = []
     data = state_root / "data"
     for directory in (state_root, data):

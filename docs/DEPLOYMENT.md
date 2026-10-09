@@ -532,6 +532,20 @@ made"). The restore script stops the timer and starts it again when it has
 finished. It sees a backup that systemd is running; one started by hand, from
 a shell, it does not see: do not run a backup by hand during a restore.
 
+The lock alone does not cover a backup that spans a whole restore, as one
+started by hand can: there is no lock before the restore and none after it.
+The tool therefore also notes, when it starts, which database file and which
+uploads and vault directories are at its paths (by device and inode number,
+not by name), reads the archive from those two directories themselves, and
+checks again before it publishes. If any of the three has been replaced by
+another, or is gone, it exits with "the state changed hands while the snapshot
+was being made", names which, and publishes nothing: the copy could hold the
+database of one state and the files of another. Run the backup again.
+
+What this cannot see is a state that was overwritten in place, by hand: files
+copied over the same database file or into the same directories keep their
+identity. The restore script never does that, and nobody else should.
+
 A failed run leaves no `snapshot-*` directory. Hidden `.snapshot-*` directories
 are staging only; one can remain only after a hard kill (power loss) and is
 safe to delete. There is no notification recipient configured, so check
@@ -711,6 +725,15 @@ error. A symbolic link would be replaced by a directory and what it points to
 left where it is. Both are refused in pre-flight; `data/reference` is not
 moved and may be a filesystem of its own. A state directory laid out like that
 cannot be restored by this script as it is.
+
+The state directory itself may not be a symbolic link either
+(`/var/lib/learnpilot` pointing at a directory on a volume): it is refused as
+it stands, before anything behind the link is looked at. The kernel lists what
+is mounted under real paths, and under the link's name a filesystem mounted
+inside the directory would not be found. Give the real directory instead, in
+the service's settings and in `LEARNPILOT_STATE`. A link *above* the state
+directory (`/var/lib` on another disk) is fine: everything is compared under
+the directory's real path.
 
 ### How it ends
 

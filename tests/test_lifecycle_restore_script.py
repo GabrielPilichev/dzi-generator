@@ -43,6 +43,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest import mock
 
+import src.backup_application as backup_module
 from src import manage_migrations, restore_preflight
 from src.backup_application import backup_application
 from src.backup_sqlite import BackupError
@@ -846,6 +847,132 @@ class PreflightTest(unittest.TestCase):
         self.assertEqual(restore_preflight._mount_points(str(self.root / "no-such-list")), [])
 
 
+    def preflight_with(self, state, **replacements):
+        out = io.StringIO()
+        if not replacements:
+            return restore_preflight.preflight(self.snapshot, state, out), out.getvalue()
+        with mock.patch.multiple(restore_preflight, **replacements):
+            return restore_preflight.preflight(self.snapshot, state, out), out.getvalue()
+
+    def test_a_state_directory_that_is_a_symbolic_link_is_refused_as_it_stands(self):
+        # Independent review of PR #326, low 2. The kernel lists mount points under their real
+        # paths; they were compared with paths under the name that was given. With the state
+        # directory a link, a filesystem bind-mounted inside vault was never found.
+        real = self.root / "volume" / "learnpilot"
+        real.parent.mkdir()
+        self.state.rename(real)
+        self.state.symlink_to(real)
+        generated = real / "vault" / "Generated"
+        generated.mkdir(parents=True)
+        refusal = f"FAIL: the state directory {self.state} is a symbolic link (to {real})"
+
+        code, out = self.check()
+        self.assertEqual(code, 1, out)
+        self.assertIn(refusal, out)
+        self.assertEqual(out.count("FAIL:"), 1)
+        # Refused as it stands: nothing behind the link is looked at, mounted or not.
+        asked = []
+        code, out = self.preflight_with(
+            self.state, _mount_points=lambda: asked.append("the list") or [generated],
+            _is_mount=lambda path: asked.append(path) or False, _device=lambda path: asked.append(path) or 1)
+        self.assertEqual((code, out.count("FAIL:"), asked), (1, 1, []))
+        self.assertIn(refusal, out)
+        self.assertEqual(restore_preflight.nested_filesystem_problems(self.state), [refusal[len("FAIL: "):]
+                         + ": what is mounted inside it cannot be told under that name. Give the directory itself "
+                         "as the state directory, in the service's settings and to the restore, or make it a real "
+                         "directory"])
+        # And before anything else is said about what it points to: with no data directory behind
+        # the link, the refusal is still the link, and the only one.
+        (real / "data").rename(real / "data-moved-away")
+        code, out = self.check()
+        self.assertEqual((code, out.count("FAIL:")), (1, 1))
+        self.assertIn(refusal, out)
+        (real / "data-moved-away").rename(real / "data")
+        # However the link is written: with a trailing slash, or relative to where it is.
+        out = io.StringIO()
+        self.assertEqual(restore_preflight.main(["--snapshot", str(self.snapshot), "--state-root", f"{self.state}/"],
+                                                out=out), 1)
+        self.assertIn(refusal, out.getvalue())
+        self.state.unlink()
+        self.state.symlink_to(Path("volume") / "learnpilot")
+        code, out = self.check()
+        self.assertEqual((code, out.count("FAIL:")), (1, 1))
+        self.assertIn(f"FAIL: the state directory {self.state} is a symbolic link (to {real})", out)
+
+        # The directory itself, under its own name, is checked as any other: it passes, and what
+        # is mounted inside it is found.
+        self.assertEqual(self.preflight_with(real)[0], 0)
+        code, out = self.preflight_with(real, _mount_points=lambda: [Path("/"), generated])
+        self.assertEqual(code, 1)
+        self.assertIn(f"FAIL: a filesystem is mounted at {generated}, inside what the restore replaces by renaming", out)
+
+    def test_a_link_above_the_state_directory_hides_nothing_that_is_mounted_inside(self):
+        # /var/lib on another disk, say: the state directory is a real directory, reached through a
+        # link above it. Every comparison is made on its real path, the kernel's.
+        disk = self.root / "disk"
+        disk.mkdir()
+        self.state.rename(disk / "state")
+        (self.root / "lib").symlink_to(disk)
+        named, real = self.root / "lib" / "state", disk / "state"
+        practical, generated, reference = real / "uploads" / "practical", real / "vault" / "Generated", real / "data" / "reference"
+        for directory in (practical / "2026", generated, reference):
+            directory.mkdir(parents=True)
+        self.assertFalse(named.is_symlink())
+        self.assertNotEqual(named, real)
+        code, out = self.preflight_with(named)
+        self.assertEqual(code, 0, out)
+
+        asked = []
+        real_device = restore_preflight._device
+
+        def mounted_at(place):
+            return lambda path: asked.append(path) or path == place
+
+        def another_device_at(place):
+            return lambda path: asked.append(path) or (99 if path == place else real_device(path))
+
+        cases = {
+            "a bind mount that only the kernel's list shows": (
+                dict(_mount_points=lambda: [Path("/"), generated]),
+                f"a filesystem is mounted at {generated}, inside what the restore replaces by renaming"),
+            "a bind mount on uploads itself": (
+                dict(_mount_points=lambda: [real / "uploads"]),
+                f"a filesystem is mounted at {real / 'uploads'}, inside what the restore replaces by renaming"),
+            "a volume at uploads/practical": (
+                dict(_is_mount=mounted_at(practical)),
+                f"a filesystem is mounted at {practical}: the restore replaces uploads as a whole"),
+            "another device deep inside": (
+                dict(_device=another_device_at(practical / "2026")),
+                f"a filesystem is mounted at {practical / '2026'}: the restore replaces uploads as a whole"),
+            "the data directory on another filesystem": (
+                dict(_device=another_device_at(real / "data")),
+                f"{real / 'data'} is a symbolic link or on another filesystem"),
+        }
+        for label, (replacements, message) in cases.items():
+            with self.subTest(layout=label):
+                code, out = self.preflight_with(named, **replacements)
+                self.assertEqual(code, 1, out)
+                self.assertIn("FAIL: " + message, out)
+        # Reference data is not moved and may be a filesystem of its own, here as anywhere.
+        code, out = self.preflight_with(named, _is_mount=mounted_at(reference),
+                                        _mount_points=lambda: [reference, Path("/")])
+        self.assertEqual(code, 0, out)
+        # Somebody else's mount points are nobody's problem here.
+        code, out = self.preflight_with(named, _mount_points=lambda: [disk / "another-state" / "vault", disk])
+        self.assertEqual(code, 0, out)
+        # Nothing was asked under the name that goes through the link: one spelling throughout.
+        self.assertGreater(len(asked), 10)
+        for path in asked:
+            self.assertTrue(path == real or real in path.parents, path)
+        # A link inside what is renamed is still a link, and is not followed to make it "real".
+        elsewhere = self.root / "a-volume"
+        practical.rename(elsewhere)
+        practical.symlink_to(elsewhere)
+        code, out = self.preflight_with(named)
+        self.assertEqual(code, 1)
+        self.assertIn(f"FAIL: {practical} is a symbolic link: the restore replaces uploads as a whole", out)
+
+
 class RestoreScriptFlowTest(RestoreScriptTestCase):
     """The procedure with the real operator CLI, start to finish."""
 
@@ -1552,6 +1679,10 @@ class PreflightFailureTest(RestoreScriptTestCase):
                 lambda server: ((server.state / "uploads/practical").rename(server.root / "uploads-on-a-volume"),
                                 (server.state / "uploads/practical").symlink_to(server.root / "uploads-on-a-volume")),
                 {}, "is a symbolic link: the restore replaces uploads as a whole"),
+            "the state directory itself is a symbolic link": (
+                lambda server: (server.state.rename(server.root / "state-on-a-volume"),
+                                server.state.symlink_to(server.root / "state-on-a-volume")),
+                {}, f"is a symbolic link (to "),
         }
         def fails(label):
             damage, environment, message = checks[label]
@@ -2004,6 +2135,37 @@ class BackupOverlapTest(RestoreScriptTestCase):
         self.assert_untouched(server, result, status=1)
         self.assertIn("a backup is running (learnpilot-backup.service is activating). Wait until it has finished",
                       result.stderr)
+
+    def test_a_backup_started_by_hand_that_spans_the_whole_restore_publishes_nothing(self):
+        # Independent review of PR #326, low 1. systemd knows nothing of a backup started from a
+        # shell, so the script goes ahead; and by the time that backup looks for the lock a second
+        # time, the restore has finished and removed it. The database it copied is the one from
+        # before the restore, and the paths it archives from now lead to the restored files.
+        server = self.server()
+        copy_the_database = backup_module.backup_database
+        restores = []
+
+        def copy_and_then_a_restore_runs(source, target):
+            result = copy_the_database(source, target)
+            restores.append(server.run())
+            return result
+
+        with mock.patch.object(backup_module, "backup_database", copy_and_then_a_restore_runs):
+            with self.assertRaises(BackupError) as caught:
+                server.backup()
+        (restore,) = restores
+        self.assertEqual(restore.returncode, 0, restore.stdout + restore.stderr)   # the restore went through,
+        self.assert_restored(server)
+        self.assertFalse(server.locked())                                          # and left no lock behind
+        message = str(caught.exception)
+        self.assertIn("the state changed hands while the snapshot was being made", message)
+        for name in ("database", "uploads directory", "vault directory"):
+            self.assertIn(f"the {name} was replaced by another", message)
+        self.assertEqual(list(server.backups.iterdir()), [])                       # nothing published or staged
+        snapshot = server.backup()                                                 # afterwards: the restored state
+        with tarfile.open(snapshot / "files.tar.gz") as archive:
+            self.assertIn("uploads/practical/restored.txt", archive.getnames())
+            self.assertNotIn("uploads/practical/live.txt", archive.getnames())
 
     def test_a_running_backup_is_recognised_in_every_state_systemd_gives_it(self):
         # Claude review, N2. The backup unit is Type=oneshot: while it runs it is "activating", which

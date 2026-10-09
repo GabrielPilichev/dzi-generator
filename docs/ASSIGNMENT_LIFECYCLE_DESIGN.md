@@ -156,11 +156,25 @@ history, and the monthly cleanup job.
 >     never examined. The state directory is one filesystem all the way
 >     down: no filesystem is mounted on or inside `uploads` or `vault`, and
 >     neither they nor the database are symbolic links, because they are
->     replaced by renames. No backup is running, read from the unit state
+>     replaced by renames. The state directory itself is not a symbolic link
+>     (a link above it is allowed; what is mounted is compared under the
+>     directory's real path, the one the kernel lists it under). No backup
+>     is running, read from the unit state
 >     systemd reports (a `Type=oneshot` backup is `activating` while it
 >     runs), once before and once after the restore lock is taken. A server
 >     that does not meet these is refused, untouched; the script has no mode
 >     that restores it.
+> 14. **The backup tool and a restore.** (The shared lock of §10.11, between
+>     backup and cleanup, belongs to PR #328 and is not implemented; this is
+>     about the restore lock of note 10.) `src.backup_application` refuses to
+>     run while the restore lock exists, looks for it again before it publishes,
+>     and identifies the database, the uploads and the vault it reads as
+>     objects (device and inode), not as paths: it archives from the two
+>     directories it opened at the start and publishes nothing if any of the
+>     three is no longer what is at its path at the end. A backup started by
+>     hand that spans a whole restore, with no lock before or after it, is
+>     therefore not published as a mixture of two states. A state overwritten
+>     in place, without a rename, keeps its identity and is not detected.
 
 Conventions used below:
 

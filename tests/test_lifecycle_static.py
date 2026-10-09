@@ -509,8 +509,18 @@ class DeploymentGuideTest(unittest.TestCase):
                          "are each set **exactly once**, as a plain `NAME=/path` line",
                          "it never prints a value from that file",
                          "nothing is mounted on or anywhere inside `uploads` or `vault`",
-                         "No option makes the script accept such a database"):
+                         "No option makes the script accept such a database",
+                         # Independent review, low 2.
+                         "The state directory itself may not be a symbolic link either",
+                         "everything is compared under the directory's real path"):
             self.assertIn(sentence, restore_section)
+        # Independent review, low 1: the message the backup tool gives is the one the guide explains.
+        backup_tool = (ROOT / "src" / "backup_application.py").read_text(encoding="utf-8")
+        for said in ("the state changed hands while the snapshot was being made",
+                     "a restore of this database began while the snapshot was being"):
+            self.assertIn(said, " ".join(self.guide.split()))
+            self.assertIn(said, backup_tool)
+        self.assertIn("by device and inode number, not by name", " ".join(self.guide.split()))
         # Every way the script can end, as it prints it, is in the table of section 17.
         script = (ROOT / "deploy" / "learnpilot-restore.sh").read_text(encoding="utf-8")
         for ending in ("The database HAD BEEN REPLACED when the script was stopped",
