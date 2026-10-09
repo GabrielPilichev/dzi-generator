@@ -2,6 +2,8 @@ import contextlib
 import os
 import sqlite3
 import stat
+import subprocess
+import sys
 import tarfile
 import tempfile
 import unittest
@@ -217,6 +219,60 @@ class DestinationOverlapTest(unittest.TestCase):
                                             self.layout.out, stamp="20261001T010203Z"), snapshot)
 
 
+class RestoreLockTest(unittest.TestCase):
+    """No snapshot of a state that a restore has only partly replaced (docs/DEPLOYMENT.md, 17)."""
+
+    def test_no_snapshot_is_taken_while_a_restore_is_in_progress_or_unfinished(self):
+        from web.services import lifecycle
+
+        layout = _Layout(self)
+        lock = Path(lifecycle.restore_lock_path(layout.db))
+        self.assertEqual(lock, layout.root / lifecycle.RESTORE_LOCK_NAME)   # next to the database
+        lock.mkdir()
+        (lock / "pid").write_text("1\n")
+        # Whatever else is the matter (here: the uploads are being moved), the lock is what is reported.
+        layout.uploads.rename(layout.root / "uploads-set-aside")
+        with self.assertRaises(BackupError) as caught:
+            layout.run()
+        self.assertIn("a restore of this database is in progress or was left unfinished", str(caught.exception))
+        self.assertIn("no snapshot is taken of a partly replaced state", str(caught.exception))
+        self.assertEqual(layout.artifacts(), [])                             # nothing published, nothing staged
+        code = subprocess.run(
+            [sys.executable, "-B", "-m", "src.backup_application", "--db", str(layout.db), "--uploads",
+             str(layout.root / "uploads-set-aside"), "--vault", str(layout.vault), "--output-dir", str(layout.out)],
+            cwd=Path(__file__).resolve().parents[1], capture_output=True, text=True)
+        self.assertEqual(code.returncode, 1)
+        self.assertIn("LearnPilot backup failed: a restore of this database is in progress", code.stderr)
+        # The lock gone and the uploads back: the same call makes a snapshot.
+        (lock / "pid").unlink()
+        lock.rmdir()
+        (layout.root / "uploads-set-aside").rename(layout.uploads)
+        self.assertTrue((layout.run() / "questions.db").is_file())
+
+    def test_a_restore_that_begins_while_the_snapshot_is_being_made_publishes_nothing(self):
+        # Claude review, N2. The lock was looked for once, before anything was read. A backup that
+        # had passed that look when the restore took the lock went on to publish what it read
+        # while the restore was replacing it.
+        from web.services import lifecycle
+
+        layout = _Layout(self)
+        lock = Path(lifecycle.restore_lock_path(layout.db))
+        copy_the_database = backup_module.backup_database
+
+        def and_a_restore_begins(source, target):
+            copy_the_database(source, target)
+            lock.mkdir()
+
+        with patch.object(backup_module, "backup_database", and_a_restore_begins):
+            with self.assertRaises(BackupError) as caught:
+                layout.run()
+        self.assertIn("a restore of this database began while the snapshot was being made", str(caught.exception))
+        self.assertIn("nothing was published", str(caught.exception))
+        self.assertEqual(layout.artifacts(), [])                             # nothing published, nothing staged
+        lock.rmdir()
+        self.assertTrue((layout.run() / "questions.db").is_file())
+
+
 class RestoreDocumentationTest(unittest.TestCase):
     def test_documented_layout_and_order_match_the_produced_snapshot(self):
         layout = _Layout(self)
@@ -235,15 +291,23 @@ class RestoreDocumentationTest(unittest.TestCase):
         for documented in ("uploads/practical/", "vault/", "snapshot-<stamp>/questions.db", "files.tar.gz"):
             self.assertIn(documented, guide)
 
-        # Every piece of state is restored before the service is started again.
-        stop = restore.index("systemctl stop learnpilot")
-        database = restore.index("questions.db' ") if "questions.db' " in restore else restore.index('"$SNAP/questions.db" /var')
-        extract = restore.index("xzf")
-        start = restore.index("systemctl start learnpilot")
+        # Every piece of state is restored before the service is started again. The restore is the
+        # script the guide names (its gates are tested in tests/test_lifecycle_restore_script.py).
+        self.assertIn("deploy/learnpilot-restore.sh", restore)
+        script = (Path(__file__).resolve().parents[1] / "deploy/learnpilot-restore.sh").read_text(encoding="utf-8")
+        stop = script.index('gate "stop the service" sudo systemctl stop "$SERVICE"')
+        database = script.index('"$SNAPSHOT/questions.db" "$STAGED_DB"')
+        extract = script.index('-xzf "$SNAPSHOT/files.tar.gz"')
+        files_in_place = script.index('gate "put the restored $tree in place"')
+        database_in_place = script.index('gate "replace the live database by the copy"')
+        start = script.index('systemctl start "$SERVICE"')
         self.assertLess(stop, database)
         self.assertLess(database, extract)
-        self.assertLess(extract, start)
-        self.assertEqual(restore.count("systemctl start learnpilot"), 1)
+        self.assertLess(extract, files_in_place)
+        self.assertLess(files_in_place, database_in_place)
+        self.assertLess(database_in_place, start)
+        self.assertEqual(script.count('systemctl start "$SERVICE"'), 1)
+        self.assertNotIn("systemctl start", restore)   # the guide gives no start to type after a restore
         self.assertNotIn("files-<stamp>", guide)
 
     def test_guide_states_one_worker_requirement_and_single_host(self):

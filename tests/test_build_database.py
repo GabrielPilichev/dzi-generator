@@ -116,7 +116,9 @@ class BuiltDatabaseTest(unittest.TestCase):
     def test_runtime_tables_are_empty(self):
         with closing(connect(self.path)) as conn:
             for table in ct.tables_of(ct.RUNTIME):
-                self.assertEqual(conn.execute(f'SELECT COUNT(*) FROM "{table}"').fetchone()[0], 0, table)
+                # Empty, except the rows a migration itself seeds (the lifecycle clock row).
+                self.assertEqual(conn.execute(f'SELECT COUNT(*) FROM "{table}"').fetchone()[0],
+                                 ct.MIGRATION_SEEDED_ROWS.get(table, 0), table)
 
     def test_operational_tables_are_are_empty_after_a_build(self):
         with closing(connect(self.path)) as conn:
@@ -150,7 +152,9 @@ class BuildReproducibilityTest(TemporaryDirectoryTestCase):
         fingerprint = builder.logical_fingerprint(first)
         self.assertEqual(fingerprint["migrations"], export.migration_files())
         self.assertEqual(fingerprint["foreign_key_violations"], 0)
-        self.assertTrue(all(count == 0 for count in fingerprint["non_canonical_rows"].values()))
+        self.assertEqual(
+            {table: count for table, count in fingerprint["non_canonical_rows"].items() if count},
+            ct.MIGRATION_SEEDED_ROWS)
 
     def test_fingerprint_detects_a_logical_difference(self):
         first, _ = shared_build()
@@ -385,7 +389,7 @@ class CommandLineTest(TemporaryDirectoryTestCase):
         status, out, err = self.run_main("--output", str(destination))
         self.assertEqual((status, err), (0, ""))
         self.assertTrue(destination.is_file())
-        self.assertIn("migration level: 017", out)
+        self.assertIn("migration level: 018", out)
         self.assertIn("questions: 1678", out)
         self.assertIn("validation", out)
 

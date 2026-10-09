@@ -66,6 +66,7 @@ TABLE_CLASSIFICATION: dict[str, tuple[str, str]] = {
     "quiz_assignments": (RUNTIME, "teacher assignments, including seed smoke-test rows"),
     "quiz_attempts": (RUNTIME, "student attempts"),
     "quiz_text_answers": (RUNTIME, "student text answers"),
+    "lifecycle_clock": (RUNTIME, "assignment lifecycle clock-health state: one row, shared by every process"),
     "users": (RUNTIME, "local accounts: credentials and session keys, never canonical content"),
     "totp_credentials": (RUNTIME, "admin TOTP credentials: encrypted secrets, never canonical content"),
     "totp_recovery_codes": (RUNTIME, "admin TOTP recovery codes: scrypt hashes, never canonical content"),
@@ -77,6 +78,12 @@ TABLE_CLASSIFICATION: dict[str, tuple[str, str]] = {
     "scrape_log": (OPERATIONAL, "scrape log"),
     "sqlite_sequence": (OPERATIONAL, "SQLite internal; canonical sequences are recorded in the manifest"),
 }
+
+# Non-canonical tables a migration seeds, with the number of rows a database built
+# from migrations alone holds. Every other runtime/operational table starts empty.
+# lifecycle_clock: the single clock-health row of migration 018, which the
+# application requires to exist (docs/ASSIGNMENT_LIFECYCLE_DESIGN.md, section 3.6).
+MIGRATION_SEEDED_ROWS: dict[str, int] = {"lifecycle_clock": 1}
 
 # Natural key per surrogate-id table. The stable-id guard fails if an update changes
 # the id a natural key maps to. ``None`` means the id itself is the only identity.

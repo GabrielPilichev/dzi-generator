@@ -2,7 +2,7 @@
   "format": "learnpilot-canonical-content",
   "format_version": 1,
   "schema": {
-    "migration_level": "017_assignment_public_token.sql",
+    "migration_level": "018_assignment_lifecycle.sql",
     "migrations": [
       "000_baseline.sql",
       "001_quiz_tables.sql",
@@ -21,7 +21,8 @@
       "014_assignment_owner.sql",
       "015_quiz_attempts_user.sql",
       "016_admin_totp.sql",
-      "017_assignment_public_token.sql"
+      "017_assignment_public_token.sql",
+      "018_assignment_lifecycle.sql"
     ]
   },
   "classification": {
@@ -55,6 +56,7 @@
       "topic_section_assignments"
     ],
     "runtime": [
+      "lifecycle_clock",
       "practical_submission_files",
       "practical_submissions",
       "quiz_answers",
@@ -105,6 +107,7 @@
     "practical_tasks"
   ],
   "runtime_exclusions": [
+    "lifecycle_clock",
     "practical_submission_files",
     "practical_submissions",
     "quiz_answers",

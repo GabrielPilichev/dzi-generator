@@ -19,6 +19,7 @@ domain (production: `learnpilot.bg`) only on the server; never commit domains, I
 | `/var/lib/learnpilot/uploads/practical` | Student uploads (`DZI_UPLOAD_ROOT`) | `learnpilot` `0750` |
 | `/var/lib/learnpilot/vault` | Generated quiz notes (`DZI_VAULT`) | `learnpilot` `0750` |
 | `/var/backups/learnpilot` | Completed application snapshots | `learnpilot` `0700` |
+| `/var/lib/learnpilot/lifecycle-operator.log` | Append-only log of lifecycle operator actions (`src.manage_lifecycle --audit-log`, section 26) | `learnpilot` `0600` |
 
 The repository does not track a database (`data/questions.db` is an ignored local
 runtime file). Production state must stay
@@ -200,8 +201,8 @@ sudo -u learnpilot sqlite3 /var/lib/learnpilot/data/questions.db 'PRAGMA journal
 The `PRAGMA journal_mode=WAL;` above is the only place WAL is chosen. Journal mode
 is persistent database state, so the application (`web/db.py`) never sets it:
 opening connections and serving requests leave the file's journal mode and header
-untouched. Repeat the pragma after restoring a database from a backup (section 17)
-and for any database created some other way.
+untouched. The restore script of section 17 sets it on a restored database; repeat
+the pragma for any database created some other way.
 
 ## 9. Schema / pre-start step
 
@@ -520,6 +521,17 @@ sudo ls -1dt /var/backups/learnpilot/snapshot-* | head -3  # newest complete sna
 df -h /var/backups/learnpilot
 ```
 
+No snapshot is taken while a restore is in progress or was left unfinished
+(section 17): the backup tool finds the restore lock next to the database and
+exits with "a restore of this database is in progress", and the unit is not
+even started. A snapshot of a half-replaced state would look complete. The
+tool looks for the lock twice: before it reads anything, and again before it
+publishes, so a restore that begins while a snapshot is being made publishes
+nothing ("a restore of this database began while the snapshot was being
+made"). The restore script stops the timer and starts it again when it has
+finished. It sees a backup that systemd is running; one started by hand, from
+a shell, it does not see: do not run a backup by hand during a restore.
+
 A failed run leaves no `snapshot-*` directory. Hidden `.snapshot-*` directories
 are staging only; one can remain only after a hard kill (power loss) and is
 safe to delete. There is no notification recipient configured, so check
@@ -561,45 +573,282 @@ Watch `df -h /var/backups/learnpilot` so local snapshots do not consume the
 A snapshot is `snapshot-<stamp>/questions.db` plus `files.tar.gz`. The archive
 holds exactly two trees, relative to `/var/lib/learnpilot`: `uploads/practical/`
 (`DZI_UPLOAD_ROOT`) and `vault/` (`DZI_VAULT`, only its top directory and
-`Generated/`). The commands below assume the default paths from
-`learnpilot.env.example`; if yours differ, extract into a scratch directory and
-copy `uploads/practical` and `vault` to your configured paths.
+`Generated/`). The restore assumes the default paths from
+`learnpilot.env.example`.
 
-Reference data is not part of a snapshot and a restore must not disturb it:
-only the database files are moved out of `/var/lib/learnpilot/data`, so
-`/var/lib/learnpilot/data/reference` stays in place. On a rebuilt server,
-provision it again as in section 3.
+Reference data is not part of a snapshot and a restore does not disturb it:
+only the database files are moved out of `/var/lib/learnpilot/data`, never the
+directory, so `/var/lib/learnpilot/data/reference` stays in place. On a rebuilt
+server, provision it again as in section 3.
 
-Restore everything **while the service is stopped**, start it only at the end:
+A restore is carried out by **one script**, `deploy/learnpilot-restore.sh`:
 
 ```bash
-SNAP=/var/backups/learnpilot/snapshot-<stamp>
-sudo systemctl stop learnpilot
-
-# 1. Verify the snapshot before touching live state.
-sudo -u learnpilot sqlite3 "$SNAP/questions.db" 'PRAGMA quick_check;'   # expect: ok
-sudo tar -tzf "$SNAP/files.tar.gz" | head                            # expect uploads/practical/... and vault/...
-
-# 2. Move the current state aside, together (database + sidecars, uploads, vault).
-#    Not the data directory itself: data/reference stays where it is.
-STAMP=$(date -u +%Y%m%dT%H%M%SZ)
-sudo install -d -o learnpilot -g learnpilot -m 0700 /var/lib/learnpilot/replaced-$STAMP
-sudo sh -c "mv /var/lib/learnpilot/data/questions.db* /var/lib/learnpilot/uploads \
-  /var/lib/learnpilot/vault /var/lib/learnpilot/replaced-$STAMP/"
-
-# 3. Restore the database, then the files, as the service user.
-sudo install -o learnpilot -g learnpilot -m 0600 "$SNAP/questions.db" /var/lib/learnpilot/data/questions.db
-sudo -u learnpilot sqlite3 /var/lib/learnpilot/data/questions.db 'PRAGMA journal_mode=WAL;'
-sudo install -d -o learnpilot -g learnpilot -m 0750 /var/lib/learnpilot/uploads /var/lib/learnpilot/vault
-sudo -u learnpilot tar -C /var/lib/learnpilot -xzf "$SNAP/files.tar.gz"
-
-# 4. Check the schema, then start and confirm.
-cd /opt/learnpilot/app && sudo -u learnpilot /opt/learnpilot/venv/bin/python -m src.manage_migrations \
-  --db /var/lib/learnpilot/data/questions.db --dry-run
-sudo systemctl start learnpilot && curl -fsS http://127.0.0.1:8000/healthz
+bash /opt/learnpilot/app/deploy/learnpilot-restore.sh \
+    --snapshot /var/backups/learnpilot/snapshot-<stamp> \
+    --operator "Your Full Name" \
+    --evidence-note "<what made the restore necessary, and why the database being replaced is still trusted>"
 ```
 
-Everything moved aside stays in `replaced-<stamp>/` until you delete it
+Do not carry out its steps by hand, and do not paste them into a shell one at a
+time. Typed that way, a step that fails does not stop the ones after it, and the
+service ends up started on a database that nobody held. The script stops at the
+first step that does not succeed, and the only command in it that starts the
+service is its last one. Do not pipe it into another command either (`| tee`
+would report `tee`'s exit status, not the script's); to keep a transcript, run
+it under `script`.
+
+**Do not put the snapshot in place yourself first**, not even "to save time".
+What the script needs most is the database that was live when the restore
+began, untouched, at the path the service uses: it is the only thing that knows
+what was closed and changed after the snapshot. A copy of the snapshot in its
+place says "nothing happened", and the script refuses it.
+
+`--operator` is your full name as one quoted argument. It is recorded with
+every lifecycle action in the audit log (section 26). `--evidence-note` says
+why the database that is being replaced can still be trusted about deadlines
+and closures, which it usually can: a restore is rarely needed because of them.
+If it cannot be trusted or read at all, see "Without the replaced database"
+below. If the server clock was wrong for a while before the restore, add
+`--suspect-from` and `--suspect-to` (UTC), as for a clock incident (section 26).
+
+### What the script does
+
+Each line is a gate: the script reads its exit status and stops on anything but
+success.
+
+1. **Pre-flight, with the service still running and nothing modified.** The
+   programs it needs are installed (`src.restore_preflight` does the rest of
+   this step); the snapshot is complete (its database
+   passes `PRAGMA quick_check`, its archive can be read to its end and holds
+   only files under `uploads/` and `vault/`); the state directory is writable,
+   has room for a second copy, and is one filesystem **all the way down**:
+   nothing is mounted on or anywhere inside `uploads` or `vault` (a volume at
+   `uploads/practical`, for one), and none of them, nor the database, is a
+   symbolic link; the service is set, once and plainly, to the three paths
+   that are about to be replaced (see "What the service's settings have to
+   look like" below); no backup is running. Anything wrong here ends the
+   script before it has stopped or changed anything.
+2. **Lock, pause backups, stop.** It makes the directory
+   `/var/lib/learnpilot/data/restore-in-progress`, stops the backup timer if it
+   was active, looks at the backup service once more, and stops the service.
+   While that directory exists the application refuses to start and no backup
+   is taken. That holds after a reboot too: it is checked by `web.wsgi` and by
+   the backup tool themselves, and by a `ConditionPathExists=` line in both
+   unit files. Whether a backup is running is read from the state systemd
+   reports for `learnpilot-backup.service`, not from `is-active`: a backup
+   that is running is `activating`, which `is-active` does not count as
+   active. Only `inactive` and `failed` let the restore go on; any state the
+   script does not know stops it. The second look is the one that counts: a
+   backup that started after the first is seen then, and with the lock held
+   none can start afterwards.
+3. **Make a copy** in `/var/lib/learnpilot/restore-staging-<stamp>/`: the
+   snapshot database, and the archive extracted next to it. Everything up to
+   step 8 happens to this copy. The live database, uploads and vault are only
+   read.
+4. **Migrate the copy** to the schema of the deployed build
+   (`src.manage_migrations --dry-run`, then `--apply`). A snapshot taken before
+   a migration does not have it; one from before 018 has no lifecycle columns
+   at all.
+5. **Hold every assignment** on the copy: `restore-hold --pre-restore-db` with
+   the live database, which also carries over the holds and the clock incident
+   the live database has. `restore-status --expect-held all` then counts the
+   holds itself: it is not enough that the hold step reported success.
+6. **Reconcile** from the live database: `reconcile --pre-restore-db
+   --snapshot-db`. This is the only step that releases a hold, and it first
+   checks that the live database really is the later state of the snapshot
+   (section 26, "Restore").
+7. **Confirm the clock.** Only now, when it is used, does the script ask for
+   the current UTC time. Read it from a device other than this server at that
+   moment and type it in; it cannot be given on the command line, because a
+   reading taken before the copying is stale by the time it is used.
+   `clock-recover` refuses a reading that the server's clock is more than 5 s
+   behind or 60 s ahead of, and the script then asks again, three times at
+   most. The clock comes after reconciliation on purpose: recovery holds every
+   test whose deadline, as reconciled, falls where the clocks disagree.
+8. **Check and count:** `verify`, and `restore-status`, which fails if any
+   assignment is still held for the restore (see "Assignments that stay held").
+   Then, because time has passed since the databases were looked at: the copy
+   has to be byte for byte the one that was verified, its files the ones that
+   were extracted, and the live database the one that was reconciled against.
+   If anything wrote to any of them in the meantime, nothing is replaced.
+9. **Replace the live state.** The live uploads and vault are moved to
+   `/var/lib/learnpilot/replaced-<stamp>/` and the copy's are moved into their
+   place. The database comes last and is replaced by a single rename; the one
+   that was live stays in `replaced-<stamp>/` under a second name. Until that
+   rename, the database at the live path is the one that was live.
+10. **Check what is now in place:** `verify` and `restore-status` again.
+11. **Unlock and start:** the lock is removed, the service started, `/healthz`
+    requested (if that fails the service is stopped again), and the backup
+    timer started if it had been active.
+
+### What the service's settings have to look like
+
+The script replaces three things: `/var/lib/learnpilot/data/questions.db`,
+`/var/lib/learnpilot/uploads/practical` and `/var/lib/learnpilot/vault`. It
+goes ahead only if the service uses exactly these, and it can tell only if the
+settings leave no doubt:
+
+- The service reads **one** environment file, and it is mandatory
+  (`EnvironmentFile=/etc/learnpilot/learnpilot.env`, without a leading `-`).
+  The script asks systemd which file that is; it is not given a name.
+- In that file `DZI_DB`, `DZI_UPLOAD_ROOT` and `DZI_VAULT` are each set
+  **exactly once**, as a plain `NAME=/path` line: no quotes, no `export`, no
+  spaces around `=`. That is how `learnpilot.env.example` writes them.
+- None of the three is set in the unit itself as well (`Environment=`, in the
+  unit file or in a drop-in).
+
+Anything else is refused before the service is stopped. The reason is that
+systemd uses the *last* definition of a name: with a second `DZI_DB` further
+down the file, the service runs on a database the restore never looked at. A
+line that is commented out does not count. The script names the setting and
+how often it is set; it never prints a value from that file.
+
+`uploads` and `vault` are each replaced as a whole, by renaming the directory.
+A filesystem mounted inside one of them would be set aside with it, and the
+restored files written to the disk of the state directory instead, without any
+error. A symbolic link would be replaced by a directory and what it points to
+left where it is. Both are refused in pre-flight; `data/reference` is not
+moved and may be a filesystem of its own. A state directory laid out like that
+cannot be restored by this script as it is.
+
+### How it ends
+
+The last lines the script prints say which of these happened. Only exit status
+0 means that the service is running.
+
+| Last message | Exit | Service | Lock | Live state |
+|---|---|---|---|---|
+| `RESTORE COMPLETE: no assignment is held for the restore.` | 0 | running | gone | Restored. |
+| `RESTORED, NOT RECOVERED: N assignment(s) stay held` | 0 | running | gone | Restored. `N` assignments are closed to everyone, as acknowledged with `--accept-held N`. |
+| `Nothing was touched, and the service was left as it was.` | not 0 | as before | none | Untouched: an argument, the snapshot or another pre-flight check. |
+| `Nothing was replaced` ... `THE SERVICE WAS NOT STARTED.` | not 0 | stopped | gone | Exactly as before the script ran. Its copy was removed. |
+| `INTERRUPTED WHILE REPLACING the live uploads and vault.` | not 0 | stopped | **stays** | The database is still the one that was live; uploads or vault are partly replaced. |
+| `INTERRUPTED WHILE REPLACING the live state. The copy was NOT put in place` | not 0 | stopped | **stays** | With `--replaced-database-unreadable` only: the old database was being set aside and could not be put back whole. It is at its path or in `replaced-<stamp>/`. |
+| `The database HAD BEEN REPLACED when the script was stopped` ... `The lock stays.` | not 0 | stopped | **stays** | Restored, and stopped before the final check. The database that was live is in `replaced-<stamp>/`, and only there. |
+| `WHETHER THE DATABASE WAS REPLACED COULD NOT BE ESTABLISHED` | not 0 | stopped | **stays** | Not known. Nothing was moved back. |
+| `The restored state is in place` ... `The lock stays.` | not 0 | stopped | **stays** | Restored; a final check failed. |
+| `The restore itself is complete and the lock is released; the service is not running.` | not 0 | stopped | gone | Restored and complete. The start or its health check failed, or the script was stopped during it. |
+| `The service is running on the restored state: the script was stopped after it had started it.` | not 0 | running | gone | Restored and complete. Check that the backup timer is active. |
+
+`RESTORE COMPLETE` says that no assignment is held **because of the restore**,
+and nothing more. Tests that were closed are closed, deadlines are what they
+were, and a test can still be held for a clock review (`hold-list`): it is not
+a promise that every test accepts answers.
+
+### If it stops
+
+The script never starts the service after a failure, and there is no option
+that makes it do so. **There is also no way to finish a run that stopped
+half-way**: nothing it left on disk proves that its checks were made, or that
+the live state is still the one they were made against. Every case below ends
+the same way: correct the cause and run the script again, from the beginning.
+It makes a new copy from the snapshot and passes every gate again, against the
+live state as it is then.
+
+- **Stopped from outside** (Ctrl-C, a closed terminal, `kill`): the same as
+  any other failure, with `STOPPED: interrupted (SIG...)`. What the script
+  then takes back is decided by what is on the disk, not by how far it
+  believes it got: a step can be cut off after it has renamed something and
+  before the script has noted it. The cases are the ones below.
+- **Nothing was replaced.** Read the line that begins with `STOPPED:` and the
+  output of the command above it. If the replacement had begun, the script has
+  already moved everything back. The lock is released and the backup timer runs
+  again; the service is stopped. (If you decide not to restore after all, the
+  state it would serve is the one from before the attempt.)
+- **The database had been replaced when the script was stopped.** The copy
+  that passed every gate is at the live path, with the snapshot's files.
+  Nothing is taken back, because the database that was live now exists only
+  in `replaced-<stamp>/`; its write-ahead log, if it had one, is there with
+  it and never beside the new database. The lock stays. Run the script again.
+- **Whether the database was replaced could not be established.** The copy
+  the script verified is, byte for byte, neither at the live path nor where
+  it was staged: something else wrote to one of them. Nothing was moved and
+  the lock stays. Do not remove the lock. Find out what wrote there, then run
+  the script again; if you cannot, take a copy of the whole state directory
+  with the service stopped before anything else is tried.
+- **Interrupted while replacing**, or the machine went down in the middle. The
+  lock stays, so nothing starts and nothing is backed up, also after a reboot.
+  Do not move anything by hand and do not remove the lock. Run the script
+  again. What the interrupted run had set aside stays in its
+  `replaced-<stamp>/`, and its unused copy stays in `restore-staging-<stamp>/`:
+  the script lists such directories every time it runs, never uses them and
+  never deletes them. Delete them yourself when the restore is done and you
+  are sure nothing in them is needed.
+- **The restored state is in place, the lock stays.** Run the script again. It
+  treats the state now in place as the one being replaced, which is correct:
+  that state passed every gate and was never served.
+- **The restore itself is complete, the service is not running.** The start
+  or its health check failed, and the script stopped the service again. Look
+  at `journalctl -u learnpilot -n 50`, correct what kept the service from
+  starting, and start it as on any other day (section 11).
+
+If the script says `another restore is running`, one is. If no restore is
+running and the lock is there, an earlier run did not finish: running the
+script again takes the lock over and says so.
+
+### Assignments that stay held
+
+`reconcile` restores, for every assignment, what the replaced database knew and
+the snapshot did not: a closure made after the snapshot, an extended or
+shortened deadline. Where it cannot do that with certainty (the two databases
+contradict each other about a closure, a hold cannot be read), it leaves the
+assignment **held**. A held assignment is served to nobody: students, the
+teacher and the admin get "временно недостъпна" (503) for it.
+
+The script does not treat that as a completed recovery. It stops before
+replacing anything, lists the held assignments with exit status 3, and prints
+`RECOVERY INCOMPLETE`. If restoring is still the right decision, run it again
+and acknowledge exactly that number:
+
+```bash
+bash /opt/learnpilot/app/deploy/learnpilot-restore.sh \
+    --snapshot /var/backups/learnpilot/snapshot-<stamp> \
+    --operator "Your Full Name" \
+    --evidence-note "<as before>" \
+    --accept-held 2
+```
+
+`--accept-held` releases nothing. It only states that you have seen the number;
+any other number is refused. The service then runs with those assignments
+closed, and the script ends with `RESTORED, NOT RECOVERED`. **Nothing reopens
+them afterwards**: see section 26, "Restore", before telling a teacher anything
+else.
+
+### Without the replaced database
+
+When the database being replaced cannot be read, or its lifecycle columns
+cannot be trusted (it is the reason for the restore), or the script has refused
+it as evidence, there is nothing to reconcile from:
+
+```bash
+bash /opt/learnpilot/app/deploy/learnpilot-restore.sh \
+    --snapshot /var/backups/learnpilot/snapshot-<stamp> \
+    --operator "Your Full Name" \
+    --replaced-database-unreadable --accept-held <number of assignments>
+```
+
+**Every assignment in the snapshot then stays held**, permanently as far as
+this release is concerned. That is deliberate. The snapshot does not know which
+assignments were closed or changed after it was taken, and serving it as it is
+would reopen closed tests. Run the script once without `--accept-held` to see
+the number.
+
+Two refusals are worth knowing before reaching for that option:
+
+- *"it shows no lifecycle activity after the snapshot"*: the lifecycle clock of
+  the live database stands exactly where the snapshot's stood. Only that clock
+  is asked: an added account, a sign-in or an edited title does not count. A
+  copy of the snapshot looks like this, and so does a database that really was
+  live but in which no test was started, submitted, created, edited or closed
+  since the snapshot. The two cannot be told apart, so it is refused and
+  holding everything is the result. No option makes the script accept such a
+  database (section 26, "Restore", says why, and what the limit of it is).
+- *"it is not at the schema of this build"*: the live database has a migration
+  pending (this release was installed and never migrated). Apply the pending
+  migrations to it first (section 9), then run the script.
+
+Everything set aside stays in `replaced-<stamp>/` until you delete it
 deliberately. A snapshot's files can be slightly newer than its database (see
 section 16); uploads without a database row are harmless leftovers.
 
@@ -633,10 +882,16 @@ curl -fsS -H 'Host: learnpilot.bg' http://127.0.0.1:8000/healthz   # Gunicorn di
 curl -fsS https://learnpilot.bg/healthz                            # through Nginx
 ```
 
-`GET /healthz` returns `200 ok` after opening the database read-only and
-reading its header (one cheap query), or `503 unavailable` without details.
-It renders no templates, sets no cookie, runs no content queries and is not
-cached. It never creates a missing database.
+`GET /healthz` returns `200 ok` after opening the database read-only, reading
+its header and reading the single lifecycle clock row (two cheap queries), or
+`503 unavailable` without details. It renders no templates, sets no cookie, runs
+no content queries and is not cached. It never creates a missing database.
+
+`503 degraded` means the database answers but the lifecycle clock is `suspect`
+(or its row is unusable): pages are served, and every lifecycle write (starting
+or submitting a test, uploading, creating, editing, duplicating or closing one)
+is refused with 503 until an operator confirms the clock. See section 26,
+"Clock incident".
 
 ## 20. Deploy / update procedure
 
@@ -751,7 +1006,9 @@ curl -fsS https://learnpilot.bg/healthz
 
 **12. Smoke-test** over HTTPS: the homepage, a subject page, a teacher account
 sign-in at `/login` and test creation; check `journalctl -u learnpilot --since "10 minutes ago" -p warning`.
-With one worker, a restart causes a few seconds of unavailability.
+With one worker, a restart causes a few seconds of unavailability. For the
+lifecycle (section 26): a closed test refuses a start and an edit, an open one
+accepts both.
 
 **13. Rollback** if a step fails: see section 21, using `$PREV` from step 2 and
 the step 3 snapshot.
@@ -763,11 +1020,21 @@ the step 3 snapshot.
   `/opt/learnpilot/venv`, restart, and verify `/healthz` with
   `-H 'Host: learnpilot.bg'`. Return to `main` afterwards (`git checkout main`)
   once the fix is ready.
-- Migrations are forward-only. Startup blocks only *pending* migrations; older
-  code usually runs on a newer, additively migrated schema. If a release's
-  migration is not backward compatible, restore the pre-deploy snapshot
-  (section 17), which discards database writes, uploads and vault changes made
-  after it; decide that explicitly.
+- Migrations are forward-only. Startup blocks *pending* migrations and, from the
+  lifecycle release on, also a database that has applied migrations the build
+  does not ship: an older build refuses a newer schema instead of running on
+  it. If a release's migration is not backward compatible, restore the
+  pre-deploy snapshot (section 17), which discards database writes, uploads and
+  vault changes made after it; decide that explicitly.
+- **Never roll back to a release from before the assignment lifecycle (migration
+  018).** Such code starts on the migrated schema without errors and ignores
+  every deadline and closure: students could start and submit closed tests and
+  teachers could edit them. That is a reopening, which the lifecycle forbids.
+  When a lifecycle-era release is bad: stop the service (or answer a
+  maintenance page), prefer a forward fix, and if a rollback is unavoidable use
+  a build that still enforces the lifecycle and ships every applied migration.
+  Remove pre-lifecycle release artefacts from the server's rollback options when
+  018 is deployed. Section 26, "Rollback".
 - If no migration was applied, a code rollback needs no data restore.
 - Rolling back to code from before the account-auth cutover (the release of
   Accounts PR9) brings the removed shared-password logins back. Read section
@@ -1257,6 +1524,354 @@ not configured.
 Rollback: redeploying the previous release removes the QR code and the route;
 student links and tokens are unaffected, and already printed codes keep working
 because they contain only the token link.
+
+## 26. Assignment lifecycle (migration 018)
+
+Tests have an optional deadline, can be closed manually, and are never
+reopened. Design and guarantees: `docs/ASSIGNMENT_LIFECYCLE_DESIGN.md`
+(this release is its PR #326). Nothing here deletes anything: retention cleanup
+and durable learning history are later, separate releases.
+
+- **Deadline.** Optional. The form offers 23:59 local time, 14 calendar days
+  ahead, in an IANA timezone stored per test (preselected `Europe/Sofia`, or the
+  teacher's most recent choice). "Through 23:59" means the whole minute is
+  usable: the stored cutoff is the next local midnight, in UTC. At most 180 days
+  ahead, counted from the day the deadline is set or edited. Every create,
+  duplicate and edit request must state "with deadline" or "no deadline";
+  nothing is defaulted on the server.
+- **Closure.** By the deadline, or by `POST /teacher/assignment/<id>/close`
+  (owner or admin). Both are final: no new attempt, and title, time limit and
+  deadline are frozen. A correction is a copy (a new test with a new link and
+  its own deadline choice).
+- **Grace.** A student who started before the closure can still submit for 15
+  minutes after it. A submission at exactly closure + 15 minutes is refused.
+- **Existing tests** keep NULL in every lifecycle column: open, no deadline,
+  no zone (shown in `Europe/Sofia` until the teacher picks one on first edit).
+  Nothing is backfilled.
+- **No job.** Expiry is computed on every request from the stored deadline; no
+  timer, cron job or service is installed by this release.
+
+### Deployment order
+
+The standard procedure of section 20, with these points:
+
+1. Migration `018_assignment_lifecycle.sql` is additive (eight nullable columns
+   on `quiz_assignments`, and the single-row `lifecycle_clock` table). It is not
+   a table rebuild. Apply it with the service stopped: from this release on, the
+   application refuses to start on a schema without it, and older code must not
+   serve a schema with it.
+2. Before starting, confirm the host's clock evidence and verify:
+
+   ```bash
+   cd /opt/learnpilot/app
+   LIFECYCLE=(sudo -u learnpilot /opt/learnpilot/venv/bin/python -m src.manage_lifecycle
+              --db /var/lib/learnpilot/data/questions.db)
+   "${LIFECYCLE[@]}" clock-status     # expect: boot id available, boot-time clock available, clock synchronised: yes
+   "${LIFECYCLE[@]}" verify           # expect: OK
+   timedatectl show -p NTPSynchronized --value   # expect: yes
+   python3 -c 'import zoneinfo; print(zoneinfo.ZoneInfo("Europe/Sofia"))'   # the tzdata package is installed
+   ```
+
+   `clock-status` must report all three pieces of host evidence. If "clock
+   synchronised" is `no` or `unreadable`, fix time synchronisation
+   (`systemd-timesyncd` or `chrony`) before starting: without it the first
+   lifecycle write after every reboot is refused, and after ten minutes of
+   uptime the clock is marked `suspect`.
+3. Start, check `/healthz` (`ok`), then smoke-test: create a test with the
+   offered deadline, close it, confirm that the student link shows "затворен"
+   and that an edit is refused.
+4. Tell teachers: existing tests have no deadline; new ones are offered 23:59
+   local time 14 days ahead.
+
+No new environment variable, secret, service or timer is needed. Install the
+two unit files again (`learnpilot.service` as in section 11,
+`learnpilot-backup.service` as in section 16, then `sudo systemctl
+daemon-reload`): each has a new `ConditionPathExists=` line that keeps it from
+starting during a restore.
+
+### What production start-up refuses
+
+In addition to the checks of section 9, `web.wsgi` refuses to start when
+
+- a restore of the database is in progress or was left unfinished: the lock
+  `restore-in-progress` is next to it (section 17). Only the restore script
+  removes it;
+- the database has an applied migration the build does not ship (an older build
+  on a newer schema);
+- the `lifecycle_clock` row is missing, duplicated or malformed. It is repaired
+  only by `clock-recover`, never by re-running the migration or a seed;
+- the IANA timezone database is not available.
+
+A `suspect` clock does **not** stop start-up: pages are served, lifecycle
+writes are refused and `/healthz` answers `503 degraded`.
+
+### Clock evidence
+
+Deadlines and the grace window are decided by the server's UTC clock. Every
+lifecycle write checks it against the shared `lifecycle_clock` row: it may not
+run behind the highest time already used (more than 5 s), and within one boot it
+may not differ from the boot anchor plus elapsed boot time by more than 60 s, in
+either direction, cumulatively. After a reboot the operating system's
+"synchronised" report (`adjtimex`, what `timedatectl` shows) is required before
+the first lifecycle write. These checks detect faults; they do not prove that
+the clock is right. The development server (`web.app` imported directly) does
+not require the synchronisation report; `web.wsgi` always does.
+
+### Clock incident
+
+Symptoms: `/healthz` answers `503 degraded`; teachers and students get "временно
+недостъпна" (503) when starting, submitting, uploading, creating, editing,
+duplicating or closing; `journalctl -u learnpilot -p err` shows `lifecycle:
+clock fault detected`. The state is sticky: a clock that looks right again
+changes nothing. Only this procedure clears it, and nothing in it closes a test
+or ends its submissions.
+
+```bash
+cd /opt/learnpilot/app
+LIFECYCLE=(sudo -u learnpilot /opt/learnpilot/venv/bin/python -m src.manage_lifecycle
+           --db /var/lib/learnpilot/data/questions.db)
+AUDIT=(--operator "Your Full Name" --audit-log /var/lib/learnpilot/lifecycle-operator.log)
+
+"${LIFECYCLE[@]}" clock-status                           # the fault and the old high-water mark
+# 1. Correct the clock and verify it against a source outside this server.
+# 2. See what would be held, and whether the clocks agree; nothing is written.
+"${LIFECYCLE[@]}" clock-inspect --verified-utc "2026-10-08 12:05:00" \
+    --suspect-from "2026-10-08 11:40:00" --suspect-to "2026-10-08 12:04:00"   # the interval is optional
+# 3. Hold what is uncertain and confirm the clock, in one transaction.
+"${LIFECYCLE[@]}" clock-recover --verified-utc "2026-10-08 12:05:00" \
+    --suspect-from "2026-10-08 11:40:00" --suspect-to "2026-10-08 12:04:00" "${AUDIT[@]}"
+"${LIFECYCLE[@]}" hold-list
+```
+
+`LIFECYCLE` and `AUDIT` are Bash arrays and are always expanded as
+`"${LIFECYCLE[@]}"` and `"${AUDIT[@]}"`. Written as plain strings and expanded
+unquoted, an operator name of two words would be split into two arguments. The
+later examples in this section use the same two arrays.
+
+`--verified-utc` is the current UTC time read from an independent device. It,
+and not the server's clock, decides everything in the recovery: what is held,
+the retention floors, and the new high-water mark, below which lifecycle time
+can never fall again. The server's clock only has to agree with it: it may be
+at most 5 s behind the verified time and at most 60 s ahead of it. Otherwise
+`clock-recover` is refused, nothing is written and the state stays `suspect`:
+correct the clock and run it again with a fresh reading. (`clock-inspect`
+reports the same refusal in advance.)
+
+`clock-recover` holds, with the reason `clock_review`, every test that has a
+start, submission or closure time later than the verified time or inside the
+declared suspect interval, and every test whose deadline or grace end falls
+after the verified time and at or before either the old high-water mark or the
+server's current reading, without having been recorded: those are the tests
+whose state the two clocks disagree about. A held test is not served at all
+(503) until its hold is resolved. Tests that are only "open with a deadline in
+the future" are not held. A deadline that the verified time has already passed
+is simply closed from then on; the next request records it.
+
+Resolve a `clock_review` hold only after checking that test's times against the
+verified clock:
+
+```bash
+"${LIFECYCLE[@]}" hold-resolve --assignment <id> --reason clock_review \
+    --evidence "<what was checked>" "${AUDIT[@]}"
+```
+
+It is refused while any time of that test is still later than the clock. A
+closure that was really recorded during the incident stays: closures are final,
+and the teacher's remedy is a copy.
+
+**A hold the tool cannot read.** `hold-list`, `restore-status` and `verify` flag
+a stored hold that is not the known reasons, each once, in their fixed order: an
+unknown word, a repeated reason (`clock_review,clock_review`), a stray comma
+(`clock_review,`), a space, a value that is not text. Such a test stays held,
+and no command resolves anything from it: `hold-resolve` refuses it and
+`reconcile` skips it, because removing one readable reason could release the
+test while discarding whatever the rest was meant to say. A restore does not
+tidy such a value either. When the database being replaced carries one,
+`restore-hold` copies it into the restored test as the exact text it is, with
+nothing dropped, reordered or deduplicated, so the restored test is exactly as
+unresolvable as the one it replaces. The tool has no repair command. Find out
+how the value came to be stored, decide what the hold should be, and correct
+the stored value deliberately, with the service stopped and the decision
+written down next to the audit log.
+
+### Restore
+
+A restore puts back an older copy of the database. Whatever happened to a test
+after that copy was taken is missing from it, in both directions: a closure is
+gone, which would reopen the test, and so is a deadline extension, which would
+close it early. The application cannot tell that its database was replaced. So
+the rule is: **after a restore no test is served until its state has been
+established from the database that was replaced.** `deploy/learnpilot-restore.sh`
+(section 17) runs the commands below in this order and stops at the first that
+does not succeed. From its first change to its last it keeps a lock next to the
+database, and the application does not start while the lock is there.
+
+- `restore-hold` adds the reason `restore_pending` to **every** test (kept
+  alongside any reason it already has), marks the clock `suspect`, and, given
+  the database being replaced, carries over the holds and the clock incident
+  that database has. A hold is carried only onto the same test, never onto
+  another one that happens to have the same number. Run it again safely at any
+  time.
+- `restore-status --expect-held all` counts the holds and fails unless every
+  test carries one. It writes nothing.
+- `reconcile --pre-restore-db --snapshot-db` takes the database being replaced
+  as the latest state, in both directions: a lost deadline extension is
+  restored as much as a lost closure. It never clears or changes a closure
+  marker, never moves the deadline of a test that is already closed, never
+  lowers a retention floor, and resolves only `restore_pending`. A test whose
+  evidence contradicts the restored row is left untouched and held with
+  `restore_unreconciled`. **It is the only command that releases a test after
+  a restore.** It also hands on the replaced database's clock: how far it had
+  run, and an incident that was open.
+- `clock-recover`: as above, and after `reconcile`, never before it. Recovery
+  holds every test whose deadline lies where the clocks disagree, and it can
+  only do that for the deadlines it sees. A deadline that reconciliation
+  brought in afterwards would come back open. `reconcile` therefore refuses to
+  run on a clock that has already been confirmed.
+- `restore-status --expect-held N` succeeds only when exactly `N` tests are
+  still held for the restore (default 0). `N` above zero is an acknowledgement
+  and releases nothing.
+
+**What the replaced database has to be.** Before it releases anything,
+`reconcile` checks the database it is given, as a whole, and refuses it
+(exit 2, nothing written) unless
+
+- it is at the schema of this build, as the database this build was serving is;
+- it holds every test and every attempt of the restored copy **as the same
+  row**: the same section, creation time, plan, owner and public link, the same
+  student and start time. The same number is not enough. Another database, or
+  another school's, is refused;
+- its lifecycle went on **after** the snapshot: its lifecycle clock stands
+  later than the snapshot's (for a snapshot from before migration 018: later
+  than where a clock stands that has never been used). Every lifecycle write
+  raises that clock: a test started or submitted, created, edited or closed.
+  A clock that stands earlier is an older database; one that stands exactly
+  where the snapshot's stood shows nothing that came later. Both are refused.
+
+Nothing else is asked about what came later. A difference in any other table
+is not lifecycle history: a copy of the snapshot with a new account in it, a
+sign-in or an edited title passes every other check, says nothing about
+deadlines and closures, and is refused like the plain copy it is.
+
+*The limit of this.* A database that really was live, but in which no
+lifecycle write was made after the snapshot, cannot be told from a copy of the
+snapshot and is refused like one. That happens after a quiet night (a backup
+at 03:00, a restore before the first lesson), with a release that was
+installed and never used, and when the only lifecycle writes fell in the very
+second the snapshot was taken. The restore can then be made only with
+`--replaced-database-unreadable`, and every test stays held. It is refused
+rather than assumed because the opposite mistake reopens closed tests.
+
+These checks establish what the file is. They cannot establish where it came
+from, and nothing a file contains could. That is settled by the procedure: the
+restore script reads the database at the path the service is configured to
+use, in place, with the service stopped by the script itself, and never takes
+that path from the operator. Run `reconcile` by hand only if you can say the
+same of the file you give it.
+
+**What is not evidence.** The application writes a line to its log for every
+create, edit and close (`lifecycle event=...`). Those lines are for diagnosis.
+They do not establish a test's state, and no command reads them:
+
+- A log cannot show that it is complete. A missing closure line looks exactly
+  like a test that was never closed, and a test that the log does not mention
+  is not thereby unchanged.
+- Its lines are text. Nothing distinguishes a line the application wrote from
+  one typed later, and a SHA-256 of a file says only that the file was not
+  changed after the digest was taken.
+- It does not give the order of two changes made in the same second, and lines
+  can arrive out of order. An obsolete deadline would be taken for the current
+  one.
+
+The same holds for what a person remembers or states. `reconcile-partial` and
+`reconcile-record` are names that exist only to say this: whatever they are
+given, they exit with status 4, explain why, and read and write nothing.
+
+**Tests that stay held.** A test that `reconcile` could not establish stays
+held: it answers 503 to everyone, including its teacher. That is the design
+working, not a fault to be worked around.
+
+- Without a readable database to reconcile from, **every** test of the snapshot
+  stays held (section 17, "Without the replaced database").
+- This release has no way to release such a test. The record that could do it,
+  a durable lifecycle event log written outside the database, is deferred (it
+  is decision I5 of the design and is **not** implemented). Until it exists the
+  hold stays.
+- **Never clear a hold by hand to bring a test back.** An `UPDATE` that sets
+  `lifecycle_hold` to NULL reopens whatever the restore reopened: a test that
+  had been closed takes new attempts, and nothing records that it happened.
+  There is no emergency override, and none is to be improvised.
+- The teacher's remedy is a new test, made on the normal creation form. It gets
+  a new link and its own deadline. (A held test cannot be copied: copying reads
+  its lifecycle state.)
+- Say so plainly to the people affected: the test and its results are
+  unavailable (the data as of the snapshot is kept, but a held test shows
+  nothing, to its teacher either), and a new test is needed.
+
+Assignments, attempts and submissions made after the snapshot are not in the
+restored database; that is inherent in a restore.
+
+### Exit status of `manage_lifecycle`
+
+Only 0 means that a command did everything it is for. A command that prints
+its result and exits with another status has **not** established that a test
+is safe to serve.
+
+| Status | Meaning |
+|---|---|
+| 0 | Done. For a check (`verify`, `hold-list`, `restore-status`): nothing to report. |
+| 1 | Refused by a lifecycle rule, or a check has findings. Nothing was written. |
+| 2 | An operator, input or database problem. Nothing was written. |
+| 3 | Done and committed, but recovery is incomplete: tests remain held (`reconcile`, `restore-status`). |
+| 4 | A recovery operation this build does not provide. Nothing was read or written. |
+
+### Verification before traffic is reopened
+
+After any deploy, rollback or clock incident: `"${LIFECYCLE[@]}" verify` (exit
+0). After a restore the script runs it, twice. It checks that every stored
+lifecycle time parses, that no start, submission or closure time is later than
+the clock (`--hold-exceptions` holds those tests), that holds are readable,
+that the clock row is well-formed and `ok`, and that the timezone database
+works. A deadline in the future is expected; only one further ahead than the
+180-day maximum allows is reported, as a data anomaly. Also verify the clock by
+hand against an independent source.
+
+`verify` passes on a database with held tests: a hold is a safe state. It
+cannot tell that a database was restored without `restore-hold`, which is why a
+restore goes through the script and is never finished by `verify` followed by
+a start. For the same reason an interrupted restore is never "completed": it
+is run again.
+
+### Operator audit log
+
+Every `manage_lifecycle` command that writes needs `--operator` and
+`--audit-log`. Give the operator's name as one quoted argument (the `AUDIT`
+array above does, and so does the restore script). Each action is appended to
+that file as one JSON line: who, when, the database it was run on, what was
+held or resolved, and the evidence relied on. During a restore the database
+named there is the copy under `restore-staging-<stamp>/`. Keep the file under
+`/var/lib/learnpilot/` so it is outside the checkout; it is not part of the
+snapshot archive, so copy it with your backups.
+
+### Rollback
+
+- Forward fix first. A rollback target must still enforce the lifecycle and
+  ship migration 018; never a build from before it (section 21).
+- The schema is not reverted: the columns, their values and `lifecycle_clock`
+  stay. Closure markers are never cleared, by a migration or by hand.
+- If code from before the lifecycle served traffic after activation anyway,
+  that is an incident: stop the service, restore enforcing code, and before
+  reopening traffic run
+
+  ```bash
+  "${LIFECYCLE[@]}" exposure-audit --from "<start UTC>" --to "<end UTC>" \
+      --snapshot-db "/var/backups/learnpilot/snapshot-<stamp>/questions.db"   # the snapshot is optional
+  ```
+
+  It lists attempts started after a closure, submissions and uploads after the
+  cutoff and, against the snapshot, edits to closed tests and overwritten
+  submissions. Nothing is changed automatically; what to do with that work is
+  decided by the teacher and the operator.
 
 ## 2 GB VPS sizing
 

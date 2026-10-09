@@ -39,7 +39,13 @@
           <tr>
             <td><strong>{{ attempt.assignment_title }}</strong></td>
             <td>{{ attempt.section_title }}</td>
-            {% if attempt.submitted_at %}
+            {% if attempt.is_held %}
+              <td><span class="pill">временно недостъпен</span></td>
+              <td>—</td>
+              <td>{{ attempt.started_at }}</td>
+              <td>—</td>
+              <td>—</td>
+            {% elif attempt.submitted_at %}
               <td><span class="pill">предаден</span></td>
               <td>{{ attempt.score_correct }}/{{ attempt.score_total }}</td>
               <td>{{ attempt.started_at }}</td>

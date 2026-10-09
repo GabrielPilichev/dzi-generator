@@ -5,6 +5,7 @@ from unittest.mock import patch
 
 from tests.auth_helpers import create_account, set_account_session
 from tests.support import IsolatedAppTestCase, web_app
+from tests.support import NO_DEADLINE_FORM
 from web.access import ANONYMOUS, Principal, account_principal
 from web.blueprints import teacher
 from web.services import quiz
@@ -70,7 +71,7 @@ class AssignmentOwnershipTest(IsolatedAppTestCase):
                 "owner_user_id": self.other["id"], "owner_id": self.other["id"]}
         if mixed:
             data.update(open_count=1, source_slug=self.source_slug)
-        response = client.post("/teacher/new?owner_user_id=999999", data=data,
+        response = client.post("/teacher/new?owner_user_id=999999", data={**NO_DEADLINE_FORM, **data},
                                headers={"Origin": "http://localhost"})
         self.assertEqual(response.status_code, 302)
         return int(response.headers["Location"].rsplit("/", 1)[1])
@@ -98,7 +99,7 @@ class AssignmentOwnershipTest(IsolatedAppTestCase):
                     if mixed:
                         data.update(open_count=1, source_slug=self.source_slug)
                     response = self.client(historical=historical).post(
-                        "/teacher/new", data=data, headers={"Origin": "http://localhost"})
+                        "/teacher/new", data={**NO_DEADLINE_FORM, **data}, headers={"Origin": "http://localhost"})
                     self.assertEqual(response.status_code, 302)
                     self.assertEqual(response.headers["Location"], "/login?next=/teacher/new")
         self.assertEqual(self.assignment_count(), before)
@@ -114,7 +115,7 @@ class AssignmentOwnershipTest(IsolatedAppTestCase):
         for account in (self.admin, self.owner):
             client = self.client(account)
             response = client.post(f"/teacher/assignment/{source_id}/duplicate",
-                                   data={"owner_user_id": self.other["id"]},
+                                   data={**NO_DEADLINE_FORM, "owner_user_id": self.other["id"]},
                                    headers={"Origin": "http://localhost"})
             self.assertEqual(response.status_code, 302)
             new_id = int(response.headers["Location"].rsplit("/", 1)[1])
@@ -124,7 +125,7 @@ class AssignmentOwnershipTest(IsolatedAppTestCase):
         # A historical shared-login key duplicates nothing.
         before = self.assignment_count()
         response = self.client(historical="admin").post(
-            f"/teacher/assignment/{source_id}/duplicate", headers={"Origin": "http://localhost"})
+            f"/teacher/assignment/{source_id}/duplicate", headers={"Origin": "http://localhost"}, data=NO_DEADLINE_FORM)
         self.assertEqual(response.status_code, 302)
         self.assertTrue(response.headers["Location"].startswith("/login?next="))
         self.assertEqual(self.assignment_count(), before)
@@ -178,7 +179,7 @@ class AssignmentOwnershipTest(IsolatedAppTestCase):
         for client, status in ((self.client(), 302), (self.client(historical="admin"), 302),
                                (self.client(self.student, "admin"), 403)):
             self.assertEqual(client.get(f"/teacher/assignment/{assignment_id}").status_code, status)
-            response = client.post("/teacher/new", data={"section_id": self.section_id},
+            response = client.post("/teacher/new", data={**NO_DEADLINE_FORM, "section_id": self.section_id},
                                    headers={"Origin": "http://localhost"})
             self.assertEqual(response.status_code, status)
         self.assertEqual(self.assignment_count(), before)

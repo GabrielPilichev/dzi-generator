@@ -17,6 +17,7 @@ from unittest.mock import patch
 from tests import runtime_fixtures
 from tests.auth_helpers import create_account, set_account_session
 from tests.support import ROOT, IsolatedAppTestCase, web_app
+from tests.support import NO_DEADLINE_FORM
 from web import assignment_tokens
 from web.access import account_principal
 from web.services import quiz
@@ -187,7 +188,7 @@ class TokenCreationTest(PublicTokenAppTestCase):
         before = dict(self.row(assignment_id))
         response = self.client(self.teacher).post(
             f"/teacher/assignment/{assignment_id}/edit",
-            data={"title_bg": "Ново заглавие", "time_limit_minutes": "25", "public_token": UNKNOWN_TOKEN,
+            data={**NO_DEADLINE_FORM, "title_bg": "Ново заглавие", "time_limit_minutes": "25", "public_token": UNKNOWN_TOKEN,
                   "owner_user_id": "1"},
             headers=SAME_ORIGIN)
         self.assertEqual(response.status_code, 302)
@@ -202,7 +203,7 @@ class TokenCreationTest(PublicTokenAppTestCase):
         source_before = tuple(self.row(source_id))
         source_token = self.token(source_id)
         admin = self.account("admin", display_name="Админ")
-        response = self.client(admin).post(f"/teacher/assignment/{source_id}/duplicate", headers=SAME_ORIGIN)
+        response = self.client(admin).post(f"/teacher/assignment/{source_id}/duplicate", headers=SAME_ORIGIN, data=NO_DEADLINE_FORM)
         self.assertEqual(response.status_code, 302)
         copy_id = int(response.headers["Location"].rsplit("/", 1)[1])
         self.assertNotEqual(copy_id, source_id)
@@ -216,7 +217,7 @@ class TokenCreationTest(PublicTokenAppTestCase):
     def test_duplicate_of_a_legacy_assignment_gets_a_token_and_the_source_stays_null(self):
         source_id = self.legacy(owner=self.teacher)
         response = self.client(self.teacher).post(
-            f"/teacher/assignment/{source_id}/duplicate", headers=SAME_ORIGIN)
+            f"/teacher/assignment/{source_id}/duplicate", headers=SAME_ORIGIN, data=NO_DEADLINE_FORM)
         copy_id = int(response.headers["Location"].rsplit("/", 1)[1])
         self.assertRegex(self.token(copy_id), f"^{TOKEN_SHAPE}$")
         self.assertIsNone(self.token(source_id))
@@ -505,7 +506,7 @@ class StudentLinkTest(PublicTokenAppTestCase):
     def test_edit_error_rendering_keeps_the_token_link(self):
         client = self.client(self.teacher)
         response = client.post(f"/teacher/assignment/{self.assignment_id}/edit",
-                               data={"title_bg": "", "time_limit_minutes": ""}, headers=SAME_ORIGIN)
+                               data={**NO_DEADLINE_FORM, "title_bg": "", "time_limit_minutes": ""}, headers=SAME_ORIGIN)
         self.assertEqual(response.status_code, 400)
         html = response.get_data(as_text=True)
         self.assertIn("Заглавието е задължително.", html)
@@ -513,7 +514,7 @@ class StudentLinkTest(PublicTokenAppTestCase):
         self.assert_no_numeric_student_link(html, self.assignment_id)
 
         legacy = client.post(f"/teacher/assignment/{self.legacy_id}/edit",
-                             data={"title_bg": "", "time_limit_minutes": ""}, headers=SAME_ORIGIN)
+                             data={**NO_DEADLINE_FORM, "title_bg": "", "time_limit_minutes": ""}, headers=SAME_ORIGIN)
         self.assertEqual(legacy.status_code, 400)
         self.assertIn(NO_LINK_WARNING, legacy.get_data(as_text=True))
         self.assert_no_numeric_student_link(legacy.get_data(as_text=True), self.legacy_id)

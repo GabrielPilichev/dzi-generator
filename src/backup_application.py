@@ -4,6 +4,13 @@ One contract: ``snapshot-<UTC stamp>/`` (``questions.db`` + ``files.tar.gz``)
 exists only if every part succeeded. Any failure -- including too little free
 space, checked before any work starts -- exits non-zero, publishes nothing and
 removes all staging files.
+
+No snapshot is taken while a restore of the database is in progress or was left
+unfinished (``deploy/learnpilot-restore.sh`` leaves a lock next to it): the live
+state may then be a snapshot's files next to a database they do not belong to,
+and it would be published as one complete, consistent snapshot. The lock is
+looked for before anything is read and again before the snapshot is published,
+so a restore that begins in between publishes nothing either.
 """
 
 from __future__ import annotations
@@ -19,6 +26,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from src.backup_sqlite import BackupError, _inside_checkout, backup_database
+from web.services.lifecycle import restore_lock_path, restore_lock_present
 
 
 # Space needed in the backup filesystem = (database + archived files + tar
@@ -87,6 +95,13 @@ def backup_application(db: Path, uploads: Path, vault: Path, output_dir: Path,
     )
     if any(_inside_checkout(path) for path in (db, uploads, vault, output_dir)):
         raise BackupError("application state and backups must be outside the checkout")
+    # Before anything else is looked at: during a restore a directory may be missing.
+    if restore_lock_present(db):
+        raise BackupError(
+            "a restore of this database is in progress or was left unfinished "
+            f"({restore_lock_path(db)} exists); no snapshot is taken of a partly replaced state. "
+            "Finish the restore first (docs/DEPLOYMENT.md, section 17)"
+        )
     if not all(path.is_dir() for path in (uploads, vault, output_dir)):
         raise BackupError("upload, vault and backup directories must exist")
     _reject_unsafe_layout(db, uploads, vault, output_dir)
@@ -126,6 +141,14 @@ def backup_application(db: Path, uploads: Path, vault: Path, output_dir: Path,
         os.chmod(archive, 0o600)
         with archive.open("rb") as handle:
             os.fsync(handle.fileno())
+        # A restore that began after the check above, while this was being read:
+        # what was read may be half of one state and half of another.
+        if restore_lock_present(db):
+            raise BackupError(
+                "a restore of this database began while the snapshot was being made "
+                f"({restore_lock_path(db)} exists); nothing was published. Run the backup again "
+                "when the restore has finished (docs/DEPLOYMENT.md, section 17)"
+            )
         # A completed snapshot becomes visible in one rename. No live DB tar.
         staging.rename(destination)
         directory_fd = os.open(output_dir, os.O_RDONLY)

@@ -4,6 +4,7 @@ import unittest
 
 from tests.auth_helpers import sign_in_admin, sign_in_teacher
 from tests.support import IsolatedAppTestCase, web_app
+from tests.support import NO_DEADLINE_FORM
 from web.blueprints import teacher as teacher_module
 
 
@@ -166,7 +167,7 @@ class AssignmentDuplicateTest(IsolatedAppTestCase):
         source_id = self._create_assignment(title="MC Source")
         new_id = None
         try:
-            response = self.client.post(f"/teacher/assignment/{source_id}/duplicate")
+            response = self.client.post(f"/teacher/assignment/{source_id}/duplicate", data=NO_DEADLINE_FORM)
             new_id = self._new_id_from_redirect(response)
             self.assertNotEqual(new_id, source_id)
 
@@ -188,7 +189,7 @@ class AssignmentDuplicateTest(IsolatedAppTestCase):
         source_id = self._create_assignment(title=source_title)
         new_id = None
         try:
-            response = self.client.post(f"/teacher/assignment/{source_id}/duplicate")
+            response = self.client.post(f"/teacher/assignment/{source_id}/duplicate", data=NO_DEADLINE_FORM)
             new_id = self._new_id_from_redirect(response)
 
             copy = self._fetch_assignment(new_id)
@@ -205,7 +206,7 @@ class AssignmentDuplicateTest(IsolatedAppTestCase):
         source_id = self._create_assignment(question_plan_json=plan, title="Mixed Source")
         new_id = None
         try:
-            response = self.client.post(f"/teacher/assignment/{source_id}/duplicate")
+            response = self.client.post(f"/teacher/assignment/{source_id}/duplicate", data=NO_DEADLINE_FORM)
             new_id = self._new_id_from_redirect(response)
 
             copy = self._fetch_assignment(new_id)
@@ -227,7 +228,7 @@ class AssignmentDuplicateTest(IsolatedAppTestCase):
         self._seed_attempt(source_id, student_name="Seed Student B")
         new_id = None
         try:
-            response = self.client.post(f"/teacher/assignment/{source_id}/duplicate")
+            response = self.client.post(f"/teacher/assignment/{source_id}/duplicate", data=NO_DEADLINE_FORM)
             new_id = self._new_id_from_redirect(response)
 
             self.assertEqual(len(self._attempts_for(source_id)), 2)
@@ -242,7 +243,7 @@ class AssignmentDuplicateTest(IsolatedAppTestCase):
         source_id = self._create_assignment(question_plan_json="{broken-json")
         try:
             before = self._assignment_count()
-            response = self.client.post(f"/teacher/assignment/{source_id}/duplicate")
+            response = self.client.post(f"/teacher/assignment/{source_id}/duplicate", data=NO_DEADLINE_FORM)
             self.assertEqual(response.status_code, 400)
             self.assertEqual(self._assignment_count(), before)
         finally:
@@ -250,7 +251,7 @@ class AssignmentDuplicateTest(IsolatedAppTestCase):
 
     def test_duplicate_missing_source_returns_404(self):
         self._login_admin()
-        response = self.client.post("/teacher/assignment/99999999/duplicate")
+        response = self.client.post("/teacher/assignment/99999999/duplicate", data=NO_DEADLINE_FORM)
         self.assertEqual(response.status_code, 404)
 
     # --- auth -----------------------------------------------------------
@@ -258,7 +259,7 @@ class AssignmentDuplicateTest(IsolatedAppTestCase):
     def test_duplicate_requires_admin_unauthenticated_redirects(self):
         source_id = self._create_assignment(title="Auth Guard MC")
         try:
-            response = self.client.post(f"/teacher/assignment/{source_id}/duplicate")
+            response = self.client.post(f"/teacher/assignment/{source_id}/duplicate", data=NO_DEADLINE_FORM)
             self.assertEqual(response.status_code, 302)
             self.assertTrue(response.headers.get("Location", "").startswith("/login?"))
             attempts_after = self._fetch_assignment(source_id)
@@ -280,7 +281,7 @@ class AssignmentDuplicateTest(IsolatedAppTestCase):
         self._login_tester()
         source_id = self._create_assignment(title="Tester Blocked Source")
         try:
-            response = self.client.post(f"/teacher/assignment/{source_id}/duplicate")
+            response = self.client.post(f"/teacher/assignment/{source_id}/duplicate", data=NO_DEADLINE_FORM)
             self.assertEqual(response.status_code, 404)
             conn = web_app.quiz_db()
             try:
@@ -304,7 +305,7 @@ class AssignmentDuplicateTest(IsolatedAppTestCase):
         )
         new_id = None
         try:
-            response = self.client.post(f"/teacher/assignment/{source_id}/duplicate")
+            response = self.client.post(f"/teacher/assignment/{source_id}/duplicate", data=NO_DEADLINE_FORM)
             new_id = self._new_id_from_redirect(response)
 
             detail = self.client.get(f"/teacher/assignment/{new_id}")
@@ -328,7 +329,10 @@ class AssignmentDuplicateTest(IsolatedAppTestCase):
             response = self.client.get("/teacher/assignments")
             self.assertEqual(response.status_code, 200)
             body = response.data.decode("utf-8")
-            self.assertIn(f"/teacher/assignment/{source_id}/duplicate", body)
+            # A copy needs its own deadline choice, so the list links to the form on
+            # the assignment page instead of posting a copy in one click.
+            self.assertIn(f'href="/teacher/assignment/{source_id}#duplicate"', body)
+            self.assertNotIn(f"/teacher/assignment/{source_id}/duplicate", body)
             self.assertIn(">Дублирай<", body)
         finally:
             self._delete_assignment(source_id)

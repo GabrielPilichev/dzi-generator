@@ -46,6 +46,7 @@ EXPECTED_URL_MAP = (
     ('/subjects/<subject_slug>/<int:grade>/<topic_group_slug>/<topic_slug>', ('GET',), 'public', None),
     ('/teacher', ('GET',), 'admin', None),
     ('/teacher/assignment/<int:assignment_id>', ('GET',), 'teacher', None),
+    ('/teacher/assignment/<int:assignment_id>/close', ('POST',), 'assignment_owner', 'same_origin'),
     ('/teacher/assignment/<int:assignment_id>/duplicate', ('POST',), 'assignment_owner', 'same_origin'),
     ('/teacher/assignment/<int:assignment_id>/edit', ('POST',), 'assignment_owner', 'same_origin'),
     ('/teacher/assignment/<int:assignment_id>/qr.svg', ('GET',), 'assignment_owner', None),

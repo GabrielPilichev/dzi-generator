@@ -76,15 +76,17 @@ class AssignmentOwnerMigrationTest(unittest.TestCase):
         self.assertEqual(self.conn.execute("PRAGMA foreign_key_check").fetchall(), [])
         self.migrate()
         after = self.contents()
-        # 014's owner_user_id and 017's public_token: both trailing, both NULL for old rows.
+        # 014's owner_user_id, 017's public_token and 018's eight lifecycle columns:
+        # all trailing, all NULL for old rows.
         self.assertEqual(after.pop("quiz_assignments"),
-                         [(*row, None, None) for row in before.pop("quiz_assignments")])
+                         [(*row, *([None] * 10)) for row in before.pop("quiz_assignments")])
         # 015 rebuilds quiz_attempts with a trailing user_id, NULL for every old row.
         self.assertEqual(after.pop("quiz_attempts"),
                          [(*row, None) for row in before.pop("quiz_attempts")])
-        # Tables created by later migrations (016's TOTP tables) start empty.
+        # Tables created by later migrations (016's TOTP tables) start empty; 018's
+        # lifecycle clock holds exactly its seeded row.
         for table in set(after) - set(before):
-            self.assertEqual(after.pop(table), [], table)
+            self.assertEqual(len(after.pop(table)), canonical_tables.MIGRATION_SEEDED_ROWS.get(table, 0), table)
         self.assertEqual(after, before)
         self.assertEqual(self.conn.execute("PRAGMA foreign_key_check").fetchall(), [])
         new_id = self.conn.execute("""

@@ -13,8 +13,10 @@ import sqlite3
 import stat
 import tempfile
 import threading
+import time
 import unittest
 from contextlib import ExitStack, closing, contextmanager
+from datetime import datetime, timedelta
 from pathlib import Path
 from unittest.mock import patch
 
@@ -25,7 +27,136 @@ with patch.dict(os.environ, {"DZI_DB": ":memory:"}):
     from web import app as web_app
 
 
+from web.services import lifecycle as lifecycle_service  # noqa: E402
+from web.services import quiz as quiz_service  # noqa: E402
+
+
 ROOT = Path(__file__).resolve().parents[1]
+
+
+# --------------------------------------------------------------------------- lifecycle clock
+#
+# Lifecycle writes (start, submit, upload, create, edit, duplicate, close) pass a
+# clock-health check that needs evidence from outside the wall clock: a boot
+# identity, a boot-time clock and the operating system's synchronisation report
+# (docs/ASSIGNMENT_LIFECYCLE_DESIGN.md, section 3.6). Tests get that evidence from
+# ``TEST_CLOCK``, installed once for the test process. By default it is real time
+# on one fixed boot with a synchronised clock, so ordinary tests need nothing.
+#
+# A test that controls time does NOT patch ``quiz_current_timestamp`` by hand: a
+# patched wall clock that disagrees with the database's clock row is, correctly,
+# a clock fault. It uses ``lifecycle_time(start)``, which moves the application
+# clock, the boot-time clock and the clock row together.
+
+class LifecycleTestClock(lifecycle_service.ClockEnvironment):
+    """Deterministic clock evidence for tests.
+
+    Unfrozen: wall time is real, boot time is ``time.monotonic``. Frozen
+    (``freeze``): time stands still until the test moves it. ``advance`` lets time
+    pass (wall and boot time together); ``step_wall`` moves only the wall clock,
+    which is what a stepped or corrected clock looks like; ``reboot`` starts a new
+    boot; ``sync`` is the operating system's synchronisation report.
+    """
+
+    name = "test"
+    FROZEN_BOOTTIME_MS = 3_600_000  # an hour after boot: past the synchronisation wait
+
+    def __init__(self):
+        self.reset()
+
+    def reset(self) -> None:
+        self.frozen_at = None
+        self.boot = "test-boot"
+        self.sync = True
+        self._boottime_ms = self.FROZEN_BOOTTIME_MS
+
+    def wall(self) -> datetime:
+        return self.frozen_at if self.frozen_at is not None else datetime.utcnow()
+
+    def boot_id(self):
+        return self.boot
+
+    def boottime_ms(self):
+        if self.frozen_at is None:
+            return int(time.monotonic() * 1000)
+        return self._boottime_ms
+
+    def synchronized(self):
+        return self.sync
+
+    def freeze(self, at: datetime) -> None:
+        self.frozen_at = at.replace(microsecond=0)
+        self._boottime_ms = self.FROZEN_BOOTTIME_MS
+
+    def advance(self, seconds: float) -> None:
+        self.frozen_at += timedelta(seconds=seconds)
+        self._boottime_ms += int(seconds * 1000)
+
+    def set(self, at: datetime) -> None:
+        """Let time pass until ``at`` (wall and boot time together)."""
+        self.advance((at - self.frozen_at).total_seconds())
+
+    def step_wall(self, seconds: float) -> None:
+        """A clock step: the wall clock moves, elapsed real time does not."""
+        self.frozen_at += timedelta(seconds=seconds)
+
+    def reboot(self, boottime_ms: int = 5_000) -> None:
+        self.boot = f"{self.boot}+"
+        self._boottime_ms = boottime_ms
+
+
+TEST_CLOCK = LifecycleTestClock()
+lifecycle_service.configure_clock_environment(TEST_CLOCK)
+
+
+def set_lifecycle_clock_row(db_path, *, high_water: datetime, state: str = "ok", reason=None,
+                            changed_at=None, anchored: bool = True) -> None:
+    """Write the database's clock row consistently with ``TEST_CLOCK``.
+
+    The one place a test sets the clock row: no test relies on the migration seed.
+    ``anchored`` writes a boot anchor for the clock's current boot at ``high_water``.
+    """
+    fmt = lifecycle_service.format_timestamp
+    anchor = (fmt(high_water), TEST_CLOCK.boot_id(), TEST_CLOCK.boottime_ms()) if anchored else (None, None, None)
+    with closing(sqlite3.connect(str(db_path))) as conn:
+        conn.execute("DELETE FROM lifecycle_clock")
+        conn.execute(
+            "INSERT INTO lifecycle_clock (id, high_water_at, state, state_reason, state_changed_at, "
+            "ref_wall_at, ref_boot_id, ref_boottime_ms) VALUES (1, ?, ?, ?, ?, ?, ?, ?)",
+            (fmt(high_water), state, reason, None if changed_at is None else fmt(changed_at), *anchor))
+        conn.commit()
+
+
+def reset_lifecycle_clock_row(db_path) -> None:
+    """Back to the unanchored seed: state ``ok``, sentinel high-water mark, no anchor."""
+    with closing(sqlite3.connect(str(db_path))) as conn:
+        conn.execute("DELETE FROM lifecycle_clock")
+        conn.execute("INSERT INTO lifecycle_clock (id, high_water_at) VALUES (1, ?)",
+                     (lifecycle_service.CLOCK_SEED,))
+        conn.commit()
+
+
+@contextmanager
+def lifecycle_time(start: datetime, db_path=None):
+    """Run the block at lifecycle time ``start``; yields ``TEST_CLOCK``.
+
+    The application clock (``quiz_current_timestamp``), the boot-time clock and
+    the clock row of ``db_path`` (default: the current test database) are set
+    together, with the high-water mark and the boot anchor at ``start``. Move
+    time with ``clock.advance(seconds)`` / ``clock.set(datetime)``. On exit real
+    time resumes and the clock row returns to its unanchored seed, so nothing
+    leaks into the tests that follow.
+    """
+    target = Path(db_path) if db_path is not None else Path(web_app.QUIZ_DB_PATH)
+    TEST_CLOCK.freeze(start)
+    try:
+        set_lifecycle_clock_row(target, high_water=TEST_CLOCK.frozen_at)
+        with patch.object(quiz_service, "quiz_current_timestamp", new=TEST_CLOCK.wall):
+            yield TEST_CLOCK
+    finally:
+        TEST_CLOCK.reset()
+        if target.is_file():
+            reset_lifecycle_clock_row(target)
 
 
 # --------------------------------------------------------------------------- canonical template
@@ -220,6 +351,37 @@ class IsolatedAppTestCase(unittest.TestCase):
     def run(self, result=None):
         with preserved_app_state():
             return super().run(result)
+
+
+def add_lifecycle_schema(conn: sqlite3.Connection, *, assignment_ids=()) -> None:
+    """Give a hand-built minimal schema what lifecycle enforcement reads.
+
+    Applies migration 018 (the lifecycle columns of ``quiz_assignments`` and the
+    seeded ``lifecycle_clock`` row), creating a minimal ``quiz_assignments`` first
+    if the schema has none, and adds ``quiz_attempts.started_at`` where a minimal
+    attempts table left it out. ``assignment_ids`` are inserted as open
+    assignments without a deadline. For tests that build their own tiny schema;
+    databases from ``build_test_database`` already have all of it.
+    """
+    tables = {row[0] for row in conn.execute("SELECT name FROM sqlite_master WHERE type = 'table'")}
+    if "users" not in tables:  # closed_by_user_id references it
+        conn.executescript((ROOT / "web" / "migrations" / "012_users.sql").read_text(encoding="utf-8"))
+    if "quiz_assignments" not in tables:
+        conn.execute("CREATE TABLE quiz_assignments (id INTEGER PRIMARY KEY, title_bg TEXT, owner_user_id INTEGER)")
+    conn.executescript((ROOT / "web" / "migrations" / "018_assignment_lifecycle.sql").read_text(encoding="utf-8"))
+    if "quiz_attempts" in tables and "started_at" not in {
+            row[1] for row in conn.execute("PRAGMA table_info(quiz_attempts)")}:
+        conn.execute("ALTER TABLE quiz_attempts ADD COLUMN started_at TEXT DEFAULT '2026-01-01 10:00:00'")
+    for assignment_id in assignment_ids:
+        conn.execute("INSERT OR IGNORE INTO quiz_assignments (id, title_bg) VALUES (?, 'Fixture assignment')",
+                     (assignment_id,))
+    conn.commit()
+
+
+# The explicit deadline choice every create, edit and duplicate form must state
+# (docs/ASSIGNMENT_LIFECYCLE_DESIGN.md, 5.4): a request without one is refused.
+# Tests that are not about deadlines state "no deadline" in the default zone.
+NO_DEADLINE_FORM = {"deadline_choice": "none", "display_timezone": "Europe/Sofia"}
 
 
 def student_entry_path(assignment_id: int) -> str:

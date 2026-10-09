@@ -9,6 +9,7 @@ from tests.subject_fixtures import (
     add_curriculum, add_membership, add_question, add_section, add_topic, four_options,
 )
 from tests.support import IsolatedAppTestCase, web_app, student_entry_path
+from tests.support import NO_DEADLINE_FORM
 from tests.dzi_open_fixtures import mark_dzi_question
 
 
@@ -73,7 +74,7 @@ class SubjectAssessmentSelectionTest(IsolatedAppTestCase):
         sign_in_admin(self.client, web_app.app.config["DB_PATH"])
 
     def _create(self, section_id, subject, *, count=1, open_count=0, source=""):
-        response = self.client.post("/teacher/new", data={
+        response = self.client.post("/teacher/new", data={**NO_DEADLINE_FORM,
             "section_id": str(section_id), "subject": subject,
             "question_count": str(count), "open_count": str(open_count),
             "source_slug": source,
@@ -170,7 +171,7 @@ class SubjectAssessmentSelectionTest(IsolatedAppTestCase):
             {"section_id": str(self.it_section), "subject": "physics", "question_count": "1"},
         ):
             with self.subTest(data=data):
-                self.assertEqual(self.client.post("/teacher/new", data=data).status_code, 400)
+                self.assertEqual(self.client.post("/teacher/new", data={**NO_DEADLINE_FORM, **data}).status_code, 400)
         conn = web_app.quiz_db()
         try:
             self.assertEqual(conn.execute("SELECT COUNT(*) FROM quiz_assignments").fetchone()[0], before)
@@ -179,7 +180,7 @@ class SubjectAssessmentSelectionTest(IsolatedAppTestCase):
 
     def test_unknown_subject_is_not_treated_as_it(self):
         self.assertEqual(self.client.get("/teacher/new?subject=not-a-subject").status_code, 404)
-        self.assertEqual(self.client.post("/teacher/new", data={
+        self.assertEqual(self.client.post("/teacher/new", data={**NO_DEADLINE_FORM,
             "subject": "not-a-subject", "section_id": str(self.it_section),
             "question_count": "1",
         }).status_code, 400)
@@ -215,7 +216,7 @@ class SubjectAssessmentSelectionTest(IsolatedAppTestCase):
     def test_existing_it_creation_and_physics_mixed_plan_are_separate(self):
         it_id = self._create(self.it_section, "it")
         self.assertIsNone(self._assignment(it_id)["question_plan_json"])
-        response = self.client.post("/teacher/new", data={
+        response = self.client.post("/teacher/new", data={**NO_DEADLINE_FORM,
             "section_id": self.physics_section, "subject": "physics",
             "question_count": "2", "open_count": "1", "source_slug": "f3-synthetic",
         })
@@ -235,14 +236,14 @@ class SubjectAssessmentSelectionTest(IsolatedAppTestCase):
             ).fetchone()[0]
         finally:
             conn.close()
-        edited = self.client.post(f"/teacher/assignment/{assignment_id}/edit", data={
+        edited = self.client.post(f"/teacher/assignment/{assignment_id}/edit", data={**NO_DEADLINE_FORM,
             "title_bg": "F3 edited", "time_limit_minutes": "",
             "question_plan_json": json.dumps({"question_ids": [self.it_mc]}),
         })
         self.assertEqual(edited.status_code, 302)
         duplicated = self.client.post(
             f"/teacher/assignment/{assignment_id}/duplicate",
-            data={"question_plan_json": json.dumps({"question_ids": [self.it_mc]})},
+            data={**NO_DEADLINE_FORM, "question_plan_json": json.dumps({"question_ids": [self.it_mc]})},
         )
         self.assertEqual(duplicated.status_code, 302)
         duplicate_id = int(duplicated.headers["Location"].split("/")[-1])

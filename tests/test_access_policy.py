@@ -20,6 +20,7 @@ from pathlib import Path
 
 from tests.auth_helpers import client_as, create_account
 from tests.support import ROOT, IsolatedAppTestCase, web_app
+from tests.support import NO_DEADLINE_FORM
 from web import access, request_integrity
 
 # Test-only routes test modules register on the shared app to exercise the
@@ -59,6 +60,8 @@ EXPECTED_ACCESS_MATRIX = {
     "teacher.teacher_assignment_qr": access.ASSIGNMENT_OWNER,
     "teacher.teacher_assignment_edit": access.ASSIGNMENT_OWNER,
     "teacher.teacher_assignment_duplicate": access.ASSIGNMENT_OWNER,
+    # Assignment lifecycle (PR #326): manual close, owner or admin like edit and duplicate.
+    "teacher.teacher_assignment_close": access.ASSIGNMENT_OWNER,
     # Accounts PR8: same route policy; ownership follows the submission's assignment.
     "practical.teacher_practical_submissions": access.ASSIGNMENT_OWNER,
     "practical.teacher_practical_submission_file_download": access.ASSIGNMENT_OWNER,
@@ -580,11 +583,11 @@ class AccessPolicyRouteTest(IsolatedAppTestCase):
         self._as_teacher()
         data = {"section_id": str(self.section_id), "question_count": "1", "time_limit_minutes": ""}
         rejected = self.client.post(
-            "/teacher/new", data=data, headers={"Origin": "http://evil.example"})
+            "/teacher/new", data={**NO_DEADLINE_FORM, **data}, headers={"Origin": "http://evil.example"})
         self.assertEqual(rejected.status_code, 403)
 
         accepted = self.client.post(
-            "/teacher/new", data=data, headers={"Origin": "http://localhost"})
+            "/teacher/new", data={**NO_DEADLINE_FORM, **data}, headers={"Origin": "http://localhost"})
         self.assertEqual(accepted.status_code, 302)
         self.assertIn("/teacher/assignment/", accepted.headers["Location"])
 
@@ -603,7 +606,7 @@ class AccessPolicyRouteTest(IsolatedAppTestCase):
         # Request integrity never implies authorization.
         same_origin = {"Origin": "http://localhost"}
         data = {"section_id": str(self.section_id), "question_count": "1", "time_limit_minutes": ""}
-        anonymous = self.client.post("/teacher/new", data=data, headers=same_origin)
+        anonymous = self.client.post("/teacher/new", data={**NO_DEADLINE_FORM, **data}, headers=same_origin)
         self.assert_sent_to_login(anonymous, "/teacher/new")
 
         self._as_teacher()

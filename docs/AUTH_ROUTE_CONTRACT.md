@@ -109,7 +109,7 @@ a coverage test walks `app.url_map` and fails on any undeclared endpoint.
 | `admin` | admin account only (after the second factor) | `/admin/open-question-candidates`, `/dzi...`, every other `/teacher...` route |
 | `signed_in` | any active account (student, teacher or admin) | `/account/password` |
 | `quiz_taker` | any account that may take quizzes: student, teacher or admin (`can_take_quizzes`) | `/account/attempts` |
-| `assignment_owner` | admin account or teacher account; the view checks the loaded assignment and answers 404 | `/teacher/assignments`, `/teacher/assignment/<id>/edit`, `/duplicate`, `/results` (GET and the open-answer review POST), `/results.csv`, `/qr.svg`, `/teacher/practical-submissions`, `/teacher/practical/submission-file/<file_id>/download` |
+| `assignment_owner` | admin account or teacher account; the view checks the loaded assignment and answers 404 | `/teacher/assignments`, `/teacher/assignment/<id>/edit`, `/duplicate`, `/close` (POST only), `/results` (GET and the open-answer review POST), `/results.csv`, `/qr.svg`, `/teacher/practical-submissions`, `/teacher/practical/submission-file/<file_id>/download` |
 | `attempt_owner` | route is reachable; the view checks attempt ownership and answers 404 | `/quiz/attempt/<id>`, `/quiz/attempt/<id>/result`, `/quiz/attempt/<id>/practical/...` |
 
 Flask's built-in `static` view cannot be decorated; `web.access` treats it as
@@ -141,9 +141,24 @@ then load the assignment and answer 404 when it is missing, foreign or, for a
 teacher, unowned. Results, CSV (filtered or not) and the open-answer review all
 use the same gate; a reviewed answer must also belong to an attempt of the
 assignment in the URL, so an answer id from another assignment is 404. Edit
-changes only the title and time limit; a submitted `owner_user_id` is ignored.
+changes only the title, the time limit and the deadline with its timezone; a
+submitted `owner_user_id` is ignored, as is any closure, hold or token field.
 A duplicate belongs to the acting account, never to the source's owner. Student/public quiz loading
 (`quiz_fetch_assignment`) is not owner-scoped.
+
+Assignment lifecycle (`docs/ASSIGNMENT_LIFECYCLE_DESIGN.md`). `POST
+/teacher/assignment/<id>/close` closes a test for good: same policy
+(`assignment_owner`, same-origin) and the same 404 as edit and duplicate; a
+`GET` matches no rule (405). The request body is not read: the closure time is
+the server's and the actor is the session principal, so an admin who closes
+another teacher's test is recorded as the closer. No role can reopen a test and
+admin authority adds no lifecycle action. The order of decisions on every
+assignment and attempt route is fixed: authorization first (404, 403 or the
+login redirect exactly as before), then the hold (503 for a test that is
+temporarily not served), then the lifecycle state (409 for an edit of a closed
+test or a start or submission that came too late). A lifecycle response
+therefore never reveals the existence or state of someone else's test or
+attempt. A session waiting for its second factor is anonymous for all of it.
 
 Assignment detail retains the `teacher` route policy and shows the row to
 exactly whoever may manage it (`quiz_can_access_assignment` is

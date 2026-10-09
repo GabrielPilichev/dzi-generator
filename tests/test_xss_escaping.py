@@ -21,6 +21,7 @@ from pathlib import Path
 
 from tests.auth_helpers import add_users_schema, sign_in_admin
 from tests.support import IsolatedAppTestCase, web_app
+from tests.support import add_lifecycle_schema
 
 
 SCRIPT_PAYLOAD = '<script>alert("xss")</script>'
@@ -121,6 +122,7 @@ class PracticalTeacherReviewPageEscapingTest(IsolatedAppTestCase):
                 INSERT INTO exams (id, subject, level, year, session, variant, format_version)
                 VALUES (6, 'informatika_it', 'DZI', 2025, 'may', 2, 'dzi_it_pp_2025_format')
             """)
+            add_lifecycle_schema(conn)
             conn.execute("INSERT INTO quiz_assignments (id, title_bg) VALUES (1, 'ДЗИ проба')")
             conn.execute("""
                 INSERT INTO quiz_attempts (id, assignment_id, student_name, seed, question_ids_json)
@@ -276,6 +278,7 @@ class PracticalStudentPageEscapingTest(IsolatedAppTestCase):
                 INSERT INTO quiz_attempts (id, assignment_id, student_name, seed, question_ids_json)
                 VALUES (101, 1, 'Student One', 'seed', '[]')
             """)
+            add_lifecycle_schema(conn, assignment_ids=(1,))
             conn.execute("""
                 INSERT INTO exam_tasks (id, exam_id, task_number, task_kind, points)
                 VALUES (260, 6, 26, 'practical_spreadsheet', 15)

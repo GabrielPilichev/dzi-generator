@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_lifecycle_fields.html" import deadline_fields %}
 
 {% block title %}Създай тест{% endblock %}
 
@@ -36,6 +37,8 @@
             Избраният раздел не принадлежи на този предмет.
         {% elif teacher_new_error == "invalid_question_plan" %}
             Планът с въпроси не е валиден за избрания раздел и предмет.
+        {% elif deadline_error_message %}
+            {{ deadline_error_message }}
         {% else %}
             Провери числовите стойности във формата и опитай отново.
         {% endif %}
@@ -233,6 +236,18 @@
             {% endif %}
         </div>
     {% endif %}
+
+    <hr class="rule">
+
+    <section class="teacher-form-section" id="deadline-section">
+        <div class="section-heading">
+            <div>
+                <h2>Краен срок</h2>
+                <p class="help">Предложен е срок до 23:59 след 14 дни. Можеш да го промениш или да избереш тест без краен срок.</p>
+            </div>
+        </div>
+        {{ deadline_fields("new", deadline_form, timezone_names) }}
+    </section>
 
     <div class="warning warning--spaced form-message">
         След създаване ще получиш линк за учениците. Въпросите се избират автоматично, всеки ученик получава стабилен ред според името си, а отговорите се разбъркват.

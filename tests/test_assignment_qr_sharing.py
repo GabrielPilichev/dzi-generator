@@ -18,6 +18,7 @@ import segno
 
 from tests import test_assignment_public_tokens as token_tests
 from tests.support import ROOT, web_app
+from tests.support import NO_DEADLINE_FORM
 from web import public_url
 from web.services import qr
 
@@ -408,7 +409,7 @@ class QrTokenStateTest(QrSharingTestCase):
 
     def test_metadata_edit_error_page_keeps_the_qr_controls(self):
         response = self.client(self.owner).post(
-            f"/teacher/assignment/{self.assignment_id}/edit", data={"title_bg": ""}, headers=token_tests.SAME_ORIGIN)
+            f"/teacher/assignment/{self.assignment_id}/edit", data={**NO_DEADLINE_FORM, "title_bg": ""}, headers=token_tests.SAME_ORIGIN)
         html = response.get_data(as_text=True)
         self.assertIn("Заглавието е задължително.", html)
         self.assertIn(f'src="{self.path}"', html)
@@ -524,7 +525,7 @@ class QrCanonicalUrlTest(QrSharingTestCase):
         client = self.foreign_host_client(self.owner)
         with patch.dict(web_app.app.config, {public_url.PUBLIC_BASE_URL_CONFIG: None}):
             response = client.post(
-                f"/teacher/assignment/{self.assignment_id}/edit", data={"title_bg": ""},
+                f"/teacher/assignment/{self.assignment_id}/edit", data={**NO_DEADLINE_FORM, "title_bg": ""},
                 headers={"Host": "evil.example", "Origin": "http://evil.example"})
         self.assertEqual(response.status_code, 400)
         html = response.get_data(as_text=True)

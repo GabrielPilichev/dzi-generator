@@ -3,6 +3,11 @@
 Development and tests keep importing ``web.app`` directly. Only this path
 enforces secrets, explicit state paths outside the code checkout, no schema
 changes from the web app, a fully migrated schema and exactly one trusted proxy hop.
+It also refuses a schema that is newer than this build, an unusable lifecycle
+clock row and a missing timezone database, and makes lifecycle writes use the
+host's real clock evidence (docs/ASSIGNMENT_LIFECYCLE_DESIGN.md, 3.6 and 12.6).
+And it refuses a database whose restore is in progress or was left unfinished
+(docs/DEPLOYMENT.md, section 17): that holds after a reboot as well.
 Sign-in is by account only; there is no other authentication to configure.
 Error messages name settings, never their values.
 """
@@ -95,6 +100,30 @@ def _reference_root_errors(environ: Mapping[str, str]) -> list[str]:
     return []
 
 
+def restore_lock_error(environ: Mapping[str, str]) -> str | None:
+    """Why a restore forbids serving the configured database, or ``None``.
+
+    ``deploy/learnpilot-restore.sh`` leaves a lock next to the database from
+    before it stops the service until the restore has finished or was undone.
+    While it is there the live state may be partly replaced: a snapshot's files
+    next to the database they do not belong to. systemd starts an enabled unit
+    after a reboot whatever a script was in the middle of, so the refusal is here.
+    """
+    raw = environ.get(DB_ENV)
+    if not raw or not Path(raw).is_absolute():
+        return None
+    from web.services import lifecycle
+
+    if not lifecycle.restore_lock_present(raw):
+        return None
+    return (
+        "Refusing to start LearnPilot: a restore of this database is in progress or was left unfinished ("
+        + lifecycle.restore_lock_path(raw) + " exists). The service starts again when "
+        "deploy/learnpilot-restore.sh has finished: run it again from the beginning "
+        "(docs/DEPLOYMENT.md, section 17). Do not remove the lock by hand."
+    )
+
+
 def production_config_errors(environ: Mapping[str, str]) -> list[str]:
     errors = [f"{name} is not set" for name in REQUIRED_SECRETS if not environ.get(name)]
 
@@ -148,6 +177,79 @@ def pending_schema_migrations(db_path, open_read_only) -> list[str]:
     return pending_migrations(migration_filenames(MIGRATIONS_DIR), applied)
 
 
+def unknown_schema_migrations(db_path, open_read_only) -> list[str]:
+    """Applied migrations this build has no file for; never writes.
+
+    A build that is older than the schema would run without the enforcement a
+    later migration belongs to: for the lifecycle that means serving closed
+    assignments as open. Such a build must fail closed instead of starting.
+    """
+    from src.manage_migrations import migration_filenames
+
+    conn = open_read_only(db_path)
+    try:
+        has_table = conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'schema_migrations'"
+        ).fetchone()
+        applied = [row[0] for row in conn.execute(
+            "SELECT filename FROM schema_migrations ORDER BY filename"
+        )] if has_table else []
+    finally:
+        conn.close()
+    shipped = set(migration_filenames(MIGRATIONS_DIR))
+    return [filename for filename in applied if filename not in shipped]
+
+
+def lifecycle_clock_problem(db_path, open_read_only) -> str | None:
+    """Why the lifecycle clock row cannot be used, or ``None``; never writes.
+
+    Existence and well-formedness only: a ``suspect`` clock still starts (read
+    pages work, lifecycle writes are refused until an operator confirms it).
+    """
+    from web.services import lifecycle
+
+    conn = open_read_only(db_path)
+    try:
+        return lifecycle.clock_row_problem(conn)
+    finally:
+        conn.close()
+
+
+def timezone_data_problem() -> str | None:
+    """Deadlines are computed in named IANA zones; without the zone database every
+    deadline form would fail. Nothing ever falls back to UTC or the server zone."""
+    from web.services import lifecycle
+
+    try:
+        if lifecycle.DEFAULT_TIMEZONE not in lifecycle.timezone_names():
+            return f"the IANA timezone database does not know {lifecycle.DEFAULT_TIMEZONE}"
+    except Exception as exc:
+        return f"the IANA timezone database is not available ({type(exc).__name__})"
+    return None
+
+
+LIFECYCLE_LOGGER = "learnpilot.lifecycle"
+
+
+def configure_lifecycle_logging() -> None:
+    """Send lifecycle events (create, edit, close, refused submissions) to stderr.
+
+    Gunicorn captures stderr into journald. The lines are for diagnosis: what was
+    created, edited, closed or refused, and when. They are not a record of the
+    lifecycle and nothing is reconciled from them after a restore; only the
+    database a restore replaces is evidence (docs/DEPLOYMENT.md, section 26).
+    Without a handler only warnings would reach the journal.
+    """
+    logger = logging.getLogger(LIFECYCLE_LOGGER)
+    if not any(getattr(handler, "learnpilot_lifecycle", False) for handler in logger.handlers):
+        handler = logging.StreamHandler()
+        handler.setFormatter(logging.Formatter("%(name)s %(levelname)s %(message)s"))
+        handler.learnpilot_lifecycle = True
+        logger.addHandler(handler)
+    logger.setLevel(logging.INFO)
+    logger.propagate = False
+
+
 def migration_command(db_hint: str = "$DZI_DB") -> str:
     return f'python3 -m src.manage_migrations --db "{db_hint}" --apply'
 
@@ -185,6 +287,9 @@ def trusted_proxy(wsgi_app):
 
 def create_production_app(environ: Mapping[str, str] | None = None):
     environ = os.environ if environ is None else environ
+    locked = restore_lock_error(environ)
+    if locked:
+        raise ProductionConfigError(locked)
     errors = production_config_errors(environ)
     if errors:
         raise ProductionConfigError(
@@ -203,6 +308,38 @@ def create_production_app(environ: Mapping[str, str] | None = None):
             + f". Back up the database, then run `{migration_command()}` "
             "from the application directory."
         )
+
+    unknown = unknown_schema_migrations(web_app.DB_PATH, web_app.open_existing_database_read_only)
+    if unknown:
+        raise ProductionConfigError(
+            "Refusing to start LearnPilot: the database has applied migrations this build "
+            "does not ship: " + ", ".join(unknown)
+            + ". This build is older than the schema; deploy the build that ships them. "
+            "A build without assignment lifecycle enforcement must never serve this "
+            "database (docs/DEPLOYMENT.md, rollback considerations)."
+        )
+
+    clock_problem = lifecycle_clock_problem(web_app.DB_PATH, web_app.open_existing_database_read_only)
+    if clock_problem:
+        raise ProductionConfigError(
+            "Refusing to start LearnPilot: the assignment lifecycle clock row is unusable ("
+            + clock_problem + "). It is repaired only by the operator confirmation "
+            "`python3 -m src.manage_lifecycle --db \"$DZI_DB\" clock-recover ...`, never by "
+            "re-running a migration or a seed."
+        )
+
+    zone_problem = timezone_data_problem()
+    if zone_problem:
+        raise ProductionConfigError(
+            "Refusing to start LearnPilot: " + zone_problem + ". Install the system tzdata package."
+        )
+
+    # Lifecycle writes in production rest on the host's real boot identity,
+    # boot-time clock and synchronisation report; web.app alone uses the
+    # development environment, which requires no synchronisation evidence.
+    from web.services import lifecycle
+    lifecycle.configure_clock_environment(lifecycle.SystemClockEnvironment())
+    configure_lifecycle_logging()
 
     flask_app = web_app.app
     public_host = normalize_public_host(environ[PUBLIC_HOST_ENV])

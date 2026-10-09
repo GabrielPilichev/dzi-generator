@@ -9,6 +9,159 @@ Scope: deadlines, manual closure, the in-flight submission grace period, the
 retention clock, the boundary between deletable detail and durable learning
 history, and the monthly cleanup job.
 
+> **Implementation status (PR #326).** The first phase, lifecycle enforcement
+> (§14.1), is implemented: migration `018_assignment_lifecycle.sql`,
+> `web/services/lifecycle.py`, the guarded start, submission and upload
+> transactions, the teacher create, edit, duplicate and close workflows, the
+> production start-up guard and the operator command `src/manage_lifecycle.py`.
+> Operation is described in `docs/DEPLOYMENT.md` §26. PR #327 (durable history)
+> and PR #328 (cleanup) are **not** implemented: nothing in the codebase deletes
+> detail, and none of their schema exists. The rest of this document is
+> unchanged; where it says "proposed" for a PR #326 element, read "implemented
+> as described", with the notes below.
+>
+> Product owner's decisions on §16.2: **I1 to I4 are confirmed** as proposed
+> (timezone per assignment; `Europe/Sofia` as the editable preselection; the
+> 180 days counted from the date the deadline is set or edited; an exclusive
+> cutoff at the next local midnight, shown as "through 23:59"). **I5, the
+> external lifecycle event log, is deferred** and not implemented; evidence B of
+> §13.4 therefore does not exist.
+>
+> Choices the implementation made where this document left one open:
+>
+> 1. **Synchronisation evidence (§3.6)** is `adjtimex(2)` read-only, the value
+>    `timedatectl` reports. The bounded wait before its absence becomes a clock
+>    fault is ten minutes of uptime. The probe still has to be confirmed on the
+>    production host (`manage_lifecycle clock-status`). The development server
+>    (`web.app` imported directly) does not require it; `web.wsgi` always does.
+> 2. **No shape `CHECK`** on the timestamp columns (§12.2): the migration is the
+>    listed SQL exactly, and the strict parser is what rejects a malformed value.
+> 3. **A terminal marker later than accepted lifecycle time** is a clock fault
+>    (503), as §3.6 and §11.1 require, also where L102 (b) and L103 (c) expect
+>    `closed`: those two expectations hold for the state function and for a
+>    marker that is not ahead of the clock. The submission is refused either way.
+> 4. **Operator confirmation (§3.7 step 6)** uses the verified time for every
+>    decision, as the section says: classification, retention floors and the
+>    new high-water mark. "Agrees within tolerance" is made precise: the local
+>    clock may be at most 5 s behind the verified time (the regression
+>    tolerance; further behind, the next write would be refused at once) and at
+>    most 60 s ahead of it. A deadline or grace end between the verified time
+>    and the local reading is held like one between the verified time and the
+>    old mark, because the two readings disagree about its state.
+> 5. **Restore evidence (§13.4): the replaced database, and nothing else.**
+>    Only evidence A releases a restore hold (`reconcile`). Evidence B does not
+>    exist, because I5 is deferred. The two paths of "When evidence is
+>    incomplete" that rest on application log lines are **not implemented**:
+>    releasing the assignments that a log does not show as changed (the first
+>    case of L120), and entering one assignment's state from a record. A log
+>    cannot show that it is complete, that its lines are genuine, or in which
+>    order two commits of the same second happened, and a digest of the
+>    supplied text shows none of that. `reconcile-partial` and
+>    `reconcile-record` therefore exit with status 4 and read and write
+>    nothing. Every assignment that evidence A cannot establish is treated as
+>    the rows "the set cannot be established" and "without such a record" say:
+>    it stays held, and the teacher's remedy is a new assignment. The
+>    resolution condition §3.8 gives for `restore_unreconciled` (the state
+>    entered from a record) can therefore not be met in this build: that
+>    reason is resolved by nothing until I5 exists. Each create,
+>    edit and close still writes one line to the application log
+>    (`lifecycle event=...`); it is diagnostic only. This is stricter than
+>    §13.4 as written and is the product owner's instruction after the second
+>    review of PR #326; the text of §13.4 and L120 is left as approved.
+> 6. **Observation stamps (§6.3)** are written by every writer transaction that
+>    evaluates an assignment, accepted grace submissions and uploads included,
+>    in the same transaction as their own rows. The two zero-row outcomes of a
+>    manual close that §6.1 answers with "nothing written", and an
+>    `already_submitted` retry, stay write-free.
+> 7. **An unreadable hold (§3.8)** is never resolved from: no command removes a
+>    reason from a value it cannot read, and there is no repair command. A hold
+>    arriving from the replaced database is judged as it is stored, before it
+>    is split or merged: a readable one is merged as a set, an unreadable one
+>    is carried as its exact text and makes the restored value unreadable too.
+> 8. **The cutoff (§5.1)** is constructed as local wall-clock time one minute
+>    after the displayed minute and only then converted to UTC (a time that
+>    occurs twice is the earlier instant, one that does not exist moves
+>    forward). It is not derived by adding an elapsed minute to the displayed
+>    time, which is an hour short where the clock is set back at midnight.
+> 9. **The restore procedure (§13.4, §13.5)** is one script,
+>    `deploy/learnpilot-restore.sh`, and not a list of commands to type. It
+>    runs the steps of the procedure, each as a gate, on a copy of the
+>    snapshot: migration, restore-hold, reconciliation, the clock confirmation
+>    and verification all pass before the copy replaces the live state, so "the
+>    pre-restore database" is the live database, read in place. The uploads
+>    and the vault are replaced first and the database last, by one rename;
+>    until then the database at the live path is the one that was live. The
+>    service is started by the script's last command and by nothing else.
+>    Assignments still held are counted (`restore-status`) and have to be
+>    acknowledged by number; they are never reported as recovered.
+>    `reconcile` and `restore-status` exit with status 3 when they leave
+>    assignments held.
+> 10. **An interrupted restore is run again, never completed.** Nothing a run
+>     leaves on disk is taken as proof that its checks were made: a marker can
+>     be written by hand, and the live state can have changed since. There is
+>     no completion command. From its first change to its last the script
+>     keeps a lock next to the database (`restore-in-progress`); `web.wsgi`,
+>     the backup tool and both systemd units refuse to run while it is there,
+>     which covers a reboot. The lock only forbids. A run that fails before
+>     the database is replaced takes its own moves back. Within one run the
+>     script holds digests in memory, never on disk: the live database it
+>     reconciled against, the copy it verified and the files it extracted have
+>     to be the same bytes when the replacement is made. What a run that is
+>     stopped during the replacement takes back (a failed step, or a signal)
+>     is decided by where the verified copy is on the disk at that moment, not
+>     by how far the script believes it got: at the live path, the database
+>     was replaced, nothing is taken back and the lock stays, because the
+>     database that was live now exists only where it was set aside; still in
+>     staging, it was not replaced and every move is taken back; in neither
+>     place byte for byte, nothing is moved and the lock stays.
+> 11. **What evidence A has to be (§13.4).** "It opens, passes
+>     `integrity_check` and its lifecycle columns parse" is necessary, not
+>     sufficient: a copy of the snapshot and another database with the same
+>     ids meet it. `reconcile` also requires the evidence to be at the build's
+>     schema, to hold every assignment and attempt of the restored copy as the
+>     same row (creation time, section, plan, owner, public token; not the id
+>     alone), and to have a lifecycle clock that stands **later** than the
+>     snapshot's (than the seed, for a snapshot from before migration 018).
+>     It takes the untouched snapshot as a reference (`--snapshot-db`). The
+>     lifecycle clock is the only sign of later lifecycle state that is
+>     accepted, because every lifecycle write raises it and nothing else
+>     does. A difference in any other table (an account, a sign-in, an
+>     edited title) is not lifecycle history and qualifies nothing.
+>     **Limitation:** a database that really was live, but in which no
+>     lifecycle write was admitted after the snapshot, or only within the
+>     second the snapshot was taken in, cannot be told from a copy of the
+>     snapshot and is refused like one; its assignments stay held. These
+>     checks say what the file is. Where it comes from is settled by the
+>     script, which reads the database at the path the service is configured
+>     to use and never takes that path from the operator; nothing a file
+>     contains could establish it.
+> 12. **The order of step 3 and step 4 of the restore procedure (§13.4) is
+>     reversed:** reconciliation first, then the clock procedure of §3.7.
+>     Recovery classifies deadlines and markers against the old high-water
+>     mark, and it can only classify what is in the rows when it runs. With
+>     the clock confirmed first, a deadline that reconciliation brought in
+>     afterwards was never classified. `reconcile` now requires a `suspect`
+>     clock and hands on the replaced database's high-water mark and open
+>     incident; every assignment is still held, or released only where
+>     nothing is served, because the clock is `suspect` until recovery ends.
+>     The procedure in §13.4 lists the steps in this order, and says there
+>     what the approved order was.
+> 13. **What the restore script requires of the server before it changes
+>     anything (§13.4, step 1).** These are conditions of the implementation,
+>     not of the design. The service has one mandatory environment file in
+>     which the database, the upload root and the vault are each set exactly
+>     once, as a plain `NAME=path` line, to the paths the script replaces,
+>     and the unit sets none of them itself: with two definitions systemd
+>     uses the last, and the service would run on a database the restore
+>     never examined. The state directory is one filesystem all the way
+>     down: no filesystem is mounted on or inside `uploads` or `vault`, and
+>     neither they nor the database are symbolic links, because they are
+>     replaced by renames. No backup is running, read from the unit state
+>     systemd reports (a `Type=oneshot` backup is `activating` while it
+>     runs), once before and once after the restore lock is taken. A server
+>     that does not meet these is refused, untouched; the script has no mode
+>     that restores it.
+
 Conventions used below:
 
 - **Existing** means verified in the repository at commit `8c443b7`. File and
@@ -3149,6 +3302,30 @@ PR #326 uses only what exists when PR #326 ships:
 
 **Procedure, in maintenance**
 
+> **Order corrected, and implementation deviations (PR #326).** As approved,
+> this list had the clock procedure of §3.7 as step 3, before reconciliation
+> (then step 4) and the resolution of `restore_pending` (then step 5). That
+> order was wrong: recovery classifies only the deadlines and markers that
+> are in the rows when it runs, so a deadline that reconciliation brought in
+> afterwards came back open and unheld. The steps are now listed as
+> implemented: reconciliation and resolution first (steps 3 and 4), the
+> clock procedure after them (step 5). Nothing else in the list was changed.
+> The rule above is kept by other means: until step 5 ends the clock is
+> `suspect`, under which nothing is served, and the service is not running.
+>
+> Three further points where the implementation differs from the wording of
+> the steps, without changing what they establish (implementation notes 9,
+> 10 and 13 at the top of this document):
+>
+> - The steps are carried out by one script, on a **copy** of the snapshot,
+>   and the copy replaces the live state only after step 7 has passed. The
+>   service is stopped from before step 1 until step 8. "Restore the
+>   database and the files" in step 1 is therefore the making of that copy;
+>   the live database is replaced last, by one rename.
+> - A run that is stopped is run again from the beginning. No step is
+>   completed from what an earlier run left behind.
+> - Step 6 does not exist yet: PR #327 and PR #328 are not implemented.
+
 1. Stop the service. Restore the database and the files together, from one
    snapshot, checked as the table above requires for the deployed phase.
 2. **Before the service is started**, run the restore-hold command. It adds
@@ -3157,18 +3334,21 @@ PR #326 uses only what exists when PR #326 ships:
    merges its hold reasons and its clock incident as the table above says.
    From PR #328 it also clears every `closure_upper_bound_at` and the cleanup
    timer is disabled.
-3. Complete the clock procedure of §3.7, for the restore and for any incident
-   carried over, ending with the operator confirmation. Every assignment is
-   held throughout, so a confirmed clock serves nothing yet.
-4. Reconcile the authoritative lifecycle state per assignment from the best
+3. Reconcile the authoritative lifecycle state per assignment from the best
    available evidence (table below). The state reconciled is the whole of it:
    `deadline_at` as last set (extensions and reductions alike),
    `display_timezone`, `closed_at` and `closed_by_user_id`,
    `expiry_observed_at`, `submissions_closed_at`, `retention_base_at`, and
-   through them `E`.
-5. Resolve `restore_pending` only for assignments whose reconciliation is
+   through them `E`. The clock is still `suspect` here, and has to be.
+4. Resolve `restore_pending` only for assignments whose reconciliation is
    complete. Resolve every other reason by its own condition (§3.8). An
    assignment is released when its set is empty, not before.
+5. Complete the clock procedure of §3.7, for the restore and for any incident
+   carried over, ending with the operator confirmation. It runs on the rows
+   as reconciled, with the later of the two databases' high-water marks, and
+   holds (`clock_review`) every assignment whose deadline or marker lies
+   where the clocks disagree. Until it ends the clock is `suspect` and
+   nothing is served.
 6. From PR #327, re-verify history. From PR #328, reconcile cleanup state.
    Both are described below.
 7. Verify (§13.5).
@@ -3190,6 +3370,24 @@ without it is a deviation from procedure and is listed as a risk (§16.5).
 Reconciliation changes `deadline_at` only on a restored row that carries no
 terminal marker, and only to the value evidence A or B gives.
 
+> **Implementation deviations (PR #326).** The table is as approved; the
+> implementation is narrower in three ways.
+>
+> - **Evidence A is not moved aside first.** The script reads the pre-restore
+>   database in place, at the path the service uses, while it works on a copy
+>   of the snapshot. It is set aside, under a second name, only in the
+>   instant it is replaced. An operator who moves it aside and puts the
+>   snapshot in its place beforehand has removed evidence A.
+> - **"Sufficient when" is necessary, not sufficient** (implementation
+>   note 11). The database must also be at the build's schema, hold every
+>   assignment and attempt of the restored copy as the same row, and have a
+>   lifecycle clock later than the snapshot's. A pre-restore database in
+>   which no lifecycle write followed the snapshot does not meet the last
+>   condition and is not accepted as evidence A, although the approved text
+>   would accept it: it cannot be told from a copy of the snapshot.
+> - **Evidence B does not exist** (I5 is deferred) **and evidence C releases
+>   nothing**, in any form (implementation note 5).
+
 **When evidence is incomplete**
 
 | Situation | Enforcement |
@@ -3198,6 +3396,14 @@ terminal marker, and only to the value evidence A or B gives.
 | The set of affected assignments **cannot** be established | Every assignment stays held. That is assignment traffic in maintenance, enforced by the holds, until an operator resolves each one. |
 | An individual held assignment, with a record of its state | An operator enters the state from a record the system produced at the time (an application log line or an event-log entry showing the event, its instant and its actor), and the record is kept with the resolution. The entry can add a closure or set a deadline on a row without a terminal marker; it cannot clear or change a marker. |
 | An individual held assignment, without such a record | **It stays held.** A person's recollection is not evidence of a timestamp. No command ends it, closes it, stamps `submissions_closed_at` or sets a retention floor in order to release it. The teacher's remedy is a new assignment made on the normal creation form. |
+
+> **Implementation deviation (PR #326).** Of the four rows above, the first
+> and the third are **not implemented** (implementation note 5): no command
+> releases the assignments that a log does not show as changed, and none
+> enters one assignment's state from a record. Every assignment that
+> evidence A does not establish is treated as the second and the fourth row
+> say: it stays held. The rows are left as approved for the phase in which
+> evidence B exists.
 
 Telling a teacher that an assignment's state was lost is not a resolution. The
 assignment stays held until an operator has resolved every reason in the

@@ -4,6 +4,7 @@ import unittest
 
 from tests.auth_helpers import sign_in_admin, student_client
 from tests.support import IsolatedAppTestCase, web_app, student_entry_path
+from tests.support import NO_DEADLINE_FORM
 from web.assignment_tokens import new_public_token
 from web.blueprints import teacher as teacher_module
 from web.services import quiz as quiz_service
@@ -38,7 +39,7 @@ class HardenAssignmentInputsTest(IsolatedAppTestCase):
     def test_teacher_new_malformed_numeric_input(self):
         self._login_admin()
         # Case 1: non-numeric section_id
-        resp = self.client.post("/teacher/new", data={
+        resp = self.client.post("/teacher/new", data={**NO_DEADLINE_FORM,
             "section_id": "abc",
             "question_count": "10",
             "time_limit_minutes": "15"
@@ -47,7 +48,7 @@ class HardenAssignmentInputsTest(IsolatedAppTestCase):
         self.assertIn("Провери числовите стойности", resp.get_data(as_text=True))
 
         # Case 2: non-numeric question_count
-        resp = self.client.post("/teacher/new", data={
+        resp = self.client.post("/teacher/new", data={**NO_DEADLINE_FORM,
             "section_id": str(self.section["id"]),
             "question_count": "xyz",
             "time_limit_minutes": "15"
@@ -55,7 +56,7 @@ class HardenAssignmentInputsTest(IsolatedAppTestCase):
         self.assertEqual(resp.status_code, 400)
 
         # Case 3: non-numeric open_count (if mixed enabled)
-        resp = self.client.post("/teacher/new", data={
+        resp = self.client.post("/teacher/new", data={**NO_DEADLINE_FORM,
             "section_id": str(self.section["id"]),
             "question_count": "10",
             "include_open_questions": "on",
@@ -66,7 +67,7 @@ class HardenAssignmentInputsTest(IsolatedAppTestCase):
     def test_teacher_new_time_limit_out_of_range(self):
         self._login_admin()
         # Too low
-        resp = self.client.post("/teacher/new", data={
+        resp = self.client.post("/teacher/new", data={**NO_DEADLINE_FORM,
             "section_id": str(self.section["id"]),
             "question_count": "10",
             "time_limit_minutes": "0"
@@ -76,7 +77,7 @@ class HardenAssignmentInputsTest(IsolatedAppTestCase):
         self.assertIn("1 и 600 минути", resp.get_data(as_text=True))
 
         # Too high
-        resp = self.client.post("/teacher/new", data={
+        resp = self.client.post("/teacher/new", data={**NO_DEADLINE_FORM,
             "section_id": str(self.section["id"]),
             "question_count": "10",
             "time_limit_minutes": "601"
@@ -85,7 +86,7 @@ class HardenAssignmentInputsTest(IsolatedAppTestCase):
 
     def test_teacher_new_valid_creation(self):
         self._login_admin()
-        resp = self.client.post("/teacher/new", data={
+        resp = self.client.post("/teacher/new", data={**NO_DEADLINE_FORM,
             "section_id": str(self.section["id"]),
             "question_count": "5",
             "time_limit_minutes": "20"
@@ -97,7 +98,7 @@ class HardenAssignmentInputsTest(IsolatedAppTestCase):
         self._login_admin()
         for minutes in (400, 600):
             with self.subTest(minutes=minutes):
-                resp = self.client.post("/teacher/new", data={
+                resp = self.client.post("/teacher/new", data={**NO_DEADLINE_FORM,
                     "section_id": str(self.section["id"]),
                     "question_count": "5",
                     "time_limit_minutes": str(minutes),
@@ -131,7 +132,7 @@ class HardenAssignmentInputsTest(IsolatedAppTestCase):
         conn.close()
 
         # Duplicate it
-        resp = self.client.post(f"/teacher/assignment/{assignment_id}/duplicate", follow_redirects=True)
+        resp = self.client.post(f"/teacher/assignment/{assignment_id}/duplicate", follow_redirects=True, data=NO_DEADLINE_FORM)
         self.assertEqual(resp.status_code, 200)
         
         # Check the new assignment's title

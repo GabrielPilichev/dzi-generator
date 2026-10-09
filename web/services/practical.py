@@ -347,6 +347,7 @@ def fetch_practical_submission_file(db: sqlite3.Connection, file_id: int) -> dic
             qt.student_name,
             qt.assignment_id,
             qa.owner_user_id,
+            qa.lifecycle_hold,
             et.task_number,
             et.task_kind
         FROM practical_submission_files psf
@@ -370,6 +371,9 @@ def fetch_practical_submission_review_rows(
     never looked up on disk.
     """
     scope_condition, scope_params = assignment_management_scope(principal, "qa.owner_user_id")
+    # A held assignment is not served: its submissions are left out of the review
+    # list until every hold reason is resolved.
+    scope_condition = f"({scope_condition}) AND qa.lifecycle_hold IS NULL"
     # SAFE: scope_condition is a fixed fragment; the owner id is a bound parameter.
     rows = db.execute(f"""
         SELECT

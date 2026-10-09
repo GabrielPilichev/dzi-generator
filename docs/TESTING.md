@@ -36,9 +36,65 @@ the same path for code that reads the environment.
 Quiz logic lives in `web/services/quiz.py`, which never imports `web.app`;
 `web.app` registers `QUIZ_DB_PATH`, `QUIZ_VAULT_PATH` and `PROJECT_ROOT` with it as
 call-time providers, so patching those `web.app` globals still redirects quiz code.
-To stub a quiz function (`quiz_db`, `quiz_pick_questions`, `quiz_current_timestamp`),
+To stub a quiz function (`quiz_db`, `quiz_pick_questions`),
 patch it on `web.services.quiz`: patching the name re-exported by `web.app` only
 affects `web.app`'s own callers.
+
+**Controlling time.** Do not patch `quiz_current_timestamp` by hand. Starting,
+submitting, uploading, creating, editing, duplicating and closing are lifecycle
+writes, and each checks the wall clock against the database's `lifecycle_clock`
+row and against a boot-time clock (`docs/ASSIGNMENT_LIFECYCLE_DESIGN.md`, 3.6).
+A patched clock that disagrees with that row is, correctly, a clock fault: the
+request gets 503 and the database stays `suspect` for the rest of the class.
+Use `tests.support.lifecycle_time(start)` instead:
+
+```python
+with lifecycle_time(datetime(2026, 5, 15, 10, 0, 0)) as clock:
+    ...                      # the application clock reads 10:00:00
+    clock.advance(90)        # time passes: wall clock and boot time together
+    clock.step_wall(-600)    # a clock step: only the wall clock moves (a fault)
+```
+
+It moves the application clock, the test clock environment and the clock row
+together and restores real time and an unanchored clock row on exit.
+`tests.support` installs that environment (`TEST_CLOCK`: one fixed boot, a
+synchronised clock, real time unless frozen) for the whole test process, so
+tests that do not control time need nothing. Stored timestamps a test writes
+directly (an attempt's `started_at`, a closure) must not be later than the
+clock of the request that reads them, for the same reason.
+
+`tests/lifecycle_support.LifecycleTestCase` is the base of the lifecycle tests:
+a fresh database and a frozen clock per test, direct fixtures for assignments
+and attempts in an exact lifecycle state, and `self.cli(...)` for
+`src.manage_lifecycle`. A hand-built minimal schema gets the lifecycle columns
+and the clock row from `tests.support.add_lifecycle_schema(conn)`. Forms that
+create, edit or duplicate an assignment must state their deadline choice; tests
+that are not about deadlines post `**tests.support.NO_DEADLINE_FORM`.
+
+`tests/test_lifecycle_restore_script.py` runs the documented restore,
+`deploy/learnpilot-restore.sh`, as a real `bash` process against a temporary
+state directory. It needs `bash`, the `sqlite3` command-line tool and `tar` on
+`PATH` (all part of macOS and of the Ubuntu server image). `sudo`, `systemctl`
+and `curl` are replaced by stand-ins in a temporary directory that comes first
+in `PATH`; nothing outside the test's own directory is touched and no service
+is started or stopped. The other tools, the pre-flight check and the operator
+CLI are the real ones, behind a wrapper that makes one chosen call fail, or
+kills the script at that call (`kill -9`: no handler runs, which is what a
+power cut leaves on the disk), or lets the call do its work and only then
+sends the script a signal or reports failure (`RESTORE_TEST_AFTER`: a rename
+that happened before the script could note it). That is how the tests show
+that the service is never started after a failed step, that an interrupted
+run is never completed from what it left behind, that what is taken back is
+decided by what is on the disk, and that the run after it loses nothing. The
+stand-in for `systemctl` answers `show` from files in the test's directory:
+the unit state of the service, the backup service and its timer, and the
+service's `EnvironmentFiles=` and `Environment=`. The environment file the
+tests write contains a secret, and every run fails if the script prints it.
+Mount points cannot be made in a test; the pre-flight check for a filesystem
+mounted inside `uploads` or `vault` is tested by replacing the three lookups
+it asks (`_is_mount`, `_device`, `_mount_points`), and symbolic links for
+real. The module runs the script well over a hundred times and takes about a
+minute and a half.
 
 `QUIZ_VAULT_PATH` and `DZI_VAULT` point to a temporary vault. Assignment and attempt
 notes are really generated there, not mocked away. Practical uploads also get a

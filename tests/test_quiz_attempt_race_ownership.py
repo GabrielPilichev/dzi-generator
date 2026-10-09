@@ -1,10 +1,12 @@
 """Ownership when quiz attempt creation loses a uniqueness race.
 
-An attempt belongs to the account that started it. Two requests of one account
-can both miss the lookup and both insert; the unique index on
-``(assignment_id, user_id)`` keeps one row and the loser resumes it. The recovery
-looks the attempt up by the account again, so it can only ever land on the
-account's own attempt, never on a competitor's.
+An attempt belongs to the account that started it. Since the lifecycle work a
+start runs in one writer transaction that looks the account's attempt up again
+under the lock, so two requests of one account can no longer both insert. The
+unique index on ``(assignment_id, user_id)`` stays as the last line of defence:
+these tests hide both lookups so that SQLite itself rejects the duplicate, and
+check that the recovery looks the attempt up by the account again. It can only
+ever land on the account's own attempt, never on a competitor's.
 """
 
 import sqlite3
@@ -17,7 +19,10 @@ from web.services import quiz as quiz_service
 
 
 class _FirstAttemptLookupMiss:
-    """Hide the initial lookup so SQLite itself rejects the duplicate insert."""
+    """Hide the lookup before the writer lock and the one under it, so SQLite
+    itself rejects the duplicate insert."""
+
+    HIDDEN_LOOKUPS = 2
 
     def __init__(self, connection):
         self.connection = connection
@@ -30,7 +35,7 @@ class _FirstAttemptLookupMiss:
             "SELECT id, submitted_at FROM quiz_attempts WHERE assignment_id = ? AND user_id = ?"
         ):
             self.attempt_lookups += 1
-            if self.attempt_lookups == 1:
+            if self.attempt_lookups <= self.HIDDEN_LOOKUPS:
                 return self.connection.execute("SELECT * FROM quiz_attempts WHERE 1 = 0")
         try:
             return self.connection.execute(sql, parameters)
@@ -155,7 +160,7 @@ class QuizAttemptRaceOwnershipTest(IsolatedAppTestCase):
         response, wrapper = self._start(self.owner, assignment_id, force_conflict=True)
 
         self.assertEqual(wrapper.insert_conflicts, 1)
-        self.assertEqual(wrapper.attempt_lookups, 2)
+        self.assertEqual(wrapper.attempt_lookups, 3)  # two hidden, then the recovery
         self.assertEqual(response.status_code, 302)
         self.assertTrue(response.headers["Location"].endswith(f"/quiz/attempt/{attempt_id}"))
         self.assertEqual(self._attempts(assignment_id), [(attempt_id, self.owner_account["id"])])

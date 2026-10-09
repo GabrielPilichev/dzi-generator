@@ -23,6 +23,7 @@ from unittest.mock import patch
 
 from tests.auth_helpers import create_account, set_account_session
 from tests.support import ROOT, IsolatedAppTestCase, web_app, student_entry_path
+from tests.support import NO_DEADLINE_FORM
 from tests.test_account_login import SAME_ORIGIN, AccountAppTestCase
 from web import access
 from web.access import ANONYMOUS, Principal, account_principal
@@ -203,7 +204,11 @@ class AssignmentOwnerRoutesTest(IsolatedAppTestCase):
             return conn.execute("SELECT COUNT(*) FROM quiz_assignments").fetchone()[0]
 
     def post(self, client, path, data=None):
-        return client.post(path, data=data or {}, headers=SAME_ORIGIN)
+        data = dict(data or {})
+        if path.endswith(("/edit", "/duplicate")):
+            # These forms must state their deadline choice; "no deadline" here.
+            data = {**NO_DEADLINE_FORM, **data}
+        return client.post(path, data=data, headers=SAME_ORIGIN)
 
     def management_requests(self, assignment_id, answer_id):
         """(label, callable(client) -> response) for every management surface."""
@@ -270,12 +275,18 @@ class AssignmentOwnerRoutesTest(IsolatedAppTestCase):
         for index in range(6):
             self.seed_assignment(self.teacher_a, f"Още {index}")
         after = traced_list(self.teacher_a)
-        self.assertEqual(len(before), 1, before)
+        # One list query, plus the single lifecycle clock row the listed states are
+        # computed with. Neither grows with the number of assignments.
+        self.assertEqual(len(before), 2, before)
         self.assertEqual(len(after), len(before))
-        self.assertIn("owner_user_id =", after[0])
+        list_queries = [s for s in after if "FROM quiz_assignments" in s]
+        self.assertEqual(len(list_queries), 1, after)
+        self.assertIn("owner_user_id =", list_queries[0])
+        self.assertEqual([s for s in after if s not in list_queries],
+                         [s for s in after if "FROM lifecycle_clock" in s])
 
         with closing(web_app.quiz_db()) as conn:
-            sql = after[0]
+            sql = list_queries[0]
             params = (self.teacher_a["id"],) if "?" in sql else ()
             plan = " ".join(row[3] for row in conn.execute(f"EXPLAIN QUERY PLAN {sql}", params))
         self.assertIn("idx_quiz_assignments_owner", plan)
@@ -406,7 +417,7 @@ class AssignmentOwnerRoutesTest(IsolatedAppTestCase):
             with self.subTest(account=account["id"]):
                 response = self.client(account).post(
                     f"/teacher/assignment/{assignment_id}/edit?owner_user_id={self.teacher_b['id']}",
-                    data=forged, headers=SAME_ORIGIN)
+                    data={**NO_DEADLINE_FORM, **forged}, headers=SAME_ORIGIN)
                 self.assertEqual(response.status_code, 302)
                 row = self.row(assignment_id)
                 self.assertEqual(row["title_bg"], "Подправено")
@@ -563,13 +574,13 @@ class AssignmentOwnerAdminTotpTest(AccountAppTestCase):
             for path in (base, f"{base}/results", f"{base}/results.csv"):
                 self.assertEqual(self.client.get(path).status_code, 200, path)
         response = self.client.post(f"/teacher/assignment/{self.assignments[0]}/duplicate",
-                                    headers=SAME_ORIGIN)
+                                    headers=SAME_ORIGIN, data=NO_DEADLINE_FORM)
         self.assertEqual(response.status_code, 302)
         new_id = int(response.headers["Location"].rsplit("/", 1)[1])
         self.assertEqual(self.query("SELECT owner_user_id FROM quiz_assignments WHERE id = ?",
                                     (new_id,))[0][0], admin["id"])
         response = self.client.post(f"/teacher/assignment/{self.assignments[1]}/edit",
-                                    data={"title_bg": "След MFA", "time_limit_minutes": ""},
+                                    data={**NO_DEADLINE_FORM, "title_bg": "След MFA", "time_limit_minutes": ""},
                                     headers=SAME_ORIGIN)
         self.assertEqual(response.status_code, 302)
 

@@ -12,6 +12,7 @@ from src.subject_assessment import AssessmentScope
 from tests.auth_helpers import sign_in_admin, student_client
 from tests.subject_fixtures import add_curriculum, add_membership, add_question, add_section, add_topic, four_options
 from tests.support import CANONICAL, IT_ONLY, IsolatedAppTestCase, isolated_app, web_app, student_entry_path
+from tests.support import NO_DEADLINE_FORM
 from web.services import quiz as quiz_service
 
 ORIGIN = {"Origin": "http://localhost"}
@@ -39,7 +40,7 @@ def admin():
 
 
 def create_assignment(subject, section_id, count):
-    response = admin().post("/teacher/new", data={
+    response = admin().post("/teacher/new", data={**NO_DEADLINE_FORM,
         "subject": subject, "section_id": str(section_id), "question_count": str(count),
         "time_limit_minutes": ""}, headers=ORIGIN)
     assert response.status_code == 302, response.status_code

@@ -14,6 +14,7 @@ import unittest
 
 from tests.auth_helpers import client_as, sign_in_admin, sign_in_student, sign_in_teacher
 from tests.support import ROOT, IsolatedAppTestCase, web_app
+from tests.support import NO_DEADLINE_FORM
 from web import access, request_integrity
 
 E3_ROUTES = {
@@ -31,6 +32,10 @@ E3_ROUTES = {
         request_integrity.SAME_ORIGIN),
     "/teacher/assignment/<int:assignment_id>/duplicate": (
         "teacher.teacher_assignment_duplicate", {"POST"}, access.ASSIGNMENT_OWNER,
+        request_integrity.SAME_ORIGIN),
+    # Assignment lifecycle (PR #326): the manual close. POST only; a GET matches no rule.
+    "/teacher/assignment/<int:assignment_id>/close": (
+        "teacher.teacher_assignment_close", {"POST"}, access.ASSIGNMENT_OWNER,
         request_integrity.SAME_ORIGIN),
     "/teacher/assignment/<int:assignment_id>/results": (
         "teacher.teacher_assignment_results", {"GET", "POST"}, access.ASSIGNMENT_OWNER,
@@ -179,7 +184,7 @@ class TeacherRoutesBehaviorTest(IsolatedAppTestCase):
         for who in ("anonymous", "teacher", "admin"):
             for path in ("/teacher/new", "/teacher/dzi-training",
                          "/teacher/assignment/1/edit", "/teacher/assignment/1/duplicate",
-                         "/teacher/assignment/1/results"):
+                         "/teacher/assignment/1/close", "/teacher/assignment/1/results"):
                 with self.subTest(who=who, path=path):
                     response = self.client_for(who).post(
                         path, data={}, headers={"Origin": "http://evil.example"})
@@ -187,7 +192,7 @@ class TeacherRoutesBehaviorTest(IsolatedAppTestCase):
 
     def test_same_origin_post_by_anonymous_is_sent_to_login(self):
         response = self.client_for("anonymous").post(
-            "/teacher/new", data={}, headers={"Origin": "http://localhost"})
+            "/teacher/new", data=NO_DEADLINE_FORM, headers={"Origin": "http://localhost"})
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.headers["Location"], "/login?next=/teacher/new")
 

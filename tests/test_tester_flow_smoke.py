@@ -2,12 +2,10 @@ import json
 import re
 import unittest
 from datetime import datetime
-from unittest.mock import patch
 
 
 from tests.auth_helpers import sign_in_admin
-from tests.support import IsolatedAppTestCase, web_app
-from web.services import quiz as quiz_service
+from tests.support import IsolatedAppTestCase, lifecycle_time, web_app
 
 
 class TesterFlowSmokeTest(IsolatedAppTestCase):
@@ -219,7 +217,7 @@ class TesterFlowSmokeTest(IsolatedAppTestCase):
             time_limit_minutes=30,
         )
 
-        with patch.object(quiz_service, "quiz_current_timestamp", return_value=datetime(2026, 5, 15, 10, 0, 0)):
+        with lifecycle_time(datetime(2026, 5, 15, 10, 0, 0)):
             response = self.client.get(f"/quiz/attempt/{attempt_id}")
 
         self.assertEqual(response.status_code, 200)

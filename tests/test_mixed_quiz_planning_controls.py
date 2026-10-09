@@ -6,6 +6,7 @@ from unittest.mock import patch
 
 from tests.auth_helpers import sign_in_admin, sign_in_teacher, student_client
 from tests.support import IsolatedAppTestCase, web_app, student_entry_path
+from tests.support import NO_DEADLINE_FORM
 from web.blueprints import teacher as teacher_module
 from web.services import quiz as quiz_service
 
@@ -134,7 +135,7 @@ class MixedQuizPlanningControlsTest(IsolatedAppTestCase):
         before_assignments = self._assignment_count()
         before_text_answers = self._text_answer_count()
 
-        response = self.client.post("/teacher/new", data={
+        response = self.client.post("/teacher/new", data={**NO_DEADLINE_FORM,
             "section_id": str(self.section["id"]),
             "question_count": "1",
             "time_limit_minutes": "",
@@ -151,7 +152,7 @@ class MixedQuizPlanningControlsTest(IsolatedAppTestCase):
         self._login_tester()
         before_assignments = self._assignment_count()
 
-        response = self.client.post("/teacher/new", data={
+        response = self.client.post("/teacher/new", data={**NO_DEADLINE_FORM,
             "section_id": str(self.section["id"]),
             "question_count": "2",
             "open_count": "0",
@@ -168,7 +169,7 @@ class MixedQuizPlanningControlsTest(IsolatedAppTestCase):
         self._login_tester()
         before_assignments = self._assignment_count()
 
-        response = self.client.post("/teacher/new", data={
+        response = self.client.post("/teacher/new", data={**NO_DEADLINE_FORM,
             "section_id": "not-a-section",
             "question_count": "many",
             "time_limit_minutes": "soon",
@@ -183,7 +184,7 @@ class MixedQuizPlanningControlsTest(IsolatedAppTestCase):
         self._login_tester()
         before_assignments = self._assignment_count()
 
-        response = self.client.post("/teacher/new", data={
+        response = self.client.post("/teacher/new", data={**NO_DEADLINE_FORM,
             "section_id": str(self.section["id"]),
             "question_count": "1",
             "time_limit_minutes": str(teacher_module.QUIZ_TIME_LIMIT_MAX_MINUTES + 1),
@@ -198,7 +199,7 @@ class MixedQuizPlanningControlsTest(IsolatedAppTestCase):
         self._login_tester()
         before_assignments = self._assignment_count()
 
-        response = self.client.post("/teacher/new", data={
+        response = self.client.post("/teacher/new", data={**NO_DEADLINE_FORM,
             "section_id": str(self.section["id"]),
             "question_count": "2",
             "open_count": "1",
@@ -221,7 +222,7 @@ class MixedQuizPlanningControlsTest(IsolatedAppTestCase):
         before_attempts = self._attempt_count()
         before_text_answers = self._text_answer_count()
 
-        response = self.client.post("/teacher/new", data={
+        response = self.client.post("/teacher/new", data={**NO_DEADLINE_FORM,
             "section_id": str(self.section["id"]),
             "question_count": "2",
             "time_limit_minutes": "",
@@ -245,7 +246,7 @@ class MixedQuizPlanningControlsTest(IsolatedAppTestCase):
         self._login_admin()
         before_assignments = self._assignment_count()
 
-        response = self.client.post("/teacher/new", data={
+        response = self.client.post("/teacher/new", data={**NO_DEADLINE_FORM,
             "section_id": str(self.section["id"]),
             "question_count": "2",
             "time_limit_minutes": "",
@@ -268,7 +269,7 @@ class MixedQuizPlanningControlsTest(IsolatedAppTestCase):
     def test_admin_mixed_open_assignment_can_enable_display_only_combined_score(self):
         self._login_admin()
 
-        response = self.client.post("/teacher/new", data={
+        response = self.client.post("/teacher/new", data={**NO_DEADLINE_FORM,
             "section_id": str(self.section["id"]),
             "question_count": "2",
             "time_limit_minutes": "",
@@ -288,7 +289,7 @@ class MixedQuizPlanningControlsTest(IsolatedAppTestCase):
         self._login_tester()
         before_assignments = self._assignment_count()
 
-        response = self.client.post("/teacher/new", data={
+        response = self.client.post("/teacher/new", data={**NO_DEADLINE_FORM,
             "section_id": str(self.section["id"]),
             "question_count": "2",
             "time_limit_minutes": "",
@@ -309,7 +310,7 @@ class MixedQuizPlanningControlsTest(IsolatedAppTestCase):
         self._login_tester()
         before_assignments = self._assignment_count()
 
-        response = self.client.post("/teacher/new", data={
+        response = self.client.post("/teacher/new", data={**NO_DEADLINE_FORM,
             "section_id": str(self.section["id"]),
             "question_count": "2",
             "time_limit_minutes": "",
@@ -329,7 +330,7 @@ class MixedQuizPlanningControlsTest(IsolatedAppTestCase):
 
     def test_mixed_open_assignment_starts_attempt_renders_and_records_open_answer(self):
         self._login_admin()
-        create_response = self.client.post("/teacher/new", data={
+        create_response = self.client.post("/teacher/new", data={**NO_DEADLINE_FORM,
             "section_id": str(self.section["id"]),
             "question_count": "2",
             "time_limit_minutes": "",
@@ -381,7 +382,7 @@ class MixedQuizPlanningControlsTest(IsolatedAppTestCase):
 
     def test_checked_mixed_open_assignment_attempt_copies_flag_and_shows_combined_score(self):
         self._login_admin()
-        create_response = self.client.post("/teacher/new", data={
+        create_response = self.client.post("/teacher/new", data={**NO_DEADLINE_FORM,
             "section_id": str(self.section["id"]),
             "question_count": "2",
             "time_limit_minutes": "",
@@ -426,7 +427,7 @@ class MixedQuizPlanningControlsTest(IsolatedAppTestCase):
         self._login_tester()
         before_assignments = self._assignment_count()
 
-        response = self.client.post("/teacher/new", data={
+        response = self.client.post("/teacher/new", data={**NO_DEADLINE_FORM,
             "section_id": str(self.section["id"]),
             "question_count": "1",
             "time_limit_minutes": "",
@@ -443,7 +444,7 @@ class MixedQuizPlanningControlsTest(IsolatedAppTestCase):
         self._login_tester()
         before_assignments = self._assignment_count()
 
-        response = self.client.post("/teacher/new", data={
+        response = self.client.post("/teacher/new", data={**NO_DEADLINE_FORM,
             "section_id": str(self.section["id"]),
             "question_count": "1",
             "time_limit_minutes": "",
@@ -478,7 +479,7 @@ class MixedQuizPlanningControlsTest(IsolatedAppTestCase):
 
     def test_quiz_start_never_claims_a_historical_attempt_with_the_same_name(self):
         self._login_tester()
-        create_response = self.client.post("/teacher/new", data={
+        create_response = self.client.post("/teacher/new", data={**NO_DEADLINE_FORM,
             "section_id": str(self.section["id"]),
             "question_count": "1",
             "time_limit_minutes": "",

@@ -14,6 +14,7 @@ from src.subject_assessment import AssessmentScope
 from src.subject_registry import PLATFORM_GRADES, SUBJECTS
 from tests.auth_helpers import sign_in_admin
 from tests.support import IsolatedAppTestCase, web_app, IT_ONLY
+from tests.support import NO_DEADLINE_FORM
 from tests.test_homepage_search import _HTMLProbe
 
 CARD = re.compile(r'<article\s+class="([^"]*home-subject-card[^"]*)"')
@@ -231,7 +232,7 @@ class SeedSubjectRoutesTest(_RouteTestCase):
     def test_teacher_form_rejects_unknown_subjects(self):
         self.login()
         self.html("/teacher/new?subject=not-a-subject", 404)
-        response = self.client.post("/teacher/new", data={
+        response = self.client.post("/teacher/new", data={**NO_DEADLINE_FORM,
             "subject": "not-a-subject", "section_id": "1", "question_count": "1",
         })
         self.assertEqual(response.status_code, 400)
@@ -242,7 +243,7 @@ class SeedSubjectRoutesTest(_RouteTestCase):
         before = self.assignment_count()
         for subject in NON_IT:
             with self.subTest(subject=subject.id):
-                response = self.client.post("/teacher/new", data={
+                response = self.client.post("/teacher/new", data={**NO_DEADLINE_FORM,
                     "subject": subject.route_slug, "section_id": str(it_section),
                     "question_count": "1", "open_count": "0",
                 })
@@ -361,7 +362,7 @@ class SyntheticBiologySubjectTest(_RouteTestCase):
     def test_biology_assignment_is_created_and_scoped_to_biology(self):
         self.login()
         section_id = self.section_id(self.section_slug)
-        response = self.client.post("/teacher/new", data={
+        response = self.client.post("/teacher/new", data={**NO_DEADLINE_FORM,
             "subject": "biology", "section_id": str(section_id),
             "question_count": "5", "open_count": "0",
         })
@@ -387,7 +388,7 @@ class SyntheticBiologySubjectTest(_RouteTestCase):
         for subject, section in (("it", biology_section), ("physics", biology_section),
                                  ("biology", it_section)):
             with self.subTest(subject=subject, section=section):
-                response = self.client.post("/teacher/new", data={
+                response = self.client.post("/teacher/new", data={**NO_DEADLINE_FORM,
                     "subject": subject, "section_id": str(section),
                     "question_count": "1", "open_count": "0",
                 })

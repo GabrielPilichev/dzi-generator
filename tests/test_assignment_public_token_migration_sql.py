@@ -85,9 +85,14 @@ class AssignmentPublicTokenMigrationTest(unittest.TestCase):
         sqlite3.connect(self.path).close()
         previous = self.root / "migrations"
         previous.mkdir()
+        # 000..017 only: what 017 itself changes, whatever later migrations add.
+        self.through = self.root / "through-017"
+        self.through.mkdir()
         for path in sorted(MIGRATIONS.glob("*.sql")):
             if path.name < MIGRATION:
                 shutil.copyfile(path, previous / path.name)
+            if path.name <= MIGRATION:
+                shutil.copyfile(path, self.through / path.name)
         self.assertEqual(apply(self.path, previous)[0], 0)
         self.conn = sqlite3.connect(self.path)
         self.addCleanup(self.conn.close)
@@ -96,7 +101,7 @@ class AssignmentPublicTokenMigrationTest(unittest.TestCase):
         self.conn.commit()
 
     def migrate(self):
-        code, report = apply(self.path)
+        code, report = apply(self.path, self.through)
         self.assertEqual(code, 0, report)
         return report
 
@@ -148,7 +153,7 @@ class AssignmentPublicTokenMigrationTest(unittest.TestCase):
         before_root = self.conn.execute(
             "SELECT rootpage FROM sqlite_master WHERE type = 'table' AND name = 'quiz_assignments'").fetchone()
         dry = io.StringIO()
-        manage_migrations.dry_run(self.path, MIGRATIONS, out=dry)
+        manage_migrations.dry_run(self.path, self.through, out=dry)
         self.assertIn(f"pending migrations:\n  - {MIGRATION}\n", dry.getvalue())
         report = self.migrate()
         self.assertIn(f"applied migrations:\n  - {MIGRATION}\n", report)
@@ -177,7 +182,7 @@ class AssignmentPublicTokenMigrationTest(unittest.TestCase):
         self.migrate()
         fresh_path = self.root / "fresh.db"
         sqlite3.connect(fresh_path).close()
-        self.assertEqual(apply(fresh_path)[0], 0)
+        self.assertEqual(apply(fresh_path, self.through)[0], 0)
         with closing(sqlite3.connect(fresh_path)) as fresh:
             self.assertEqual(assignment_schema(fresh), assignment_schema(self.conn))
             self.assertEqual(
@@ -196,13 +201,16 @@ class AssignmentPublicTokenMigrationTest(unittest.TestCase):
 class AssignmentPublicTokenClassificationTest(unittest.TestCase):
     def test_migration_files_end_with_017_and_earlier_ones_are_present(self):
         names = sorted(path.name for path in MIGRATIONS.glob("*.sql"))
-        self.assertEqual(names[-3:], ["015_quiz_attempts_user.sql", "016_admin_totp.sql", MIGRATION])
+        # 017 follows 015 and 016 directly; later migrations come after it.
+        index = names.index(MIGRATION)
+        self.assertEqual(names[index - 2:index + 1],
+                         ["015_quiz_attempts_user.sql", "016_admin_totp.sql", MIGRATION])
         self.assertEqual([name for name in names if name.startswith("017_")], [MIGRATION])
 
     def test_manifest_records_the_level_and_keeps_assignments_runtime(self):
         manifest = json.loads((ROOT / "data" / "canonical" / "manifest.json").read_text(encoding="utf-8"))
-        self.assertEqual(manifest["schema"]["migration_level"], MIGRATION)
-        self.assertEqual(manifest["schema"]["migrations"][-1], MIGRATION)
+        self.assertGreaterEqual(manifest["schema"]["migration_level"], MIGRATION)
+        self.assertIn(MIGRATION, manifest["schema"]["migrations"])
         self.assertEqual(ct.TABLE_CLASSIFICATION["quiz_assignments"][0], ct.RUNTIME)
         self.assertIn("quiz_assignments", manifest["runtime_exclusions"])
         self.assertNotIn("quiz_assignments", manifest["tables"])
@@ -212,7 +220,7 @@ class AssignmentPublicTokenClassificationTest(unittest.TestCase):
             path = build_test_database(Path(tmp) / "fresh.db")
             with closing(sqlite3.connect(path)) as conn:
                 applied = [r[0] for r in conn.execute("SELECT filename FROM schema_migrations ORDER BY filename")]
-                self.assertEqual(applied[-1], MIGRATION)
+                self.assertIn(MIGRATION, applied)
                 self.assertIn("public_token", [r[1] for r in conn.execute("PRAGMA table_info(quiz_assignments)")])
                 self.assertEqual(conn.execute("SELECT * FROM pragma_foreign_key_check").fetchall(), [])
                 self.assertEqual(ct.classification_problems(conn), [])
