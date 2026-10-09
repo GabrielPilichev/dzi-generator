@@ -129,19 +129,26 @@ class CachedSubjectBrowser:
     def grade_counts(self):
         return self._read(("grades",), lambda browser: browser.grade_counts())
 
-    def overview(self, grades):
+    def overview(self, grades, *, section_slug=None):
+        """Home page summary of the subject's ``grades``.
+
+        Only ``section_slug``'s section is returned, as ``section`` (None when
+        it is not among them): every warm read copies the whole cached value,
+        and the home page needs no other section.
+        """
         def compute(browser):
             sections = [section for grade in grades
                         for section in browser.sections_for_grade(grade)]
             return {
-                "sections": sections,
+                "section": next((section for section in sections
+                                 if section["section_slug"] == section_slug), None),
                 "question_count": sum(int(row["question_count"]) for row in browser.grade_counts()),
                 "search_content": browser.search_titles(sections),
             }
 
         # Keep the original shared ownership memoization across all grades on
         # a cold homepage request, rather than recomputing each grade in isolation.
-        return self._read(("overview", tuple(grades)), compute)
+        return self._read(("overview", tuple(grades), section_slug), compute)
 
     def sections_for_grade(self, grade):
         return self._read(("sections", grade), lambda browser: browser.sections_for_grade(grade))

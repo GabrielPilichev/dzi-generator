@@ -20,3 +20,8 @@ def get_request_db() -> sqlite3.Connection:
     if "db" not in g:
         g.db = web_db.connect_db(current_app.config["DB_PATH"])
     return g.db
+
+
+def request_db_if_open() -> sqlite3.Connection | None:
+    """The request's connection if it has opened one; this never opens it."""
+    return g.get("db")
