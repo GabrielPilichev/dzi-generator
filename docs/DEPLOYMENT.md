@@ -441,7 +441,8 @@ sudo certbot renew --dry-run
 ```
 
 Certbot adds the TLS listener and redirect to the site file. Session cookies
-are `Secure`, so logging in works only over HTTPS. After HTTPS works, HSTS can
+are `Secure` (and `HttpOnly`, `SameSite=Lax`; section 23), so logging in works
+only over HTTPS. After HTTPS works, HSTS can
 be added to the TLS server block:
 `add_header Strict-Transport-Security "max-age=31536000" always;`
 
@@ -1330,6 +1331,46 @@ starting the old code and, to void the old cookies as well, rotate
 signs out every account and makes the attempts started before accounts
 unreachable for their students (account-owned attempts are reached again by
 signing in). It is never part of a normal deployment.
+
+### Session cookie: `SameSite=Lax`
+
+The session cookie is `Secure; HttpOnly; SameSite=Lax`. Up to the release that
+changed it, it was `SameSite=Strict`. A signed-in person who follows a link to
+LearnPilot from another site (a quiz link in a web chat or a classroom page,
+later the redirect back from a Google or Microsoft sign-in) now arrives signed
+in. Requests that change something are not affected: the application refuses
+every cross-origin POST, with or without the cookie.
+
+That release has no migration, no new or changed environment variable and no
+Nginx change. It ends no session and `DZI_SECRET_KEY` is not rotated. `SameSite`
+is not configurable, and `DZI_SESSION_COOKIE_SECURE` stays unset in production
+(section 6). Deploy it as in section 20; there is no data step.
+
+**Sessions from before the deployment.** A browser keeps the attributes a
+cookie was set with. A session that was signed in before the deployment stays
+`Strict` in that browser until the application next writes the cookie (a
+sign-in, a sign-out or a password change) or the browser session ends. Until
+then that browser behaves as before the change: a page opened from another
+site is shown as to a signed-out visitor. Nobody has to be signed out for the
+change.
+
+**Verify** in a browser after the deployment:
+
+1. Sign in and look at the `session` cookie in the developer tools: `Secure`,
+   `HttpOnly` and `SameSite` `Lax`.
+2. Still signed in, follow a link to the site from a page on another site: the
+   page opens signed in.
+3. A cross-origin POST is still refused, signed in or not:
+
+   ```bash
+   curl -s -o /dev/null -w '%{http_code}\n' -X POST -H 'Origin: https://example.org' \
+     https://learnpilot.bg/logout                                                   # 403
+   ```
+
+**Rollback.** Deploy the previous release (section 21); there is no data to
+undo. A cookie already issued as `Lax` stays `Lax` in its browser until it is
+next written, and the older code accepts it unchanged: the attribute is the
+browser's rule for sending the cookie, and the server never reads it.
 
 ## 24. Public assignment links (migration 017)
 

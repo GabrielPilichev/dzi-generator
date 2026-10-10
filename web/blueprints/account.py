@@ -184,8 +184,8 @@ def inject_account():
 def login():
     next_url = _submitted_next()
     if request.method == "GET":
-        # Already signed in (for example after following an external link, whose
-        # first cross-site request carries no SameSite=Strict cookie): go on instead
+        # Already signed in (a bookmarked or shared sign-in link, or the „Вход“ link
+        # of a page that was rendered before this browser signed in): go on instead
         # of asking again. Only a fully validated account counts; a pending second
         # factor is not a principal and still gets the form.
         principal = current_principal()

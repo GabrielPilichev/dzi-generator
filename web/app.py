@@ -163,7 +163,11 @@ def build_session_cookie_secure() -> bool:
 app = Flask(__name__)
 app.config["DB_PATH"] = str(DB_PATH)
 app.config["SECRET_KEY"] = build_secret_key()
-app.config["SESSION_COOKIE_SAMESITE"] = "Strict"
+# Lax: a top-level GET from another site (a shared quiz link, a future OIDC
+# provider redirect) arrives signed in, so no GET may change state on the
+# visitor's behalf. A cross-site POST still carries no cookie, and a cross-origin
+# unsafe request is refused by protect_same_origin_unsafe_methods with or without one.
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SECURE"] = build_session_cookie_secure()
 # Admin TOTP secrets are encrypted with this key. Optional: when unset, admin TOTP
