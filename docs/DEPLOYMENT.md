@@ -1049,7 +1049,10 @@ the step 3 snapshot.
   does not ship: an older build refuses a newer schema instead of running on
   it. If a release's migration is not backward compatible, restore the
   pre-deploy snapshot (section 17), which discards database writes, uploads and
-  vault changes made after it; decide that explicitly.
+  vault changes made after it; decide that explicitly. A restore does not by
+  itself make an older build usable: which builds may serve the restored
+  database is restricted per migration, so read the "Rollback" part of that
+  migration's own section first (26 for migration 018, 27 for migration 019).
 - **Never roll back to a release from before the assignment lifecycle (migration
   018).** Such code starts on the migrated schema without errors and ignores
   every deadline and closure: students could start and submit closed tests and
@@ -1936,6 +1939,91 @@ snapshot archive, so copy it with your backups.
   cutoff and, against the snapshot, edits to closed tests and overwritten
   submissions. Nothing is changed automatically; what to do with that work is
   decided by the teacher and the operator.
+
+## 27. External identity storage (migration 019)
+
+Migration `019_user_identities.sql` adds the `user_identities` table and its
+index: where the Google and Microsoft sign-in identities of accounts will be
+stored (`docs/ACCOUNTS_DESIGN.md`, sections 5 and 13).
+
+**This release is storage only. Provider sign-in is not implemented.** There
+is no new route, page, dependency, environment variable, secret, provider
+registration or Nginx change, and no application code reads or writes the
+table. Sign-in works exactly as before (section 23) and the table stays empty
+until a later release adds OIDC sign-in.
+
+### Deployment order
+
+The standard procedure of section 20, with nothing added to it.
+
+- The migration is additive: one new table and one index. It is not a table
+  rebuild, alters no existing table and writes no row. Accounts, password
+  hashes, session keys, second factors and ownership are untouched, and nobody
+  is signed out.
+- What the dry run of step 7 lists depends on the database it is run against,
+  and this guide does not assume that database's migration level. On a
+  database that already has every migration through
+  `018_assignment_lifecycle.sql` it lists exactly `019_user_identities.sql`.
+  If it lists earlier migrations too, the database is behind that level: each
+  of them has conditions of its own, described where it is introduced (section
+  9 for a table rebuild, section 26 for migration 018), and this section does
+  not replace them.
+- Apply in step 8, after the step 3 snapshot, only what the dry run listed.
+  From this release on the application refuses to start on a schema without
+  migration 019 (section 9).
+- No account, operator or teacher has anything to do afterwards.
+
+### Backup and restore
+
+`user_identities` is part of the live database, so the snapshot of section 16
+and the restore of section 17 cover it with no change to either. A snapshot
+from before this release is restored as before: the restore script migrates
+its copy to the schema of the deployed build, which adds the empty table. The
+table is runtime state: it is never exported to `data/canonical`, and a
+database built by `src.build_database` has it empty.
+
+### Rollback
+
+**There is no authentication behaviour to revert.** This release only adds
+storage that nothing reads or writes: sign-in, sessions, roles and every page
+are what they were before it, so a rollback past it would change nothing about
+how anyone signs in. Forward fix first.
+
+- **Once migration 019 is applied, every build that serves this database ships
+  `019_user_identities.sql`, a recovery build included.** Migrations are
+  forward-only, and a build that does not ship an applied migration refuses to
+  start on the database (section 21). If application code has to be reverted,
+  revert the code and keep the migration, together with the metadata that
+  belongs to it: the `user_identities` entry in `src/canonical_tables.py`,
+  and in `data/canonical/manifest.json` the migration list and level and the
+  runtime table lists. A build that ships the migration without them fails its
+  own canonical and database-build checks. The table stays, empty; it is not
+  dropped, by a migration or by hand.
+- **A snapshot restore is not a route to a build from before 019.** Section 21
+  names the pre-deploy snapshot for a migration that is not backward
+  compatible. Here that leads nowhere, whichever build runs the restore:
+  - *A lifecycle build from before 019.* Reconciliation refuses the database
+    being replaced as evidence: it has migration 019 applied, that build does
+    not ship it, and so it "is not at the schema of this build" (section 26,
+    "Restore"). The script stops there, nothing is replaced and the service
+    stays stopped.
+  - *This build, or a later one.* The script migrates its copy of the snapshot
+    to the schema of the deployed build (section 17, step 4), so a snapshot
+    from before 019 has migration 019 applied to it. The restored database is
+    at 019 again, and a build from before 019 refuses to start on it as it
+    did on the one that was replaced.
+- **Do not reach for `--replaced-database-unreadable` to get past that
+  refusal.** The option is for a database that cannot be read or trusted, not
+  for one that an older build does not recognise, and it leaves every
+  assignment held with nothing to release them afterwards (section 17,
+  "Without the replaced database").
+- **The restore procedure and its holds are unchanged.** A restore that is
+  needed for its own reasons is still the one script of section 17, run from
+  start to finish with a build that ships every applied migration. No step of
+  it is skipped or done by hand to suit a build, and an assignment it leaves
+  held stays held (section 26, "Restore").
+- The lifecycle rule of section 26 is unchanged: never a build from before
+  migration 018.
 
 ## 2 GB VPS sizing
 

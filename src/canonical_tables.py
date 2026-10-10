@@ -70,6 +70,7 @@ TABLE_CLASSIFICATION: dict[str, tuple[str, str]] = {
     "users": (RUNTIME, "local accounts: credentials and session keys, never canonical content"),
     "totp_credentials": (RUNTIME, "admin TOTP credentials: encrypted secrets, never canonical content"),
     "totp_recovery_codes": (RUNTIME, "admin TOTP recovery codes: scrypt hashes, never canonical content"),
+    "user_identities": (RUNTIME, "external sign-in identities (issuer + subject) of accounts, never canonical content"),
     "generated_exams": (OPERATIONAL, "generated exam log"),
     "login_throttle": (OPERATIONAL, "per-identifier login throttle counters (keyed hashes, no emails)"),
     "note_question_links": (OPERATIONAL, "vault note mirror"),

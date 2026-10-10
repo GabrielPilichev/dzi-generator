@@ -39,7 +39,14 @@ has started with account-owned quiz attempts (migration 015, §24).
   from before accounts stay `user_id` NULL and bound to their browser.
 - Done: the session cookie is `SameSite=Lax` (§6, §14), as its own PR. It is
   the prerequisite of OIDC sign-in (§13), not a part of it.
-- **Next:** the remaining phase-2 items of §17. None of them is started.
+- Done, as storage only: migration `019_user_identities.sql` and the storage
+  service `web/services/identities.py` (§5, §13). No route, sign-in flow or
+  other code uses them; the table is empty until provider sign-in exists.
+- **Not implemented:** Google/Microsoft OIDC sign-in itself. There is no
+  Authlib dependency, provider configuration, callback, OAuth transaction,
+  linking page or account-creation policy. Every requirement of §13 is still
+  open and belongs to that later PR.
+- **Next:** the remaining phase-2 items of §17.
 - The DZI visibility gate depends on account identity (a signed-in principal),
   not on OIDC specifically; OIDC is one way to obtain student accounts.
 
@@ -271,7 +278,11 @@ CREATE INDEX IF NOT EXISTS idx_quiz_assignments_owner
     (the "my attempts" list, newest first; historical rows are not in it)
 - Recreates `idx_quiz_attempts_assignment`.
 
-**Future `user_identities`** (with OAuth in phase 2, not now)
+**`019_user_identities.sql`** (phase 2; implemented as storage only)
+
+This was the "future `user_identities`" table of the original design, to come
+with OAuth in phase 2. Its migration and storage service exist now; the sign-in
+that will use them does not (§13).
 
 ```sql
 CREATE TABLE IF NOT EXISTS user_identities (
@@ -287,6 +298,61 @@ CREATE TABLE IF NOT EXISTS user_identities (
 );
 CREATE INDEX IF NOT EXISTS idx_user_identities_user ON user_identities(user_id);
 ```
+
+- The migration is this schema, unchanged. `users` is not altered and no row
+  is written.
+- An identity is the exact pair `(issuer, subject)` of a verified ID token,
+  compared byte for byte (SQLite's default `BINARY` collation): no case
+  folding, no trimming, no normalization. The same subject under another
+  issuer is another identity. One identity belongs to at most one user; a user
+  may have several.
+- `email_at_link` is what the provider reported at linking time. It is
+  metadata: not unique, not indexed, and never used to select a user, sign
+  anyone in, deduplicate or link (§13).
+- `user_id` has no `ON DELETE` action. An account that has identities cannot be
+  deleted from under them, and no identity is removed or moved by a cascade.
+  Accounts are disabled, not deleted (§15).
+- The schema has no `CHECK` on `issuer` or `subject`. That neither is ever
+  empty or malformed is enforced by the storage service, which refuses such a
+  value instead of repairing it.
+
+**Storage service — `web/services/identities.py`.** Same conventions as
+`web/services/accounts.py`: an explicit SQLite connection, no commit and no
+rollback (the caller owns the transaction), no import of `web.app`, a
+blueprint or Flask.
+
+| Function | Behaviour |
+| --- | --- |
+| `find_identity(conn, issuer, subject)` | The identity stored for exactly that pair, or `None`. A malformed key finds nothing. The only lookup that may lead from a provider sign-in to a user. |
+| `add_identity(conn, user_id, *, issuer, subject, provider, email_at_link=None)` | Stores an identity for an existing user and returns its id. `ValueError` for malformed input, `LookupError` for an unknown user, `IdentityConflict` when the pair is already stored (for any user, this one included). |
+| `list_identities(conn, user_id)` | That user's identities, oldest first. |
+| `record_identity_login(conn, identity_id)` | Stamps `last_login_at` of one identity. It does not touch `users.last_login_at`. |
+
+- A well-formed key is a non-empty string of visible ASCII characters (no
+  space, no control character), at most 255 long. Only one part of that comes
+  from OpenID Connect: Core limits `sub` to 255 ASCII characters. The other two
+  are **local defensive restrictions** of this service, not rules of the
+  specification: accepting only *visible* ASCII, in both keys, and the
+  255-character limit on the issuer (Core defines `iss` as an `https` URL and
+  sets no length for it). A value outside them is refused, never repaired.
+  Whether an issuer is the right one for a provider is token verification and
+  is not decided here.
+- A duplicate is refused by `UNIQUE (issuer, subject)` through a plain
+  `INSERT`. Nothing replaces the stored row or changes its owner.
+- The helpers never commit and never roll back. After an `IdentityConflict`
+  whatever the caller wrote earlier in its transaction is preserved. A write
+  attempt may begin an implicit transaction (Python's `sqlite3` opens one
+  before an `INSERT` or `UPDATE`), and it stays open when the attempt fails or
+  updates no row: a duplicate on a connection that had no transaction open, a
+  `record_identity_login` for an unknown id. The caller finishes that
+  transaction, by committing or rolling back, after a failure as after a
+  success.
+- There is deliberately no function that unlinks an identity, moves it to
+  another user, creates an account, changes a password, a session key or a
+  role, or looks anything up by email. Those are decisions of the sign-in and
+  linking flows (§13), not of storage.
+- Issuers, subjects and emails are not logged and do not appear in exception
+  messages.
 
 **Not created:** sessions, password-reset tokens, email-verification tokens,
 OAuth transactions. The TOTP tables come from PR T as `016_admin_totp.sql` (§23).
@@ -306,11 +372,11 @@ OAuth transactions. The TOTP tables come from PR T as `016_admin_totp.sql` (§23
 
 - `users` is classified `RUNTIME` and `login_throttle` `OPERATIONAL` in
   `src/canonical_tables.py::TABLE_CLASSIFICATION` (an unclassified table
-  already fails tests).
-- Neither is exported to `data/canonical/`. Account data never becomes
+  already fails tests). `user_identities` is `RUNTIME` as well.
+- None of them is exported to `data/canonical/`. Account data never becomes
   canonical content.
-- `src.build_database` leaves both empty; `test_runtime_tables_are_empty`
-  covers `users`.
+- `src.build_database` leaves them empty; `test_runtime_tables_are_empty`
+  covers `users` and `user_identities`.
 
 ## 6. Authentication and session design
 
@@ -615,8 +681,15 @@ would at minimum require transactional email for verification and recovery.
 
 Not implemented in phase 1. Apple is out of scope.
 
+**Status.** Identity storage is implemented: migration `019_user_identities.sql`
+and `web/services/identities.py` (§5). Provider sign-in is **not** implemented:
+no Authlib dependency, no provider credentials or configuration, no callback
+route, no OAuth transaction, no linking or registration, and no decision yet on
+how student accounts are created. Nothing in the application reads or writes
+`user_identities`. Everything below is still the specification of that later PR.
+
 - `users` does not change. `user_identities` (§5) is added by its own
-  migration, keyed on `UNIQUE (issuer, subject)`.
+  migration, keyed on `UNIQUE (issuer, subject)` (done: migration 019).
 - Authlib is the client library, as the roadmap states; it is added in that
   PR. No hand-rolled OAuth.
 - The callback declares the reserved `OAUTH_STATE` integrity policy in
@@ -731,6 +804,7 @@ account forms.**
 | `013_login_throttle.sql` | New table and index | None | Restart only | Same. |
 | `014_assignment_owner.sql` | Nullable column and index | None; legacy rows stay NULL | Restart only | Old code inserts with explicit column lists and is unaffected. |
 | `015_quiz_attempts_user.sql` (phase 2) | Table rebuild | Copy all rows with `user_id NULL`, preserving ids and the `sqlite_sequence` value | Service stopped, seconds | Restore from the pre-migration backup. |
+| `019_user_identities.sql` (phase 2) | New table and index | None; the table starts empty | Restart only | Nothing uses the table, so there is no behaviour to revert. A build without 019 refuses to start on the migrated database, as for every migration since the lifecycle release: a recovery build keeps the migration, and a snapshot restore does not lead to a build from before it (`docs/DEPLOYMENT.md`, sections 21 and 27). |
 
 **Runner constraint (applies to 015 only; runner support is in place)**
 
@@ -808,8 +882,10 @@ Notes:
 **Phase 2 — student accounts** (after phase 1): the migration-runner
 directive (done); migration 015 with account-owned attempts, the `quiz_taker`
 policy and a minimal "my attempts" page (done, §24); the `Lax` cookie (done,
-§6); assignment `public_token` links; Google/Microsoft OIDC sign-in with
-`user_identities`. The DZI gate and entitlements follow, as in the roadmap.
+§6); assignment `public_token` links; `user_identities` storage (done as
+migration 019 and `web/services/identities.py`, §5: storage only);
+Google/Microsoft OIDC sign-in on top of that storage (not started, §13). The
+DZI gate and entitlements follow, as in the roadmap.
 
 ## 18. Test matrix
 
@@ -832,9 +908,11 @@ policy and a minimal "my attempts" page (done, §24); the `Lax` cookie (done,
 | Duplicate identities | Email uniqueness case-insensitively after normalization. |
 | Existing behaviour | Quiz, teacher and DZI suites unchanged; url-map snapshot tests updated only for the new routes. |
 | Performance | Anonymous request runs zero account queries; signed-in request runs exactly one; owner-scoped list has no per-row query. |
+| Identity storage | 019 applies on a database at 018 and on an empty one and equals the approved schema; existing accounts, credentials, session keys, roles and ownership unchanged; provider CHECK, `UNIQUE (issuer, subject)` and the foreign key enforced, nothing cascades; lookup exact and case-sensitive; the same subject under another issuer is distinct; a duplicate never changes the owner; several identities per user; equal `email_at_link` merges nothing; helpers never commit or roll back, a caller rollback undoes them, and a write refused by its statement (a duplicate, an unknown identity id) leaves the caller a transaction to finish; table `RUNTIME`, empty in a fresh build, absent from every canonical export. |
 
-No tests are required for OAuth, reset, verification or registration until
-those features are built. Admin TOTP tests are listed in §23.
+No tests are required for OAuth sign-in, reset, verification or registration
+until those features are built; identity storage, which exists, is covered by
+the row above. Admin TOTP tests are listed in §23.
 
 ## 19. Production rollout
 
@@ -865,7 +943,8 @@ moment. After any restore, run `manage_accounts sign-out` for all users.
   the `Lax` cookie (phase 2).
 - Public registration, email verification, password reset, forced password
   change after an operator reset.
-- OAuth (Google, Microsoft) and `user_identities` (phase 2); Apple entirely.
+- OAuth (Google, Microsoft) sign-in (phase 2; only its `user_identities`
+  storage exists, §5); Apple entirely.
 - Web-based TOTP enrolment or self-service recovery (admin TOTP and recovery
   codes themselves are PR T, §23, CLI-only).
 - `declared_type`, plans, entitlements, billing, teacher creation quotas.
@@ -1102,7 +1181,9 @@ deploying it for a class.
 
 **Current:** PRs 1–10 and T are implemented, and so are the runner's
 table-rebuild support and migration `015_quiz_attempts_user.sql` with
-account-owned attempts (§24), the first PR of phase 2. The text below is the
+account-owned attempts (§24), the first PR of phase 2. Since then the `Lax`
+session cookie (§6) and the `user_identities` storage (migration 019, §5) have
+been added; provider sign-in has not (§13). The text below is the
 original recommendation, kept as history; do not implement it again.
 
 **PR 1 — `users` schema and accounts service** (implemented)

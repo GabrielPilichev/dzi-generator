@@ -53,9 +53,14 @@ class LifecycleMigrationTest(unittest.TestCase):
         sqlite3.connect(self.path).close()
         previous = self.root / "migrations"
         previous.mkdir()
+        # 000..018 only: what 018 itself changes, whatever later migrations add.
+        self.through = self.root / "through-018"
+        self.through.mkdir()
         for path in sorted(MIGRATIONS.glob("*.sql")):
             if path.name < MIGRATION:
                 shutil.copyfile(path, previous / path.name)
+            if path.name <= MIGRATION:
+                shutil.copyfile(path, self.through / path.name)
         self.assertEqual(apply(self.path, previous)[0], 0)
         self.conn = sqlite3.connect(self.path)
         self.addCleanup(self.conn.close)
@@ -64,7 +69,7 @@ class LifecycleMigrationTest(unittest.TestCase):
         self.conn.commit()
 
     def migrate(self):
-        code, report = apply(self.path)
+        code, report = apply(self.path, self.through)
         self.assertEqual(code, 0, report)
         return report
 
@@ -122,7 +127,7 @@ class LifecycleMigrationTest(unittest.TestCase):
         before_root = self.conn.execute(
             "SELECT rootpage FROM sqlite_master WHERE type = 'table' AND name = 'quiz_assignments'").fetchone()
         dry = io.StringIO()
-        manage_migrations.dry_run(self.path, MIGRATIONS, out=dry)
+        manage_migrations.dry_run(self.path, self.through, out=dry)
         self.assertIn(f"pending migrations:\n  - {MIGRATION}\n", dry.getvalue())
         report = self.migrate()
         self.assertIn(f"applied migrations:\n  - {MIGRATION}\n", report)
@@ -156,7 +161,7 @@ class LifecycleMigrationTest(unittest.TestCase):
         self.migrate()
         fresh_path = self.root / "fresh.db"
         sqlite3.connect(fresh_path).close()
-        self.assertEqual(apply(fresh_path)[0], 0)
+        self.assertEqual(apply(fresh_path, self.through)[0], 0)
         with closing(sqlite3.connect(fresh_path)) as fresh:
             for table in ("quiz_assignments", "lifecycle_clock"):
                 self.assertEqual(fresh.execute(f"PRAGMA table_info({table})").fetchall(),

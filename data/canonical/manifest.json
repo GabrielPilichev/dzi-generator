@@ -2,7 +2,7 @@
   "format": "learnpilot-canonical-content",
   "format_version": 1,
   "schema": {
-    "migration_level": "018_assignment_lifecycle.sql",
+    "migration_level": "019_user_identities.sql",
     "migrations": [
       "000_baseline.sql",
       "001_quiz_tables.sql",
@@ -22,7 +22,8 @@
       "015_quiz_attempts_user.sql",
       "016_admin_totp.sql",
       "017_assignment_public_token.sql",
-      "018_assignment_lifecycle.sql"
+      "018_assignment_lifecycle.sql",
+      "019_user_identities.sql"
     ]
   },
   "classification": {
@@ -65,6 +66,7 @@
       "quiz_text_answers",
       "totp_credentials",
       "totp_recovery_codes",
+      "user_identities",
       "users"
     ],
     "operational": [
@@ -116,6 +118,7 @@
     "quiz_text_answers",
     "totp_credentials",
     "totp_recovery_codes",
+    "user_identities",
     "users"
   ],
   "operational_exclusions": [
