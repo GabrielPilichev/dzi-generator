@@ -305,6 +305,8 @@ The exact credential/recovery columns and secret-protection mechanism are decide
 - Passwords use Werkzeug `generate_password_hash` and `check_password_hash`; OAuth/OIDC uses Authlib. No hand-rolled OAuth.
 - Apple sign-in is **out of v1**. Add it only after its callback/state flow is designed and tested explicitly.
 
+Status: the storage for external identities exists (`user_identities`, migration 019, and `web/services/identities.py`), keyed on the exact issuer + subject pair and never on email. Google/Microsoft OIDC sign-in is not implemented: no Authlib, no callback, no linking and no account creation through a provider. Current state: `docs/ACCOUNTS_DESIGN.md` §5 and §13.
+
 ### OAuth transaction binding
 
 Switch the normal session cookie to `SameSite=Lax`, keeping `Secure` and `HttpOnly`, so ordinary top-level GET redirects from Google/Microsoft can return with the application session.
