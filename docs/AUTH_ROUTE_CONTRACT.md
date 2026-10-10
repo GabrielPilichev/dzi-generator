@@ -219,8 +219,42 @@ registration, reset or OAuth route.
 over only `quiz_attempt_owner:*` keys, and sets `uid`, `sk` (the user's
 `session_key`) and `iat` (issue time, epoch seconds). Role, name and active
 state are never in the cookie; they are read from the `users` row on every
-request. The cookie itself is unchanged: a browser-session cookie, `Secure`,
-`HttpOnly`, `SameSite=Strict`, no remember-me.
+request.
+
+**Session cookie.** One cookie, `session`: `Secure`, `HttpOnly`,
+`SameSite=Lax`, `Path=/`, no `Domain`, and no `Expires` or `Max-Age` (it ends
+with the browser session; there is no remember-me). Every response that writes
+or clears it uses these attributes: a sign-in, the admin's pending second
+factor and its completion, a password change, a dropped stale identity and the
+sign-out. `Secure` is unconditional in production (`web.production` sets it and
+startup rejects a false `DZI_SESSION_COOKIE_SECURE`); that variable exists only
+for plain-HTTP local runs. `SameSite` is not configurable.
+
+It was `SameSite=Strict` until phase 2 of accounts. `Lax` means the browser
+sends the cookie with a top-level navigation that starts on another site (a
+followed link, a redirect, a GET form) and with no other cross-site request:
+not with a cross-site POST, nor with an image, frame or script request. What
+follows from that is part of this contract:
+
+- A signed-in visitor who follows a link from another site arrives signed in.
+  A future OIDC provider redirect relies on it (`docs/ACCOUNTS_DESIGN.md` §13).
+- No GET (or HEAD) changes state on the visitor's behalf: nothing is signed
+  out, created, edited, closed, submitted or reviewed by one, and `GET /logout`
+  does not exist (405). A new state change is POST-only and declares
+  `@integrity_policy(SAME_ORIGIN)`. The one write a GET performs is the
+  lifecycle observation stamp with its clock bookkeeping
+  (`docs/ASSIGNMENT_LIFECYCLE_DESIGN.md` §3.6, §6.3): the server's clock, no
+  request input, written once, and caused by an anonymous request just the
+  same.
+- Request integrity does not depend on the attribute. Step 1 of "Enforcement"
+  refuses every cross-origin unsafe request whatever cookie arrives with it,
+  including one from another host of the same site, which `SameSite` never
+  tells apart.
+- An anonymous request sets no cookie, and a GET with a valid session does not
+  rewrite it (only a stale identity is dropped, see "Fail closed").
+
+`tests/test_session_cookie_samesite.py` pins all of it; it fails for a GET or
+unsafe route that is not in its sweeps.
 
 **Fail closed.** The account keys are the only identity the application reads.
 An identity that does not resolve (unknown or disabled user, key mismatch,
@@ -356,12 +390,10 @@ teacher-management routes (`/teacher/assignment/<id>` and its `/edit`,
 account-owned attempt routes (`/quiz/attempt/<attempt_id>...`) described below.
 
 `GET /login` with an already valid account session redirects to the validated
-`next` (or the role's home) instead of showing the form. A student who follows
-an external link arrives without the `SameSite=Strict` cookie on that first
-cross-site request and so sees the sign-in link; following it is a same-site
-request, the session is recognised, and the student lands back on the
-assignment without signing in again. A pending admin second factor is not an
-account session and still gets the form.
+`next` (or the role's home) instead of showing the form. A signed-in student
+who follows an external link to an assignment arrives signed in (the cookie is
+`SameSite=Lax`, see "Session cookie") and gets the start form at once. A
+pending admin second factor is not an account session and still gets the form.
 
 **Attempt routes** have the `attempt_owner` policy: the route-level check lets
 every session through, and the view makes the object-level decision, answering

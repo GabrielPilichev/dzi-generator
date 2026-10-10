@@ -37,6 +37,8 @@ has started with account-owned quiz attempts (migration 015, §24).
 - Done: migration `015_quiz_attempts_user.sql` and account-owned quiz attempts
   (§5, §16, §24). A new attempt needs a signed-in account; attempts
   from before accounts stay `user_id` NULL and bound to their browser.
+- Done: the session cookie is `SameSite=Lax` (§6, §14), as its own PR. It is
+  the prerequisite of OIDC sign-in (§13), not a part of it.
 - **Next:** the remaining phase-2 items of §17. None of them is started.
 - The DZI visibility gate depends on account identity (a signed-in principal),
   not on OIDC specifically; OIDC is one way to obtain student accounts.
@@ -154,13 +156,16 @@ It is the baseline the PR sequence started from, not the current state.
 3. **No revocation.** Logout only deletes the browser's cookie; a copied
    cookie stays valid until `DZI_SECRET_KEY` rotates.
 4. **Logouts and profile switch are state-changing GETs.** Harmless under
-   `Strict`, a logout-CSRF nuisance once the cookie becomes `Lax`.
+   `Strict`, a logout-CSRF nuisance once the cookie becomes `Lax`. Resolved
+   before the cookie became `Lax`: logout is POST-only (PR 4) and the profile
+   switch no longer exists (PR 10).
 5. **Attempt identity is a typed name.** A student who loses the cookie gets
    404 on their own attempt, and anyone can squat a name.
 6. **Results, CSV and practical review are admin-only.** The roadmap wants
    teachers to see their own.
 7. **`Strict` cookies break inbound links.** A signed-in student clicking a
-   quiz link from Teams or Classroom arrives without a session.
+   quiz link from Teams or Classroom arrives without a session. Resolved in
+   phase 2: the cookie is `Lax` (§6).
 8. **The migration runner could not safely rebuild `quiz_attempts`** (§16),
    which the roadmap's uniqueness change requires. Resolved by the opt-in
    table-rebuild directive; migration 015 must use it.
@@ -411,9 +416,13 @@ server-enforced absolute lifetime from `iat`: 30 days for student and teacher,
 
 **Cookie attributes**
 
-- Unchanged in phase 1 (`Strict`, `HttpOnly`, `Secure`).
-- The move to `Lax` is its own small PR in phase 2, after the new POST logout
-  exists.
+- `SameSite=Lax`, `HttpOnly`, `Secure`, and no `Expires` or `Max-Age`. Every
+  response that writes or clears the cookie uses them.
+- Phase 1 kept `Strict`. The move to `Lax` was its own small PR in phase 2,
+  after the POST-only logout existed. It changed that one attribute: no session
+  key, lifetime, route, migration or environment variable.
+- With `Lax`, a top-level GET that starts on another site arrives signed in, so
+  no GET may change state for the visitor (§14).
 
 **Caching**
 
@@ -612,8 +621,9 @@ Not implemented in phase 1. Apple is out of scope.
   PR. No hand-rolled OAuth.
 - The callback declares the reserved `OAUTH_STATE` integrity policy in
   `web/request_integrity.py`; it is not an access level.
-- The session cookie moves to `SameSite=Lax` (keeping `Secure` and `HttpOnly`)
-  before OAuth, so the provider's top-level GET redirect carries the session.
+- The session cookie is `SameSite=Lax` (with `Secure` and `HttpOnly`; done as
+  its own PR before OAuth, §6), so the provider's top-level GET redirect
+  carries the session.
 
 **DECISION (approved) — session-bound transaction.** `state`, `nonce`, the
 PKCE verifier, the validated return target and an expiry are stored in the
@@ -651,10 +661,18 @@ account forms.**
 
 - WHY: every unsafe method already requires a matching Origin or Referer with
   no exemptions, and that includes the login POST, so login CSRF is covered.
-  The cookie's SameSite attribute is a second, independent layer.
+  The cookie's SameSite attribute is a second, independent layer: `Lax` (§6)
+  keeps the cookie off every cross-site POST, but not off a top-level GET, and
+  it never tells apart the hosts of one site. The origin check does not depend
+  on it.
 - Conditions that must hold:
   - every new unsafe view declares `@integrity_policy(SAME_ORIGIN)`;
   - new state changes are POST only;
+  - no GET changes state on the visitor's behalf, because a link from another
+    site arrives signed in. The lifecycle observation stamp, with its clock
+    bookkeeping, is the one deliberate write of a GET: the server's clock, no
+    request input, written once, and caused by an anonymous request just the
+    same;
   - authentication code never touches the integrity check (the separation
     from the D1/D2 refactor is preserved).
 
@@ -789,8 +807,8 @@ Notes:
 
 **Phase 2 — student accounts** (after phase 1): the migration-runner
 directive (done); migration 015 with account-owned attempts, the `quiz_taker`
-policy and a minimal "my attempts" page (done, §24); the `Lax` cookie;
-assignment `public_token` links; Google/Microsoft OIDC sign-in with
+policy and a minimal "my attempts" page (done, §24); the `Lax` cookie (done,
+§6); assignment `public_token` links; Google/Microsoft OIDC sign-in with
 `user_identities`. The DZI gate and entitlements follow, as in the roadmap.
 
 ## 18. Test matrix
@@ -802,6 +820,7 @@ assignment `public_token` links; Google/Microsoft OIDC sign-in with
 | Password hashing | Hash verifies; wrong password fails; stored method is scrypt; rehash on method change; length bounds; dummy verify on unknown email. |
 | Login/logout | Success sets exactly `uid`, `sk`, `iat`; generic failure message for all four failure causes; logout is POST-only and clears the session. |
 | Session | Pre-login keys cleared except attempt-owner keys; absolute lifetime enforced; key rotation invalidates other sessions; stale `uid` becomes anonymous. |
+| Session cookie | `SameSite=Lax`, `HttpOnly`, `Secure` and no expiry on every `Set-Cookie` (sign-in of each role, both admin steps, password change, dropped identity, sign-out); no cookie for an anonymous request; every GET route shown to write nothing; a cross-origin unsafe request refused on every unsafe route with the cookie present. |
 | Roles | Route × role matrix for student, teacher, admin, anonymous; admin cannot be created through any web path. |
 | Bridge | Legacy matrix unchanged while the flag is on; account identity overrides legacy keys; flag off disables legacy routes. |
 | Redirects | External, protocol-relative, schemed and relative `next` values fall back; role fallbacks. |
@@ -881,6 +900,11 @@ Still open, none of which blocks phase 1:
 - **Targeted lockout** of a known email for 15 minutes.
 - **Cookie sessions cannot be listed or individually revoked.** Only per-user
   key rotation and the absolute lifetime exist.
+- **A link from another site arrives signed in (`Lax`).** Accepted, for inbound
+  quiz links and OIDC. A GET that changed state would then be forgeable from
+  any site, so state changes stay POST-only behind the origin check, and
+  `tests/test_session_cookie_samesite.py` fails for a GET route it has not
+  shown to write nothing.
 - **Test churn.** PR 5 touches many test files mechanically; keep it
   tests-only.
 - **Gap 2 stays open until PR 6.** Any holder of the tester password can read

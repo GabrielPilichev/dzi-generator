@@ -563,7 +563,7 @@ class AuthGuardTest(IsolatedAppTestCase):
         self.assertEqual(response.status_code, 403)
 
     def test_session_cookie_security_defaults_are_set(self):
-        self.assertEqual(self.app.config["SESSION_COOKIE_SAMESITE"], "Strict")
+        self.assertEqual(self.app.config["SESSION_COOKIE_SAMESITE"], "Lax")
         self.assertTrue(self.app.config["SESSION_COOKIE_HTTPONLY"])
 
     def test_session_cookie_secure_env_defaults_true(self):

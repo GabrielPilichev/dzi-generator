@@ -646,10 +646,10 @@ class SessionLifetimeEnforcementTest(AccountAppTestCase):
                 self.assertEqual(response.headers["Location"], "/login?next=/teacher")
         self.assertEqual({key for key in self.session() if key in ("uid", "sk", "iat")}, set())
 
-    def test_cookie_is_a_browser_session_cookie_with_unchanged_attributes(self):
+    def test_cookie_is_a_browser_session_cookie_with_its_security_attributes(self):
         account = self.make("teacher")
         cookie = self.login(account["email"]).headers["Set-Cookie"]
-        for attribute in ("Secure", "HttpOnly", "SameSite=Strict"):
+        for attribute in ("Secure", "HttpOnly", "SameSite=Lax"):
             self.assertIn(attribute, cookie)
         self.assertNotIn("Expires=", cookie)
         self.assertNotIn("Max-Age=", cookie)

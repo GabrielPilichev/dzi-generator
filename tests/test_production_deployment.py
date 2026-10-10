@@ -371,7 +371,7 @@ class ProductionStartupTest(unittest.TestCase):
         self.assertEqual(report["unproxied"], 403)
         status, cookie = report["login"]
         self.assertEqual(status, 302)
-        for attribute in ("Secure", "HttpOnly", "SameSite=Strict"):
+        for attribute in ("Secure", "HttpOnly", "SameSite=Lax"):
             self.assertIn(attribute, cookie)
         for secret in (SECRET_KEY, ADMIN_PASSWORD, TESTER_PASSWORD, TEACHER_PASSWORD):
             self.assertNotIn(secret, result.stdout + result.stderr)
