@@ -2,7 +2,7 @@
   "format": "learnpilot-canonical-content",
   "format_version": 1,
   "schema": {
-    "migration_level": "019_user_identities.sql",
+    "migration_level": "020_oidc_consumed_transactions.sql",
     "migrations": [
       "000_baseline.sql",
       "001_quiz_tables.sql",
@@ -23,7 +23,8 @@
       "016_admin_totp.sql",
       "017_assignment_public_token.sql",
       "018_assignment_lifecycle.sql",
-      "019_user_identities.sql"
+      "019_user_identities.sql",
+      "020_oidc_consumed_transactions.sql"
     ]
   },
   "classification": {
@@ -74,6 +75,7 @@
       "login_throttle",
       "note_question_links",
       "obsidian_notes",
+      "oidc_consumed_transactions",
       "schema_migrations",
       "scrape_log",
       "sqlite_sequence"
@@ -126,6 +128,7 @@
     "login_throttle",
     "note_question_links",
     "obsidian_notes",
+    "oidc_consumed_transactions",
     "schema_migrations",
     "scrape_log",
     "sqlite_sequence"

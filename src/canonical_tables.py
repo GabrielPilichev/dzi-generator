@@ -73,6 +73,7 @@ TABLE_CLASSIFICATION: dict[str, tuple[str, str]] = {
     "user_identities": (RUNTIME, "external sign-in identities (issuer + subject) of accounts, never canonical content"),
     "generated_exams": (OPERATIONAL, "generated exam log"),
     "login_throttle": (OPERATIONAL, "per-identifier login throttle counters (keyed hashes, no emails)"),
+    "oidc_consumed_transactions": (OPERATIONAL, "single-use records of OIDC transactions (keyed hashes only)"),
     "note_question_links": (OPERATIONAL, "vault note mirror"),
     "obsidian_notes": (OPERATIONAL, "vault sync mirror"),
     "schema_migrations": (OPERATIONAL, "migration bookkeeping"),

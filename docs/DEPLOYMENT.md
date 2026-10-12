@@ -1052,7 +1052,8 @@ the step 3 snapshot.
   vault changes made after it; decide that explicitly. A restore does not by
   itself make an older build usable: which builds may serve the restored
   database is restricted per migration, so read the "Rollback" part of that
-  migration's own section first (26 for migration 018, 27 for migration 019).
+  migration's own section first (26 for migration 018, 27 for migration 019,
+  28 for migration 020).
 - **Never roll back to a release from before the assignment lifecycle (migration
   018).** Such code starts on the migrated schema without errors and ignores
   every deadline and closure: students could start and submit closed tests and
@@ -2024,6 +2025,179 @@ how anyone signs in. Forward fix first.
   held stays held (section 26, "Restore").
 - The lifecycle rule of section 26 is unchanged: never a build from before
   migration 018.
+
+## 28. OIDC consumption storage (migration 020)
+
+Migration `020_oidc_consumed_transactions.sql` adds the
+`oidc_consumed_transactions` table: where a later release will record that an
+OIDC sign-in transaction was used, so that the same transaction cannot be used
+a second time (`docs/ACCOUNTS_DESIGN.md`, sections 5 and 13;
+`docs/reviews/OIDC_CONSUMPTION_SCOPE.md`).
+
+**This release is storage only. Provider sign-in is not implemented, and
+neither is replay protection.** There is no new route, page, dependency,
+environment variable, secret, service, timer, Nginx or Gunicorn change, and no
+application code reads or writes the table. Sign-in works exactly as before
+(section 23).
+
+The table is empty **in this release**, because nothing writes to it. Do not
+read that as a property of the table, and do not expect it to stay small by
+itself: once a later release adds OIDC sign-in, it holds a row for every
+sign-in whose expiry has not yet passed by more than a minute, and in addition
+whatever earlier boots of the server left behind, which can add up (see "Rows,
+and who removes them").
+
+This release was verified with Python 3.12, which is what production runs
+(`/opt/learnpilot/venv/bin/python --version`, section 5). The storage service
+tells a repeated use apart as `AlreadyConsumed` through `sqlite_errorcode`,
+which Python provides from 3.11 on. On an older Python a repeated use is still
+refused, as a plain `sqlite3.IntegrityError`, and the service still neither
+commits nor rolls back. That is a note on this release's verification and
+behaviour; it does not set a minimum Python version for the project.
+
+### Deployment order
+
+The standard procedure of section 20, with nothing added to it.
+
+- The migration is additive: one new table, without an index and without a
+  row. It is not a table rebuild and alters no existing table. Accounts,
+  password hashes, session keys, second factors, external identities and
+  ownership are untouched, and nobody is signed out.
+- What the dry run of step 7 lists depends on the database it is run against,
+  and this guide does not assume that database's migration level. On a
+  database that already has every migration through `019_user_identities.sql`
+  it lists exactly `020_oidc_consumed_transactions.sql`. If it lists earlier
+  migrations too, the database is behind that level: each of them has
+  conditions of its own, described where it is introduced (section 9 for a
+  table rebuild, section 26 for migration 018, section 27 for migration 019),
+  and this section does not replace them.
+- Apply in step 8, after the step 3 snapshot, only what the dry run listed.
+  From this release on the application refuses to start on a schema without
+  migration 020 (section 9).
+- No account, operator or teacher has anything to do afterwards.
+
+### Backup and restore
+
+`oidc_consumed_transactions` is part of the live database, so the snapshot of
+section 16 and the restore of section 17 cover it with no change to either;
+`deploy/learnpilot-restore.sh` is not changed. A snapshot from before this
+release is restored as before: the restore script migrates its copy to the
+schema of the deployed build (section 17, step 4), which adds the empty table.
+The table is operational state: it is never exported to `data/canonical`, and
+a database built by `src.build_database` has it empty.
+
+The table plays no part in reconciliation. Whether the database being replaced
+is accepted as evidence is decided by its schema, its tests and attempts, and
+its lifecycle clock (section 26, "Restore"); a difference in this table is not
+lifecycle history, in either direction.
+
+What a restore means for the records themselves matters only once a release
+writes them, which this one does not:
+
+- A snapshot holds the table as it was when the snapshot was taken. Records
+  written afterwards are not in the restored database.
+- **The storage does not make that loss harmless by itself.** Two things
+  together do. The restore script stops the service in its step 2 and starts
+  it in its step 11, which begins a new run of the service; and the sign-in
+  code has to refuse every sign-in transaction that an earlier run issued.
+  That second part is a requirement on the release that adds sign-in. It is
+  not implemented, and that release has to show it before it is deployed.
+- For the same reason the rule of section 17 gains one more consequence: a
+  database that is rolled back or replaced **under a running service** loses
+  records without a new run beginning, and a transaction used in that interval
+  could be accepted once more for the rest of its lifetime. The restore is
+  carried out by the one script, never by hand.
+
+### Rows, and who removes them
+
+Nothing in this release writes a row. These rules are for the release that
+does, and they are stated here so that nothing is built on the opposite
+assumption in the meantime:
+
+- **No job removes rows, and none is to be added:** no timer, cron entry or
+  maintenance script. The service that records a use deletes, in the same
+  transaction, the rows whose expiry has passed by more than a minute. That is
+  the only deletion.
+- **Never delete rows from this table by hand, and never empty it "to tidy
+  up".** A row that is removed makes its transaction usable again until that
+  transaction expires.
+- **A table that is not empty is normal, and it is not limited to a few
+  minutes of sign-ins.** A reboot restarts the monotonic clock near zero. The
+  rows that were in the table at that moment stay until a sign-in is recorded
+  after the new boot's clock has passed their stored expiry plus the
+  allowance. That takes as long as the server had been up before the reboot,
+  and it does not happen at all if the server is rebooted again sooner. Every
+  such reboot leaves its own rows behind, so rows of several earlier boots can
+  accumulate. Each is one 64-character hash and one number. **Leave them.**
+  Removal stays by expiry only: no job, script or index is to be added for
+  them.
+- **Those leftover rows are harmless only on one condition:** the sign-in code
+  refuses every sign-in transaction that an earlier run of the service issued,
+  before it consults this table. Their expiry values belong to a clock that no
+  longer exists, and nothing in the table tells them apart from current rows.
+  That check is a requirement on the release that adds sign-in. It is not
+  implemented, and that release has to show it before it is deployed.
+- `expires_at` is not a date. It is a number of seconds of the server's
+  monotonic clock, which counts from boot. Do not read it as a time of day,
+  and do not compare it with one.
+
+### One host, one clock
+
+Those expiry values are comparable only between processes that share one
+monotonic clock. The deployment meets this today, and the release that adds
+sign-in depends on it staying so:
+
+- every process that writes to the database runs on **one host**. Two servers
+  on one database file do not share a clock;
+- none of them runs in a Linux time namespace of its own (a container or unit
+  configured with a separate time namespace has a separate monotonic clock).
+  The systemd unit of section 11 uses none; keep it that way;
+- the number of Gunicorn workers does not matter for this: workers on one host
+  share the clock. (Do not take that as a reason to raise the worker count;
+  section "2 GB VPS sizing" still applies.)
+
+### Rollback
+
+**There is no behaviour to revert.** This release only adds storage that
+nothing reads or writes: sign-in, sessions, roles and every page are what they
+were before it. Forward fix first.
+
+- **Once migration 020 is applied, every build that serves this database ships
+  `020_oidc_consumed_transactions.sql`, a recovery build included.** Migrations
+  are forward-only, and a build that does not ship an applied migration
+  refuses to start on the database (section 21). If application code has to be
+  reverted, revert the code and keep the migration, together with the metadata
+  that belongs to it: the `oidc_consumed_transactions` entry in
+  `src/canonical_tables.py`, and in `data/canonical/manifest.json` the
+  migration list and level and the operational table lists. A build that ships
+  the migration without them fails its own canonical and database-build
+  checks. The table stays; it is not dropped or emptied, by a migration or by
+  hand.
+- **A snapshot restore is not a route to a build from before 020,** for the
+  reasons section 27 gives for migration 019, which hold here unchanged:
+  - *A lifecycle build from before 020.* Reconciliation refuses the database
+    being replaced as evidence: it has migration 020 applied, that build does
+    not ship it, and so it "is not at the schema of this build" (section 26,
+    "Restore"). The script stops there, nothing is replaced and the service
+    stays stopped.
+  - *This build, or a later one.* The script migrates its copy of the snapshot
+    to the schema of the deployed build (section 17, step 4), so a snapshot
+    from before 020 has migration 020 applied to it. The restored database is
+    at 020 again, and a build from before 020 refuses to start on it as it
+    did on the one that was replaced.
+- **Do not reach for `--replaced-database-unreadable` to get past that
+  refusal.** The option is for a database that cannot be read or trusted, not
+  for one that an older build does not recognise, and it leaves every
+  assignment held with nothing to release them afterwards (section 17,
+  "Without the replaced database").
+- **The restore procedure and its holds are unchanged.** A restore that is
+  needed for its own reasons is still the one script of section 17, run from
+  start to finish with a build that ships every applied migration. No step of
+  it is skipped or done by hand to suit a build, and an assignment it leaves
+  held stays held (section 26, "Restore").
+- The rules of sections 26 and 27 are unchanged: never a build from before
+  migration 018, and every build that serves a database at 019 ships
+  migration 019.
 
 ## 2 GB VPS sizing
 
