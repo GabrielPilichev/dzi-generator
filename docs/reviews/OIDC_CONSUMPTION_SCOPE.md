@@ -1,8 +1,26 @@
 # OIDC consumption storage
 
-Status: **proposed scope, awaiting independent review. Nothing is implemented:
-no branch, pull request, migration or service exists, and no number is
-assigned to any of them.**
+Status: **scope reviewed and released for implementation; implemented as
+storage only, independently reviewed by Codex: APPROVE WITH NON-BLOCKING NOTES. Not merged.**
+
+- The independent review of this scope found no blocker. Its refinements are
+  the last section of this file and override conflicting wording above them.
+- Implementation: branch `feature/oidc-consumption-storage`, PR #332,
+  migration `020_oidc_consumed_transactions.sql` and
+  `web/services/oidc_consumption.py`. Nothing calls the service.
+- The schema as implemented is the SQL block of `docs/ACCOUNTS_DESIGN.md` §5,
+  which the migration test compares with the migration file. It differs from
+  the block in section 1 below by the byte-length condition of the
+  refinements, kept next to the character length: measured, the byte length
+  alone admits a 64-byte value with a NUL inside it.
+- Google OIDC sign-in is not implemented, and neither is replay protection as
+  a whole: the caller obligations of section 4 have no caller yet.
+- Python: this PR's supported verification workflow uses Python 3.12, which
+  is what production runs. `AlreadyConsumed` needs `sqlite_errorcode`,
+  available from Python 3.11 (section 3, "Python"). No minimum version is
+  declared for the project by this.
+- Retained rows are not bounded to a few minutes of traffic: rows of earlier
+  boots can accumulate (section 5, "Reboot").
 
 This file is the complete specification of the prerequisite of Google OIDC
 sign-in. `GOOGLE_OIDC_DESIGN.md` and `GOOGLE_OIDC_TEST_PLAN.md` refer to it
@@ -30,8 +48,12 @@ route, dependency, configuration, page or behaviour changes.
   PR; `login_throttle` is not used for it; duplicates and storage errors fail
   closed; retention covers the whole acceptance lifetime plus an allowance;
   cleanup cannot make an accepted transaction reusable.
-- **Proposed, not approved:** everything below that gives those decisions a
-  concrete form (names, the schema text, the API, the obligations, the tests).
+- **Reviewed, with refinements:** everything below that gives those decisions
+  a concrete form (names, the schema text, the API, the obligations, the
+  tests). It was proposed here, the independent scope review found no blocker
+  in it, and Gabriel released it for implementation together with the
+  refinements of the last section. The implementation has its own independent
+  review, which is still to come.
 
 ## 1. Schema
 
@@ -61,8 +83,10 @@ The file begins with `PRAGMA foreign_keys = ON;` like migration 019.
   user id, subject, email, purpose or address; no wall-clock time.
 - **No `instance` column.** Which service run wrote a row is not recorded and
   decides nothing in the storage (section 5).
-- `WITHOUT ROWID` and no secondary index: the table holds the callbacks of a
-  few minutes.
+- `WITHOUT ROWID` and no secondary index. Rows go by their expiry only
+  (section 3, step 4), and no index or other cleanup is added for that. The
+  table is not bounded to the callbacks of a few minutes: rows of earlier
+  boots can remain and accumulate (section 5, "Reboot").
 - **Column affinity.** `expires_at` has INTEGER affinity, so SQLite converts a
   value that reads as a whole number before the `CHECK` sees it: the texts
   `'600'`, `' 600 '` and `'6e2'` and the real `600.0` are each stored as the
@@ -76,8 +100,10 @@ The file begins with `PRAGMA foreign_keys = ON;` like migration 019.
 
 - `src/canonical_tables.py`: `"oidc_consumed_transactions": (OPERATIONAL,
   "single-use records of OIDC transactions (keyed hashes only)")`, beside
-  `login_throttle`. It is bookkeeping with a lifetime of minutes and holds no
-  account state, which is what `OPERATIONAL` means there.
+  `login_throttle`. It is bookkeeping and holds no account state, which is
+  what `OPERATIONAL` means there. A row is needed only while its key could
+  still be accepted; it can stay in the table much longer (section 5,
+  "Reboot").
 - `data/canonical/manifest.json`: the migration is appended to
   `schema.migrations` and becomes `schema.migration_level`; the table joins
   `classification.operational` and `operational_exclusions`. Canonical
@@ -134,6 +160,21 @@ transaction and the clock.**
    :expires_at)`. `sqlite3.IntegrityError` becomes `AlreadyConsumed`.
 
 It returns `None`. Any other `sqlite3.Error` propagates unchanged.
+
+**Python.** As implemented, and as the refinements of the last section
+require, step 5 maps only the duplicate of the primary key to
+`AlreadyConsumed`. It is recognised by SQLite's result code, which Python's
+`sqlite3` exposes as `sqlite_errorcode` from Python 3.11 on.
+
+- This PR's supported verification workflow uses Python 3.12, which is what
+  production runs.
+- On an older Python a duplicate propagates as the `sqlite3.IntegrityError`
+  it is. The key is still refused and nothing is recorded for it, and the
+  transaction is still the caller's: the service neither commits nor rolls
+  back, and obligations 5 and 6 of section 4 apply unchanged.
+- This states how the PR was verified and how the service behaves. It does
+  not declare a minimum Python version for the project, and nothing else in
+  the repository is changed for it.
 
 ## 4. Caller obligations
 
@@ -210,16 +251,25 @@ the clock has passed its expiry plus the allowance.
 **Reboot.** `time.monotonic()` starts again near zero, so the rows of the
 earlier boot carry values of a clock that no longer exists.
 
-- They are **inert**. Their keys can be derived only from objects of an
-  earlier run, and obligation 4 refuses those before `consume` is called.
-  A fresh object has a fresh random value and cannot meet an old key.
-- They are **removed by the same rule**, when the new clock passes their
-  expiry plus the allowance. That can take as long as the earlier boot's
-  uptime, and if the host never stays up that long they remain.
-- They are **few**: at most the rows that were retained at the last
-  consumption before the reboot, that is, the matched callbacks of about
-  eleven minutes. A row is one 64-character key and one integer.
-- Nothing needs to remove them, and nothing does.
+- They are **inert only under obligation 4**. Their keys can be derived only
+  from objects of an earlier run, and a caller that meets obligation 4 refuses
+  those before `consume` is called. A fresh object has a fresh random value
+  and cannot meet an old key. The storage does not make them inert by itself:
+  their expiries are values of a clock that no longer exists, and nothing in
+  the table tells them apart from current rows. No caller exists yet, so
+  nothing performs that validation yet.
+- They are **removed by the same rule**: by the first consumption after the
+  new clock has passed their expiry plus the allowance. That can take as long
+  as the earlier boot's uptime, and if the host never stays up that long they
+  remain.
+- They are **not bounded to a few minutes of traffic.** One reboot leaves
+  behind the rows that were still retained at the last consumption before it.
+  Every further reboot that comes before the clock has caught up leaves its
+  own rows as well, so repeated reboots accumulate rows of several earlier
+  boots, until the current clock passes their stored expiries plus the
+  allowance. A row is one 64-character key and one integer.
+- Cleanup stays expiry-only. No other deletion, scheduled job or index is
+  added for these rows, and nothing else removes them.
 
 **Why obligation 4 is needed.** Expiry values mean something only within one
 run of the clock. After a reboot the storage alone would accept an *unused*
@@ -235,8 +285,8 @@ taken; rows written afterwards are lost. The supported restore
 (`deploy/learnpilot-restore.sh`, `docs/DEPLOYMENT.md` §17) stops the service
 in its step 2 and starts it in its step 11, which begins a new run, so
 obligation 4 refuses every earlier object and a lost row cannot matter. The
-snapshot's own rows are inert in the sense above. The storage does not make a
-lost row harmless by itself.
+snapshot's own rows are inert in the sense above, that is, only under
+obligation 4. The storage does not make a lost row harmless by itself.
 
 **Limits**
 
@@ -267,10 +317,12 @@ lost row harmless by itself.
 - **Rollback.** Migrations are forward-only (§21). Once this one is applied,
   every build that serves the database ships it together with its
   classification and manifest entries, a recovery build included. The table
-  stays, empty; it is not dropped.
+  stays, with whatever rows it holds (none in this release); it is not
+  dropped or emptied.
 - **`docs/DEPLOYMENT.md`** gains one section for the migration, written like
-  §27: deployment order, backup and restore, rollback, and the one-clock
-  requirement of limit 3.
+  §27: deployment order, backup and restore, rollback, the one-clock
+  requirement of limit 3, the Python note of section 3, and that rows of
+  earlier boots can accumulate (section 5, "Reboot").
 - No environment variable, Nginx, Gunicorn or systemd change.
 
 ## 7. Acceptance tests
@@ -378,9 +430,9 @@ Temporary databases built from migrations (`tests/support.py`);
 | `docs/DEPLOYMENT.md` | The new section of section 6. |
 | `docs/ACCOUNTS_DESIGN.md` | §5: the schema of section 1 as an SQL block, which the migration test compares with the migration file as the 019 test does (`tests/test_user_identities_migration_sql.py:388`). §13 and the status list: the table and the service exist; nothing uses them yet. |
 
-The schema enters `docs/ACCOUNTS_DESIGN.md` only with that PR, once this
-scope is approved. Until then §13 records the amendment as planned and
-contains no schema.
+The schema entered `docs/ACCOUNTS_DESIGN.md` with this PR (#332): §5 holds it
+and the service's contract, and §13 records the approved amendment and that
+only its storage exists.
 
 ## Exclusions
 
@@ -421,10 +473,11 @@ counting suspended time); the experiments passed plain integers as the clock.
 
 ## Execution
 
-Claude Local Opus 5.5, Extra High reasoning.
-Independent review in a separate Claude session.
+Implementation: Claude Local Opus 5.5, Extra High reasoning.
+Independent review of the implementation: Codex, not a Claude session. The
+implementer does not approve its own work.
 Claude must not stage, commit, push, create PRs or merge. The branch and the
-pull request are created by Gabriel.
+pull request (#332) were created by Gabriel.
 Tests use isolated temporary databases only.
 
 ## Independent review refinements

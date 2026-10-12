@@ -42,10 +42,15 @@ has started with account-owned quiz attempts (migration 015, §24).
 - Done, as storage only: migration `019_user_identities.sql` and the storage
   service `web/services/identities.py` (§5, §13). No route, sign-in flow or
   other code uses them; the table is empty until provider sign-in exists.
+- Done, as storage only: migration `020_oidc_consumed_transactions.sql` and
+  the storage service `web/services/oidc_consumption.py` (§5, and the
+  amendment in §13). Nothing calls the service; the table is empty until
+  provider sign-in exists.
 - **Not implemented:** Google/Microsoft OIDC sign-in itself. There is no
   Authlib dependency, provider configuration, callback, OAuth transaction,
   linking page or account-creation policy. Every requirement of §13 is still
-  open and belongs to that later PR.
+  open and belongs to that later PR, single use of a transaction included:
+  the storage for it exists, the code that has to call it correctly does not.
 - **Next:** the remaining phase-2 items of §17.
 - The DZI visibility gate depends on account identity (a signed-in principal),
   not on OIDC specifically; OIDC is one way to obtain student accounts.
@@ -354,8 +359,120 @@ blueprint or Flask.
 - Issuers, subjects and emails are not logged and do not appear in exception
   messages.
 
+**`020_oidc_consumed_transactions.sql`** (phase 2; implemented as storage only)
+
+The one piece of server-side state behind "a transaction is used once" (§13,
+amendment of 2026-10-11). Its migration and storage service exist; nothing
+calls them yet. Full specification: `docs/reviews/OIDC_CONSUMPTION_SCOPE.md`.
+
+```sql
+CREATE TABLE IF NOT EXISTS oidc_consumed_transactions (
+    tx_hash TEXT PRIMARY KEY
+        CHECK (typeof(tx_hash) = 'text'
+               AND length(tx_hash) = 64
+               AND length(CAST(tx_hash AS BLOB)) = 64
+               AND tx_hash NOT GLOB '*[^0-9a-f]*'),
+    expires_at INTEGER NOT NULL
+        CHECK (typeof(expires_at) = 'integer' AND expires_at >= 0)
+) WITHOUT ROWID;
+```
+
+- The migration is this schema: one table, no index and no row. No other
+  table is touched.
+- `tx_hash` is `HMAC-SHA256` under the application secret, in lower-case
+  hexadecimal, of a purpose and the value that was used. A state, nonce,
+  verifier, code or token is never stored, and neither is a user, an address
+  or a wall-clock time.
+- The `CHECK` means "exactly 64 bytes, each one of `0-9a-f`", and needs both
+  lengths. SQLite's `length()` of a text counts the characters before the
+  first NUL, and `GLOB` stops reading there as well: those two alone accept 64
+  hexadecimal characters followed by a NUL and anything else. The byte length
+  alone accepts a 64-byte value with a NUL inside it. Sixty-four characters in
+  sixty-four bytes leaves room for neither.
+- `expires_at` is the expiry of the object the key was derived from, in whole
+  seconds of the callers' **monotonic** clock, not a wall-clock time. The
+  column has `INTEGER` affinity, so SQLite converts a value that reads as a
+  whole number (`'600'`, `600.0`) before the `CHECK` sees it: what is stored
+  is always an integer of at least 0, and the migration's tests pin that.
+- There is no `instance` column. Which run of the service wrote a row is not
+  recorded and decides nothing: rows are removed by their expiry only.
+- `WITHOUT ROWID` and no secondary index. Rows go by their expiry only, in the
+  cleanup that a later consumption runs; no index and no other cleanup is
+  added for that. The table is **not** bounded to the sign-ins of a few
+  minutes: records of earlier boots can remain and accumulate ("Records that
+  outlive their boot" below).
+
+**Storage service — `web/services/oidc_consumption.py`.** Standard library
+only: no Flask, no blueprint, no logging and no clock. It takes an explicit
+SQLite connection and never commits or rolls back.
+
+| Name | Behaviour |
+| --- | --- |
+| `consumption_key(secret_key, purpose, value)` | `HMAC-SHA256(secret_key, b"oidc-consume\0" + purpose + b"\0" + value)` as 64 lower-case hexadecimal characters. The secret is non-empty `bytes` or `str`; the purpose is `callback` or `link-confirm` (a fixed set); the value is 1–128 characters of `A–Z`, `a–z`, `0–9`, `-`, `_`. Anything else is a `ValueError`. The two purposes never give the same key for one value. |
+| `consume(conn, key, *, now, expires_at)` | Records the key inside the caller's transaction and returns `None`. In this order: `ValueError` for a malformed key or time (a boolean is not a time); `RuntimeError` outside a transaction; `Expired` when `now >= expires_at`, before any statement runs; cleanup of every row with `expires_at < now - 60`; a plain `INSERT`, which raises `AlreadyConsumed` when, and only when, the primary key refuses it as a duplicate (on Python 3.11 or newer; see "Python" below). |
+| `ConsumptionRefused` | Base of `AlreadyConsumed` and `Expired`. Neither is a database error, and no message contains a key or a value. |
+
+- **Acceptance is `consume` returning and the caller's `COMMIT` succeeding.**
+  Everything else means "do not proceed": both refusals, `ValueError`,
+  `RuntimeError`, any `sqlite3.Error` (a missing table, a read-only
+  connection, a lock that was not obtained, another integrity failure) and a
+  commit that fails. No error is read as "not used yet".
+- Only the duplicate of the primary key is `AlreadyConsumed`, decided by
+  SQLite's own result code and never by the error's class or text. After it
+  the caller's transaction is still usable and its earlier writes are intact.
+- **Python.** This PR's supported verification workflow uses Python 3.12,
+  which is what production runs. Classifying a duplicate as `AlreadyConsumed`
+  needs that result code, `sqlite_errorcode`, which Python's `sqlite3`
+  provides from 3.11 on. On an older Python a duplicate propagates as the
+  `sqlite3.IntegrityError` it is: the key is still refused and nothing is
+  recorded for it, and the transaction is still the caller's, neither
+  committed nor rolled back by the service. This describes how this PR was
+  verified and how the service behaves; it does not declare a minimum Python
+  version for the project.
+- Cleanup has one condition: a row is deleted once the clock has passed its
+  expiry by more than a 60-second allowance. From then on the expiry check
+  refuses that row's key before any statement runs, so cleanup never opens a
+  way back in.
+- **Records that outlive their boot.** Within one boot, each consumption's
+  cleanup leaves only the records whose expiry plus the allowance has not
+  passed. A reboot restarts the monotonic clock near zero, so the records of
+  the earlier boot stay until a consumption runs after the new clock has
+  passed their stored expiry plus the allowance. That takes as long as the
+  earlier boot had been up, and it does not happen at all if the host is
+  rebooted again sooner. Repeated reboots therefore accumulate records of
+  several earlier boots, and the table is not bounded to a few minutes of
+  traffic. Those records are inert only under obligation 4 below: their keys
+  can be derived only from objects of an earlier run, which a caller that
+  validates the issuing run refuses before it calls `consume`. That validation
+  belongs to the future callers; nothing performs it yet. Cleanup stays
+  expiry-only: no other deletion, scheduled job or index is added for these
+  records.
+- **What every caller owes** (the service cannot check any of it; the PR that
+  adds a caller pins it with tests at its call sites):
+  1. `BEGIN IMMEDIATE` first, then one fresh clock reading taken while the
+     write lock is held, passed as `now`.
+  2. One clock for `now` and every `expires_at`: the monotonic clock of one
+     host within one boot, never the wall clock.
+  3. The `expires_at` of a key is the expiry stored in the authenticated
+     object the key was derived from, passed unchanged: one key, one expiry.
+  4. An object that the current run of the service did not issue is refused
+     before `consume` is called. A restart, a reboot and a restore each begin
+     a new run.
+  5. Acceptance is as stated above.
+  6. The caller finishes its transaction after every outcome.
+  7. Keys come only from `consumption_key`.
+  8. Nothing else deletes rows: no other code, job or operator procedure.
+- **What the storage does not do by itself:** bind a transaction to a browser,
+  invalidate anything at a restart, or make a restore safe. After a reboot it
+  would accept an unused object of the earlier boot for as long as that
+  object's old expiry exceeds the new clock; a restored snapshot lacks the
+  rows written after it. Obligation 4 is what covers both, and it belongs to
+  the sign-in PR.
+
 **Not created:** sessions, password-reset tokens, email-verification tokens,
-OAuth transactions. The TOTP tables come from PR T as `016_admin_totp.sql` (§23).
+OAuth transactions. `oidc_consumed_transactions` is not a transaction table:
+it holds keyed hashes of values that were used, and no transaction. The TOTP
+tables come from PR T as `016_admin_totp.sql` (§23).
 
 **Stable IDs**
 
@@ -372,11 +489,16 @@ OAuth transactions. The TOTP tables come from PR T as `016_admin_totp.sql` (§23
 
 - `users` is classified `RUNTIME` and `login_throttle` `OPERATIONAL` in
   `src/canonical_tables.py::TABLE_CLASSIFICATION` (an unclassified table
-  already fails tests). `user_identities` is `RUNTIME` as well.
+  already fails tests). `user_identities` is `RUNTIME` as well, and
+  `oidc_consumed_transactions` is `OPERATIONAL`: bookkeeping that holds no
+  account state. A record is needed only while its key could still be
+  accepted; how long it stays in the table is another matter ("Records that
+  outlive their boot" above).
 - None of them is exported to `data/canonical/`. Account data never becomes
   canonical content.
 - `src.build_database` leaves them empty; `test_runtime_tables_are_empty`
-  covers `users` and `user_identities`.
+  covers `users` and `user_identities`, and the tests of migration 020 cover
+  `oidc_consumed_transactions`.
 
 ## 6. Authentication and session design
 
@@ -686,7 +808,11 @@ and `web/services/identities.py` (§5). Provider sign-in is **not** implemented:
 no Authlib dependency, no provider credentials or configuration, no callback
 route, no OAuth transaction, no linking or registration, and no decision yet on
 how student accounts are created. Nothing in the application reads or writes
-`user_identities`. Everything below is still the specification of that later PR.
+`user_identities`. The storage that single use of a transaction needs is
+implemented as well, and equally unused: migration
+`020_oidc_consumed_transactions.sql` and `web/services/oidc_consumption.py`
+(§5, and the amendment below). Everything below is still the specification of
+that later PR.
 
 - `users` does not change. `user_identities` (§5) is added by its own
   migration, keyed on `UNIQUE (issuer, subject)` (done: migration 019).
@@ -704,10 +830,40 @@ signed session and removed on callback (success or failure).
 
 - WHY: with a `Lax` cookie the Google and Microsoft GET callbacks carry the
   session, which is itself the browser binding. No table and no
-  `SameSite=None` cookie are needed.
+  `SameSite=None` cookie are needed. (Amended below: no *transaction* table,
+  but one table of consumption records.)
 - ALTERNATIVES REJECTED: the roadmap's server-side transaction table plus a
   separate binding cookie. It is needed only for a cross-site form-post
   callback (Apple), which is out of scope.
+
+**AMENDMENT (approved by Gabriel, 2026-10-11) — a dedicated consumption
+record.** The decision above stands: the transaction stays in the signed
+session and there is still no server-side transaction table. What the session
+cannot deliver alone is "single-use" (the State row below). The server cannot
+take a cookie back, so removing the transaction from a response does not stop
+an earlier copy of the cookie from presenting it again. One piece of
+server-side state is therefore added, by a prerequisite PR of its own, before
+sign-in:
+
+- a dedicated table, `oidc_consumed_transactions`, that records only a keyed
+  hash of each value that was used (§5). `login_throttle` is not used for it;
+- a duplicate and every storage error fail closed: the sign-in does not
+  proceed;
+- a record is kept for the whole time in which its transaction could still be
+  accepted, plus an allowance, and cleanup cannot make an accepted transaction
+  usable again.
+
+**Status of the amendment.** The table and its storage service are implemented
+(migration 020 and `web/services/oidc_consumption.py`, §5; specification and
+approval in `docs/reviews/OIDC_CONSUMPTION_SCOPE.md`) and nothing calls them.
+**That is storage, not replay protection.** "Used once" holds only when the
+code that calls the service meets the caller obligations of §5: the write lock
+before a fresh monotonic clock reading, one clock, an authenticated and
+unchanged expiry per key, and refusal of every object that another run of the
+service issued. The storage does not bind a transaction to a browser, does not
+invalidate anything at a restart and is not safe across a restore by itself.
+All of that is still open and belongs to the sign-in PR, together with the
+requirements below.
 
 **Security requirements for that PR**
 
@@ -805,6 +961,7 @@ account forms.**
 | `014_assignment_owner.sql` | Nullable column and index | None; legacy rows stay NULL | Restart only | Old code inserts with explicit column lists and is unaffected. |
 | `015_quiz_attempts_user.sql` (phase 2) | Table rebuild | Copy all rows with `user_id NULL`, preserving ids and the `sqlite_sequence` value | Service stopped, seconds | Restore from the pre-migration backup. |
 | `019_user_identities.sql` (phase 2) | New table and index | None; the table starts empty | Restart only | Nothing uses the table, so there is no behaviour to revert. A build without 019 refuses to start on the migrated database, as for every migration since the lifecycle release: a recovery build keeps the migration, and a snapshot restore does not lead to a build from before it (`docs/DEPLOYMENT.md`, sections 21 and 27). |
+| `020_oidc_consumed_transactions.sql` (phase 2) | New table, no index | None; the table starts empty | Restart only | Nothing calls the storage, so there is no behaviour to revert. As for 019: a build without 020 refuses to start on the migrated database, a recovery build keeps the migration, and a snapshot restore does not lead to a build from before it (`docs/DEPLOYMENT.md`, sections 21 and 28). |
 
 **Runner constraint (applies to 015 only; runner support is in place)**
 
@@ -883,7 +1040,9 @@ Notes:
 directive (done); migration 015 with account-owned attempts, the `quiz_taker`
 policy and a minimal "my attempts" page (done, §24); the `Lax` cookie (done,
 §6); assignment `public_token` links; `user_identities` storage (done as
-migration 019 and `web/services/identities.py`, §5: storage only);
+migration 019 and `web/services/identities.py`, §5: storage only); single-use
+consumption storage (done as migration 020 and
+`web/services/oidc_consumption.py`, §5 and §13: storage only);
 Google/Microsoft OIDC sign-in on top of that storage (not started, §13). The
 DZI gate and entitlements follow, as in the roadmap.
 
@@ -909,10 +1068,12 @@ DZI gate and entitlements follow, as in the roadmap.
 | Existing behaviour | Quiz, teacher and DZI suites unchanged; url-map snapshot tests updated only for the new routes. |
 | Performance | Anonymous request runs zero account queries; signed-in request runs exactly one; owner-scoped list has no per-row query. |
 | Identity storage | 019 applies on a database at 018 and on an empty one and equals the approved schema; existing accounts, credentials, session keys, roles and ownership unchanged; provider CHECK, `UNIQUE (issuer, subject)` and the foreign key enforced, nothing cascades; lookup exact and case-sensitive; the same subject under another issuer is distinct; a duplicate never changes the owner; several identities per user; equal `email_at_link` merges nothing; helpers never commit or roll back, a caller rollback undoes them, and a write refused by its statement (a duplicate, an unknown identity id) leaves the caller a transaction to finish; table `RUNTIME`, empty in a fresh build, absent from every canonical export. |
+| Consumption storage | 020 applies on a database at 019 and on an empty one, equals the documented schema and changes no other table or row; the key `CHECK` refuses every shape but 64 lower-case hexadecimal bytes, a trailing or embedded NUL and a trailing newline included; the integer affinity of the expiry is pinned; keys are deterministic and separated by purpose; malformed input (a boolean as a time included) is refused before any statement; a caller transaction is required; expiry is decided before any statement; success, duplicate, rollback and commit, with the caller's earlier writes preserved and nothing committed or rolled back by the service; cleanup at the 60/61-second boundary and by expiry only; no reuse across connections or after cleanup with the key's one expiry; a seeded multi-connection model; real concurrent callers with exactly one committed winner; a missing table, a read-only connection and a held lock propagate; only the primary-key duplicate is `AlreadyConsumed`; table `OPERATIONAL`, empty in a fresh build, absent from every canonical export. |
 
 No tests are required for OAuth sign-in, reset, verification or registration
-until those features are built; identity storage, which exists, is covered by
-the row above. Admin TOTP tests are listed in §23.
+until those features are built; identity storage and consumption storage,
+which exist, are covered by the two rows above. Admin TOTP tests are listed in
+§23.
 
 ## 19. Production rollout
 
@@ -943,8 +1104,8 @@ moment. After any restore, run `manage_accounts sign-out` for all users.
   the `Lax` cookie (phase 2).
 - Public registration, email verification, password reset, forced password
   change after an operator reset.
-- OAuth (Google, Microsoft) sign-in (phase 2; only its `user_identities`
-  storage exists, §5); Apple entirely.
+- OAuth (Google, Microsoft) sign-in (phase 2; only its storage exists,
+  `user_identities` and `oidc_consumed_transactions`, §5); Apple entirely.
 - Web-based TOTP enrolment or self-service recovery (admin TOTP and recovery
   codes themselves are PR T, §23, CLI-only).
 - `declared_type`, plans, entitlements, billing, teacher creation quotas.
@@ -1182,9 +1343,10 @@ deploying it for a class.
 **Current:** PRs 1–10 and T are implemented, and so are the runner's
 table-rebuild support and migration `015_quiz_attempts_user.sql` with
 account-owned attempts (§24), the first PR of phase 2. Since then the `Lax`
-session cookie (§6) and the `user_identities` storage (migration 019, §5) have
-been added; provider sign-in has not (§13). The text below is the
-original recommendation, kept as history; do not implement it again.
+session cookie (§6), the `user_identities` storage (migration 019, §5) and the
+single-use consumption storage (migration 020, §5) have been added; provider
+sign-in has not (§13). The text below is the original recommendation, kept as
+history; do not implement it again.
 
 **PR 1 — `users` schema and accounts service** (implemented)
 
