@@ -46,6 +46,11 @@ has started with account-owned quiz attempts (migration 015, §24).
   Authlib dependency, provider configuration, callback, OAuth transaction,
   linking page or account-creation policy. Every requirement of §13 is still
   open and belongs to that later PR.
+- **Planned, not implemented** (amendment approved 2026-10-11, §13): an OAuth
+  transaction stays in the signed session, and its single use is recorded in
+  a dedicated server-side consumption table. The table comes from a separate
+  prerequisite PR that precedes OIDC sign-in. No such table, migration or
+  service exists yet.
 - **Next:** the remaining phase-2 items of §17.
 - The DZI visibility gate depends on account identity (a signed-in principal),
   not on OIDC specifically; OIDC is one way to obtain student accounts.
@@ -80,7 +85,9 @@ apply unchanged.
    now.
 2. Google/Microsoft OAuth transactions use the session-bound design of §13:
    state, nonce, PKCE verifier, validated return target and expiry in the
-   signed session. Apple remains out of scope.
+   signed session. Apple remains out of scope. Amended 2026-10-11: the single
+   use of a transaction is recorded in a dedicated server-side consumption
+   table (§13, "Amendment"); planned, not implemented.
 3. Admin TOTP does not block the initial Accounts PRs. It is a separate
    security PR that must land before the production cutover and the permanent
    removal of legacy auth (§17, PR T).
@@ -92,7 +99,9 @@ apply unchanged.
 - The local password credential is stored on `users`, not in a separate
   `password_credentials` table.
 - OAuth transactions are session-bound, not a server-side transaction table
-  plus a separate browser-binding cookie.
+  plus a separate browser-binding cookie. (Amended 2026-10-11, §13: a
+  consumption table records that a transaction was used. It stores no
+  transaction, so this deviation stands.)
 - TOTP is a separate pre-cutover security PR, not part of the first account
   schema.
 
@@ -708,6 +717,31 @@ signed session and removed on callback (success or failure).
 - ALTERNATIVES REJECTED: the roadmap's server-side transaction table plus a
   separate binding cookie. It is needed only for a cross-site form-post
   callback (Apple), which is out of scope.
+
+**Amendment (approved by Gabriel, 2026-10-11) — consumption table. Planned,
+not implemented.** The decision above stands. Its WHY says that no table is
+needed; one is, for the single purpose below.
+
+- WHY: the session is a signed cookie. The server keeps no copy and cannot
+  revoke one, so removing the transaction from a response cookie does not stop
+  an earlier copy of that cookie from presenting it again. "Single-use"
+  (the State row below) cannot be enforced from the session alone.
+- WHAT: a dedicated server-side table records that a transaction was used.
+  State, nonce, the PKCE verifier and the browser binding stay in the signed
+  session. The table holds keyed hashes only: no state, token or identity
+  data. Use is recorded for every callback whose state matches, before any
+  other callback parameter is examined and before any outbound call, in a
+  write that persists whatever follows. A duplicate and a storage error both
+  fail closed.
+- HOW IT ARRIVES: through its own prerequisite PR (migration, classification,
+  storage service), before the OIDC sign-in PR. `login_throttle` is not used
+  for it.
+- NOT ADOPTED: the roadmap's server-side transaction store. The table stores
+  no transaction.
+- Specification: `docs/reviews/OIDC_CONSUMPTION_SCOPE.md` for the table and
+  its service, and `docs/reviews/GOOGLE_OIDC_DESIGN.md`, sections 3 and 9,
+  for their use (both under review; where they and this section differ on
+  what is approved, this section wins).
 
 **Security requirements for that PR**
 
