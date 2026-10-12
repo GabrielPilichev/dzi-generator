@@ -109,7 +109,7 @@ class ClassificationTest(CanonicalTestCase):
             "totp_credentials", "totp_recovery_codes", "lifecycle_clock", "user_identities"]))
         self.assertEqual(ct.tables_of(ct.OPERATIONAL), sorted([
             "obsidian_notes", "note_question_links", "generated_exams", "scrape_log",
-            "schema_migrations", "sqlite_sequence", "login_throttle"]))
+            "schema_migrations", "sqlite_sequence", "login_throttle", "oidc_consumed_transactions"]))
         self.assertIn("assessment_events", ct.tables_of(ct.CANONICAL))
 
     def test_canonical_tables_only_reference_canonical_tables(self):
