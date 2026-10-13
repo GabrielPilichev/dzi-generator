@@ -189,7 +189,7 @@ Sections 0.4–0.6 are history. Where they mention an option that D1–D20 did n
 | R5 | The tables by kind were named; the analysis is kept as a historical note for the unselected rebuild | 6.5 |
 | R6 | D15 is a scope deferral and is not an implementation blocker | 8.1, scope |
 | Decisions | Gabriel's approvals recorded; unselected mechanisms (D7 (B), D8 (b), D10 (b), D11 (a)/(c), D18 (a)/(c), D19 (a+)/(b), D20 (b)) removed from the implementation scope and the tests | 0.2 and throughout |
-| PR 2 review | Recorded after the independent review of PR 2 (#336, REQUEST CHANGES, narrow). **Reply policy approved by Gabriel (option 3):** 421 at any stage is `unknown`; any other 4xx reply to the data command or to the message is `unknown`; any other 4xx reply to the recipient command is `refused`; a 5xx reply after the marker is `refused`. **`SIGCHLD` guard:** no sender is started while the process ignores `SIGCHLD`. The log event `sender_error` is named. The one-sender statement is tied to the pinned synchronous, single-thread worker. The production-start wiring of the mail settings stays with PR 4 | 3.10, 4.2, 7.5 |
+| PR 2 review | Recorded after the independent review of PR 2 (#336, REQUEST CHANGES, narrow). **Reply policy approved by Gabriel (option 3):** a 421 is `unknown` at every stage up to the relay's final `250` for the message (a later `QUIT` failure does not revoke that acceptance, and `accepted` is never a statement about a mailbox); any other 4xx reply to the data command or to the message is `unknown`; any other 4xx reply to the recipient command is `refused`; a 5xx reply after the marker is `refused`. **`SIGCHLD` guard:** no sender is started while the process ignores `SIGCHLD`. The log event `sender_error` is named. The one-sender statement is tied to the pinned synchronous, single-thread worker. The production-start wiring of the mail settings stays with PR 4 | 3.10, 4.2, 7.5 |
 
 ## 1. Forms and profiles
 
@@ -932,7 +932,7 @@ isolated mode the checkout is not on the import path, so a module name under
 | Standard output | At most one byte, `R`, written with a single unbuffered `os.write` **before** the child may begin to transmit the recipient command. It means "from here on the recipient may be on the wire". The parent reads at most 16 bytes in total and then stops reading; it never reads to end-of-file to tidy up. |
 | Standard error | `/dev/null`. The child prints nothing, so no traceback, which could hold the address, reaches the journal. |
 | Other descriptors | None: `close_fds=True`, stated explicitly. The child holds no database file, WAL, listening socket or log file of the worker. |
-| Exit status | `0` accepted. `10`–`19` ended before `R`, nothing sent to any recipient (input, lookup, connect, TLS, greeting, AUTH, sender refused). `20` a definite refusal of the recipient or the data, as the reply policy below defines it. `31` the server answered 421 at any stage, before `R` or after it; it is deliberately outside `10`–`19`. Anything else has no meaning of its own (the script uses `30` for a failure after `R` that is not a refusal). The parent reads `31` and every unlisted status as `unknown`. |
+| Exit status | `0` accepted. `10`–`19` ended before `R`, nothing sent to any recipient (input, lookup, connect, TLS, greeting, AUTH, sender refused). `20` a definite refusal of the recipient or the data, as the reply policy below defines it. `31` the server answered 421 at any stage up to its final `250` for the message, before `R` or after it (once that `250` is received, a later `QUIT` failure or 421 does not change `0`, though the parent still reads `unknown` if its deadline expires before the child ends); it is deliberately outside `10`–`19`. Anything else has no meaning of its own (the script uses `30` for a failure after `R` that is not a refusal). The parent reads `31` and every unlisted status as `unknown`. |
 
 The child applies a 3-second timeout to every socket operation and makes one
 attempt. It issues the sender, recipient and data commands itself (`mail`,
@@ -959,7 +959,7 @@ makes of a complete negative reply:
 
 | Reply | Stage | Status | Outcome |
 | --- | --- | --- | --- |
-| 421 | any, before `R` or after it | `31` | `unknown` |
+| 421 | any stage up to the final `250` for the message, before `R` or after it (not `QUIT` after that `250`) | `31` | `unknown` |
 | any other 4xx | recipient command | `20` | `refused` |
 | any other 4xx | data command, or the reply to the message | `30` | `unknown` |
 | 5xx | recipient command, data command, or the reply to the message | `20` | `refused` |

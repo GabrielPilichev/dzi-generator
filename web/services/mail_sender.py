@@ -17,7 +17,9 @@ other than the three standard streams. The contract with the parent:
   nothing was given to the server for any recipient. ``20`` a refusal after ``R``: a
   5xx reply to the recipient command, the data command or the message, or a 4xx reply
   other than 421 to the recipient command. ``31`` the server answered 421 ("closing the
-  channel") at any stage, before ``R`` or after it. Any other status has no meaning of
+  channel") at any stage up to the final 250 for the message, before ``R`` or after
+  it; a QUIT failure after that 250 does not revoke the acceptance
+  (the parent may still read "unknown" if its deadline expires first). Any other status has no meaning of
   its own. The parent reads ``31`` and every other unlisted status as "unknown": a 4xx
   reply to the data command or to the message, a reply that cannot be read, and a lost
   connection after ``R`` all end with ``30``.
