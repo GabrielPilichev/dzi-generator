@@ -10,10 +10,12 @@ D18–D20, and the sender behaviour of D17 (design, section 0.2). D16 and the
 configuration of D17 are activation prerequisites; no legal conclusion is
 recorded. **Activation is not authorized.** The implementation proceeds one PR
 at a time (design, section 9). **PR 1** (migration 021, the profile service and
-the form validators; storage and validation only, no route) is implemented in
-draft #335 and awaits independent review: `docs/reviews/EMAIL_REGISTRATION_PR1_STATUS.md`.
-No other PR is started, and no deployment, provider or real database was
-touched.
+the form validators; storage and validation only, no route) is merged (#335):
+`docs/reviews/EMAIL_REGISTRATION_PR1_STATUS.md`. **PR 2** (the mail interface,
+the isolated sender script, the backends and settings validation; no caller, no
+route, no database change) is implemented in draft #336 and awaits independent
+review: `docs/reviews/EMAIL_REGISTRATION_PR2_STATUS.md`. No other PR is
+started, and no deployment, provider or real database was touched.
 
 Revisions 1, 2 and 3 were each independently reviewed and returned with
 REQUEST CHANGES, the third narrowly (two defects in the sender contract and

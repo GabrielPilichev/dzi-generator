@@ -203,6 +203,19 @@ for that path raises `RuntimeDatabaseAccess` instead of opening it (for example 
 `DB_PATH` points back at the checkout). The guard never reads, hashes or copies the file and
 behaves the same whether or not it exists.
 
+## Mail sender tests
+
+`tests/test_mail_service.py` and `tests/test_mail_sender_deadline.py` send no
+message and connect to nothing. The first runs the sender script's SMTP code in
+the test process against a scripted fake peer under the real `smtplib`. The
+second starts short-lived stand-in child processes from a temporary directory
+and measures real time against a shortened deadline; it takes about 25 seconds,
+nine of them the real script's own alarm. Each stand-in arms an alarm of its
+own, so a failed run leaves no process behind. **Never import
+`web/services/mail_sender.py`**: its first statements arm an alarm that ends
+the importing process. The tests execute its source with those three calls
+intercepted.
+
 ## Previous isolation problems
 
 - `web.app` used to run `quiz_apply_migration()` at import time, before unittest
