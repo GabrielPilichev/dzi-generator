@@ -1,0 +1,194 @@
+# Email registration, PR 2 — mail interface and isolated sender: status and contract
+
+Design: `docs/reviews/EMAIL_REGISTRATION_DESIGN.md` (sections 4, 3.5, 3.10, 7.5, 9).
+Tests: `docs/reviews/EMAIL_REGISTRATION_TEST_PLAN.md`, section C.
+Scope: `docs/reviews/EMAIL_REGISTRATION_SCOPE.md`.
+
+**Status:** implemented in draft PR #336, **not independently reviewed**. It is
+the mail interface, the sender script, the backends and settings validation.
+Nothing calls any of it: no route, registration service, ledger, settlement,
+migration, table, unit or production start-up change exists, no gate exists to
+turn on, and no message was sent to anyone by this work. Deployment notes:
+`docs/DEPLOYMENT.md`, section 31.
+
+## What PR 2 contains
+
+| Part | File |
+| --- | --- |
+| Interface, settings, backends, the parent side of the exchange | `web/services/mail.py` |
+| Standalone sender script (never imported) | `web/services/mail_sender.py` |
+| Interface, settings, backends, the script's SMTP exchange against a fake peer | `tests/test_mail_service.py` |
+| The process boundary against stand-in children, and the real script as a process | `tests/test_mail_sender_deadline.py` |
+| Documents | this file; design 1.3 (the carried-over note); scope status; `docs/DEPLOYMENT.md` 31; `docs/TESTING.md` |
+
+Not changed: `web/production.py`, `web/wsgi.py`, `web/app.py`, every blueprint,
+every migration, `data/canonical`, `deploy/`, the vault.
+
+## Interface (`web.services.mail`)
+
+- `OutboundEmail(to, subject, text)`, frozen. Construction raises `ValueError`
+  (never holding the value) unless `to` is one ASCII address of at most 254
+  characters with nothing that could end a header or a command, `subject` is
+  1–200 characters on one line and `text` is 1–2000 characters of plain text;
+  control and format characters are refused, a line feed in `text` excepted.
+  The address rule is structural. Which addresses the product accepts stays
+  the form's rule (design 1.3). `repr` shows neither `to` nor `text`.
+- `SendOutcome`: `ACCEPTED`, `NOT_SENT`, `REFUSED`, `UNKNOWN`.
+- `Mailer.send(message) -> SendOutcome`: never raises for a delivery problem,
+  never retries, creates at most one process.
+- `sender_busy() -> bool`: true while this process has a sender it killed and
+  could not reap. It polls, never blocks, and clears itself once the child is
+  gone. It is a function of the module, not of a mailer, because the state
+  belongs to the worker process.
+- `settings_problems(environ, *, production)` and
+  `load_settings(environ, *, production)`; `build_mailer(settings, *, production)`.
+  `production` has no default: every caller states it.
+- Backends: `SmtpMailer`, `ConsoleMailer`, `FileMailer`, `InMemoryMailer`.
+
+## Outcome semantics, exactly
+
+Decided by the parent from what the child wrote and how it ended.
+
+| Evidence | Outcome |
+| --- | --- |
+| A sender of this process is unreaped; the input would exceed 16 KiB; the interpreter or the script path is not absolute. No process is created. | `not_sent` |
+| `Popen` raised `OSError`, `ValueError` or `SubprocessError` | `not_sent` |
+| End-of-file on the output with nothing written, and the child exited by itself with 10–19 | `not_sent` |
+| End-of-file with exactly one `R` and nothing else, exit 0 | `accepted` |
+| End-of-file with exactly one `R` and nothing else, exit 20 | `refused` |
+| Everything else: the deadline (with or without `R`); 16 bytes of output or any output that is not a single `R`; no end-of-file; a signal; any other status; a status that contradicts the marker; `EPIPE` while writing the input, even when the child exited 10–19; any other exception in the parent once the child existed; any other exception from `Popen` | `unknown` |
+
+`KeyboardInterrupt` and `SystemExit` propagate after the cleanup. `accepted`
+means the server took the message for the recipient; it is never a statement
+about a mailbox.
+
+The script's statuses: `0`; `10` input, `11` lookup, connection or greeting,
+`12` TLS, `13` EHLO, `14` AUTH, `15` sender refused, `19` anything else before
+the marker (a marker that could not be written included); `20`; `30` for a
+failure after the marker that is not a refusal, which the parent gives no
+meaning to.
+
+## The exchange
+
+`[sys.executable, "-I", "-S", <absolute path of mail_sender.py>]`, no shell,
+`close_fds=True`, standard error to the null device, an environment of
+`LANG`, `LC_ALL`, `LC_CTYPE`, `SSL_CERT_FILE` and `SSL_CERT_DIR` where the
+parent has them and nothing else. The settings and the message go to standard
+input as one JSON document. Both pipes are non-blocking in one selector under
+one monotonic deadline of 8 seconds from `Popen` returning. At most 16 bytes
+of output are read, never more than are missing to 16, and nothing after the
+cap, after end-of-file or after a kill. When both pipes are done the child is
+waited for only for the time that remains. From `Popen` on, one `try`/`finally`
+kills a child that has not ended, waits at most 2 seconds for it and closes
+both pipes; a child still unreaped is remembered and logged as
+`sender_unreaped`. `Popen.communicate` is not used.
+
+The script resets `SIGALRM` to its default action, unblocks it and arms
+`alarm(9)` as its first three statements, before any import but `signal`. It
+reads at most 16 KiB plus one byte, checks every value and builds the whole
+message before any network call. It gives the server `MAIL FROM:<sender>`
+with no options, writes `R` with one `os.write`, and only then issues `RCPT`,
+`DATA` and the message itself; `sendmail` is not used. STARTTLS and implicit
+TLS use `ssl.create_default_context()` (certificate and host name verified,
+TLS 1.2 at least); a server that does not offer STARTTLS ends the attempt, and
+plain transport is refused unless the host is loopback, in the settings and
+again in the child. Every socket operation has a 3-second timeout.
+
+## Tests
+
+`python3 -B -m unittest tests.test_mail_service tests.test_mail_sender_deadline`
+(111 tests, about 26 seconds). No message is sent, nothing is connected to,
+and every address, host and credential is synthetic.
+
+| Plan | Where |
+| --- | --- |
+| C1–C4 | `test_mail_service`: the script's code under the real `smtplib` with a scripted peer; event order, exact command bytes, the parsed message |
+| C9, C10 | `test_mail_service.SettingsTest` (the settings functions; see deviation 1 for the production start) |
+| C5–C8, C11, C20 | `test_mail_sender_deadline`: stand-in children |
+| C12–C14 | both files: static checks, the real command line, environment, descriptors, exact caps |
+| C15 | both files: no record at any level, no child traceback |
+| C17 | the mail half: unreaped state, `sender_busy`, `send` creating no process. The "no pending row, no ledger row" half needs PR 3 and PR 4 |
+| C18, C19 | `AlarmTest`: a killed driver process, the real script's alarm under an ignored and a blocked `SIGALRM` |
+| C21 | static: no `communicate`, one capped read |
+| C16 | no test asserts a bound the design does not claim |
+
+Not done as written: C5 (d) counts the bytes passed to `os.read` and does not
+cap the parent's address space (the plan allows either). C19 runs the real
+script's real nine-second alarm, three children at once; only stand-ins have
+shortened alarms.
+
+## Deviations and interpretations, for the reviewer
+
+None changes the approved protocol. Each is the smallest reading I could find.
+
+1. **A production start does not refuse `console` and `file` yet (C9, K1, K2).**
+   Design 7.5 says that while the registration gate is off production "never
+   refuses to start" because of mail settings, and the gate constant arrives
+   with the registration modules (PR 3 and PR 4). So PR 2 ships the refusal as
+   `settings_problems(..., production=True)` and
+   `build_mailer(..., production=True)`, which `production_config_errors` is to
+   call once the gate exists, and leaves `web/production.py` unchanged. Wiring
+   it now would either contradict 7.5 or need a gate this PR may not add.
+2. **`Popen` raising is `not_sent` only for `OSError`, `ValueError` and
+   `SubprocessError`.** The design row says "`Popen` raised". Any other
+   exception from it (a `MemoryError`, for example) does not establish that no
+   process exists, so it is `unknown`. Narrower, never wider.
+3. **Exit 20 is a complete 4xx or 5xx reply** to the recipient command, the data
+   command or the message. A transient refusal (4xx) is therefore `refused`,
+   which the circuit ignores (design 3.5). A reply that cannot be read as a
+   reply, and any 1xx–3xx reply where acceptance was expected, is status 30,
+   hence `unknown`. Whether 4xx should instead count as a failure of the mail
+   server is a policy question for the review.
+4. **`sender_busy()` is a module function**, so `Mailer` stays the one-method
+   protocol of design 4.1.
+5. **Two log events** on `learnpilot.registration`, both warnings:
+   `sender_unreaped` (design 3.10) and `sender_error error=<class name>`, which
+   3.10 does not list. No traceback is attached.
+6. **Three more "no process" cases return `not_sent`**: an input over 16 KiB (no
+   valid message reaches it), and an interpreter or script path that is not
+   absolute.
+7. **Message details the design leaves open:** `Date` and `Message-ID` headers
+   (the latter on the sender's domain, so no host name lookup is made for it);
+   a base64 body, so the message is 7-bit; the EHLO name is `smtplib`'s default,
+   which resolves the local host name inside the child before connecting.
+8. **Settings details:** host, port and security are all required for `smtp`
+   (no default port); `DZI_MAIL_FROM` is `address` or `Name <address>` with a
+   stricter rule than the form's (no hyphen-edge label); credentials are
+   printable ASCII, set together; SMTP values are checked whenever they are set.
+9. **The in-memory backend** takes an outcome or a callable of the message, as
+   `OutboundEmail` has no "kind"; its delay is handed to an injected `sleep`
+   and never slept for real.
+
+## Caller obligations (PR 3 and PR 4)
+
+- Read `mail.sender_busy()` **before** anything is admitted and pass it to
+  `registration.availability(..., sender_busy=...)`: no row, no ledger entry,
+  no hash while it is true.
+- Call `send` with no transaction open, after the commit; settle afterwards.
+  Map an exception that escapes a backend to `unknown` (test H4). Never retry.
+- Treat `ACCEPTED` as "the relay took it" only.
+- Pass `production=True` on the production path and report
+  `settings_problems` through `production_config_errors` once the gate is on;
+  log one warning naming the settings (`mail.SETTING_NAMES`) while it is off.
+- Give `learnpilot.registration` a handler as the other loggers have; until
+  then only its warnings reach standard error.
+- Enforce `MailSettings.hourly_cap`; nothing here counts sends.
+- Call `send` from one thread at a time per process. A second thread is not
+  refused: the one-sender statement rests on the synchronous worker, as in the
+  design. The development server is threaded.
+
+## Not verified, and what must not be concluded
+
+- **Everything ran on macOS** (Darwin 25.5.0, arm64), CPython 3.12.15, OpenSSL
+  3.6.5, with the kqueue selector and, as a second run, `poll` and `select`.
+  **Nothing here is evidence for Linux**, for `epoll`, for the systemd unit and
+  its sandboxing, for Gunicorn's worker replacement, for the worker's inherited
+  signal state or `SIGPIPE` disposition, or for `sys.executable` being the
+  deployment's virtual-environment interpreter. Those are the activation
+  evidence of design 0.3 and test plan L.
+- No real mail server, provider, certificate or DNS name was involved. TLS is
+  tested as "the verifying context is the one handed to `smtplib`", not as a
+  handshake.
+- No capacity figure. Interpreter start-up before the alarm, process creation
+  and the whole request remain unbounded, as the design says; senders of
+  different processes are not excluded from each other.

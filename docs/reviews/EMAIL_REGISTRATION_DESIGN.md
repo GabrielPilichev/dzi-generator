@@ -293,9 +293,11 @@ existing account signs in exactly as before.
 **Known limitation (PR 1, informational).** The rule is the one above and no
 stricter: a domain label may begin or end with a hyphen (`a@-x.bg`,
 `a@x-.bg`) and has no length bound of its own beyond the 254 characters of the
-whole address. Such an address passes the form and fails at delivery
-(`not_sent`). Validation is not broadened here; tightening it is a separate,
-later decision.
+whole address. Such an address passes the form, and delivery to it may fail.
+No particular send outcome (4.3) is assigned to it: which one results depends
+on where the exchange with the mail server stops (corrected with PR 2; the
+earlier text named `not_sent`). Validation is not broadened here; tightening
+it is a separate, later decision.
 
 ### 1.4 Names and the `display_name` snapshot
 

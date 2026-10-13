@@ -2662,6 +2662,69 @@ unverified registrations (`registration_control`) are PR 5 and not here.
 - Code from before this release names its `users` columns and runs unchanged
   against the migrated schema.
 
+## 31. Mail interface and sender process (registration PR 2): no caller
+
+This release adds `web/services/mail.py` and `web/services/mail_sender.py`
+(`docs/reviews/EMAIL_REGISTRATION_DESIGN.md`, section 4; PR 2 of section 9;
+contract in `docs/reviews/EMAIL_REGISTRATION_PR2_STATUS.md`).
+
+**Nothing calls them. Registration is not implemented and no message is ever
+sent.** There is no route, page, migration, table, secret, timer, unit, Nginx
+or Gunicorn change. `web.wsgi`, `web/production.py` and
+`deploy/learnpilot.env.example` are not changed: a production start neither
+reads nor validates a mail setting in this release, and starts exactly as
+before with or without one. Sign-in, sessions, roles, Google sign-in and admin
+TOTP work as before (sections 23 and 29).
+
+### Deploying this build
+
+The standard procedure of section 20, with nothing added to it. No migration
+is pending because of this release, nobody is signed out, and there is nothing
+to configure. **Do not add mail settings to
+`/etc/learnpilot/learnpilot.env` for this release.** They would be ignored.
+Choosing a provider, a sender address and credentials is an activation
+prerequisite that is not done (design, sections 0.3 and 4.4).
+
+### The settings a later release will read
+
+Listed so that they are not invented differently later. None has a default
+that sends anything; with `DZI_MAIL_BACKEND` unset, mail is disabled, which is
+not an error.
+
+| Setting | Rule |
+| --- | --- |
+| `DZI_MAIL_BACKEND` | `smtp`. `console` and `file` show the code in clear and are refused for production. |
+| `DZI_MAIL_FROM` | The no-reply sender: `address` or `Name <address>`. Required; there is no default sender. |
+| `DZI_SMTP_HOST`, `DZI_SMTP_PORT`, `DZI_SMTP_SECURITY` | All three required for `smtp`. Security is `starttls` or `tls` (both verify the certificate and the host name), or `none` for a loopback host only. |
+| `DZI_SMTP_USERNAME`, `DZI_SMTP_PASSWORD` | Optional, set together. The password belongs in the environment file, never on a command line or in the repository. |
+| `DZI_MAIL_SPOOL_DIR` | `file` backend only (development): an existing directory outside the checkout. |
+| `DZI_MAIL_HOURLY_CAP` | 1 to 300; 300 when unset. |
+
+### What the sender process is, for whoever operates it later
+
+One send starts one short-lived child of the Gunicorn worker:
+`<venv>/bin/python -I -S /opt/learnpilot/app/web/services/mail_sender.py`. It
+gets its settings and the message on standard input, never as arguments or
+environment variables; its environment holds only the locale and, when set,
+`SSL_CERT_FILE` and `SSL_CERT_DIR`; it inherits no descriptor of the worker
+and its standard error is the null device. The worker ends it eight seconds
+after it was created, and it ends itself nine seconds after it started
+running. Neither process creation nor the whole request has a bound of its
+own, and senders can overlap for a few seconds when Gunicorn replaces a worker
+(design, section 4.2). `KillMode=mixed` in the unit ends a sender on a service
+stop.
+
+**None of this was exercised on Linux or under the real unit.** The process
+tests ran on the development Mac only. The forced hang, the worker killed
+during a send, descriptor and environment isolation under systemd's
+sandboxing, the worker's inherited signal state and the capacity measurement
+remain activation prerequisites (design, section 0.3; test plan, section L).
+
+### Rollback
+
+**There is no behaviour to revert.** Reverting the code removes two modules
+that nothing imports. No data is involved.
+
 ## 2 GB VPS sizing
 
 Initial configuration from capacity testing: Gunicorn `workers = 1`,
