@@ -10,6 +10,62 @@ Oct 6, 2026 · @Gabriel Pilichev
 > The current contract is `docs/AUTH_ROUTE_CONTRACT.md`; the implementation
 > history is `docs/ACCOUNTS_DESIGN.md`.
 
+## Current roadmap update — 2026-10-13
+
+This update records Gabriel's current product decisions. Historical sections below
+remain useful context; where they conflict with these decisions, this update wins.
+The existing account/storage contracts remain authoritative until the new
+registration design is approved.
+
+- Google is the only external sign-in provider planned. Microsoft sign-in is
+  excluded; Apple remains out of scope.
+- PR #331's Google sign-in, student onboarding and explicit linking implementation
+  is merged at fe72d02. The implementation suite passed 3,324 tests; independent
+  review found no code blockers and required documentation corrections were completed.
+  Production activation remains off; merge does not deploy or activate the provider.
+- After #331, design and implement public email/password registration for students
+  and teachers. This is not passwordless email-code sign-in.
+- Send a verification code to the submitted email address to establish ownership.
+  After verification, users sign in with email and password. Email verification
+  does not establish that someone is a teacher.
+- Existing teacher/admin password accounts remain supported. Public registration
+  must never create an admin account.
+- Google and email/password credentials must not be silently linked merely
+  because their email addresses match.
+
+### Required registration forms
+
+| Field | Student | Teacher |
+| --- | --- | --- |
+| First name | required | required |
+| Last name | required | required |
+| Email | required | required |
+| Password | required | required |
+| Class | required | — |
+| School name | — | required |
+| Subject taught | — | required |
+
+The registration design must settle the representation of class and subject,
+validation, unverified-account lifecycle and permissions, duplicate-email handling,
+verification-code expiry/retries/resends, delivery, recovery and account linking.
+It must also address student-data minimisation and retention. These implementation
+details are not approved by the field list alone.
+
+### Immediate sequence
+
+1. Google sign-in #331 is merged. Keep production activation off until its separate
+   deployment and activation prerequisites are completed.
+2. Create a separate design PR for email/password registration and email-code
+   verification, including both required forms and compatibility with Google accounts.
+3. Implement the approved registration design in scoped PRs with independent
+   security review.
+4. Complete the DZI content gate and student practice experience.
+5. Complete the entitlement seam; billing remains deferred until the free-period
+   end and payment provider are decided.
+
+Deployment and Google activation remain separate, explicitly authorised work.
+The CSS split can still proceed independently.
+
 ## How to use this brief
 
 This is the agreed plan for LearnPilot's structural refactor and the path to user accounts; implement it one PR at a time, in the order of the PR sequence below. Each task from Gabriel names one PR; this brief is the shared context. Line numbers refer to the LearnPilot Technical Study of `main` at commit `39abbbd`, so verify them against the live code.
@@ -91,7 +147,9 @@ The first four PRs create the seams that make splitting `app.py` safe, so the sp
 | H | Stop tracking the mutable seed DB; content/user-data separation | G2 | yes |
 | Accounts design | Design-only account/auth/ownership migration plan | D2, G1 | yes |
 | Accounts implementation | Accounts, sign-in and ownership | Accounts design, H, E5 | yes |
-| DZI gate | Signed-in DZI visibility and leak/cache tests | Accounts implementation | yes |
+| Email/password registration design | Student/teacher forms, email-code verification and account lifecycle | Google sign-in #331 | yes (security) |
+| Email/password registration implementation | Approved registration, verification and email/password login | Registration design | yes (security) |
+| DZI gate | Signed-in DZI visibility and leak/cache tests | Accounts and registration implementation | yes |
 | Entitlements | `has_feature` seam, everyone on early-access plan | Accounts implementation | no |
 | Billing | Payment provider and webhooks | free-period end decided | yes |
 | I | Split `ui-pass9.css` by surface | any time | no |
@@ -267,10 +325,10 @@ The first Accounts PR is **design-only**. Stop and redesign here before implemen
 **Status: the design is approved.** `docs/ACCOUNTS_DESIGN.md` is the authoritative Accounts implementation specification (schema, session, compatibility bridge, ownership, PR sequence). The rest of this section is the original conceptual brief; where it differs from `docs/ACCOUNTS_DESIGN.md`, that document wins. Approved deviations:
 
 - The local password credential is stored on `users`, not in a separate `password_credentials` table.
-- Google/Microsoft OAuth transactions use the session-bound design (state, nonce, PKCE verifier, validated return target and expiry in the signed session), not a server-side transaction plus browser-binding cookie.
+- Google OAuth transactions use the session-bound design (state, nonce, PKCE verifier, validated return target and expiry in the signed session), not a server-side transaction plus browser-binding cookie.
 - Apple sign-in remains out of scope.
 - Admin TOTP is a separate security PR before the production cutover and legacy-auth removal; it does not block the initial Accounts PRs.
-- Student authentication is deferred to phase 2 (preferred: Google/Microsoft OIDC); no open password self-registration now. Student-data retention/erasure remains a later product/legal decision.
+- Student authentication is phase 2: Google sign-in plus public email/password registration with email-code verification, as recorded in the 2026-10-13 update. Registration requires its own approved design before implementation. Student-data retention/erasure remains a later product/legal decision.
 
 ### Accounts design PR
 
@@ -298,18 +356,18 @@ The exact credential/recovery columns and secret-protection mechanism are decide
 
 ### Identity rules
 
-- External identities are keyed by the provider's stable **issuer + subject** pair, not email. For Microsoft, preserve the tenant/object semantics needed to avoid cross-tenant ambiguity. Never key authorization on email.
+- External identities are keyed by the provider's stable **issuer + subject** pair, not email. Google is the only planned external provider; Microsoft is excluded. Never key authorization on a provider-reported email.
 - Never auto-link identities because emails match. Link a new sign-in method only while the user is signed in to the existing account.
 - Which sign-in methods each account type may use is configuration on top of this model; Gabriel decides the launch list.
 - The normal session stores only the user id, and `current_principal()` reads the user row.
 - Passwords use Werkzeug `generate_password_hash` and `check_password_hash`; OAuth/OIDC uses Authlib. No hand-rolled OAuth.
 - Apple sign-in is **out of v1**. Add it only after its callback/state flow is designed and tested explicitly.
 
-Status: the storage for external identities exists (`user_identities`, migration 019, and `web/services/identities.py`), keyed on the exact issuer + subject pair and never on email. Google/Microsoft OIDC sign-in is not implemented: no Authlib, no callback, no linking and no account creation through a provider. Current state: `docs/ACCOUNTS_DESIGN.md` §5 and §13.
+Status: the storage for external identities exists (`user_identities`, migration 019, and `web/services/identities.py`), keyed on the exact issuer + subject pair and never on email. Google OIDC sign-in, onboarding and explicit linking are implemented and merged in PR #331 at fe72d02. Production activation remains off; deployment and activation prerequisites are outstanding. See the current roadmap update above and `docs/ACCOUNTS_DESIGN.md` §5 and §13.
 
 ### OAuth transaction binding
 
-Switch the normal session cookie to `SameSite=Lax`, keeping `Secure` and `HttpOnly`, so ordinary top-level GET redirects from Google/Microsoft can return with the application session.
+Switch the normal session cookie to `SameSite=Lax`, keeping `Secure` and `HttpOnly`, so ordinary top-level GET redirects from Google can return with the application session.
 
 Do not rely on server-side state keyed only by the `state` parameter. That can still allow login-CSRF/account-confusion flows if a callback is replayed in a different browser context.
 
@@ -353,7 +411,7 @@ Implementation is split into small PRs after the design PR is reviewed. No accou
 
 ## DZI content gate
 
-This phase lands **immediately after the accounts implementation PRs**. Official DZI questions are visible only to signed-in students, teachers and admin. The gate is content-level, not page-level, so every surface that renders questions must filter. МОН publishes these exams, so the gate drives registration rather than protecting secrets; per-surface filtering plus leak and cache-isolation tests is sufficient.
+This phase follows the accounts and email/password registration implementation PRs. Official DZI questions are visible only to signed-in students, teachers and admin. The gate is content-level, not page-level, so every surface that renders questions must filter. МОН publishes these exams, so the gate drives registration rather than protecting secrets; per-surface filtering plus leak and cache-isolation tests is sufficient.
 
 1. Apply `is_dzi_question` (PR C2) wherever questions render: section and topic pages under `/subjects/...`, legacy `/section/<slug>`, the `grade12-dzi-preparation` section (public today), and the home page search data if it includes question text.
 2. `CachedSubjectBrowser` caches per database identity, not per viewer. Cache the full data and filter per request after the cache. Never filter inside the cached query, or one audience's view can get served to the other.
@@ -399,7 +457,7 @@ Codex does not decide these; where a PR needs one before Gabriel answers, it use
 | --- | --- | --- |
 | Do legacy parser questions (`aug_2023`, `may_2023`, `jun_2022`) count as DZI? | C2 | Count them |
 | Endpoint names: rename references or keep aliases | E1 | Rename |
-| Sign-in methods per account type (password, Google, Microsoft `edu.mon.bg`, join codes; Apple is not v1) | Accounts design | Decided: CLI-created password accounts for teachers/admin in phase 1; student sign-in deferred to phase 2, preferred Google/Microsoft OIDC (see `docs/ACCOUNTS_DESIGN.md`) |
+| Sign-in methods per account type | Accounts / registration design | Decided: Google plus verified email/password registration for students and teachers; existing teacher/admin password accounts retained. Microsoft excluded; Apple out of scope. See the 2026-10-13 update. |
 | Who covers test access: teacher's plan or student's plan | Entitlements | Teacher's plan; students never pay to take a teacher's test |
 | How content reaches production today | G1/H | audit first; canonical reviewed inputs only after H |
 | Payment provider: Stripe or a merchant of record | Billing | none; blocks billing |
@@ -408,4 +466,4 @@ Codex does not decide these; where a PR needs one before Gabriel answers, it use
 | How long may teachers self-declare during early access, and what verification triggers later? | Accounts design / launch | allow self-declaration with conservative quotas; require verification before teacher-only protected content or teacher-specific pricing |
 | When, if ever, should Sign in with Apple be added? | post-v1 identity work | defer until the form-post callback/state/browser-binding flow has its own reviewed design and tests |
 
-Non-code checks for Gabriel before launch: GDPR obligations as data controller for minors' data, including Bulgaria's digital consent age; consumer rules for subscriptions; invoicing and VAT for online card payments; and whether the МОН tenant allows third-party sign-in for `edu.mon.bg` accounts.
+Non-code checks for Gabriel before launch: GDPR obligations as data controller for minors' data, including Bulgaria's digital consent age; consumer rules for subscriptions; invoicing and VAT for online card payments.
