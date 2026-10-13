@@ -82,6 +82,35 @@ class _Stop(Exception):
         self.status = status
 
 
+class _ServiceUnavailable(Exception):
+    """The server answered 421. Raised by ``getreply``, so no caller can read it as a reply.
+
+    Deliberately neither ``SMTPAuthenticationError`` (``login`` would go on to try the next
+    advertised mechanism and a later reply could hide the 421) nor an ``OSError``
+    (``SMTPException`` is one, and ``smtplib`` turns some of those into a lost connection).
+    """
+
+    smtp_code = SERVICE_UNAVAILABLE
+
+
+def _terminal_421(server, reply):
+    """``reply`` unchanged, unless it is a 421: then the connection is closed and this ends."""
+    if reply[0] == SERVICE_UNAVAILABLE:
+        _close(server)
+        raise _ServiceUnavailable()
+    return reply
+
+
+class _Smtp(smtplib.SMTP):
+    def getreply(self):
+        return _terminal_421(self, super().getreply())
+
+
+class _SmtpSsl(smtplib.SMTP_SSL):
+    def getreply(self):
+        return _terminal_421(self, super().getreply())
+
+
 def _read_input():
     """Standard input up to end-of-file; ``None`` once it exceeds the cap."""
     data = b""
@@ -196,9 +225,9 @@ def _before_marker(settings):
     host, port, security = settings["host"], settings["port"], settings["security"]
     try:
         if security == "tls":
-            server = smtplib.SMTP_SSL(host, port, timeout=SOCKET_TIMEOUT, context=_tls_context())
+            server = _SmtpSsl(host, port, timeout=SOCKET_TIMEOUT, context=_tls_context())
         else:
-            server = smtplib.SMTP(host, port, timeout=SOCKET_TIMEOUT)
+            server = _Smtp(host, port, timeout=SOCKET_TIMEOUT)
     except ssl.SSLError:
         raise _Stop(EXIT_TLS)
     except Exception as error:
@@ -268,6 +297,8 @@ def _after_marker(server, settings, message):
         code, _ = server.data(message)
         if not _accepted(code):
             return _data_status(code)
+    except _ServiceUnavailable:
+        return EXIT_SERVICE_UNAVAILABLE
     except smtplib.SMTPDataError as error:
         return _data_status(error.smtp_code)
     except Exception:

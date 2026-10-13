@@ -112,6 +112,8 @@ class FakeServer:
         if verb in self.raises:
             raise self.raises[verb]
         reply = self.replies[verb]
+        if isinstance(reply, list):  # one reply per use of the command; the last one repeats
+            reply = reply.pop(0) if len(reply) > 1 else reply[0]
         if reply is None:
             return  # the peer goes silent: the next read is an end-of-file
         self._buffer += reply
@@ -726,6 +728,67 @@ class SenderScriptExchangeTest(unittest.TestCase):
                     self.assertEqual(server.verbs()[-1:], [] if verb == "GREETING" else [verb])
                     self.assertIs(mail._outcome(b"", True, status), mail.SendOutcome.UNKNOWN)
 
+    def test_a_421_to_the_first_auth_is_final_whatever_follows_it(self):
+        # ``smtplib.login`` tries every advertised mechanism and swallows SMTPAuthenticationError, so
+        # a 421 that was only a reply could be hidden by what the next attempt gets: nothing (not sent),
+        # 535 (not sent), 503 (read as "already authenticated", accepted) or 235. 421 is terminal.
+        self.assertIn(b"AUTH PLAIN LOGIN", FakeServer.EHLO)
+        first = b"421 service not available, closing channel\r\n"
+        followers = {
+            "silence": None, "535": b"535 bad credentials\r\n", "503": b"503 already authenticated\r\n",
+            "235": b"235 ok\r\n", "421 again": b"421 still closing\r\n", "multi-line 421": b"421-busy\r\n421 closing\r\n",
+        }
+        for security, port in (("starttls", 587), ("tls", 465), ("none", 25)):
+            for name, follower in followers.items():
+                host = "localhost" if security == "none" else "relay.example.org"
+                for opening in (first, b"421-busy\r\n421 closing\r\n"):
+                    with self.subTest(security=security, then=name, first=opening):
+                        status, server = self.reply_status("AUTH", [opening, follower],
+                                                           security=security, port=port, host=host)
+                        self.assertEqual(status, SCRIPT.EXIT_SERVICE_UNAVAILABLE)
+                        self.assertNotIn(status, mail.EXIT_NOT_SENT)
+                        self.assertIs(mail._outcome(b"", True, status), mail.SendOutcome.UNKNOWN)
+                        self.assertEqual(server.verbs().count("AUTH"), 1, "no second mechanism after a 421")
+                        self.assertEqual(server.verbs()[-1], "AUTH", "nothing follows the 421")
+                        for verb in ("MAIL", "RCPT", "DATA", "MESSAGE"):
+                            self.assertNotIn(verb, server.verbs())
+                        self.assert_nothing_for_any_recipient(server)
+
+    def test_a_first_auth_that_is_not_421_still_tries_the_next_mechanism(self):
+        # The policy is not changed for anything but 421: 535 then success still logs in with the second one.
+        status, server = self.reply_status("AUTH", [b"535 bad\r\n", b"235 ok\r\n"])
+        self.assertEqual(status, 0)
+        self.assertEqual(server.verbs().count("AUTH"), 2)
+
+    def test_the_connection_classes_end_on_421_and_on_nothing_else(self):
+        used = []
+
+        def spy(name):
+            base = getattr(SCRIPT, name)
+
+            class Spy(base):
+                def __init__(self, *args, **kwargs):
+                    used.append(name)
+                    super().__init__(*args, **kwargs)
+            return Spy
+
+        with patch.object(SCRIPT, "_Smtp", spy("_Smtp")), patch.object(SCRIPT, "_SmtpSsl", spy("_SmtpSsl")):
+            self.assertEqual(run_script(encoded(security="starttls", port=587))[0], 0)
+            self.assertEqual(run_script(encoded(security="tls", port=465))[0], 0)
+        self.assertEqual(used, ["_Smtp", "_SmtpSsl"])
+        self.assertTrue(issubclass(SCRIPT._Smtp, smtplib.SMTP) and not issubclass(SCRIPT._Smtp, smtplib.SMTP_SSL))
+        self.assertTrue(issubclass(SCRIPT._SmtpSsl, smtplib.SMTP_SSL))
+        for cls in (SCRIPT._Smtp, SCRIPT._SmtpSsl):
+            self.assertIn("getreply", vars(cls))
+        error = SCRIPT._ServiceUnavailable()
+        self.assertEqual(error.smtp_code, 421)
+        # Not catchable as anything ``smtplib`` itself catches: authentication failures, its own
+        # exception family (an OSError) or the data error the script maps by code.
+        self.assertNotIsInstance(error, (smtplib.SMTPException, OSError, smtplib.SMTPAuthenticationError,
+                                         smtplib.SMTPResponseException))
+        for code in (250, 334, 354, 420, 422, 450, 535, 550):
+            self.assertEqual(SCRIPT._terminal_421(Mock(), (code, b"x")), (code, b"x"))
+
     def test_other_replies_before_the_marker_keep_their_10_to_19_status(self):
         # Only 421 is singled out: 420, 422, 450 and 5xx at these stages are unchanged.
         for verb, expected in (("GREETING", 11), ("EHLO", 13), ("STARTTLS", 12), ("AUTH", 14), ("MAIL", 15)):
@@ -747,7 +810,8 @@ class SenderScriptExchangeTest(unittest.TestCase):
                 self.assertEqual(status, SCRIPT.EXIT_AFTER_MARKER)
 
     def test_a_failed_quit_does_not_change_an_accepted_message(self):
-        for path in ({"replies": {"QUIT": None}}, {"raises": {"QUIT": TimeoutError()}}, {"replies": {"QUIT": b"500 ?\r\n"}}):
+        for path in ({"replies": {"QUIT": None}}, {"raises": {"QUIT": TimeoutError()}}, {"replies": {"QUIT": b"500 ?\r\n"}},
+                      {"replies": {"QUIT": b"421 closing\r\n"}}):
             self.assertEqual(run_script(encoded(), FakeServer(**path))[0], 0)
 
     def test_a_marker_that_cannot_be_written_stops_before_the_recipient(self):

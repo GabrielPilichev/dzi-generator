@@ -9,7 +9,10 @@ Scope: `docs/reviews/EMAIL_REGISTRATION_SCOPE.md`.
 (narrow)**: two blockers (a flaky test, B1; a false acceptance when `SIGCHLD`
 is ignored, B2), one portability note (N1) and a policy question on 4xx
 replies, which Gabriel decided. The corrections for all four are below and are
-**not independently reviewed**. It is
+**not independently reviewed**. A second review finding (P1: `smtplib.login`
+swallowed a first `AUTH` reply of 421 and tried the next mechanism) is
+corrected by making 421 terminal at the reply layer (see "Reply policy"); that
+correction is not reviewed either. It is
 the mail interface, the sender script, the backends and settings validation.
 Nothing calls any of it: no route, registration service, ledger, settlement,
 migration, table, unit or production start-up change exists, no gate exists to
@@ -87,7 +90,22 @@ meaning to; `31` when the server answered 421 at any stage.
 `31` lies outside `10`–`19` on purpose: before the marker a 421 must not be
 read as "nothing was sent", and it does not claim that a recipient was
 transmitted either. `accepted` and `refused` still need end-of-file, exactly
-one `R` and their status. Nothing is retried. `unknown` keeps the code and the
+one `R` and their status. Nothing is retried.
+
+**421 is terminal at the reply layer.** The script connects with two small
+subclasses, `_Smtp` (`smtplib.SMTP`) and `_SmtpSsl` (`smtplib.SMTP_SSL`), whose
+`getreply()` reads the reply as `smtplib` does and, when its code is 421
+(multi-line replies included), closes the connection and raises
+`_ServiceUnavailable` with `smtp_code = 421`. It is deliberately not an
+`SMTPAuthenticationError` (`smtplib.login` swallows that and tries the next
+advertised mechanism, so a first `AUTH` answered 421 could be hidden by the
+next attempt's disconnect, 535 or 503) and not an `SMTPException` or `OSError`.
+Before the marker the existing handlers map it to `31` through its `smtp_code`;
+after the marker `_after_marker` maps it to `31` before the generic handler.
+No second `AUTH` and no later command follows a 421. Every other reply, and the
+verifying TLS context, are untouched. A 421 to `QUIT` after a `250` for the
+message still leaves the message `accepted`, as a failed `QUIT` always did.
+`unknown` keeps the code and the
 budgets and will count toward the circuit; `refused` will not. The circuit and
 the ledger are PR 3 and are not implemented here.
 
@@ -100,8 +118,14 @@ now reads `signal.getsignal(signal.SIGCHLD)` before `Popen`. When it is
 `not_sent`. The disposition is never changed and no other signal handling was
 added. **Caller assumption:** nothing changes the `SIGCHLD` disposition of the
 process while a send is running; the check is made once, before the child
-exists. A disposition set outside Python, which `getsignal` reports as `None`,
-is not recognised.
+exists. **Limit of the guard:** Python keeps a cached disposition, and
+`getsignal` reads that cache. A later change made at C level, outside Python,
+is invisible to it, so the guard can be bypassed by code that ignores
+`SIGCHLD` that way. The supported Gunicorn `sync` worker sets `SIGCHLD`
+through Python, so the cache is accurate there. Callers must not ignore or
+change the disposition during a send, by any route. Production code does not
+widen the guard (no `ctypes`, no further signal handling); whether the real
+worker ignores `SIGCHLD` is activation evidence, test plan L.
 
 ## The exchange
 
@@ -132,7 +156,7 @@ again in the child. Every socket operation has a 3-second timeout.
 ## Tests
 
 `python3 -B -m unittest tests.test_mail_service tests.test_mail_sender_deadline`
-(118 tests, about 27 seconds). No message is sent, nothing is connected to,
+(121 tests, about 27 seconds). No message is sent, nothing is connected to,
 and every address, host and credential is synthetic.
 
 | Plan | Where |
