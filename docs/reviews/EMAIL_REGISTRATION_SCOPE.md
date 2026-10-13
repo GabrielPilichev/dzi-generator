@@ -10,10 +10,11 @@ deployment or provider was touched. Nothing here is a decision until Gabriel
 approves it; section 0.2 of the design lists what needs his answer (D1–D20,
 none approved).
 
-Revisions 1 and 2 were each independently reviewed and returned with
-REQUEST CHANGES. **Revision 3** answers the second review (design, section
-0.5; the first is answered in 0.4). It has not been reviewed, and its author
-does not approve it.
+Revisions 1, 2 and 3 were each independently reviewed and returned with
+REQUEST CHANGES, the third narrowly (two defects in the sender contract and
+twelve notes). **Revision 4** answers the third review (design, section 0.6;
+the earlier ones are answered in 0.4 and 0.5). It has not been reviewed, and
+its author does not approve it.
 
 ## Prerequisites (all merged, none activated)
 
@@ -101,8 +102,9 @@ that already exist are not, and stay with D4, D11 and D16.
   email to its owner. Nothing is linked or merged. The design claims the same
   visible answers and accounting for both cases, not the same delivery
   outcome or duration.
-- A send runs in a short-lived, standalone sender process. The request ends
-  it after 8 seconds of communication; process creation and reaping are not
+- A send runs in a short-lived, standalone sender process. The request
+  exchanges at most 16 KiB of input and 16 bytes of output with it without
+  blocking, and ends it after 8 seconds of communication; process creation and reaping are not
   separately bounded, a worker has one sender at a time, and senders can
   overlap briefly when a worker is replaced. An outcome that is not certain
   is recorded as unknown: the code is kept, the budget is spent, nothing is
@@ -110,7 +112,8 @@ that already exist are not, and stay with D4, D11 and D16.
 - Unverified registrations are scrubbed by a timer that does not depend on
   traffic. That is a logical-retention target (about 45 minutes) which
   depends on the timer, the database and the clock; it is not erasure, and
-  old bytes can remain in the WAL, in free pages and in earlier backups.
+  old bytes can remain in the WAL, in free pages, in unused space inside
+  pages and in earlier backups.
 - A restore voids every pending credential before the restored database goes
   live. What happens to the send accounting is D20: hold registration after
   every restore until the operator releases it, or carry the ledger over with
@@ -183,5 +186,5 @@ These are two different lists and are kept apart in the design.
 ## Execution
 
 Design by Claude Opus 5.5, High. Independent review in a separate session;
-revision 3 awaits it. The implementation order and suggested executors are in
+revision 4 awaits it. The implementation order and suggested executors are in
 the design, section 9: one PR at a time, never in parallel.
