@@ -106,7 +106,9 @@ class ClassificationTest(CanonicalTestCase):
         self.assertEqual(ct.tables_of(ct.RUNTIME), sorted([
             "quiz_assignments", "quiz_attempts", "quiz_answers", "quiz_text_answers",
             "practical_submissions", "practical_submission_files", "users",
-            "totp_credentials", "totp_recovery_codes", "lifecycle_clock", "user_identities"]))
+            "totp_credentials", "totp_recovery_codes", "lifecycle_clock", "user_identities",
+            "user_profiles", "teacher_subjects", "pending_registrations", "registration_sends",
+            "registration_control"]))
         self.assertEqual(ct.tables_of(ct.OPERATIONAL), sorted([
             "obsidian_notes", "note_question_links", "generated_exams", "scrape_log",
             "schema_migrations", "sqlite_sequence", "login_throttle", "oidc_consumed_transactions"]))

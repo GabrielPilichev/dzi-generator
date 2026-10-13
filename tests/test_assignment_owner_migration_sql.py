@@ -83,8 +83,10 @@ class AssignmentOwnerMigrationTest(unittest.TestCase):
         # 015 rebuilds quiz_attempts with a trailing user_id, NULL for every old row.
         self.assertEqual(after.pop("quiz_attempts"),
                          [(*row, None) for row in before.pop("quiz_attempts")])
-        # Tables created by later migrations (016's TOTP tables) start empty; 018's
-        # lifecycle clock holds exactly its seeded row.
+        # 021 adds email_verified_at to users: trailing, NULL for every old account.
+        self.assertEqual(after.pop("users"), [(*row, None) for row in before.pop("users")])
+        # Tables created by later migrations (016's TOTP tables, 021's registration tables)
+        # start empty; 018's lifecycle clock holds exactly its seeded row.
         for table in set(after) - set(before):
             self.assertEqual(len(after.pop(table)), canonical_tables.MIGRATION_SEEDED_ROWS.get(table, 0), table)
         self.assertEqual(after, before)
