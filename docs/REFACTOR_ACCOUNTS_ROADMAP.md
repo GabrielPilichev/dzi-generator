@@ -19,9 +19,10 @@ registration design is approved.
 
 - Google is the only external sign-in provider planned. Microsoft sign-in is
   excluded; Apple remains out of scope.
-- PR #331's Google sign-in and explicit linking implementation is reported complete
-  in its working tree, with 3,324 tests passing. Independent implementation review
-  is underway. It is not yet committed or merged, and production activation stays off.
+- PR #331's Google sign-in, student onboarding and explicit linking implementation
+  is merged at fe72d02. The implementation suite passed 3,324 tests; independent
+  review found no code blockers and required documentation corrections were completed.
+  Production activation remains off; merge does not deploy or activate the provider.
 - After #331, design and implement public email/password registration for students
   and teachers. This is not passwordless email-code sign-in.
 - Send a verification code to the submitted email address to establish ownership.
@@ -52,8 +53,8 @@ details are not approved by the field list alone.
 
 ### Immediate sequence
 
-1. Finish independent review and required corrections for #331; commit and merge
-   with Google production activation still off.
+1. Google sign-in #331 is merged. Keep production activation off until its separate
+   deployment and activation prerequisites are completed.
 2. Create a separate design PR for email/password registration and email-code
    verification, including both required forms and compatibility with Google accounts.
 3. Implement the approved registration design in scoped PRs with independent
@@ -362,7 +363,7 @@ The exact credential/recovery columns and secret-protection mechanism are decide
 - Passwords use Werkzeug `generate_password_hash` and `check_password_hash`; OAuth/OIDC uses Authlib. No hand-rolled OAuth.
 - Apple sign-in is **out of v1**. Add it only after its callback/state flow is designed and tested explicitly.
 
-Status: the storage for external identities exists (`user_identities`, migration 019, and `web/services/identities.py`), keyed on the exact issuer + subject pair and never on email. Google OIDC implementation is reported complete in PR #331's uncommitted working tree and is under independent review; it is not yet merged or activated. See the current roadmap update above and `docs/ACCOUNTS_DESIGN.md` §5 and §13.
+Status: the storage for external identities exists (`user_identities`, migration 019, and `web/services/identities.py`), keyed on the exact issuer + subject pair and never on email. Google OIDC sign-in, onboarding and explicit linking are implemented and merged in PR #331 at fe72d02. Production activation remains off; deployment and activation prerequisites are outstanding. See the current roadmap update above and `docs/ACCOUNTS_DESIGN.md` §5 and §13.
 
 ### OAuth transaction binding
 
