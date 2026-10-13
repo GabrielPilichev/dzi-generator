@@ -42,6 +42,7 @@ from web.blueprints.dzi import dzi_bp
 from web.blueprints.practical import practical_bp
 from web.attempt_access import quiz_attempt_owner_session_key
 from web.blueprints.account import account_bp
+from web.blueprints.oidc import oidc_bp
 from web.blueprints.quiz import quiz_bp
 from web.blueprints.teacher import teacher_bp
 from web.blueprints.browsing import browsing_bp, open_existing_database_read_only
@@ -52,10 +53,12 @@ from web.access import (
     is_route_allowed,
     policy_for_endpoint,
 )
+from web import oauth_state
 from web.request_db import get_request_db
-from web.production import warn_if_schema_migrations_pending
+from web.production import production_startup_in_progress, warn_if_schema_migrations_pending
 from web.public_url import PUBLIC_BASE_URL_CONFIG, PUBLIC_BASE_URL_ENV, normalize_public_base_url
 from web.services import accounts as accounts_service
+from web.services import google_oidc
 from web.services import lifecycle as lifecycle_service
 from web.services.subject_catalog import subject_catalog, subject_topic_groups
 from web.services import quiz as quiz_service
@@ -193,6 +196,25 @@ if os.environ.get(PUBLIC_BASE_URL_ENV):
         )
 # Request-wide body limit for every route; uploads are the only large requests.
 app.config["MAX_CONTENT_LENGTH"] = MAX_REQUEST_BYTES
+# Google sign-in (docs/reviews/GOOGLE_OIDC_DESIGN.md, 8.1): enabled only with both
+# credentials and a configured public base URL, since the callback address is never
+# taken from a request. A development run never refuses to start over these settings:
+# an unusable value warns and leaves the provider disabled. web.wsgi decides for
+# production (web.production), where the base URL is set after this module is loaded.
+_google_client_id = os.environ.get(google_oidc.CLIENT_ID_ENV) or None
+_google_client_secret = os.environ.get(google_oidc.CLIENT_SECRET_ENV) or None
+app.config[oauth_state.PROVIDER_CONFIG_KEY] = google_oidc.provider_config(
+    _google_client_id, _google_client_secret, app.config.get(PUBLIC_BASE_URL_CONFIG))
+if ((_google_client_id or _google_client_secret) and app.config[oauth_state.PROVIDER_CONFIG_KEY] is None
+        and not production_startup_in_progress()):
+    _google_problems = google_oidc.credential_problems(_google_client_id, _google_client_secret)
+    if not app.config.get(PUBLIC_BASE_URL_CONFIG):
+        _google_problems.append(f"{PUBLIC_BASE_URL_ENV} is not set to a usable base URL")
+    warnings.warn(
+        "Google sign-in is disabled: " + "; ".join(_google_problems) + ".",
+        RuntimeWarning,
+        stacklevel=2,
+    )
 
 
 
@@ -320,6 +342,13 @@ def protect_same_origin_unsafe_methods():
         abort(403)
 
 
+# The request-integrity mechanism of the one view that declares OAUTH_STATE (the
+# OAuth callback, a GET). It runs after the same-origin check, which it never
+# replaces, and before the principal is loaded: a callback that does not match its
+# transaction is answered without a database read.
+app.before_request(oauth_state.verify_oauth_state)
+
+
 # Session identity of an account (Accounts design §6). Role, name and active state
 # are never in the cookie; they are read from the users row on every request.
 ACCOUNT_SESSION_KEYS = ("uid", "sk", "iat")
@@ -354,6 +383,10 @@ def load_current_user():
     if principal.user_id is None:
         for key in ACCOUNT_SESSION_KEYS:
             session.pop(key, None)
+    else:
+        # The row the principal was built from, for the pages that show the account
+        # itself (web.account_session.loaded_account). It is not an authority.
+        g.account_user = user
     g.principal = principal
 
 
@@ -596,6 +629,7 @@ warn_if_schema_migrations_pending(DB_PATH, open_existing_database_read_only)
 
 
 app.register_blueprint(account_bp)
+app.register_blueprint(oidc_bp)
 app.register_blueprint(browsing_bp)
 app.register_blueprint(dzi_bp)
 app.register_blueprint(practical_bp)

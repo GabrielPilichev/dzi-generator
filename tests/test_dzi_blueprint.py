@@ -18,8 +18,16 @@ from web import access, request_integrity
 # (rule, methods without HEAD/OPTIONS, access policy, request-integrity policy)
 EXPECTED_URL_MAP = (
     ('/', ('GET',), 'public', None),
+    ('/account', ('GET',), 'signed_in', None),
     ('/account/attempts', ('GET',), 'quiz_taker', None),
     ('/account/password', ('GET', 'POST'), 'signed_in', 'same_origin'),
+    # Google sign-in (PR #331). The callback is the one GET with an integrity
+    # mechanism of its own; the other four are ordinary same-origin POST routes.
+    ('/auth/google/callback', ('GET',), 'public', 'oauth_state'),
+    ('/auth/google/link', ('POST',), 'signed_in', 'same_origin'),
+    ('/auth/google/link/cancel', ('POST',), 'signed_in', 'same_origin'),
+    ('/auth/google/link/confirm', ('GET', 'POST'), 'signed_in', 'same_origin'),
+    ('/auth/google/start', ('POST',), 'public', 'same_origin'),
     ('/admin/open-question-candidates', ('GET',), 'admin', None),
     ('/dzi', ('GET',), 'admin', None),
     ('/dzi/practical/resource/<int:resource_id>/download', ('GET',), 'admin', None),

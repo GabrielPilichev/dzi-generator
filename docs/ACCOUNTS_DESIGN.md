@@ -39,18 +39,25 @@ has started with account-owned quiz attempts (migration 015, §24).
   from before accounts stay `user_id` NULL and bound to their browser.
 - Done: the session cookie is `SameSite=Lax` (§6, §14), as its own PR. It is
   the prerequisite of OIDC sign-in (§13), not a part of it.
-- Done, as storage only: migration `019_user_identities.sql` and the storage
-  service `web/services/identities.py` (§5, §13). No route, sign-in flow or
-  other code uses them; the table is empty until provider sign-in exists.
-- Done, as storage only: migration `020_oidc_consumed_transactions.sql` and
-  the storage service `web/services/oidc_consumption.py` (§5, and the
-  amendment in §13). Nothing calls the service; the table is empty until
-  provider sign-in exists.
-- **Not implemented:** Google/Microsoft OIDC sign-in itself. There is no
-  Authlib dependency, provider configuration, callback, OAuth transaction,
-  linking page or account-creation policy. Every requirement of §13 is still
-  open and belongs to that later PR, single use of a transaction included:
-  the storage for it exists, the code that has to call it correctly does not.
+- Done: migration `019_user_identities.sql` and the storage service
+  `web/services/identities.py` (§5, §13). Google sign-in reads and writes
+  identities through `web/services/oidc_accounts.py`; the table stays empty
+  until the provider is enabled somewhere.
+- Done: migration `020_oidc_consumed_transactions.sql` and the storage service
+  `web/services/oidc_consumption.py` (§5, and the amendment in §13). Google
+  sign-in calls it at three call sites (§13, "Google sign-in as implemented").
+- **Implemented, not activated: Google OIDC sign-in** (PR #331; §13, "Google
+  sign-in as implemented"; specification
+  `docs/reviews/GOOGLE_OIDC_DESIGN.md`). Automatic student onboarding, linking
+  by confirmation for students and teachers, no Google for admins. It is
+  disabled unless both credentials and a public base URL are configured, and
+  **a production start of this build keeps it disabled whatever is
+  configured** (the activation gate, §13). No provider was registered and no
+  real credential exists. What activation still needs is listed in
+  `docs/DEPLOYMENT.md`, section 29.
+- **Not implemented:** Microsoft sign-in, unlinking and identity recovery
+  (required before Google sign-in is activated), a local password or a second
+  identity for an account created through Google.
 - **Next:** the remaining phase-2 items of §17.
 - The DZI visibility gate depends on account identity (a signed-in principal),
   not on OIDC specifically; OIDC is one way to obtain student accounts.
@@ -85,7 +92,11 @@ apply unchanged.
    now.
 2. Google/Microsoft OAuth transactions use the session-bound design of §13:
    state, nonce, PKCE verifier, validated return target and expiry in the
-   signed session. Apple remains out of scope.
+   signed session. Apple remains out of scope. Amended 2026-10-11: the single
+   use of a transaction is recorded in a dedicated server-side consumption
+   table (§13, "AMENDMENT … a dedicated consumption record"). The storage
+   exists as migration 020 (§5); the sign-in code that has to use it does
+   not.
 3. Admin TOTP does not block the initial Accounts PRs. It is a separate
    security PR that must land before the production cutover and the permanent
    removal of legacy auth (§17, PR T).
@@ -97,7 +108,9 @@ apply unchanged.
 - The local password credential is stored on `users`, not in a separate
   `password_credentials` table.
 - OAuth transactions are session-bound, not a server-side transaction table
-  plus a separate browser-binding cookie.
+  plus a separate browser-binding cookie. (Amended 2026-10-11, §13: a
+  consumption table records that a transaction was used. It stores no
+  transaction, so this deviation stands.)
 - TOTP is a separate pre-cutover security PR, not part of the first account
   schema.
 
@@ -283,11 +296,11 @@ CREATE INDEX IF NOT EXISTS idx_quiz_assignments_owner
     (the "my attempts" list, newest first; historical rows are not in it)
 - Recreates `idx_quiz_attempts_assignment`.
 
-**`019_user_identities.sql`** (phase 2; implemented as storage only)
+**`019_user_identities.sql`** (phase 2; implemented)
 
 This was the "future `user_identities`" table of the original design, to come
-with OAuth in phase 2. Its migration and storage service exist now; the sign-in
-that will use them does not (§13).
+with OAuth in phase 2. Its migration and storage service came first, as storage
+only; Google sign-in (§13) is what uses them.
 
 ```sql
 CREATE TABLE IF NOT EXISTS user_identities (
@@ -311,6 +324,16 @@ CREATE INDEX IF NOT EXISTS idx_user_identities_user ON user_identities(user_id);
   folding, no trimming, no normalization. The same subject under another
   issuer is another identity. One identity belongs to at most one user; a user
   may have several.
+- **The stored issuer of a Google identity is always
+  `https://accounts.google.com`.** Google documents two spellings of `iss` for
+  its ID tokens, that one and the bare `accounts.google.com`. Both exact
+  strings are accepted, and the one constant is stored, so for a token with
+  the bare spelling the stored issuer differs from the token's bytes. This is
+  a closed mapping of two documented literals to one constant, made where the
+  token is verified (`web/services/google_oidc.py`). It is not normalization:
+  nothing is lower-cased, trimmed or parsed, no other issuer can enter through
+  it, and the storage service still compares byte for byte. If the token's own
+  spelling were stored, one Google account would become two identities.
 - `email_at_link` is what the provider reported at linking time. It is
   metadata: not unique, not indexed, and never used to select a user, sign
   anyone in, deduplicate or link (§13).
@@ -359,11 +382,12 @@ blueprint or Flask.
 - Issuers, subjects and emails are not logged and do not appear in exception
   messages.
 
-**`020_oidc_consumed_transactions.sql`** (phase 2; implemented as storage only)
+**`020_oidc_consumed_transactions.sql`** (phase 2; implemented)
 
 The one piece of server-side state behind "a transaction is used once" (§13,
-amendment of 2026-10-11). Its migration and storage service exist; nothing
-calls them yet. Full specification: `docs/reviews/OIDC_CONSUMPTION_SCOPE.md`.
+amendment of 2026-10-11). Its migration and storage service came first, as
+storage only; Google sign-in calls the service at three call sites (§13).
+Full specification: `docs/reviews/OIDC_CONSUMPTION_SCOPE.md`.
 
 ```sql
 CREATE TABLE IF NOT EXISTS oidc_consumed_transactions (
@@ -799,26 +823,28 @@ would at minimum require transactional email for verification and recovery.
 - **Later:** a hashed, single-use, short-lived token table arrives with
   transactional email, in the same PR as the flow.
 
-## 13. Future OAuth boundary (Google and Microsoft; phase 2)
+## 13. OAuth boundary (Google implemented; Microsoft later; phase 2)
 
-Not implemented in phase 1. Apple is out of scope.
+Not part of phase 1. Apple is out of scope.
 
-**Status.** Identity storage is implemented: migration `019_user_identities.sql`
-and `web/services/identities.py` (§5). Provider sign-in is **not** implemented:
-no Authlib dependency, no provider credentials or configuration, no callback
-route, no OAuth transaction, no linking or registration, and no decision yet on
-how student accounts are created. Nothing in the application reads or writes
-`user_identities`. The storage that single use of a transaction needs is
-implemented as well, and equally unused: migration
-`020_oidc_consumed_transactions.sql` and `web/services/oidc_consumption.py`
-(§5, and the amendment below). Everything below is still the specification of
-that later PR.
+**Status.** Google sign-in is implemented by PR #331 and is **not activated**:
+see "Google sign-in as implemented" at the end of this section. Its
+specification is `docs/reviews/GOOGLE_OIDC_DESIGN.md`; how student accounts are
+created through Google is the automatic student onboarding that Gabriel
+approved, in which a first-time Google sign-in may create a `student` account
+(that design, section 6). Identity storage (migration `019_user_identities.sql`,
+`web/services/identities.py`) and the storage that single use of a transaction
+needs (migration `020_oidc_consumed_transactions.sql`,
+`web/services/oidc_consumption.py`; §5 and the amendment below) are used by it.
+Microsoft sign-in is not implemented, and nothing below is implemented for
+Microsoft. The decisions and requirements below are kept as approved; they are
+what PR #331 was built to.
 
 - `users` does not change. `user_identities` (§5) is added by its own
   migration, keyed on `UNIQUE (issuer, subject)` (done: migration 019).
-- Authlib is the client library, as the roadmap states; it is added in that
-  PR. No hand-rolled OAuth.
-- The callback declares the reserved `OAUTH_STATE` integrity policy in
+- Authlib is the client library, as the roadmap states; PR #331 added it. No
+  hand-rolled OAuth.
+- The callback declares the `OAUTH_STATE` integrity policy of
   `web/request_integrity.py`; it is not an access level.
 - The session cookie is `SameSite=Lax` (with `Secure` and `HttpOnly`; done as
   its own PR before OAuth, §6), so the provider's top-level GET redirect
@@ -855,15 +881,25 @@ sign-in:
 
 **Status of the amendment.** The table and its storage service are implemented
 (migration 020 and `web/services/oidc_consumption.py`, §5; specification and
-approval in `docs/reviews/OIDC_CONSUMPTION_SCOPE.md`) and nothing calls them.
-**That is storage, not replay protection.** "Used once" holds only when the
-code that calls the service meets the caller obligations of §5: the write lock
-before a fresh monotonic clock reading, one clock, an authenticated and
-unchanged expiry per key, and refusal of every object that another run of the
-service issued. The storage does not bind a transaction to a browser, does not
-invalidate anything at a restart and is not safe across a restore by itself.
-All of that is still open and belongs to the sign-in PR, together with the
-requirements below.
+approval in `docs/reviews/OIDC_CONSUMPTION_SCOPE.md`), and Google sign-in calls
+them. **The storage alone is not replay protection.** "Used once" holds only
+when the code that calls the service meets the caller obligations of §5: the
+write lock before a fresh monotonic clock reading, one clock, an authenticated
+and unchanged expiry per key, and refusal of every object that another run of
+the service issued. The storage does not bind a transaction to a browser, does
+not invalidate anything at a restart and is not safe across a restore by
+itself. PR #331 is the code that has to meet those obligations; where it does
+so is listed under "Google sign-in as implemented" below.
+
+**Recording order (part of the amendment of 2026-10-11; a requirement on the
+sign-in PR).** Use is recorded for every callback whose state matches, before
+any other callback parameter is examined and before any outbound call, in a
+write that persists whatever follows. How the Google sign-in PR calls the
+storage and meets the caller obligations of §5 is specified in
+`docs/reviews/GOOGLE_OIDC_DESIGN.md`, sections 3 and 9, and implemented by
+PR #331 (`web/oauth_state.py`, `verify_oauth_state`). That design does not
+override this section: where the two differ on what is approved, this section
+wins.
 
 **Security requirements for that PR**
 
@@ -880,6 +916,135 @@ requirements below.
 | Login CSRF | Covered by the session-bound state. |
 | Open redirect | The return target passes through `safe_redirect_target` when stored and again when used. Existing redirect confinement must not regress. |
 | Uniqueness | `UNIQUE (issuer, subject)`; one identity maps to one user. |
+
+### Google sign-in as implemented (PR #331)
+
+Specification: `docs/reviews/GOOGLE_OIDC_DESIGN.md` (sections 1–9) with its
+test plan; product decisions in `docs/reviews/GOOGLE_OIDC_SCOPE.md`. This is a
+summary of what the code does. Where it and those documents differ, the design
+is the specification and the difference is a defect.
+
+**Not activated.** The provider is enabled only when both credentials
+(`DZI_GOOGLE_CLIENT_ID`, `DZI_GOOGLE_CLIENT_SECRET`) and a public base URL are
+configured. On top of that, a production start is governed by one constant in
+the build, `PRODUCTION_ACTIVATION` in `web/services/google_oidc.py`. It is
+`False`: production starts normally whatever the two settings hold, keeps
+Google sign-in disabled and logs one warning that names the settings. No
+setting overrides it. The release that delivers identity recovery tooling
+(unlinking, and correcting a mistaken link) turns it on; that tooling does not
+exist yet and is required first. Disabled, the five routes answer the generic
+404, no page shows a Google button or message, and password and TOTP sign-in
+are exactly what they were.
+
+**Review status.** The implementation is uncommitted, not merged, not deployed
+and not activated. An independent implementation review found no code
+blockers; its documentation corrections are recorded in
+`docs/reviews/GOOGLE_OIDC_DESIGN.md` 0.6, with the implementation departures it
+assessed as justified, the activation prerequisites it added (real-provider
+compatibility with the identity encoding; the production and service tests run
+against the server's dependency versions; installation validated from the
+declared requirements in a clean environment; the Google button branding) and
+the limits it documented (URL outcome codes, abandoned workers, development
+server logs). The deployment probes are in `docs/DEPLOYMENT.md` section 29 and
+have not been run.
+
+**Routes** (`web/blueprints/oidc.py`; the contract is
+`docs/AUTH_ROUTE_CONTRACT.md`): `POST /auth/google/start`, `POST
+/auth/google/link`, `GET /auth/google/callback`, `GET`/`POST
+/auth/google/link/confirm`, `POST /auth/google/link/cancel`, and the account
+page `GET /account` (`web/blueprints/account.py`).
+
+**Modules.** `web/oauth_state.py` (the transaction and the pending link in the
+signed session, the callback's integrity hook, retiring);
+`web/services/google_oidc.py` (pinned provider metadata, the code exchange and
+the ID-token checks behind one network budget; no Flask, no database);
+`web/services/oidc_accounts.py` (sign-in, onboarding, the link decision and the
+write; explicit connection, no commit); `web/account_session.py` (the three
+functions that replace or clear a session).
+
+**What it does**
+
+- *Identity.* An account is found by `(issuer, subject)` and by nothing else.
+  An email never selects, signs in or links an account.
+- *Onboarding.* A first-time Google identity becomes a `student` in one
+  `BEGIN IMMEDIATE` transaction that creates the user and the identity
+  together. `users.email` and `password_hash` stay `NULL`; the display name is
+  the cleaned name of the Google profile, or „Ученик“.
+- *Email collision.* A new identity whose reported address, verified or not, is
+  the sign-in email of an existing account creates nothing and signs nobody
+  in; the person is told to sign in with the password and link from „Профил“.
+- *Linking.* A student or a teacher with a password starts a link while signed
+  in. After Google returns and the ID token is verified, a confirmation page
+  names both profiles, and the identity is stored only after the account's
+  current password on a same-origin POST, under the account's throttle
+  counter, with the account, its role, its active state, its session key, the
+  bound session's lifetime, the expiry and the identity's ownership checked
+  again inside the write transaction. One Google identity per account; a link
+  is refused when the reported address belongs to another account.
+- *Admins.* An admin can neither link Google nor sign in through it, a teacher
+  promoted after linking included. Password plus TOTP stays the only way an
+  admin session comes into being, and the operator CLI refuses to promote an
+  account that has no password.
+- *Session.* A Google sign-in issues the ordinary account session, exactly
+  `uid`, `sk` and `iat` with the carried attempt markers. Nothing in it says
+  how the account signed in.
+
+**What is guaranteed**
+
+- A transaction is accepted at most once. The first callback whose state
+  matches commits a consumption record before it looks at any other parameter
+  and before any request to Google; every later callback for that state is
+  refused, from the same browser, from a copy of the cookie, at the same
+  moment or through another process. It is accepted only within its lifetime
+  on a monotonic clock that wall-clock corrections do not move, and only by
+  the run of the service that issued it. A wall clock set back can still make
+  Flask refuse the signed session cookie that carries the transaction, and the
+  callback then fails closed (`docs/reviews/GOOGLE_OIDC_DESIGN.md` 0.6).
+- An accepted transaction completes only with an ID token that Google issued
+  for that transaction's authorization request (nonce), for this client
+  (audience), signed by a key that Google publishes (RS256), within its time
+  claims.
+- A pending link is stored as an identity at most once, by a request that
+  presents the bound account's session and its current password.
+- Timed-out provider work changes nothing: one total budget of 8 seconds per
+  callback, at most two workers inside the network function per process, and
+  a result that arrives late is never read.
+- No authorization code, state, nonce, verifier, token, client secret, subject
+  or provider email is logged. Gunicorn's access log has no query string and
+  its error log passes a redacting filter; Nginx turns every error status of
+  the callback address into a redirect and logs that address without its
+  query string (`docs/DEPLOYMENT.md`, section 29).
+
+**Limits, stated** (the design's 3.4 and 4.4 are the full text)
+
+- Use is recorded before the outcome is known: a cancellation at Google, a
+  provider error, a timeout or a validation failure also spends the
+  transaction, and the person starts again.
+- A restart ends every sign-in and link in flight.
+- Removing a slot from a response cookie revokes no earlier copy of the
+  cookie. What stops a copy is the consumption record, the instance and the
+  expiry. Cancelling, signing out, starting another link and changing account
+  each try to record that the linking in progress has ended; when that record
+  cannot be written, a copy of the cookie stays usable until it expires, and
+  confirming it still takes the account's password on an unchanged account
+  and session key. A cancellation says „Свързването с Google беше отказано.“
+  only when its own record ended the link and the account had no Google
+  identity when it was read.
+- A link confirmed onto the wrong account, a student account created by
+  someone who meant to link, and a Google-only account whose Google account is
+  lost cannot be corrected by this release. That is why activation waits for
+  the recovery tooling.
+- Signing out of LearnPilot does not sign the browser out of Google. The
+  sign-in page and the account page say so.
+
+**The caller obligations of §5, and where each is met.** Lock, then clock:
+`begin_write` in `web/oauth_state.py`, at the callback, at the confirmation
+and when retiring. One clock: `monotonic_seconds()` there. A fixed,
+authenticated expiry: the `exp` of the signed session object, passed unchanged
+by `record_use` and by `confirm_link`. Only the run that issued it: the
+instance check before every call. Acceptance is return plus commit, and every
+error ends the request without one. Keys come only from `consumption_key`.
+Nothing but the cleanup inside `consume` deletes a row.
 
 ## 14. Security model
 
@@ -935,16 +1100,39 @@ account forms.**
 
 ## 15. Privacy and data minimization
 
-- **Collected:** email, display name, role, password hash, timestamps. Nothing
-  else.
+- **Collected:** email, display name, role, password hash, timestamps. For an
+  account that uses Google sign-in, also: Google's issuer and subject
+  identifier; the email address Google reported when the identity was added,
+  whether or not Google marked it verified; the time the identity was added
+  and last used. For an account created through Google, the display name is
+  the name in the person's Google profile at that moment. Nothing else.
+- **Held briefly, not stored:** while a link awaits confirmation, the Google
+  subject, reported email and name are in the person's signed session cookie
+  for at most three minutes.
 - **Not collected:** date of birth, school, class, phone, IP address, user
-  agent, login history.
+  agent, login history; from Google also the profile picture, given and family
+  name, locale, organisation domain, and any Google token. No Google API is
+  called on the person's behalf, and no scope beyond `openid email profile` is
+  requested.
+- **Sent to Google** when the person presses the button: the application's
+  client id, the callback address and random values. Google thereby learns
+  that this Google account signed in to LearnPilot, and when. Nothing is sent
+  before that; no Google resource is loaded by any page (the logo on the
+  button is a local file).
 - **Never logged:** passwords, hashes, `session_key`, cookie values, failed
-  identifiers. Emails never go in a query string, because Gunicorn logs the
-  request line.
+  identifiers; authorization codes, state, nonce, PKCE verifier, ID and access
+  tokens, the client secret, subjects, provider emails. Emails never go in a
+  query string. The consumption table holds keyed hashes only: exactly 64
+  bytes of lower-case hexadecimal, which the table itself enforces (§5).
+- **Signing out** of LearnPilot does not sign the browser out of Google.
 - **Existing sinks that will carry account names:** CSV exports and the vault
   notes under `vault/Generated/Quizzes/`.
-- **Deletion:** v1 only disables accounts.
+- **Deletion:** v1 only disables accounts. Identities are not removed when an
+  account is disabled.
+- **Not settled, and required before Google sign-in is activated:** a public
+  privacy-policy page (LearnPilot has none; Google's consent screen needs one),
+  and the data-controller questions for minors listed in
+  `docs/REFACTOR_ACCOUNTS_ROADMAP.md`.
 - **Retention and erasure (deferred, approved):** how long student accounts
   and attempts are kept, and who may request deletion, is a later
   product/legal decision. No retention period is defined here, and none may be
@@ -960,8 +1148,8 @@ account forms.**
 | `013_login_throttle.sql` | New table and index | None | Restart only | Same. |
 | `014_assignment_owner.sql` | Nullable column and index | None; legacy rows stay NULL | Restart only | Old code inserts with explicit column lists and is unaffected. |
 | `015_quiz_attempts_user.sql` (phase 2) | Table rebuild | Copy all rows with `user_id NULL`, preserving ids and the `sqlite_sequence` value | Service stopped, seconds | Restore from the pre-migration backup. |
-| `019_user_identities.sql` (phase 2) | New table and index | None; the table starts empty | Restart only | Nothing uses the table, so there is no behaviour to revert. A build without 019 refuses to start on the migrated database, as for every migration since the lifecycle release: a recovery build keeps the migration, and a snapshot restore does not lead to a build from before it (`docs/DEPLOYMENT.md`, sections 21 and 27). |
-| `020_oidc_consumed_transactions.sql` (phase 2) | New table, no index | None; the table starts empty | Restart only | Nothing calls the storage, so there is no behaviour to revert. As for 019: a build without 020 refuses to start on the migrated database, a recovery build keeps the migration, and a snapshot restore does not lead to a build from before it (`docs/DEPLOYMENT.md`, sections 21 and 28). |
+| `019_user_identities.sql` (phase 2) | New table and index | None; the table starts empty | Restart only | The table is read and written only by Google sign-in (§13), which is not activated, so while it is off nothing uses the table. Once it is on and identities exist, a build from before the sign-in code leaves them inert and accounts created through Google cannot sign in under it (`docs/DEPLOYMENT.md`, section 29, "Rollback and restore"). A build without 019 refuses to start on the migrated database, as for every migration since the lifecycle release: a recovery build keeps the migration, and a snapshot restore does not lead to a build from before it (`docs/DEPLOYMENT.md`, sections 21 and 27). |
+| `020_oidc_consumed_transactions.sql` (phase 2) | New table, no index | None; the table starts empty | Restart only | Google sign-in (§13) is the only caller of the storage, at three call sites, and is not activated; while it is off nothing is written, and the records already written stay and are not deleted for a rollback. As for 019: a build without 020 refuses to start on the migrated database, a recovery build keeps the migration, and a snapshot restore does not lead to a build from before it (`docs/DEPLOYMENT.md`, sections 21 and 28). |
 
 **Runner constraint (applies to 015 only; runner support is in place)**
 
@@ -1042,9 +1230,11 @@ policy and a minimal "my attempts" page (done, §24); the `Lax` cookie (done,
 §6); assignment `public_token` links; `user_identities` storage (done as
 migration 019 and `web/services/identities.py`, §5: storage only); single-use
 consumption storage (done as migration 020 and
-`web/services/oidc_consumption.py`, §5 and §13: storage only);
-Google/Microsoft OIDC sign-in on top of that storage (not started, §13). The
-DZI gate and entitlements follow, as in the roadmap.
+`web/services/oidc_consumption.py`, §5 and §13: storage only); Google OIDC
+sign-in on top of that storage (PR #331: implemented, not activated, §13);
+identity recovery tooling, which activation waits for (not started);
+Microsoft sign-in (not started). The DZI gate and entitlements follow, as in
+the roadmap.
 
 ## 18. Test matrix
 
@@ -1070,10 +1260,17 @@ DZI gate and entitlements follow, as in the roadmap.
 | Identity storage | 019 applies on a database at 018 and on an empty one and equals the approved schema; existing accounts, credentials, session keys, roles and ownership unchanged; provider CHECK, `UNIQUE (issuer, subject)` and the foreign key enforced, nothing cascades; lookup exact and case-sensitive; the same subject under another issuer is distinct; a duplicate never changes the owner; several identities per user; equal `email_at_link` merges nothing; helpers never commit or roll back, a caller rollback undoes them, and a write refused by its statement (a duplicate, an unknown identity id) leaves the caller a transaction to finish; table `RUNTIME`, empty in a fresh build, absent from every canonical export. |
 | Consumption storage | 020 applies on a database at 019 and on an empty one, equals the documented schema and changes no other table or row; the key `CHECK` refuses every shape but 64 lower-case hexadecimal bytes, a trailing or embedded NUL and a trailing newline included; the integer affinity of the expiry is pinned; keys are deterministic and separated by purpose; malformed input (a boolean as a time included) is refused before any statement; a caller transaction is required; expiry is decided before any statement; success, duplicate, rollback and commit, with the caller's earlier writes preserved and nothing committed or rolled back by the service; cleanup at the 60/61-second boundary and by expiry only; no reuse across connections or after cleanup with the key's one expiry; a seeded multi-connection model; real concurrent callers with exactly one committed winner; a missing table, a read-only connection and a held lock propagate; only the primary-key duplicate is `AlreadyConsumed`; table `OPERATIONAL`, empty in a fresh build, absent from every canonical export. |
 
-No tests are required for OAuth sign-in, reset, verification or registration
-until those features are built; identity storage and consumption storage,
-which exist, are covered by the two rows above. Admin TOTP tests are listed in
-§23.
+| Google sign-in: state | The transaction and the pending link hold exactly their documented keys and no secret, code or token; lifetimes on the monotonic clock, and the wall clock does not decide them (a wall clock set back makes Flask refuse the session cookie and the flow fails closed, which the suite characterises without weakening session validation); another instance is refused; the cookie budget; the clock is read after the write lock at all three call sites, with the object's own expiry and key; every outcome of a retirement for every way its record can fail to be written, never a false success (`tests/test_oauth_state.py`). |
+| Google sign-in: provider | ID tokens with real RS256 signatures: accepted and refused signatures, issuers, audiences, times, nonces and subjects; every row of the token endpoint's response rules, one request and no retry; the key cache; the network budget, the bound of two workers inside the network function, every start failure, and the cooldown (`tests/test_google_oidc_service.py`). |
+| Google sign-in: accounts | Onboarding creates one student and one identity or neither; the identity is resolved first; the email table; `bound_account`, the link decision in both places, `confirm_link` with every refusal; the races (`tests/test_oidc_accounts_service.py`). |
+| Google sign-in: routes | Start, callback, confirmation and cancellation; methods on the callback address; a callback without a matching transaction writes nothing; the order of the callback's steps; admins; every row of what a cancellation may say, with its exact text; sign-out and every change of account under every storage failure; the disabled provider; no secret in any log (`tests/test_google_oidc_routes.py`). |
+| Google sign-in: replay | One test per scenario of the design's 3.3; restored cookies, simultaneous callbacks, two instances on one database; what a copy of a cookie can still do after a retirement that was not recorded, and what a successor can still do (`tests/test_google_oidc_replay.py`). |
+| Google sign-in: deployment | The activation gate with the constant off and on; Gunicorn's real error handler and parser against the log filter; a failing body read answers 400 and logs nothing; the Nginx and environment templates (`tests/test_google_oidc_production.py`). |
+
+No tests are required for Microsoft sign-in, reset, verification or
+registration until those features are built. Admin TOTP tests are listed in
+§23. The Google sign-in suites use a fake provider with real cryptography and
+temporary databases; they register no client and reach no network.
 
 ## 19. Production rollout
 
@@ -1104,8 +1301,11 @@ moment. After any restore, run `manage_accounts sign-out` for all users.
   the `Lax` cookie (phase 2).
 - Public registration, email verification, password reset, forced password
   change after an operator reset.
-- OAuth (Google, Microsoft) sign-in (phase 2; only its storage exists,
-  `user_identities` and `oidc_consumed_transactions`, §5); Apple entirely.
+- Microsoft sign-in (phase 2); Apple entirely. Google sign-in is implemented
+  and not activated (§13); what it defers is unlinking and identity recovery
+  (required before activation), a local password or a second identity for an
+  account created through Google, and any refresh of a name or an address
+  after the identity was added.
 - Web-based TOTP enrolment or self-service recovery (admin TOTP and recovery
   codes themselves are PR T, §23, CLI-only).
 - `declared_type`, plans, entitlements, billing, teacher creation quotas.
@@ -1344,9 +1544,10 @@ deploying it for a class.
 table-rebuild support and migration `015_quiz_attempts_user.sql` with
 account-owned attempts (§24), the first PR of phase 2. Since then the `Lax`
 session cookie (§6), the `user_identities` storage (migration 019, §5) and the
-single-use consumption storage (migration 020, §5) have been added; provider
-sign-in has not (§13). The text below is the original recommendation, kept as
-history; do not implement it again.
+single-use consumption storage (migration 020, §5) have been added, and
+Google sign-in on top of them (PR #331, §13: implemented, not activated). The
+text below is the original recommendation, kept as history; do not implement
+it again.
 
 **PR 1 — `users` schema and accounts service** (implemented)
 

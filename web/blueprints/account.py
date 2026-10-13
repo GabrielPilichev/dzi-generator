@@ -1,9 +1,10 @@
-"""Account sign-in, sign-out and password change (Accounts PR 4, admin TOTP PR T).
+"""Account sign-in, sign-out, the account page and password change (Accounts PR 4,
+admin TOTP PR T).
 
-``/login``, ``POST /login/totp``, ``POST /logout`` and ``/account/password``. This
-module authenticates and issues the account session (``uid``, ``sk``, ``iat``); role,
-name and active state stay in the ``users`` row and are loaded per request by
-``web.app``.
+``/login``, ``POST /login/totp``, ``POST /logout``, ``/account`` and
+``/account/password``. This module authenticates with a password; the account session
+(``uid``, ``sk``, ``iat``) is issued by ``web.account_session``, and role, name and
+active state stay in the ``users`` row and are loaded per request by ``web.app``.
 
 An admin's correct password does not issue that session. It issues only a pending
 second-factor state (``mfa_uid``, ``mfa_sk``, ``mfa_iat``) that no principal loader
@@ -12,29 +13,43 @@ session after a TOTP or recovery code. An admin without a confirmed TOTP credent
 cannot sign in at all.
 Authorization stays in :mod:`web.access` and same-origin request integrity in
 :mod:`web.request_integrity`: this module only declares each view's policy.
-This is the only sign-in the application has.
+Password sign-in is unchanged by Google sign-in (``web.blueprints.oidc``), which is
+a second way in for students and teachers and never one for an admin. This module
+shows that flow's outcomes on the sign-in page and on the account page and takes no
+part in it otherwise.
 The module imports neither ``web.app`` nor another controller.
 """
 
 from __future__ import annotations
 
 import logging
-import time
 from datetime import datetime, timezone
 
 from flask import Blueprint, current_app, redirect, render_template, request, session, url_for
 
+from web import oauth_state
 from web.access import PUBLIC, SIGNED_IN, access_policy, current_principal
+from web.account_session import (
+    account_throttle_key,
+    end_session,
+    issue_account_session,
+    issue_pending_second_factor,
+    loaded_account,
+    pending_link_of_this_session,
+    role_home,
+    throttle_key,
+)
 from web.redirects import safe_redirect_target
 from web.request_db import get_request_db
 from web.request_integrity import SAME_ORIGIN, integrity_policy
 from web.services import accounts as accounts_service
+from web.services import google_oidc
+from web.services import identities as identities_service
 from web.services import login_throttle
 from web.services import totp as totp_service
 
 account_bp = Blueprint("account", __name__)
 
-ATTEMPT_OWNER_KEY_PREFIX = "quiz_attempt_owner:"
 # Pending second factor: a password-verified admin who has not yet given a code.
 PENDING_SECOND_FACTOR_KEYS = ("mfa_uid", "mfa_sk", "mfa_iat")
 # app.config key holding DZI_TOTP_KEY (``None`` when unset: TOTP sign-in fails closed).
@@ -57,26 +72,63 @@ SECOND_FACTOR_NOT_ENROLLED_MESSAGE = (
     "Обърни се към администратора на сървъра."
 )
 
-# Where a sign-in lands without a usable ``next`` (design §14).
-ROLE_HOME_ENDPOINTS = {
-    "admin": "teacher.teacher_dashboard",
-    "teacher": "teacher.teacher_new",
-    "student": "browsing.index",
-}
 ROLE_LABELS = {"admin": "Админ", "teacher": "Учител", "student": "Ученик"}
+
+# Outcomes of a Google sign-in or link (docs/reviews/GOOGLE_OIDC_DESIGN.md, 1.9): the
+# ``google`` code a redirect carries, its text, how it is shown and the pages that
+# show it. A code is only ever looked up here and never echoed: an unknown value shows
+# nothing, and no value shows anything while the provider is disabled.
+SIGN_IN_PAGE = "sign-in"
+ACCOUNT_PAGE = "account"
+_BOTH_PAGES = frozenset({SIGN_IN_PAGE, ACCOUNT_PAGE})
+_SIGN_IN_ONLY = frozenset({SIGN_IN_PAGE})
+_ACCOUNT_ONLY = frozenset({ACCOUNT_PAGE})
+GOOGLE_MESSAGES = {
+    "cancelled": ("Входът с Google беше отказан.", "warning", _BOTH_PAGES),
+    "failed": ("Входът с Google не успя. Опитай отново.", "error", _BOTH_PAGES),
+    "expired": ("Времето изтече. Опитай отново.", "warning", _BOTH_PAGES),
+    "unavailable": ("Входът с Google временно не е достъпен. Опитай по-късно.", "error", _BOTH_PAGES),
+    "email_exists": (
+        "Вече има профил с този имейл. Влез с имейл и парола и свържи Google от „Профил“.",
+        "warning", _SIGN_IN_ONLY),
+    # A disabled account and an admin identity alike: the person has proven control
+    # of the Google identity, so the message tells nothing about anyone else.
+    "not_allowed": ("Този профил не може да използва вход с Google.", "error", _BOTH_PAGES),
+    "linked": ("Google профилът е свързан.", "success", _ACCOUNT_ONLY),
+    "already_linked": ("Този Google профил вече е свързан с твоя профил.", "warning", _ACCOUNT_ONLY),
+    "identity_taken": ("Този Google профил вече е свързан с друг профил.", "error", _ACCOUNT_ONLY),
+    "email_other_account": (
+        "Имейлът на този Google профил е на друг профил в LearnPilot. Влез в онзи профил и го свържи оттам.",
+        "error", _ACCOUNT_ONLY),
+    # The four findings of a cancellation. Each is a statement about the request that
+    # answered with it and about the account as that request read it; none stands in
+    # for another, and none says what follows.
+    "link_cancelled": ("Свързването с Google беше отказано.", "warning", _ACCOUNT_ONLY),
+    "link_not_pending": ("Няма свързване с Google, което тази заявка да прекрати.", "warning", _ACCOUNT_ONLY),
+    "account_linked": ("Профилът ти вече е свързан с Google.", "warning", _ACCOUNT_ONLY),
+    "cancel_unconfirmed": ("Не успяхме да потвърдим отказа.", "error", _ACCOUNT_ONLY),
+}
 
 
 def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def _throttle_key(identifier: str) -> str:
-    return login_throttle.identifier_hash(current_app.config["SECRET_KEY"], identifier)
+def _google_code() -> str | None:
+    """The ``google`` code of this request if it is a known one and the provider is enabled."""
+    if not oauth_state.provider_enabled():
+        return None
+    code = request.args.get("google")
+    return code if code in GOOGLE_MESSAGES else None
 
 
-def _account_throttle_key(user: dict) -> str:
-    """The counter of an account: the one its email is throttled under on the login form."""
-    return _throttle_key(user["email"] or f"\0uid\0{user['id']}")
+def _google_message(page: str) -> dict | None:
+    """The message ``page`` shows for this request's ``google`` code, if any."""
+    code = _google_code()
+    if code is None:
+        return None
+    text, kind, pages = GOOGLE_MESSAGES[code]
+    return {"text": text, "kind": kind} if page in pages else None
 
 
 def _submitted_next() -> str:
@@ -85,34 +137,11 @@ def _submitted_next() -> str:
     return candidate if candidate and safe_redirect_target(candidate, "/") == candidate else ""
 
 
-def issue_account_session(user_id: int, session_key: str, issued_at: int | None = None) -> None:
-    """Replace the session with the account identity.
-
-    Everything set before sign-in is dropped; only the attempt-ownership markers
-    carry over. ``issued_at`` is kept
-    when a signed-in session is re-keyed, so re-keying never extends its lifetime.
-    """
-    carried = {key: value for key, value in session.items() if key.startswith(ATTEMPT_OWNER_KEY_PREFIX)}
-    session.clear()
-    session.update(carried)
-    session["uid"] = user_id
-    session["sk"] = session_key
-    session["iat"] = int(time.time()) if issued_at is None else issued_at
-
-
-def issue_pending_second_factor(user_id: int, session_key: str, issued_at: int) -> None:
-    """Replace the session with a pending second factor for a password-verified admin.
-
-    Like :func:`issue_account_session` it drops everything but the attempt-ownership
-    markers, so no earlier identity survives next to the pending state. ``mfa_*`` keys
-    are not account keys: ``web.app`` never loads a principal from them.
-    """
-    carried = {key: value for key, value in session.items() if key.startswith(ATTEMPT_OWNER_KEY_PREFIX)}
-    session.clear()
-    session.update(carried)
-    session["mfa_uid"] = user_id
-    session["mfa_sk"] = session_key
-    session["mfa_iat"] = issued_at
+def _login_page(error, next_url, email, status: int = 200):
+    page = render_template(
+        "login.html", error=error, next_url=next_url, email=email, google_message=_google_message(SIGN_IN_PAGE)
+    )
+    return page if status == 200 else (page, status)
 
 
 def _clear_pending_second_factor() -> None:
@@ -158,9 +187,7 @@ def _start_second_factor(conn, user: dict, next_url: str, now: datetime):
     if not totp_service.has_confirmed_credential(conn, user["id"]):
         conn.commit()  # keeps a password-hash upgrade, nothing else changed
         _clear_pending_second_factor()
-        return render_template(
-            "login.html", error=SECOND_FACTOR_NOT_ENROLLED_MESSAGE, next_url=next_url, email=""
-        ), 403
+        return _login_page(SECOND_FACTOR_NOT_ENROLLED_MESSAGE, next_url, "", 403)
     conn.commit()
     issue_pending_second_factor(user["id"], user["session_key"], int(now.timestamp()))
     return render_template("login_totp.html", error=None, next_url=next_url)
@@ -190,30 +217,29 @@ def login():
         # factor is not a principal and still gets the form.
         principal = current_principal()
         if principal.user_id is not None:
-            return redirect(safe_redirect_target(
-                next_url, ROLE_HOME_ENDPOINTS.get(principal.role, "browsing.index")
-            ))
-        return render_template("login.html", error=None, next_url=next_url, email="")
+            # The outcome of a Google flow that ended here (the callback of a signed-in
+            # browser, or a redirect issued by the proxy) is shown on the account page.
+            google_code = _google_code()
+            if google_code is not None:
+                return redirect(url_for("account.overview", google=google_code))
+            return redirect(safe_redirect_target(next_url, role_home(principal.role)))
+        return _login_page(None, next_url, "")
 
     submitted_email = request.form.get("email", "")
     # Echoed back into the form on failure; never more than an email's length.
     shown_email = submitted_email[: accounts_service.MAX_EMAIL_LENGTH]
     conn = get_request_db()
     now = _utcnow()
-    key = _throttle_key(accounts_service.throttle_identifier(submitted_email))
+    key = throttle_key(accounts_service.throttle_identifier(submitted_email))
     # Checked before any password hashing: a blocked identifier costs one read.
     if login_throttle.is_blocked(conn, key, now):
-        return render_template(
-            "login.html", error=THROTTLED_MESSAGE, next_url=next_url, email=shown_email
-        ), 429
+        return _login_page(THROTTLED_MESSAGE, next_url, shown_email, 429)
 
     user = accounts_service.authenticate(conn, submitted_email, request.form.get("password", ""))
     if user is None:
         login_throttle.record_failure(conn, key, now)
         conn.commit()
-        return render_template(
-            "login.html", error=INVALID_CREDENTIALS_MESSAGE, next_url=next_url, email=shown_email
-        )
+        return _login_page(INVALID_CREDENTIALS_MESSAGE, next_url, shown_email)
 
     if user["role"] == "admin":
         return _start_second_factor(conn, user, next_url, now)
@@ -222,7 +248,7 @@ def login():
     accounts_service.record_login(conn, user["id"])
     conn.commit()
     issue_account_session(user["id"], user["session_key"])
-    return redirect(safe_redirect_target(next_url, ROLE_HOME_ENDPOINTS.get(user["role"], "browsing.index")))
+    return redirect(safe_redirect_target(next_url, role_home(user["role"])))
 
 
 @account_bp.route("/login/totp", methods=["POST"])
@@ -235,10 +261,10 @@ def login_totp():
     pending = _pending_second_factor(conn, now)
     if pending is None:
         _clear_pending_second_factor()
-        return render_template("login.html", error=SECOND_FACTOR_EXPIRED_MESSAGE, next_url=next_url, email="")
+        return _login_page(SECOND_FACTOR_EXPIRED_MESSAGE, next_url, "")
     user, pending_since = pending
 
-    key = _account_throttle_key(user)
+    key = account_throttle_key(user)
     # The login form's counter: password and code guesses share one limit.
     if login_throttle.is_blocked(conn, key, now):
         return render_template("login_totp.html", error=THROTTLED_MESSAGE, next_url=next_url), 429
@@ -291,7 +317,7 @@ def login_totp():
         )
     # Clears the pending keys; the session is exactly uid/sk/iat (+ attempt markers).
     issue_account_session(user["id"], user["session_key"])
-    return redirect(safe_redirect_target(next_url, ROLE_HOME_ENDPOINTS["admin"]))
+    return redirect(safe_redirect_target(next_url, role_home("admin")))
 
 
 @account_bp.route("/logout", methods=["POST"])
@@ -299,25 +325,57 @@ def login_totp():
 @integrity_policy(SAME_ORIGIN)
 def logout():
     # This browser only: session_key is not rotated, so other devices stay signed in.
-    session.clear()
+    # Signing out of LearnPilot does not sign the browser out of Google either. The
+    # destination is the home page for every account.
+    end_session()
     return redirect(url_for("browsing.index"))
+
+
+@account_bp.route("/account", methods=["GET"])
+@access_policy(SIGNED_IN)
+def overview():
+    """The account's own page: who it is and how it signs in. Reads only."""
+    principal = current_principal()
+    account = loaded_account()
+    google_identities = [
+        row for row in identities_service.list_identities(get_request_db(), principal.user_id)
+        if row["provider"] == google_oidc.PROVIDER
+    ]
+    enabled = oauth_state.provider_enabled()
+    can_use_google = principal.role != "admin"
+    return render_template(
+        "account.html",
+        account_email=account["email"],
+        has_password=bool(account["has_password"]),
+        google_identities=google_identities,
+        google_message=_google_message(ACCOUNT_PAGE),
+        # While the provider is disabled no slot is read and nothing is offered.
+        pending_link=enabled and pending_link_of_this_session(principal) is not None,
+        can_link=enabled and can_use_google and account["has_password"] and not google_identities,
+        can_use_google=can_use_google,
+    )
 
 
 @account_bp.route("/account/password", methods=["GET", "POST"])
 @access_policy(SIGNED_IN)
 @integrity_policy(SAME_ORIGIN)
 def password():
+    # An account that signs in only with Google has no password to change. Asking it
+    # for one would count a throttle failure against it for an answer it cannot give.
+    if not loaded_account()["has_password"]:
+        return render_template("account_password.html", error=None, success=None, has_password=False)
     if request.method == "GET":
-        return render_template("account_password.html", error=None, success=None)
+        return render_template("account_password.html", error=None, success=None, has_password=True)
 
     principal = current_principal()
     conn = get_request_db()
     user = accounts_service.get_user_by_id(conn, principal.user_id)
     now = _utcnow()
     # The same counter the login form uses for this account's email.
-    key = _account_throttle_key(user)
+    key = account_throttle_key(user)
     if login_throttle.is_blocked(conn, key, now):
-        return render_template("account_password.html", error=THROTTLED_MESSAGE, success=None), 429
+        return render_template(
+            "account_password.html", error=THROTTLED_MESSAGE, success=None, has_password=True), 429
 
     new_password = request.form.get("new_password", "")
     error = None
@@ -330,7 +388,7 @@ def password():
     else:
         error = accounts_service.password_problem(new_password, user["email"], user["role"])
     if error:
-        return render_template("account_password.html", error=error, success=None)
+        return render_template("account_password.html", error=error, success=None, has_password=True)
 
     try:
         new_session_key = accounts_service.set_password(conn, user["id"], new_password)
@@ -341,4 +399,5 @@ def password():
         raise
     # Every other session of this account now carries a stale key.
     issue_account_session(user["id"], new_session_key, session.get("iat"))
-    return render_template("account_password.html", error=None, success=PASSWORD_CHANGED_MESSAGE)
+    return render_template(
+        "account_password.html", error=None, success=PASSWORD_CHANGED_MESSAGE, has_password=True)

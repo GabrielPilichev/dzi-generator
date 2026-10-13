@@ -1,7 +1,8 @@
 """Single-use consumption records for OIDC transactions.
 
 Specification: docs/reviews/OIDC_CONSUMPTION_SCOPE.md, and docs/ACCOUNTS_DESIGN.md
-sections 5 and 13. Storage only: no route, sign-in flow or other module calls it yet.
+sections 5 and 13. Storage only. The Google sign-in flow (``web.oauth_state`` and
+``web.blueprints.oidc``) is its caller.
 
 An OAuth transaction lives in the signed session cookie, and the server cannot take a
 cookie back: removing the transaction from a response does not stop an earlier copy

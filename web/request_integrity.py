@@ -19,9 +19,14 @@ UNSAFE_METHODS = frozenset({"POST", "PUT", "PATCH", "DELETE"})
 
 # Ordinary browser form posts: Origin (or Referer) must match this host.
 SAME_ORIGIN = "same_origin"
-# Reserved for future external flows. No route may use them until their
-# verifiers exist; they are integrity mechanisms, not access levels.
+# The OAuth callback, a GET that changes state: the request must carry the state of
+# the transaction in its own session, and that transaction is spent by the match. The
+# verifier is ``verify_oauth_state`` in ``web.oauth_state``. Exactly one view declares
+# it, and a view that declares it accepts no unsafe method: it is an additional
+# mechanism for a safe-method route, never an alternative to SAME_ORIGIN.
 OAUTH_STATE = "oauth_state"
+# Reserved for a future external flow. No route may use it until its verifier
+# exists; like the others it is an integrity mechanism, not an access level.
 PROVIDER_SIGNATURE = "provider_signature"
 
 INTEGRITY_POLICIES = frozenset({SAME_ORIGIN, OAUTH_STATE, PROVIDER_SIGNATURE})

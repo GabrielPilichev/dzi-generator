@@ -11,6 +11,12 @@ defaulted to ``data/questions.db``, never created, and never migrated.
 Passwords are read with ``getpass`` (twice) or, for automation, ``--password-stdin``
 (exactly one line). They are never accepted from argv or the environment.
 
+``disable``, ``enable``, ``sign-out`` and ``set-role`` select the account by exactly
+one of ``--email`` and ``--id``: an account created through Google sign-in has no
+email, and ``list`` shows its id. The other commands act on a password or on an
+admin's second factor, which such an account does not have, and keep ``--email``.
+Every message names the account by its id.
+
 Admin TOTP (migration 016) is enrolled only here: ``totp-enroll`` prints the
 ``otpauth://`` provisioning URI once, ``totp-confirm`` activates the credential with a
 current code and prints the recovery codes once, ``totp-recovery-codes`` replaces
@@ -42,10 +48,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 try:
-    from web.services import accounts, login_throttle, totp
+    from web.services import accounts, identities, login_throttle, totp
 except ModuleNotFoundError:  # run as `python3 src/manage_accounts.py`
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-    from web.services import accounts, login_throttle, totp
+    from web.services import accounts, identities, login_throttle, totp
 
 ADMIN_MIN_PASSWORD_LENGTH = accounts.ADMIN_MIN_PASSWORD_LENGTH
 MAX_STDIN_BYTES = 4096
@@ -79,6 +85,13 @@ class CheckFailed(Exception):
     """A preflight check did not pass; the message is its complete report."""
 
 
+def account_id(text: str) -> int:
+    """argparse type of ``--id``: a positive decimal integer."""
+    if not (text.isascii() and text.isdigit()) or not 0 < int(text) < 2**63:
+        raise argparse.ArgumentTypeError("expected a positive account id (see the list command)")
+    return int(text)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Manage LearnPilot accounts (operator tooling).")
     parser.add_argument("--db", help="SQLite database path (or set DZI_DB). Never defaulted.")
@@ -101,8 +114,15 @@ def build_parser() -> argparse.ArgumentParser:
     set_password.add_argument("--email", required=True)
     with_password_flag(set_password)
 
+    def with_account_selector(p):
+        # Exactly one of the two: an account created through Google has no email.
+        selector = p.add_mutually_exclusive_group(required=True)
+        selector.add_argument("--email", help="The account's sign-in email.")
+        selector.add_argument("--id", type=account_id, metavar="N",
+                              help="The account's id, as the list command shows it.")
+
     set_role = sub.add_parser("set-role", help="Change a role (the only way to grant admin).")
-    set_role.add_argument("--email", required=True)
+    with_account_selector(set_role)
     set_role.add_argument("--role", required=True, choices=accounts.ROLES)
 
     for name, text in (
@@ -110,7 +130,7 @@ def build_parser() -> argparse.ArgumentParser:
         ("enable", "Enable an account."),
         ("sign-out", "Invalidate all existing sessions of an account."),
     ):
-        sub.add_parser(name, help=text).add_argument("--email", required=True)
+        with_account_selector(sub.add_parser(name, help=text))
 
     sub.add_parser(
         "clear-throttle",
@@ -272,6 +292,24 @@ def find_user(conn: sqlite3.Connection, email: str) -> dict:
     return user
 
 
+def find_account(conn: sqlite3.Connection, args) -> dict:
+    """The account a command with ``--email`` / ``--id`` selectors names."""
+    if args.id is None:
+        return find_user(conn, args.email)
+    user = accounts.get_user_by_id(conn, args.id)
+    if user is None:
+        raise OperatorError(f"no account with id {args.id}")
+    return user
+
+
+def account_label(user: dict, *, with_role: bool = False) -> str:
+    """How a message names an account: always by id, with its email if it has one."""
+    details = user["email"] or "no email"
+    if with_role:
+        details += f", {user['role']}"
+    return f"account {user['id']} ({details})"
+
+
 def cmd_create(conn, args) -> str:
     try:
         email = accounts.normalize_email(args.email)
@@ -298,13 +336,20 @@ def cmd_set_password(conn, args) -> str:
         accounts.set_password(conn, user["id"], password)
     except ValueError as exc:
         raise OperatorError(str(exc)) from exc
-    return f"password changed for {user['email']}; existing sessions invalidated"
+    return f"password changed for {account_label(user)}; existing sessions invalidated"
 
 
 def cmd_set_role(conn, args) -> str:
-    user = find_user(conn, args.email)
+    user = find_account(conn, args)
+    if args.role == "admin" and not user["has_password"]:
+        # An admin signs in with a password and a TOTP code only, so the account
+        # would have no way in.
+        raise OperatorError(
+            f"{account_label(user, with_role=True)} has no password and cannot be made an admin: "
+            "an admin signs in with a password and a second factor only"
+        )
     accounts.set_role(conn, user["id"], args.role)
-    message = f"role of {user['email']} is now {args.role}; existing sessions invalidated"
+    message = f"role of {account_label(user)} is now {args.role}; existing sessions invalidated"
     if args.role == "admin":
         message += "\nnote: run set-password if the current password is shorter than 14 characters"
     return message
@@ -312,18 +357,18 @@ def cmd_set_role(conn, args) -> str:
 
 def cmd_set_active(active: bool):
     def run(conn, args) -> str:
-        user = find_user(conn, args.email)
+        user = find_account(conn, args)
         accounts.set_active(conn, user["id"], active)
         state = "enabled" if active else "disabled"
-        return f"{state} {user['email']}; existing sessions invalidated"
+        return f"{state} {account_label(user, with_role=True)}; existing sessions invalidated"
 
     return run
 
 
 def cmd_sign_out(conn, args) -> str:
-    user = find_user(conn, args.email)
+    user = find_account(conn, args)
     accounts.rotate_session_key(conn, user["id"])
-    return f"sessions of {user['email']} invalidated"
+    return f"sessions of {account_label(user, with_role=True)} invalidated"
 
 
 def cmd_clear_throttle(conn, args) -> str:
@@ -407,7 +452,7 @@ def cmd_totp_enroll(conn, args) -> str:
     except ValueError as exc:
         raise OperatorError(str(exc)) from exc
     return (
-        f"TOTP enrolment started for {user['email']}; it is NOT active until totp-confirm.\n"
+        f"TOTP enrolment started for {account_label(user)}; it is NOT active until totp-confirm.\n"
         "Existing sessions invalidated.\n"
         "Add this provisioning URI to the authenticator app. It contains the secret and\n"
         "is shown only now; do not store or share it:\n"
@@ -429,7 +474,7 @@ def cmd_totp_confirm(conn, args) -> str:
     except (LookupError, ValueError) as exc:
         raise OperatorError(str(exc)) from exc
     return (
-        f"TOTP confirmed for {user['email']}; admin sign-in now requires a code.\n"
+        f"TOTP confirmed for {account_label(user)}; admin sign-in now requires a code.\n"
         "Existing sessions invalidated.\n"
         "Recovery codes (each works once; shown only now, store them offline):\n"
         + "\n".join(codes)
@@ -445,7 +490,7 @@ def cmd_totp_recovery_codes(conn, args) -> str:
     except LookupError as exc:
         raise OperatorError(str(exc)) from exc
     return (
-        f"recovery codes replaced for {user['email']}; every earlier code is void.\n"
+        f"recovery codes replaced for {account_label(user)}; every earlier code is void.\n"
         "New recovery codes (each works once; shown only now, store them offline):\n"
         + "\n".join(codes)
     )
@@ -457,7 +502,7 @@ def cmd_totp_reset(conn, args) -> str:
     existed = totp.reset(conn, user["id"])
     state = "TOTP and recovery codes removed" if existed else "no TOTP was enrolled"
     return (
-        f"{state} for {user['email']}; existing sessions invalidated.\n"
+        f"{state} for {account_label(user)}; existing sessions invalidated.\n"
         "An admin cannot sign in until totp-enroll and totp-confirm are run again."
     )
 
@@ -552,18 +597,36 @@ def cmd_cutover_check(conn, args) -> str:
     raise CheckFailed("\n".join(["cutover-check: FAIL", *(f"  - {line}" for line in failures + details)]))
 
 
+def _google_column(conn: sqlite3.Connection, user_id: int, has_identity_table: bool) -> str:
+    """What ``list`` shows for an account's Google sign-in: the address Google reported
+    when the identity was added, ``yes`` when it reported none, ``-`` without one.
+    Never the subject."""
+    if not has_identity_table:
+        return "-"
+    linked = [row for row in identities.list_identities(conn, user_id) if row["provider"] == "google"]
+    if not linked:
+        return "-"
+    return ", ".join(row["email_at_link"] or "yes" for row in linked)
+
+
 def cmd_list(conn, args) -> str:
     rows = conn.execute(
-        "SELECT id, email, display_name, role, is_active, created_at, last_login_at "
-        "FROM users ORDER BY id"
+        "SELECT id, email, display_name, role, is_active, password_hash IS NOT NULL AS has_password, "
+        "created_at, last_login_at FROM users ORDER BY id"
     ).fetchall()
-    lines = ["id\temail\tname\trole\tactive\tcreated_at\tlast_login_at"]
+    # A database from before the identity storage (migration 019) simply has none.
+    has_identity_table = conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'user_identities'"
+    ).fetchone() is not None
+    lines = ["id\temail\tname\trole\tactive\tpassword\tgoogle\tcreated_at\tlast_login_at"]
     for r in rows:
         lines.append(
             "\t".join(
                 str(v) if v is not None else "-"
                 for v in (r["id"], r["email"], r["display_name"], r["role"],
-                          "yes" if r["is_active"] else "no", r["created_at"], r["last_login_at"])
+                          "yes" if r["is_active"] else "no", "yes" if r["has_password"] else "no",
+                          _google_column(conn, r["id"], has_identity_table),
+                          r["created_at"], r["last_login_at"])
             )
         )
     return "\n".join(lines)

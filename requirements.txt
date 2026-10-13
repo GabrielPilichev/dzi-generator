@@ -4,7 +4,15 @@ gunicorn>=23,<24
 # Admin TOTP (Accounts PR T): RFC 6238 codes, and Fernet encryption of the stored
 # secrets under DZI_TOTP_KEY.
 pyotp>=2.9,<3
-cryptography>=44,<51
+# Floor raised from 44: Authlib 1.8 and joserfc require 45.0.1.
+cryptography>=45.0.1,<51
 # QR code of an assignment's student link (teacher page): pure Python, no
 # dependencies, SVG output generated in memory.
 segno>=1.6,<2
+# Google sign-in (OpenID Connect): Authlib's OAuth 2.0 client over requests, and
+# joserfc for the ID token's signature. urllib3 2.2 added HTTPResponse.read1, which
+# the bounded reader of provider responses needs.
+Authlib>=1.8,<2
+joserfc>=1.6.1,<2
+requests>=2.32,<3
+urllib3>=2.2,<3

@@ -161,6 +161,7 @@
                     {% if current_account %}
                         <span class="profile-label">{{ current_account.display_name }}</span>
                         <span class="profile-link active">{{ current_account_role_label }}</span>
+                        <a class="profile-link" href="{{ url_for('account.overview') }}">Профил</a>
                         <a class="profile-link" href="{{ url_for('account.password') }}">Парола</a>
                         <form class="profile-logout-form" method="post" action="{{ url_for('account.logout') }}">
                             <button class="profile-link profile-logout-button" type="submit">Изход</button>
@@ -175,6 +176,7 @@
                         <summary>Профил</summary>
                         <div class="mobile-profile-panel">
                             <span class="profile-link active">{{ current_account_role_label }}</span>
+                            <a class="profile-link" href="{{ url_for('account.overview') }}">Профил</a>
                             <a class="profile-link" href="{{ url_for('account.password') }}">Парола</a>
                             <form class="profile-logout-form" method="post" action="{{ url_for('account.logout') }}">
                                 <button class="profile-link profile-logout-button" type="submit">Изход</button>
