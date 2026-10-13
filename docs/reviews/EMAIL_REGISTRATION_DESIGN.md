@@ -208,7 +208,10 @@ are measured. That rule applies to those fields and to no other:
   sign-in does) and then to the rule of 1.3. Inner whitespace is an error,
   never collapsed.
 - `next` is not altered. It is kept only if `safe_redirect_target` accepts it
-  as it is.
+  as it is **and** it holds no character of Unicode category C (control, format
+  such as a right-to-left override, surrogate, private use, unassigned) or Z
+  (separators, spaces of any kind): a registration-specific rule added after the
+  PR 1 review; the shared function and sign-in are unchanged.
 - The code field has its own rule (3.1).
 
 | Field | Form | Bulgarian label | Rule |
@@ -219,10 +222,10 @@ are measured. That rule applies to those fields and to no other:
 | `grade` | student | Клас | one of 8, 9, 10, 11, 12, shown as „8. клас“ … „12. клас“ (D1, D2) |
 | `school_name` | teacher | Училище | 3–120 characters, no control or format characters, at least one letter; help text „Име и населено място, напр. СУ „Васил Левски“, Пловдив“ (D4) |
 | `subject` | teacher | Предмети, по които преподаваш | 1–3 values, each a subject id of `src.subject_registry` or `other` (D3) |
-| `subject_other` | teacher | Друг предмет | required with `other`: 2–60 characters, letters, spaces, `-` |
+| `subject_other` | teacher | Друг предмет | required with `other`: 2–60 characters, letters, spaces, `-`. **Ignored when `other` is not selected** (approved after the PR 1 review): nothing is stored and no error is raised |
 | `password` | both | Парола | `accounts.password_problem(password, email)`, unchanged, on the exact value: 10–256 characters, not the email |
 | `confirm_password` | both | Повтори паролата | the same string as `password`, compared exactly |
-| `next` | both | hidden | kept only if `safe_redirect_target` accepts it, at most 512 characters |
+| `next` | both | hidden | kept only if `safe_redirect_target` accepts it and it holds no C or Z character, at most 512 characters |
 
 Buttons: „Регистрирай се като ученик“, „Регистрирай се като учител“. The
 chooser page `/register` offers „Ученик съм“ and, while the teacher gate is
@@ -238,7 +241,8 @@ restricted to Cyrillic: foreign students and teachers exist.
 
 A failed validation re-renders the form with status 200, the field errors and
 every submitted value except the two passwords, each cut to its maximum
-length before it is echoed.
+length before it is echoed. `next` is the exception to the exception: only an
+accepted `next` is echoed, and a rejected one never is.
 
 ### 1.2 Errors and messages
 
@@ -250,7 +254,7 @@ length before it is echoed.
 | Email | „Невалиден имейл.“ (existing) |
 | Grade | „Избери клас.“ |
 | School | „Въведи име на училището (от 3 до 120 символа).“ |
-| Subjects | „Избери поне един предмет.“ / „Избери най-много 3 предмета.“ / „Въведи името на предмета.“ |
+| Subjects | „Избери поне един предмет.“ / „Избери най-много 3 предмета.“ / „Въведи името на предмета.“ / „Избери предмети от списъка.“ (approved after the PR 1 review: an id outside the list, a repeated id, or a value that is not text) |
 | Password | the existing texts of `password_problem` |
 | Confirmation | „Паролите не съвпадат.“ |
 | Verify page | „Изпратихме 6-цифрен код на {email}. Въведи го, за да потвърдиш имейла си.“ |
@@ -285,6 +289,13 @@ domain of at least two labels of `a-z 0-9 -`, a last label of at least two
 letters. It narrows what the form accepts and changes nothing for existing
 rows: `normalize_email`, `authenticate` and the CLI are untouched, so every
 existing account signs in exactly as before.
+
+**Known limitation (PR 1, informational).** The rule is the one above and no
+stricter: a domain label may begin or end with a hyphen (`a@-x.bg`,
+`a@x-.bg`) and has no length bound of its own beyond the 254 characters of the
+whole address. Such an address passes the form and fails at delivery
+(`not_sent`). Validation is not broadened here; tightening it is a separate,
+later decision.
 
 ### 1.4 Names and the `display_name` snapshot
 
@@ -1297,7 +1308,7 @@ CREATE TABLE registration_control (
   tables. A fresh database has all of them empty.
 - No existing table is rebuilt and no existing row is written by a
   migration. `ADD COLUMN` with a NULL default is the only change to `users`:
-  `email_verified_at` in PR 1, and `profile_required_at` in PR 6 (D11). `_USER_COLUMNS` gains each with its PR. Every account
+  `email_verified_at` in PR 1, and `profile_required_at` in PR 6 (D11). `_USER_COLUMNS` is **not** widened by PR 1 (approved after its review): it gains `email_verified_at` in the first PR that reads the column, together with the CLI's schema check (`REQUIRED_USER_COLUMNS`), because widening it earlier fails every suite that builds `users` from migration 012 alone and turns the CLI on an unmigrated database into a bare `no such column`; it gains `profile_required_at` with PR 6. Every account
   that exists when the second column is added has it NULL, which is what
   makes "nothing retroactive" a property of the data and not of a condition
   in code.
@@ -1352,7 +1363,7 @@ commits after a returned outcome and rolls back after an exception.
 | --- | --- |
 | `web/services/registration_forms.py` | `validate_student(form)`, `validate_teacher(form)` → cleaned values or field errors; `public_email(value)` |
 | `web/services/registration.py` | `availability(conn, now, *, sender_busy)` (hold, clock, circuit, total budget, an unreaped sender in this worker); `address_capped(conn, email_hash, now)`; `create_pending(conn, *, cleaned, account_type, password_hash, previous_binding, now)` → token, row id, send generation, code or notice marker; `resend(conn, binding_hash, now)`; `settle_send(conn, send_id, outcome, now)`; `verify(conn, binding_hash, code, now, *, teacher_enabled)` → outcome; `cancel(conn, binding_hash, now)`; `cleanup(conn, now)`; in PR 5 (D20): `restore_gate(conn, now)`, `restore_status(conn)`, `release_hold(conn, now)` |
-| `web/services/profiles.py` | `get_profile(conn, user_id)`, `create_profile(...)`, `update_profile(...)`, `needs_profile(conn, user)` |
+| `web/services/profiles.py` | `get_profile(conn, user_id)`, `create_profile(...)`, `update_profile(...)`, `display_name(first_name, last_name)` (PR 1); `needs_profile(conn, user)` arrives with PR 6, because it reads `profile_required_at` and the profile gate (approved after the PR 1 review) |
 | `web/services/accounts.py` (additions) | `hash_new_password(password, email)`; `create_verified_user(conn, *, email, display_name, role, password_hash, verified_at)` with `role` limited to `student`; PR 7 extends it to `teacher` (D5) |
 | `web/services/mail.py`, `web/services/mail_sender.py` | section 4 |
 
@@ -1796,12 +1807,21 @@ as a rule; it would be justified only for a concrete open problem.
 
 | PR | Content | Decisions needed first | After | Executor | Independent review |
 | --- | --- | --- | --- | --- | --- |
-| 1 | Migration(s): `users.email_verified_at`, `user_profiles`, `teacher_subjects`, `pending_registrations`, `registration_sends`, `registration_control`; classification; `profiles` service; form validators (exact passwords, dedicated email and `next` rules); migration and service tests. No route. | None open (D1–D4, D6, D12, D13 decided) | — | Sonnet High | yes (schema) |
+| 1 | Migration(s): `users.email_verified_at`, `user_profiles`, `teacher_subjects`, `pending_registrations`, `registration_sends`, `registration_control`; classification; `profiles` service (without `needs_profile`, which is PR 6); form validators (exact passwords, dedicated email and `next` rules); migration and service tests. No route. Does not widen `accounts._USER_COLUMNS`. | None open (D1–D4, D6, D12, D13 decided) | — | Sonnet High | yes (schema) |
 | 2 | `web/services/mail.py` and the standalone sender script: interface, the process contract and outcome rule of 4.2, the deadline and cleanup paths, SMTP, console, file and in-memory backends; settings parsing (sender address from configuration, no default); production refusal of the development backends. No caller. | None open (D17 behaviour, D19 decided) | 1 | Opus High | yes (security: process containment, TLS, headers, logging) |
 | 3 | `web/services/registration.py` and the `accounts` additions: pending lifecycle, codes, ledger, caps, circuit, settlement, shadow rows, activation of **student** registrations and its error classification, clock policy, cleanup. A teacher registration is never activated here. No Flask. | None open (D6, D8 decided) | 2 | Opus High | yes (security) |
 | 4 | `registration` blueprint for students, templates, the `reg` session slot, the registration and teacher gates, the cleanup and limit CLI commands, Nginx zone, contract and deployment documents. The teacher route and its gate exist and answer 404 in every environment until PR 7. | None open (D7, D9, D14 decided) | 3 | Opus High | yes (security) |
 | 5 | Operations: cleanup timer unit; the restore gate, status and release functions and commands (hold after every restore, D20); the restore script's gate, cleanup-job handling and final validation; the logical snapshot scrub (D18 (b)); health checks. | None open (D18, D20 decided) | 4 | Opus High | yes (operations; Linux evidence required) |
-| 6 | `/account/profile`, profile on `/account`, the profile gate; the migration adding `users.profile_required_at`, the mark at Google onboarding and the new-attempt check. | None open (D2, D11 decided) | 5 | Sonnet High | yes |
+| 6 | `/account/profile`, profile on `/account`, the profile gate; the migration adding `users.profile_required_at`, the mark at Google onboarding, `profiles.needs_profile` and the new-attempt check. | None open (D2, D11 decided) | 5 | Sonnet High | yes |
 | 7 | Teacher quotas (needs its own short scope), then role `teacher` for a verified teacher registration (D5), the teacher form and subjects behind `TEACHER_ACTIVATION`. | Quota values (not selected) | 6 | Sonnet High | yes (security) |
 | 8 | Password recovery, from its own addendum (5.2), before public opening (D10). | The addendum | 7 | Opus High | yes (security) |
 | — | Activation: separate, explicitly authorised, after the prerequisites of 0.3. Student registration does not wait for PR 7. | D16; configuration of D17 | — | — | — |
+
+**Approved after the PR 1 review (not independently reviewed).** (1) The first PR
+that reads `users.email_verified_at` (expected PR 3 or PR 4) widens
+`accounts._USER_COLUMNS` and the CLI's schema check; PR 1 does not (6.1).
+(2) `needs_profile` is implemented in PR 6 with `profile_required_at` and its
+gate (6.3, 7.4). (3) „Избери предмети от списъка.“ is the message for an invalid
+subject selection (1.2). (4) The „Друг предмет“ text is ignored when `other` is
+not selected (1.1); teacher-form UX is PR 7. Details and the PR 1 review
+outcome: `EMAIL_REGISTRATION_PR1_STATUS.md`.

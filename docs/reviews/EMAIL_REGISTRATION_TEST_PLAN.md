@@ -67,15 +67,15 @@ Proposed files: `test_registration_migration_sql.py`,
 | ID | Test |
 | --- | --- |
 | B1 | Each field: empty, minimum, maximum, maximum + 1, with the exact Bulgarian error. |
-| B2 | Names: Cyrillic, Latin, hyphenated, apostrophe accepted; digits, control and bidirectional-override characters, emoji refused; whitespace stripped and collapsed. |
+| B2 | Names: Cyrillic, Latin, hyphenated, apostrophe accepted; digits, emoji, and control and bidirectional-override characters other than whitespace refused; whitespace stripped and collapsed. **"Whitespace" is what `str.split()` treats as such** (tab, line feed, no-break space, ideographic space and the like): between words it becomes one space, so a name containing a tab or a line feed is accepted as two words, while a NUL, bell, DEL, zero-width space or right-to-left override is refused. |
 | B3 | Two 39-character names give a `display_name` that the `users` CHECK accepts. |
-| B4 | Email: every shape `normalize_email` accepts but the public rule refuses (non-ASCII, no dot in the domain, doubled dot) is refused; upper-case input is normalised; inner whitespace is refused, never collapsed; a CR or LF anywhere is refused. |
+| B4 | Email: every shape `normalize_email` accepts but the public rule refuses (non-ASCII, no dot in the domain, doubled dot) is refused (a domain label that begins or ends with a hyphen is **accepted**: a documented limitation, design 1.3); upper-case input is normalised; inner whitespace is refused, never collapsed; a CR or LF anywhere is refused. |
 | B5 | Grade: only 8–12 as integers; `8.0`, `08a`, 7, 13, a list, missing are refused. |
-| B6 | Subjects: none, four, an unknown id, a duplicate, `other` without text, `other` text out of bounds. |
+| B6 | Subjects: none, four, an unknown id, a duplicate (each of the last two with „Избери предмети от списъка.“), `other` without text, `other` text out of bounds; `other` text sent without `other` is ignored and stores nothing. |
 | B7 | Password: the existing `password_problem` cases, plus mismatch with the confirmation. Passwords are never echoed into the re-rendered form. |
 | B8 | **Password exactness.** For each of `"  pupil  passphrase  "`, a password with a leading space, a trailing space, a doubled inner space, a tab, a non-NFKC character (for example a full-width letter) and a 256-character value: the validator returns the identical string; the stored hash verifies the original; after activation `authenticate` accepts the original and refuses the stripped, the collapsed and the NFKC-normalised variants. A 257-character password is refused, not cut. |
 | B9 | Confirmation is compared exactly: `"abc  defghij"` against `"abc defghij"` is a mismatch. |
-| B10 | `next`: stored unaltered when `safe_redirect_target` accepts it; an external URL, `//host`, a backslash, a control character and an over-long value are dropped, never repaired. |
+| B10 | `next`: stored unaltered when `safe_redirect_target` accepts it and it has no Unicode C or Z character; an external URL, `//host`, a backslash, a control character, NEL, a right-to-left override, an ideographic or ordinary space and an over-long value are dropped, never repaired, and **never echoed** on a re-rendered form (an accepted one is echoed exactly). The shared `safe_redirect_target` is unchanged. |
 | B11 | A submitted `role`, `account_type`, `is_admin`, `email_verified_at` or `profile_required_at` field changes nothing. |
 
 ## C. Mail and the deadline (PR 2)

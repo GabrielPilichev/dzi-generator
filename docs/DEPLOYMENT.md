@@ -2594,6 +2594,74 @@ body was read; the probe is not sent again, the cause is found and corrected,
 and a new run, with its control request, is scheduled. A 500, a traceback or a
 marker in a log is a finding, and activation stops there.
 
+## 30. Registration storage (migration 021)
+
+Migration `021_registration_schema.sql` adds the storage that email/password
+registration will use: one nullable column, `users.email_verified_at`, and five
+tables, `user_profiles`, `teacher_subjects`, `pending_registrations`,
+`registration_sends` and `registration_control`
+(`docs/reviews/EMAIL_REGISTRATION_DESIGN.md`, section 6.1; PR 1 of section 9;
+contract in `docs/reviews/EMAIL_REGISTRATION_PR1_STATUS.md`).
+
+**This release is storage and validation only. Registration is not
+implemented.** There is no route, page, mail sender, setting, secret, service,
+timer, Nginx or Gunicorn change, and nothing in the running application reads
+or writes the new tables or the new column. Sign-in, sessions, roles, Google
+sign-in and admin TOTP work exactly as before (sections 23 and 29). Nothing is
+activated, and no gate exists yet to turn on.
+
+### Deployment order
+
+The standard procedure of section 20, with nothing added to it.
+
+- The migration is additive. It is not a table rebuild. `ALTER TABLE users ADD
+  COLUMN email_verified_at TEXT` leaves every existing row NULL ("never
+  verified here"); no row is written, no table rebuilt, and accounts, password
+  hashes, session keys, second factors, identities, assignments and attempts
+  are untouched. Nobody is signed out.
+- On a database that already has every migration through
+  `020_oidc_consumed_transactions.sql` the dry run of step 7 lists exactly
+  `021_registration_schema.sql`. If it lists earlier migrations too, the
+  database is behind that level and each of them has the conditions described
+  where it is introduced (section 9 for a table rebuild, sections 26 to 28).
+- Apply in step 8, after the step 3 snapshot, only what the dry run listed.
+  From this release on the application refuses to start on a schema without
+  migration 021 (section 9).
+- The new tables start empty and stay empty: nothing writes to them. The
+  profile service (`web/services/profiles.py`) has no caller.
+- No account, operator or teacher has anything to do afterwards.
+
+### Backup and restore
+
+The tables are part of the live database, so the snapshot of section 16 and the
+restore of section 17 cover them with no change; `deploy/learnpilot-restore.sh`
+is not changed. A snapshot from before this release is restored as before: the
+script migrates its copy to the schema of the deployed build (section 17,
+step 4), which adds the empty tables and the NULL column. The tables are
+runtime state, never exported to `data/canonical`, and a database built by
+`src.build_database` has them empty. The restore hold and the scrub of
+unverified registrations (`registration_control`) are PR 5 and not here.
+
+### Rollback
+
+**There is no behaviour to revert.** Forward fix first.
+
+- **Once migration 021 is applied, every build that serves this database ships
+  `021_registration_schema.sql`, a recovery build included.** Migrations are
+  forward-only, and a build that does not ship an applied migration refuses to
+  start on the database (section 21). If application code has to be reverted,
+  revert the code and keep the migration, together with its metadata: the five
+  entries in `src/canonical_tables.py`, and in `data/canonical/manifest.json`
+  the migration list and level and the runtime table lists. A build that ships
+  the migration without them fails its own canonical and database-build checks.
+  The tables and the column stay; they are not dropped or emptied.
+- **A snapshot restore is not a route to a build from before 021,** for the
+  reasons sections 27 and 28 give for migrations 019 and 020, which hold here
+  unchanged. Do not use `--replaced-database-unreadable` to get past that
+  refusal.
+- Code from before this release names its `users` columns and runs unchanged
+  against the migrated schema.
+
 ## 2 GB VPS sizing
 
 Initial configuration from capacity testing: Gunicorn `workers = 1`,

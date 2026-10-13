@@ -8,8 +8,11 @@ Test plan: `docs/reviews/EMAIL_REGISTRATION_TEST_PLAN.md`.
 Design with **decisions recorded as approved by Gabriel**: D1–D15 and
 D18–D20, and the sender behaviour of D17 (design, section 0.2). D16 and the
 configuration of D17 are activation prerequisites; no legal conclusion is
-recorded. **Implementation and activation are not authorized.** No
-application code, test, migration, database, deployment or provider was
+recorded. **Activation is not authorized.** The implementation proceeds one PR
+at a time (design, section 9). **PR 1** (migration 021, the profile service and
+the form validators; storage and validation only, no route) is implemented in
+draft #335 and awaits independent review: `docs/reviews/EMAIL_REGISTRATION_PR1_STATUS.md`.
+No other PR is started, and no deployment, provider or real database was
 touched.
 
 Revisions 1, 2 and 3 were each independently reviewed and returned with

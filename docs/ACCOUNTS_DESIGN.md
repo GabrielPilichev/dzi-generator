@@ -46,6 +46,13 @@ has started with account-owned quiz attempts (migration 015, §24).
 - Done: migration `020_oidc_consumed_transactions.sql` and the storage service
   `web/services/oidc_consumption.py` (§5, and the amendment in §13). Google
   sign-in calls it at three call sites (§13, "Google sign-in as implemented").
+- Done: migration `021_registration_schema.sql`, the profile service
+  `web/services/profiles.py` and the registration form validators
+  `web/services/registration_forms.py` (email registration PR 1;
+  `docs/reviews/EMAIL_REGISTRATION_DESIGN.md` section 6.1,
+  `docs/reviews/EMAIL_REGISTRATION_PR1_STATUS.md`). Storage and validation only:
+  `users.email_verified_at` (NULL for every account) and five runtime tables,
+  with no route, no mail and no caller. `users.role` stays the only authority.
 - **Implemented, not activated: Google OIDC sign-in** (PR #331; §13, "Google
   sign-in as implemented"; specification
   `docs/reviews/GOOGLE_OIDC_DESIGN.md`). Automatic student onboarding, linking
@@ -815,8 +822,9 @@ would at minimum require transactional email for verification and recovery.
 
 ## 12. Password reset and email
 
-- **v1:** no reset flow and no email verification. `email_verified_at` is not
-  created.
+- **v1:** no reset flow and no email verification. (Migration 021 later added
+  the nullable column `users.email_verified_at` for registration; it is NULL for
+  every account, and nothing reads or sets it yet.)
 - **Recovery:** the operator runs `manage_accounts set-password` on the
   server, which rotates `session_key`, and passes the new password out of
   band. The user then changes it at `/account/password`.
@@ -1150,6 +1158,7 @@ account forms.**
 | `015_quiz_attempts_user.sql` (phase 2) | Table rebuild | Copy all rows with `user_id NULL`, preserving ids and the `sqlite_sequence` value | Service stopped, seconds | Restore from the pre-migration backup. |
 | `019_user_identities.sql` (phase 2) | New table and index | None; the table starts empty | Restart only | The table is read and written only by Google sign-in (§13), which is not activated, so while it is off nothing uses the table. Once it is on and identities exist, a build from before the sign-in code leaves them inert and accounts created through Google cannot sign in under it (`docs/DEPLOYMENT.md`, section 29, "Rollback and restore"). A build without 019 refuses to start on the migrated database, as for every migration since the lifecycle release: a recovery build keeps the migration, and a snapshot restore does not lead to a build from before it (`docs/DEPLOYMENT.md`, sections 21 and 27). |
 | `020_oidc_consumed_transactions.sql` (phase 2) | New table, no index | None; the table starts empty | Restart only | Google sign-in (§13) is the only caller of the storage, at three call sites, and is not activated; while it is off nothing is written, and the records already written stay and are not deleted for a rollback. As for 019: a build without 020 refuses to start on the migrated database, a recovery build keeps the migration, and a snapshot restore does not lead to a build from before it (`docs/DEPLOYMENT.md`, sections 21 and 28). |
+| `021_registration_schema.sql` (registration PR 1) | One nullable column on `users` (`email_verified_at`) and five new tables with their indexes | None; every account has the column NULL and the tables start empty | Restart only | Nothing reads or writes the column or the tables except the profile service, which has no caller, and no gate exists to turn on. Code from before the migration names its `users` columns and runs unchanged. As for 019 and 020: a build without 021 refuses to start on the migrated database, a recovery build keeps the migration, and a snapshot restore does not lead to a build from before it (`docs/DEPLOYMENT.md`, section 30). |
 
 **Runner constraint (applies to 015 only; runner support is in place)**
 

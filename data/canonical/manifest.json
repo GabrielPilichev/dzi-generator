@@ -2,7 +2,7 @@
   "format": "learnpilot-canonical-content",
   "format_version": 1,
   "schema": {
-    "migration_level": "020_oidc_consumed_transactions.sql",
+    "migration_level": "021_registration_schema.sql",
     "migrations": [
       "000_baseline.sql",
       "001_quiz_tables.sql",
@@ -24,7 +24,8 @@
       "017_assignment_public_token.sql",
       "018_assignment_lifecycle.sql",
       "019_user_identities.sql",
-      "020_oidc_consumed_transactions.sql"
+      "020_oidc_consumed_transactions.sql",
+      "021_registration_schema.sql"
     ]
   },
   "classification": {
@@ -59,15 +60,20 @@
     ],
     "runtime": [
       "lifecycle_clock",
+      "pending_registrations",
       "practical_submission_files",
       "practical_submissions",
       "quiz_answers",
       "quiz_assignments",
       "quiz_attempts",
       "quiz_text_answers",
+      "registration_control",
+      "registration_sends",
+      "teacher_subjects",
       "totp_credentials",
       "totp_recovery_codes",
       "user_identities",
+      "user_profiles",
       "users"
     ],
     "operational": [
@@ -112,15 +118,20 @@
   ],
   "runtime_exclusions": [
     "lifecycle_clock",
+    "pending_registrations",
     "practical_submission_files",
     "practical_submissions",
     "quiz_answers",
     "quiz_assignments",
     "quiz_attempts",
     "quiz_text_answers",
+    "registration_control",
+    "registration_sends",
+    "teacher_subjects",
     "totp_credentials",
     "totp_recovery_codes",
     "user_identities",
+    "user_profiles",
     "users"
   ],
   "operational_exclusions": [
