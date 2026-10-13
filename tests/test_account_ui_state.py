@@ -120,6 +120,8 @@ class AccountUiStateTest(IsolatedAppTestCase):
                 html = self.home(client)
                 self.assertIn('method="post" action="/logout"', html)
                 self.assertIn('href="/account/password"', html)
+                # The account's own page, beside the password link, in both menus.
+                self.assertEqual(html.count('<a class="profile-link" href="/account">Профил</a>'), 2)
                 for removed in ("/admin/logout", "/tester/logout", "/admin/login", "/tester/login",
                                 "/profile/"):
                     self.assertNotIn(removed, html)

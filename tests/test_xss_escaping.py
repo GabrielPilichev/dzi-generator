@@ -15,13 +15,18 @@ any of these fields, the corresponding test fails.
 
 import sqlite3
 import tempfile
+import time
 import unittest
+from contextlib import closing
 from pathlib import Path
+from unittest.mock import patch
 
 
-from tests.auth_helpers import add_users_schema, sign_in_admin
+from tests.auth_helpers import add_users_schema, create_account, set_account_session, sign_in_admin
 from tests.support import IsolatedAppTestCase, web_app
 from tests.support import add_lifecycle_schema
+from web import oauth_state
+from web.services import google_oidc, identities, oidc_accounts
 
 
 SCRIPT_PAYLOAD = '<script>alert("xss")</script>'
@@ -372,6 +377,89 @@ class PracticalStudentPageEscapingTest(IsolatedAppTestCase):
         self.assertNotIn("<", sanitized)
         self.assertNotIn(">", sanitized)
         self.assertTrue(sanitized.endswith(".zip"))
+
+
+# ---------------------------------------------------------------------------
+# Google sign-in: what a Google profile supplies
+# ---------------------------------------------------------------------------
+
+class GoogleProvidedTextEscapingTest(IsolatedAppTestCase):
+    """The name and the address of a Google profile are chosen by whoever owns it.
+
+    They are stored verbatim (the name of an account created through Google, the
+    address kept with the identity) and held in the session while a link awaits its
+    confirmation. Every page that shows them escapes them.
+    """
+
+    NAME = '<svg onload=alert("name")>'
+    NAME_ESCAPED = "&lt;svg onload=alert(&#34;name&#34;)&gt;"
+    EMAIL = '"><img/src=x/onerror=alert(1)>@example.bg'
+    EMAIL_ESCAPED = "&#34;&gt;&lt;img/src=x/onerror=alert(1)&gt;@example.bg"
+
+    def setUp(self):
+        self.app = web_app.app
+        self.db_path = self.app.config["DB_PATH"]
+        provider = google_oidc.provider_config(
+            "tests.apps.googleusercontent.com", "synthetic-client-secret", "http://localhost")
+        enabled = patch.dict(self.app.config, {oauth_state.PROVIDER_CONFIG_KEY: provider})
+        enabled.start()
+        self.addCleanup(enabled.stop)
+        self.client = self.app.test_client()
+
+    def assert_escaped(self, html):
+        for raw in ("<svg onload", "<img/src=x"):
+            self.assertNotIn(raw, html)
+
+    def test_the_account_page_of_an_account_created_through_google(self):
+        account = create_account(self.db_path, "student", display_name=self.NAME)
+        with closing(sqlite3.connect(self.db_path)) as conn:
+            identities.add_identity(conn, account["id"], issuer=google_oidc.ISSUER, subject="hostile-subject",
+                                    provider="google", email_at_link=self.EMAIL)
+            conn.commit()
+        set_account_session(self.client, account["id"], account["session_key"])
+        for path in ("/account", "/account?google=linked", "/", "/account/password"):
+            with self.subTest(path=path):
+                response = self.client.get(path)
+                self.assertEqual(response.status_code, 200)
+                html = response.get_data(as_text=True)
+                self.assert_escaped(html)
+                self.assertIn(self.NAME_ESCAPED, html)
+        self.assertIn(self.EMAIL_ESCAPED, self.client.get("/account").get_data(as_text=True))
+
+    def test_the_confirmation_page_of_a_link(self):
+        account = create_account(self.db_path, "teacher", display_name=self.NAME, email="t-xss@example.bg",
+                                 password="correct horse battery")
+        issued_at = int(time.time())
+        set_account_session(self.client, account["id"], account["session_key"], iat=issued_at)
+        with self.client.session_transaction() as sess:
+            sess[oauth_state.LINK_SLOT] = {
+                "v": 1, "id": "i" * 43, "inst": oauth_state.INSTANCE, "exp": oauth_state.monotonic_seconds() + 120,
+                "uid": account["id"],
+                "skd": oidc_accounts.session_key_digest(self.app.config["SECRET_KEY"], account["session_key"]),
+                "siat": issued_at, "sub": "hostile-subject", "email": self.EMAIL, "name": self.NAME,
+            }
+        response = self.client.get("/auth/google/link/confirm")
+        self.assertEqual(response.status_code, 200)
+        html = response.get_data(as_text=True)
+        self.assert_escaped(html)
+        # Both profiles are named, and both names are escaped.
+        self.assertEqual(html.count(self.NAME_ESCAPED), 3)   # the Google name, the account's, and the header
+        self.assertIn(self.EMAIL_ESCAPED, html)
+        # A wrong password renders the page again, still escaped.
+        again = self.client.post("/auth/google/link/confirm", data={"current_password": "wrong"},
+                                 headers={"Origin": "http://localhost"}).get_data(as_text=True)
+        self.assert_escaped(again)
+        self.assertIn("Грешна текуща парола.", again)
+
+    def test_an_outcome_code_is_looked_up_and_never_echoed(self):
+        account = create_account(self.db_path, "student")
+        set_account_session(self.client, account["id"], account["session_key"])
+        payload = '<script>alert("code")</script>'
+        for path in ("/account", "/login"):
+            for client in (self.client, self.app.test_client()):
+                html = client.get(path, query_string={"google": payload}, follow_redirects=True).get_data(as_text=True)
+                self.assertNotIn(payload, html)
+                self.assertNotIn("alert(&#34;code&#34;)", html)
 
 
 if __name__ == "__main__":

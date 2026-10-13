@@ -103,6 +103,13 @@ sudo /opt/learnpilot/venv/bin/pip install -r /opt/learnpilot/app/requirements.tx
 `requirements.txt` constrains Flask, Werkzeug and Gunicorn (the production server).
 It also declares `segno` (pure Python, no dependencies of its own), which draws the
 assignment QR codes of section 25; the application does not start without it.
+Google sign-in (section 29) adds `Authlib`, `joserfc`, `requests` and `urllib3`,
+and raises the floor of `cryptography` to 45.0.1, which Authlib 1.8 and joserfc
+require. They are imported when the application is loaded, like every other
+dependency: the application does not start without them, whether Google sign-in
+is enabled or not, so install the requirements before restarting on this build.
+Gunicorn is held to one major version on purpose: the error-log filter of
+section 18 depends on the wording of one of its messages.
 Record the first-deploy runtime and installed versions as deployment evidence:
 
 ```bash
@@ -129,6 +136,7 @@ sudoedit /etc/learnpilot/learnpilot.env
 | `DZI_REFERENCE_ROOT` | no | absolute, existing, readable directory outside the checkout holding the contents of `data/reference/`. Unset: the app looks in the checkout's `data/reference/`, which production does not have, so practical-task downloads show as unavailable |
 | `DZI_PUBLIC_HOST` | yes | the real public DNS hostname in Nginx `server_name`, without scheme or port. It is exactly **one** trusted hostname: a future `www` alias must be deliberately supported in the application (and Certbot), not merely added to Nginx, or Flask answers it with 400 |
 | `DZI_PUBLIC_BASE_URL` | **must be unset** | development-only override of the address in student links and QR codes (section 25). Production always uses `https://` + `DZI_PUBLIC_HOST`; startup rejects this variable when it is set |
+| `DZI_GOOGLE_CLIENT_ID`, `DZI_GOOGLE_CLIENT_SECRET` | no; **leave both unset** | Google sign-in (section 29). This build keeps Google sign-in disabled in production whatever they hold: set, they only cause one startup warning that names them. In a later build that enables it, both are set together or neither: the client id is visible ASCII of at most 255 characters ending in `.apps.googleusercontent.com`, the secret 16 to 255 visible ASCII characters, and startup then rejects one without the other or a malformed value. The secret is never typed on a command line or stored in the repository |
 | `DZI_SOURCE_URL` | no | optional footer link |
 | `DZI_SESSION_COOKIE_SECURE` | no | leave unset; any false value is rejected (HTTPS-only cookies) |
 | `FLASK_DEBUG` | no | must not be enabled; startup rejects it |
@@ -370,7 +378,9 @@ cd /opt/learnpilot/app
 
 `deploy/gunicorn.conf.py`: bind `127.0.0.1:8000`, 1 `sync` worker, 1 thread,
 30 s timeout, `preload_app` (configuration errors stop the master), access and
-error logs on stdout/stderr, no daemon mode, no reloader. Check configuration,
+error logs on stdout/stderr, no daemon mode, no reloader. The access-log format
+has no query string and the error log passes a redacting logger class; both are
+described in section 18, and `loglevel` must stay `info`. Check configuration,
 production settings and schema without binding a port:
 
 ```bash
@@ -380,7 +390,9 @@ sudo systemd-run --quiet --pipe --wait --uid=learnpilot --gid=learnpilot \
 ```
 
 `systemd-run` reads the environment file exactly as the service unit does
-(shell sourcing would interpret `$`, quotes and spaces differently).
+(shell sourcing would interpret `$`, quotes and spaces differently). The check
+imports the application, so it shows what a start would log: with either Google
+setting present, the one warning of section 29.
 
 ## 11. systemd
 
@@ -426,6 +438,13 @@ application answers 404 for it. Empty GET keys are
 not charged. These bursts allow at least 30 students behind one school NAT to
 submit together; Flask ownership, file quotas and the disk floor still enforce
 the application rules. Nginx responds 429 when a bucket is exhausted.
+
+The one GET that is limited is the Google callback (section 29), in a zone of
+its own keyed for every method. That location also keeps the callback's query
+string, which carries the authorization code and the state, out of both Nginx
+logs, and answers every error status with a redirect. The Google routes are in
+the template whether or not Google sign-in is enabled: disabled, the
+application answers 404 behind them.
 
 ## 13. DNS
 
@@ -888,6 +907,39 @@ sudo tail -f /var/log/nginx/access.log /var/log/nginx/error.log
 
 Gunicorn access/error logs, Flask errors and app warnings go to journald; the
 app writes no log files into the checkout. Nginx logs rotate with logrotate.
+
+**No query string is logged by Gunicorn**, for any route. The access-log line
+is the forwarded client address, then method, path and protocol
+(`"%(m)s %(U)s %(H)s"`), status, size and duration: a `?next=...`, a
+`?download=1` and the code and state of a Google callback are not in it. For a
+request that Gunicorn itself failed (its own 400 or 500) the line has no path
+at all and reads `"GET None HTTP/1.1"`; the path of such a request is in the
+error-log line beside it.
+
+**Gunicorn's error log passes a filter** (`RedactingLogger` in
+`deploy/gunicorn.conf.py`): a line that begins with `Invalid request from ip=`
+is cut at its first quotation mark, and every line is cut at its first `?`.
+What was cut reads `[redacted]`. Gunicorn quotes in those lines what its parser
+refused (a request line, a header line), and a callback address or a cookie
+would otherwise be there. The reason for the refusal stays readable.
+
+- The filter rewrites the message of a line. **It does not rewrite a
+  traceback**, which ends with an exception's own text. The application's
+  Google sign-in code never lets an exception's text reach a log: it logs class
+  names. Whether bytes of a request body could reach a traceback is the subject
+  of section 29, "What the log statements assume".
+- Do not raise `loglevel` to `debug`. At that level Gunicorn logs the unread
+  buffer of a client that disconnects in the middle of a request, a cookie
+  included, with or without the filter.
+
+**Google sign-in lines** are on the logger `learnpilot.oidc`, with a fixed
+vocabulary: an outcome, an intent, a local user id, an allow-listed provider
+error code or an exception's class name. For example
+`learnpilot.oidc INFO callback outcome=created intent=signin user=42 reason=-`
+and `learnpilot.oidc WARNING retire_not_recorded objects=pending
+reason=OperationalError user=17`. No such line holds a code, a state, a token,
+a subject or an email.
+
 Cap the journal, for example:
 
 ```bash
@@ -1089,6 +1141,13 @@ python3 -m src.manage_accounts --db "$DZI_DB" sign-out --email teacher@example.b
 python3 -m src.manage_accounts --db "$DZI_DB" clear-throttle --email teacher@example.bg
 python3 -m src.manage_accounts --db "$DZI_DB" list
 
+# An account created through Google sign-in has no email: select it by its id
+# (the first column of `list`). --email and --id exclude each other.
+python3 -m src.manage_accounts --db "$DZI_DB" disable --id 42
+python3 -m src.manage_accounts --db "$DZI_DB" enable --id 42
+python3 -m src.manage_accounts --db "$DZI_DB" sign-out --id 42
+python3 -m src.manage_accounts --db "$DZI_DB" set-role --id 42 --role teacher
+
 # Admin TOTP (migration 016; enrol and confirm need DZI_TOTP_KEY in the environment)
 python3 -m src.manage_accounts --db "$DZI_DB" totp-enroll --email admin@example.bg
 python3 -m src.manage_accounts --db "$DZI_DB" totp-confirm --email admin@example.bg
@@ -1103,6 +1162,19 @@ python3 -m src.manage_accounts --db /var/backups/learnpilot/cutover-check.db cut
 
 - Accounts are addressed by (normalized) email. Roles: `student`, `teacher`, `admin`.
   This CLI is the only way to create or promote an admin.
+- `disable`, `enable`, `sign-out` and `set-role` take exactly one of `--email`
+  and `--id N` (a positive number; an unknown one is `error: no account with id
+  N`). An account created through Google sign-in has no email and is reached by
+  its id only. The other commands keep `--email`: they act on a password or on
+  an admin's second factor, and such an account has an email.
+- Every message names the account by its id, for example `disabled account 42
+  (no email, student); existing sessions invalidated` and `role of account 17
+  (ivan@example.bg) is now teacher; existing sessions invalidated`.
+- `set-role --role admin` is refused for an account without a password, and
+  changes nothing: an admin signs in with a password and a second factor only,
+  so the account would have no way in. Promoting an account created through
+  Google to `teacher` is allowed; the person then signs in with Google as a
+  teacher.
 - Passwords are never accepted as arguments or from the environment. By default
   the command prompts twice without echo. For controlled automation use
   `--password-stdin`: stdin must be exactly one line (an optional trailing
@@ -1120,8 +1192,14 @@ python3 -m src.manage_accounts --db /var/backups/learnpilot/cutover-check.db cut
   fails and changes nothing. It needs the `login_throttle` table (migration
   013), succeeds when the email has no lockout, and never prints the secret or
   the stored key.
-- `list` prints id, email, name, role, active state, created and last login
-  times; never password hashes or session keys.
+- `list` prints id, email, name, role, active state, whether a password is set
+  (`password`: `yes`/`no`), the Google sign-in of the account (`google`: the
+  address Google reported when the identity was added, `yes` when it reported
+  none, `-` without one), and the created and last login times. It never
+  prints a password hash, a session key or a Google subject. With it, finding
+  an account created through Google, disabling and enabling it, ending its
+  sessions and changing its role need no SQL. Removing or moving a Google
+  identity is not something this CLI does (section 29).
 - Admin TOTP: an account with role `admin` cannot sign in until it has a
   confirmed TOTP credential. `totp-enroll` (admins only) stores a new secret
   encrypted with `DZI_TOTP_KEY` and prints the `otpauth://` provisioning URI once;
@@ -2198,6 +2276,323 @@ were before it. Forward fix first.
 - The rules of sections 26 and 27 are unchanged: never a build from before
   migration 018, and every build that serves a database at 019 ships
   migration 019.
+
+## 29. Google sign-in (PR #331): shipped disabled
+
+**Google sign-in is not activated, and this build cannot activate it in
+production.** Nothing in this section has been carried out on any server: no
+client was registered with Google, no credential exists, and none of the checks
+below was run. The section says what the build does when it is deployed, what
+changes in the logs, and what activation will need.
+
+Specification: `docs/reviews/GOOGLE_OIDC_DESIGN.md`; what the code does and
+guarantees: `docs/ACCOUNTS_DESIGN.md` §13; routes: `docs/AUTH_ROUTE_CONTRACT.md`.
+
+### What the build does
+
+- It has no migration. Its tables came with migrations 019 and 020 (sections
+  27 and 28), which a database must have before this build serves it; startup
+  refuses otherwise, as for every pending migration.
+- **The activation gate.** `PRODUCTION_ACTIVATION` in
+  `web/services/google_oidc.py` is `False`. While it is, `web.wsgi`:
+  - starts normally whatever `DZI_GOOGLE_CLIENT_ID` and
+    `DZI_GOOGLE_CLIENT_SECRET` hold: unset, one of them, both, well-formed or
+    not. The presence of credentials is never a reason to refuse to start;
+  - keeps Google sign-in disabled;
+  - logs one warning if either is set, naming the settings and never their
+    values: `Google sign-in credentials are configured (...), but this build
+    does not enable Google sign-in.` The configuration check of section 10
+    shows the same line.
+
+  No setting and no environment variable overrides the constant. The release
+  that delivers identity recovery tooling sets it to `True`; from then on both
+  settings unset means disabled, both valid means enabled, and exactly one or a
+  malformed one stops the start with a message that names the setting.
+- **Disabled means:** no Google button on the sign-in page and no link form on
+  the account page; `/auth/google/start`, `/auth/google/link`,
+  `/auth/google/callback`, `/auth/google/link/confirm` and
+  `/auth/google/link/cancel` answer the generic 404 page (a cross-origin POST
+  is still 403); no page shows the outcome of a Google sign-in, so
+  `/login?google=unavailable`, the address Nginx redirects a failed callback
+  to, is the ordinary sign-in page; password and TOTP sign-in are unchanged.
+- What is new for every visitor whether it is enabled or not: the account page
+  `/account` with a „Профил“ link in the navigation, the notice on
+  `/account/password` for an account without a password, the operator CLI's
+  `--id` selection and `list` columns (section 22), and the log changes below.
+
+### Deploying this build
+
+The standard procedure of section 20, with no migration step. Then check:
+
+```bash
+curl -s https://learnpilot.bg/login | grep -c 'auth/google'        # 0: no button
+curl -s -o /dev/null -w '%{http_code}\n' -X POST \
+  -H 'Origin: https://learnpilot.bg' https://learnpilot.bg/auth/google/start   # 404
+journalctl -u learnpilot -n 50 | grep 'Google sign-in'              # nothing, with both settings unset
+```
+
+Install the new Nginx template as in section 12 (keep the lines Certbot added
+to the server block), then `sudo nginx -t && sudo systemctl reload nginx`. The
+`log_format lp_no_args` line and the two new zones belong to the `http`
+context, at the top of the file beside the existing zones.
+
+### Logs: what changed, and what it rests on
+
+- **Gunicorn** (section 18): no query string in the access log; the error log
+  passes the redacting filter; `loglevel` stays `info`.
+- **Nginx, the callback location.** `= /auth/google/callback` has its own
+  access-log format, `lp_no_args`, which records `$request_method $uri
+  $server_protocol` instead of `$request`: the path without its query string.
+  `$limit_req_status` and `$upstream_status` keep a refused or failed callback
+  visible, because for the browser it ends as a 302. `error_log /dev/null
+  emerg` discards every error-log line for requests in that location and in
+  `@oidc_leave`: a refusal by the limit and an upstream failure would
+  otherwise be logged with the full request line.
+- **Every error status of the callback address leaves the address.** Whether
+  Nginx produced it (429 from the limit, 502 and 504 from the upstream) or the
+  application did (`proxy_intercept_errors`), the answer is a 302 to
+  `/login?google=unavailable` with `Cache-Control: no-store`. No error page is
+  ever a document at the address that carries the code and the state. The
+  application's own redirects pass through. A callback that Nginx refuses
+  never reaches the application: its transaction is not spent and its code is
+  not redeemed; the person starts again.
+- **The main `error_log` must stay at `error` or stricter.** `info` or `debug`
+  there would record request lines for every location.
+- A code or a state that survives somewhere outside the server (a browser's
+  history) is already spent: the code at Google, the transaction in the
+  consumption table.
+
+**What the log statements assume.** Three settings that exist for other
+reasons, and that the test suite pins:
+
+1. Gunicorn's `bind` is a loopback address, so a visitor reaches it only
+   through Nginx.
+2. `MAX_CONTENT_LENGTH` is a number for every request. With it, Werkzeug gives
+   every reader of a request body a wrapper that turns the server's read error
+   into a 400, which Flask answers without logging.
+3. Gunicorn runs the **sync** worker: `worker_class = "sync"` with
+   `threads = 1`. A worker class that keeps connections alive reads the unread
+   body of a request itself, outside that wrapper.
+
+What they are for: Gunicorn's body reader raises exceptions whose text quotes
+the bytes it could not use, and a traceback is not filtered. Nginx parses a
+client's chunked body itself and frames what it sends on, so a client's own
+chunk framing does not reach Gunicorn; and the wrapper of item 2 covers a body
+that the application reads. `proxy_request_buffering on` is the capacity
+setting it always was (section 12). It decides when a request is sent on; it
+is neither validation nor redaction, and no statement about logs rests on it.
+**None of the three has been verified on the server.** Do not change the
+worker class or `threads` for capacity without re-reading this paragraph.
+
+### One instance per run
+
+A sign-in or a link in flight is bound to the run of the service that started
+it. `preload_app = True` creates that run's value once, in the master, and
+every worker inherits it. A deploy is `systemctl restart learnpilot`, which
+ends every sign-in and link in flight: the person sees „Времето изтече. Опитай
+отново.“ and starts again. A `HUP` keeps the preloaded application and its
+value.
+
+**Not supported while Google sign-in is enabled:** a second master on the same
+database (Gunicorn's `USR2` re-execution, a second unit, or a process started
+by hand beside the service). Single use would still hold, but sign-ins in
+flight would fail at the other master, and a cancellation that reaches the
+other master could not record that a link has ended.
+
+### Rollback and restore
+
+- **Rollback.** The build has no migration, so its code can be reverted on the
+  same database. Under an earlier build, accounts created through Google
+  remain and cannot sign in, their existing sessions are ordinary account
+  sessions and stay valid until they expire, and linked identities are inert.
+  A rollback target must still ship migrations 019 and 020 (sections 27 and
+  28). The records in `oidc_consumed_transactions` stay and are not deleted
+  for a rollback.
+- **Restore.** The one script of section 17, unchanged. The service that
+  starts afterwards is a new run, so every sign-in and link issued before the
+  restore is refused, and a consumption record lost with the restore cannot
+  matter. Users, identities and session keys return to the snapshot: a student
+  created through Google after the snapshot is created again as a new account
+  at the next sign-in, and a link confirmed after it is gone.
+- Nobody deletes rows of `oidc_consumed_transactions`, and no job does
+  (section 28).
+
+### Accounts created through Google
+
+They have no email and no password. Find them with `list` (the `google`
+column) and manage them by `--id` (section 22). **This release cannot remove
+or move a Google identity.** These mistakes can happen once the provider is
+active, and none can be corrected without recovery tooling that does not exist
+yet:
+
+- a Google identity confirmed onto the wrong account (two people at one
+  browser within three minutes);
+- a student account created by someone who meant to link Google to an existing
+  account, for example a teacher whose account has another email;
+- a Google-only account whose Google account is lost: it can be disabled,
+  enabled, signed out and given a role, and not signed in to.
+
+Do not correct any of them with SQL.
+
+### Before activation: none of this is done
+
+Activation is a later release and a separate decision. It needs all of the
+following; items 8–10 are outstanding checks that have not been run, and
+activation stays OFF (`PRODUCTION_ACTIVATION` is `False`) until they pass:
+
+1. Migration 020 deployed (section 28).
+2. Identity recovery tooling delivered, in the release that opens the gate.
+3. Privacy: a public privacy-policy page (Google's consent screen needs one),
+   the data-controller questions for minors, and school Workspace
+   administrators allowing the app for accounts marked under 18.
+4. The log changes deployed and checked on the server (below).
+5. A Google Cloud client of type "Web application" with exactly one authorized
+   redirect URI, `https://<DZI_PUBLIC_HOST>/auth/google/callback`, no
+   JavaScript origins, and a consent screen with the scopes `openid`, `email`
+   and `profile` only. A development run uses a **separate** client.
+6. Outbound HTTPS as the service user to `oauth2.googleapis.com` and
+   `www.googleapis.com`.
+7. The real-provider checks of the design's section 11.2.
+8. **Real token and key responses checked against the encoding policy
+   (outstanding, not run).** The build sends `Accept-Encoding: identity` on
+   its requests to Google and refuses a compressed response (a
+   `Content-Encoding` other than identity). Before activation, confirm with
+   Google's real token endpoint and JWKS endpoint, in the activation
+   window, that their answers arrive uncompressed and are accepted. The tests
+   use mocked transport and cannot show this. A refusal here means sign-in
+   would fail for everyone.
+9. **Production and service tests against the server's real dependencies
+   (outstanding, not run).** Run `python3 -m unittest
+   tests.test_google_oidc_production tests.test_google_oidc_service` in the
+   environment the server actually runs, with the dependency versions
+   installed there. The suite so far ran in an assembled environment of
+   already-installed packages; it did not exercise the versions production
+   installs.
+10. **Clean installation from `requirements.txt` (outstanding, not run).**
+    Create a fresh virtual environment, install only from the declared
+    `requirements.txt`, and confirm the application imports and the checks of
+    items 8 and 9 pass there. The assembled test environment validated
+    neither installation from the file nor the declared dependency floors; a
+    floor that is too low or a missing package would show only here, before
+    deployment.
+11. Independent review of the implementation.
+
+The off switch, once it is active: remove the two lines from
+`/etc/learnpilot/learnpilot.env` and restart. Rotating the secret: a new
+secret at Google and in the env file, then a restart; no session ends, and
+sign-ins in flight end with „Времето изтече“.
+
+### The log check (not run)
+
+To be run once, by the operator, on the server, in a deployment window, with
+Google sign-in still disabled. `<host>` is the value of `DZI_PUBLIC_HOST`.
+
+1. Request `https://<host>/auth/google/callback?code=LOGTEST&state=LOGTEST`
+   once; then about sixty times within a few seconds, to pass the burst; then
+   once while the service is stopped. Each answer is a 302 to
+   `/login?google=unavailable`, and the page it leads to is the ordinary
+   sign-in page with no message about Google.
+2. Send one request whose query contains a raw space
+   (`.../callback?code=LOGTEST x&state=LOGTEST`, from a client that does not
+   encode it): once through Nginx and once on the server straight to
+   `127.0.0.1:8000`. Then the same with an apostrophe after the second value
+   (`...&state=LOGTEST'y`), which makes Gunicorn quote the text with the other
+   quotation mark.
+3. The two body probes below, each once.
+4. None of `LOGTEST`, `LPPROBE_NGINX_BODY` and `LPPROBE_DIRECT_BODY` appears
+   in `journalctl -u learnpilot`, `/var/log/nginx/access.log` or
+   `/var/log/nginx/error.log` after all of these requests.
+5. `ss -ltnp` shows Gunicorn listening on `127.0.0.1:8000` and on no other
+   address, and the journal of the running start holds `Using worker: sync`
+   (Gunicorn prints `gthread` there when `threads` is above 1).
+6. `nginx -T | grep proxy_request_buffering` shows `on` and no `off`, and
+   `nginx -T | grep error_log` shows no level looser than `error`.
+7. Note the versions the statements above were derived from sources of:
+   `nginx -v`, and the lines for Flask, Werkzeug and Gunicorn of
+   `/opt/learnpilot/venv/bin/pip freeze`.
+
+**The two body probes.** Rules for both:
+
+- **Nothing real.** The bytes below are the whole request. They hold no email
+  address, no password, no cookie, no `state`, no code and no other
+  credential, and none is added.
+- **Never repeated with a real value,** here or anywhere, and not among the
+  callback requests that the later real-provider checks repeat with a real
+  `state`.
+- **Raw HTTP/1.1.** Every line ends with CRLF, written `\r\n` below, the
+  malformed chunk-size line included. A client that encodes or frames a body
+  itself cannot send them. Through Nginx the client speaks TLS and does not
+  offer HTTP/2.
+- **`Connection: close`, and a client timeout of 5 seconds** in total, for
+  connecting, sending and reading. At the timeout the client closes its
+  socket, whatever it has received.
+- **One run of each, inside the deployment window.** Not in a loop, not from a
+  monitoring job, and not a second time in that window, whatever the first
+  result was.
+
+*Probe N, of Nginx's parser.* To `<host>`, port 443, over TLS:
+
+```
+POST /login HTTP/1.1\r\n
+Host: <host>\r\n
+Content-Type: application/x-www-form-urlencoded\r\n
+Transfer-Encoding: chunked\r\n
+Connection: close\r\n
+\r\n
+LPPROBE_NGINX_BODY\r\n
+```
+
+With `proxy_request_buffering on`, as deployed, it passes when all four hold:
+the answer has status 400; Nginx's error log has one new entry for it with the
+text `client sent invalid chunked body`; Gunicorn's access log, in the
+journal, has no entry for it, while Nginx's own access log shows it with 400;
+and `LPPROBE_NGINX_BODY` is in none of the three logs. These criteria are no
+test for a server with buffering off.
+
+*Probe D, of Werkzeug's wrapper as deployed.* On the server, to
+`127.0.0.1:8000`, in plain HTTP. Its control request comes first and must
+answer 200, the sign-in page; if it does not, probe D is not sent:
+
+```
+GET /login HTTP/1.1\r\n
+Host: <host>\r\n
+X-Forwarded-Proto: https\r\n
+X-Forwarded-Host: <host>\r\n
+X-Forwarded-For: 192.0.2.77\r\n
+Connection: close\r\n
+\r\n
+```
+
+Then the probe, with the same headers:
+
+```
+POST /login HTTP/1.1\r\n
+Host: <host>\r\n
+Origin: https://<host>\r\n
+X-Forwarded-Proto: https\r\n
+X-Forwarded-Host: <host>\r\n
+X-Forwarded-For: 192.0.2.77\r\n
+Content-Type: application/x-www-form-urlencoded\r\n
+Transfer-Encoding: chunked\r\n
+Connection: close\r\n
+\r\n
+LPPROBE_DIRECT_BODY\r\n
+```
+
+It passes when all five hold: the control answered 200; the answer has status
+400 and Gunicorn's access log has its entry, `POST /login` with 400, from
+`192.0.2.77`; the journal has no line `Invalid request from ip=` and no line
+`Error handling request` for it; the journal has no traceback for it, in
+particular no `Exception on /login [POST]` and no `Socket error processing
+request.`; and `LPPROBE_DIRECT_BODY` is in none of the three logs.
+
+**Any other result is not a pass,** for either probe: another status, a
+missing or an additional log entry, a marker in any log, a client that ran
+into its timeout, or a result that cannot be attributed to the probe. A 403
+for probe D means that the same-origin check refused the request before the
+body was read; the probe is not sent again, the cause is found and corrected,
+and a new run, with its control request, is scheduled. A 500, a traceback or a
+marker in a log is a finding, and activation stops there.
 
 ## 2 GB VPS sizing
 

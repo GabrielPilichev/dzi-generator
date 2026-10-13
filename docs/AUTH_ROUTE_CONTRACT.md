@@ -4,18 +4,24 @@ Four separate concerns, deliberately kept apart:
 
 - **Authentication** — who the session is. Account authentication is the only
   authentication the application has: an **account** identity (`uid`, `sk`,
-  `iat`), issued by `web/blueprints/account.py` (endpoints `account.login`,
-  `account.login_totp`, `account.logout`, `account.password`) and resolved to a
-  principal on every request by `load_current_user()` in `web/app.py`. The
-  shared tester/admin passwords that preceded accounts were switched off in
-  production by Accounts PR9 and physically removed by PR10; see "Removed
-  shared-password authentication" below.
+  `iat`), issued through `web/account_session.py` and resolved to a principal
+  on every request by `load_current_user()` in `web/app.py`. There are two
+  ways to prove who the account is: a password, with a TOTP code for an admin
+  (`web/blueprints/account.py`: `account.login`, `account.login_totp`,
+  `account.logout`, `account.password`), and Google sign-in for a student or a
+  teacher (`web/blueprints/oidc.py`; see "Google sign-in" below; **not
+  activated**). Both end in the same session. The shared tester/admin
+  passwords that preceded accounts were switched off in production by Accounts
+  PR9 and physically removed by PR10; see "Removed shared-password
+  authentication" below.
 - **Authorization (access policy)** — whether that session may use a route,
   declared per view function in `web/access.py`.
 - **Request integrity** — how an unsafe or external request proves it is
-  legitimate (`web/request_integrity.py`; today the same-origin check in
-  `protect_same_origin_unsafe_methods()`). It is never an access level, and an
-  access policy never exempts a route from it.
+  legitimate (`web/request_integrity.py`): the same-origin check in
+  `protect_same_origin_unsafe_methods()` for every unsafe request, and, for
+  the one OAuth callback, the state of the transaction in the browser's own
+  session (`verify_oauth_state()` in `web/oauth_state.py`). It is never an
+  access level, and an access policy never exempts a route from it.
 - **DZI content identity** — `web.services.dzi.is_dzi_question` says which
   questions are official DZI content. It is not an access check.
 
@@ -26,18 +32,24 @@ and removed `protect_admin_routes()`, `TESTER_TEACHER_ENDPOINTS` and
 
 ## Enforcement
 
-Every request passes through these `before_request` steps, in this order. The
-first and the last are the two independent checks; the one between them only
-establishes identity:
+Every request passes through these four `before_request` steps, in this
+order. The first two are request integrity, the third only establishes
+identity, and the last is authorization:
 
 1. `protect_same_origin_unsafe_methods()` — request integrity. Every
    POST/PUT/PATCH/DELETE must carry a same-origin `Origin` (or `Referer`), or
    it gets 403 (only the `TESTING` configuration accepts a request carrying
    neither header). No route is exempt, and being signed in does not help.
-2. `load_current_user()` — authentication only. If the session carries an
+2. `verify_oauth_state()` — request integrity of the one view that declares
+   `oauth_state`, the OAuth callback. It does nothing for any other request.
+   It is **not** an exemption from step 1 and not an alternative to it: the
+   callback accepts no unsafe method, so it never needs one. See "Google
+   sign-in" below for what it checks. It runs before the principal is loaded,
+   so a callback that does not match is answered without a database read.
+3. `load_current_user()` — authentication only. If the session carries an
    account identity it is loaded with one `users` lookup; otherwise nothing
    happens (no query, no cookie). See "Account sessions" below.
-3. `enforce_access_policy()` — authorization. It looks up the policy declared
+4. `enforce_access_policy()` — authorization. It looks up the policy declared
    on the view function Flask resolved for the request and decides with
    `current_principal()`, which is the account principal `load_current_user()`
    resolved, or anonymous. A denied request without an account is redirected to
@@ -104,10 +116,10 @@ a coverage test walks `app.url_map` and fails on any undeclared endpoint.
 
 | Policy | Meaning | Routes |
 | --- | --- | --- |
-| `public` | any session, signed in or not | `/`, `/grade/<n>`, `/section/<slug>`, `/subjects/...`, `/physics...`, `/healthz`, `/favicon.ico`, sign-in (`/login`, `POST /login/totp`), `POST /logout`, `/quiz/s/<public_token>` |
+| `public` | any session, signed in or not | `/`, `/grade/<n>`, `/section/<slug>`, `/subjects/...`, `/physics...`, `/healthz`, `/favicon.ico`, sign-in (`/login`, `POST /login/totp`, `POST /auth/google/start`, `GET /auth/google/callback`), `POST /logout`, `/quiz/s/<public_token>` |
 | `teacher` | teacher or admin account | `/teacher/new`, `/teacher/assignment/<id>` |
 | `admin` | admin account only (after the second factor) | `/admin/open-question-candidates`, `/dzi...`, every other `/teacher...` route |
-| `signed_in` | any active account (student, teacher or admin) | `/account/password` |
+| `signed_in` | any active account (student, teacher or admin) | `/account`, `/account/password`, `POST /auth/google/link`, `/auth/google/link/confirm`, `POST /auth/google/link/cancel` (the link routes admit the session; an admin is then refused by `POST /auth/google/link` and `POST /auth/google/link/confirm` with 403, while `GET .../confirm` redirects to the expired outcome and `POST .../cancel` answers `link_not_pending`; see "An admin session on the link routes") |
 | `quiz_taker` | any account that may take quizzes: student, teacher or admin (`can_take_quizzes`) | `/account/attempts` |
 | `assignment_owner` | admin account or teacher account; the view checks the loaded assignment and answers 404 | `/teacher/assignments`, `/teacher/assignment/<id>/edit`, `/duplicate`, `/close` (POST only), `/results` (GET and the open-answer review POST), `/results.csv`, `/qr.svg`, `/teacher/practical-submissions`, `/teacher/practical/submission-file/<file_id>/download` |
 | `attempt_owner` | route is reachable; the view checks attempt ownership and answers 404 | `/quiz/attempt/<id>`, `/quiz/attempt/<id>/result`, `/quiz/attempt/<id>/practical/...` |
@@ -211,8 +223,10 @@ and are not in use.
 
 ## Account sessions
 
-Accounts are created only by `python3 -m src.manage_accounts`; there is no
-registration, reset or OAuth route.
+Accounts are created by `python3 -m src.manage_accounts`, and, once Google
+sign-in is activated, a first Google sign-in creates a `student` (see "Google
+sign-in"). There is no registration form, no password reset and no email
+verification. A teacher or an admin account comes from the operator only.
 
 **Session contents.** A successful `POST /login` (for an admin, the completed
 `POST /login/totp`) clears the session, carries
@@ -237,15 +251,23 @@ not with a cross-site POST, nor with an image, frame or script request. What
 follows from that is part of this contract:
 
 - A signed-in visitor who follows a link from another site arrives signed in.
-  A future OIDC provider redirect relies on it (`docs/ACCOUNTS_DESIGN.md` §13).
+  Google's redirect back to the callback relies on it
+  (`docs/ACCOUNTS_DESIGN.md` §13): it arrives with the cookie of the start.
 - No GET (or HEAD) changes state on the visitor's behalf: nothing is signed
   out, created, edited, closed, submitted or reviewed by one, and `GET /logout`
   does not exist (405). A new state change is POST-only and declares
-  `@integrity_policy(SAME_ORIGIN)`. The one write a GET performs is the
-  lifecycle observation stamp with its clock bookkeeping
-  (`docs/ASSIGNMENT_LIFECYCLE_DESIGN.md` §3.6, §6.3): the server's clock, no
-  request input, written once, and caused by an anonymous request just the
-  same.
+  `@integrity_policy(SAME_ORIGIN)`. There are two exceptions, each with its own
+  reason:
+  - the lifecycle observation stamp with its clock bookkeeping
+    (`docs/ASSIGNMENT_LIFECYCLE_DESIGN.md` §3.6, §6.3): the server's clock, no
+    request input, written once, and caused by an anonymous request just the
+    same;
+  - **`GET /auth/google/callback`**, which signs an account in, creates a
+    student or prepares a link. That is what a provider's redirect is, and it
+    is why the callback has an integrity mechanism of its own (`oauth_state`)
+    instead of none. A callback that does not carry the state of a transaction
+    in the browser's own session changes nothing at all: no cookie, no row, no
+    outbound request. A link from another site cannot have that state.
 - Request integrity does not depend on the attribute. Step 1 of "Enforcement"
   refuses every cross-origin unsafe request whatever cookie arrives with it,
   including one from another host of the same site, which `SameSite` never
@@ -322,24 +344,155 @@ Success sets the hash, rotates `session_key` in one transaction, and re-issues
 this browser's session with the new key and the original `iat`; every other
 session of the account stops working on its next request.
 
+An account without a password (one created through Google) gets a notice
+instead of the form, for a GET and a POST alike: it has no password to change,
+and no throttle failure is counted against it.
+
+**Account page.** `GET /account` (`signed_in`) shows the account's name, role
+and email and how it signs in: whether a password is set, and each Google
+identity with the address Google reported and the date. It reads only. It is
+also where the outcome of a Google link is shown, and where a link is started.
+
+**Sign-out.** `POST /logout` clears this browser's session and redirects to
+the home page, for every account. It does not rotate `session_key`, so other
+devices stay signed in, and it does not sign the browser out of Google.
+
+**One place clears a session.** `web/account_session.py` holds the three
+functions that replace or clear it: `issue_account_session`,
+`issue_pending_second_factor` and `end_session`. No controller calls
+`session.clear()` itself. Each of the three first tries to retire a Google
+link in progress (see "Google sign-in") and goes on whatever that achieved.
+
 **Templates.** `current_account` is the account principal or `None`, and is
 what navigation and role-gated controls test (`current_account.is_admin`,
-`can_list_assignments`). A signed-out page offers one link, „Вход“ (`/login`).
-The footer shows the account's role label, and nothing for a signed-out
-visitor.
+`can_list_assignments`). A signed-out page offers one link, „Вход“ (`/login`);
+a signed-in one links to „Профил“ (`/account`) and „Парола“. The footer shows
+the account's role label, and nothing for a signed-out visitor.
+`google_sign_in_enabled` says whether the Google button and forms exist.
 
 **Caching.** Every response to a signed-in account carries
 `Cache-Control: no-store`. Anonymous, `static` and `/healthz` responses are not
 changed.
 
+## Google sign-in
+
+Specification: `docs/reviews/GOOGLE_OIDC_DESIGN.md`; summary and guarantees:
+`docs/ACCOUNTS_DESIGN.md` §13. **It is not activated.** It is enabled only with
+both credentials and a configured public base URL, and a production start of
+this build keeps it disabled whatever is configured
+(`docs/DEPLOYMENT.md`, section 29). Disabled, every route below answers the
+generic 404 page after the same-origin check (a cross-origin POST is still
+403), no page shows a Google button, form or message, and nothing reads the
+OAuth state in a cookie.
+
+| Route | Endpoint | Methods | Access | Integrity |
+| --- | --- | --- | --- | --- |
+| `/auth/google/start` | `oidc.google_start` | POST | `public` | `same_origin` |
+| `/auth/google/link` | `oidc.google_link` | POST | `signed_in` | `same_origin` |
+| `/auth/google/callback` | `oidc.google_callback` | GET | `public` | `oauth_state` |
+| `/auth/google/link/confirm` | `oidc.google_link_confirm` | GET, POST | `signed_in` | `same_origin` |
+| `/auth/google/link/cancel` | `oidc.google_link_cancel` | POST | `signed_in` | `same_origin` |
+
+**An admin session on the link routes.** The three link routes admit any
+signed-in session. The first three rows below are pinned by
+`tests/test_google_oidc_routes.py` (`AdminTest`); the cancel row is read from
+`web/blueprints/oidc.py`, which has no role check there:
+
+| Request by an admin account | Answer |
+| --- | --- |
+| `POST /auth/google/link` | `403`, no `Location`, nothing stored |
+| `POST /auth/google/link/confirm` | `403`, before any pending link is read; a pending link in the cookie is left alone |
+| `GET /auth/google/link/confirm` | `302` to `/account?google=expired`: the pending link of an admin is never shown |
+| `POST /auth/google/link/cancel` | `302` to `/account?google=link_not_pending` for an admin with nothing held and no Google identity. The route has no role check; it answers like any account (`account_linked` if the account has a Google identity) |
+
+The blueprint is `oidc`. No path says "login" or "logout", and no route
+registers, resets or unlinks anything.
+
+**The `oauth_state` mechanism.** Exactly one view declares it, and a view that
+declares it accepts no unsafe method; `provider_signature` stays unused. A
+start puts a transaction into the signed session: state, nonce, PKCE verifier,
+intent, validated return target, expiry, the service instance and, for a link,
+the binding to the account session. The hook then decides, for the callback
+address only:
+
+| Request | Result |
+| --- | --- |
+| `HEAD`, `OPTIONS` | 405 with `Allow: GET`. Nothing is read, and the view does not run: a `HEAD` never redeems a code. |
+| `POST`, `PUT`, `PATCH`, `DELETE` | No view resolves: 403 from step 1 when cross-origin, else Flask's 405. |
+| `GET` whose `state` is missing, repeated, malformed or not the stored transaction's | **No match:** `302` to `/login?google=failed`. No cookie, no database access, no outbound request, and the stored transaction is left alone (clearing it would let any site cancel a sign-in in progress). |
+| `GET` that matches a transaction of another run of the service | The slot is removed; `expired`. Nothing is recorded. |
+| `GET` that matches | The slot is removed, and the use is recorded in its own committed write **before any other parameter is looked at** and before any request to Google. A second use, an expired transaction and every storage error end the request there. |
+
+The view runs only for a transaction the hook matched and recorded, and it
+never renders a page: every outcome, an unexpected exception included, is a
+redirect to a local path with `Cache-Control: no-store` and
+`Referrer-Policy: no-referrer`. The path carries one of a fixed set of codes
+(`?google=<code>`) that the sign-in page or the account page looks up; no value
+is ever echoed.
+
+**Intent** is fixed by the route that starts the flow and travels inside the
+signed transaction. A sign-in callback that meets a signed-in account fails
+without touching the session. A link callback without its bound session fails
+without signing anyone in. A link callback writes no identity.
+
+**Sign-in.** `POST /auth/google/start` reads only `next`. A signed-in account
+starts nothing. The identity is found by `(issuer, subject)`; an email never
+selects, signs in or links an account. A new identity becomes a `student`
+unless its reported address is the sign-in email of an existing account, in
+which case nothing is created and the person is told to sign in with the
+password and link from „Профил“. An inactive account and an admin's identity
+are refused. The session issued is the ordinary one, and the return target
+passes `safe_redirect_target` when stored and again when used, with the role
+read at the write as its fallback.
+
+**Linking.** `POST /auth/google/link` asks for nothing: a student or teacher
+with a password and no Google identity is sent to Google. After the callback
+the session holds a pending link (for at most 180 seconds) and the browser is
+on the confirmation page, which names both profiles. `POST
+/auth/google/link/confirm` stores the identity only with the account's current
+password, under the account's throttle counter (429 when blocked), and checks
+the account, its role and active state, its session key, the bound session's
+lifetime, the expiry and the link decision again inside the write transaction.
+After a rollback the pending link stays, and the answer claims nothing about
+what reached the disk.
+
+**Cancelling** (`POST /auth/google/link/cancel`) removes both linking objects
+from this browser's session, tries to record that they have ended, reads once
+whether the account has a Google identity, and answers with the first that
+applies:
+
+| Finding | Code | Text |
+| --- | --- | --- |
+| The account could not be read | `cancel_unconfirmed` | „Не успяхме да потвърдим отказа.“ |
+| The account has a Google identity | `account_linked` | „Профилът ти вече е свързан с Google.“ |
+| A record could not be written | `cancel_unconfirmed` | „Не успяхме да потвърдим отказа.“ |
+| Its own record ended every linking object the session held | `link_cancelled` | „Свързването с Google беше отказано.“ |
+| Anything else: nothing held, or an object already used, expired or unusable | `link_not_pending` | „Няма свързване с Google, което тази заявка да прекрати.“ |
+
+It never reports a cancellation that the server did not record or could not
+establish. Each answer is a statement about that request and about the account
+as it was read, not about what follows.
+
+**Copies of a cookie.** The cookie is signed, not encrypted, and the server
+cannot take one back: removing a linking object from a response revokes no
+earlier copy. What stops a copy is the consumption record, the service
+instance and the expiry. A sign-out, a new link, a cancellation and every
+change of the session's account try to write that record; when it cannot be
+written they go on (only the cancellation says so), and a copy then stays
+usable until it expires, within the checks of the confirmation.
+
 ## Safe redirects
 
 `web/redirects.py` owns `safe_redirect_target`, which accepts only a same-site
 absolute path and rejects `//host`, a scheme or host, a backslash (`/\host` is
-read as `//host` by browsers) and control characters. The account login is its
-only caller: `next` is validated when the form is rendered and again when it
-is used. A denied request is redirected with `next=<request path>`, never with
-a client-supplied target or the `Referer`.
+read as `//host` by browsers) and control characters. Its callers are the
+account login and Google sign-in: `next` is validated when the form is
+rendered (for Google: when the transaction is created) and again when it is
+used. A denied request is redirected with `next=<request path>`, never with
+a client-supplied target or the `Referer`. The redirect to Google is the
+pinned authorization endpoint plus encoded parameters: no part of its host or
+path comes from a request, and the callback address in it is built from the
+configured public base URL, never from a `Host` header.
 
 ## Quiz Attempts
 
@@ -433,10 +586,12 @@ functions, so a rename or a blueprint move cannot change a
 route's access decision. A new view must declare `@access_policy(...)` (and
 `@integrity_policy(...)` if it accepts unsafe methods); until it does, every
 session is denied and the coverage test in `tests/test_access_policy.py` fails.
+The same module pins that exactly one view declares `oauth_state` and that it
+accepts no unsafe method.
 
 ## Endpoint names
 
 Every endpoint is blueprint-qualified: `account.*`, `browsing.*`, `dzi.*`,
-`practical.*`, `quiz.*`, `teacher.*`. The unprefixed quiz endpoints
+`oidc.*`, `practical.*`, `quiz.*`, `teacher.*`. The unprefixed quiz endpoints
 (`quiz_start`, `quiz_attempt`, `quiz_result`) and the `auth.*` endpoints no
 longer exist.

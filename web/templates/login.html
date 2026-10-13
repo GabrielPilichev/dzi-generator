@@ -20,6 +20,9 @@
 {% if error %}
     <div class="error login-message" role="alert">{{ error }}</div>
 {% endif %}
+{% if google_message %}
+    <div class="{{ google_message.kind }} login-message" role="{{ 'alert' if google_message.kind == 'error' else 'status' }}">{{ google_message.text }}</div>
+{% endif %}
 
 <form method="post" action="{{ url_for('account.login') }}" class="card form-card login-card">
     <input type="hidden" name="next" value="{{ next_url }}">
@@ -32,4 +35,17 @@
 
     <button type="submit">Влез</button>
 </form>
+
+{% if google_sign_in_enabled %}
+<form method="post" action="{{ url_for('oidc.google_start') }}" class="card form-card login-card google-sign-in-card">
+    <input type="hidden" name="next" value="{{ next_url }}">
+    <button type="submit" class="google-sign-in-button">
+        <img class="google-sign-in-logo" src="{{ url_for('static', filename='img/brand/google-g.svg') }}" alt="" width="40" height="40">
+        <span>Вход с Google</span>
+    </button>
+    <p class="help">При вход с Google получаваме името ти, имейл адреса ти и идентификатор на профила ти в Google. Паролата ти не стига до нас. Ако влизаш за първи път, ще ти създадем ученически профил.</p>
+    <p class="help">Учител си и вече имаш профил? Влез с имейл и парола и свържи Google от „Профил“.</p>
+    <p class="help">Изходът от LearnPilot не те отписва от Google. На общ компютър излез и от Google.</p>
+</form>
+{% endif %}
 {% endblock %}

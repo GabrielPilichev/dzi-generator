@@ -730,6 +730,12 @@ class DeploymentTemplateTest(unittest.TestCase):
         self.assertIn("Flask>=3.1,<4", lines)
         self.assertIn("Werkzeug>=3.1,<4", lines)
         self.assertIn("gunicorn>=23,<24", lines)
+        # Google sign-in: Authlib over requests, joserfc for the ID token, urllib3 for
+        # the bounded reader. Authlib 1.8 and joserfc raise the floor of cryptography.
+        for line in ("Authlib>=1.8,<2", "joserfc>=1.6.1,<2", "requests>=2.32,<3", "urllib3>=2.2,<3",
+                     "cryptography>=45.0.1,<51", "pyotp>=2.9,<3", "segno>=1.6,<2"):
+            self.assertIn(line, lines)
+        self.assertEqual(len([line for line in lines if line and not line.startswith("#")]), 10)
 
     def test_gunicorn_configuration_matches_initial_vps_plan(self):
         config = runpy.run_path(str(DEPLOY / "gunicorn.conf.py"))
@@ -742,6 +748,13 @@ class DeploymentTemplateTest(unittest.TestCase):
         for key, value in expected.items():
             with self.subTest(key=key):
                 self.assertEqual(config[key], value)
+        # No request line and no query string in the access log, and Gunicorn's error
+        # log goes through the redacting logger class (tests.test_google_oidc_production
+        # runs both against Gunicorn's real handler and parser).
+        self.assertEqual(config["access_log_format"],
+                         '%({x-forwarded-for}i)s "%(m)s %(U)s %(H)s" %(s)s %(b)s %(L)ss')
+        self.assertEqual(config["logger_class"].__name__, "RedactingLogger")
+        self.assertEqual((config["loglevel"], config["preload_app"]), ("info", True))
 
     def test_systemd_unit_runs_unprivileged_with_external_secrets(self):
         unit = self.read("deploy/systemd/learnpilot.service")
@@ -779,18 +792,27 @@ class DeploymentTemplateTest(unittest.TestCase):
                                   ("lp_upload", "2r/s", 45)):
             self.assertIn(f"zone={zone}:1m rate={rate};", conf)
             self.assertIn(f"limit_req zone={zone} burst={burst} nodelay;", conf)
-        # Exactly the zones above: the shared-password logins and their zones are gone.
+        # Exactly these zones: the three above and the two of Google sign-in (the
+        # start POSTs, and the callback, which is a GET and is keyed for every method).
+        # The shared-password logins and their zones are gone.
+        for zone, key in (("lp_oidc_start", "$learnpilot_post_client"), ("lp_oidc_callback", "$binary_remote_addr")):
+            self.assertIn(f"limit_req_zone {key} zone={zone}:1m rate=1r/s;", conf)
+            self.assertIn(f"limit_req zone={zone} burst=40 nodelay;", conf)
         self.assertEqual(sorted(re.findall(r"limit_req_zone \S+ zone=(\w+):", conf)),
-                         ["lp_login", "lp_quiz_write", "lp_upload"])
+                         ["lp_login", "lp_oidc_callback", "lp_oidc_start", "lp_quiz_write", "lp_upload"])
         self.assertEqual(sorted(set(re.findall(r"limit_req zone=(\w+)", conf))),
-                         ["lp_login", "lp_quiz_write", "lp_upload"])
+                         ["lp_login", "lp_oidc_callback", "lp_oidc_start", "lp_quiz_write", "lp_upload"])
+        for path in ("/auth/google/start", "/auth/google/link", "/auth/google/link/confirm", "/auth/google/callback"):
+            self.assertIn(f"location = {path} {{", conf)
         for path in ("/login", "/login/totp"):
             self.assertIn(f"location = {path}", conf)
         for removed in ("/admin/login", "/tester/login", "lp_admin_login", "lp_tester_login"):
             self.assertNotIn(removed, conf)
         self.assertRegex(conf, r"location = /login \{\s+limit_req zone=lp_login burst=40 nodelay;")
         self.assertRegex(conf, r"location = /login/totp \{\s+limit_req zone=lp_login burst=40 nodelay;")
-        self.assertEqual(len(re.findall(r"limit_req zone=lp_login\b", conf)), 2)
+        # The third is the confirmation of a Google link, which carries a password.
+        self.assertRegex(conf, r"location = /auth/google/link/confirm \{\s+limit_req zone=lp_login burst=40 nodelay;")
+        self.assertEqual(len(re.findall(r"limit_req zone=lp_login\b", conf)), 3)
         self.assertIn("location ~ ^/quiz/[0-9]+$", conf)
         self.assertIn("location ~ ^/quiz/attempt/[0-9]+$", conf)
         self.assertIn("location ~ ^/quiz/attempt/[0-9]+/practical/[^/]+/task/[0-9]+/upload$", conf)
@@ -846,11 +868,16 @@ class DeploymentTemplateTest(unittest.TestCase):
         for name in ("DZI_DB", "DZI_UPLOAD_ROOT", "DZI_VAULT"):
             self.assertRegex(env_example, rf"(?m)^{name}=/var/lib/learnpilot/")
         self.assertRegex(env_example, r"(?m)^DZI_REFERENCE_ROOT=/var/lib/learnpilot/data/reference$")
+        # Google sign-in: both settings are there, empty and commented out.
+        for name in ("DZI_GOOGLE_CLIENT_ID", "DZI_GOOGLE_CLIENT_SECRET"):
+            self.assertRegex(env_example, rf"(?m)^# {name}=$")
+            self.assertNotRegex(env_example, rf"(?m)^{name}=")
         texts = [self.read(str(p.relative_to(ROOT))) for p in DEPLOY.rglob("*") if p.is_file()
                  and "__pycache__" not in p.parts]
         texts.append(self.read("docs/DEPLOYMENT.md"))
         for text in texts:
             self.assertNotRegex(text, r"(?m)^\s*(DZI_SECRET_KEY|DZI_ADMIN_PASSWORD|DZI_TESTER_PASSWORD)=\S")
+            self.assertNotRegex(text, r"(?m)^[#\s]*(DZI_GOOGLE_CLIENT_ID|DZI_GOOGLE_CLIENT_SECRET)=\S")
             self.assertNotIn("admin123", text)
             self.assertNotIn("tester123", text)
 

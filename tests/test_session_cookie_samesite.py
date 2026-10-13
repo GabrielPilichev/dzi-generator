@@ -32,11 +32,12 @@ from pathlib import Path
 from unittest.mock import patch
 
 from tests.auth_helpers import create_account, set_account_session
+from tests.google_oidc_support import GoogleAppTestCase, provider
 from tests.lifecycle_support import LifecycleTestCase, eligible_section, ts
 from tests.support import NO_DEADLINE_FORM, IsolatedAppTestCase, student_entry_path, web_app
 from tests.test_access_policy import application_rules
 from tests.test_account_login import DAY, NEW_PASSWORD, PASSWORD, SAME_ORIGIN, AccountAppTestCase
-from web import public_url, request_integrity
+from web import oauth_state, public_url, request_integrity
 from web.services import accounts
 
 SESSION_COOKIE = "session"
@@ -278,6 +279,72 @@ class SessionCookieAttributesTest(SessionCookieAssertions, AccountAppTestCase):
             self.assert_session_cookie(client.post("/logout", headers=SAME_ORIGIN), secure=False, expired=True)
 
 
+class GoogleSessionCookieTest(SessionCookieAssertions, GoogleAppTestCase):
+    """The responses of a Google sign-in and of a link that write the session cookie.
+
+    The callback is the top-level GET from another site that the Lax cookie exists
+    for: it arrives with the cookie of the start, and what it writes has the same
+    attributes as every other session cookie.
+    """
+
+    def setUp(self):
+        super().setUp()
+        secure = patch.dict(self.app.config, {"SESSION_COOKIE_SECURE": True})
+        secure.start()
+        self.addCleanup(secure.stop)
+
+    def test_the_start_writes_the_transaction_into_a_session_cookie(self):
+        started = self.start()
+        self.assertEqual(started.status_code, 303)
+        self.assert_session_cookie(started)
+        self.assertEqual(set(self.session()), {oauth_state.TX_SLOT})
+
+    def test_the_callback_of_a_sign_in_issues_the_account_session(self):
+        started = self.start()
+        location = started.headers["Location"]
+        code = self.google.authorize(location)
+        # As the browser sends it: a navigation that started at Google.
+        done = self.client.get("/auth/google/callback", headers=CROSS_SITE_NAVIGATION,
+                               query_string={"code": code, "state": self.state_of(location)})
+        self.assertEqual((done.status_code, done.headers["Location"]), (302, "/"))
+        self.assert_session_cookie(done)
+        self.assertEqual(set(self.session()), ACCOUNT_KEYS)
+        self.assertEqual(self.client.get("/account/attempts", headers=CROSS_SITE_NAVIGATION).status_code, 200)
+
+    def test_a_callback_that_fails_expires_or_rewrites_the_cookie_with_the_same_attributes(self):
+        started = self.start()
+        refused = self.callback(state=self.state_of(started.headers["Location"]), error="access_denied")
+        self.assertEqual(refused.headers["Location"], "/login?google=cancelled")
+        # The transaction was all the session held: the cookie is expired.
+        self.assert_session_cookie(refused, expired=True)
+        self.assertEqual(self.session(), {})
+
+    def test_the_link_callback_and_the_confirmation(self):
+        self.signed_in("teacher")
+        link_started = self.start_link()
+        self.assert_session_cookie(link_started)
+        returned = self.return_from_google(link_started)
+        self.assertEqual(returned.headers["Location"], "/auth/google/link/confirm")
+        self.assert_session_cookie(returned)
+        # The page reads only. A wrong password changes no cookie; the confirmation
+        # rewrites it to drop the pending link, and issues no session.
+        page = self.client.get("/auth/google/link/confirm", headers=CROSS_SITE_NAVIGATION)
+        self.assertEqual((page.status_code, page.headers.getlist("Set-Cookie")), (200, []))
+        wrong = self.confirm(password="not the password")
+        self.assertEqual((wrong.status_code, wrong.headers.getlist("Set-Cookie")), (200, []))
+        confirmed = self.confirm()
+        self.assertEqual(confirmed.headers["Location"], "/account?google=linked")
+        self.assert_session_cookie(confirmed)
+        self.assertEqual(set(self.session()), ACCOUNT_KEYS)
+
+    def test_a_cancellation_and_plain_http_development(self):
+        self.signed_in("teacher")
+        self.link_until_pending()
+        self.assert_session_cookie(self.cancel())
+        with patch.dict(self.app.config, {"SESSION_COOKIE_SECURE": False}):
+            self.assert_session_cookie(self.start(self.app.test_client()), secure=False)
+
+
 # --------------------------------------------------------------------------- shared state
 
 
@@ -291,7 +358,10 @@ class VisitorsTestCase(IsolatedAppTestCase):
         super().setUpClass()
         cls.app = web_app.app
         # The QR code of an assignment needs a configured public address (503 without).
-        cls.app.config.update({"TESTING": True, public_url.PUBLIC_BASE_URL_CONFIG: "https://learnpilot.example"})
+        # Google sign-in is enabled, so that its routes are swept as they behave when
+        # they do something (disabled, each of them is the generic 404).
+        cls.app.config.update({"TESTING": True, public_url.PUBLIC_BASE_URL_CONFIG: "https://learnpilot.example",
+                               oauth_state.PROVIDER_CONFIG_KEY: provider()})
         cls.db_path = cls.app.config["DB_PATH"]
         cls.teacher_email = "sweep-teacher@example.bg"
         cls.accounts = {
@@ -398,6 +468,18 @@ class CrossSiteNavigationTest(VisitorsTestCase):
             "account.login": [("/login", statuses(200, 302, 302, 302)),
                               ("/login?next=/account/attempts", statuses(200, 302, 302, 302))],
             "account.password": [("/account/password", ANY_ACCOUNT)],
+            # The account page reads only, whatever outcome code it is asked to show.
+            "account.overview": [("/account", ANY_ACCOUNT), ("/account?google=linked", ANY_ACCOUNT),
+                                 ("/account?google=link_cancelled", ANY_ACCOUNT)],
+            # Without a pending link there is nothing to confirm: sent to the account page.
+            "oidc.google_link_confirm": [("/auth/google/link/confirm", statuses(302, 302, 302, 302))],
+            # The one GET that may change state, and only for the transaction of the
+            # browser that makes it. A link from another site carries none that
+            # matches: no cookie, no row, no outbound request.
+            "oidc.google_callback": [
+                (f"/auth/google/callback?code=forged&state={'s' * 43}", statuses(302, 302, 302, 302)),
+                ("/auth/google/callback?error=access_denied", statuses(302, 302, 302, 302)),
+                ("/auth/google/callback", statuses(302, 302, 302, 302))],
             "quiz.quiz_start_public": [(cls.entry, EVERYONE)],
             "quiz.my_attempts": [("/account/attempts", ANY_ACCOUNT)],
             "quiz.quiz_attempt": [(attempt, THE_STUDENTS_OWN)],
@@ -558,6 +640,10 @@ class CrossOriginUnsafeRequestTest(VisitorsTestCase):
             "account.logout": ("/logout", {}),
             "account.password": ("/account/password", {
                 "current_password": PASSWORD, "new_password": NEW_PASSWORD, "confirm_password": NEW_PASSWORD}),
+            "oidc.google_start": ("/auth/google/start", {"next": "/account/attempts"}),
+            "oidc.google_link": ("/auth/google/link", {}),
+            "oidc.google_link_confirm": ("/auth/google/link/confirm", {"current_password": PASSWORD}),
+            "oidc.google_link_cancel": ("/auth/google/link/cancel", {}),
             "quiz.quiz_start_public": (cls.entry, {}),
             "quiz.quiz_attempt": (attempt, cls.one_answer(cls.open_attempt)),
             "practical.quiz_practical_upload": (f"{attempt}/practical/{DZI_SOURCE}/task/1/upload", {}),

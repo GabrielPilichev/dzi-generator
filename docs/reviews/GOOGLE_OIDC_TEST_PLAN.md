@@ -2,19 +2,23 @@
 
 Companion to `docs/reviews/GOOGLE_OIDC_DESIGN.md` (revision 2.3 with the
 corrections of its review; design 0.3, last table); section numbers refer to
-it. **A plan. No test of parts B and C exists yet, and none of the manual
-checks has been performed.** The independent review of revision 2.3
+it. **Parts B and C now exist as tests in the uncommitted working tree
+(implementation not committed, merged, deployed or activated). None of the
+manual checks of part D has been performed.** The independent review of revision 2.3
 approved the technical specification with seven non-blocking notes. A Codex
 review of the corrections made for those notes, here and in the design,
 returned "approve with non-blocking notes", for the technical documentation
 only. The wording corrections made after it (part D here; design 0.3) have
 not been independently reviewed. Gabriel has approved the product decisions
-P1–P4, T5 and M1–M3 (design 0.2). Implementation and activation remain
-unapproved.
+P1–P4, T5 and M1–M3 (design 0.2). Production activation remains
+unapproved. The independent implementation review found no code blockers;
+the documentation corrections it asked for were made afterwards and have not
+themselves been independently reviewed (design 0.6). The deployment probes
+now appear in `docs/DEPLOYMENT.md` section 29 and have not been run.
 
 Part A is the prerequisite's tests. They exist: PR #332 is merged on `main`
-at `008c236`, and this branch does not contain it yet. Parts B and C belong
-to PR #331. Part D is manual and is an activation prerequisite.
+at `008c236` and integrated in this branch (reconciliation at `b5a30b6`).
+Parts B and C belong to PR #331. Part D is manual and is an activation prerequisite.
 
 **Approved decisions (design 0.2), and what a mark means.** P1–P4, T5 and
 M1–M3 were pending choices, and Gabriel has approved them. A test that pins
@@ -129,8 +133,11 @@ in it.
   have the stated lengths;
 - lifetimes per object (600, 300, 180) on the monotonic clock; acceptance at
   `exp - 1`, refusal at `exp`;
-- **the wall clock does not matter:** moving it a day forward or back between
-  start and callback changes no outcome; moving the monotonic clock does;
+- **the wall clock does not decide a lifetime:** moving it a day forward
+  between start and callback changes no outcome; moving the monotonic clock
+  does. Moving it a day **back** fails closed, because Flask refuses a session
+  cookie signed after the wall clock (design 0.6); the test characterises the
+  cookie, and session validation is not weakened;
 - `monotonic_seconds` returns `int(time.monotonic())` and the module has no
   platform branch and names no other clock (a static check);
 - **the instance:** a transaction or pending link of another instance is

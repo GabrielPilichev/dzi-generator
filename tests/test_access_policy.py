@@ -21,7 +21,7 @@ from pathlib import Path
 from tests.auth_helpers import client_as, create_account
 from tests.support import ROOT, IsolatedAppTestCase, web_app
 from tests.support import NO_DEADLINE_FORM
-from web import access, request_integrity
+from web import access, oauth_state, request_integrity
 
 # Test-only routes test modules register on the shared app to exercise the
 # enforcement path (some deliberately undeclared). They are not part of the
@@ -77,6 +77,14 @@ EXPECTED_ACCESS_MATRIX = {
     "account.password": access.SIGNED_IN,
     # Accounts phase 2: the signed-in account's own attempts (any role).
     "quiz.my_attempts": access.QUIZ_TAKER,
+    # Google sign-in (PR #331). The callback is public and has its own integrity
+    # mechanism; linking needs an account, and the view refuses an admin itself.
+    "account.overview": access.SIGNED_IN,
+    "oidc.google_start": access.PUBLIC,
+    "oidc.google_callback": access.PUBLIC,
+    "oidc.google_link": access.SIGNED_IN,
+    "oidc.google_link_confirm": access.SIGNED_IN,
+    "oidc.google_link_cancel": access.SIGNED_IN,
 }
 
 # Who makes the request. The first three have no account: "historical_*" are
@@ -239,6 +247,43 @@ class AccessPolicyCoverageTest(unittest.TestCase):
                     request_integrity.integrity_policy_for_view(view_func),
                     request_integrity.SAME_ORIGIN,
                 )
+
+    def views_declaring(self, mechanism):
+        return sorted(
+            endpoint for endpoint, view in self.app.view_functions.items()
+            if request_integrity.integrity_policy_for_view(view) == mechanism
+        )
+
+    def test_exactly_one_view_declares_oauth_state_and_it_accepts_no_unsafe_method(self):
+        # OAUTH_STATE is an additional mechanism for one safe-method route, never an
+        # alternative to SAME_ORIGIN for an unsafe one: the callback passes through no
+        # exemption of the same-origin check, because it accepts no unsafe method.
+        self.assertEqual(self.views_declaring(request_integrity.OAUTH_STATE), ["oidc.google_callback"])
+        rules = [rule for rule in application_rules(self.app) if rule.endpoint == "oidc.google_callback"]
+        self.assertEqual(len(rules), 1)
+        self.assertEqual(rules[0].methods, {"GET", "HEAD", "OPTIONS"})
+        self.assertFalse(rules[0].methods & request_integrity.UNSAFE_METHODS)
+
+    def test_the_provider_signature_mechanism_stays_unused(self):
+        self.assertEqual(self.views_declaring(request_integrity.PROVIDER_SIGNATURE), [])
+
+    def test_the_oauth_state_verifier_imports_no_blueprint(self):
+        tree = ast.parse(Path(ROOT, "web/oauth_state.py").read_text(encoding="utf-8"))
+        imported = set()
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                imported.update(alias.name for alias in node.names)
+            elif isinstance(node, ast.ImportFrom):
+                imported.add(node.module or "")
+        self.assertNotIn("web.app", imported)
+        self.assertFalse({name for name in imported if name.startswith("web.blueprints")})
+        # It is registered in web.app between the same-origin check and the account
+        # loader, and it is the function of that module.
+        hooks = self.app.before_request_funcs[None]
+        names = [func.__name__ for func in hooks]
+        self.assertIs(hooks[names.index("verify_oauth_state")], oauth_state.verify_oauth_state)
+        self.assertLess(names.index("protect_same_origin_unsafe_methods"), names.index("verify_oauth_state"))
+        self.assertLess(names.index("verify_oauth_state"), names.index("load_current_user"))
 
     def test_aliases_and_canonical_endpoints_share_one_policy(self):
         by_rule = {}

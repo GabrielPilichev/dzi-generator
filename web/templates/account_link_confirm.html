@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}Свързване с Google{% endblock %}
+
+{% block body_class %}management-page management-login-page{% endblock %}
+
+{% block breadcrumb %}
+    <a href="{{ url_for('browsing.index') }}">Начало</a>
+    <span>›</span>
+    <a href="{{ url_for('account.overview') }}">Профил</a>
+    <span>›</span>
+    Свързване с Google
+{% endblock %}
+
+{% block content %}
+<section class="hero login-hero">
+    <p class="eyebrow">Профил</p>
+    <h1>Свързване с Google</h1>
+    <p class="subtitle">Ще свържеш Google профила <strong>{{ google_name or 'без име' }} ({{ google_email or 'без имейл' }})</strong> с профила в LearnPilot <strong>{{ current_account.display_name }} ({{ account_email or 'без имейл' }}, {{ current_account_role_label }})</strong>.</p>
+</section>
+
+{% if error %}
+    <div class="error login-message" role="alert">{{ error }}</div>
+{% endif %}
+
+<div class="warning login-message" role="note">
+    <p>След това всеки, който влезе с този Google профил, ще влиза в този профил в LearnPilot.</p>
+    <p>Ако това не е твоят профил в LearnPilot, натисни „Отказ“ и излез от Google на този компютър.</p>
+</div>
+
+<form method="post" action="{{ url_for('oidc.google_link_confirm') }}" class="card form-card login-card">
+    <label for="current_password">Текуща парола за LearnPilot</label>
+    <input id="current_password" name="current_password" type="password" autocomplete="current-password" maxlength="256" required autofocus>
+
+    <button type="submit">Свържи</button>
+</form>
+
+<form method="post" action="{{ url_for('oidc.google_link_cancel') }}" class="card form-card login-card">
+    <button type="submit" class="secondary">Отказ</button>
+</form>
+{% endblock %}

@@ -1048,13 +1048,15 @@ class StorageOnlyTest(unittest.TestCase):
         out = subprocess.run([sys.executable, "-B", "-c", code], cwd=ROOT, capture_output=True, text=True, check=True)
         self.assertEqual(out.stdout.strip(), "['web', 'web.services', 'web.services.oidc_consumption']")
 
-    def test_nothing_in_the_application_uses_the_storage_yet(self):
-        # Provider sign-in is a later PR: until then no route, blueprint, service, template
-        # or tool may record or read a consumption. That PR replaces this test by the
-        # list of modules that may.
+    def test_only_these_modules_use_the_storage(self):
+        # Google sign-in (PR #331) records consumptions at three call sites, in two
+        # modules: the callback hook and the retirement (web/oauth_state.py), and the
+        # confirmation of a link (web/services/oidc_accounts.py). No route, blueprint,
+        # template or tool names the storage or its table.
         allowed = {Path("web/services/oidc_consumption.py"),
                    Path("web/migrations/020_oidc_consumed_transactions.sql"),
                    Path("src/canonical_tables.py")}
+        importers = ["web/oauth_state.py", "web/services/oidc_accounts.py"]
         pattern = re.compile(r"oidc_consum")
         users = []
         for directory in ("web", "src", "deploy"):
@@ -1065,9 +1067,15 @@ class StorageOnlyTest(unittest.TestCase):
                     continue
                 if pattern.search(path.read_text(encoding="utf-8", errors="replace")):
                     users.append(str(relative))
-        self.assertEqual(users, [])
-        requirements = (ROOT / "requirements.txt").read_text(encoding="utf-8").lower()
-        self.assertNotIn("authlib", requirements)
+        self.assertEqual(users, importers)
+        for relative in importers:
+            source = (ROOT / relative).read_text(encoding="utf-8")
+            # They call the service. Neither builds a key itself, names the table or
+            # deletes a row: rows leave by the cleanup inside consume() and nothing else.
+            self.assertIn("oidc_consumption.consumption_key(", source)
+            self.assertIn("oidc_consumption.consume(", source)
+            for forbidden in ("oidc_consumed_transactions", "tx_hash", "hmac.new(key, b\"oidc-consume"):
+                self.assertNotIn(forbidden, source, relative)
 
 
 if __name__ == "__main__":

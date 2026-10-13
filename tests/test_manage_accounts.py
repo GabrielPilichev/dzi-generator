@@ -11,7 +11,7 @@ from unittest import mock
 from werkzeug.security import check_password_hash
 
 from src import manage_accounts
-from web.services import accounts, login_throttle
+from web.services import accounts, identities, login_throttle
 
 ROOT = Path(__file__).resolve().parents[1]
 GOOD = "correct horse"
@@ -237,6 +237,163 @@ class RoleStateSignOutTest(CliTestCase):
             self.assertEqual(after[column], self.before[column], column)
         self.assertNotEqual(after["session_key"], self.before["session_key"])
 
+    def test_every_message_names_the_account_by_its_id(self):
+        account_id = self.before["id"]
+        cases = (
+            (("set-role", "--email", "ana@example.bg", "--role", "teacher"),
+             f"role of account {account_id} (ana@example.bg) is now teacher; existing sessions invalidated"),
+            (("disable", "--email", "ana@example.bg"),
+             f"disabled account {account_id} (ana@example.bg, teacher); existing sessions invalidated"),
+            (("enable", "--email", "ana@example.bg"),
+             f"enabled account {account_id} (ana@example.bg, teacher); existing sessions invalidated"),
+            (("sign-out", "--email", "ana@example.bg"),
+             f"sessions of account {account_id} (ana@example.bg, teacher) invalidated"),
+        )
+        for argv, message in cases:
+            with self.subTest(command=argv[0]):
+                self.assertEqual(self.run_cli(*argv), 0, self.err)
+                self.assertEqual(self.out.strip(), message)
+        self.assertEqual(self.run_cli("set-password", "--email", "ana@example.bg",
+                                      "--password-stdin", stdin="another long pass\n"), 0, self.err)
+        self.assertEqual(self.out.strip(),
+                         f"password changed for account {account_id} (ana@example.bg); existing sessions invalidated")
+
+
+class AccountSelectionByIdTest(CliTestCase):
+    """An account created through Google sign-in has no email: ``disable``, ``enable``,
+    ``sign-out`` and ``set-role`` select by exactly one of ``--email`` and ``--id``."""
+
+    def setUp(self):
+        super().setUp()
+        conn = sqlite3.connect(self.db)
+        conn.executescript((ROOT / "web" / "migrations" / "019_user_identities.sql").read_text(encoding="utf-8"))
+        # As Google sign-in creates one: no email, no password, an identity.
+        self.google_id = accounts.create_user(conn, display_name="Мария Петрова", role="student")
+        identities.add_identity(conn, self.google_id, issuer="https://accounts.google.com",
+                                subject="SUBJECT-NEVER-PRINTED", provider="google", email_at_link="maria.g@example.bg")
+        conn.commit()
+        conn.close()
+        self.create()   # ana@example.bg, with a password
+        self.password_id = self.row()["id"]
+
+    def by_id(self, account_id):
+        conn = sqlite3.connect(self.db)
+        conn.row_factory = sqlite3.Row
+        try:
+            return conn.execute("SELECT * FROM users WHERE id = ?", (account_id,)).fetchone()
+        finally:
+            conn.close()
+
+    def test_disable_enable_and_sign_out_by_id_rotate_the_key_as_by_email(self):
+        before = self.by_id(self.google_id)
+        self.assertEqual(self.run_cli("disable", "--id", str(self.google_id)), 0, self.err)
+        # No email is printed as "no email", never as "None".
+        self.assertEqual(self.out.strip(),
+                         f"disabled account {self.google_id} (no email, student); existing sessions invalidated")
+        disabled = self.by_id(self.google_id)
+        self.assertEqual(disabled["is_active"], 0)
+        self.assertNotEqual(disabled["session_key"], before["session_key"])
+
+        self.assertEqual(self.run_cli("enable", "--id", str(self.google_id)), 0, self.err)
+        self.assertEqual(self.out.strip(),
+                         f"enabled account {self.google_id} (no email, student); existing sessions invalidated")
+        enabled = self.by_id(self.google_id)
+        self.assertEqual(enabled["is_active"], 1)
+        self.assertNotEqual(enabled["session_key"], disabled["session_key"])
+
+        self.assertEqual(self.run_cli("sign-out", "--id", str(self.google_id)), 0, self.err)
+        self.assertEqual(self.out.strip(), f"sessions of account {self.google_id} (no email, student) invalidated")
+        self.assertNotEqual(self.by_id(self.google_id)["session_key"], enabled["session_key"])
+        self.assertNotIn("None", self.out + self.err)
+
+    def test_an_account_with_an_email_can_be_selected_by_id_too(self):
+        before = self.by_id(self.password_id)
+        self.assertEqual(self.run_cli("sign-out", "--id", str(self.password_id)), 0, self.err)
+        self.assertEqual(self.out.strip(),
+                         f"sessions of account {self.password_id} (ana@example.bg, student) invalidated")
+        self.assertNotEqual(self.by_id(self.password_id)["session_key"], before["session_key"])
+        # Only the selected account was touched.
+        self.assertEqual(self.by_id(self.google_id)["is_active"], 1)
+
+    def test_set_role_by_id_grants_teacher_to_an_account_created_through_google(self):
+        before = self.by_id(self.google_id)
+        self.assertEqual(self.run_cli("set-role", "--id", str(self.google_id), "--role", "teacher"), 0, self.err)
+        self.assertEqual(self.out.strip(),
+                         f"role of account {self.google_id} (no email) is now teacher; existing sessions invalidated")
+        after = self.by_id(self.google_id)
+        self.assertEqual(after["role"], "teacher")
+        self.assertNotEqual(after["session_key"], before["session_key"])
+
+    def test_admin_is_refused_for_an_account_without_a_password_and_changes_nothing(self):
+        # Decision T5: an admin signs in with a password and a second factor only, so
+        # the account would have no way in.
+        before = tuple(self.by_id(self.google_id))
+        self.assertEqual(self.run_cli("set-role", "--id", str(self.google_id), "--role", "admin"), 1)
+        self.assertEqual(self.out, "")
+        self.assertIn(f"account {self.google_id} (no email, student) has no password and cannot be made an admin",
+                      self.err)
+        self.assertNotIn("Traceback", self.err)
+        self.assertEqual(tuple(self.by_id(self.google_id)), before)
+        # With a password the same grant works, by id as by email.
+        self.assertEqual(self.run_cli("set-role", "--id", str(self.password_id), "--role", "admin"), 0, self.err)
+        self.assertEqual(self.by_id(self.password_id)["role"], "admin")
+
+    def test_exactly_one_selector_is_required(self):
+        for command in ("disable", "enable", "sign-out"):
+            for argv in ((command,), (command, "--email", "ana@example.bg", "--id", str(self.password_id))):
+                with self.subTest(argv=argv), redirect_stderr(io.StringIO()) as err, self.assertRaises(SystemExit):
+                    manage_accounts.main(["--db", str(self.db), *argv])
+        for argv in (("set-role", "--role", "teacher"),
+                     ("set-role", "--role", "teacher", "--email", "ana@example.bg", "--id", "1")):
+            with self.subTest(argv=argv), redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+                manage_accounts.main(["--db", str(self.db), *argv])
+        self.assertEqual(self.by_id(self.password_id)["is_active"], 1)
+        self.assertEqual(self.by_id(self.password_id)["role"], "student")
+
+    def test_a_non_numeric_zero_or_negative_id_is_refused(self):
+        for value in ("abc", "0", "-1", "1.5", "", " 1", "0x1", "١", str(2**63)):
+            with self.subTest(id=value), redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+                manage_accounts.main(["--db", str(self.db), "disable", "--id", value])
+        self.assertEqual((self.by_id(self.google_id)["is_active"], self.by_id(self.password_id)["is_active"]), (1, 1))
+
+    def test_an_unknown_id_is_reported(self):
+        for command in (("disable",), ("enable",), ("sign-out",), ("set-role", "--role", "teacher")):
+            with self.subTest(command=command[0]):
+                self.assertEqual(self.run_cli(*command, "--id", "999999"), 1)
+                self.assertEqual(self.err.strip(), "error: no account with id 999999")
+                self.assertEqual(self.out, "")
+
+    def test_the_commands_that_keep_email_only_still_refuse_id(self):
+        # They act on a password or on an admin's second factor, and such an account has an email.
+        for command in (("set-password", "--password-stdin"), ("clear-throttle",), ("totp-enroll",),
+                        ("totp-confirm",), ("totp-recovery-codes",), ("totp-reset",)):
+            with self.subTest(command=command[0]), redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+                manage_accounts.main(["--db", str(self.db), *command, "--id", str(self.password_id)])
+        with redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+            manage_accounts.main(["--db", str(self.db), "create", "--id", "5", "--name", "Ана"])
+
+    def test_list_shows_the_password_and_google_columns_and_no_subject(self):
+        conn = sqlite3.connect(self.db)
+        silent = accounts.create_user(conn, display_name="Без Имейл", role="student")
+        identities.add_identity(conn, silent, issuer="https://accounts.google.com", subject="ANOTHER-SUBJECT",
+                                provider="google")   # Google reported no address
+        conn.commit()
+        conn.close()
+        self.assertEqual(self.run_cli("list"), 0, self.err)
+        lines = [line.split("\t") for line in self.out.splitlines()]
+        self.assertEqual(lines[0], ["id", "email", "name", "role", "active", "password", "google", "created_at",
+                                    "last_login_at"])
+        rows = {int(line[0]): dict(zip(lines[0], line)) for line in lines[1:]}
+        self.assertEqual((rows[self.google_id]["email"], rows[self.google_id]["password"],
+                          rows[self.google_id]["google"]), ("-", "no", "maria.g@example.bg"))
+        self.assertEqual((rows[self.password_id]["email"], rows[self.password_id]["password"],
+                          rows[self.password_id]["google"]), ("ana@example.bg", "yes", "-"))
+        self.assertEqual((rows[silent]["password"], rows[silent]["google"]), ("no", "yes"))
+        # Subjects are never printed, and neither is a hash or a session key.
+        for secret in ("SUBJECT-NEVER-PRINTED", "ANOTHER-SUBJECT", self.by_id(self.password_id)["password_hash"],
+                       self.by_id(self.google_id)["session_key"]):
+            self.assertNotIn(secret, self.out)
+
 
 class ListTest(CliTestCase):
     def test_safe_fields_only(self):
@@ -251,6 +408,9 @@ class ListTest(CliTestCase):
         self.assertEqual(lines[0].split("\t")[:4], ["id", "email", "name", "role"])
         self.assertEqual([l.split("\t")[1] for l in lines[1:]], ["b@example.bg", "a@example.bg"])
         self.assertEqual(lines[2].split("\t")[3:5], ["teacher", "yes"])
+        # A database from before the identity storage simply has no Google sign-in.
+        self.assertEqual(lines[0].split("\t")[5:7], ["password", "google"])
+        self.assertEqual([l.split("\t")[5:7] for l in lines[1:]], [["yes", "-"], ["yes", "-"]])
 
 
 class TransactionTest(CliTestCase):

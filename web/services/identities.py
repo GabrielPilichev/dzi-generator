@@ -1,7 +1,8 @@
 """External sign-in identity storage (docs/ACCOUNTS_DESIGN.md, sections 5 and 13).
 
-Storage only: no route, sign-in flow or other module uses it yet. Token verification,
-linking policy, account creation and sessions belong to the later OIDC integration.
+Storage only. Google sign-in reads and writes identities through
+``web.services.oidc_accounts``, which owns the linking policy and account creation;
+token verification and sessions belong to other modules.
 
 Independent of Flask, ``web.app`` and the blueprints. Every function takes an open
 ``sqlite3`` connection and never commits or rolls back: the caller owns the

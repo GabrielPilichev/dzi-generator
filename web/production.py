@@ -8,7 +8,8 @@ clock row and a missing timezone database, and makes lifecycle writes use the
 host's real clock evidence (docs/ASSIGNMENT_LIFECYCLE_DESIGN.md, 3.6 and 12.6).
 And it refuses a database whose restore is in progress or was left unfinished
 (docs/DEPLOYMENT.md, section 17): that holds after a reboot as well.
-Sign-in is by account only; there is no other authentication to configure.
+Sign-in is by account. Google sign-in is the one optional addition, and this build
+keeps it disabled in production whatever is configured (``google_sign_in_provider``).
 Error messages name settings, never their values.
 """
 
@@ -21,12 +22,14 @@ from typing import Mapping
 
 from werkzeug.middleware.proxy_fix import ProxyFix
 
+from web.oauth_state import PROVIDER_CONFIG_KEY
 from web.public_url import (
     PUBLIC_BASE_URL_CONFIG,
     PUBLIC_BASE_URL_ENV,
     normalize_public_host,
     public_base_url_for_host,
 )
+from web.services import google_oidc
 from web.services.totp import TOTP_KEY_ENV
 from web.services.totp import key_problem as totp_key_problem
 
@@ -124,6 +127,47 @@ def restore_lock_error(environ: Mapping[str, str]) -> str | None:
     )
 
 
+def _google_credentials(environ: Mapping[str, str]) -> tuple[str | None, str | None]:
+    return environ.get(google_oidc.CLIENT_ID_ENV) or None, environ.get(google_oidc.CLIENT_SECRET_ENV) or None
+
+
+def google_sign_in_errors(environ: Mapping[str, str]) -> list[str]:
+    """Why the two Google settings forbid a start. Empty while the build's gate is off.
+
+    While ``google_oidc.PRODUCTION_ACTIVATION`` is off, the presence of credentials is
+    never a reason to refuse to start, whatever they hold. Once it is on they follow
+    the rule of the optional ``DZI_TOTP_KEY``: both unset is fine, and a value that is
+    set must be usable, so exactly one value or a malformed one refuses.
+    """
+    if not google_oidc.PRODUCTION_ACTIVATION:
+        return []
+    client_id, client_secret = _google_credentials(environ)
+    if client_id is None and client_secret is None:
+        return []
+    return google_oidc.credential_problems(client_id, client_secret)
+
+
+def google_sign_in_provider(environ: Mapping[str, str], public_base_url):
+    """The provider a production start enables, or ``None``: the activation gate.
+
+    Google sign-in is not activated for real users before the identity recovery
+    tooling exists. The build holds that line with one constant,
+    ``google_oidc.PRODUCTION_ACTIVATION``, which no setting overrides. While it is
+    off the provider is disabled, and configured credentials are reported once, by
+    the names of the settings and never by their values.
+    """
+    client_id, client_secret = _google_credentials(environ)
+    if not google_oidc.PRODUCTION_ACTIVATION:
+        configured = [name for name, value in (
+            (google_oidc.CLIENT_ID_ENV, client_id), (google_oidc.CLIENT_SECRET_ENV, client_secret)) if value]
+        if configured:
+            logging.getLogger(__name__).warning(
+                "Google sign-in credentials are configured (%s), but this build does not enable "
+                "Google sign-in.", ", ".join(configured))
+        return None
+    return google_oidc.provider_config(client_id, client_secret, public_base_url)
+
+
 def production_config_errors(environ: Mapping[str, str]) -> list[str]:
     errors = [f"{name} is not set" for name in REQUIRED_SECRETS if not environ.get(name)]
 
@@ -157,7 +201,7 @@ def production_config_errors(environ: Mapping[str, str]) -> list[str]:
             f"(the public URL is https://{PUBLIC_HOST_ENV})"
         )
 
-    return errors + _state_path_errors(environ) + _reference_root_errors(environ)
+    return errors + google_sign_in_errors(environ) + _state_path_errors(environ) + _reference_root_errors(environ)
 
 
 def pending_schema_migrations(db_path, open_read_only) -> list[str]:
@@ -250,6 +294,37 @@ def configure_lifecycle_logging() -> None:
     logger.propagate = False
 
 
+OIDC_LOGGER = "learnpilot.oidc"
+
+
+def configure_oidc_logging() -> None:
+    """Send Google sign-in events (account created, linked, refused, failed) to stderr.
+
+    Like the lifecycle lines they are for diagnosis and carry a fixed vocabulary: an
+    outcome, an intent, a local user id, an allow-listed provider error code or an
+    exception's class name. Never a code, a state, a token, a subject or an email.
+    Without a handler only warnings would reach the journal.
+    """
+    logger = logging.getLogger(OIDC_LOGGER)
+    if not any(getattr(handler, "learnpilot_oidc", False) for handler in logger.handlers):
+        handler = logging.StreamHandler()
+        handler.setFormatter(logging.Formatter("%(name)s %(levelname)s %(message)s"))
+        handler.learnpilot_oidc = True
+        logger.addHandler(handler)
+    logger.setLevel(logging.INFO)
+    logger.propagate = False
+
+
+# True only while create_production_app imports web.app. That module configures a
+# development run at import; what it would say about the Google settings there is
+# wrong for production, where the public base URL is set afterwards.
+_production_startup = False
+
+
+def production_startup_in_progress() -> bool:
+    return _production_startup
+
+
 def migration_command(db_hint: str = "$DZI_DB") -> str:
     return f'python3 -m src.manage_migrations --db "{db_hint}" --apply'
 
@@ -298,7 +373,12 @@ def create_production_app(environ: Mapping[str, str] | None = None):
             + "\nSee docs/DEPLOYMENT.md (environment configuration)."
         )
 
-    from web import app as web_app
+    global _production_startup
+    _production_startup = True
+    try:
+        from web import app as web_app
+    finally:
+        _production_startup = False
 
     pending = pending_schema_migrations(web_app.DB_PATH, web_app.open_existing_database_read_only)
     if pending:
@@ -340,6 +420,7 @@ def create_production_app(environ: Mapping[str, str] | None = None):
     from web.services import lifecycle
     lifecycle.configure_clock_environment(lifecycle.SystemClockEnvironment())
     configure_lifecycle_logging()
+    configure_oidc_logging()
 
     flask_app = web_app.app
     public_host = normalize_public_host(environ[PUBLIC_HOST_ENV])
@@ -353,6 +434,9 @@ def create_production_app(environ: Mapping[str, str] | None = None):
     # Student links and their QR codes always name the public host over HTTPS,
     # whichever trusted Host (a loopback probe included) a request arrived on.
     flask_app.config[PUBLIC_BASE_URL_CONFIG] = public_base_url_for_host(public_host)
+    # The callback address is built on that base and on nothing a request carries.
+    flask_app.config[PROVIDER_CONFIG_KEY] = google_sign_in_provider(
+        environ, flask_app.config[PUBLIC_BASE_URL_CONFIG])
     if not isinstance(flask_app.wsgi_app, ProxyFix):
         flask_app.wsgi_app = trusted_proxy(flask_app.wsgi_app)
     return flask_app

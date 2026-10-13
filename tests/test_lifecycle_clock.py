@@ -13,6 +13,7 @@ import unittest
 from contextlib import closing
 from datetime import timedelta
 
+from tests.google_oidc_support import GoogleAppTestCase
 from tests.lifecycle_support import LifecycleTestCase, ts
 from tests.support import reset_lifecycle_clock_row, set_lifecycle_clock_row, web_app
 from web.services import lifecycle
@@ -327,6 +328,38 @@ class SharedStateTest(ClockTestCase):
         write(process_a)
         write(process_b)
         self.assertEqual(self.clock_row()["state"], "ok")
+
+
+class GoogleSignInLeavesTheClockAloneTest(GoogleAppTestCase):
+    """A Google sign-in and a link write nothing to ``lifecycle_clock``.
+
+    The restore's reconciliation relies on that row being written by lifecycle
+    writers only (docs/reviews/GOOGLE_OIDC_DESIGN.md, 3.5). The OAuth state is timed
+    on a monotonic clock of its own, and a suspect lifecycle clock neither blocks a
+    Google sign-in nor is touched by one.
+    """
+
+    def clock_row(self):
+        return self.query("SELECT * FROM lifecycle_clock")
+
+    def test_a_sign_in_an_onboarding_a_link_and_a_cancellation_leave_the_row_as_it_was(self):
+        before = self.clock_row()
+        self.assertEqual(len(before), 1)
+        self.assert_redirect(self.google_sign_in(subject="a-new-student"), "/")
+        teacher_client = self.app.test_client()
+        self.signed_in("teacher", client=teacher_client)
+        self.link_until_pending(teacher_client, subject="teachers-google")
+        self.assert_redirect(self.cancel(teacher_client), "/account?google=link_cancelled")
+        self.link_until_pending(teacher_client, subject="teachers-google")
+        self.assert_redirect(self.confirm(teacher_client), "/account?google=linked")
+        self.assertEqual(self.clock_row(), before)
+
+    def test_a_suspect_clock_does_not_block_a_google_sign_in(self):
+        self.execute("UPDATE lifecycle_clock SET state = 'suspect', state_reason = 'wall_clock_regression', "
+                     "state_changed_at = high_water_at")
+        before = self.clock_row()
+        self.assert_redirect(self.google_sign_in(subject="a-new-student"), "/")
+        self.assertEqual(self.clock_row(), before)
 
 
 if __name__ == "__main__":

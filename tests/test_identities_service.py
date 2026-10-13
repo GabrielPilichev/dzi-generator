@@ -632,11 +632,18 @@ class StorageOnlyTest(unittest.TestCase):
         out = subprocess.run([sys.executable, "-B", "-c", code], cwd=ROOT, capture_output=True, text=True, check=True)
         self.assertEqual(out.stdout.strip(), "['web', 'web.services', 'web.services.identities']")
 
-    def test_nothing_in_the_application_uses_the_storage_yet(self):
-        # Provider sign-in is a later PR: until then no route, blueprint, service, template
-        # or tool may read or write identities. That PR replaces this test.
+    def test_only_these_modules_use_the_storage(self):
+        # Google sign-in (PR #331) is what reads and writes identities. Everything
+        # that may is named here: the service that joins an identity to a users row,
+        # the two controllers that list an account's identities, and the operator
+        # tool's list command. A template never queries; it shows what it is given.
         allowed = {Path("web/services/identities.py"), Path("web/migrations/019_user_identities.sql"),
                    Path("src/canonical_tables.py")}
+        users_of_the_storage = {
+            "web/services/oidc_accounts.py",   # sign-in, onboarding, linking
+            "web/blueprints/account.py",       # the account page lists them
+            "src/manage_accounts.py",          # `list` shows the google column
+        }
         pattern = re.compile(r"user_identities|services\.identities|import identities|\bidentities\.")
         users = []
         for directory in ("web", "src", "deploy"):
@@ -647,9 +654,18 @@ class StorageOnlyTest(unittest.TestCase):
                     continue
                 if pattern.search(path.read_text(encoding="utf-8", errors="replace")):
                     users.append(str(relative))
-        self.assertEqual(users, [])
-        requirements = (ROOT / "requirements.txt").read_text(encoding="utf-8").lower()
-        self.assertNotIn("authlib", requirements)
+        self.assertEqual(set(users), users_of_the_storage)
+        # Only the accounts service writes: nobody else adds an identity or stamps one.
+        for relative in users_of_the_storage - {"web/services/oidc_accounts.py"}:
+            source = (ROOT / relative).read_text(encoding="utf-8")
+            for write in ("add_identity", "record_identity_login", "INSERT INTO user_identities",
+                          "UPDATE user_identities", "DELETE FROM user_identities"):
+                self.assertNotIn(write, source, relative)
+        # And nothing anywhere removes or reassigns one.
+        for relative in users_of_the_storage:
+            source = (ROOT / relative).read_text(encoding="utf-8")
+            self.assertNotIn("DELETE FROM user_identities", source)
+            self.assertNotIn("UPDATE user_identities", source)
 
 
 if __name__ == "__main__":

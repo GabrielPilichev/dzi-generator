@@ -30,12 +30,12 @@ from tests.auth_helpers import (
     set_account_session,
 )
 from tests.support import ROOT, IsolatedAppTestCase, web_app
-from web import access, request_integrity
+from web import access, account_session, oauth_state, request_integrity
 from web import db as web_db
 from web.access import ANONYMOUS
 from web.blueprints import account as account_blueprint
 from web.redirects import safe_redirect_target
-from web.services import accounts, login_throttle
+from web.services import accounts, google_oidc, login_throttle
 
 PASSWORD = "correct horse battery"
 NEW_PASSWORD = "an entirely new passphrase"
@@ -711,6 +711,31 @@ class LogoutTest(AccountAppTestCase):
         self.client.post("/logout", headers=SAME_ORIGIN)
         self.assertEqual(self.session(), {})
 
+    def test_every_role_lands_on_the_home_page(self):
+        # Decision P3 of the Google sign-in design: the destination is unchanged, with
+        # the provider enabled as without it, and no message is shown about Google.
+        provider = google_oidc.provider_config(
+            "tests.apps.googleusercontent.com", "synthetic-client-secret", "http://localhost")
+        for enabled in (False, True):
+            for role in ("student", "teacher", "admin"):
+                with self.subTest(role=role, google_enabled=enabled), \
+                        patch.dict(self.app.config, {oauth_state.PROVIDER_CONFIG_KEY: provider if enabled else None}):
+                    client = self.app.test_client()
+                    account = create_account(self.db_path, role)
+                    set_account_session(client, account["id"], account["session_key"])
+                    response = client.post("/logout?next=/teacher", headers=SAME_ORIGIN)
+                    self.assertEqual((response.status_code, response.headers["Location"]), (302, "/"))
+                    self.assertEqual(self.session(client), {})
+
+    def test_the_session_is_cleared_in_one_place(self):
+        # Sign-out goes through web.account_session.end_session, like the two
+        # functions that replace a session: no controller clears the session itself.
+        with patch.object(account_blueprint, "end_session", wraps=account_session.end_session) as ended:
+            self.client.post("/logout", headers=SAME_ORIGIN)
+        ended.assert_called_once_with()
+        for relative in ("web/blueprints/account.py", "web/blueprints/oidc.py"):
+            self.assertNotIn("session.clear()", Path(ROOT, relative).read_text(encoding="utf-8"))
+
     def test_logout_is_the_only_sign_out_route(self):
         logout_rules = [(rule.rule, sorted(rule.methods - {"HEAD", "OPTIONS"}))
                         for rule in self.app.url_map.iter_rules() if "logout" in rule.rule]
@@ -867,13 +892,21 @@ class PasswordChangeTest(AccountAppTestCase):
         self.change()
         self.assertEqual(self.failures(account["email"]), 0)
 
-    def test_account_without_a_password_fails_like_a_wrong_current_password(self):
+    def test_account_without_a_password_gets_a_notice_instead_of_the_form(self):
+        # An account that signs in only with Google has no password to change. It is
+        # not told "wrong current password", and no throttle failure is counted
+        # against it for an answer it cannot give.
         account = create_account(self.db_path, "teacher")
         set_account_session(self.client, account["id"], account["session_key"])
-        response = self.change()
-        self.assertEqual(response.status_code, 200)
-        self.assertIn("Грешна текуща парола.", self.body(response))
+        for response in (self.client.get("/account/password"), self.change()):
+            self.assertEqual(response.status_code, 200)
+            page = self.body(response)
+            self.assertIn("Този профил влиза само с Google и няма парола за смяна.", page)
+            self.assertNotIn("Грешна текуща парола.", page)
+            self.assertNotIn('name="current_password"', page)
         self.assertIsNone(self.user(account["id"], "password_hash"))
+        self.assertEqual(self.throttle_rows(), [])
+        self.assertEqual(self.session()["sk"], account["session_key"])
 
     def test_failure_after_the_update_rolls_everything_back(self):
         account = self.signed_in("teacher")
@@ -1108,6 +1141,27 @@ class AccountQueryBudgetTest(AccountAppTestCase):
         self.assertEqual(len(self.users_reads(statements)), 1)
         self.assertEqual(len([sql for sql in statements if "login_throttle" in sql]), 2)  # check + clear
 
+    def test_retiring_takes_the_connection_only_for_a_live_linking_object(self):
+        # A sign-in, a password change and a sign-out try to retire linking in
+        # progress first. Without a linking object in the session that attempt opens
+        # nothing and runs no statement, with Google sign-in enabled as without it.
+        provider = google_oidc.provider_config(
+            "tests.apps.googleusercontent.com", "synthetic-client-secret", "http://localhost")
+        change = {"current_password": PASSWORD, "new_password": NEW_PASSWORD, "confirm_password": NEW_PASSWORD}
+        for enabled in (False, True):
+            with self.subTest(google_enabled=enabled), \
+                    patch.dict(self.app.config, {oauth_state.PROVIDER_CONFIG_KEY: provider if enabled else None}), \
+                    patch.object(oauth_state, "get_request_db", wraps=oauth_state.get_request_db) as accessor:
+                account, client = self.make("teacher"), self.app.test_client()
+                patcher, statements = self.traced()
+                with patcher:
+                    self.assertEqual(self.login(account["email"], client=client).status_code, 302)
+                    self.assertEqual(client.post("/account/password", data=change, headers=SAME_ORIGIN).status_code, 200)
+                    self.assertEqual(client.post("/logout", headers=SAME_ORIGIN).status_code, 302)
+                accessor.assert_not_called()
+                self.assertEqual([sql for sql in statements
+                                  if "oidc_consumed" in sql or sql.upper().startswith("BEGIN IMMEDIATE")], [])
+
     def test_failed_login_runs_one_email_lookup(self):
         patcher, statements = self.traced()
         with patcher:
@@ -1135,7 +1189,16 @@ class AccountBlueprintBoundariesTest(unittest.TestCase):
         "/login": ("account.login", {"GET", "POST"}, access.PUBLIC),
         "/logout": ("account.logout", {"POST"}, access.PUBLIC),
         "/login/totp": ("account.login_totp", {"POST"}, access.PUBLIC),
+        "/account": ("account.overview", {"GET"}, access.SIGNED_IN),
         "/account/password": ("account.password", {"GET", "POST"}, access.SIGNED_IN),
+    }
+    # The routes of Google sign-in (PR #331), named exactly: nothing else may appear.
+    GOOGLE_ROUTES = {
+        "/auth/google/start": {"POST"},
+        "/auth/google/link": {"POST"},
+        "/auth/google/callback": {"GET"},
+        "/auth/google/link/confirm": {"GET", "POST"},
+        "/auth/google/link/cancel": {"POST"},
     }
 
     def test_blueprint_owns_exactly_the_account_routes(self):
@@ -1148,12 +1211,25 @@ class AccountBlueprintBoundariesTest(unittest.TestCase):
                 self.assertEqual(rules[url].methods - {"HEAD", "OPTIONS"}, methods)
                 self.assertEqual(view.__module__, "web.blueprints.account")
                 self.assertEqual(access.policy_for_view(view), policy)
+                # A view that accepts an unsafe method declares the same-origin
+                # mechanism; the account page is a GET and declares none.
+                unsafe = bool(methods & request_integrity.UNSAFE_METHODS)
                 self.assertEqual(request_integrity.integrity_policy_for_view(view),
-                                 request_integrity.SAME_ORIGIN)
+                                 request_integrity.SAME_ORIGIN if unsafe else None)
 
-    def test_no_registration_reset_or_oauth_route_exists(self):
-        paths = " ".join(rule.rule for rule in web_app.app.url_map.iter_rules())
-        for fragment in ("register", "signup", "reset", "oauth", "callback", "verify"):
+    def test_google_sign_in_has_exactly_its_five_routes_and_nothing_registers_or_resets(self):
+        rules = {rule.rule: rule for rule in web_app.app.url_map.iter_rules()}
+        google = {url: rule for url, rule in rules.items() if "google" in url or "oauth" in url or "oidc" in url
+                  or "callback" in url or url.startswith("/auth")}
+        self.assertEqual(set(google), set(self.GOOGLE_ROUTES))
+        for url, methods in self.GOOGLE_ROUTES.items():
+            with self.subTest(url=url):
+                self.assertEqual(google[url].methods - {"HEAD", "OPTIONS"}, methods)
+                self.assertTrue(google[url].endpoint.startswith("oidc."))
+        # Still no registration, no password reset and no email verification: an
+        # account comes from the operator, or from a first Google sign-in as a student.
+        paths = " ".join(rules)
+        for fragment in ("register", "signup", "sign-up", "reset", "forgot", "verify", "unlink", "microsoft", "apple"):
             self.assertNotIn(fragment, paths)
         # The admin second factor has exactly one route, and no web enrolment exists.
         self.assertEqual([rule.rule for rule in web_app.app.url_map.iter_rules() if "totp" in rule.rule],
@@ -1172,7 +1248,7 @@ class AccountBlueprintBoundariesTest(unittest.TestCase):
         for needle in ("sqlite3", "get_request_db", "login_throttle"):
             self.assertNotIn(needle, source)
 
-    def test_account_sign_in_is_the_only_sign_in(self):
+    def test_password_sign_in_keeps_its_routes_beside_google_sign_in(self):
         self.assertFalse(Path(ROOT, "web/blueprints/auth.py").exists())
         self.assertNotIn("auth", web_app.app.blueprints)
         login_rules = sorted(rule.rule for rule in web_app.app.url_map.iter_rules() if "login" in rule.rule)
@@ -1188,6 +1264,9 @@ class AccountBlueprintBoundariesTest(unittest.TestCase):
         hooks = [func.__name__ for func in web_app.app.before_request_funcs[None]]
         self.assertLess(hooks.index("protect_same_origin_unsafe_methods"), hooks.index("load_current_user"))
         self.assertLess(hooks.index("load_current_user"), hooks.index("enforce_access_policy"))
+        # The OAuth callback's own integrity check is the one addition, between the two.
+        self.assertEqual(hooks, ["protect_same_origin_unsafe_methods", "verify_oauth_state", "load_current_user",
+                                 "enforce_access_policy"])
 
     def test_there_is_no_remember_me(self):
         for relative in ("web/blueprints/account.py", "web/app.py", "web/templates/login.html"):

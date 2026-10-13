@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+
+{% block title %}Профил{% endblock %}
+
+{% block body_class %}management-page management-login-page{% endblock %}
+
+{% block breadcrumb %}
+    <a href="{{ url_for('browsing.index') }}">Начало</a>
+    <span>›</span>
+    Профил
+{% endblock %}
+
+{% block content %}
+<section class="hero login-hero">
+    <p class="eyebrow">Профил</p>
+    <h1>{{ current_account.display_name }}</h1>
+    <p class="subtitle">{{ current_account_role_label }}{% if account_email %} · {{ account_email }}{% endif %}</p>
+</section>
+
+{% if google_message %}
+    <div class="{{ google_message.kind }} login-message" role="{{ 'alert' if google_message.kind == 'error' else 'status' }}">{{ google_message.text }}</div>
+{% endif %}
+
+<section class="card form-card login-card account-card">
+    <h2>Начини за вход</h2>
+    <ul class="notice-list account-sign-in-methods">
+        {% if has_password %}
+            <li>Имейл и парола</li>
+        {% endif %}
+        {% for identity in google_identities %}
+            <li>Google — {{ identity.email_at_link or 'без имейл' }}, свързан на {{ (identity.created_at or '')[:10] }}</li>
+        {% endfor %}
+    </ul>
+
+    {% if not can_use_google %}
+        <p class="help">Администраторските профили влизат само с парола и код.</p>
+    {% elif not has_password %}
+        <p class="help">Този профил влиза само с Google. Засега към него не може да се добави парола или друг начин за вход.</p>
+    {% endif %}
+    {% if google_identities %}
+        <p class="help">Изходът от LearnPilot не те отписва от Google.</p>
+        {% if not google_sign_in_enabled %}
+            <p class="help">Входът с Google в момента е изключен.</p>
+        {% endif %}
+    {% endif %}
+</section>
+
+{% if pending_link %}
+<section class="card form-card login-card account-card">
+    <p>Имаш незавършено свързване с Google.</p>
+    <a class="button" href="{{ url_for('oidc.google_link_confirm') }}">Към потвърждението</a>
+    <form method="post" action="{{ url_for('oidc.google_link_cancel') }}">
+        <button type="submit" class="secondary">Отказ</button>
+    </form>
+</section>
+{% endif %}
+
+{% if can_link %}
+<form method="post" action="{{ url_for('oidc.google_link') }}" class="card form-card login-card account-card">
+    <button type="submit" class="google-sign-in-button">
+        <img class="google-sign-in-logo" src="{{ url_for('static', filename='img/brand/google-g.svg') }}" alt="" width="40" height="40">
+        <span>Свържи с Google</span>
+    </button>
+    <p class="help">След свързването ще можеш да влизаш в този профил и с Google. Ще те помолим да потвърдиш с паролата си за LearnPilot.</p>
+</form>
+{% endif %}
+{% endblock %}

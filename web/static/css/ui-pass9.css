@@ -2833,6 +2833,54 @@ input[type="file"]:focus-visible {
   margin-top: var(--space-2);
 }
 
+/* Google sign-in and linking. The button is Google's published "neutral" theme
+   (fill #F2F2F2, text #1F1F1F). The logo is Google's own asset, unmodified
+   (img/brand/google-g.svg): its tile has the button's fill, so the fill does not
+   change on hover and the state is shown by the outline instead. */
+.login-card + .login-card,
+.login-message + .login-card {
+  margin-top: var(--space-4);
+}
+.account-card h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+.account-card p {
+  margin: 0;
+}
+.account-card form {
+  margin: 0;
+}
+.login-card .help {
+  margin: 0;
+  font-size: 0.86rem;
+  line-height: 1.55;
+}
+.login-card button.google-sign-in-button,
+.login-card button.google-sign-in-button:hover,
+.login-card button.google-sign-in-button:active {
+  gap: 0;
+  padding: 0 var(--space-3) 0 2px;
+  border-color: #f2f2f2;
+  background: #f2f2f2;
+  color: #1f1f1f;
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.25rem;
+}
+.login-card button.google-sign-in-button:hover {
+  box-shadow: 0 0 0 2px var(--color-border-strong);
+}
+.login-card button.google-sign-in-button:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--color-primary) 60%, transparent);
+  outline-offset: 2px;
+}
+.google-sign-in-logo {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+}
+
 table { width: 100%; border-collapse: collapse; }
 th, td {
   padding: var(--space-3);

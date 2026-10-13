@@ -1,19 +1,20 @@
 # Google OIDC sign-in — security design
 
-Status: **design proposal, revision 2.3 with the corrections of its review.
-The independent review of revision 2.3 returned "approve with non-blocking
-notes", for the technical specification only. A documentation pass has since
-corrected that review's seven notes (0.3, last table). A Codex review of
-that pass returned "approve with non-blocking notes", for the technical
-documentation only. Three wording corrections were made after it (0.3) and
-have not been independently reviewed. Gabriel approved the product
-decisions P1–P4, T5 and M1–M3; they are recorded in 0.2. Implementation and
-production activation remain unapproved, and no deployment check is
-approved. Nothing of PR #331 is implemented.** Its storage prerequisite
-exists: PR #332
+Status: **the design (revision 2.3 with the corrections of its review)
+has been implemented in the uncommitted working tree of branch
+`feature/google-oidc-signin`, with activation OFF. Nothing of it is committed,
+merged, deployed or activated.** An independent implementation review found
+no code blockers and asked for documentation corrections only; those
+corrections are made after that review and have not themselves been
+independently reviewed. Gabriel approved the product decisions P1–P4, T5 and
+M1–M3 (0.2). Production activation remains unapproved, and no deployment or
+provider check is approved or has been run. The storage prerequisite, PR #332
 (migration `020_oidc_consumed_transactions.sql` and
-`web/services/oidc_consumption.py`) is merged on `main` at `008c236`. It is
-not deployed, and nothing calls it.
+`web/services/oidc_consumption.py`), is integrated: the branch was reconciled
+with `main` at `b5a30b6`. PR #332 is not deployed, and the implementation
+calls it at three call sites (section 9).
+Implementation departures that the independent reviewer assessed as justified
+are recorded in 0.6.
 PR #331, branch `feature/google-oidc-signin`, scope
 `docs/reviews/GOOGLE_OIDC_SCOPE.md`. Revision 2 incorporated the six decisions
 Gabriel approved on 2026-10-11 (0.2) and was reviewed independently. Revision
@@ -42,13 +43,11 @@ apart:
 
 - *Repository*: read from this worktree at `64a84fd`, cited as `path:line`.
 - *Merged prerequisite*: read from `origin/main` at `008c236` with
-  `git show`, cited as a path with the word "merged". **This branch does not
-  contain those files.** It has not been brought onto `main`, and this
-  revision did not do that. The untracked
-  `docs/reviews/OIDC_CONSUMPTION_SCOPE.md` in this worktree is the draft from
-  before that file's review; the merged file replaces it and differs from it
-  (section 9). Wherever this document cites the scope, the merged file is
-  meant.
+  `git show`, cited as a path with the word "merged". The branch contains
+  those files since the reconciliation at `b5a30b6`. The earlier untracked
+  draft of `docs/reviews/OIDC_CONSUMPTION_SCOPE.md` no longer exists in this
+  worktree; the tracked, merged file is meant wherever this document cites
+  the scope (section 9).
 - *Documented*: from a primary source, cited as `[n]` (section 13), retrieved
   2026-10-11; `[22]`–`[25]`, the buffering directive of `[14]`, the
   request-body files of `[16]` and the parser, body-reader, worker and
@@ -249,15 +248,13 @@ tables above are kept as the record of what each pass did.
 
 ### 0.4 What blocks implementation, and what blocks activation
 
-**Implementation is not approved.** The independent review of revision 2.3
-approved the technical specification, with seven non-blocking notes. It
-approved no product choice and no deployment check, and it has not seen the
-corrections made for its notes (0.3, last table). Whether and when
-implementation starts is Gabriel's decision, and the recording of his
-product decisions here does not make it. The storage it needs is merged
-(PR #332); this branch has still to be brought onto `main` to contain it,
-which is Gabriel's step and was not done here (section 12 has the order of
-that step).
+**Implementation exists and is uncommitted.** It is in the working tree of
+this branch. The independent review of the implementation found no code
+blockers and asked for documentation corrections only, which this revision
+makes (0.6); those corrections have not been independently reviewed.
+Committing, merging, deploying and activating are separate steps that remain
+Gabriel's. The storage it needs, PR #332 (`008c236`), is integrated in this
+branch by the reconciliation at `b5a30b6`.
 
 **No product decision is open.** Gabriel approved P1–P4, T5 and M1–M3
 (0.2). The gates that the pass after the review of revision 2.3 had placed
@@ -265,40 +262,19 @@ on M1–M3 are lifted with that approval: the cancel route has an approved
 code and text in every row of 1.6, and it answers with those and with
 nothing else.
 
-**What the review of revision 2.3 has not seen.** Every correction of the
-last table of 0.3. Most restate what the review asked for. Three go beyond
-wording, and each is named here for a focused review instead of being
-counted under the existing approval:
-
-1. **5.7, the slot rule.** The same guard and the same "begun" flag, now
-   applied to any exception after the slot is taken and until `start()` has
-   returned, and a worker whose release is in a `finally` from its first
-   statement. The review's model exercised a `start()` that raises. A
-   scratch model for this pass exercised the wider rule (E21); that model is
-   the author's and is not a review. One boundary stays uncovered and is
-   stated in 5.7: an asynchronous exception between the taking of the slot
-   and the region's first statement. Closing it would change the reviewed
-   guard, and that change is not made.
-2. **8.7 step 3, the control request of the direct probe.** It is not in the
-   review's note. Without it the stated pass criteria can be met by a
-   request that never reached the body read (E20).
-3. **Section 9, "Ownership".** On a database file that cannot be written, a
-   `BEGIN IMMEDIATE` that returned holds no write lock (E19). The clock is
-   then read without one. The text states why nothing can be accepted with
-   that reading. PR #332's contract is not changed by it.
-
-**The Codex review of that pass.** A Codex review of the documentation as
-the pass left it returned "approve with non-blocking notes". It is a
-verdict on the technical documentation only. The three wording corrections
-made after it (0.3) have not been independently reviewed, and neither has
-the recording of Gabriel's decisions in this text. Implementation and
-activation remain unapproved.
+**What the review of revision 2.3 saw and did not see.** It approved the
+technical specification. Three corrections made afterwards went beyond
+wording (5.7, the slot rule; 8.7 step 3, the control request of the direct
+probe; section 9, "Ownership"); the implementation review has since read the
+code that implements them. The Codex review of the documentation pass
+returned "approve with non-blocking notes", for the technical documentation
+only.
 
 **Enabling the provider for real users is blocked by all of the
 following, none of which has happened:**
 
-1. Migration 020 deployed. PR #332 is merged, and its release has not been
-   deployed (`docs/DEPLOYMENT.md` §28, merged).
+1. Migration 020 deployed. PR #332 is merged and integrated in this branch,
+   and its release has not been deployed (`docs/DEPLOYMENT.md` §28).
 2. The recovery milestone (section 10) delivered. This is approved (A5), and
    so is the mechanism that enforces it in the build (8.1, P2).
 3. Privacy: a public privacy-policy page (Google's consent-screen branding
@@ -306,8 +282,13 @@ following, none of which has happened:**
    `docs/REFACTOR_ACCOUNTS_ROADMAP.md`; school Workspace administrators
    allowing the app for accounts marked under 18 [8].
 4. The log changes deployed and checked on the server (8.7 step 3).
-5. The real-provider smoke checks (11.2).
-6. Independent review of the implementation.
+5. The real-provider smoke checks (11.2). These include the deployment
+   probes now written in `docs/DEPLOYMENT.md` §29, **none of which has been
+   run**.
+6. ~~Independent review of the implementation.~~ Done: no code blockers
+   (0.6). Its documentation corrections are made but not themselves reviewed.
+7. The activation prerequisites added by that review (0.6, "Before
+   activation").
 
 ### 0.5 Choices, and their status
 
@@ -362,6 +343,76 @@ has approved it (0.2).
 | T4 | `email_at_link` stores the address Google reported whether or not Google marked it verified, as §5 of the accounts design defines the column. | 6.3 |
 | T5 | `set-role --role admin` is refused for an account without a password. **Approved by Gabriel (0.2).** It follows from A3's `--id` selection, since such an account could not sign in as an admin. | 8.6 |
 | T6 | Pinned provider endpoints; the dependency set; the `iss` response parameter is checked when present. | 5.2, 5.1, 1.5 |
+
+### 0.6 Implementation record and the review's corrections
+
+**State.** The implementation is in the uncommitted working tree. It is not
+staged, committed, merged, deployed or activated: `PRODUCTION_ACTIVATION` is
+`False`. The independent implementation review found no code blockers, and
+the implementation is safe to commit with activation OFF. The corrections of
+this subsection are documentation only and came after that review. The
+roadmap is updated separately, in PR #333.
+
+**Departures from this design that the independent reviewer assessed as
+justified.** They are implementation details; none is a new product decision
+and none needed a new approval from Gabriel.
+
+| Departure | What the code does |
+| --- | --- |
+| `sign_in_or_onboard` takes no `now` argument | The design listed one; nothing in the function reads a time, so the argument would be unused. |
+| `VerifiedIdentity` carries raw `email` and `name` | Each is the claim as Google reported it when it is a `str`, else `None` (type-checked). `web/services/oidc_accounts.py` reduces them at the sinks: the stored `email_at_link`, the display name and the log. |
+| Shared session helpers and an account cache | `web/account_session.py` holds the shared helpers. `g.account_user` caches the account for display and for pre-checks only. Every authoritative account decision is read again inside the write transaction. |
+| A production startup flag | Ensures the one-warning rule of P2: the credentials warning is logged once per start. |
+| `Accept-Encoding: identity` | The token and key requests ask for the identity encoding, and a compressed response is refused. |
+| A token response that carries `error` | An HTTP 200 token response containing `error` fails. |
+| Unknown provider error codes | Logged as `provider_error`, not as the code Google sent. |
+| A failed key refresh | A failed JWKS refresh without a matching stale `kid` yields `unavailable`, not a validation failure. |
+
+**Clocks, corrected.** The lifetimes of a transaction, a pending link and a
+consumption record run on the monotonic clock, and no wall-clock reading
+decides them. That is not the same as "a wall-clock change changes no
+outcome". The signed session cookie that carries the transaction is a Flask
+cookie, and Flask refuses a cookie whose signature is newer than the wall
+clock. A wall clock set **back** while a sign-in is in flight therefore makes
+the callback fail closed (`/login?google=failed`, nothing accepted, nothing
+recorded). A wall clock set forward changes no outcome of the flow. This
+matches `tests/test_oauth_state.py`
+(`test_a_wall_clock_set_back_fails_closed_before_the_state_is_read`), and
+session validation is not weakened to avoid it.
+
+**Before activation (added by the review; none is done, and none was run for
+this correction).**
+
+1. Real Google responses must be compatible with the identity encoding
+   (`Accept-Encoding: identity`, compressed responses refused).
+2. `tests/test_google_oidc_production.py` and
+   `tests/test_google_oidc_service.py` must run against the dependency
+   versions the server actually installs.
+3. Installation from the declared `requirements.txt` must be validated in a
+   clean environment before deployment. The tests so far used an assembled
+   set of already-installed packages and did **not** validate the dependency
+   floors.
+4. The Google button branding must be checked against Google's current
+   requirements. The bundled "G" asset is not confirmed compliant.
+
+**Limits that exist and are documented, not changed.**
+
+- *URL outcome codes.* `?google=<code>` on the sign-in page and
+  `/account?google=<code>` select a message by code alone, so anyone can make
+  the page show a message for a flow that did not happen. It changes no
+  account and no session. Whether outcome messaging should be bound to the
+  session is a decision to take before activation.
+- *Abandoned workers.* The response deadline (5.7, 5.8) bounds the answer to
+  the browser, not the life of a worker thread that was abandoned. A peer that
+  sends headers slowly can keep that worker, and so its slot, until the
+  socket ends. The design already permits this (5.7); the cooldown and the
+  two slots bound its effect.
+- *Development logs.* The reviewed log protection (8.4, 8.7: Nginx's
+  `lp_no_args` format, Gunicorn without a query string in its access log, the
+  redacting error filter) is the **production** configuration. The Flask
+  development server logs the request line of a callback, query string
+  included, and has none of that protection. Do not run the callback against a
+  real provider on the development server.
 
 ## 1. Routes and policies
 
@@ -1126,7 +1177,8 @@ for a web client.
   is `OIDC_CONSUMPTION_SCOPE.md` §5 (merged); section 9 shows that PR #331
   meets it;
 - is accepted only within its lifetime on a clock that wall-clock corrections
-  do not move, and only by the instance that issued it;
+  do not move (a wall clock set back can still make Flask refuse the cookie,
+  which fails closed, 0.6), and only by the instance that issued it;
 - once accepted, completes only with an ID token Google issued for that
   transaction's authorization request (nonce), for this client (audience),
   signed by Google's current keys.
@@ -1201,7 +1253,10 @@ deletion, job or index for those rows, and none is to be added.
 
 - Transaction and pending-link lifetimes and record retention are on the
   monotonic clock (2.3). A wall clock that is set forward, set back or wrong
-  for hours changes none of them. Suspend, restart and reboot: 2.3.
+  for hours moves none of those lifetimes. A wall clock set **back** can still
+  end a flow in flight: Flask refuses a session cookie whose signature is
+  newer than the wall clock, and the callback then fails closed (0.6).
+  Suspend, restart and reboot: 2.3.
 - The wall clock still decides ID-token `exp` and `iat` (5.4). A token is
   accepted only while the server's clock is no more than 60 seconds behind and
   no more than 11 minutes ahead of Google's. Outside that window every sign-in
@@ -3152,8 +3207,9 @@ records PR #331 wrote stay in the table and are not deleted for a rollback.
 
 ## 9. Prerequisite: consumption storage (PR #332, merged)
 
-**Status.** Merged on `main` at `008c236`. Not deployed. Nothing calls it.
-This branch does not contain it yet. The storage is specified by what that
+**Status.** Merged on `main` at `008c236`, and contained in this branch since
+the reconciliation at `b5a30b6`. Not deployed. The implementation of PR #331
+(uncommitted) calls it at three call sites. The storage is specified by what that
 PR merged. This section does not specify it again; it says where it is, and
 how PR #331 uses it:
 
@@ -3754,10 +3810,13 @@ merge or a rebase before it begins, and each has to be cleared first:
 | The existing tests listed in the test plan, part C | |
 
 **Not changed by PR #331:** migrations, `data/canonical`,
-`web/services/identities.py`, `web/services/accounts.py`, `web/access.py`,
-`web/services/login_throttle.py`, `web/services/oidc_consumption.py` (PR #331
-calls it and changes nothing in it), `deploy/learnpilot-restore.sh`, the
-vault.
+`web/services/accounts.py`, `web/access.py`, `web/services/login_throttle.py`,
+`deploy/learnpilot-restore.sh`, the vault. **Status-sentence-only docstring
+edits** (permitted after the implementation review; no executable code and no
+historical comment of migrations 019 and 020 changed): `web/services/identities.py`
+and `web/services/oidc_consumption.py`, whose module documentation said that
+nothing uses them yet. PR #331 calls the latter and otherwise changes nothing
+in either.
 
 ## 13. Sources
 

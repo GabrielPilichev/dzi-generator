@@ -34,7 +34,8 @@ REMOVED_ENDPOINTS = (*REMOVED_AUTH_VIEWS, "quiz_start", "quiz_attempt", "quiz_re
 REMOVED_TEMPLATES = ("tester_home.html", "tester_login.html", "admin_login.html")
 CONTROLLER_MODULES = (
     "web/blueprints/account.py", "web/blueprints/browsing.py", "web/blueprints/dzi.py",
-    "web/blueprints/practical.py", "web/blueprints/quiz.py", "web/blueprints/teacher.py",
+    "web/blueprints/oidc.py", "web/blueprints/practical.py", "web/blueprints/quiz.py",
+    "web/blueprints/teacher.py",
 )
 CANONICAL_QUIZ_URLS = {
     "/quiz/s/<public_token>": ("quiz.quiz_start_public", {"GET", "POST"}),
@@ -122,8 +123,11 @@ class AuthRemovalTest(unittest.TestCase):
     def test_every_blueprint_is_registered_exactly_once(self):
         self.assertEqual(
             sorted(web_app.app.blueprints),
-            ["account", "browsing", "dzi", "practical", "quiz", "teacher"],
+            ["account", "browsing", "dzi", "oidc", "practical", "quiz", "teacher"],
         )
+        # Google sign-in is the blueprint "oidc". It is not the removed "auth", and
+        # none of its paths says "login" or "logout" (pinned above).
+        self.assertNotIn("auth", web_app.app.blueprints)
 
 
 class AuthDependencyDirectionTest(unittest.TestCase):
@@ -185,7 +189,7 @@ class AuthDependencyDirectionTest(unittest.TestCase):
             result = subprocess.run(
                 [sys.executable, "-B", "-c", code], cwd=ROOT, capture_output=True, text=True, env=env)
             self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertTrue(result.stdout.strip().startswith("6 "), result.stdout)
+            self.assertTrue(result.stdout.strip().startswith("7 "), result.stdout)
             outputs.append(result.stdout)
         self.assertEqual(outputs[0], outputs[1])
 

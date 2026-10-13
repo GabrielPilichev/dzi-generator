@@ -5,12 +5,20 @@ Merged PR #329: SameSite=Lax cookies.
 Merged PR #330: external identity storage, migration 019.
 Merged PR #332: single-use consumption storage (decision 1 below), migration
 020 and web/services/oidc_consumption.py. Merged on main at 008c236; not
-deployed; nothing calls it yet. This branch has not been brought onto main
-and does not contain it.
+deployed. It is integrated in this branch: the reconciliation with main is
+complete at b5a30b6. The implementation (uncommitted) calls it.
 The storage is specified by what PR #332 merged:
 docs/reviews/OIDC_CONSUMPTION_SCOPE.md, ACCOUNTS_DESIGN.md §5 and §13, and
-DEPLOYMENT.md §28. The untracked OIDC_CONSUMPTION_SCOPE.md in this worktree
-is the draft from before its review and is superseded by the merged file.
+DEPLOYMENT.md §28.
+
+## Status
+The implementation exists in the uncommitted working tree of this branch. It
+is not committed, merged, deployed or activated, and the activation gate
+(PRODUCTION_ACTIVATION) is False. An independent implementation review found
+no code blockers; the documentation corrections it asked for were made
+afterwards and have not themselves been independently reviewed (design 0.6).
+The deployment probes are written in DEPLOYMENT.md §29 and have not been run.
+The roadmap is updated separately, in PR #333.
 Follow ACCOUNTS_DESIGN.md §13's approved session-bound design, as amended
 there on 2026-10-11.
 
@@ -169,12 +177,12 @@ made after it (design 9; design 8.7, twice; listed in design 0.3) and have
 not been independently reviewed.
 Gabriel has since approved P1-P4, T5 and M1-M3 (above). The recording of
 those decisions in the three documents has not been independently reviewed.
-Implementation and activation remain unapproved.
+Production activation remains unapproved.
 Do not claim cookie deletion alone prevents replay of an older signed cookie.
 Flag any conflict with the approved architecture before changing it.
 
 ## Activation prerequisites (none of them done)
-Migration 020 deployed (PR #332 is merged, not deployed); recovery milestone
+Migration 020 deployed (PR #332 is merged and integrated here, not deployed); recovery milestone
 delivered; privacy-policy page and the data-controller questions for minors
 settled; log changes checked on the server; real-provider smoke checks.
 The server log check includes two malformed-body probes. They are specified
@@ -182,12 +190,24 @@ in design 8.7 and have not been run: exact raw bytes, synthetic markers
 only, no real email, password, cookie, state or other credential, a short
 client timeout, one run of each inside the deployment window, and stated
 pass criteria with every other result not a pass. They are never repeated
-with a real state, and they are not yet in DEPLOYMENT.md.
+with a real state, and they are now in DEPLOYMENT.md section 29, still unrun.
 Three settings are required assumptions of the log statements (design 8.4):
 Gunicorn bound to loopback, the sync worker class with one thread, and the
 request-wide body limit. Tests pin all three. The first two are also facts
 about the server, which the log check verifies; neither has been verified
 there.
+
+Added by the implementation review (design 0.6): real provider responses must
+be compatible with the identity encoding; the google_oidc_production and
+google_oidc_service tests must run against the dependency versions the server
+actually installs; installation from the declared requirements must be
+validated in a clean environment (the tests so far used assembled existing
+packages and did not validate the dependency floors); the Google button
+branding must be checked. Open decision before activation: whether outcome
+messages from URL codes should be bound to the session (they change no
+account). Documented limits: an abandoned worker's lifetime is not bounded by
+the response deadline; development-server logs can expose callback query
+strings, unlike the reviewed production logging configuration.
 
 ## Exclusions
 Microsoft, Apple, open password registration, teacher self-registration,
