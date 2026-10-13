@@ -28,6 +28,7 @@ Names, schools and subjects are never logged or put into exception messages.
 from __future__ import annotations
 
 import sqlite3
+import unicodedata
 from datetime import datetime, timezone
 from typing import Any, Iterable
 
@@ -91,6 +92,22 @@ def _school(value) -> str:
     return cleaned
 
 
+def _is_storable_label(text) -> bool:
+    """Text the ``teacher_subjects.label`` column takes: cleaned, 2 to 60 characters.
+
+    Cleaned means stripped, with no run of whitespace and no control, format or other
+    ``C`` character. Applied to a registry title as well as to „Друг предмет“, so a
+    title the table would refuse is found before the first write, not by its CHECK
+    halfway through one.
+    """
+    return (
+        isinstance(text, str)
+        and forms.MIN_SUBJECT_OTHER_LENGTH <= len(text) <= forms.MAX_SUBJECT_OTHER_LENGTH
+        and " ".join(text.split()) == text
+        and not any(unicodedata.category(ch).startswith("C") for ch in text)
+    )
+
+
 def _subjects(value) -> list[dict[str, Any]]:
     """Subjects as ``{"subject_id", "label"}`` dicts, checked against the registry."""
     if isinstance(value, (str, bytes, dict)) or not isinstance(value, Iterable):
@@ -116,6 +133,8 @@ def _subjects(value) -> list[dict[str, Any]]:
             subject = subject_registry.get_subject(subject_id)
             if subject is None or label != subject.title:
                 raise ValueError("Непознат предмет.")
+            if not _is_storable_label(subject.title):
+                raise ValueError("Невалиден предмет.")
         checked.append({"subject_id": subject_id, "label": label})
     return checked
 

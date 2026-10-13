@@ -5,6 +5,7 @@ Every database is a temporary clone of the migrated canonical template
 commits, so each test commits (or rolls back) itself.
 """
 
+import dataclasses
 import re
 import sqlite3
 import subprocess
@@ -230,6 +231,53 @@ class CreateTest(ProfileTestCase):
         with patch.object(subject_registry, "_SUBJECTS_BY_ID", {s.id: s for s in only_it}):
             self.refuses(ValueError, self.teacher_profile, subjects=[{"subject_id": "physics", "label": "Физика"}])
             self.assertEqual(self.teacher_profile(subjects=[it()])["subjects"][0]["subject_id"], IT)
+
+    BAD_TITLES = ("А", "", "а" * 61, " Физика", "Физика ", "Фи  зика", "Фи\tзика", "Физика\x00", "Фи\u202eзика",
+                  "Фи\u200bзика", "Фи\x07зика")
+
+    def with_registry_title(self, title):
+        """The registry as it would be if the title of IT were ``title``."""
+        subject = dataclasses.replace(subject_registry.get_subject(IT), title=title)
+        return patch.object(subject_registry, "_SUBJECTS_BY_ID", {**subject_registry._SUBJECTS_BY_ID, IT: subject})
+
+    def test_a_registry_title_the_label_column_would_refuse_is_found_before_any_write(self):
+        for title in self.BAD_TITLES:
+            with self.subTest(title=title), self.with_registry_title(title):
+                self.refuses(ValueError, self.teacher_profile, subjects=[{"subject_id": IT, "label": title}])
+                self.refuses(ValueError, self.teacher_profile, subjects=[other(), {"subject_id": IT, "label": title}])
+                self.assertFalse(self.conn.in_transaction)       # nothing was written, not even a begun transaction
+                self.assertIsNone(profiles.get_profile(self.conn, self.teacher))
+
+    def test_registry_titles_at_the_label_limits_are_accepted(self):
+        for title in ("Ab", "а" * 60, "Физика и астрономия"):
+            with self.subTest(title=title), self.with_registry_title(title):
+                profile = self.teacher_profile(subjects=[{"subject_id": IT, "label": title}])
+                self.assertEqual(profile["subjects"], [{"position": 1, "subject_id": IT, "label": title}])
+                self.conn.rollback()
+
+    def test_a_bad_registry_title_changes_nothing_in_an_update(self):
+        self.teacher_profile(subjects=[it(), other()])
+        self.conn.commit()
+        before = profiles.get_profile(self.conn, self.teacher)
+        users_before = self.users()
+        for title in self.BAD_TITLES:
+            with self.subTest(title=title), self.with_registry_title(title):
+                with self.assertRaises(ValueError):
+                    profiles.update_profile(self.conn, self.teacher, first_name="Нов", school_name="ПГ Тест",
+                                            subjects=[{"subject_id": IT, "label": title}], now=LATER)
+                self.assertFalse(self.conn.in_transaction)       # no name update, no subject deleted, nothing begun
+                self.assertEqual(profiles.get_profile(self.conn, self.teacher), before)
+        self.assertEqual(self.users(), users_before)
+        self.assertEqual(self.counts(), (1, 2))
+
+    def test_a_registry_title_that_changed_since_the_profile_was_stored_does_not_touch_it(self):
+        self.teacher_profile(subjects=[it()])
+        self.conn.commit()
+        with self.with_registry_title("А"):
+            # Reading and editing other fields never revalidates the stored subjects.
+            self.assertEqual(profiles.get_profile(self.conn, self.teacher)["subjects"][0]["label"], IT_LABEL)
+            self.assertEqual(profiles.update_profile(self.conn, self.teacher, school_name="ПГ Тест", now=LATER)
+                             ["subjects"][0]["label"], IT_LABEL)
 
     def test_a_generator_of_subjects_is_accepted(self):
         profile = self.teacher_profile(subjects=(subject for subject in [it(), other()]))

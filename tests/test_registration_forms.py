@@ -449,9 +449,46 @@ class NextTest(FormTestCase):
     def test_a_dropped_next_is_not_an_error(self):  # B10
         self.assertEqual(self.errors(student(next="//evil.example")), {})
 
-    def test_the_echo_of_next_is_cut_not_repaired(self):  # B10
-        result = forms.validate_student(student(next="//" + "a" * 600, email="bad"))
-        self.assertEqual(result.echo["next"], ("//" + "a" * 600)[:512])
+    def test_a_rejected_next_is_never_echoed(self):  # B10
+        for value in ("//" + "a" * 600, "//evil.example", "https://evil.example/", "javascript:alert(1)",
+                      "/ok\nLocation: x", "/ok\u202eevil", "relative", "я" * 1000, None, 5, ["/ok"]):
+            with self.subTest(value=value if not isinstance(value, str) else value[:30]):
+                result = forms.validate_student(student(next=value, email="bad"))   # an invalid form re-renders
+                self.assertFalse(result.ok)
+                self.assertEqual(result.echo["next"], "")
+                self.assertNotIn("evil", repr(result.echo))
+
+    def test_an_accepted_next_is_echoed_exactly(self):  # B10
+        for value in ("/", "/quiz/s/abcDEF123", "/login?next=/x", "/a/b?c=d&e=f#frag"):
+            with self.subTest(value=value):
+                result = forms.validate_student(student(next=value, email="bad"))
+                self.assertEqual(result.echo["next"], value)
+                self.assertEqual(self.kept(value), value)
+
+    def test_registration_also_refuses_control_format_and_separator_characters_in_next(self):  # B10
+        # Each is something the shared rule lets through (it looks only below U+0020 and at DEL),
+        # so these show what the registration-specific rule adds.
+        added = {"NEL": "/ok\x85x", "right-to-left override": "/ok\u202eevil", "ideographic space": "/ok\u3000x",
+                 "space": "/ok x", "no-break space": "/ok\u00a0x", "line separator": "/ok\u2028x",
+                 "paragraph separator": "/ok\u2029x", "zero-width space": "/ok\u200bx", "byte order mark": "/ok\ufeffx",
+                 "soft hyphen": "/ok\u00adx", "isolate": "/ok\u2066x", "private use": "/ok\ue000x",
+                 "tab": "/ok\tx", "trailing space": "/ok "}
+        for name, value in added.items():
+            with self.subTest(name):
+                if name not in ("tab",):
+                    self.assertEqual(safe_redirect_target(value, "/"), value)   # shared rule: unchanged, accepts
+                self.assertIsNone(self.kept(value))
+                self.assertEqual(self.errors(student(next=value)), {})          # dropped, not an error
+        # Ordinary internal targets are kept exactly, including letters and percent escapes.
+        for value in ("/quiz/s/token_-123", "/учител/тест", "/search?q=a%20b&x=%D0%B0", "/path/with.dots/and-dashes",
+                      "/a?b=c&d=e#frag", "/~user/"):
+            with self.subTest(value=value):
+                self.assertEqual(self.kept(value), value)
+
+    def test_the_shared_redirect_rule_is_not_changed(self):  # B10
+        self.assertEqual(safe_redirect_target("/ok\u3000x", "/home"), "/ok\u3000x")
+        self.assertEqual(safe_redirect_target("/ok\u202eevil", "/home"), "/ok\u202eevil")
+        self.assertEqual(safe_redirect_target("//evil", "/home"), "/home")
 
 
 class NoPrivilegeFieldsTest(FormTestCase):
@@ -485,6 +522,19 @@ class NoPrivilegeFieldsTest(FormTestCase):
 
 
 class ResultTest(FormTestCase):
+    def test_the_password_takes_no_part_in_equality_or_repr(self):
+        """Not a serialization test: ``compare=False`` and ``repr=False`` do nothing about that."""
+        first = forms.ValidationResult(values={"a": 1}, errors={}, echo={}, password="test-only-one")
+        second = forms.ValidationResult(values={"a": 1}, errors={}, echo={}, password="test-only-two")
+        self.assertEqual(first, second)
+        self.assertNotEqual(first, forms.ValidationResult(values={"a": 2}, errors={}, echo={}, password="test-only-one"))
+        for result in (first, second):
+            self.assertNotIn("test-only", repr(result))
+        doc = forms.ValidationResult.__doc__
+        for warning in ("plaintext password", "asdict", "pickle", "log"):
+            self.assertIn(warning, doc)
+        self.assertIn("do not stop a result from being serialized", " ".join(doc.split()))
+
     def test_an_invalid_form_has_no_values_and_no_password(self):
         result = forms.validate_student(student(first_name=""))
         self.assertFalse(result.ok)
@@ -516,7 +566,7 @@ class ResultTest(FormTestCase):
         self.assertEqual(result.echo["email"], "я" * 254)
         self.assertEqual(result.echo["school_name"], "я" * 120)
         self.assertEqual(result.echo["subject_other"], "я" * 60)
-        self.assertEqual(result.echo["next"], "я" * 512)
+        self.assertEqual(result.echo["next"], "")     # not a path: rejected, so not echoed
         self.assertEqual(len(result.echo["subject"]), 4)
         self.assertTrue(all(len(item) <= 64 for item in result.echo["subject"]))
         self.assertEqual(forms.validate_student(student(grade="12")).echo["grade"], "12")

@@ -20,7 +20,8 @@ and return a :class:`ValidationResult`; ``public_email`` is the email rule on it
 * **Subjects** are ids of ``src.subject_registry`` or ``other``; the registry is read
   at call time.
 * **``next``** is kept only if ``web.redirects.safe_redirect_target`` accepts it as it
-  is, and is dropped otherwise, never repaired.
+  is and it holds no control, format or separator character; otherwise it is dropped,
+  never repaired, and not echoed.
 
 Errors are Bulgarian and never contain a submitted value.
 """
@@ -89,16 +90,24 @@ class ValidationResult:
     """The outcome of one form.
 
     ``values`` holds the cleaned fields when ``ok`` and is ``None`` otherwise; it never
-    holds a password. ``password`` is the exact string received, kept out of ``repr``
-    and ``None`` unless the form is valid. ``errors`` maps a field name to one Bulgarian
-    message. ``echo`` is what to put back into a re-rendered form: every submitted
-    value except the passwords, each cut to its maximum length.
+    holds a password. ``password`` is the exact string received, and ``None`` unless the
+    form is valid. ``errors`` maps a field name to one Bulgarian message. ``echo`` is
+    what to put back into a re-rendered form: every submitted value except the
+    passwords, each cut to its maximum length; ``next`` is echoed only when it was
+    accepted, never as submitted.
+
+    **A valid result contains the plaintext password.** Never log it, convert it with
+    ``dataclasses.asdict`` or ``astuple``, pickle it, cache it, put it in a session or
+    otherwise serialize it; take ``password``, hash it and let the result go.
+    ``password`` is left out of ``repr`` and out of ``==`` so that a stray print or
+    comparison does not show or use it. That is all those two settings do: they do
+    not stop a result from being serialized.
     """
 
     values: dict[str, Any] | None
     errors: dict[str, str]
     echo: dict[str, Any]
-    password: str | None = field(default=None, repr=False)
+    password: str | None = field(default=None, repr=False, compare=False)
 
     @property
     def ok(self) -> bool:
@@ -269,8 +278,17 @@ def _clean_subjects(form: Mapping, errors: dict[str, str]) -> list[dict[str, Any
 
 
 def _accepted_next(value) -> str | None:
-    """``value`` itself if ``safe_redirect_target`` accepts it as it is, else ``None``."""
+    """``value`` itself if this form accepts it as it is, else ``None``.
+
+    ``web.redirects.safe_redirect_target`` must return it unchanged, and, on top of that
+    rule and for registration only, it may hold no character of Unicode category C
+    (control, format such as a right-to-left override, surrogate, private use,
+    unassigned) or Z (separators, so no space of any kind). The shared function and
+    sign-in are not changed.
+    """
     if not isinstance(value, str) or not value or len(value) > MAX_NEXT_LENGTH:
+        return None
+    if any(unicodedata.category(ch)[0] in "CZ" for ch in value):
         return None
     # Imported here so this module imports without Flask; the rule has one definition.
     # A fallback that starts with "/" needs no application context.
@@ -312,8 +330,8 @@ def _common(form: Mapping, errors: dict[str, str], echo: dict[str, Any]) -> dict
     if isinstance(password, str) and password != confirmation:
         errors["confirm_password"] = MESSAGES["password_mismatch"]
 
-    echo["next"] = _echo_text(form.get("next"), MAX_NEXT_LENGTH)
     values["next"] = _accepted_next(form.get("next"))
+    echo["next"] = values["next"] or ""     # never the raw, rejected input
     return values
 
 
