@@ -1,9 +1,16 @@
 # Verified email/password registration — test plan
 
 Companion of `docs/reviews/EMAIL_REGISTRATION_DESIGN.md` (section numbers
-below refer to it). Not approved; it follows the design's proposals and
-changes with them. Revision 4, after the independent reviews of revisions
-1, 2 and 3.
+below refer to it). Not an authorization to implement; it follows the design, including its
+recorded decisions, and changes with it. Revision 4, after the independent reviews of revisions
+1, 2 and 3. The reviewed commit `2b29519e6483b707950023fd199ca947d861381c`
+received APPROVE WITH NON-BLOCKING NOTES; the corrections R1–R6 (design 0.7)
+to the DC2, C6 and C8 entries were made afterwards and are not
+independently reviewed. Nothing here authorizes an implementation.
+D15 blocks no PR; no test below depends on it. Gabriel's decisions D1–D15
+and D17–D20 are recorded in design 0.2 (also not independently reviewed);
+tests for options that were not selected were removed, and none was added for
+new behaviour beyond the sign-in semantics of design 0.2.
 
 Test ids (A1, D10, …) are local to this document. Decision ids of the design
 are written "decision D7" to keep the two apart.
@@ -46,7 +53,7 @@ Proposed files: `test_registration_migration_sql.py`,
 | ID | Test |
 | --- | --- |
 | A1 | Migration applies to a database at the previous head and to an empty build; it is idempotent in the runner; `PRAGMA foreign_key_check` is clean. |
-| A2 | No existing table is rebuilt and no existing row changes: `users` rows are byte-identical apart from the new NULL column `email_verified_at`. The same test is repeated in PR 6 for `profile_required_at`, if D11 (b) or (c) adds it: every account existing then has it NULL. |
+| A2 | No existing table is rebuilt and no existing row changes: `users` rows are byte-identical apart from the new NULL column `email_verified_at`. The same test is repeated in PR 6 for `profile_required_at`, (D11): every account existing then has it NULL. |
 | A3 | `account_type` rejects `admin` and any other value in both tables. |
 | A4 | The student/teacher CHECK of `user_profiles`: student without grade, student with school, teacher with grade, teacher without school are each refused. |
 | A5 | Name, grade, school and label bounds are enforced by the tables. |
@@ -80,9 +87,9 @@ Proposed files: `test_registration_migration_sql.py`,
 | C3 | STARTTLS and implicit TLS verify certificates; `none` is refused for a non-loopback host. |
 | C4 | The sender script against the fake SMTP object, by exit status and marker: refused connection, TLS failure, AUTH failure and refused sender → `10`–`19` and no output; refused recipient and refused data → `20` after `R`; a clean exchange → `0` after `R`. **The marker precedes the recipient:** the fake records the order of calls, and the `os.write` of `R` has returned before the recipient command is issued, in every path that issues it. **No content-dependent option before the marker:** the sender command recorded by the fake carries no options, `SIZE` included, whether the server advertises `SIZE` or not, and is byte-identical for a code and for a notice of different lengths; `sendmail` is never called. |
 | C5 | **Communication deadline, both pipes.** With a stand-in child and the deadline shortened: (a) a child that writes nothing and blocks; (b) a child that writes `R` and then blocks; (c) a child that ignores `SIGTERM`; (d) a child that floods its output without end; (e) **a child that never reads its input**, given an input larger than a pipe buffer so that a blocking write would hang. In each case `send` returns within the deadline plus the reaping bound plus a fixed margin, the child's pid no longer exists and no pipe is left open. **Every one of them is `unknown`, (a) included:** a kill before the marker is not `not_sent`. In (d) the parent has read at most 16 bytes and its memory has not grown with the child's output (the test caps the parent's address space, or counts the bytes passed to `os.read`). |
-| C6 | **Outcome rule, row by row** (stand-in children): exit `10` with no output → `not_sent`; `Popen` raising (a missing interpreter path) → `not_sent` and no process; exit `0` after `R` → `accepted`; exit `20` after `R` → `refused`; and `unknown` for each of: exit `0` without `R`, exit `20` without `R`, exit `10` after `R`, an unlisted status, death by a signal, output other than `R`, more than one byte. |
+| C6 | **Outcome rule, row by row** (stand-in children): exit `10` with no output → `not_sent`; `Popen` raising (a missing interpreter path) → `not_sent` and no process; exit `0` after `R` → `accepted`; exit `20` after `R` → `refused`; and `unknown` for each of: exit `0` without `R`, exit `20` without `R`, exit `10` after `R`, an unlisted status, death by a signal, output other than `R`, more than one byte. **`accepted` and `refused` need all three of end-of-file, exactly one `R` and the matching status:** `R` with status `0` but no end-of-file before the deadline, `R` followed by enough further bytes to reach the 16-byte cap, and `R` followed by an unexpected byte are each `unknown`; a timeout never yields either. |
 | C7 | **A child that dies between the recipient and the marker cannot be misread.** A stand-in that reports "recipient transmitted" through a side channel the test controls and is then killed before it would have written anything further: because the marker is written first, the parent has `R` and the outcome is `unknown`. The reverse order (recipient first) is asserted to be impossible by C4. |
-| C8 | **Cleanup on every parent exit path.** An exception injected at each point after `Popen` returns (while writing the input: `BrokenPipeError`; inside `communicate`: `MemoryError`, `KeyboardInterrupt`, `SystemExit`): the child is gone, the pipes are closed, the exception propagates or is mapped to `unknown` as specified, and a later `send` works. The same for an exception raised inside the selector loop itself (from `select`, `os.write` and `os.read`). |
+| C8 | **Cleanup on every parent exit path.** An exception injected at each point after `Popen` returns (while writing the input: `BrokenPipeError`; inside the selector loop: `MemoryError`, `KeyboardInterrupt`, `SystemExit`): the child is gone, the pipes are closed, the exception propagates or is mapped to `unknown` as specified, and a later `send` works. The same for an exception raised inside the selector loop itself (from `select`, `os.write` and `os.read`). **A broken input pipe** (`EPIPE`/`BrokenPipeError` from `os.write`, including a child that has already exited with a `10`–`19` status) gives `unknown`: the code and the consumed budget are kept, the ledger row is not changed by the send, and no second process is created. |
 | C17 | **Reaping bound.** A stand-in that cannot be reaped within the bound (the test replaces `wait`): `sender_unreaped` is logged and the outcome is `unknown`. **While it is unreaped, the next submission and the next resend answer "unavailable" before admission:** no pending row, no ledger row and no scrypt computation, and the address's count is unchanged. `send`, called directly in that state, creates no process and returns `not_sent`. Once the child is gone, submissions are admitted again. |
 | C18 | **Worker death and replacement.** A parent process that starts a send against a blocking stand-in is killed outright; a second parent then starts its own send. The test asserts what the design states and no more: both senders may be alive at once; the orphan ends within the shortened alarm; the second send completes normally; nothing is recorded for the orphan (its ledger row would stay `started`, DS7). |
 | C19 | **The alarm.** The sender script, started with no parent that kills it and a peer that never answers, ends by itself at the alarm. **Inherited signal state:** started from a parent that has `SIGALRM` ignored, and from one that has it blocked, it still ends at the alarm; a static check pins that the script's first three statements are the reset to the default action, the unblock and the arming, in that order, before any import other than `signal`. A stand-in for a slow interpreter start shows the documented gap: the alarm counts from those statements, not from process creation. |
@@ -93,7 +100,7 @@ Proposed files: `test_registration_migration_sql.py`,
 | C14 | **Bounded input and output.** Input of 16 KiB + 1, truncated JSON and unknown keys end the child with a `10`–`19` status before any network call (the fake records none). The parent never reads more than 16 bytes of output. After the cap, and after a kill, the parent performs no further read: a stand-in that would deliver more is never drained (instrumented `os.read`). |
 | C15 | Nothing logged at any level contains the recipient, the body or the SMTP password; `smtplib` debug output is never enabled; a traceback forced in the child reaches no log. |
 | C9 | `console` and `file` backends are refused by a production start; a missing backend means registration is disabled, not an error. |
-| C10 | Settings parsing: each malformed value is reported by name without echoing a secret; an hourly cap above 300 is refused. |
+| C10 | A missing or malformed `DZI_MAIL_FROM` disables registration (or is a named startup error with the gate on); no default sender address exists in the code (D17). Settings parsing: each malformed value is reported by name without echoing a secret; an hourly cap above 300 is refused. |
 | C11 | `send` never raises for a delivery problem, and never retries: one call creates at most one process. |
 | C16 | No test in this section asserts a bound on process creation, on the whole request, or on the number of senders across workers: the design claims none. |
 
@@ -152,7 +159,7 @@ Proposed files: `test_registration_migration_sql.py`,
 | DA2 | **Only a real collision is "address taken".** A profile CHECK failure, a subject foreign-key failure and a `display_name` rule failure, each forced in the test, are **not** reported as `EMAIL_TAKEN`: the exception propagates and DA1 holds. |
 | DA3 | An `IntegrityError` from the `users` insert while a `users` row with that address exists (inserted by the test between the read and the insert through a hook) is `EMAIL_TAKEN`: the row is `void` and scrubbed, and the existing account is byte-identical. |
 | DA4 | An `IntegrityError` from the `users` insert with no such row (forced) propagates. |
-| DA5 | **Commit failure.** The commit of the verify transaction is made to fail: nothing is activated, the answer is the generic failure, never the confirmation, and under decision D7 (B) no session is issued. The registration is still `pending`. |
+| DA5 | **Commit failure.** The commit of the verify transaction is made to fail: nothing is activated, the answer is the generic failure, never the confirmation, and no session is issued. The registration is still `pending`. |
 | DA6 | The service never commits or rolls back: every function leaves the connection in the transaction the caller opened (asserted with `in_transaction` before and after). |
 
 ### D-C. Clock policy (PR 3)
@@ -160,7 +167,7 @@ Proposed files: `test_registration_migration_sql.py`,
 | ID | Test |
 | --- | --- |
 | DC1 | A row or code dated up to 300 seconds in the future works. One dated further in the future is expired **only when the clock is not behind the high-water mark**, which in practice means after `registrations-clock-accept`; before that DC2 applies and the row is untouched. |
-| DC2 | Clock behind the high-water mark by more than 300 seconds: submit, resend and verify answer "unavailable"; no ledger row, no counted attempt, no state change. It ends when `now` passes the mark, and at once after `registrations-clock-accept`. **Order:** with a pending row that would otherwise be expired (dated in the future beyond the skew, or past its time by the regressed clock's reading), `verify` still answers "unavailable" and the row stays `pending` and unscrubbed (database hash unchanged). |
+| DC2 | Clock behind the high-water mark by more than 300 seconds: submit, resend and verify answer "unavailable"; no ledger row, no counted attempt, no state change. It ends when `now` passes the mark, and at once after `registrations-clock-accept`. **Order, for every writer:** with a pending row that would otherwise be expired (dated in the future beyond the skew, or past its time by the regressed clock's reading), (a) `verify` answers "unavailable"; (b) a **submission** from the browser that holds that row answers "unavailable" and does not void the previous row, scrub, insert a row or a ledger row, or run its inline cleanup; (c) a **resend** answers "unavailable" and does not expire or scrub the row; (d) the **cleanup** run (timer, CLI, and the one a submission would run) scrubs, deletes and voids nothing and reports the clock as behind. In all four the row stays `pending` and unscrubbed and the registration tables are unchanged (their content hash is equal before and after); no control-state write happens either, and the mark is never lowered. With a hold set, (a)–(c) answer "unavailable" without any change, while (d) is not stopped by the hold (N3). |
 | DC3 | A clock set back does not increase attempts per code. |
 | DC4 | A clock set forward expires rows and codes early. A companion test **documents the unbounded case**: after a forward step of 24 h 15 min the address is admitted eight more attempts, and again after a second step. The test asserts that behaviour so that nobody later claims a bound for it. |
 | DC5 | Forward then back with a cleanup run in between: the cleanup raised the high-water mark, so the return is DC2. |
@@ -170,8 +177,7 @@ Proposed files: `test_registration_migration_sql.py`,
 
 ### D-R. Restore gate (PR 5; the functions are portable)
 
-DR1–DR9 apply under either option of decision D20. DR10–DR15 apply only
-under D20 (b) and are deleted from the plan if (a) is chosen.
+The restore gate is D20's: every restore holds; no ledger carry-over exists.
 
 | ID | Test |
 | --- | --- |
@@ -179,17 +185,11 @@ under D20 (b) and are deleted from the plan if (a) is chosen.
 | DR2 | **Spent attempts are not returned.** The same with five wrong codes after the copy was taken. |
 | DR3 | After the gate the hold `restore` is set. Submit, resend and recovery answer "unavailable"; verification has nothing to verify. |
 | DR4 | **No automatic release.** With the hold set, advancing the clock by 24 h 15 min, by a week, and stepping it forward by a year releases nothing. Only `registrations-release-hold --acknowledge-lost-history` does; without the flag the command refuses and changes nothing. |
-| DR5 | **A hold is never cleared by the gate.** A copy that already carries a hold keeps it with its original time; a replaced database that carries a hold makes the result held; a second run of the gate changes nothing (database hash unchanged). Under D20 (a) the gate is run with no replaced database and never opens one; the replaced-database half of this test applies under (b) only. |
+| DR5 | **A hold is never cleared by the gate.** A copy that already carries a hold keeps it with its original time; a second run of the gate changes nothing (database hash unchanged). The gate is run with no replaced database and never opens one. |
 | DR6 | The gate is one transaction: an error injected at each of its statements leaves the copy byte-identical, and the command exits non-zero. It touches no `users`, profile or subject row and scrubs every column of A6. |
 | DR7 | `registrations-restore-status --expect held` fails while a pending registration or recovery credential exists, when the control row is missing, and when the hold is clear; it passes after the gate. It writes nothing. |
 | DR8 | `registrations-cleanup` refuses to run while the restore lock exists, and writes nothing. |
 | DR9 | An ordinary restart (connections closed and reopened, a new application object) keeps a pending registration usable with its code, and sets no hold. |
-| DR10 | (b) Complete evidence: same `ledger_id`, every recent row of the copy present in the replaced database, no hold on either side. Afterwards every ledger row of the replaced database younger than 48 hours is present with its id, none is duplicated on a second run, the id sequence is past the highest id, the high-water mark is the later of the two, and the hold is clear. An address at its daily cap before the restore is still at its cap after it. Merged-in rows have `pending_id` NULL; a registration created after the restore whose row id equals a merged row's former `pending_id` is not associated with it, and settling the merged generation changes no pending row. |
-| DR11 | (b) **Settlements are merged.** A generation that is `started` in the copy and `not_sent` in the replaced database is `not_sent` afterwards, with its settlement time; three such failures leave the circuit closed after the restore. A generation settled in the copy is never returned to `started`. |
-| DR12 | (b) **A readable database is not complete evidence.** Each of these leaves the ledger unmerged and the hold set, with the reason reported: a different `ledger_id`; a missing `ledger_id`; a recent row of the copy absent from the replaced database; a row with the same id and a different address hash, kind or time; a replaced database whose high-water mark is earlier than the copy's, or ahead of the present by more than 300 seconds; a failing `quick_check`; an unexpected migration record; a missing or unreadable file. |
-| DR13 | (b) **Second restore.** Restore without the replaced database (held); restore again, giving the first result as the replaced database. The result is held: the hold was carried, although the file is readable and its ledger matches. |
-| DR14 | (b) The replaced database is opened read-only and is byte-identical after the gate. |
-| DR15 | (b) `registrations-restore-status --expect merged` passes only for a clear hold with a consistent `ledger_id` and id sequence. |
 
 ## E. Collisions and concurrency (PR 3)
 
@@ -215,8 +215,9 @@ under D20 (b) and are deleted from the plan if (a) is chosen.
 | F2 | A cross-origin POST to each route is 403 and writes nothing. |
 | F3 | No GET writes: database hash and `Set-Cookie` are unchanged after every GET, with and without a registration in progress. |
 | F4 | Disabled: every `/register...` route is the generic 404, and the sign-in page has no registration link. |
-| F5 | The full student journey up to activation: submit → 303 → verify page shows the address → code → account exists. **Then, by decision D7:** (A) the confirmation page links to `/login?next=`; signing in with the password reaches the validated `next`; no account session exists at any point before `/login`. (B) the verifying response redirects to the validated `next` with an account session issued by `issue_account_session`, only after the commit. Only the variant Gabriel approves is implemented; the other is deleted from the plan then. |
-| F6 | After verification the cookie has no `reg`. Under (A) it has no `uid`, `sk`, `iat`. Under (B) it has exactly those of the new account, the role is `student` or `teacher`, and no admin second-factor state is ever skipped (an activation cannot produce an admin, I1). |
+| F5 | The full student journey up to activation: submit → 303 → verify page shows the address → code → account exists. The confirmation page links to `/login?next=`; signing in with the password reaches the validated `next`; no account session exists at any point before `/login`, and the verifying response issues none. |
+| F5a | **No code at login (D7).** After activation, `/login` with the correct password signs a student in without sending a message (the in-memory backend records none) and without asking for a code, at the first and at any later sign-in. An existing admin still needs TOTP or a recovery code, unchanged. |
+| F6 | After verification the cookie has no `reg`, and no `uid`, `sk` or `iat`: registration issues no session, and an activation cannot produce an admin (I1). |
 | F7 | Before verification every protected route answers as for an anonymous visitor; `/login` with the registered credentials fails with the standard message. |
 | F8 | Another browser (no cookie) posting the correct code: no row is read by code, nothing is created, the standard "started in another browser" answer. |
 | F9 | A second submission in one browser voids the first registration; its code no longer works. |
@@ -245,7 +246,6 @@ not assert equal delivery or equal duration.
 | G6 | The circuit under a one-sided stall (three notices `unknown`): registration closes for both kinds alike. The residual of 3.7 is thereby pinned as known behaviour. |
 | G7 | The notice goes to the existing address and contains no name, role or link; the existing account receives no code. |
 | G8 | `/login` answers the standard message for an unverified registration's credentials, an unknown address and a wrong password alike. |
-| G9 | Only if decision D8 (b) is chosen: the shadow path sends nothing, and `not_sent` is never shown for either kind. |
 
 ## H. Delivery at route level (PR 4)
 
@@ -278,14 +278,14 @@ not assert equal delivery or equal duration.
 | J1 | The existing account, TOTP, throttle, session, cookie, ownership and Google suites pass unchanged. |
 | J2 | A CLI-created **teacher** (no profile, `email_verified_at` NULL) signs in, changes password, links Google and manages assignments as before, and is never redirected to the profile page. |
 | J3 | A CLI-created **admin** signs in with password and second factor as before and is never redirected to the profile page. **Google linking stays refused for an admin:** the link start and `confirm_link` refuse it exactly as before this milestone. The same holds for an account that registered by email and was later promoted to admin. |
-| J4 | `manage_accounts`: every existing command behaves as before; `list` shows the new columns; `set-role admin` on a registered account still requires the CLI and a password; the new commands touch only the registration tables (and `require-profile` one column of one row). |
+| J4 | `manage_accounts`: every existing command behaves as before; `list` shows the new columns; `set-role admin` on a registered account still requires the CLI and a password; the new commands touch only the registration tables . |
 | J5 | Existing `quiz_attempts.student_name`, `user_id` and `quiz_assignments.owner_user_id` values are unchanged by registration, activation and profile edits; a profile edit does not rotate `session_key` or remove attempt markers. |
 | J6 | **Profile gate off:** `/account/profile` is 404; Google onboarding redirects exactly as before; a profile-less student starts an attempt exactly as before; no `profile_required_at` is written. |
 | J7 | **Profile gate on, onboarding:** a student created through Google is marked and sent to `/account/profile` with `next` preserved; completing it stores the profile and updates `display_name`; no email or password is requested or stored. |
 | J8 | **New attempt versus resume.** A marked, profile-less student: (a) starting a new attempt is redirected to the profile page and no attempt row is created; (b) with an unfinished attempt at that assignment, the same POST resumes it; (c) with a submitted attempt, it goes to the result; (d) `/quiz/attempt/<id>` GET and POST, submitting and the result page all work; (e) on a closed assignment with no attempt, the closed notice is shown, not the profile page. **Under the lock:** the decision is made inside `quiz_start_or_resume_attempt`. Two POSTs of one marked, profile-less account released together create no attempt and both get the profile redirect; one of an account whose attempt is being created by the other at that moment resumes it; the route performs no attempt lookup of its own before calling the function (instrumented). |
 | J9 | After completing the profile the student lands on the start page (a GET) and starts the attempt by pressing the button; an unsafe `next` becomes the role's home. |
 | J10 | **Nothing retroactive.** With the gate on, a CLI-created student and a Google student created before the gate was on (mark NULL) start attempts normally and are never redirected; the profile page is available to them and optional. |
-| J11 | Only under decision D11 (c): `require-profile --id` marks one student, who is then handled as J8; no command marks every student. |
+| J11 | No command marks existing students: `require-profile` does not exist (D11), and the profile mark is written only at Google onboarding. |
 | J12 | **Role changes.** A marked, profile-less student promoted to teacher or admin is no longer redirected; demoted again, is redirected again. A teacher with a teacher profile demoted to student is not redirected. `set-role` writes neither `user_profiles` nor the mark. |
 | J13 | A student with a profile, a teacher and an admin start attempts normally in every gate state. |
 | J14 | A registered student or teacher links Google through the existing confirmation flow; nothing links automatically when a Google address equals a registered address. |
@@ -314,9 +314,7 @@ not assert equal delivery or equal duration.
   process remains (`ps`), and the next request is served.
 - **Service stop under the real unit:** with a sender running, stopping and
   restarting the service leaves no sender behind (`KillMode=mixed`). This is
-  not evidence for worker replacement, which is the next item. If a
-  `TasksMax=` limit is chosen under D19, its value is checked against a
-  classroom-sized run.
+  not evidence for worker replacement, which is the next item.
 - **Inherited signal state under the real unit:** the worker's `SIGALRM`
   disposition and mask as the sender sees them before it resets them
   (`/proc/<pid>/status`), recorded as evidence, whatever they are.
@@ -341,22 +339,21 @@ not assert equal delivery or equal duration.
   sender process under the unit's sandboxing. None can be run from the
   development Mac.
 
-## M. Password recovery (PR 8, only under decision D10 (a))
+## M. Password recovery (PR 8, decision D10)
 
 Planned with its addendum. At minimum the equivalents of D1–D11, DL1–DL10,
-DS1–DS8, DC1–DC8, DR1–DR9 (and DR10–DR15 under D20 (b)), E3–E5, F1–F3,
+DS1–DS8, DC1–DC8, DR1–DR9, E3–E5, F1–F3,
 G1–G6, H1–H7 and N1–N5 for the
 recovery credentials, plus:
 
 | ID | Test |
 | --- | --- |
-| M1 | An admin, a password-less account, a disabled account and (unless decided otherwise under D10) an account whose address was never verified receive no code, with the same visible answer as any other address. |
+| M1 | An admin, a password-less account, a disabled account and (unless Gabriel decides otherwise in the PR 8 addendum) an account whose address was never verified receive no code, with the same visible answer as any other address. |
 | M2 | **Eligibility is rechecked at redemption.** A code issued to a teacher who is then promoted to admin redeems nothing; the admin's password and second factor are unchanged. The same for an account disabled, or whose role changed, after the code was issued. |
 | M3 | A code issued before a password change, an operator sign-out or a TOTP reset (each rotates `session_key`) redeems nothing. |
 | M4 | A successful redemption voids every other pending recovery code of that account, including one issued in another browser; rotates `session_key`; issues no session; the old password stops working and other devices are signed out. |
 | M5 | A code is sent only to `users.email`. An account whose address appears only as `email_at_link` receives nothing, and that address finds no account. |
 | M6 | Recovery sends count against the same total budget as registration sends. |
-| M7 | Under decision D10 (b) there is no recovery route at all: the tests assert its absence, and `set-password` keeps working. |
 
 ## N. Retention and cleanup (PR 3 for the function, PR 5 for the units)
 
@@ -372,6 +369,5 @@ claims no such thing (6.5).
 | N4 | **The target's conditions, pinned.** (a) A run that cannot take the write lock (held by another connection past the busy timeout) scrubs nothing, exits non-zero and leaves `--check` failing once the row is an hour old. (b) With the clock set back by 20 minutes after submission, a run at real 31 minutes scrubs nothing; the row is scrubbed when the wall clock passes its expiry. Neither is repaired by the application. |
 | N5 | `registrations-cleanup` needs no `DZI_SECRET_KEY`; `--check` exits non-zero when a `pending` row is older than an hour and zero otherwise. |
 | N6 | Static: the timer unit runs every 10 minutes, carries the restore-lock condition, and its service runs the cleanup command as the service user. The restore script stops the cleanup timer and requires the cleanup service to be inactive or failed before it copies; calls the gate after its migration step and **before** its final check-and-fingerprint step; calls the status check in that step and again after the replacement; and starts the timer again at the end. No gate command appears after the fingerprint. The cleanup-service check comes after the lock is taken and before the live database's checkpoint and fingerprint. Wherever the script's finish handling starts the backup timer again, it starts the cleanup timer again under the same condition, on failure paths too. |
-| N7 | Snapshot step, by decision D18. **(a)** nothing to test. **(b)** a snapshot made while a registration is pending has no `pending` row and no value in the columns of A6; the live database is byte-identical before and after; accounts, profiles and the ledger are the same in both. The test asserts nothing about free pages or unused page space. **(c)** as (b), and the published file is the rebuilt one: it passes `quick_check` and `foreign_key_check`; its schema text and migration record equal the copy's; **every table's logical digest equals the copy's**, computed by the rule of 6.5 for its kind (by `INTEGER PRIMARY KEY`; by declared key for a `WITHOUT ROWID` table, which is still `WITHOUT ROWID` afterwards; over the columns without the rowid otherwise); a test table of each kind is included, and one changed value, one swapped pair of ids and one missing row are each detected although the row counts and sequences agree; the intermediate copy is gone. **(b) and (c):** the transformation happens before the backup function's `quick_check`, fsync and link, and the `sha256` it returns is the hash of the published file. |
-| N8 | Under (c), a rebuild whose validation fails (a row count forced to differ) publishes nothing and exits non-zero, as every other snapshot failure does. |
+| N7 | Snapshot step, decision D18 (b): a snapshot made while a registration is pending has no `pending` row and no value in the columns of A6; the live database is byte-identical before and after; accounts, profiles and the ledger are the same in both. The test asserts nothing about free pages, unused page space or the WAL. The transformation happens before the backup function's `quick_check`, fsync and link, and the `sha256` it returns is the hash of the published file. A failure of the scrub publishes nothing and exits non-zero, as every other snapshot failure does. |
 | N9 | The live backup path is unchanged: the snapshot's database is still produced by the online backup API, tested by the existing backup suite without edits. |

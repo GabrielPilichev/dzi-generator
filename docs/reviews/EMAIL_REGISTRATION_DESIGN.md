@@ -3,8 +3,11 @@
 Scope and status: `docs/reviews/EMAIL_REGISTRATION_SCOPE.md`. Tests:
 `docs/reviews/EMAIL_REGISTRATION_TEST_PLAN.md`.
 
-**Proposal, not approved.** Every value and choice below is a recommendation.
-Section 0.2 collects the choices that are Gabriel's. Existing behaviour is
+**Design with recorded decisions; implementation and activation not
+authorized.** Section 0.2 records the decisions Gabriel approved (D1–D15 and
+D18–D20, and the behaviour of D17); D16 and the configuration of D17 stay
+activation prerequisites. Values not covered there remain proposals.
+Existing behaviour is
 referenced, not restated: `docs/AUTH_ROUTE_CONTRACT.md` (contract),
 `docs/ACCOUNTS_DESIGN.md` (accounts), `docs/reviews/GOOGLE_OIDC_DESIGN.md`
 (Google). Where this document says "unchanged" it means those documents and
@@ -15,8 +18,16 @@ the code at fe72d02.
 six further findings on sender containment, the guessing bound's clock
 assumptions, restore and physical retention, answered in revision 3 (0.5).
 A third review found two remaining defects in the sender contract (F1, F2)
-and twelve notes; this revision answers them (0.6). It has not been reviewed
-and approves nothing.
+and twelve notes; this revision answers them (0.6).
+
+**Review status.** An independent review of commit
+`2b29519e6483b707950023fd199ca947d861381c` returned **APPROVE WITH
+NON-BLOCKING NOTES**: both blockers (F1, F2) resolved, N1–N12 accepted, no
+technical blocker remaining. It approved none of D1–D20. Six wording and
+test-plan corrections (R1–R6, 0.7) were made **after** that review and are
+**not independently reviewed**; no further broad review is required for
+them. Recording Gabriel's decisions (0.2) followed, also without repeat review.
+Nothing here authorizes an implementation, a deployment or an activation.
 
 ## 0. Summary and decisions
 
@@ -37,7 +48,8 @@ and approves nothing.
    `users` row (role from the route, `email_verified_at` set), profile,
    subjects. Only a real `users.email` collision is answered as "address
    taken"; any other failure rolls everything back and fails generically.
-5. Whether that request also signs the person in is decision D7.
+5. That request does not sign the person in: the confirmation page links to
+   `/login` (D7). Verification happens once, at registration.
 6. An address that already has an account produces the same pages, a row that
    no code can activate, and a notice email to the owner (D8).
 7. The send runs in a short-lived sender process that the request ends at an
@@ -45,34 +57,58 @@ and approves nothing.
 8. Sign-in, the throttle, admin TOTP, the existing CLI commands, Google
    sign-in, assignment and attempt ownership are not modified.
 
-### 0.2 Decisions requiring Gabriel's approval
+### 0.2 Decisions approved by Gabriel
 
-None is approved. "Blocks" names the first implementation PR of section 9
-that cannot be written without the answer, or "activation" when only turning
-the feature on depends on it.
+Recorded as approved; this document does not change them. "Built by" names
+the PR of section 9 that implements the selected behaviour. Alternatives that
+were not selected are named only as history and are neither designed nor
+tested. Approval of a decision is not authorization to implement: each PR
+still starts only when Gabriel says so.
 
-| # | Decision | Options | Recommendation | Blocks |
-| --- | --- | --- | --- | --- |
-| D1 | What "class" means | (a) grade only; (b) grade + section letter („паралелка“); (c) free text | (a). No flow needs the section, and with a school name it would narrow a minor down further. | PR 1 |
-| D2 | Which grades, and ageing | 8–12 (the grades the app has content for) or wider; edited by hand or advanced automatically | A select of 8–12, stored with the date it was set, editable on „Профил“. No automatic advance in this milestone. | PR 1 |
-| D3 | Teacher subjects | one, or several; from a list or free text | 1–3 subjects from the application's subject list plus „Друг предмет“ with a short text. | PR 1 |
-| D4 | School | free text; free text + town; official register | Free text, 3–120 characters, with the hint „Име и населено място“. No extra field beyond the approved list. Whether the town hint is wanted at all is part of this decision. | PR 1 |
-| D5 | What a self-registered teacher receives | (A) role `teacher` at activation, with quotas; (B) role `student` until the operator approves | (A), as the roadmap's default, **only after quotas exist** (none do, 7.1). Until then the teacher gate stays off, and PRs 1–6 never activate a teacher registration under either option. | PR 7 |
-| D6 | Code and limits | values of 3.2; and the trade-off of 3.6: a daily per-address cap lets someone keep an address from registering for a day | 6 digits, 10 minutes, 5 attempts, 3 resends, 30-minute registration, 5 emails per address per hour and 8 per 24 h 15 min. Alternatives: 8 digits, which makes room for a higher daily cap at the same guessing bound; or a lower cap with operator clearing. The lockout is an open trade-off, not something already accepted. | PR 3 |
-| D7 | First session after verification | (A) none: the confirmation page links to `/login`; (B) the verifying request signs the new account in with the normal session helper | (A) for the first release: registration then never issues a session, and (B) can be added later without a schema change. (B) is a legitimate choice with real classroom value (one step fewer for thirty students). The roadmap says accounts sign in with email and password; it does not say which of the two this is. | PR 4 |
-| D8 | Registration with an address that has an account | (a) same pages + notice email to the owner; (b) same pages and no email | (a). It gives a forgetful owner a way forward. (b) cannot be made alike in timing: one path talks to the mail server and the other does not (3.7). | PR 3 |
-| D9 | Per-IP limit | Nginx only; or a keyed IP hash in SQLite for 24 hours | Nginx only, as for sign-in. `docs/ACCOUNTS_DESIGN.md` §15 says IP addresses are not collected. | PR 4 |
-| D10 | Password recovery | (a) self-service by emailed code, its own PR, before a public launch; (b) operator-assisted only, as today, with a stated support channel | (a) before registration is opened to the public; (b) is acceptable for a bounded pilot whose students the operator can identify. Sub-decision: whether an address that was never verified (CLI-created accounts) may receive a recovery code. Recommended **no** until verified: a mistyped operator-entered address would hand the account to a stranger. | PR 8 / activation |
-| D11 | Profile of an account without one | (a) optional for everyone; (b) required before a **new** attempt for students created through Google while the profile gate is on, optional for every account that existed before; (c) as (b), plus existing profile-less students the operator marks explicitly | (b). Nothing is enforced retroactively by default; (c) needs Gabriel's explicit choice and an operator command (7.4). The `users.profile_required_at` column exists only under (b) or (c) and is added by PR 6, not before. | PR 6 |
-| D12 | Student password minimum | the existing 10 characters; or lower | Reuse 10. | PR 1 |
-| D13 | Address shape accepted by the public form | the existing `normalize_email`; or that plus an ASCII, dotted-domain rule | The stricter rule, for the public form only (1.3). | PR 1 |
-| D14 | Production gates | build constants, as Google's P2; or environment flags | Three build constants: student registration, teacher registration, profiles (7.3). | PR 4 |
-| D15 | Email change; password for a Google-only account; merging | build now; defer | Defer all three, with the limits and support handling of 5.3. | — |
-| D16 | Consent wording, privacy page, minors; purpose, visibility and retention of the profile fields | Gabriel's legal check | Activation prerequisite. The forms are not enabled without a privacy page to link. | activation |
-| D17 | Delivery provider and sender domain | 4.4 | Gabriel chooses. The interface needs only SMTP. | activation |
-| D18 | Retention of unverified registrations, and their presence in backups | The cleanup timer's interval; and for snapshots (6.5): (a) leave pending rows in them; (b) scrub them logically in the snapshot copy; (c) scrub and rebuild the snapshot file offline | A 10-minute timer, as a **logical** target of about 45 minutes that depends on the timer, the database and the clock. For snapshots (b) as the minimum, and (c) if the legal check of D16 requires that unverified data not persist in backups. No option erases a snapshot already published, and none is a claim about bytes on disk. | PR 5 |
-| D19 | How a send is bounded | (a) sender child process with an 8-second communication deadline; senders may overlap across a worker replacement, bounded by the orphan lifetime (4.2); (a+) the same with host-wide containment added: a lock held by the sender, or a `TasksMax=` limit on the unit; (b) a local queueing relay in addition, behind the same sender process | (a). The overlap is accepted because senders share nothing. Whether a local relay is added is a capacity choice made on measurements (0.3). | PR 2 |
-| D20 | Send accounting after a restore (pending credentials are voided either way) | (a) hold registration and recovery after **every** restore until the operator releases it, acknowledging the lost history; (b) carry the ledger over from the replaced database with a validated merge, and hold only when that evidence is missing or incomplete | (a): no merge logic, no extra column, nothing that depends on the replaced database being trustworthy; restores are rare. Its cost is availability: registration stays closed after a restore until a person acts. (b) is specified in 3.9 for comparison. Under (a) the gate needs nothing but the staged copy. No option clears a hold that existed before the gate ran, and none releases one by the passage of time; (b) clears only the hold the same gate run set, in the same transaction, when its validation passes. Gabriel's choice. | PR 5 |
+| # | Selected behaviour | Built by |
+| --- | --- | --- |
+| D1 | "Class" means the grade only; no section letter. | PR 1 |
+| D2 | Grades 8–12, stored with the date set, editable on „Профил“; no automatic advancement. | PR 1 |
+| D3 | A teacher selects 1–3 of the application's subjects, plus „Друг предмет“ with a short text. | PR 1 |
+| D4 | School: free text, 3–120 characters, with a town hint („Име и населено място“). | PR 1 |
+| D5 | A self-registered teacher receives role `teacher` after verified activation, **only after quotas exist**; the teacher gate stays off until then. **Quota values are not yet selected.** | PR 7 |
+| D6 | Six-digit code valid 10 minutes, five guesses per generation; three resends at least 60 seconds apart; pending registration lifetime 30 minutes; 5 sends per address per hour, 8 per 24 h 15 min, and the reviewed global cap of 300 per hour. Accounting is non-refundable; the browser binding stays; the lockout and security trade-offs of 3.3 and 3.6 stand as documented. | PR 3 |
+| D7 | Verification does not sign the user in. After the **one-time** registration verification the person is redirected to `/login`. Later sign-in is email and password only; no code is sent or asked at login. Admin TOTP is unchanged. Password recovery is a separate flow, not a repeated registration verification. | PR 4 |
+| D8 | An address that already has an account gets the generic registration response and a notice email; nothing is overwritten or linked. | PR 3 |
+| D9 | Per-IP limiting in Nginx; no IP address is stored in SQLite. | PR 4 |
+| D10 | Self-service password recovery in a separate PR, before public opening. | PR 8 |
+| D11 | Profile completion is required of new Google students while the profile gate is on; existing accounts are unaffected. | PR 6 |
+| D12 | The ten-character password minimum stays. | PR 1 |
+| D13 | The public form accepts an ASCII address with a dotted domain. | PR 1 |
+| D14 | Three reviewed build gates (student registration, teacher registration, profiles), initially off. | PR 4 |
+| D15 | Email change, a password for a Google-only account and account merging are deferred (5.3). | — |
+| D17 | Sender behaviour: the application sends verification codes **automatically** from a configured no-reply address. The address, domain, credentials and provider or relay are configured later with the VPS; this design names none and does not assume VPS-hosted SMTP. Production `console` and `file` delivery is prohibited. | PR 2 |
+| D18 | Cleanup timer every 10 minutes; snapshots: option (b), a logical scrub of the isolated backup copy. The residual-byte and old-backup limits of 6.5 stand. Not selected: leaving pending rows in snapshots, and an offline rebuild. | PR 5 |
+| D19 | Option (a): the reviewed sender child process with an 8-second communication deadline, with the worker-replacement overlap documented in 4.2. Not selected: a host-wide lock, `TasksMax=`, a local relay. | PR 2 |
+| D20 | Option (a): every restore voids pending credentials and holds registration (and recovery) until the operator releases it, acknowledging the lost history. Not selected: a ledger carry-over. | PR 5 |
+
+**Not decided, and not approved here.** D16 (privacy page, lawful basis,
+minors, purpose and retention of the profile fields) is an activation
+prerequisite; no legal conclusion is recorded. The configuration and
+delivery validation of D17 are activation prerequisites. The quota values of
+D5 and the sub-decision of 5.2 (recovery for never-verified addresses) are
+open.
+
+**Email and sign-in semantics, exactly.**
+
+1. A code is sent by the application itself, automatically, when a
+   registration is submitted and when a resend is requested; an address that
+   already has an account gets the notice of 4.5 instead (D8). The sender is
+   the configured no-reply address (`DZI_MAIL_FROM`); there is no default,
+   and without it registration is disabled.
+2. A registration is verified **once**. A correct code creates the account
+   with `email_verified_at` set and sends the person to `/login`. No session
+   is issued by registration.
+3. Sign-in is `/login` with email and password, as today. It never sends,
+   asks for or checks a verification code, at the first or any later sign-in.
+   The admin second factor (TOTP or recovery code) is unchanged.
+4. Recovery (D10, PR 8) is its own flow with its own codes and limits. It is
+   not registration verification repeated and it is not part of sign-in.
 
 ### 0.3 Activation prerequisites (evidence, not design decisions)
 
@@ -82,19 +118,21 @@ every gate off.
 | Prerequisite | Evidence required |
 | --- | --- |
 | Bounded mail behaviour | On the server, under the real unit: the deadline tests of 4.2; a controlled send to an address Gabriel owns; a forced hang (a host that accepts the connection and never answers) ending at the deadline with no sender process left; a worker killed during a send, with the orphan gone within its lifetime and the replacement worker serving; the sender holding no descriptor of the worker. |
-| Single-worker capacity | Measured duration of one send and of thirty submissions at once through Nginx, against the criterion of 3.5. If it is not met, the local relay of 4.4 before activation. |
+| Single-worker capacity | Measured duration of one send and of thirty submissions at once through Nginx, against the criterion of 3.5. If it is not met, activation waits and a remedy needs its own decision; a local relay was not selected (D19). |
 | Transport security | Verified TLS to the chosen relay; `console` and `file` backends refused by a production start. |
-| Provider and sender | D17 chosen; SPF, DKIM and DMARC; delivery checked to abv.bg, Gmail and a school mailbox. An accepted SMTP exchange is not treated as delivery to a mailbox. |
+| Provider and sender | Sender address and domain, credentials and provider or relay chosen and configured with the VPS (D17's behaviour is decided; no address or host is assumed); SPF, DKIM and DMARC; delivery checked to abv.bg, Gmail and a school mailbox. An accepted SMTP exchange is not treated as delivery to a mailbox. |
 | Nginx | The `lp_register` zone tuned on a classroom-sized run; trusted client-IP handling confirmed (the zone keys on the same client value as `lp_login`); Gunicorn reachable only from Nginx. |
 | Shared networks and the total cap | An explicit assessment of a class behind one NAT address, and of deliberate exhaustion of the total budget (3.6). |
 | Timing of the two messages | Measured durations of a code and of a notice through the chosen provider (3.7). |
 | Cleanup and restore | The timer installed and observed on a quiet server; the full restore script with its gate, including an interrupted run and a run while a cleanup is executing, against a staging copy on Linux; the snapshot step of D18 followed by a test restore (6.5, 3.9). |
 | Privacy | D16: privacy page, lawful basis, minors, retention, the provider named as a recipient. |
-| Teacher form only | D5 and the quotas of PR 7. Not needed for the student form. |
-| Recovery | D10 delivered in the chosen form. |
+| Teacher form only | Quotas implemented with values Gabriel approves (not yet selected), PR 7. Not needed for the student form. |
+| Recovery | PR 8 (D10) delivered before public opening. |
 | Google | Its own prerequisites, unchanged and separate. |
 
 ### 0.4 What revision 2 changed
+
+Sections 0.4–0.6 are history. Where they mention an option that D1–D20 did not select, section 0.2 governs.
 
 | Review finding | Answer | Section |
 | --- | --- | --- |
@@ -139,6 +177,18 @@ every gate off.
 | N10 Profile check placement | Decided inside the writer-locked start decision as a "would create" outcome | 7.4 |
 | N11 Blockers of two kinds | Each item labelled | 8.1 |
 | N12 Circuit arithmetic | Labelled an upper bound | 3.5 |
+
+### 0.7 Corrections and decision recording after the approving review (not independently reviewed)
+
+| Item | Correction | Section |
+| --- | --- | --- |
+| R1 | The hold and clock check comes before any expiry, scrub, voiding or other registration mutation in submission, resend and the cleanup a submission runs, not only in `verify` | 3.8, 6.3, 6.4, 6.5 |
+| R2 | Test C8 says "inside the selector loop", not "inside communicate" | test plan |
+| R3 | `accepted` and `refused` need end-of-file, exactly one `R` and the matching exit status; an input `BrokenPipeError` is `unknown` | 4.2, test plan C6, C8 |
+| R4 | The marker-removal assertion of D18 (c) was restored; moot once (c) was not selected, kept as a historical note | 6.5 |
+| R5 | The tables by kind were named; the analysis is kept as a historical note for the unselected rebuild | 6.5 |
+| R6 | D15 is a scope deferral and is not an implementation blocker | 8.1, scope |
+| Decisions | Gabriel's approvals recorded; unselected mechanisms (D7 (B), D8 (b), D10 (b), D11 (a)/(c), D18 (a)/(c), D19 (a+)/(b), D20 (b)) removed from the implementation scope and the tests | 0.2 and throughout |
 
 ## 1. Forms and profiles
 
@@ -211,8 +261,7 @@ length before it is echoed.
 | Per-address cap | „Твърде много имейли към този адрес. Опитай отново по-късно.“ |
 | Mail server not reached (4.3, outcome `not_sent`) | „Не успяхме да изпратим имейла. Опитай отново след малко.“ |
 | No usable registration in this browser | „Регистрацията е изтекла или е започната от друг браузър. Започни отново.“ |
-| Activated, D7 (A) | „Имейлът е потвърден. Влез с имейл и парола.“ |
-| Activated, D7 (B) | „Имейлът е потвърден. Профилът ти е готов.“ |
+| Activated (D7) | „Имейлът е потвърден. Влез с имейл и парола.“ |
 | Address taken at activation | „Вече има профил с този имейл. Влез с имейл и парола.“ |
 | Registration, mail or the teacher form unavailable; total budget used; hold (3.5, 3.9, 7.3) | „Регистрацията временно не е достъпна. Опитай по-късно.“ |
 | Any other failure (storage, commit, programming error) | „Нещо се обърка и нищо не беше записано. Опитай отново.“ |
@@ -397,7 +446,7 @@ key, in this design or in the recovery addendum.
 - CLI-created accounts have no profile row and `email_verified_at` NULL. They
   sign in, change passwords and link Google as today. Nothing asks a teacher
   or an admin to complete a profile, and nothing asks an existing student to
-  do so unless Gabriel chooses D11 (c) and the operator marks the account.
+  do so (D11).
 - `manage_accounts` keeps every command. `create` still creates any role;
   `set-role` stays the only way to an admin. `list` gains the verification
   date and the declared type.
@@ -588,7 +637,7 @@ Not covered by the circuit at all:
   answered inside Nginx's 35-second upstream timeout. With one sync worker a
   burst is served one after another, so thirty submissions fit only if one
   takes about a second or less, hashing included. If measurements say
-  otherwise, the remedy is the local relay of 4.4, before activation.
+  otherwise activation waits; a remedy needs its own decision (a local relay was not selected, D19).
 
 ### 3.6 Shared school networks
 
@@ -647,15 +696,12 @@ What it does **not** establish, and no longer claims:
   submitter can time the request. The application adds no work of its own
   that depends on the account, and does not pad or equalise. Measuring both
   messages through the chosen provider is an activation prerequisite (0.3);
-  a stable, large difference would be a reason to hand the message to a local
-  relay, where the request's duration no longer depends on the provider.
+  a stable, large difference is recorded as a limit with the provider
+  assessment.
 - **The circuit.** Three consecutive `unknown` attempts close registration
   for five minutes for everyone. Someone able to make the relay stall on
   notices but not on codes could see that. It needs a relay that misbehaves
   by content and is assessed with the provider, not excluded here.
-- **Under D8 (b)** the shadow path sends nothing. It then differs from the
-  real path by a whole mail exchange and by the possible `not_sent` page.
-  Choosing (b) means accepting that difference or never showing `not_sent`.
 - **Mailbox contents.** The owner of an existing account receives a notice.
   That informs the owner, not the submitter.
 
@@ -685,8 +731,12 @@ any issuance or cleanup run has seen. Policy:
   достъпна…“; nothing is issued, no attempt is counted and no row changes. It
   ends when the clock passes the mark again, or when the operator, having
   checked the time, lowers the mark (6.6). While the clock is behind the
-  mark no row is expired or scrubbed by a request either: this check comes
-  first (6.3). A row or a code dated more than 300 seconds in the future is
+  mark no registration row is expired, scrubbed, voided or deleted by a
+  request, by the cleanup a submission runs, or by a timer run either: in
+  every writer this check comes before any such change (6.3). The only
+  control-state writes that remain are those this design already permits:
+  raising the mark when `now` is later than it, never lowering it, and the
+  operator's `registrations-clock-accept` (6.6). A row or a code dated more than 300 seconds in the future is
   treated as expired only once the mark no longer says the clock is behind,
   that is, after the operator has accepted the clock.
 - **Clock stepped forward.** Rows and codes expire early, which is safe.
@@ -716,7 +766,7 @@ any issuance or cleanup run has seen. Policy:
   return the five attempts of a code that had used them (reproduced in 8.3),
   and forget every send made since the snapshot. Whole-database consistency
   does not protect those decisions. The restore has two parts: credentials,
-  which is not a choice, and accounting, which is D20.
+  which are voided, and accounting, which is held (D20).
 
 **Always: the gate.** `manage_accounts registrations-restore-gate`, run by
 `deploy/learnpilot-restore.sh` on the **staged copy**, in one
@@ -725,18 +775,15 @@ any issuance or cleanup run has seen. Policy:
 1. every `pending` registration becomes `void` and is scrubbed; the recovery
    credentials of PR 8 likewise;
 2. the hold `restore` is set. If the copy already carries a hold, it is kept
-   as it is, with its original time;
-3. under D20 (b), where the gate is also given the database being replaced,
-   a hold carried by that database is carried too: the result is held if
-   either database was. Under D20 (a) the gate is given no other database
-   and needs none; step 2 already holds every result.
+   as it is, with its original time. The gate is given no other database and
+   needs none: every result is held.
 
 The gate never clears a hold it finds. It is repeatable (a second run
 changes nothing) and atomic (any error rolls the transaction back, the
 command exits non-zero and the script stops before anything is replaced).
 
-**D20 (a): hold after every restore.** The gate does only steps 1 and 2 and
-reads nothing but the staged copy. After
+**Accounting (D20): hold after every restore.** The gate does only steps 1
+and 2 and reads nothing but the staged copy. After
 every restore, registration and recovery answer „…временно не е достъпна…“
 until the operator runs `registrations-release-hold
 --acknowledge-lost-history`. The command says what is being accepted: the
@@ -746,45 +793,11 @@ budget and the circuit start from the snapshot's state. There is **no
 automatic release**: after a restore the wall clock is the one thing the
 script itself makes the operator confirm, so "enough time has passed" is not
 something the application may conclude by itself. Cost: every restore closes
-registration until a person acts. Sign-in is not affected.
+registration until a person acts. Sign-in is not affected. A carry-over of
+the ledger from the replaced database was considered and not selected; no
+merge logic, extra column or replaced-database input exists in this design.
 
-**D20 (b): carry the ledger over.** The gate is given the database being
-replaced (`--pre-restore-db`). It sets the hold as above. The only hold it
-may clear is the one this run set, at the end of the same transaction, and
-only if **all** of this holds:
-
-- neither database carried a hold before this run;
-- the replaced database is opened read-only, passes `PRAGMA quick_check`, and
-  has the registration tables at the schema this gate was written for (its
-  migration record is the expected one);
-- **same ledger:** `registration_control.ledger_id`, a random value written
-  once when the control row is first created (a column this option adds), is
-  the same in both;
-- **complete:** every ledger row of the copy younger than 48 hours is present
-  in the replaced database with the same id, address hash, kind and
-  `attempted_at`, and the replaced database's high-water mark is not earlier
-  than the copy's. The replaced database must be a later state of the same
-  ledger, not merely a readable file;
-- the replaced database's high-water mark is not ahead of the present by more
-  than 300 seconds (otherwise it is the clock case of 3.8 and stays held).
-
-Then it merges: a generation present in both takes the replaced database's
-outcome and settlement time when the copy's is still `started` (a settled row
-never returns to `started`, so the circuit sees the failures that happened
-after the snapshot); generations only in the replaced database are inserted
-with their ids and with `pending_id` NULL, so that a merged row can never be
-taken for the send of a registration that later receives the same row id in
-the copy; the id sequence is raised so no generation is ever reused;
-the high-water mark becomes the later of the two.
-
-If any condition fails, or the replaced database is missing, unreadable,
-corrupt or from another schema, **nothing is merged and the hold stays**,
-with the reason reported. That includes a second restore whose "replaced"
-database is the product of an earlier restore that was itself held: it
-carries a hold, so the result is held. Release is the same explicit command
-as under (a).
-
-**In the restore script**, under either option:
+**In the restore script:**
 
 - **The cleanup job is stopped, not only prevented.** In the script's step
   2, **after the lock is taken and before the live database is checkpointed
@@ -809,14 +822,10 @@ as under (a).
   pending rows.** `registrations-restore-status --expect <state>` runs in the
   script's step 8 and again after the replacement (step 10). It fails unless:
   no pending registration and no pending recovery credential exists; the
-  control row exists; and the hold is as expected: `held` under (a); under
-  (b) either `held`, or clear with a ledger whose `ledger_id` and id sequence
-  are consistent.
+  control row exists; and the hold is `held`.
 - **Interrupted restore.** As for the rest of the script, a run that stopped
   is not finished but repeated from the beginning with a new copy. The gate
-  is repeatable. Under (a) the new copy is held by the gate whatever came
-  before; under (b) a restored state already in place is the database being
-  replaced and carries its hold forward.
+  is repeatable: the new copy is held by the gate whatever came before.
 
 The change is made to the copy, so it cannot be undone by the snapshot, and
 it is made by the one script. A database replaced by hand, outside the
@@ -924,9 +933,18 @@ everything unclear is `unknown`.
 | --- | --- |
 | The process could not be created (`Popen` raised) | `not_sent` |
 | The child exited by itself with `10`–`19`, and its output reached end-of-file with nothing written | `not_sent` |
-| The child exited `0` after writing `R` | `accepted` |
-| The child exited `20` after writing `R` | `refused` |
-| Anything else: killed at the deadline, **with or without `R`**; ended by a signal; an unlisted status; a status that contradicts the marker (`0` or `20` without `R`, `10`–`19` with it); any other output; any exception in the parent after the child was created | `unknown` |
+| The output reached end-of-file with **exactly one** `R` and nothing else, and the child exited `0` | `accepted` |
+| The output reached end-of-file with **exactly one** `R` and nothing else, and the child exited `20` | `refused` |
+| Anything else: killed at the deadline, **with or without `R`**; output that hit the 16-byte cap or is not a single `R`; end-of-file not seen; ended by a signal; an unlisted status; a status that contradicts the marker (`0` or `20` without `R`, `10`–`19` with it); an **`EPIPE` / `BrokenPipeError` while writing the input**; any other exception in the parent after the child was created | `unknown` |
+
+`accepted` and `refused` are therefore never concluded from a timeout, from
+capped output, from unexpected bytes or from an exit status alone: end-of-file,
+exactly one `R` and the matching status must all be present. A broken input
+pipe is an exception after the child was created and falls under the
+cleanup rule below: the child is killed and reaped, the outcome is
+`unknown`, the code and the consumed budgets are kept and nothing is
+retried, even if the child would have exited with a `10`–`19` status. No new
+transport mechanism is involved.
 
 The absence of `R` is never evidence by itself. A child killed before it
 wrote the marker has probably sent nothing, and is still `unknown`: the code
@@ -1017,29 +1035,22 @@ that is what the alarm is for.
   outright in the preceding seconds. This is accepted, not prevented:
   senders share nothing (each has its own connection and its own send
   generation), and an orphan's result is recorded nowhere, so its ledger row
-  stays `started` and its code stays usable (4.3). A lock held by the sender
-  would make the exclusion host-wide; it is not proposed, because it adds a
-  lock file and a "busy" failure to protect nothing that is shared (D19).
+  stays `started` and its code stays usable (4.3). A host-wide lock was not
+  selected (D19).
 - **On a service stop or restart: the unit already cleans up.**
   `deploy/systemd/learnpilot.service` has `KillMode=mixed`, so stopping or
   restarting the service, the restore's stop included, kills any sender left
   in its control group. That covers service stops only. It does nothing when
   Gunicorn replaces a worker inside a running service, which is the overlap
-  case above. A `TasksMax=` limit on the unit would cap the number of
-  processes host-wide more simply than a lock; it is an option under D19,
-  not a requirement of this design, and not approved.
+  case above. A `TasksMax=` limit was not selected (D19).
 
 Cost: one interpreter start per send. On the development machine a process
 that imports `smtplib`, `ssl` and `email` started in about 0.11 s; the
 server's figure is part of the capacity measurement of 0.3.
 No queue, thread pool or framework is introduced.
 
-**Local relay (D19).** A queueing relay on the server makes the handoff fast
-and takes retries off the request. It does not replace any of the above: a
-local relay can stall too, and the same sender process and deadline apply to
-the handoff. It is an option only with evidence at activation: the relay
-bound to loopback, its queue observed, and the forced-hang check of 0.3
-passing against it.
+**Not selected (D19):** a host-wide lock, a `TasksMax=` limit and a local
+queueing relay. This design neither includes nor requires them.
 
 ### 4.3 Outcomes and settlement
 
@@ -1085,14 +1096,21 @@ An accepted exchange means the relay took the message. It does not mean the
 message reached a mailbox; bounces and complaints are not processed and
 `provider_signature` stays unused. The application never retries by itself.
 
-### 4.4 Provider options (no choice is made here, D17)
+### 4.4 Delivery configuration (D17)
 
-| Option | For | Against |
+**Decided:** the application sends the verification code, and the notice of
+4.5, **automatically** through the `smtp` backend of 4.1, from a configured
+no-reply address. **Not decided here, and configured later with the VPS:** the
+sender address and domain, the credentials, and the provider or relay. No
+address is invented and VPS-hosted SMTP is not assumed. Production refuses the
+`console` and `file` backends. The table lists what the configuration may
+later point at; none is selected.
+
+| Possible target | For | Against |
 | --- | --- | --- |
 | A transactional provider's SMTP relay (for example Brevo, Mailjet, Postmark, Mailgun, Amazon SES) | Deliverability, DKIM handled, logs of delivery | An account, possibly a cost at volume, a processor of students' addresses to name in the privacy notice; data location to check; every send is a remote exchange inside a request |
 | SMTP of an existing mailbox service (for example Google Workspace) | Nothing new to buy for a pilot | Low sending limits; not meant for application mail |
 | Postfix on the VPS, sending directly | No third party | Deliverability to abv.bg, Gmail and school mailboxes is doubtful; many hosts block port 25 |
-| Postfix on the VPS as a local queue in front of any of the above | The request hands the message over locally; retries are the relay's | One more service to run, monitor and bound (4.2) |
 
 Pricing and free allowances change; they must be checked at the time, and no
 account is created by this work.
@@ -1144,20 +1162,15 @@ No link that verifies anything, no name, no tracking.
 ### 5.2 Recovery (D10)
 
 Today a forgotten password is an operator task (`manage_accounts
-set-password`, `docs/ACCOUNTS_DESIGN.md` §12). Self-service recovery is
-**proposed**, not required for creating accounts safely. Two supported
-shapes:
+set-password`, `docs/ACCOUNTS_DESIGN.md` §12). Gabriel approved **self-service
+recovery by emailed code**, as its own PR (PR 8 of section 9) with a short
+design addendum and security review, delivered before registration is opened
+to the public. It is a separate flow: its codes are not registration
+verification repeated, and sign-in never asks for one. Operator-assisted
+recovery remains available through the CLI in the meantime and is not the
+selected design.
 
-- **(a) Self-service**, PR 8 of section 9, with its own short design addendum
-  and security review, delivered before registration is opened to the public.
-- **(b) Operator-assisted**, as today. It needs no code, a published way to
-  reach the operator, and a stated way for the operator to recognise the
-  requester (for a pilot: through the student's teacher). It does not scale
-  to open registration, which is the reason for the recommendation.
-
-The registration PRs can merge either way because production stays gated.
-
-Requirements the addendum for (a) must meet:
+Requirements the addendum must meet:
 
 - request by email, the same visible answer for every address, known or not,
   with the limits of 3.7 on what "same" covers;
@@ -1178,9 +1191,9 @@ Requirements the addendum for (a) must meet:
 - success calls `accounts.set_password`, which rotates `session_key`, voids
   **every** other pending recovery code of that account, and issues no
   session;
-- whether an address that was never verified is eligible is the sub-decision
-  of D10. Until it is decided such accounts get no code and the same visible
-  answer.
+- whether an address that was never verified is eligible is not covered by
+  the approval of D10. Until Gabriel decides it in the addendum such accounts
+  get no code and the same visible answer.
 
 ### 5.3 Deferred, with limits and support handling (D15)
 
@@ -1197,7 +1210,7 @@ Requirements the addendum for (a) must meet:
 
 ```sql
 ALTER TABLE users ADD COLUMN email_verified_at TEXT;    -- NULL: never verified here
--- PR 6, and only under D11 (b) or (c):
+-- PR 6 (D11):
 -- ALTER TABLE users ADD COLUMN profile_required_at TEXT;  -- NULL: no profile is required (7.4)
 
 CREATE TABLE user_profiles (
@@ -1262,7 +1275,6 @@ CREATE TABLE registration_control (
     high_water_at TEXT NOT NULL,
     hold_reason TEXT CHECK (hold_reason IS NULL OR hold_reason IN ('restore')),
     hold_set_at TEXT
-    -- only under D20 (b), added by PR 5: ledger_id TEXT, a random value written once
 );
 ```
 
@@ -1285,8 +1297,7 @@ CREATE TABLE registration_control (
   tables. A fresh database has all of them empty.
 - No existing table is rebuilt and no existing row is written by a
   migration. `ADD COLUMN` with a NULL default is the only change to `users`:
-  `email_verified_at` in PR 1, and `profile_required_at` in PR 6 if D11 (b)
-  or (c) is chosen. `_USER_COLUMNS` gains each with its PR. Every account
+  `email_verified_at` in PR 1, and `profile_required_at` in PR 6 (D11). `_USER_COLUMNS` gains each with its PR. Every account
   that exists when the second column is added has it NULL, which is what
   makes "nothing retroactive" a property of the data and not of a condition
   in code.
@@ -1319,16 +1330,14 @@ Rules, each an existing convention applied to the new routes:
   role's home; a POST starts nothing and redirects there too. This rule does
   not apply to `/account/profile`, which exists for signed-in accounts.
 - **`next`** passes `safe_redirect_target` when stored and again when used.
-  Under D7 (A) the confirmation page links to `/login?next=<it>`; under
-  D7 (B) the verifying request redirects to it. Either way a student who came
+  The confirmation page links to `/login?next=<it>` (D7). A student who came
   from a quiz link lands on the test's start page, where they press
   „Започни“; no redirect starts an attempt.
 - **Responses** of `/register/verify`, `/resend` and `/cancel` carry
   `Cache-Control: no-store` and `Referrer-Policy: no-referrer`.
 - A successful submission answers `303` to `/register/verify`. A repeat of a
   successful verification finds no usable registration and redirects to
-  `/login` (or, signed in under D7 (B), to the role's home) and writes
-  nothing.
+  `/login` and writes nothing.
 - `tests/test_access_policy.py` and `tests/test_session_cookie_samesite.py`
   must cover every new route in their sweeps.
 
@@ -1342,10 +1351,26 @@ commits after a returned outcome and rolls back after an exception.
 | Module | Functions |
 | --- | --- |
 | `web/services/registration_forms.py` | `validate_student(form)`, `validate_teacher(form)` → cleaned values or field errors; `public_email(value)` |
-| `web/services/registration.py` | `availability(conn, now, *, sender_busy)` (hold, clock, circuit, total budget, an unreaped sender in this worker); `address_capped(conn, email_hash, now)`; `create_pending(conn, *, cleaned, account_type, password_hash, previous_binding, now)` → token, row id, send generation, code or notice marker; `resend(conn, binding_hash, now)`; `settle_send(conn, send_id, outcome, now)`; `verify(conn, binding_hash, code, now, *, teacher_enabled)` → outcome; `cancel(conn, binding_hash, now)`; `cleanup(conn, now)`; in PR 5, as D20 decides: `restore_gate(conn, now, pre_restore=None)`, `restore_status(conn)`, `release_hold(conn, now)` |
+| `web/services/registration.py` | `availability(conn, now, *, sender_busy)` (hold, clock, circuit, total budget, an unreaped sender in this worker); `address_capped(conn, email_hash, now)`; `create_pending(conn, *, cleaned, account_type, password_hash, previous_binding, now)` → token, row id, send generation, code or notice marker; `resend(conn, binding_hash, now)`; `settle_send(conn, send_id, outcome, now)`; `verify(conn, binding_hash, code, now, *, teacher_enabled)` → outcome; `cancel(conn, binding_hash, now)`; `cleanup(conn, now)`; in PR 5 (D20): `restore_gate(conn, now)`, `restore_status(conn)`, `release_hold(conn, now)` |
 | `web/services/profiles.py` | `get_profile(conn, user_id)`, `create_profile(...)`, `update_profile(...)`, `needs_profile(conn, user)` |
-| `web/services/accounts.py` (additions) | `hash_new_password(password, email)`; `create_verified_user(conn, *, email, display_name, role, password_hash, verified_at)` with `role` limited to `student`; PR 7 extends it as D5 decides |
+| `web/services/accounts.py` (additions) | `hash_new_password(password, email)`; `create_verified_user(conn, *, email, display_name, role, password_hash, verified_at)` with `role` limited to `student`; PR 7 extends it to `teacher` (D5) |
 | `web/services/mail.py`, `web/services/mail_sender.py` | section 4 |
+
+**Clock-first rule, for every writer.** In `create_pending`, `resend`,
+`verify` and `cleanup`, the applicable check is made first, inside the
+caller's `BEGIN IMMEDIATE`, and **before** any expiry, scrub, voiding of a
+previous pending row, deletion or other registration mutation:
+
+- submission, resend and verification: the hold, then the clock against the
+  high-water mark (3.8);
+- `cleanup`, whether run by the timer, the CLI or a submission: the clock
+  against the high-water mark. A hold does not stop it, since it only
+  removes data (N3); the restore lock does (6.4).
+
+When the check fails the function returns `UNAVAILABLE` (for `cleanup`, a
+"clock behind" outcome, which the CLI reports with a non-zero status) with
+the registration tables unchanged. The mark is raised only by a run whose
+`now` is not behind it, and never lowered (DC6).
 
 `verify`, in this order, inside the caller's `BEGIN IMMEDIATE`:
 
@@ -1361,8 +1386,8 @@ commits after a returned outcome and rolls back after an exception.
 5. The row is a teacher registration and the teacher gate is off → set
    `void`, scrub → `UNAVAILABLE` (7.3). No code is needed and no attempt is
    counted. Before PR 7 this is every teacher registration in every
-   environment: what a verified teacher registration becomes is D5, and no
-   earlier PR assumes an answer.
+   environment: D5 gives a verified teacher the role `teacher` only once quotas
+   exist (7.1), so until PR 7 the registration is refused.
 6. No live code, or past `code_expires_at` → `CODE_EXPIRED`, no attempt
    counted.
 7. `code_attempts` at the limit → `TOO_MANY`.
@@ -1372,8 +1397,7 @@ commits after a returned outcome and rolls back after an exception.
 10. Clear the code. If the row is a shadow, or a `users` row with the address
     exists → set `void`, scrub → `EMAIL_TAKEN`.
 11. `create_verified_user` with the role literal for the row's
-    `account_type` (`student`; for a teacher registration, from PR 7, what
-    D5 decides), then the profile and subjects; set `activated`, scrub →
+    `account_type` (`student`; for a teacher registration, from PR 7, `teacher`), then the profile and subjects; set `activated`, scrub →
     `ACTIVATED`.
 
 Failures in steps 10 and 11:
@@ -1388,8 +1412,8 @@ Failures in steps 10 and 11:
   answer is the generic failure of 1.2 with status 500, and `reg` is kept.
   It never says "address taken" and never says the email was confirmed.
 - A failure of the commit itself is the same case: roll back, generic
-  failure. The confirmation page is rendered, and under D7 (B) the session
-  issued, only **after** the commit has returned.
+  failure. The confirmation page is rendered only **after** the commit has
+  returned.
 - An exception is reachable only after a correct code, so it gives a guesser
   nothing.
 
@@ -1401,11 +1425,11 @@ after its `BEGIN IMMEDIATE` has returned (3.4).
 
 | Request | Transactions |
 | --- | --- |
-| Submit | Read availability and the address caps (no lock) → hash the password → `BEGIN IMMEDIATE`: availability and caps again, void this browser's previous row, insert the row and its ledger row, raise the high-water mark, commit → set `reg` → send, no transaction open → `BEGIN IMMEDIATE`: `settle_send`, commit. |
-| Resend | `BEGIN IMMEDIATE`: row, gates, limits, caps, new code and ledger row, commit → send → `BEGIN IMMEDIATE`: `settle_send`, commit. |
-| Verify | One `BEGIN IMMEDIATE` around `verify`; commit; then drop `reg` when the row left `pending`, and under D7 (B) issue the session. |
+| Submit | Read availability and the address caps (no lock) → hash the password → `BEGIN IMMEDIATE`: availability (hold, clock) first, then the caps again; only then the cleanup this submission runs, void this browser's previous row, insert the row and its ledger row, raise the high-water mark, commit → set `reg` → send, no transaction open → `BEGIN IMMEDIATE`: `settle_send`, commit. |
+| Resend | `BEGIN IMMEDIATE`: hold and clock first, before the row is read for expiry or changed; then row, limits, caps, new code and ledger row, commit → send → `BEGIN IMMEDIATE`: `settle_send`, commit. |
+| Verify | One `BEGIN IMMEDIATE` around `verify`; commit; then drop `reg` when the row left `pending`. No session is issued (D7). |
 | Cancel | One `BEGIN IMMEDIATE`; commit; drop `reg`. |
-| Cleanup (timer, CLI) | Refuses while the restore lock exists; one short `BEGIN IMMEDIATE`; commit. |
+| Cleanup (timer, CLI) | Refuses while the restore lock exists; one short `BEGIN IMMEDIATE`; clock check before any scrub or delete; commit. |
 
 A settlement transaction that fails (busy, disk) is logged by class name and
 leaves the ledger row `started`, which is a safe state (4.3).
@@ -1430,7 +1454,9 @@ The target holds only while all of this is true:
   `manage_accounts registrations-cleanup`, which needs no secret. It does not
   depend on traffic: on a site that receives no request at all, expired
   registrations are still scrubbed. Submissions also run the same function,
-  as a second line, not as the mechanism;
+  as a second line, not as the mechanism, and under the same clock-first
+  rule (6.3): a submission that finds the clock behind the mark answers
+  "unavailable" and runs no cleanup;
 - **the database is available to it.** A busy database, a stopped service
   with the database being worked on, or a restore in progress postpones a
   run;
@@ -1468,50 +1494,33 @@ the old bytes can still exist:
 **No bound on physical remnants is claimed**, and the cleanup specifies no
 checkpoint or `secure_delete` setting, since neither would support one.
 
-**Backups (D18).** The live backup is unchanged: the snapshot's database is
-made by `src.backup_sqlite` with SQLite's online backup API, which is what
-keeps it consistent with the WAL. Anything below is done **to that isolated
-copy**, never to the live database, and before the snapshot is verified and
-published. Three options:
+**Backups (D18, approved: option (b)).** The live backup is unchanged: the
+snapshot's database is made by `src.backup_sqlite` with SQLite's online
+backup API, which is what keeps it consistent with the WAL. The scrub is done
+**to that isolated copy**, never to the live database, and before the snapshot
+is verified and published. It is the void-and-scrub step of the restore gate
+without the hold: the published snapshot's database holds no pending
+registration and no value in the columns of the 6.1 CHECK. Old bytes may
+remain in the copy's free pages and in unused space inside its pages.
 
-| Option | What the snapshot's database holds | Cost |
-| --- | --- | --- |
-| (a) Leave it | The registrations pending at the moment of the backup, readable, for as long as the snapshot is kept. | None. |
-| (b) Logical scrub of the copy | No pending registration (the void-and-scrub step of the restore gate, without the hold). Old bytes may remain in the copy's free pages and in unused space inside its pages. | A small step in the backup tool. |
-| (c) Scrub, then offline rebuild | A new file written from the copy with `VACUUM INTO`, holding only live rows. The intermediate copy is deleted and the new file is the one published. | The backup tool rewrites the database it publishes, so it must validate the result against the scrubbed copy, as described below the table. |
+**Placement.** The transformation is applied to the isolated partial file
+`backup_database` has just written with the backup API, **before** that
+function's `quick_check`, its fsync, the link that publishes the file and the
+`sha256` it returns. Every check and the recorded hash therefore describe the
+file that is published, after the transformation.
 
-**Validation under (c).** Row counts and id sequences do not show that the
-rebuilt file holds the same rows. The rebuilt file must pass `quick_check`
-and `foreign_key_check`, have the same schema text and migration record, and
-match the scrubbed copy in a **logical digest of every table**, computed over
-its rows in a stable order that suits the table:
+**Not selected.** Leaving pending rows in snapshots, and an offline rebuild
+with `VACUUM INTO`. History worth keeping if the rebuild is ever reconsidered:
+it would need its own design, with per-table logical digests whose identity
+fits the table's kind (the four rowid tables without an `INTEGER PRIMARY KEY`
+in migrations through 020 are `topic_classes`, `topic_prerequisites`,
+`assessment_event_sections` and `exam_task_questions`; `login_throttle` and
+`oidc_consumed_transactions` are `WITHOUT ROWID`), a check that nothing relies
+on a rowid, and marker evidence about the published file only. None of that is
+part of this design or its tests.
 
-- a table with an `INTEGER PRIMARY KEY`: every column, ordered by that key,
-  so the stable ids themselves are compared;
-- a `WITHOUT ROWID` table: every column, ordered by its declared primary
-  key; `rowid` is never selected, because such a table has none;
-- a rowid table without an `INTEGER PRIMARY KEY`: every column **except the
-  rowid**, in a total order over the columns, because SQLite documents that
-  a rebuild may renumber such rowids. Should any table of this kind be
-  referenced by its rowid, the rebuild is not acceptable and (c) is refused;
-- `sqlite_sequence` compared as a table of its own.
-
-The rebuild must leave every table's kind as it was, `WITHOUT ROWID`
-included. A mismatch publishes nothing.
-
-**Placement, under (b) and (c).** The transformation is applied to the
-isolated partial file `backup_database` has just written with the backup
-API, **before** that function's `quick_check`, its fsync, the link that
-publishes the file and the `sha256` it returns. Every check and the recorded
-hash therefore describe the file that is published, after the
-transformation. The rebuilt
-file is in rollback-journal mode, not WAL; the restore script already sets
-WAL on what it restores, and its fingerprints are taken after the gate
-(3.9). In a scratch run (8.3) a rebuilt file had no free pages, passed
-`quick_check`, kept its rows and was a single file.
-
-What none of the options does: change a snapshot that was already published,
-an off-server copy of one, or the blocks of the deleted intermediate file.
+What the snapshot step does not do: change a snapshot that was already published,
+an off-server copy of one, or the blocks of the partial files it replaces.
 Snapshots also keep accounts, profiles and the ledger's keyed hashes for as
 long as they are kept; the privacy notice must say so (D16).
 
@@ -1523,12 +1532,11 @@ Retention of **accounts and profiles** is not designed here
 | Command | Does |
 | --- | --- |
 | `registrations-cleanup [--check]` | Runs `cleanup`. No secret needed. Refuses while the restore lock exists. |
-| `registrations-restore-gate` (`--pre-restore-db <path>` only under D20 (b)) | The gate of 3.9, on the database named by `--db`. One transaction; repeatable; never clears a hold it finds. |
+| `registrations-restore-gate` | The gate of 3.9, on the database named by `--db`. One transaction; repeatable; never clears a hold it finds. |
 | `registrations-restore-status --expect <state>` | Read-only. Fails unless no pending registration or recovery credential exists, the control row exists and the hold is in the expected state (3.9). |
 | `registrations-release-hold --acknowledge-lost-history` | The only way a `restore` hold ends. Refuses without the flag; prints the consequence of 3.9 before it acts. |
 | `registrations-clock-accept` | Lowers the high-water mark to the present after the operator has checked the time (3.8). |
 | `clear-registration-limit --email <email>` | Deletes the ledger rows of one address (needs `DZI_SECRET_KEY`, like `clear-throttle`). It releases one further daily budget for that address, which the command says before it acts: up to 8 more codes inside the same day. |
-| `require-profile --id <id>` | Only under D11 (c), with PR 6: sets `profile_required_at` on one student account. |
 | `list` | Adds the verification date and the declared type. |
 
 Every existing command keeps its behaviour.
@@ -1554,9 +1562,10 @@ assumption, so this design does not grant it:
 
 - the teacher gate is its own constant, off (D14), and covers activation as
   well as the form (7.3);
-- turning it on requires D5 and a quota PR (section 9, PR 7): at least a
+- turning it on requires the quota PR (section 9, PR 7): at least a
   number of assignments created per day and a number of open assignments per
-  teacher, with values Gabriel approves;
+  teacher, with values Gabriel approves and has **not yet selected**. D5 is
+  approved: a verified teacher registration then receives role `teacher`;
 - `user_profiles` has no "verified teacher" field. Teacher verification, when
   designed, adds its own.
 
@@ -1594,7 +1603,7 @@ says.
 
 The teacher gate has nothing to turn on before PR 7: until then a teacher
 registration is refused at verification in every environment (6.3), because
-what it would become is D5.
+quotas do not exist (D5).
 
 With all three off, production behaves as before this milestone for every
 existing route, which is what "production behaviour unchanged" means in
@@ -1611,16 +1620,14 @@ mail circuit is open or the total budget is used (3.5, 3.8, 3.9).
 nothing about access to data; they can only send a student to a form before a
 **new** attempt.
 
-**Who is marked** (`profile_required_at` set), under the recommended D11 (b):
+**Who is marked** (`profile_required_at` set), under D11:
 
 - a student account created by Google onboarding (`CREATED`) while the
   profile gate is on. The callback sets the mark in the transaction that
   creates the account and redirects to `/account/profile?next=<target>`;
 - nobody else. Accounts created by the CLI, accounts created through Google
-  before the gate was on, and every teacher and admin have NULL. Under
-  D11 (a) nobody is ever marked. Under D11 (c) the operator may mark chosen
-  existing students with `require-profile`; no command marks all of them at
-  once.
+  before the gate was on, and every teacher and admin have NULL. No
+  command marks existing students.
 
 **`needs_profile(conn, user)`** is true only when all hold: the profile gate
 is on; the account's **current** role is `student`; `profile_required_at` is
@@ -1699,8 +1706,7 @@ or its prerequisites.
   real message is sent by any test or smoke check.
 - Order of a later, separately authorised rollout: migration → code with
   gates off → cleanup timer and restore gate installed → mail settings, a
-  controlled send and the evidence of 0.3 → student gate → profile gate (with
-  D11) → quotas and teacher gate. Each step has the previous one's rollback:
+  controlled send and the evidence of 0.3 → student gate → profile gate → quotas and teacher gate. Each step has the previous one's rollback:
   set the constant back; the tables stay.
 - Documents to update with the implementation: `AUTH_ROUTE_CONTRACT.md`
   (routes, and "There is no registration form…"), `ACCOUNTS_DESIGN.md` §10,
@@ -1717,12 +1723,13 @@ gate from being turned on and blocks no PR (0.3).
 
 | # | Item | Kind |
 | --- | --- | --- |
-| 1 | **Decisions D1–D15 and D18–D20**, none approved. Column "Blocks" of 0.2 says which PR each one holds up. | Implementation blocker, per PR |
-| 2 | **Decisions D16 and D17** (privacy and minors; provider and sender domain). | Activation prerequisite |
+| 1 | **No open decision blocks PR 1–6.** D1–D15 and D18–D20 are approved (0.2). Approval does not authorize an implementation; each PR starts when Gabriel says so. | Neither |
+| 1a | **Quota values for PR 7** are not selected, and PR 7 needs its own short scope. **PR 8** needs its own addendum, including the recovery eligibility of never-verified addresses (5.2). | Implementation blocker for PR 7 and PR 8 only |
+| 2 | **D16** (privacy and minors) and the **configuration of D17** (sender address and domain, credentials, provider or relay, set with the VPS). | Activation prerequisite |
 | 3 | **Teacher quotas do not exist** (7.1). | Implementation blocker for PR 7 only; activation prerequisite for the teacher gate. Not for the student form. |
 | 4 | **No privacy page, no retention period, no settled position on minors' consent, no stated purpose for the profile fields** (7.2). | Activation prerequisite |
 | 5 | **No delivery provider or sender domain.** Deliverability to the mailboxes students actually use (abv.bg, Gmail, school `edu.mon.bg` accounts) is untested, and whether school mailboxes accept outside mail at all is unknown. | Activation prerequisite |
-| 6 | **Capacity of one synchronous worker** (3.5). Unmeasured. The criterion is stated; whether a remote relay meets it is not known, and the local relay may turn out to be required. | Activation prerequisite |
+| 6 | **Capacity of one synchronous worker** (3.5). Unmeasured. The criterion is stated; whether a remote relay meets it is not known; a local relay was not selected (D19), so a failed measurement needs its own decision. | Activation prerequisite |
 | 7 | **Linux-only evidence:** the systemd timer, the restore script's gate with an interrupted run and a running cleanup job, the snapshot step, and the sender process under the real unit (worker replacement, descriptor isolation, signal state, sandboxing). None can be run from the development Mac. The logic is tested portably. | Activation prerequisite. For PR 5 it is also review evidence the PR must bring. |
 | 8 | **Duplicate accounts** across Google and password sign-in (2.6) have no correction until the identity-recovery milestone. | Neither: a known limit, tied to Google's own activation |
 
@@ -1743,9 +1750,8 @@ gate from being turned on and blocks no PR (0.3).
 - A scrub is logical. Old bytes can remain in the WAL, in free pages and
   unused page space, in
   earlier snapshots and in copies below the application, with no bound (6.5).
-- Under D20 (a) every restore closes registration until the operator acts;
-  under either option a released hold loses the accounting since the
-  snapshot (3.9).
+- Every restore closes registration until the operator acts, and a released
+  hold loses the accounting since the snapshot (3.9, D20).
 
 ### 8.3 What was executed for this revision
 
@@ -1766,7 +1772,7 @@ code, real database, socket, mail server or provider was involved.
 | The isolated entry point | `-I` from the checkout, by module name and by absolute script path | `web` is not importable in isolated mode; a standard-library script run by absolute path starts |
 | A child can be ended at a deadline (revision 2; run with `communicate`, which revision 4 replaces) | A child producing a little output forever, and one blocked in a sleep, killed by the parent | Ended at 1.00 s and 1.01 s of a 1 s deadline; no process left; start cost 0.11 s. Left alone with a 1 s alarm: ended by itself at 1.04 s |
 | A scrub is not erasure | Byte search of the live file, the WAL and a backup-API copy after several write sequences | Sequence-dependent. A marker remained in the WAL after a passive checkpoint that reported every frame checkpointed (126 of 126); in other sequences it was found nowhere. I did not reproduce the review's free-page remnants. No absence is claimed. |
-| An offline rebuild of a snapshot copy | `VACUUM INTO` on a backup-API copy with 58 free pages | New file: 0 free pages, `quick_check` ok, rows kept, one file in rollback-journal mode |
+| An offline rebuild of a snapshot copy (option not selected) | `VACUUM INTO` on a backup-API copy with 58 free pages | New file: 0 free pages, `quick_check` ok, rows kept, one file in rollback-journal mode |
 | The exchange of 4.2 bounds both pipes (revision 4) | A selector exchange with a 16-byte output cap and a 1 s monotonic deadline, against stand-in children; input of 1 MiB for the child that never reads | Flood: ended at 1.01 s, 17 bytes read (the model's cap plus one; the design stops at 16). Never reads its input: 1.00 s. `R` then block: 1.00 s. `R` and exit 0, and exit 12 with no output: at once, clean end-of-file |
 | The alarm survives an inherited signal state (revision 4) | Children started with `SIGALRM` ignored, and blocked, by the parent | Plain `alarm(1)`: exit 0 after 3.0 s in both. Reset, unblock, then arm: ended by `SIGALRM` at 1.05 s in both |
 
@@ -1790,12 +1796,12 @@ as a rule; it would be justified only for a concrete open problem.
 
 | PR | Content | Decisions needed first | After | Executor | Independent review |
 | --- | --- | --- | --- | --- | --- |
-| 1 | Migration(s): `users.email_verified_at`, `user_profiles`, `teacher_subjects`, `pending_registrations`, `registration_sends`, `registration_control`; classification; `profiles` service; form validators (exact passwords, dedicated email and `next` rules); migration and service tests. No route. | D1–D4, D12, D13; D6 for the schema's bounds | — | Sonnet High | yes (schema) |
-| 2 | `web/services/mail.py` and the standalone sender script: interface, the process contract and outcome rule of 4.2, the deadline and cleanup paths, SMTP, console, file and in-memory backends; settings parsing; production refusal of the development backends. No caller. | D19 | 1 | Opus High | yes (security: process containment, TLS, headers, logging) |
-| 3 | `web/services/registration.py` and the `accounts` additions: pending lifecycle, codes, ledger, caps, circuit, settlement, shadow rows, activation of **student** registrations and its error classification, clock policy, cleanup. A teacher registration is never activated here. No Flask. | D6, D8 | 2 | Opus High | yes (security) |
-| 4 | `registration` blueprint for students, templates, the `reg` session slot, the registration and teacher gates, the cleanup and limit CLI commands, Nginx zone, contract and deployment documents. The teacher route and its gate exist and answer 404 in every environment until PR 7. | D7, D9, D14 | 3 | Opus High | yes (security) |
-| 5 | Operations: cleanup timer unit; the restore gate, status and release functions and commands as D20 decides; the restore script's gate, cleanup-job handling and final validation; the snapshot step as D18 decides; health checks. | D18, D20 | 4 | Opus High | yes (operations; Linux evidence required) |
-| 6 | `/account/profile`, profile on `/account`, the profile gate; under D11 (b) or (c) the migration adding `users.profile_required_at`, the mark at Google onboarding and the new-attempt check. | D11, D2 | 5 | Sonnet High | yes |
-| 7 | Teacher quotas (needs its own short scope), then what D5 decides a verified teacher registration becomes, the teacher form and subjects behind `TEACHER_ACTIVATION`. | D5 | 6 | Sonnet High | yes (security) |
-| 8 | Password recovery, from its own addendum (5.2), if D10 (a). | D10 | 7 | Opus High | yes (security) |
-| — | Activation: separate, explicitly authorised, after the prerequisites of 0.3. Student registration does not wait for PR 7. | D16, D17 | — | — | — |
+| 1 | Migration(s): `users.email_verified_at`, `user_profiles`, `teacher_subjects`, `pending_registrations`, `registration_sends`, `registration_control`; classification; `profiles` service; form validators (exact passwords, dedicated email and `next` rules); migration and service tests. No route. | None open (D1–D4, D6, D12, D13 decided) | — | Sonnet High | yes (schema) |
+| 2 | `web/services/mail.py` and the standalone sender script: interface, the process contract and outcome rule of 4.2, the deadline and cleanup paths, SMTP, console, file and in-memory backends; settings parsing (sender address from configuration, no default); production refusal of the development backends. No caller. | None open (D17 behaviour, D19 decided) | 1 | Opus High | yes (security: process containment, TLS, headers, logging) |
+| 3 | `web/services/registration.py` and the `accounts` additions: pending lifecycle, codes, ledger, caps, circuit, settlement, shadow rows, activation of **student** registrations and its error classification, clock policy, cleanup. A teacher registration is never activated here. No Flask. | None open (D6, D8 decided) | 2 | Opus High | yes (security) |
+| 4 | `registration` blueprint for students, templates, the `reg` session slot, the registration and teacher gates, the cleanup and limit CLI commands, Nginx zone, contract and deployment documents. The teacher route and its gate exist and answer 404 in every environment until PR 7. | None open (D7, D9, D14 decided) | 3 | Opus High | yes (security) |
+| 5 | Operations: cleanup timer unit; the restore gate, status and release functions and commands (hold after every restore, D20); the restore script's gate, cleanup-job handling and final validation; the logical snapshot scrub (D18 (b)); health checks. | None open (D18, D20 decided) | 4 | Opus High | yes (operations; Linux evidence required) |
+| 6 | `/account/profile`, profile on `/account`, the profile gate; the migration adding `users.profile_required_at`, the mark at Google onboarding and the new-attempt check. | None open (D2, D11 decided) | 5 | Sonnet High | yes |
+| 7 | Teacher quotas (needs its own short scope), then role `teacher` for a verified teacher registration (D5), the teacher form and subjects behind `TEACHER_ACTIVATION`. | Quota values (not selected) | 6 | Sonnet High | yes (security) |
+| 8 | Password recovery, from its own addendum (5.2), before public opening (D10). | The addendum | 7 | Opus High | yes (security) |
+| — | Activation: separate, explicitly authorised, after the prerequisites of 0.3. Student registration does not wait for PR 7. | D16; configuration of D17 | — | — | — |
