@@ -2707,18 +2707,28 @@ One send starts one short-lived child of the Gunicorn worker:
 gets its settings and the message on standard input, never as arguments or
 environment variables; its environment holds only the locale and, when set,
 `SSL_CERT_FILE` and `SSL_CERT_DIR`; it inherits no descriptor of the worker
-and its standard error is the null device. The worker ends it eight seconds
-after it was created, and it ends itself nine seconds after it started
-running. Neither process creation nor the whole request has a bound of its
-own, and senders can overlap for a few seconds when Gunicorn replaces a worker
-(design, section 4.2). `KillMode=mixed` in the unit ends a sender on a service
-stop.
+and its standard error is the null device.
 
-**None of this was exercised on Linux or under the real unit.** The process
-tests ran on the development Mac only. The forced hang, the worker killed
-during a send, descriptor and environment isolation under systemd's
-sandboxing, the worker's inherited signal state and the capacity measurement
-remain activation prerequisites (design, section 0.3; test plan, section L).
+The time limits are three separate things. Creating the process is not
+bounded. Once `Popen` has returned, the worker exchanges data with the sender
+for at most eight seconds and then decides to kill it; killing and reaping it
+may add up to two more seconds. The sender also ends itself nine seconds after
+its first statements ran, which is what ends it when its worker has died.
+There is no bound on the whole request, and senders can overlap for a few
+seconds when Gunicorn replaces a worker (design, section 4.2).
+`KillMode=mixed` in the unit ends a sender on a service stop. One sender at a
+time per worker rests on the pinned `worker_class = "sync"` and `threads = 1`
+of `deploy/gunicorn.conf.py`. A worker that ignores `SIGCHLD` starts no sender
+at all; Gunicorn's sync worker does not ignore it.
+
+**None of this was validated on the VPS or under the real unit.** The
+independent reviewer exercised the code on Linux (the `epoll` selector, fake
+peers over real TLS, inherited signal states); that is not the systemd
+sandbox, not a provider and not a capacity measurement. The forced hang, the
+worker killed during a send, descriptor and environment isolation under
+systemd's sandboxing, the worker's inherited signal state and the capacity
+measurement remain activation prerequisites (design, section 0.3; test plan,
+section L).
 
 ### Rollback
 

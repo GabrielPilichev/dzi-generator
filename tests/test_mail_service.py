@@ -145,6 +145,18 @@ class FakeServer:
         raise AssertionError(f"no {kind} {verb} event in {[e[:2] for e in self.events]}")
 
 
+def envelope(command, name):
+    """The rest of an envelope command after its name, byte for byte.
+
+    Only the command name is compared without regard to case (``smtplib`` has written
+    it in different cases across Python versions; SMTP command names are
+    case-insensitive). Everything after it, the address and any option, is exact.
+    """
+    name = name.encode("ascii")
+    assert command[:len(name)].upper() == name.upper(), command
+    return command[len(name):]
+
+
 def run_script(data, server=None, marker_result=None):
     """``run(data)`` of the sender script against a fake peer: (status, server)."""
     server = server or FakeServer()
@@ -575,7 +587,15 @@ class SenderScriptStaticTest(unittest.TestCase):
                   SCRIPT.EXIT_SENDER_REFUSED, SCRIPT.EXIT_BEFORE_MARKER]
         self.assertTrue(all(status in mail.EXIT_NOT_SENT for status in before))
         self.assertEqual(list(mail.EXIT_NOT_SENT), list(range(10, 20)))
-        self.assertNotIn(SCRIPT.EXIT_AFTER_MARKER, (0, 20, *range(10, 20)))
+        listed = (0, 20, *range(10, 20))
+        self.assertNotIn(SCRIPT.EXIT_AFTER_MARKER, listed)
+        self.assertNotIn(SCRIPT.EXIT_SERVICE_UNAVAILABLE, listed, "421 without the marker must not read as not sent")
+        self.assertEqual((SCRIPT.EXIT_AFTER_MARKER, SCRIPT.EXIT_SERVICE_UNAVAILABLE),
+                         (mail.EXIT_AFTER_MARKER, mail.EXIT_SERVICE_UNAVAILABLE))
+        self.assertEqual((mail.EXIT_AFTER_MARKER, mail.EXIT_SERVICE_UNAVAILABLE), (30, 31))
+        for output in (b"", b"R"):
+            for status in (30, 31):
+                self.assertIs(mail._outcome(output, True, status), mail.SendOutcome.UNKNOWN)
         self.assertEqual(set(json.loads(mail._payload(
             mail.load_settings(SMTP_ENV, production=True),
             mail.OutboundEmail(to=RECIPIENT, subject=CODE_SUBJECT, text=CODE_TEXT)))), set(SCRIPT.KEYS))
@@ -596,7 +616,8 @@ class SenderScriptExchangeTest(unittest.TestCase):
         self.assertEqual(server.verbs(), ["EHLO", "STARTTLS", "EHLO", "AUTH", "MAIL", "RCPT", "DATA", "MESSAGE", "QUIT"])
         self.assertEqual([event for event in server.events if event[0] == "marker"], [("marker", 1, b"R")])
         self.assertEqual(server.events[0], ("connect", "relay.example.org", 587, 3.0))
-        self.assertEqual(server.sent("RCPT"), [f"rcpt TO:<{RECIPIENT}>\r\n".encode()])
+        (recipient_command,) = server.sent("RCPT")
+        self.assertEqual(envelope(recipient_command, "RCPT TO"), f":<{RECIPIENT}>\r\n".encode())
 
     def test_the_marker_precedes_the_recipient_in_every_path_that_issues_it(self):
         # C4: the write of ``R`` has returned before the recipient command is issued.
@@ -648,13 +669,71 @@ class SenderScriptExchangeTest(unittest.TestCase):
         self.assertEqual(status, 12)
         self.assertEqual(server.verbs(), [])
 
-    def test_refused_recipient_and_refused_data_are_20_after_the_marker(self):
-        for path in ({"RCPT": b"550 no such user\r\n"}, {"RCPT": b"450 greylisted\r\n"}, {"DATA": b"554 no\r\n"},
-                     {"DATA": b"451 later\r\n"}, {"MESSAGE": b"552 too big\r\n"}, {"MESSAGE": b"451 later\r\n"}):
-            with self.subTest(path=path):
-                status, server = run_script(encoded(), FakeServer(replies=path))
+    def reply_status(self, verb, reply, **changes):
+        status, server = run_script(encoded(**changes), FakeServer(replies={verb: reply}))
+        return status, server
+
+    def test_a_permanent_refusal_after_the_marker_is_20(self):
+        # Policy approved by Gabriel (design 4.2): 5xx to the recipient, the data command or the message.
+        for verb, reply in (("RCPT", b"550 no such user\r\n"), ("RCPT", b"553 bad mailbox\r\n"), ("RCPT", b"500 ?\r\n"),
+                            ("RCPT", b"599 x\r\n"), ("DATA", b"554 no\r\n"), ("DATA", b"503 bad sequence\r\n"),
+                            ("MESSAGE", b"552 too big\r\n"), ("MESSAGE", b"554 rejected\r\n"), ("MESSAGE", b"550 spam\r\n")):
+            with self.subTest(verb=verb, reply=reply):
+                status, server = self.reply_status(verb, reply)
                 self.assertEqual(status, 20)
-                self.assertEqual(server.index("marker") < server.index("sent", "RCPT"), True)
+                self.assertLess(server.index("marker"), server.index("sent", "RCPT"))
+
+    def test_a_transient_refusal_of_the_recipient_is_20(self):
+        for reply in (b"450 greylisted\r\n", b"451 try later\r\n", b"452 too many recipients\r\n", b"455 no\r\n",
+                      b"400 x\r\n", b"499 x\r\n", b"450-first line\r\n450 second line\r\n"):
+            with self.subTest(reply=reply):
+                status, server = self.reply_status("RCPT", reply)
+                self.assertEqual(status, 20)
+                self.assertNotIn("DATA", server.verbs())
+
+    def test_a_transient_reply_to_the_data_or_the_message_establishes_nothing(self):
+        # Not a refusal: status 30, which the parent reads as unknown.
+        for verb in ("DATA", "MESSAGE"):
+            for reply in (b"450 later\r\n", b"451 local error\r\n", b"452 insufficient storage\r\n", b"400 x\r\n", b"499 x\r\n"):
+                with self.subTest(verb=verb, reply=reply):
+                    status, server = self.reply_status(verb, reply)
+                    self.assertEqual(status, SCRIPT.EXIT_AFTER_MARKER)
+                    self.assertNotIn(status, (0, 20, *mail.EXIT_NOT_SENT))
+                    self.assertEqual([e for e in server.events if e[0] == "marker"], [("marker", 1, b"R")])
+
+    def test_421_after_the_marker_is_its_own_status_never_a_refusal(self):
+        for verb in ("RCPT", "DATA", "MESSAGE"):
+            for reply in (b"421 closing channel\r\n", b"421-busy\r\n421 closing\r\n"):
+                with self.subTest(verb=verb, reply=reply):
+                    status, server = self.reply_status(verb, reply)
+                    self.assertEqual(status, SCRIPT.EXIT_SERVICE_UNAVAILABLE)
+                    self.assertEqual([e for e in server.events if e[0] == "marker"], [("marker", 1, b"R")])
+
+    def test_421_before_the_marker_is_not_a_10_to_19_status(self):
+        # Without ``R`` a 10-19 status would be read as "not sent". 421 at any stage is unknown.
+        for security, port in (("starttls", 587), ("tls", 465), ("none", 25)):
+            for verb in ("GREETING", "EHLO", "STARTTLS", "AUTH", "MAIL"):
+                if verb == "STARTTLS" and security != "starttls":
+                    continue
+                host = "localhost" if security == "none" else "relay.example.org"
+                with self.subTest(security=security, stage=verb):
+                    status, server = self.reply_status(verb, b"421 service not available, closing channel\r\n",
+                                                       security=security, port=port, host=host)
+                    self.assertEqual(status, SCRIPT.EXIT_SERVICE_UNAVAILABLE)
+                    self.assertNotIn(status, mail.EXIT_NOT_SENT)
+                    self.assert_nothing_for_any_recipient(server)
+                    # Nothing follows the command that was answered 421.
+                    self.assertEqual(server.verbs()[-1:], [] if verb == "GREETING" else [verb])
+                    self.assertIs(mail._outcome(b"", True, status), mail.SendOutcome.UNKNOWN)
+
+    def test_other_replies_before_the_marker_keep_their_10_to_19_status(self):
+        # Only 421 is singled out: 420, 422, 450 and 5xx at these stages are unchanged.
+        for verb, expected in (("GREETING", 11), ("EHLO", 13), ("STARTTLS", 12), ("AUTH", 14), ("MAIL", 15)):
+            for reply in (b"420 x\r\n", b"422 x\r\n", b"450 later\r\n", b"451 later\r\n", b"550 no\r\n", b"554 no\r\n"):
+                with self.subTest(stage=verb, reply=reply):
+                    status, server = self.reply_status(verb, reply)
+                    self.assertEqual(status, expected)
+                    self.assert_nothing_for_any_recipient(server)
 
     def test_an_exchange_that_breaks_after_the_marker_has_no_meaning(self):
         # Neither accepted nor refused: the parent reads the status as unknown.
@@ -688,7 +767,10 @@ class SenderScriptExchangeTest(unittest.TestCase):
                 commands.update(server.sent("MAIL"))
                 before_marker = b"".join(e[2] for e in server.events[:server.index("marker")] if e[0] == "sent")
                 self.assertNotIn(to.encode(), before_marker)
-        self.assertEqual(commands, {f"mail FROM:<{SENDER}>\r\n".encode()})
+        self.assertEqual(len(commands), 1, "byte-identical for a code and for a notice, SIZE advertised or not")
+        (command,) = commands
+        self.assertEqual(envelope(command, "MAIL FROM"), f":<{SENDER}>\r\n".encode(), "no option follows the address")
+        self.assertNotIn(b"SIZE", command.upper())
 
     def test_the_message_has_one_recipient_the_configured_sender_and_one_utf8_text_part(self):
         # C1.

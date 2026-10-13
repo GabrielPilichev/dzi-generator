@@ -11,6 +11,10 @@ only. Nothing here has a caller yet.
   ``NOT_SENT`` needs positive evidence; whatever is not established is ``UNKNOWN``.
   ``ACCEPTED`` means the server took the message for the recipient. It never means the
   message reached a mailbox.
+* A process whose ``SIGCHLD`` is ignored cannot learn how a child ended, so ``send``
+  starts none there (``NOT_SENT``, ``sender_error error=sigchld``). The check is made
+  once, before the child is created: nothing may change the ``SIGCHLD`` disposition of
+  the process while a send is running.
 * ``sender_busy()`` is what a caller reads **before it admits anything**: while this
   process has a sender it killed and could not reap, it starts no other.
 * ``ConsoleMailer`` and ``FileMailer`` are development backends that show the message
@@ -23,11 +27,15 @@ only. Nothing here has a caller yet.
 What is bounded, exactly: the exchange with the child, from ``Popen`` returning to the
 decision to kill it, by one monotonic deadline; the input by 16 KiB; the output read by
 16 bytes; the reaping after a kill by its own bound. Process creation is not bounded.
-One process runs one sender at a time only because a synchronous worker calls ``send``
-from one thread; senders of different processes are not excluded from each other.
+One process runs one sender at a time only because the deployment's worker is
+synchronous with one thread (``deploy/gunicorn.conf.py``) and so calls ``send`` from one
+thread; calls from several threads, as a threaded development server makes, may overlap.
+Senders of different processes are not excluded from each other.
 
 Never logged, at any level: the recipient, the subject or body, the sender settings,
-credentials. Log lines hold an event name and, for a failure, an exception class name.
+credentials. Log lines hold an event name and, for a failure, a fixed word or an
+exception class name: ``sender_unreaped`` and ``sender_error error=<word>``, both safe to
+pass on to whatever logging a later caller sets up.
 """
 
 from __future__ import annotations
@@ -39,6 +47,7 @@ import os
 import re
 import secrets
 import selectors
+import signal
 import subprocess
 import sys
 import threading
@@ -64,6 +73,11 @@ MARKER = b"R"
 EXIT_ACCEPTED = 0
 EXIT_REFUSED = 20
 EXIT_NOT_SENT = range(10, 20)
+# Named for the record only: like every status not listed above, the outcome is UNKNOWN,
+# with the marker or without it. 30: a failure after the marker that is not a refusal.
+# 31: the server answered 421 at any stage.
+EXIT_AFTER_MARKER = 30
+EXIT_SERVICE_UNAVAILABLE = 31
 
 MAX_ADDRESS_LENGTH = 254
 MAX_SUBJECT_LENGTH = 200
@@ -546,6 +560,13 @@ class SmtpMailer:
             raise TypeError("send takes an OutboundEmail")
         # Each early return below is positive evidence: no process was created.
         if sender_busy():
+            return SendOutcome.NOT_SENT
+        # With SIGCHLD ignored the kernel reaps the child itself and the interpreter
+        # reports an exit status of 0 it never saw, which would read as "accepted".
+        # The disposition is only read, never changed. Callers must not change it
+        # while a send is running.
+        if signal.getsignal(signal.SIGCHLD) == signal.SIG_IGN:
+            logger.warning("sender_error error=sigchld")
             return SendOutcome.NOT_SENT
         try:
             payload = _payload(self._settings, message)

@@ -189,6 +189,7 @@ Sections 0.4–0.6 are history. Where they mention an option that D1–D20 did n
 | R5 | The tables by kind were named; the analysis is kept as a historical note for the unselected rebuild | 6.5 |
 | R6 | D15 is a scope deferral and is not an implementation blocker | 8.1, scope |
 | Decisions | Gabriel's approvals recorded; unselected mechanisms (D7 (B), D8 (b), D10 (b), D11 (a)/(c), D18 (a)/(c), D19 (a+)/(b), D20 (b)) removed from the implementation scope and the tests | 0.2 and throughout |
+| PR 2 review | Recorded after the independent review of PR 2 (#336, REQUEST CHANGES, narrow). **Reply policy approved by Gabriel (option 3):** 421 at any stage is `unknown`; any other 4xx reply to the data command or to the message is `unknown`; any other 4xx reply to the recipient command is `refused`; a 5xx reply after the marker is `refused`. **`SIGCHLD` guard:** no sender is started while the process ignores `SIGCHLD`. The log event `sender_error` is named. The one-sender statement is tied to the pinned synchronous, single-thread worker. The production-start wiring of the mail settings stays with PR 4 | 3.10, 4.2, 7.5 |
 
 ## 1. Forms and profiles
 
@@ -860,6 +861,8 @@ exception class name or an outcome:
 `wrong_code`, `activated user=<id>`, `email_taken`, `activation_failed`,
 `gate_off`, `total_cap_reached`, `circuit_open`, `clock_regressed`,
 `restore_hold`, `hold_released`, `sender_unreaped`,
+`sender_error error=<word>` (a fixed word such as `sigchld` or `input`, or an
+exception class name; never a value, and no traceback),
 `cleanup scrubbed=<n> deleted=<n>`.
 
 Never logged, at any level: the address, names, school, the password, the
@@ -929,7 +932,7 @@ isolated mode the checkout is not on the import path, so a module name under
 | Standard output | At most one byte, `R`, written with a single unbuffered `os.write` **before** the child may begin to transmit the recipient command. It means "from here on the recipient may be on the wire". The parent reads at most 16 bytes in total and then stops reading; it never reads to end-of-file to tidy up. |
 | Standard error | `/dev/null`. The child prints nothing, so no traceback, which could hold the address, reaches the journal. |
 | Other descriptors | None: `close_fds=True`, stated explicitly. The child holds no database file, WAL, listening socket or log file of the worker. |
-| Exit status | `0` accepted. `10`–`19` ended before `R`, nothing sent to any recipient (input, lookup, connect, TLS, greeting, AUTH, sender refused). `20` a definite refusal of the recipient or the data. Anything else has no meaning of its own. |
+| Exit status | `0` accepted. `10`–`19` ended before `R`, nothing sent to any recipient (input, lookup, connect, TLS, greeting, AUTH, sender refused). `20` a definite refusal of the recipient or the data, as the reply policy below defines it. `31` the server answered 421 at any stage, before `R` or after it; it is deliberately outside `10`–`19`. Anything else has no meaning of its own (the script uses `30` for a failure after `R` that is not a refusal). The parent reads `31` and every unlisted status as `unknown`. |
 
 The child applies a 3-second timeout to every socket operation and makes one
 attempt. It issues the sender, recipient and data commands itself (`mail`,
@@ -945,10 +948,39 @@ everything unclear is `unknown`.
 | Evidence | Outcome |
 | --- | --- |
 | The process could not be created (`Popen` raised) | `not_sent` |
+| The parent process ignores `SIGCHLD` (checked before `Popen`); no process is created | `not_sent` |
 | The child exited by itself with `10`–`19`, and its output reached end-of-file with nothing written | `not_sent` |
 | The output reached end-of-file with **exactly one** `R` and nothing else, and the child exited `0` | `accepted` |
 | The output reached end-of-file with **exactly one** `R` and nothing else, and the child exited `20` | `refused` |
 | Anything else: killed at the deadline, **with or without `R`**; output that hit the 16-byte cap or is not a single `R`; end-of-file not seen; ended by a signal; an unlisted status; a status that contradicts the marker (`0` or `20` without `R`, `10`–`19` with it); an **`EPIPE` / `BrokenPipeError` while writing the input**; any other exception in the parent after the child was created | `unknown` |
+
+**Reply policy (approved by Gabriel after the PR 2 review).** What the script
+makes of a complete negative reply:
+
+| Reply | Stage | Status | Outcome |
+| --- | --- | --- | --- |
+| 421 | any, before `R` or after it | `31` | `unknown` |
+| any other 4xx | recipient command | `20` | `refused` |
+| any other 4xx | data command, or the reply to the message | `30` | `unknown` |
+| 5xx | recipient command, data command, or the reply to the message | `20` | `refused` |
+| 4xx other than 421, or 5xx | before `R` (greeting, EHLO, STARTTLS, AUTH, sender) | `10`–`19` | `not_sent` |
+| a reply that cannot be read, a 1xx–3xx reply where acceptance was expected, a lost connection or a timeout | after `R` | `30` | `unknown` |
+
+421 means the server is closing the channel, which says nothing certain about
+what it did with the transaction, so it is never `not_sent` and never
+`refused`: before `R` it has its own status precisely so that the absence of
+the marker is not read as "nothing was sent". `unknown` keeps the code and the
+budgets and counts toward the circuit of 3.5; `refused` stays left out of it.
+Nothing is retried in any case.
+
+**`SIGCHLD`.** A process that ignores `SIGCHLD` has its children reaped by the
+kernel, and the interpreter then reports an exit status of 0 that it never
+observed, which would turn `R` with any status into `accepted`. So `send`
+reads the disposition before `Popen` and, when it is "ignore", creates no
+process, logs `sender_error error=sigchld` and returns `not_sent`. It never
+changes the disposition. The check is made once, before the child exists:
+callers must not change the `SIGCHLD` disposition of the process while a send
+is running. Gunicorn's sync worker resets `SIGCHLD` to the default action.
 
 `accepted` and `refused` are therefore never concluded from a timeout, from
 capped output, from unexpected bytes or from an exit status alone: end-of-file,
@@ -1040,7 +1072,10 @@ that is what the alarm is for.
 
 - **Within one worker: one sender.** The worker is synchronous, does not
   return before it has reaped its child, and refuses to start another while
-  one is unreaped.
+  one is unreaped. This rests on the pinned deployment (`worker_class =
+  "sync"`, `threads = 1` in `deploy/gunicorn.conf.py`): `send` takes no lock,
+  so calls from several threads, as a threaded development server makes, may
+  overlap.
 - **Across a worker replacement: no exclusion.** A worker killed outright
   leaves its sender running, and the replacement worker can start another.
   The two overlap for up to the orphan lifetime. With one worker that is
@@ -1714,7 +1749,10 @@ or its prerequisites.
   normally, logs one warning if mail settings are present, and never refuses
   to start because of them.
 - With the registration gate on, malformed mail settings are reported by
-  `production_config_errors`, as `google_sign_in_errors` are.
+  `production_config_errors`, as `google_sign_in_errors` are. That wiring,
+  and the refusal of `console` and `file` by a production start, arrive with
+  the gate in PR 4: PR 2 provides `mail.settings_problems(...,
+  production=True)` for it and changes no start-up code.
 - Development: `DZI_MAIL_BACKEND=console` shows the code in the terminal. No
   real message is sent by any test or smoke check.
 - Order of a later, separately authorised rollout: migration → code with

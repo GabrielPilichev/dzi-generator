@@ -14,9 +14,13 @@ other than the three standard streams. The contract with the parent:
 * Standard output: at most one byte, ``R``, written with one unbuffered ``os.write``
   before the recipient command may be transmitted. Nothing else is ever written.
 * Exit status: ``0`` the server accepted the message. ``10``-``19`` ended before ``R``,
-  nothing was given to the server for any recipient. ``20`` the server answered the
-  recipient command, the data command or the message with a complete negative reply.
-  Any other status has no meaning of its own.
+  nothing was given to the server for any recipient. ``20`` a refusal after ``R``: a
+  5xx reply to the recipient command, the data command or the message, or a 4xx reply
+  other than 421 to the recipient command. ``31`` the server answered 421 ("closing the
+  channel") at any stage, before ``R`` or after it. Any other status has no meaning of
+  its own. The parent reads ``31`` and every other unlisted status as "unknown": a 4xx
+  reply to the data command or to the message, a reply that cannot be read, and a lost
+  connection after ``R`` all end with ``30``.
 
 Every socket operation has a 3-second timeout. That is not the bound: a server that
 answers one line at a time, and name resolution, are bounded by the parent's deadline
@@ -57,6 +61,10 @@ EXIT_SENDER_REFUSED = 15
 EXIT_BEFORE_MARKER = 19  # anything else before the marker, a failed marker write included
 EXIT_REFUSED = 20
 EXIT_AFTER_MARKER = 30  # no meaning of its own: the parent reads it as "unknown"
+# The server answered 421 at any stage. Deliberately outside 10-19: without ``R`` it must
+# not become "not sent". It says nothing about whether a recipient was transmitted.
+EXIT_SERVICE_UNAVAILABLE = 31
+SERVICE_UNAVAILABLE = 421
 
 SECURITY_MODES = ("starttls", "tls", "none")
 KEYS = frozenset({
@@ -168,9 +176,19 @@ def _accepted(code):
     return 200 <= code <= 299
 
 
-def _negative(code):
-    """A complete 4xx or 5xx reply. A reply that cannot be read as one establishes nothing."""
-    return 400 <= code <= 599
+def _permanent(code):
+    return 500 <= code <= 599
+
+
+def _transient(code):
+    return 400 <= code <= 499
+
+
+def _stop(default, code=None, error=None):
+    """The stop for a failure before the marker: ``default``, unless the server said 421."""
+    if code is None and error is not None:
+        code = getattr(error, "smtp_code", None)
+    return _Stop(EXIT_SERVICE_UNAVAILABLE if code == SERVICE_UNAVAILABLE else default)
 
 
 def _before_marker(settings):
@@ -183,37 +201,37 @@ def _before_marker(settings):
             server = smtplib.SMTP(host, port, timeout=SOCKET_TIMEOUT)
     except ssl.SSLError:
         raise _Stop(EXIT_TLS)
-    except Exception:
-        raise _Stop(EXIT_CONNECT)
+    except Exception as error:
+        raise _stop(EXIT_CONNECT, error=error)
     try:
         try:
             code, _ = server.ehlo()
-        except Exception:
-            raise _Stop(EXIT_HELLO)
+        except Exception as error:
+            raise _stop(EXIT_HELLO, error=error)
         if not _accepted(code):
-            raise _Stop(EXIT_HELLO)
+            raise _stop(EXIT_HELLO, code)
         if security == "starttls":
             try:
                 # Raises when the extension is not offered: there is no plain fallback.
                 server.starttls(context=_tls_context())
                 code, _ = server.ehlo()
-            except Exception:
-                raise _Stop(EXIT_TLS)
+            except Exception as error:
+                raise _stop(EXIT_TLS, error=error)
             if not _accepted(code):
-                raise _Stop(EXIT_HELLO)
+                raise _stop(EXIT_HELLO, code)
         if settings["username"] is not None:
             try:
                 server.login(settings["username"], settings["password"])
-            except Exception:
-                raise _Stop(EXIT_AUTH)
+            except Exception as error:
+                raise _stop(EXIT_AUTH, error=error)
         try:
             # No options: nothing given to the server before the marker depends on
             # the recipient or on the message (no SIZE in particular).
             code, _ = server.mail(settings["sender_address"])
-        except Exception:
-            raise _Stop(EXIT_SENDER_REFUSED)
+        except Exception as error:
+            raise _stop(EXIT_SENDER_REFUSED, error=error)
         if not _accepted(code):
-            raise _Stop(EXIT_SENDER_REFUSED)
+            raise _stop(EXIT_SENDER_REFUSED, code)
     except BaseException:
         _close(server)
         raise
@@ -227,17 +245,31 @@ def _close(server):
         pass
 
 
+def _recipient_status(code):
+    """A refusal is a 5xx reply, or a 4xx reply other than 421."""
+    if code == SERVICE_UNAVAILABLE:
+        return EXIT_SERVICE_UNAVAILABLE
+    return EXIT_REFUSED if _permanent(code) or _transient(code) else EXIT_AFTER_MARKER
+
+
+def _data_status(code):
+    """A refusal is a 5xx reply only: a 4xx reply to the data or the message establishes nothing."""
+    if code == SERVICE_UNAVAILABLE:
+        return EXIT_SERVICE_UNAVAILABLE
+    return EXIT_REFUSED if _permanent(code) else EXIT_AFTER_MARKER
+
+
 def _after_marker(server, settings, message):
-    """Recipient, data and message. Only a complete negative reply is a refusal."""
+    """Recipient, data and message, under the reply policy of the two functions above."""
     try:
         code, _ = server.rcpt(settings["to"])
         if not _accepted(code):
-            return EXIT_REFUSED if _negative(code) else EXIT_AFTER_MARKER
+            return _recipient_status(code)
         code, _ = server.data(message)
         if not _accepted(code):
-            return EXIT_REFUSED if _negative(code) else EXIT_AFTER_MARKER
+            return _data_status(code)
     except smtplib.SMTPDataError as error:
-        return EXIT_REFUSED if _negative(error.smtp_code) else EXIT_AFTER_MARKER
+        return _data_status(error.smtp_code)
     except Exception:
         return EXIT_AFTER_MARKER
     try:

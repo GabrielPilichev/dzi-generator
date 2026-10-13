@@ -4,7 +4,12 @@ Design: `docs/reviews/EMAIL_REGISTRATION_DESIGN.md` (sections 4, 3.5, 3.10, 7.5,
 Tests: `docs/reviews/EMAIL_REGISTRATION_TEST_PLAN.md`, section C.
 Scope: `docs/reviews/EMAIL_REGISTRATION_SCOPE.md`.
 
-**Status:** implemented in draft PR #336, **not independently reviewed**. It is
+**Status:** implemented in draft PR #336. An independent review of commit
+`da5f28c53e0add8dffceeff3f12847f4e468c916` returned **REQUEST CHANGES
+(narrow)**: two blockers (a flaky test, B1; a false acceptance when `SIGCHLD`
+is ignored, B2), one portability note (N1) and a policy question on 4xx
+replies, which Gabriel decided. The corrections for all four are below and are
+**not independently reviewed**. It is
 the mail interface, the sender script, the backends and settings validation.
 Nothing calls any of it: no route, registration service, ledger, settlement,
 migration, table, unit or production start-up change exists, no gate exists to
@@ -51,12 +56,12 @@ Decided by the parent from what the child wrote and how it ended.
 
 | Evidence | Outcome |
 | --- | --- |
-| A sender of this process is unreaped; the input would exceed 16 KiB; the interpreter or the script path is not absolute. No process is created. | `not_sent` |
+| A sender of this process is unreaped; the process ignores `SIGCHLD`; the input would exceed 16 KiB; the interpreter or the script path is not absolute. No process is created. | `not_sent` |
 | `Popen` raised `OSError`, `ValueError` or `SubprocessError` | `not_sent` |
 | End-of-file on the output with nothing written, and the child exited by itself with 10–19 | `not_sent` |
 | End-of-file with exactly one `R` and nothing else, exit 0 | `accepted` |
 | End-of-file with exactly one `R` and nothing else, exit 20 | `refused` |
-| Everything else: the deadline (with or without `R`); 16 bytes of output or any output that is not a single `R`; no end-of-file; a signal; any other status; a status that contradicts the marker; `EPIPE` while writing the input, even when the child exited 10–19; any other exception in the parent once the child existed; any other exception from `Popen` | `unknown` |
+| Everything else: the deadline (with or without `R`); 16 bytes of output or any output that is not a single `R`; no end-of-file; a signal; any other status, `30` and `31` included, with the marker or without it; a status that contradicts the marker; `EPIPE` while writing the input, even when the child exited 10–19; any other exception in the parent once the child existed; any other exception from `Popen` | `unknown` |
 
 `KeyboardInterrupt` and `SystemExit` propagate after the cleanup. `accepted`
 means the server took the message for the recipient; it is never a statement
@@ -66,7 +71,37 @@ The script's statuses: `0`; `10` input, `11` lookup, connection or greeting,
 `12` TLS, `13` EHLO, `14` AUTH, `15` sender refused, `19` anything else before
 the marker (a marker that could not be written included); `20`; `30` for a
 failure after the marker that is not a refusal, which the parent gives no
-meaning to.
+meaning to; `31` when the server answered 421 at any stage.
+
+### Reply policy (approved by Gabriel after the review, option 3)
+
+| Reply | Stage | Status | Outcome |
+| --- | --- | --- | --- |
+| 421 | any: greeting, EHLO, STARTTLS, AUTH, sender, recipient, data command, message | `31` | `unknown` |
+| other 4xx | recipient command | `20` | `refused` |
+| other 4xx | data command or the reply to the message | `30` | `unknown` |
+| 5xx | recipient command, data command or the reply to the message | `20` | `refused` |
+| other 4xx, or 5xx | before the marker | `10`–`19`, as before | `not_sent` |
+| unreadable reply, 1xx–3xx where acceptance was expected, lost connection, timeout | after the marker | `30` | `unknown` |
+
+`31` lies outside `10`–`19` on purpose: before the marker a 421 must not be
+read as "nothing was sent", and it does not claim that a recipient was
+transmitted either. `accepted` and `refused` still need end-of-file, exactly
+one `R` and their status. Nothing is retried. `unknown` keeps the code and the
+budgets and will count toward the circuit; `refused` will not. The circuit and
+the ledger are PR 3 and are not implemented here.
+
+### The `SIGCHLD` guard
+
+With `SIGCHLD` ignored, CPython cannot wait for a child and reports status 0
+for it; the reviewer reproduced `R` with exit 30 becoming `ACCEPTED`. `send`
+now reads `signal.getsignal(signal.SIGCHLD)` before `Popen`. When it is
+`SIG_IGN` it creates no process, logs `sender_error error=sigchld` and returns
+`not_sent`. The disposition is never changed and no other signal handling was
+added. **Caller assumption:** nothing changes the `SIGCHLD` disposition of the
+process while a send is running; the check is made once, before the child
+exists. A disposition set outside Python, which `getsignal` reports as `None`,
+is not recognised.
 
 ## The exchange
 
@@ -97,7 +132,7 @@ again in the child. Every socket operation has a 3-second timeout.
 ## Tests
 
 `python3 -B -m unittest tests.test_mail_service tests.test_mail_sender_deadline`
-(111 tests, about 26 seconds). No message is sent, nothing is connected to,
+(118 tests, about 27 seconds). No message is sent, nothing is connected to,
 and every address, host and credential is synthetic.
 
 | Plan | Where |
@@ -121,7 +156,8 @@ shortened alarms.
 
 None changes the approved protocol. Each is the smallest reading I could find.
 
-1. **A production start does not refuse `console` and `file` yet (C9, K1, K2).**
+1. **A production start does not refuse `console` and `file` yet (C9, K1, K2);
+   the wiring stays deferred to PR 4.**
    Design 7.5 says that while the registration gate is off production "never
    refuses to start" because of mail settings, and the gate constant arrives
    with the registration modules (PR 3 and PR 4). So PR 2 ships the refusal as
@@ -133,17 +169,16 @@ None changes the approved protocol. Each is the smallest reading I could find.
    `SubprocessError`.** The design row says "`Popen` raised". Any other
    exception from it (a `MemoryError`, for example) does not establish that no
    process exists, so it is `unknown`. Narrower, never wider.
-3. **Exit 20 is a complete 4xx or 5xx reply** to the recipient command, the data
-   command or the message. A transient refusal (4xx) is therefore `refused`,
-   which the circuit ignores (design 3.5). A reply that cannot be read as a
-   reply, and any 1xx–3xx reply where acceptance was expected, is status 30,
-   hence `unknown`. Whether 4xx should instead count as a failure of the mail
-   server is a policy question for the review.
+3. **Which replies are a refusal** was a question for the review and is now
+   decided: the reply policy above, recorded in design 4.2. It replaces the
+   first version of this PR, in which every 4xx after the marker was `refused`.
 4. **`sender_busy()` is a module function**, so `Mailer` stays the one-method
    protocol of design 4.1.
 5. **Two log events** on `learnpilot.registration`, both warnings:
-   `sender_unreaped` (design 3.10) and `sender_error error=<class name>`, which
-   3.10 does not list. No traceback is attached.
+   `sender_unreaped` and `sender_error error=<word>`, now both listed in design
+   3.10. The word is fixed (`sigchld`, `input`) or an exception class name. It
+   is never a value and no traceback is attached, so the events are safe to
+   hand to whatever logging PR 4 sets up; no handler is configured here.
 6. **Three more "no process" cases return `not_sent`**: an input over 16 KiB (no
    valid message reaches it), and an interpreter or script path that is not
    absolute.
@@ -174,18 +209,27 @@ None changes the approved protocol. Each is the smallest reading I could find.
   then only its warnings reach standard error.
 - Enforce `MailSettings.hourly_cap`; nothing here counts sends.
 - Call `send` from one thread at a time per process. A second thread is not
-  refused: the one-sender statement rests on the synchronous worker, as in the
-  design. The development server is threaded.
+  refused and no lock was added: the one-sender statement rests on the pinned
+  deployment (`worker_class = "sync"`, `threads = 1`). Calls from a threaded
+  development server may overlap.
+- Do not ignore `SIGCHLD` in a process that sends, and do not change its
+  disposition while a send is running.
 
 ## Not verified, and what must not be concluded
 
-- **Everything ran on macOS** (Darwin 25.5.0, arm64), CPython 3.12.15, OpenSSL
-  3.6.5, with the kqueue selector and, as a second run, `poll` and `select`.
-  **Nothing here is evidence for Linux**, for `epoll`, for the systemd unit and
-  its sandboxing, for Gunicorn's worker replacement, for the worker's inherited
-  signal state or `SIGPIPE` disposition, or for `sys.executable` being the
-  deployment's virtual-environment interpreter. Those are the activation
-  evidence of design 0.3 and test plan L.
+- **Everything in this worktree ran on macOS** (Darwin 25.5.0, arm64), CPython
+  3.12.15, OpenSSL 3.6.5, with the kqueue selector and, as a second run, `poll`
+  and `select`. Python 3.13 was not available here, so the command-casing
+  correction (N1) was not run on it locally.
+- **Linux findings of the independent review, as reported by the reviewer:**
+  the sender and the exchange were exercised on Linux with `epoll`, against
+  fake peers over real TLS, and with inherited signal states. That is review
+  evidence about the code. **It is not deployment evidence:** the actual
+  systemd unit and its sandboxing, Gunicorn's worker replacement on the server,
+  `sys.executable` being the deployment's virtual-environment interpreter, any
+  provider and any capacity figure were not tested by anyone. Those remain the
+  activation evidence of design 0.3 and test plan L, and nothing was validated
+  on the VPS.
 - No real mail server, provider, certificate or DNS name was involved. TLS is
   tested as "the verifying context is the one handed to `smtplib`", not as a
   handshake.

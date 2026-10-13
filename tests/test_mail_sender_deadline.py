@@ -278,6 +278,9 @@ class OutcomeRuleTest(SenderProcessCase):
             "unlisted status 9": "os._exit(9)\n",
             "unlisted status 21 after the marker": "os.write(1, b'R')\nos._exit(21)\n",
             "unlisted status 30 after the marker": "os.write(1, b'R')\nos._exit(30)\n",
+            "status 30 without the marker": "os._exit(30)\n",
+            "421 before the marker (status 31, no output)": "os._exit(31)\n",
+            "421 after the marker (status 31)": "os.write(1, b'R')\nos._exit(31)\n",
             "unlisted status 255": "os._exit(255)\n",
             "an uncaught exception": "raise RuntimeError('synthetic')\n",
             "killed by a signal before the marker": "os.kill(os.getpid(), 9)\n",
@@ -323,6 +326,37 @@ class OutcomeRuleTest(SenderProcessCase):
 
 class ProcessCreationTest(SenderProcessCase):
     """C6 (process creation), C11, C12, C13."""
+
+    def test_with_sigchld_ignored_no_process_is_created_and_nothing_is_accepted(self):
+        # With SIGCHLD ignored the interpreter can report exit status 0 for a child it
+        # could not wait for: marker plus exit 30 would then read as accepted.
+        would_be_misread = READ_INPUT + "os.write(1, b'R')\nos._exit(30)\n"
+        self.assertIs(self.send(would_be_misread), UNKNOWN, "the ordinary reading of that child")
+        self.popen_calls.clear()
+        self.processes.clear()
+        previous = signal.signal(signal.SIGCHLD, signal.SIG_IGN)
+        try:
+            for body in (would_be_misread, ACCEPT, READ_INPUT + "os._exit(10)\n"):
+                with self.assertLogs("learnpilot.registration", "WARNING") as logs:
+                    outcome = self.send(body)
+                self.assertIs(outcome, NOT_SENT)
+                self.assertEqual(logs.output, ["WARNING:learnpilot.registration:sender_error error=sigchld"])
+            self.assertEqual(signal.getsignal(signal.SIGCHLD), signal.SIG_IGN, "the disposition is read, never changed")
+        finally:
+            signal.signal(signal.SIGCHLD, previous)
+        self.assertEqual(self.popen_calls, [], "no process was created")
+        self.assertEqual(self.processes, [])
+        self.assertEqual(signal.getsignal(signal.SIGCHLD), previous)
+        self.assertIs(self.send(ACCEPT), ACCEPTED, "a later send works once the disposition is back")
+
+    def test_a_sigchld_handler_or_the_default_action_does_not_stop_a_send(self):
+        seen = []
+        previous = signal.signal(signal.SIGCHLD, lambda number, frame: seen.append(number))
+        try:
+            self.assertIs(self.send(ACCEPT), ACCEPTED)
+        finally:
+            signal.signal(signal.SIGCHLD, previous)
+        self.assertEqual(len(self.popen_calls), 1)
 
     def test_a_missing_interpreter_is_not_sent_and_no_process(self):
         with patch.object(sys, "executable", self.path("missing-python")), \
@@ -745,8 +779,10 @@ class UnreapedSenderTest(SenderProcessCase):
         self.assertEqual(len(self.popen_calls), 1, "send creates no process while a sender is unreaped")
         self.assertLess(self.elapsed, 0.2)
 
-        Unreapable.stuck = False  # the child, killed long ago, can now be reaped
-        self.assertFalse(mail.sender_busy())
+        Unreapable.stuck = False  # the child, killed earlier, can now be reaped
+        # SIGKILL was sent; the kernel ends the child soon, not at once, so poll may
+        # still report it running for a moment. The wait is bounded.
+        self.assertTrue(wait_until(lambda: not mail.sender_busy(), 5))
         self.assertEqual(stuck.returncode, -signal.SIGKILL)
         self.assertFalse(pid_exists(stuck.pid))
         self.assertIs(self.send(ACCEPT), ACCEPTED)
