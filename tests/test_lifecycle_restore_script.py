@@ -566,7 +566,7 @@ class RestoreScriptSourceTest(unittest.TestCase):
 
     def test_no_mandatory_command_can_hide_its_failure(self):
         functions = set(re.findall(r"(?m)^(\w+)\(\) \{", self.source))
-        self.assertEqual(functions, {"say", "usage", "die", "gate", "finish"})
+        self.assertEqual(functions, {"say", "usage", "die", "gate", "finish", "restart_timers"})
         gates = re.findall(r'(?m)^\s*gate "[^"]*"(?: \\\n\s*| )(\S+)', self.source)
         self.assertGreater(len(gates), 30)
         # A gate runs an external program (or the builtin cd or test), never one of the script's own functions.

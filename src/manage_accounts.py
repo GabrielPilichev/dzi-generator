@@ -825,6 +825,14 @@ def cmd_registrations_release_hold(conn, args) -> str:
             f"({lifecycle.restore_lock_path(args.database_path)} exists); nothing was changed"
         )
     conn.execute("BEGIN IMMEDIATE")
+    # Looked for again with the write lock held: a restore that took its lock while this
+    # command waited for the database must not find its hold gone. The dispatcher rolls
+    # back, so neither the hold nor the high-water mark changes.
+    if lifecycle.restore_lock_present(args.database_path):
+        raise OperatorError(
+            "a restore of this database began while the release waited for the database "
+            f"({lifecycle.restore_lock_path(args.database_path)} exists); nothing was changed"
+        )
     result = registration.release_hold(conn, clock=_utcnow)
     if not result.released:
         return "registration is not held; nothing was changed"

@@ -10,11 +10,14 @@ as unrun Linux evidence in ``docs/reviews/EMAIL_REGISTRATION_PR5_STATUS.md``.
 
 import configparser
 import hashlib
+import io
 import os
 import re
 import shlex
+import shutil
 import sqlite3
 import tempfile
+import threading
 import unittest
 from contextlib import closing
 from datetime import datetime, timedelta, timezone
@@ -367,6 +370,53 @@ class OperatorCommandsTest(RegistrationCliTestCase):
         self.assertIn("restore", self.err)
         self.assertEqual(self.digest(), before)
 
+    def test_a_restore_lock_made_while_the_release_waits_for_the_database_stops_it(self):
+        # Review finding: the lock was looked for before BEGIN IMMEDIATE only, so a restore that took
+        # its lock during the wait did not stop the release. Two connections, in a fixed order:
+        # the release passes its first look, a writer holds SQLite, the lock appears, the writer lets go.
+        self.submit()
+        self.run_cli("registrations-restore-gate")
+        before = self.digest()
+        mark_before = self.rows("SELECT high_water_at FROM registration_control")[0]["high_water_at"]
+        lock = Path(lifecycle.restore_lock_path(self.db))
+        holder = sqlite3.connect(self.db)
+        self.addCleanup(holder.close)
+        holder.execute("BEGIN IMMEDIATE")                                  # the writer the release must wait for
+        first_look_done = threading.Event()
+        real_present, looks = lifecycle.restore_lock_present, []
+
+        def present(path):
+            found = real_present(path)
+            looks.append(found)
+            if len(looks) == 1:
+                first_look_done.set()
+            return found
+
+        real_connect = sqlite3.connect
+        outcome = {}
+
+        def release():
+            with mock.patch.object(lifecycle, "restore_lock_present", present), \
+                    mock.patch.object(manage_accounts.sqlite3, "connect",
+                                      lambda *a, **k: real_connect(*a, **{**k, "timeout": 30})):
+                outcome["code"] = self.run_cli("registrations-release-hold", "--acknowledge-lost-history")
+
+        thread = threading.Thread(target=release)
+        thread.start()
+        self.assertTrue(first_look_done.wait(30))                         # it has passed its first look
+        lock.write_text("restore in progress\n")                          # a restore takes its lock
+        self.addCleanup(lambda: lock.exists() and lock.unlink())
+        holder.rollback()                                                 # only now does SQLite let the release in
+        thread.join(30)
+        self.assertFalse(thread.is_alive())
+        self.assertEqual(looks, [False, True])
+        self.assertEqual(outcome["code"], 1)
+        self.assertIn("began while the release waited", self.err)
+        self.assertEqual(self.digest(), before)                           # hold, time, mark, ledger: unchanged
+        self.assertEqual(self.rows("SELECT hold_reason FROM registration_control")[0]["hold_reason"], "restore")
+        self.assertEqual(self.rows("SELECT high_water_at FROM registration_control")[0]["high_water_at"],
+                         mark_before)
+
     def test_the_gate_needs_no_secret_and_prints_none(self):
         self.submit()
         with mock.patch.dict(os.environ, {}, clear=True):
@@ -493,6 +543,31 @@ class SnapshotScrubTest(unittest.TestCase):
         self.assertEqual(summary["registrations_scrubbed"], 0)
         with closing(sqlite3.connect(self.published("plain-copy.db"))) as copy:
             self.assertEqual(copy.execute("SELECT value FROM probe").fetchall(), [("kept",)])
+
+    def test_an_existing_registration_table_that_cannot_be_scrubbed_fails_the_backup_closed(self):
+        # Review finding: a table missing a required column was treated like absent legacy storage
+        # and a backup with the pending e-mail addresses in it was published, valid hash and all.
+        for renamed in ("closed_at", "password_hash", "state"):
+            with self.subTest(column=renamed):
+                broken = self.dir / f"broken-{renamed}.db"
+                shutil.copyfile(self.source, broken)
+                with closing(sqlite3.connect(broken)) as conn:
+                    conn.execute(f"ALTER TABLE pending_registrations RENAME COLUMN {renamed} TO {renamed}_old")
+                    conn.commit()
+                    self.assertEqual(conn.execute("SELECT COUNT(*) FROM pending_registrations WHERE email = ?",
+                                                  (self.secret_marker,)).fetchone()[0], 1)
+                destination = self.published(f"never-{renamed}.db")
+                with self.assertRaises(backup_sqlite.BackupError) as raised:
+                    backup_sqlite.backup_database(broken, destination)
+                self.assertIn(renamed, str(raised.exception))
+                err = io.StringIO()
+                code = backup_sqlite.main(["--db", str(broken), "--output", str(destination)],
+                                          out=io.StringIO(), err=err)
+                self.assertEqual(code, 1)
+                self.assertIn("backup failed", err.getvalue())
+                self.assertEqual(list((self.dir / "out").iterdir()), [])        # no artifact, no partial file
+                self.assertEqual([p.name for p in self.dir.glob(".*partial*")], [])
+                self.assertEqual([p.name for p in (self.dir / "out").glob(".*")], [])
 
     def test_the_application_snapshot_carries_the_scrubbed_database(self):
         state = self.dir / "state"

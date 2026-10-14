@@ -81,11 +81,15 @@ def scrub_pending_registrations(copy: sqlite3.Connection) -> int:
     database. Pending rows become ``void`` with every personal and credential column
     NULL (the restore gate's step 1 without its hold). Accounts, profiles, subjects,
     canonical content, the send ledger, the control row and already final rows are left
-    as they are. A database from before the registration storage has nothing to scrub.
+    as they are. A database from before the registration storage (no table) has nothing to
+    scrub; a table that exists without the required columns is refused.
     Returns the number of rows scrubbed. Raises on any error; the caller publishes nothing.
     """
-    if not registration_scrub.has_pending_storage(copy):
-        return 0
+    try:
+        if not registration_scrub.has_pending_storage(copy):
+            return 0     # the table is absent: a database from before migration 021
+    except registration_scrub.UnsupportedRegistrationSchema as exc:
+        raise BackupError(f"unsupported registration schema in the snapshot copy: {exc}") from exc
     copy.execute("BEGIN IMMEDIATE")
     try:
         scrubbed = registration_scrub.void_pending(copy, datetime.now(timezone.utc))

@@ -1130,8 +1130,9 @@ def clear_address_limit(conn: sqlite3.Connection, address_hash: str) -> int:
 
 RESTORE_HOLD = "restore"
 # The high-water mark of a control row the gate has to create: "no mark yet", which is what
-# an absent row means. The gate reads nothing but the copy it is given, and must not
-# invent a clock reading for the person who will later release the hold.
+# an absent row means. The gate takes the current time for the timestamps it writes (the
+# closing time of a voided registration, the time of a new hold), but does not accept or
+# reset the clock and never sets the mark from it.
 NO_MARK = "1970-01-01 00:00:00"
 
 
@@ -1182,8 +1183,10 @@ def restore_gate(conn: sqlite3.Connection, *, clock: Callable[[], datetime]) -> 
        control row is created with :data:`NO_MARK`; an existing row keeps its high-water
        mark, which this function neither raises nor lowers.
 
-    It reads no other database and no clock reading is compared with anything: the time is
-    only the stamp of a hold that is new. Repeatable (a second call changes nothing) and
+    It reads no other database. It takes the current time for the timestamps it writes (the
+    closing time of each voided registration and the time of a hold that is new); that time
+    is compared with nothing, does not accept or reset the clock, and never changes the
+    high-water mark. Repeatable (a second call changes nothing) and
     atomic (the caller rolls back on any exception and the copy is as it was). It touches no
     account, profile, subject, ledger or canonical row.
     """

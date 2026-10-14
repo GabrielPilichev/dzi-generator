@@ -36,11 +36,26 @@ def stamp(moment: datetime) -> str:
     return moment.astimezone(timezone.utc).strftime(_STAMP_FORMAT)
 
 
+class UnsupportedRegistrationSchema(Exception):
+    """``pending_registrations`` exists but lacks columns of migration 021."""
+
+
 def has_pending_storage(conn: sqlite3.Connection) -> bool:
-    """Whether the database has the table of pending registrations with the columns of
-    migration 021. A database from before it has nothing to scrub."""
+    """Whether the database has the table of pending registrations of migration 021.
+
+    ``False`` only when the table is genuinely absent: a database from before migration
+    021 has nothing to scrub. A table that exists without every required column is not
+    that legacy case; it may hold personal data this module cannot scrub, so it raises
+    ``UnsupportedRegistrationSchema`` instead of reporting "nothing to scrub"."""
     columns = {row[1] for row in conn.execute("PRAGMA table_info(pending_registrations)")}
-    return _REQUIRED_COLUMNS <= columns
+    if not columns:
+        return False
+    missing = sorted(_REQUIRED_COLUMNS - columns)
+    if missing:
+        raise UnsupportedRegistrationSchema(
+            "pending_registrations exists but lacks the column(s) " + ", ".join(missing)
+            + "; it cannot be scrubbed, so nothing is published")
+    return True
 
 
 def void_pending(conn: sqlite3.Connection, now: datetime) -> int:

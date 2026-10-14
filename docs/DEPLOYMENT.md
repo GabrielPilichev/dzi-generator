@@ -3017,8 +3017,15 @@ start from the snapshot's state. It clears the hold and nothing else: **not** th
 clock high-water mark (if the clock is behind it, the command says so and
 registration still answers "unavailable" until the clock passes the mark or you
 have checked the time and run `registrations-clock-accept`) and no limit. It
-refuses while a restore lock exists. **Nothing releases the hold automatically,
+refuses while a restore lock exists, and looks for the lock again once it holds
+SQLite's write lock (a restore that begins while the command waits stops it,
+with the hold and the mark unchanged). **Nothing releases the hold automatically,
 whatever the clock does.**
+
+If the restore script is stopped (signal) or a step fails after it has started the
+service, it still starts again each timer that was active before the run, and only
+those. Killed outright after it released the lock (`SIGKILL`, power loss), it cannot:
+check `systemctl list-timers` and start a missing timer by hand.
 
 A database replaced by hand, outside the script, gets none of this (section 17).
 
@@ -3031,7 +3038,10 @@ the snapshot file, in the write-ahead log of the live database, in earlier
 snapshots, in off-server copies of earlier snapshots, and in storage below the
 application (filesystem or provider snapshots). The scrub changes no snapshot
 already published and does not touch the live database, which stays as it is. No
-rebuild of the file (`VACUUM`) and no `secure_delete` setting is used. Snapshots
+rebuild of the file (`VACUUM`) and no `secure_delete` setting is used. A database
+from before the registration storage (no `pending_registrations` table) is backed
+up unchanged; a table that exists without the columns of migration 021 stops the
+backup (non-zero exit, nothing published). Snapshots
 keep accounts, profiles and the ledger's keyed address hashes for as long as they
 are kept; the privacy notice (D16) has to say so.
 

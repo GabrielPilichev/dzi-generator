@@ -286,6 +286,59 @@ class InterruptedRestoreTest(RegistrationRestoreTestCase):
         self.assertIn("WARNING: the registration cleanup timer could not be started again", result.stderr)
         self.assertTrue(server.active())
 
+    # --- the service is already running again: an ending that is not success still restores the timers ---
+
+    def assert_timers(self, server, backup, cleanup):
+        self.assertEqual((server.locked(), server.timer_active(), self.cleanup_timer_active(server)),
+                         (False, backup, cleanup))
+
+    def test_a_signal_between_the_two_timer_restarts_still_restores_the_second_timer(self):
+        for how, status in (("TERM", 143), ("INT", 130), ("HUP", 129)):
+            with self.subTest(signal=how):
+                server = self.server()
+                result = server.run(after=f"timer-start#1={how}")
+                self.assertEqual(result.returncode, status, result.stderr)
+                self.assertTrue(server.active())                      # the service is on the restored state
+                self.assert_timers(server, True, True)
+                calls = server.all_calls()
+                self.assertEqual((calls.count("timer-start#1"), calls.count("cleanup-timer-start#1")), (1, 1))
+                self.assertIn("The registration cleanup timer is active again.", result.stderr)
+                # A restore after it starts from what is really there, and ends with both timers.
+                self.assertEqual(server.run().returncode, 0)
+                self.assert_timers(server, True, True)
+
+    def test_a_signal_during_the_last_restart_leaves_nothing_undone(self):
+        server = self.server()
+        result = server.run(after="cleanup-timer-start#1=TERM")
+        self.assertEqual(result.returncode, 143, result.stderr)
+        self.assert_timers(server, True, True)
+
+    def test_a_failed_backup_timer_restart_does_not_keep_the_cleanup_timer_off(self):
+        server = self.server()
+        result = server.run(fail="timer-start#1=1")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("WARNING: the backup timer could not be started again", result.stderr)
+        self.assert_timers(server, False, True)
+
+    def test_a_timer_that_was_inactive_stays_inactive_whatever_interrupts_the_restarts(self):
+        for inactive, signal_after in (("cleanup-timer-active", "timer-start#1"),
+                                       ("timer-active", "cleanup-timer-start#1")):
+            with self.subTest(inactive=inactive):
+                server = self.server()
+                (server.run_dir / inactive).unlink()
+                active_after = signal_after
+                result = server.run(after=f"{active_after}=TERM")
+                self.assertEqual(result.returncode, 143, result.stderr)
+                again = {"cleanup-timer-active": (True, False), "timer-active": (False, True)}[inactive]
+                self.assert_timers(server, *again)
+                calls = server.all_calls()
+                if inactive == "cleanup-timer-active":
+                    self.assertFalse([call for call in calls if call.startswith("cleanup-")])
+                else:
+                    self.assertNotIn("timer-start#1", calls)
+                self.assertEqual(server.run().returncode, 0)            # and the next restore keeps it so
+                self.assert_timers(server, *again)
+
 
 class RestoreScriptOrderTest(unittest.TestCase):
     """Test plan N6 on the text of the script: where the coordination and the gate sit."""

@@ -6,10 +6,30 @@ Tests: `docs/reviews/EMAIL_REGISTRATION_TEST_PLAN.md`, DR1–DR9, N5–N7, N9.
 Earlier PRs: `EMAIL_REGISTRATION_PR1_STATUS.md` to `PR4_STATUS.md` (merged: #335–#338).
 Operator guide: `docs/DEPLOYMENT.md`, section 34 (and sections 16, 17, 19).
 
-**Status:** implemented on `feature/registration-operations` (base `05537cd`), **unstaged and
-uncommitted**, not reviewed, **not approved**. Registration is **not activated**: both build gates
+**Status:** implemented on `feature/registration-operations` (base `05537cd`; independent review
+done on `36cffbe`, verdict REQUEST CHANGES; fixes below on top of it), **unstaged and uncommitted**.
+The review fixes are **not independently reviewed and not approved**. Registration is **not activated**: both build gates
 stay off. No migration, no schema change, no deployment, no provider, no real database, no real
 message, no server. Nothing here has run under systemd or on Linux.
+
+## Independent review of `36cffbe`: REQUEST CHANGES, three blockers fixed
+
+| # | Finding | Fix | Regression (fails on `36cffbe`, passes now) |
+| --- | --- | --- | --- |
+| 1 | `deploy/learnpilot-restore.sh`: SIGTERM after the first timer restart (`timer-start#1=TERM`) left exit 143 with the cleanup timer off; the lock and its marker were already gone, so a later restore saw an inactive timer and never restored it. | The restarts are one function, `restart_timers`. The intent (`TIMER_WAS_ACTIVE`, `CLEANUP_TIMER_WAS_ACTIVE`) is cleared per timer only after its start command returned. `finish` calls it again for `PHASE=started` with a non-zero status, so the interrupted and the not-yet-started timer are both started. Timers that were inactive are never started. | `InterruptedRestoreTest`: signals TERM/INT/HUP between the restarts and after the last, a failed backup-timer restart, initially inactive timers (each one), and a following restore. |
+| 2 | `registration_scrub.has_pending_storage` treated an existing table lacking a column (`closed_at` renamed) as absent legacy storage: unscrubbed pending data was published with `quick_check=ok` and a valid hash. | Only a missing table returns "nothing to scrub". An existing table without a required column raises `UnsupportedRegistrationSchema`; `scrub_pending_registrations` turns it into `BackupError`, so nothing is published and the partial file is removed. | `SnapshotScrubTest.test_an_existing_registration_table_that_cannot_be_scrubbed_fails_the_backup_closed` (renamed `closed_at`, `password_hash`, `state`; populated pending rows; no artifact, no partial file; CLI exit 1). Pre-021 and normal backups: existing tests. |
+| 3 | `registrations-release-hold` looked for the restore lock only before `BEGIN IMMEDIATE`. | Looks again with the write lock held; refuses, the dispatcher rolls back, the hold, its time, the mark and the ledger stay. | `OperatorCommandsTest.test_a_restore_lock_made_while_the_release_waits_for_the_database_stops_it`: two connections in a fixed order (first look passes, writer holds SQLite, lock appears, writer lets go). |
+
+Documentation correction: the gate **does take the current time** for the timestamps it writes
+(`closed_at` of voided registrations, the time of a new hold). It does not accept or reset the
+clock and never sets or changes the high-water mark. The earlier wording ("reads no clock") is
+corrected here, in `web/services/registration.py` and in DEPLOYMENT section 34.
+
+Evidence for the fixes is from the shim harness and temporary databases only; the three regressions
+were each shown to fail with the old code restored. Residual: a restore killed with `SIGKILL` (or
+a power loss) after it released the lock cannot restart the timers, and nothing records the intent
+any more; DEPLOYMENT 34 tells the operator to check the timers. No change to that was made
+(it would need a durable marker outside the lock).
 
 ## What PR 5 contains
 
@@ -66,7 +86,9 @@ One caller-owned `BEGIN IMMEDIATE`: every `pending` registration becomes `void` 
 columns of the CHECK; the hold `restore` is set. A hold the copy already carries is kept with its
 original time. Repeatable; atomic (an exception rolls the caller back; tested by failing each
 statement). It reads no other database, touches no account, profile, subject, ledger or canonical
-row, and neither raises nor lowers the high-water mark. An absent control row is created with the
+row, and neither raises nor lowers the high-water mark. It does take the current time for the
+timestamps it writes (`closed_at` of each voided registration, the time of a new hold); that time
+is compared with nothing, does not accept or reset the clock and never sets the mark. An absent control row is created with the
 mark `1970-01-01 00:00:00` (`NO_MARK`, "no mark yet", what an absent row means).
 
 ### Status and release
@@ -87,7 +109,7 @@ mode was switched, `scrub_pending_registrations(dst)` voids and scrubs pending r
 only, in its own transaction. It runs before `quick_check`, the fsync, the publishing link and the
 `sha256`, so every check and the returned hash describe the published file. It leaves accounts,
 profiles, canonical content, the ledger, the control row (hold included) and final rows as they are,
-and does not set a hold. A database without the registration columns is backed up unchanged. A
+and does not set a hold. A database without the `pending_registrations` table (before migration 021) is backed up unchanged; a table that exists without a required column fails the backup. A
 failure raises and publishes nothing. The summary gains `registrations_scrubbed`.
 
 **Logical, not physical.** No claim is made about free pages, unused space inside pages, the WAL of
@@ -114,10 +136,10 @@ implemented.
    gain them with PR 8.
 2. **`--expect` states are `held` and `open`.** The design names only "the expected state"; `open`
    is the opposite, used for the release check.
-3. **`NO_MARK` for a created control row.** The design says the gate reads nothing but the copy and
-   needs no clock reading; the high-water mark column is NOT NULL, so an absent row is created with
-   an epoch placeholder instead of the current time, which keeps "no hold or mark" faithful and
-   avoids accepting any clock. The first issuance or cleanup then raises it.
+3. **`NO_MARK` for a created control row.** The design says the gate reads no other database. It
+   takes the current time for its timestamps, but it must not accept a clock: the high-water mark
+   column is NOT NULL, so an absent row is created with an epoch placeholder instead of the current
+   time, which keeps "no hold or mark" faithful and avoids accepting any clock. The first issuance or cleanup then raises it.
 4. **A shared module `registration_scrub.py`.** It makes `src.backup_sqlite` independent of the
    application's imports while keeping a single list of scrubbed columns. `registration.py` changed
    in one line (`_SCRUB`).

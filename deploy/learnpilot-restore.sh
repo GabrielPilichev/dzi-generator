@@ -208,6 +208,28 @@ gate() {             # gate "WHAT IT ESTABLISHES" COMMAND [ARGUMENT...]
   fi
 }
 
+restart_timers() {   # after the service has started: each timer that was active, once, even when interrupted
+  # The flag of a timer is cleared only after its start command has returned, so a signal
+  # that cuts this short leaves the other timer (and the interrupted one) still pending
+  # for finish, which calls this again.
+  if [ "$TIMER_WAS_ACTIVE" = yes ]; then
+    if sudo systemctl start "$BACKUP_TIMER"; then
+      say "The backup timer is active again."
+    else
+      say "WARNING: the backup timer could not be started again. Start it by hand: $BACKUP_TIMER"
+    fi
+    TIMER_WAS_ACTIVE=no
+  fi
+  if [ "$CLEANUP_TIMER_WAS_ACTIVE" = yes ]; then
+    if sudo systemctl start "$CLEANUP_TIMER"; then
+      say "The registration cleanup timer is active again."
+    else
+      say "WARNING: the registration cleanup timer could not be started again. Start it by hand: $CLEANUP_TIMER"
+    fi
+    CLEANUP_TIMER_WAS_ACTIVE=no
+  fi
+}
+
 finish() {
   local status=$? index entry kind rest undone at_live lock
   trap - EXIT
@@ -237,6 +259,9 @@ finish() {
   fi
   if [ "$PHASE" = started ]; then
     say "The service is running on the restored state: the script was stopped after it had started it."
+    # The lock is gone, and with it the note of which timers were active; the intent is
+    # kept in TIMER_WAS_ACTIVE / CLEANUP_TIMER_WAS_ACTIVE until a timer has been started.
+    restart_timers
     say "Check that the backup timer ($BACKUP_TIMER) and the registration cleanup timer ($CLEANUP_TIMER) are active. Exit status $status."
     exit "$status"
   fi
@@ -934,20 +959,7 @@ PHASE=started
 
 say "------------------------------------------------------------------"
 say "The service is running on the restored state. What it replaced is in $REPLACED."
-if [ "$TIMER_WAS_ACTIVE" = yes ]; then
-  if sudo systemctl start "$BACKUP_TIMER"; then
-    say "The backup timer is active again."
-  else
-    say "WARNING: the backup timer could not be started again. Start it by hand: $BACKUP_TIMER"
-  fi
-fi
-if [ "$CLEANUP_TIMER_WAS_ACTIVE" = yes ]; then
-  if sudo systemctl start "$CLEANUP_TIMER"; then
-    say "The registration cleanup timer is active again."
-  else
-    say "WARNING: the registration cleanup timer could not be started again. Start it by hand: $CLEANUP_TIMER"
-  fi
-fi
+restart_timers
 say "REGISTRATION IS HELD: pending registrations were voided and registration answers 'unavailable' until you run"
 say "  manage_accounts registrations-release-hold --acknowledge-lost-history   (docs/DEPLOYMENT.md, section 34)."
 say "Nothing releases it by itself. Sign-in is not affected."
