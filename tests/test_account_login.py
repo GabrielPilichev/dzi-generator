@@ -1226,9 +1226,11 @@ class AccountBlueprintBoundariesTest(unittest.TestCase):
             with self.subTest(url=url):
                 self.assertEqual(google[url].methods - {"HEAD", "OPTIONS"}, methods)
                 self.assertTrue(google[url].endpoint.startswith("oidc."))
-        # Still no registration, no password reset and no email verification: an
-        # account comes from the operator, or from a first Google sign-in as a student.
-        paths = " ".join(rules)
+        # Registration (PR 4) is the registration blueprint's, under /register only.
+        # Elsewhere still no registration, no password reset and no email verification.
+        registration = {url for url in rules if url == "/register" or url.startswith("/register/")}
+        self.assertEqual({rules[url].endpoint.split(".")[0] for url in registration}, {"registration"})
+        paths = " ".join(url for url in rules if url not in registration)
         for fragment in ("register", "signup", "sign-up", "reset", "forgot", "verify", "unlink", "microsoft", "apple"):
             self.assertNotIn(fragment, paths)
         # The admin second factor has exactly one route, and no web enrolment exists.

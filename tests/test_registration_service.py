@@ -408,9 +408,24 @@ class VerificationTest(RegistrationTestCase):
         for issued, state in states.items():
             for call in (lambda: self.verify(issued, "123456"), lambda: self.resend(issued),
                          lambda: self.cancel(issued)):
-                self.assertEqual(call().outcome, Outcome.NOT_PENDING)
+                result = call()
+                self.assertEqual(result.outcome, Outcome.NOT_PENDING)
+                # The caller can tell a finished registration from one that ended without an account.
+                self.assertEqual(result.final_state, state)
             self.assertScrubbed(issued.pending_id, state)
         self.assertUnchanged(before)
+
+    def test_final_state_accompanies_not_pending_and_nothing_else(self):
+        issued = self.submit()
+        self.assertIsNone(self.verify(issued, "000000").final_state)  # wrong code, still pending
+        other = registration.binding_hash(KEY, "another-token")
+        absent = self.tx(registration.verify, other, "000000", secret_key=KEY, clock=self.clock)
+        self.assertEqual((absent.outcome, absent.final_state), (Outcome.NO_PENDING, None))
+        self.at(1800)
+        expiring = self.verify(issued, code_of(issued))  # this call closes it: EXPIRED, not NOT_PENDING
+        self.assertEqual((expiring.outcome, expiring.final_state), (Outcome.EXPIRED, None))
+        again = self.verify(issued, code_of(issued))
+        self.assertEqual((again.outcome, again.final_state), (Outcome.NOT_PENDING, "expired"))
 
     def test_five_wrong_codes_then_the_right_one_is_refused_until_a_resend(self):
         issued = self.submit()

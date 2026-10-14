@@ -382,7 +382,7 @@ class AccountSelectionByIdTest(CliTestCase):
         self.assertEqual(self.run_cli("list"), 0, self.err)
         lines = [line.split("\t") for line in self.out.splitlines()]
         self.assertEqual(lines[0], ["id", "email", "name", "role", "active", "password", "google", "created_at",
-                                    "last_login_at"])
+                                    "last_login_at", "verified", "type"])
         rows = {int(line[0]): dict(zip(lines[0], line)) for line in lines[1:]}
         self.assertEqual((rows[self.google_id]["email"], rows[self.google_id]["password"],
                           rows[self.google_id]["google"]), ("-", "no", "maria.g@example.bg"))

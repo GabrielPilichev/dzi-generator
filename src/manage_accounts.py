@@ -48,10 +48,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 try:
-    from web.services import accounts, identities, login_throttle, totp
+    from web.services import accounts, identities, login_throttle, profiles, registration, totp
 except ModuleNotFoundError:  # run as `python3 src/manage_accounts.py`
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-    from web.services import accounts, identities, login_throttle, totp
+    from web.services import accounts, identities, login_throttle, profiles, registration, totp
 
 ADMIN_MIN_PASSWORD_LENGTH = accounts.ADMIN_MIN_PASSWORD_LENGTH
 MAX_STDIN_BYTES = 4096
@@ -173,6 +173,26 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     sub.add_parser("list", help="List accounts (no secrets).")
+
+    # Registration operations (docs/reviews/EMAIL_REGISTRATION_DESIGN.md, 3.8, 6.5, 6.6).
+    cleanup = sub.add_parser(
+        "registrations-cleanup",
+        help="Expire and scrub overdue pending registrations and delete old final and ledger rows. "
+             "Needs no secret; refuses while a restore of the database is in progress.",
+    )
+    cleanup.add_argument(
+        "--check", action="store_true",
+        help="Change nothing; exit non-zero when a pending registration is older than an hour.")
+    sub.add_parser(
+        "registrations-clock-accept",
+        help="After checking the server's time, set the registration high-water mark to the present "
+             "(ends a 'clock behind' refusal).",
+    )
+    sub.add_parser(
+        "clear-registration-limit",
+        help=f"Delete the registration send history of one email: it may receive 8 more codes the same day "
+             f"(needs the application's {SECRET_KEY_ENV}).",
+    ).add_argument("--email", required=True)
     return parser
 
 
@@ -609,16 +629,27 @@ def _google_column(conn: sqlite3.Connection, user_id: int, has_identity_table: b
     return ", ".join(row["email_at_link"] or "yes" for row in linked)
 
 
+def _has_table(conn: sqlite3.Connection, name: str) -> bool:
+    return conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?", (name,)
+    ).fetchone() is not None
+
+
 def cmd_list(conn, args) -> str:
+    # A database from before the registration storage (migration 021) has neither the
+    # verification date nor profiles: both columns then show "-", as they do for every
+    # account created by this CLI or through Google ("-" in "verified" means the address
+    # was never verified by registration, not that the account is unusable).
+    user_columns = {row[1] for row in conn.execute("PRAGMA table_info(users)")}
+    verified = "email_verified_at" if "email_verified_at" in user_columns else "NULL"
     rows = conn.execute(
         "SELECT id, email, display_name, role, is_active, password_hash IS NOT NULL AS has_password, "
-        "created_at, last_login_at FROM users ORDER BY id"
+        f"created_at, last_login_at, {verified} AS email_verified_at FROM users ORDER BY id"
     ).fetchall()
     # A database from before the identity storage (migration 019) simply has none.
-    has_identity_table = conn.execute(
-        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'user_identities'"
-    ).fetchone() is not None
-    lines = ["id\temail\tname\trole\tactive\tpassword\tgoogle\tcreated_at\tlast_login_at"]
+    has_identity_table = _has_table(conn, "user_identities")
+    declared = profiles.declared_types(conn)
+    lines = ["id\temail\tname\trole\tactive\tpassword\tgoogle\tcreated_at\tlast_login_at\tverified\ttype"]
     for r in rows:
         lines.append(
             "\t".join(
@@ -626,10 +657,105 @@ def cmd_list(conn, args) -> str:
                 for v in (r["id"], r["email"], r["display_name"], r["role"],
                           "yes" if r["is_active"] else "no", "yes" if r["has_password"] else "no",
                           _google_column(conn, r["id"], has_identity_table),
-                          r["created_at"], r["last_login_at"])
+                          r["created_at"], r["last_login_at"], r["email_verified_at"], declared.get(r["id"]))
             )
         )
     return "\n".join(lines)
+
+
+# --------------------------------------------------------------------------- registration operations
+
+REGISTRATION_TABLES = ("pending_registrations", "registration_sends", "registration_control")
+
+
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def require_registration_tables(conn: sqlite3.Connection) -> None:
+    """The registration storage of migrations 021 and 022, or a clear error."""
+    sends = {row[1] for row in conn.execute("PRAGMA table_info(registration_sends)")}
+    if not all(_has_table(conn, name) for name in REGISTRATION_TABLES) or "issuance_id" not in sends:
+        raise OperatorError(
+            "database has no registration storage (migrations 021 and 022 required); "
+            "apply migrations with src.manage_migrations first"
+        )
+
+
+def cmd_registrations_cleanup(conn, args) -> str:
+    """Logical retention of unverified registrations (design 6.5).
+
+    Needs no secret. Refuses while a restore of this database is in progress, and
+    changes nothing while the clock is behind the high-water mark. ``--check`` only
+    reads: it fails when a pending registration is older than an hour, which means the
+    cleanup has not run or cannot.
+    """
+    from web.services import lifecycle
+
+    require_registration_tables(conn)
+    if lifecycle.restore_lock_present(args.database_path):
+        raise OperatorError(
+            "a restore of this database is in progress or was left unfinished "
+            f"({lifecycle.restore_lock_path(args.database_path)} exists); nothing was changed"
+        )
+    if args.check:
+        stale = registration.stale_pending_count(conn, _utcnow())
+        if stale:
+            raise CheckFailed(
+                "registrations-cleanup --check: FAIL\n"
+                f"  - {stale} pending registration(s) older than an hour: the cleanup has not run or cannot"
+            )
+        return "registrations-cleanup --check: OK (no pending registration is older than an hour)"
+    conn.execute("BEGIN IMMEDIATE")
+    result = registration.cleanup(conn, clock=_utcnow)
+    if result.clock_behind:
+        raise OperatorError(
+            "the clock is behind the registration high-water mark by more than 300 seconds; nothing was "
+            "changed. Check the server's time; registrations-clock-accept ends the refusal"
+        )
+    return (
+        f"registrations-cleanup: {result.scrubbed} pending registration(s) expired and scrubbed, "
+        f"{result.deleted} final row(s) and {result.deleted_sends} send record(s) deleted"
+    )
+
+
+def cmd_registrations_clock_accept(conn, args) -> str:
+    """Design 3.8: the operator, having checked the time, accepts the current clock."""
+    require_registration_tables(conn)
+    conn.execute("BEGIN IMMEDIATE")
+    accepted = registration.accept_clock(conn, clock=_utcnow)
+    if accepted.previous is None:
+        return "no registration high-water mark is recorded; nothing to accept"
+    return (
+        f"registration high-water mark was {accepted.previous} UTC; it is now the current time, "
+        f"{accepted.current} UTC. Registration refuses again if the clock goes back further."
+    )
+
+
+def cmd_clear_registration_limit(conn, args) -> str:
+    """Design 6.6 and test DL12: forget the send history of one address.
+
+    The rows are keyed with the application's secret, which must be the one the running
+    application uses. The consequence is printed before anything is deleted.
+    """
+    try:
+        email = accounts.normalize_email(args.email)
+    except ValueError as exc:
+        raise OperatorError("invalid email") from exc
+    secret_key = os.environ.get(SECRET_KEY_ENV)
+    if not secret_key:
+        raise OperatorError(
+            f"{SECRET_KEY_ENV} is not set: the registration send history is keyed with the application's secret"
+        )
+    require_registration_tables(conn)
+    print(
+        "note: this releases a further daily budget for this address: it may receive up to 8 more codes "
+        "within the same day, which weakens the guessing bound for it (16 codes in one day). "
+        "A code that address has now stops working; a new one can be requested."
+    )
+    conn.execute("BEGIN IMMEDIATE")
+    deleted = registration.clear_address_limit(conn, registration.email_hash(secret_key, email))
+    return f"registration send history cleared for {email}: {deleted} record(s) deleted"
 
 
 COMMANDS = {
@@ -646,13 +772,17 @@ COMMANDS = {
     "totp-reset": cmd_totp_reset,
     "cutover-check": cmd_cutover_check,
     "list": cmd_list,
+    "registrations-cleanup": cmd_registrations_cleanup,
+    "registrations-clock-accept": cmd_registrations_clock_accept,
+    "clear-registration-limit": cmd_clear_registration_limit,
 }
 
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
-        conn = open_database(resolve_db_path(args.db), read_only=args.command in READ_ONLY_COMMANDS)
+        args.database_path = resolve_db_path(args.db)
+        conn = open_database(args.database_path, read_only=args.command in READ_ONLY_COMMANDS)
     except OperatorError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1

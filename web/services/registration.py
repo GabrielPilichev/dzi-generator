@@ -1,8 +1,9 @@
 """Pending registrations, verification codes, the send ledger and student activation
 (docs/reviews/EMAIL_REGISTRATION_DESIGN.md, sections 2, 3, 4.3, 6.3 to 6.5; PR 3).
 
-Independent of Flask, ``web.app`` and the blueprints. Nothing here has a caller yet:
-there is no route, no gate and no mail configuration, and this module opens no
+Independent of Flask, ``web.app`` and the blueprints. Its callers are the
+``registration`` blueprint (PR 4) and the operator commands of ``src.manage_accounts``;
+the two activation gates of the build are the constants below. This module opens no
 database, reads no environment and builds no mailer.
 
 **Transactions belong to the caller.** No function commits or rolls back.
@@ -85,6 +86,15 @@ from web.services import registration_forms as forms
 from web.services.mail import Mailer, OutboundEmail, SendOutcome
 
 logger = logging.getLogger("learnpilot.registration")
+
+# Activation gates of the build (design 7.3, decision D14). While PRODUCTION_ACTIVATION is
+# False a production start keeps every ``/register...`` route at the generic 404 whatever
+# the mail settings hold. TEACHER_ACTIVATION covers the teacher form and the activation of
+# a teacher registration; until teacher quotas exist (D5, PR 7) a teacher registration is
+# refused at verification whatever it says. No setting and no environment variable
+# overrides either constant: a deploy changes them.
+PRODUCTION_ACTIVATION = False
+TEACHER_ACTIVATION = False
 
 # Limits (design 3.2, decision D6). Constants of the service; no setting raises them.
 PENDING_LIFETIME = timedelta(minutes=30)
@@ -193,6 +203,10 @@ class Result:
     for every issuance and resend). Both are needed to send and to settle; the number
     alone is not an identity, because SQLite reuses the numbers of a rolled-back
     transaction. ``issuance_id`` is kept out of ``repr`` and of log lines.
+
+    ``final_state`` accompanies ``NOT_PENDING`` only: ``activated``, ``void`` or
+    ``expired``, read from the caller's own binding row. It lets a caller tell a
+    registration that finished (``activated``) from one that ended without an account.
     """
 
     outcome: Outcome
@@ -201,6 +215,7 @@ class Result:
     kind: str | None = None
     user_id: int | None = None
     reason: Availability | None = None
+    final_state: str | None = None  # NOT_PENDING only: the state the row ended in
     issuance_id: str | None = field(default=None, repr=False, compare=False)
     token: str | None = field(default=None, repr=False, compare=False)
     message: OutboundEmail | None = field(default=None, repr=False, compare=False)
@@ -622,7 +637,7 @@ def _usable_row(conn: sqlite3.Connection, binding, now: datetime, teacher_enable
     if row is None:
         return None, Result(Outcome.NO_PENDING)
     if row["state"] != "pending":
-        return None, Result(Outcome.NOT_PENDING, pending_id=row["id"])
+        return None, Result(Outcome.NOT_PENDING, pending_id=row["id"], final_state=row["state"])
     blocked = _blocked(conn, now)
     if blocked is not None:
         return None, Result(Outcome.UNAVAILABLE, pending_id=row["id"], reason=blocked)
@@ -796,19 +811,61 @@ def cancel(conn: sqlite3.Connection, binding: str, *, clock: Callable[[], dateti
 
     A final row is left as it is (``NOT_PENDING``). While the clock is behind the
     high-water mark nothing is voided (``UNAVAILABLE``, design 3.8). A restore hold does
-    not stop a cancellation, which only removes data.
+    not stop a cancellation, which only removes data (approved by Gabriel with PR 4):
+    the hold and the mark are left exactly as they were, so a cancellation never
+    reopens registration.
     """
     now = _writer_now(conn, clock)
     row = _pending_row(conn, binding)
     if row is None:
         return Result(Outcome.NO_PENDING)
     if row["state"] != "pending":
-        return Result(Outcome.NOT_PENDING, pending_id=row["id"])
+        return Result(Outcome.NOT_PENDING, pending_id=row["id"], final_state=row["state"])
     blocked = _blocked(conn, now, hold=False)
     if blocked is not None:
         return Result(Outcome.UNAVAILABLE, pending_id=row["id"], reason=blocked)
     _close(conn, row["id"], "void", now)
     return Result(Outcome.CANCELLED, pending_id=row["id"])
+
+
+# ------------------------------------------------------------------------- the verify page
+
+@dataclass(frozen=True)
+class PendingView:
+    """What the verify page of the browser that holds the binding may show.
+
+    ``email`` is the address that browser typed (design 1.2): personal data, never
+    logged and kept out of ``repr``. ``code_retired`` is true when a ``not_sent``
+    settlement retired the code, so the page says the message did not leave and offers
+    a resend at once (design 4.3).
+    """
+
+    pending_id: int
+    email: str = field(repr=False)
+    code_retired: bool
+
+
+def _clock_behind(conn: sqlite3.Connection, now: datetime) -> bool:
+    control = conn.execute("SELECT high_water_at FROM registration_control WHERE id = 1").fetchone()
+    return control is not None and _stamp(now + CLOCK_SKEW) < control[0]
+
+
+def pending_view(conn: sqlite3.Connection, binding, now: datetime) -> PendingView | None:
+    """This browser's registration as its verify page shows it, or ``None`` when there is
+    none it could still complete: no row, a final row, or a pending row past its time.
+
+    **Reads only.** Expiry is evaluated here and written only by the POSTs and the
+    cleanup (design 6.2), so a GET never changes a row. While the clock is behind the
+    high-water mark the row's own times are not judged (the POST answers "unavailable").
+    Nothing is logged.
+    """
+    now = _checked_now(now)
+    row = _pending_row(conn, binding)
+    if row is None or row["state"] != "pending" or row["email"] is None:
+        return None
+    if not _clock_behind(conn, now) and _is_expired(row, now):
+        return None
+    return PendingView(pending_id=row["id"], email=row["email"], code_retired=row["code_hash"] is None)
 
 
 # ------------------------------------------------------------------------- delivery
@@ -1009,3 +1066,63 @@ def cleanup(conn: sqlite3.Connection, *, clock: Callable[[], datetime]) -> Clean
     logger.info("cleanup_decided scrubbed=%d deleted=%d sends=%d", result.scrubbed, result.deleted,
                 result.deleted_sends)
     return result
+
+
+# ------------------------------------------------------------------------- operator commands
+
+STALE_PENDING_AGE = timedelta(hours=1)  # ``registrations-cleanup --check`` (design 6.5)
+
+
+def stale_pending_count(conn: sqlite3.Connection, now: datetime) -> int:
+    """How many registrations are still ``pending`` more than an hour after they were
+    created: the cleanup has missed its logical-retention target for them (design 6.5).
+    Reads only."""
+    return conn.execute(
+        "SELECT COUNT(*) FROM pending_registrations WHERE state = 'pending' AND created_at < ?",
+        (_stamp(_checked_now(now) - STALE_PENDING_AGE),),
+    ).fetchone()[0]
+
+
+@dataclass(frozen=True)
+class ClockAcceptance:
+    """The high-water mark before and after ``accept_clock``; both ``None`` when no
+    control row existed, in which case nothing was written."""
+
+    previous: str | None
+    current: str | None
+
+
+def accept_clock(conn: sqlite3.Connection, *, clock: Callable[[], datetime]) -> ClockAcceptance:
+    """``registrations-clock-accept`` (design 3.8, 6.6): set the high-water mark to the
+    present, read under the write lock, once the operator has checked the time.
+
+    The only writer that may lower the mark. It changes nothing else: no hold is set or
+    cleared and no registration row or ledger row is touched. Without a control row
+    there is no mark to accept and nothing is written.
+    """
+    now = _writer_now(conn, clock)
+    row = conn.execute("SELECT high_water_at FROM registration_control WHERE id = 1").fetchone()
+    if row is None:
+        return ClockAcceptance(None, None)
+    conn.execute("UPDATE registration_control SET high_water_at = ? WHERE id = 1", (_stamp(now),))
+    logger.info("clock_accept_decided")
+    return ClockAcceptance(previous=row[0], current=_stamp(now))
+
+
+def clear_address_limit(conn: sqlite3.Connection, address_hash: str) -> int:
+    """``clear-registration-limit`` (design 6.6): delete every ledger row of one address
+    and return how many there were.
+
+    **An exception to the guessing bound** (design 3.3, test DL12): the address is
+    admitted eight further sends inside the same day. No other address's rows and no
+    pending row are touched; a live code whose issuing row is deleted has no evidence of
+    its issuance any more and is answered as expired (fail closed), and a resend
+    replaces it. Needs the caller's open transaction; never commits.
+    """
+    if not _is_hash(address_hash):
+        raise ValueError("Невалиден ключ на адрес.")
+    if not conn.in_transaction:
+        raise TransactionRequired("registration writers need the caller's open transaction")
+    deleted = conn.execute("DELETE FROM registration_sends WHERE email_hash = ?", (address_hash,)).rowcount
+    logger.info("limit_clear_decided sends=%d", deleted)
+    return deleted

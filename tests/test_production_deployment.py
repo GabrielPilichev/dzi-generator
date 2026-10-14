@@ -798,10 +798,12 @@ class DeploymentTemplateTest(unittest.TestCase):
         for zone, key in (("lp_oidc_start", "$learnpilot_post_client"), ("lp_oidc_callback", "$binary_remote_addr")):
             self.assertIn(f"limit_req_zone {key} zone={zone}:1m rate=1r/s;", conf)
             self.assertIn(f"limit_req zone={zone} burst=40 nodelay;", conf)
+        # And the registration zone (PR 4): submissions and resends, keyed like lp_login.
+        self.assertIn("limit_req_zone $learnpilot_post_client zone=lp_register:1m rate=2r/m;", conf)
         self.assertEqual(sorted(re.findall(r"limit_req_zone \S+ zone=(\w+):", conf)),
-                         ["lp_login", "lp_oidc_callback", "lp_oidc_start", "lp_quiz_write", "lp_upload"])
+                         ["lp_login", "lp_oidc_callback", "lp_oidc_start", "lp_quiz_write", "lp_register", "lp_upload"])
         self.assertEqual(sorted(set(re.findall(r"limit_req zone=(\w+)", conf))),
-                         ["lp_login", "lp_oidc_callback", "lp_oidc_start", "lp_quiz_write", "lp_upload"])
+                         ["lp_login", "lp_oidc_callback", "lp_oidc_start", "lp_quiz_write", "lp_register", "lp_upload"])
         for path in ("/auth/google/start", "/auth/google/link", "/auth/google/link/confirm", "/auth/google/callback"):
             self.assertIn(f"location = {path} {{", conf)
         for path in ("/login", "/login/totp"):
@@ -810,9 +812,11 @@ class DeploymentTemplateTest(unittest.TestCase):
             self.assertNotIn(removed, conf)
         self.assertRegex(conf, r"location = /login \{\s+limit_req zone=lp_login burst=40 nodelay;")
         self.assertRegex(conf, r"location = /login/totp \{\s+limit_req zone=lp_login burst=40 nodelay;")
-        # The third is the confirmation of a Google link, which carries a password.
+        # The third is the confirmation of a Google link, which carries a password; the
+        # fourth the registration code form (PR 4), a guess at a credential.
         self.assertRegex(conf, r"location = /auth/google/link/confirm \{\s+limit_req zone=lp_login burst=40 nodelay;")
-        self.assertEqual(len(re.findall(r"limit_req zone=lp_login\b", conf)), 3)
+        self.assertRegex(conf, r"location = /register/verify \{\s+limit_req zone=lp_login burst=40 nodelay;")
+        self.assertEqual(len(re.findall(r"limit_req zone=lp_login\b", conf)), 4)
         self.assertIn("location ~ ^/quiz/[0-9]+$", conf)
         self.assertIn("location ~ ^/quiz/attempt/[0-9]+$", conf)
         self.assertIn("location ~ ^/quiz/attempt/[0-9]+/practical/[^/]+/task/[0-9]+/upload$", conf)

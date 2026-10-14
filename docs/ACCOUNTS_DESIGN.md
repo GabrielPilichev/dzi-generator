@@ -53,7 +53,7 @@ has started with account-owned quiz attempts (migration 015, §24).
   `docs/reviews/EMAIL_REGISTRATION_PR1_STATUS.md`). Storage and validation only:
   `users.email_verified_at` (NULL for every account) and five runtime tables,
   with no route, no mail and no caller. `users.role` stays the only authority.
-- Implemented in draft, not reviewed: the registration service
+- Done (merged, #337): the registration service
   `web/services/registration.py` and the additions `hash_new_password`,
   `password_hash_is_current` and `create_verified_user` in
   `web/services/accounts.py` (email registration PR 3;
@@ -61,8 +61,17 @@ has started with account-owned quiz attempts (migration 015, §24).
   accepts role `student` only, is the one function that sets
   `email_verified_at`, and returns `None` (writing nothing) when the address
   already has an account. Migration 022 adds `registration_sends.issuance_id`,
-  the random identity of an issuance. Nothing calls either: there is still no registration
-  route (§10 is unchanged), and `_USER_COLUMNS` does not read the column.
+  the random identity of an issuance. `_USER_COLUMNS` does not read the column.
+- Implemented in draft (#338), not reviewed, **not activated**: student
+  registration routes (email registration PR 4;
+  `docs/reviews/EMAIL_REGISTRATION_PR4_STATUS.md`, `docs/AUTH_ROUTE_CONTRACT.md`
+  "Student registration"). A verified registration creates a `student` with
+  `email_verified_at` set and a profile, and signs nobody in (D7). Production
+  keeps every `/register...` route at 404 whatever is configured (the build
+  gate `registration.PRODUCTION_ACTIVATION`, off); no teacher registration
+  exists. Sign-in, the throttle, admin TOTP, Google sign-in and every
+  CLI-created account are unchanged; `manage_accounts list` shows the
+  verification date and the declared type.
 - **Implemented, not activated: Google OIDC sign-in** (PR #331; §13, "Google
   sign-in as implemented"; specification
   `docs/reviews/GOOGLE_OIDC_DESIGN.md`). Automatic student onboarding, linking
@@ -812,6 +821,13 @@ section is the current state.
 **DECISION (approved) — student authentication is phase 2, preferred via
 Google/Microsoft OIDC.** Open password self-registration is not built now; it
 would at minimum require transactional email for verification and recovery.
+
+**Later amendment (2026-10).** Verified email/password registration was
+designed afterwards (`docs/reviews/EMAIL_REGISTRATION_DESIGN.md`, decisions D1
+to D20): a student registers with a code sent to the address, and the routes
+exist behind a build gate that is off (email registration PR 4). The v1
+decision above still describes every deployed build: production has no
+reachable registration route.
 
 ## 11. Bootstrap admin
 

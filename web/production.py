@@ -10,6 +10,8 @@ And it refuses a database whose restore is in progress or was left unfinished
 (docs/DEPLOYMENT.md, section 17): that holds after a reboot as well.
 Sign-in is by account. Google sign-in is the one optional addition, and this build
 keeps it disabled in production whatever is configured (``google_sign_in_provider``).
+Student registration likewise stays disabled while its build gate is off, whatever mail
+settings are configured (``registration_production_settings``).
 Error messages name settings, never their values.
 """
 
@@ -29,7 +31,10 @@ from web.public_url import (
     normalize_public_host,
     public_base_url_for_host,
 )
-from web.services import google_oidc
+from web.registration_settings import CONFIG_KEY as REGISTRATION_CONFIG_KEY
+from web.registration_settings import configured_names as configured_mail_settings
+from web.registration_settings import from_environment as registration_from_environment
+from web.services import google_oidc, mail as mail_service, registration as registration_service
 from web.services.totp import TOTP_KEY_ENV
 from web.services.totp import key_problem as totp_key_problem
 
@@ -168,6 +173,39 @@ def google_sign_in_provider(environ: Mapping[str, str], public_base_url):
     return google_oidc.provider_config(client_id, client_secret, public_base_url)
 
 
+def registration_errors(environ: Mapping[str, str]) -> list[str]:
+    """Why the mail settings forbid a start. Empty while the build's registration gate is off.
+
+    While ``registration.PRODUCTION_ACTIVATION`` is off, mail settings are never a
+    reason to refuse to start, whatever they hold. Once it is on, a configured backend
+    must be usable for production: ``console`` and ``file`` are refused (they show the
+    code in clear), and every malformed value is named, never echoed. No backend
+    configured means registration stays disabled, which is not an error.
+    """
+    if not registration_service.PRODUCTION_ACTIVATION:
+        return []
+    return mail_service.settings_problems(environ, production=True)
+
+
+def registration_production_settings(environ: Mapping[str, str]):
+    """The registration a production start enables, or ``None``: the activation gate.
+
+    Student registration is not activated before its prerequisites (design 0.3). The
+    build holds that line with ``registration.PRODUCTION_ACTIVATION``, which no setting
+    overrides. While it is off registration is disabled, and mail settings that are
+    present are reported once, by the names of the settings and never by their values:
+    configured credentials never enable it by themselves.
+    """
+    if not registration_service.PRODUCTION_ACTIVATION:
+        configured = configured_mail_settings(environ)
+        if configured:
+            logging.getLogger(__name__).warning(
+                "Mail settings are configured (%s), but this build does not enable registration.",
+                ", ".join(configured))
+        return None
+    return registration_from_environment(environ, production=True)
+
+
 def production_config_errors(environ: Mapping[str, str]) -> list[str]:
     errors = [f"{name} is not set" for name in REQUIRED_SECRETS if not environ.get(name)]
 
@@ -201,7 +239,8 @@ def production_config_errors(environ: Mapping[str, str]) -> list[str]:
             f"(the public URL is https://{PUBLIC_HOST_ENV})"
         )
 
-    return errors + google_sign_in_errors(environ) + _state_path_errors(environ) + _reference_root_errors(environ)
+    return (errors + google_sign_in_errors(environ) + registration_errors(environ)
+            + _state_path_errors(environ) + _reference_root_errors(environ))
 
 
 def pending_schema_migrations(db_path, open_read_only) -> list[str]:
@@ -315,6 +354,28 @@ def configure_oidc_logging() -> None:
     logger.propagate = False
 
 
+REGISTRATION_LOGGER = "learnpilot.registration"
+
+
+def configure_registration_logging() -> None:
+    """Send registration events (submissions, sends and their outcomes, activations,
+    refusals) to stderr.
+
+    The vocabulary is fixed: an event name, a pending registration's id, a send
+    generation's number, an outcome or an exception's class name. Never an address, a
+    name, a password, a code, a binding token, an issuance identity or a message.
+    Without a handler only warnings would reach the journal.
+    """
+    logger = logging.getLogger(REGISTRATION_LOGGER)
+    if not any(getattr(handler, "learnpilot_registration", False) for handler in logger.handlers):
+        handler = logging.StreamHandler()
+        handler.setFormatter(logging.Formatter("%(name)s %(levelname)s %(message)s"))
+        handler.learnpilot_registration = True
+        logger.addHandler(handler)
+    logger.setLevel(logging.INFO)
+    logger.propagate = False
+
+
 # True only while create_production_app imports web.app. That module configures a
 # development run at import; what it would say about the Google settings there is
 # wrong for production, where the public base URL is set afterwards.
@@ -421,6 +482,7 @@ def create_production_app(environ: Mapping[str, str] | None = None):
     lifecycle.configure_clock_environment(lifecycle.SystemClockEnvironment())
     configure_lifecycle_logging()
     configure_oidc_logging()
+    configure_registration_logging()
 
     flask_app = web_app.app
     public_host = normalize_public_host(environ[PUBLIC_HOST_ENV])
@@ -437,6 +499,8 @@ def create_production_app(environ: Mapping[str, str] | None = None):
     # The callback address is built on that base and on nothing a request carries.
     flask_app.config[PROVIDER_CONFIG_KEY] = google_sign_in_provider(
         environ, flask_app.config[PUBLIC_BASE_URL_CONFIG])
+    # Registration: nothing unless the build's gate is on (registration_production_settings).
+    flask_app.config[REGISTRATION_CONFIG_KEY] = registration_production_settings(environ)
     if not isinstance(flask_app.wsgi_app, ProxyFix):
         flask_app.wsgi_app = trusted_proxy(flask_app.wsgi_app)
     return flask_app

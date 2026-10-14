@@ -18,7 +18,7 @@ route, no database change) is merged (#336):
 service: pending lifecycle, codes, send ledger, caps, circuit, settlement,
 clock policy, cleanup and the activation of student registrations; no route,
 no gate, no caller; migration 022 adds one nullable column and one index to
-the send ledger) is implemented in draft #337 and awaits independent review:
+the send ledger) is merged (#337):
 `docs/reviews/EMAIL_REGISTRATION_PR3_STATUS.md`. After the first review of
 #337 Gabriel approved four contract points, recorded in design 0.7 and
 implemented there: one send per generation is the caller's sequencing
@@ -26,8 +26,15 @@ implemented there: one send per generation is the caller's sequencing
 retry, send-claim state or exactly-once claim); a stored random issuance
 identifier; verification-code input trimmed at the ends only, then six ASCII
 digits; settlement by the same issuance identity, and never after
-`NotSendable`. No other PR is started, and no deployment, provider or real
-database was touched.
+`NotSendable`. **PR 4** (the student routes, templates and browser slot, the
+transactions and single dispatch of each issuance, the build gates, kept off,
+the production wiring of the mail settings, the registration logger, the Nginx
+zone and three operator commands; no migration) is implemented in draft #338
+and awaits independent review: `docs/reviews/EMAIL_REGISTRATION_PR4_STATUS.md`.
+With it Gabriel approved that a registration hold does not block the
+cancellation of pending data (the hold and the clock mark are preserved; a
+regressed clock still refuses; design 0.7). No other PR is started, and no
+deployment, provider or real database was touched.
 
 Revisions 1, 2 and 3 were each independently reviewed and returned with
 REQUEST CHANGES, the third narrowly (two defects in the sender contract and

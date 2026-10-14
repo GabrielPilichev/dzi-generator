@@ -28,8 +28,10 @@ only, and production activation stays off. Apart from the approved
 points (caller sequencing of dispatch, the stored issuance identity, code
 input trimming, settlement by identity and no settlement after `NotSendable`),
 the deviations listed below remain **interpretations for the reviewer and for
-Gabriel**, not approved changes to the design. Cancellation during a hold
-still needs a decision before any route is exposed.
+Gabriel**, not approved changes to the design. Cancellation during a hold was
+decided by Gabriel with PR 4: a hold does not block it, the hold and the mark
+are preserved, and a regressed clock still refuses it (deviation 7 below, now
+approved; design 0.7).
 
 ## What PR 3 contains
 
@@ -355,8 +357,10 @@ Design sections named exactly. Each is the smallest reading I found. Only what i
    `cancel` answers `UNAVAILABLE` (`CLOCK_BEHIND`) then and writes nothing.
    A restore hold alone does not stop it: the row is voided and scrubbed and
    the hold and the mark are left exactly as they were. With both, the clock
-   decides: nothing is voided. Voiding during a hold is this PR's reading (a
-   cancellation only removes data); the design does not say either way.
+   decides: nothing is voided. **Approved by Gabriel with PR 4** (design 0.7):
+   a hold does not block the cancellation of pending data, the hold and the
+   clock mark are preserved, and the cancellation does not reopen
+   registration.
 8. **`settle_send` takes the issuance identity and returns `Settlement`
    (approved), and is not stopped by a hold or the clock (4.3).** It is the
    SQL of 4.3 and records a fact about a send already made.

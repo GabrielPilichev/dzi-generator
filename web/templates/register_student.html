@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+
+{% block title %}Регистрация на ученик{% endblock %}
+
+{% block body_class %}management-page management-login-page{% endblock %}
+
+{% block breadcrumb %}
+    <a href="{{ url_for('browsing.index') }}">Начало</a>
+    <span>›</span>
+    Регистрация
+{% endblock %}
+
+{% macro field_error(name) %}
+    {% if errors.get(name) %}
+        <p class="error field-error" id="{{ name }}-error" role="alert">{{ errors[name] }}</p>
+    {% endif %}
+{% endmacro %}
+
+{% block content %}
+<section class="hero login-hero">
+    <p class="eyebrow">Профил</p>
+    <h1>Регистрация на ученик</h1>
+    <p class="subtitle">Ще ти изпратим 6-цифрен код, за да потвърдиш имейла си. След това влизаш с имейл и парола.</p>
+</section>
+
+{% if notice %}
+    <div class="error login-message" role="alert">{{ notice }}</div>
+{% endif %}
+
+<form method="post" action="{{ url_for('registration.student') }}" class="card form-card login-card" novalidate>
+    <input type="hidden" name="next" value="{{ echo.get('next', '') }}">
+
+    <label for="first_name">Име</label>
+    <input id="first_name" name="first_name" type="text" value="{{ echo.get('first_name', '') }}" autocomplete="given-name" maxlength="39" required autofocus{% if errors.get('first_name') %} aria-invalid="true" aria-describedby="first_name-error"{% endif %}>
+    {{ field_error('first_name') }}
+
+    <label for="last_name">Фамилия</label>
+    <input id="last_name" name="last_name" type="text" value="{{ echo.get('last_name', '') }}" autocomplete="family-name" maxlength="39" required{% if errors.get('last_name') %} aria-invalid="true" aria-describedby="last_name-error"{% endif %}>
+    {{ field_error('last_name') }}
+
+    <label for="email">Имейл</label>
+    <input id="email" name="email" type="email" value="{{ echo.get('email', '') }}" autocomplete="email" maxlength="254" required{% if errors.get('email') %} aria-invalid="true" aria-describedby="email-error"{% endif %}>
+    {{ field_error('email') }}
+
+    <label for="grade">Клас</label>
+    <select id="grade" name="grade" required{% if errors.get('grade') %} aria-invalid="true" aria-describedby="grade-error"{% endif %}>
+        <option value="">Избери клас</option>
+        {% for grade in grades %}
+            <option value="{{ grade }}"{% if echo.get('grade') == grade|string %} selected{% endif %}>{{ grade }}. клас</option>
+        {% endfor %}
+    </select>
+    {{ field_error('grade') }}
+
+    <label for="password">Парола</label>
+    <input id="password" name="password" type="password" autocomplete="new-password" maxlength="256" required{% if errors.get('password') %} aria-invalid="true" aria-describedby="password-error"{% endif %}>
+    {{ field_error('password') }}
+
+    <label for="confirm_password">Повтори паролата</label>
+    <input id="confirm_password" name="confirm_password" type="password" autocomplete="new-password" maxlength="256" required{% if errors.get('confirm_password') %} aria-invalid="true" aria-describedby="confirm_password-error"{% endif %}>
+    {{ field_error('confirm_password') }}
+
+    <button type="submit">Регистрирай се като ученик</button>
+    <p class="help">Вече имаш профил? <a href="{{ url_for('account.login', next=echo.get('next') or None) }}">Вход</a></p>
+</form>
+{% endblock %}

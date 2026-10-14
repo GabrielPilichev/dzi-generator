@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block title %}Потвърждение на имейла{% endblock %}
+
+{% block body_class %}management-page management-login-page{% endblock %}
+
+{% block breadcrumb %}
+    <a href="{{ url_for('browsing.index') }}">Начало</a>
+    <span>›</span>
+    Потвърждение на имейла
+{% endblock %}
+
+{% block content %}
+<section class="hero login-hero">
+    <p class="eyebrow">Регистрация</p>
+    <h1>Потвърди имейла си</h1>
+    <p class="subtitle">{{ intro }}</p>
+</section>
+
+{% if error %}
+    <div class="error login-message" id="code-error" role="alert">{{ error }}</div>
+{% endif %}
+{% if notice %}
+    <div class="success login-message" role="status">{{ notice }}</div>
+{% endif %}
+
+<form method="post" action="{{ url_for('registration.verify') }}" class="card form-card login-card" autocomplete="off">
+    <label for="code">Код от имейла</label>
+    <input id="code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="32" required autofocus{% if error and code_error %} aria-invalid="true" aria-describedby="code-error"{% endif %}>
+    <button type="submit">Потвърди</button>
+</form>
+
+<form method="post" action="{{ url_for('registration.resend') }}" class="card form-card login-card">
+    <p class="help">Не получи код? Провери папката за нежелана поща. Можеш да поискаш нов код след минута.</p>
+    <button type="submit" class="secondary">Изпрати нов код</button>
+</form>
+
+<form method="post" action="{{ url_for('registration.cancel') }}" class="card form-card login-card">
+    <button type="submit" class="secondary">Грешен имейл? Започни отново</button>
+</form>
+{% endblock %}

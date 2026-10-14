@@ -85,6 +85,14 @@ EXPECTED_ACCESS_MATRIX = {
     "oidc.google_link": access.SIGNED_IN,
     "oidc.google_link_confirm": access.SIGNED_IN,
     "oidc.google_link_cancel": access.SIGNED_IN,
+    # Student registration (registration PR 4): public, as sign-in is. A signed-in
+    # account is sent to its home by the view; the teacher form is 404 until PR 7.
+    "registration.choose": access.PUBLIC,
+    "registration.student": access.PUBLIC,
+    "registration.teacher": access.PUBLIC,
+    "registration.verify": access.PUBLIC,
+    "registration.resend": access.PUBLIC,
+    "registration.cancel": access.PUBLIC,
 }
 
 # Who makes the request. The first three have no account: "historical_*" are
