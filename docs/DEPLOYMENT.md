@@ -2735,6 +2735,70 @@ section L).
 **There is no behaviour to revert.** Reverting the code removes two modules
 that nothing imports. No data is involved.
 
+## 32. Registration service and migration 022 (registration PR 3): no caller
+
+This release adds `web/services/registration.py`, three functions in
+`web/services/accounts.py` and migration
+`022_registration_issuance_identity.sql`
+(`docs/reviews/EMAIL_REGISTRATION_DESIGN.md`, sections 2, 3, 4.3 and 6.3; PR 3
+of section 9; contract in `docs/reviews/EMAIL_REGISTRATION_PR3_STATUS.md`).
+
+**Nothing calls the service. Registration cannot be reached and no message is
+ever sent.** There is no route, page, gate, secret, CLI command, timer, unit,
+Nginx or Gunicorn change, and `web.wsgi`, `web/production.py` and `deploy/`
+are not changed. The tables of migration 021 stay empty. Sign-in, sessions,
+roles, Google sign-in and admin TOTP work as before (sections 23 and 29).
+
+### Deployment order
+
+The standard procedure of section 20, with nothing added to it.
+
+- The migration is additive and is not a table rebuild: `ALTER TABLE
+  registration_sends ADD COLUMN issuance_id TEXT` with a CHECK, and one
+  partial unique index. No row is written. `registration_sends` is empty in
+  every deployment, because nothing has ever written to it; if it were not,
+  each existing row would keep its values and get no identity (the service
+  then never sends or settles such a row, and still counts it in every
+  limit). Accounts, profiles and every other table are untouched. Nobody is
+  signed out.
+- On a database that already has every migration through
+  `021_registration_schema.sql` the dry run of step 7 lists exactly
+  `022_registration_issuance_identity.sql`. If it lists earlier migrations
+  too, the database is behind that level; see the section that introduces
+  each (section 30 for 021).
+- Apply in step 8, after the step 3 snapshot, only what the dry run listed.
+  From this release on the application refuses to start on a schema without
+  migration 022 (section 9).
+- There is nothing to configure and nothing for an account, operator or
+  teacher to do afterwards.
+
+The cleanup timer, the restore gate and the snapshot step that registration
+needs before it is ever enabled are not part of this release (design, section
+9, PR 5) and must not be assumed to exist.
+
+### Backup and restore
+
+Unchanged. A snapshot from before this release is migrated to the deployed
+schema by the restore script (section 17, step 4), which adds the NULL column
+and the index. The table is runtime state and is never exported to
+`data/canonical`.
+
+### Rollback
+
+**There is no behaviour to revert.** Forward fix first.
+
+- **Once migration 022 is applied, every build that serves this database ships
+  `022_registration_issuance_identity.sql`, a recovery build included**
+  (section 21). If application code has to be reverted, revert the code and
+  keep the migration together with its entry in the migration list and level
+  of `data/canonical/manifest.json`. The column and the index stay; they are
+  not dropped.
+- A snapshot restore is not a route to a build from before 022, for the
+  reasons sections 27, 28 and 30 give for migrations 019 to 021. Do not use
+  `--replaced-database-unreadable` to get past that refusal.
+- Reverting only the code removes a module that nothing imports and three
+  functions that nothing calls.
+
 ## 2 GB VPS sizing
 
 Initial configuration from capacity testing: Gunicorn `workers = 1`,

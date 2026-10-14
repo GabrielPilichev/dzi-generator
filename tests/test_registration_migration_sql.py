@@ -564,7 +564,9 @@ class RegistrationClassificationTest(unittest.TestCase):
                 applied = [r[0] for r in conn.execute("SELECT filename FROM schema_migrations ORDER BY filename")]
                 self.assertIn(MIGRATION, applied)
                 for table, columns in COLUMNS.items():
-                    self.assertEqual(tuple(r[1] for r in conn.execute(f"PRAGMA table_info({table})")), columns)
+                    # A later migration may add trailing columns (022: registration_sends.issuance_id).
+                    self.assertEqual(tuple(r[1] for r in conn.execute(f"PRAGMA table_info({table})"))[:len(columns)],
+                                     columns)
                     self.assertEqual(conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0], 0, table)
                     # Not even a sequence entry: no row was ever inserted and removed.
                     self.assertIsNone(ct.stored_sequence(conn, table))

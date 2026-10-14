@@ -12,6 +12,7 @@ import hmac
 import secrets
 import sqlite3
 import unicodedata
+from datetime import datetime, timezone
 
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -264,6 +265,81 @@ def password_hash_is_verifiable(stored) -> bool:
         and len(digest) == digest_length
         and all(ch in "0123456789abcdef" for ch in digest)
     )
+
+
+# Roles a verified registration may be activated with. ``teacher`` joins it only with
+# teacher quotas (docs/reviews/EMAIL_REGISTRATION_DESIGN.md, D5 and section 7.1);
+# ``admin`` never does: the CLI's ``set-role`` stays the only way to an admin.
+VERIFIED_REGISTRATION_ROLES = ("student",)
+
+
+def hash_new_password(password: str, email: str) -> str:
+    """The hash of ``password`` exactly as received, for a registration of ``email``.
+
+    The password is not stripped, collapsed, normalised or cut: what is hashed is what
+    :func:`authenticate` later compares. ``ValueError`` (holding no value) when
+    :func:`password_problem` refuses it or the email is malformed. Nothing is stored.
+    """
+    return _hash_password(password, normalize_email(email))
+
+
+def password_hash_is_current(stored) -> bool:
+    """Whether ``stored`` is a hash of the method and parameters this module makes now."""
+    return password_hash_is_verifiable(stored) and stored.split("$", 1)[0] == _CURRENT_HASH_METHOD
+
+
+def create_verified_user(
+    conn: sqlite3.Connection,
+    *,
+    email: str,
+    display_name: str,
+    role: str,
+    password_hash: str,
+    verified_at,
+) -> int | None:
+    """Insert the account of a verified registration and return its id, or ``None``
+    when the address already has an account.
+
+    ``role`` must be one of ``VERIFIED_REGISTRATION_ROLES``. ``email`` must already be
+    in the stored form :func:`normalize_email` returns. ``password_hash`` must come from
+    :func:`hash_new_password` (current method and parameters) and is stored as it is;
+    no password is seen here. ``verified_at`` is a timezone-aware moment and becomes
+    ``email_verified_at`` and ``password_changed_at``. ``ValueError`` for anything else,
+    with no value in the message. Never commits.
+
+    ``None`` means exactly one thing: the insert met the uniqueness of ``users.email``
+    and wrote nothing. It is decided by SQLite (``ON CONFLICT(email) DO NOTHING``, which
+    names that one constraint), never by reading an error message. Every other failure
+    raises and is the caller's to roll back: a trigger's ``RAISE`` (whatever its text),
+    a check, a foreign key, ``NOT NULL`` or any other uniqueness. The clause needs
+    SQLite 3.24 or newer; an older library rejects the statement as a syntax error
+    (``sqlite3.OperationalError``), which is also raised, so nothing is ever created or
+    reported as taken there.
+    """
+    if role not in VERIFIED_REGISTRATION_ROLES:
+        raise ValueError("Ролята не може да бъде получена чрез регистрация.")
+    if not isinstance(email, str) or not _is_normalized_email(email):
+        raise ValueError("Невалиден имейл.")
+    if not password_hash_is_current(password_hash):
+        raise ValueError("Невалиден запис на парола.")
+    if not isinstance(verified_at, datetime) or verified_at.tzinfo is None:
+        raise ValueError("Невалидно време.")
+    stamp = verified_at.astimezone(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+    name = _validate_display_name(display_name)
+    cursor = conn.execute(
+        "INSERT INTO users (email, display_name, role, password_hash, is_active, session_key, "
+        "password_changed_at, email_verified_at) VALUES (?, ?, ?, ?, 1, ?, ?, ?) "
+        "ON CONFLICT(email) DO NOTHING",
+        (email, name, role, password_hash, _new_session_key(), stamp, stamp),
+    )
+    return cursor.lastrowid if cursor.rowcount == 1 else None
+
+
+def _is_normalized_email(email: str) -> bool:
+    try:
+        return normalize_email(email) == email
+    except ValueError:
+        return False
 
 
 def verify_password(conn: sqlite3.Connection, user_id: int, password: str) -> bool:

@@ -216,6 +216,28 @@ own, so a failed run leaves no process behind. **Never import
 the importing process. The tests execute its source with those three calls
 intercepted.
 
+## Registration service tests
+
+`tests/test_registration_service.py`, `tests/test_registration_ledger.py` and
+`tests/test_registration_settlement.py` share `tests/registration_support.py`.
+Each test clones the migrated canonical template into a temporary directory
+and never opens `data/questions.db`. Time is a value the test sets and hands
+to the service as its `clock`; nothing sleeps for a limit or reads the real
+clock. Mail is `InMemoryMailer` or a small fake, so nothing is sent and
+nothing is connected to. The service never commits: the fixture's `tx` begins
+`BEGIN IMMEDIATE` and commits, or rolls back after an exception, as a caller
+must. Concurrency tests use threads with one connection each to the same
+file. One test starts `python -m src.manage_accounts create` as a process
+against the temporary database. The property test of the guessing bound is
+seeded and states its three assumptions in its docstring. Tests that compare
+the codes of two issuances inject them (`RegistrationTestCase.codes`). The
+failed-commit tests use a real `SQLITE_BUSY`: the temporary file is in
+rollback-journal mode, a second connection holds a read transaction, and the
+writer's `COMMIT` is refused with a zero busy timeout.
+`tests/test_registration_issuance_migration_sql.py` upgrades a temporary
+database from migration 021, with accounts, profiles, registrations and
+ledger rows already in it, to 022, and compares it with a fresh build.
+
 ## Previous isolation problems
 
 - `web.app` used to run `quiz_apply_migration()` at import time, before unittest

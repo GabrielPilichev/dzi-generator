@@ -53,6 +53,16 @@ has started with account-owned quiz attempts (migration 015, §24).
   `docs/reviews/EMAIL_REGISTRATION_PR1_STATUS.md`). Storage and validation only:
   `users.email_verified_at` (NULL for every account) and five runtime tables,
   with no route, no mail and no caller. `users.role` stays the only authority.
+- Implemented in draft, not reviewed: the registration service
+  `web/services/registration.py` and the additions `hash_new_password`,
+  `password_hash_is_current` and `create_verified_user` in
+  `web/services/accounts.py` (email registration PR 3;
+  `docs/reviews/EMAIL_REGISTRATION_PR3_STATUS.md`). `create_verified_user`
+  accepts role `student` only, is the one function that sets
+  `email_verified_at`, and returns `None` (writing nothing) when the address
+  already has an account. Migration 022 adds `registration_sends.issuance_id`,
+  the random identity of an issuance. Nothing calls either: there is still no registration
+  route (§10 is unchanged), and `_USER_COLUMNS` does not read the column.
 - **Implemented, not activated: Google OIDC sign-in** (PR #331; §13, "Google
   sign-in as implemented"; specification
   `docs/reviews/GOOGLE_OIDC_DESIGN.md`). Automatic student onboarding, linking
