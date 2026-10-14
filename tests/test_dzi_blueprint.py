@@ -28,6 +28,13 @@ EXPECTED_URL_MAP = (
     ('/auth/google/link/cancel', ('POST',), 'signed_in', 'same_origin'),
     ('/auth/google/link/confirm', ('GET', 'POST'), 'signed_in', 'same_origin'),
     ('/auth/google/start', ('POST',), 'public', 'same_origin'),
+    # Student registration (registration PR 4); 404 while it is disabled.
+    ('/register', ('GET',), 'public', None),
+    ('/register/cancel', ('POST',), 'public', 'same_origin'),
+    ('/register/resend', ('POST',), 'public', 'same_origin'),
+    ('/register/student', ('GET', 'POST'), 'public', 'same_origin'),
+    ('/register/teacher', ('GET', 'POST'), 'public', 'same_origin'),
+    ('/register/verify', ('GET', 'POST'), 'public', 'same_origin'),
     ('/admin/open-question-candidates', ('GET',), 'admin', None),
     ('/dzi', ('GET',), 'admin', None),
     ('/dzi/practical/resource/<int:resource_id>/download', ('GET',), 'admin', None),

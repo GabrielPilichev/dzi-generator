@@ -2799,6 +2799,113 @@ and the index. The table is runtime state and is never exported to
 - Reverting only the code removes a module that nothing imports and three
   functions that nothing calls.
 
+## 33. Student registration routes (registration PR 4): shipped disabled
+
+This release adds the student registration routes (`/register`,
+`/register/student`, `/register/verify`, `/register/resend`,
+`/register/cancel`, and `/register/teacher`, which is always 404), their
+pages, the production wiring of the mail settings, the
+`learnpilot.registration` log handler, the Nginx `lp_register` zone and three
+operator commands (`docs/reviews/EMAIL_REGISTRATION_DESIGN.md`, sections 6.2
+to 6.6 and 7.3 to 7.5; contract in
+`docs/reviews/EMAIL_REGISTRATION_PR4_STATUS.md`; routes in
+`docs/AUTH_ROUTE_CONTRACT.md`, "Student registration").
+
+**Registration is not activated, and this build cannot activate it in
+production.** Nothing in this section has been carried out on any server: no
+provider, sender address or credential exists, no message was sent, and none
+of the checks below was run.
+
+### What the build does
+
+- **No migration.** It needs migrations 021 and 022 (sections 30 and 32),
+  which a database must have before this build serves it.
+- **The activation gates.** `PRODUCTION_ACTIVATION` and `TEACHER_ACTIVATION`
+  in `web/services/registration.py` are `False`. While the first is, `web.wsgi`:
+  - starts normally whatever the `DZI_MAIL_*` and `DZI_SMTP_*` settings hold
+    (unset, partial, malformed, or a `console`/`file` backend): mail settings
+    are never a reason to refuse to start;
+  - keeps registration disabled: every `/register...` route answers the
+    generic 404 page (a cross-origin POST is still 403), the sign-in page has
+    no „Регистрирай се“ link, no row is created and no message is sent;
+  - logs one warning if any mail setting is set, naming the settings and never
+    their values: `Mail settings are configured (...), but this build does not
+    enable registration.`
+
+  No setting and no environment variable overrides either constant; a
+  configured backend never enables registration by itself. A later,
+  separately authorised release sets `PRODUCTION_ACTIVATION` to `True` only
+  after the prerequisites of design 0.3; from then on a configured backend must
+  be usable for production (`smtp` only: `console` and `file` stop the start,
+  as does any malformed setting, named and never echoed) and no backend means
+  disabled. `/register/teacher` stays 404 until teacher quotas exist (PR 7).
+- **Logs.** `learnpilot.registration` gets a handler like the lifecycle and
+  Google loggers (stderr, so the journal). Lines are an event name with row
+  ids, an outcome or an exception class name; never an address, a name, a
+  password, a code, the binding token, an issuance identity or a message.
+  Lines named `*_decided` are written inside a transaction before its commit
+  and are not evidence that anything became durable; `submitted`,
+  `send_settled`, `resent`, `activated`, `email_taken`, `wrong_code`,
+  `cancelled` and `gate_off` are written only after the commit returned.
+- What is new for every visitor whether it is enabled or not: nothing visible.
+  `manage_accounts list` gains two columns, `verified` (the time a
+  registration verified the address; `-` for every CLI or Google account,
+  which means "never verified by registration", not "unusable") and `type`
+  (the declared profile type; `-` without a profile).
+
+### Deploying this build
+
+The standard procedure of section 20, with no migration step. **Do not add
+mail settings to `/etc/learnpilot/learnpilot.env` for this release:** they
+would only produce the warning above. Then check:
+
+```bash
+curl -s https://learnpilot.bg/login | grep -c '/register'                     # 0: no link
+curl -s -o /dev/null -w '%{http_code}\n' https://learnpilot.bg/register       # 404
+curl -s -o /dev/null -w '%{http_code}\n' -X POST \
+  -H 'Origin: https://learnpilot.bg' https://learnpilot.bg/register/student    # 404
+```
+
+Install the new Nginx template as in section 12 (keep the lines Certbot added
+to the server block), then `sudo nginx -t && sudo systemctl reload nginx`. The
+`lp_register` zone belongs to the `http` context beside the existing zones.
+`/register/student`, `/register/teacher` and `/register/resend` use it
+(`burst=90 nodelay`, refill two a minute); `/register/verify` uses the
+sign-in zone `lp_login`. The values are proposals, to be tuned on a
+classroom-sized run before activation; the zone keys on the client address
+Nginx sees, so it is only as good as the one trusted proxy hop. A template
+change is not evidence that the server's Nginx accepts it: `nginx -t` on the
+server is.
+
+### Operator commands (`src.manage_accounts`)
+
+| Command | Does |
+| --- | --- |
+| `registrations-cleanup` | Expires and scrubs pending registrations past their 30 minutes, deletes final rows after 24 hours and send records after 48 hours. Needs no secret. Refuses while the restore lock exists, and changes nothing (non-zero exit) while the clock is behind the registration high-water mark. |
+| `registrations-cleanup --check` | Changes nothing; exits non-zero when a pending registration is older than an hour (the cleanup has not run, or cannot). |
+| `registrations-clock-accept` | After the operator has checked the server's time: sets the high-water mark to the present, ending a "clock behind" refusal. Touches no hold and no registration. |
+| `clear-registration-limit --email <email>` | Deletes the send history of one address (needs `DZI_SECRET_KEY`). It says before it acts that the address may then receive up to 8 more codes the same day, which weakens the guessing bound for it. |
+
+```bash
+sudo -u learnpilot /opt/learnpilot/venv/bin/python -m src.manage_accounts --db "$DZI_DB" registrations-cleanup --check
+```
+
+**The cleanup timer, the restore gate and hold commands
+(`registrations-restore-gate`, `registrations-restore-status`,
+`registrations-release-hold`), the restore script's handling of registration
+and the snapshot scrub are not part of this release** (design, section 9,
+PR 5). Until they exist, a restore does not void pending registrations or set
+a hold; that does not matter while registration cannot be reached, and it is
+an activation prerequisite.
+
+### Rollback
+
+**There is no behaviour to revert while the gate is off.** Reverting the code
+removes routes that answer 404, three operator commands and two `list`
+columns. No data is involved; the tables of migrations 021 and 022 stay, and
+every build that serves the database keeps shipping those migrations
+(sections 30 and 32).
+
 ## 2 GB VPS sizing
 
 Initial configuration from capacity testing: Gunicorn `workers = 1`,

@@ -173,6 +173,17 @@ def get_profile(conn: sqlite3.Connection, user_id) -> dict | None:
     return profile
 
 
+def declared_types(conn: sqlite3.Connection) -> dict[int, str]:
+    """``{user_id: account_type}`` of every profile, for the operator's account list.
+
+    Empty when the database predates the profile storage (migration 021). The declared
+    type is shown, never used for access: ``users.role`` stays the only authority.
+    """
+    if conn.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'user_profiles'").fetchone() is None:
+        return {}
+    return {row[0]: row[1] for row in conn.execute("SELECT user_id, account_type FROM user_profiles")}
+
+
 # ---------------------------------------------------------------------------- writes
 
 def create_profile(

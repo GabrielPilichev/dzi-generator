@@ -238,6 +238,23 @@ writer's `COMMIT` is refused with a zero busy timeout.
 database from migration 021, with accounts, profiles, registrations and
 ledger rows already in it, to 022, and compares it with a fresh build.
 
+## Registration route, production and operator tests
+
+`tests/test_registration_routes.py` (registration PR 4) gives every test its own
+temporary database built from migrations and canonical data and enables
+registration with `InMemoryMailer` in the application's configuration; nothing
+is sent and no socket is opened. The registration clock is replaced
+(`web.blueprints.registration._utcnow`), so nothing sleeps for a limit. A failed
+`COMMIT` is injected by wrapping the request's own connection
+(`FlakyCommits`): the chosen commits raise and the code under test rolls back.
+Concurrency tests use threads with their own test clients, one connection per
+request, against the same file. `tests/test_registration_production.py` starts
+`web.wsgi` and `web.app` in fresh interpreters with synthetic mail settings
+(only GETs and refused POSTs are made, so no sender process is ever started),
+and checks the Nginx template statically: that is not evidence that a real
+Nginx accepts it. `tests/test_registration_cli.py` runs the operator commands
+of `src.manage_accounts` against temporary databases.
+
 ## Previous isolation problems
 
 - `web.app` used to run `quiz_apply_migration()` at import time, before unittest

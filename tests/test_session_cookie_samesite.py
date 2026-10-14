@@ -84,6 +84,7 @@ ANY_ACCOUNT = statuses(302, 200, 200, 200)
 THE_STUDENTS_OWN = statuses(404, 200, 404, 404)
 TEACHER_PAGE = statuses(302, 403, 200, 200)
 ADMIN_PAGE = statuses(302, 403, 403, 200)
+DISABLED = statuses(404, 404, 404, 404)
 
 
 def session_cookies(response) -> list[dict]:
@@ -480,6 +481,13 @@ class CrossSiteNavigationTest(VisitorsTestCase):
                 (f"/auth/google/callback?code=forged&state={'s' * 43}", statuses(302, 302, 302, 302)),
                 ("/auth/google/callback?error=access_denied", statuses(302, 302, 302, 302)),
                 ("/auth/google/callback", statuses(302, 302, 302, 302))],
+            # Registration (PR 4) is disabled in this configuration: every address is the
+            # generic 404, for every visitor. tests/test_registration_routes.py sweeps them
+            # with registration enabled and a registration in progress.
+            "registration.choose": [("/register", DISABLED), ("/register?next=/account/attempts", DISABLED)],
+            "registration.student": [("/register/student", DISABLED)],
+            "registration.teacher": [("/register/teacher", DISABLED)],
+            "registration.verify": [("/register/verify", DISABLED)],
             "quiz.quiz_start_public": [(cls.entry, EVERYONE)],
             "quiz.my_attempts": [("/account/attempts", ANY_ACCOUNT)],
             "quiz.quiz_attempt": [(attempt, THE_STUDENTS_OWN)],
@@ -644,6 +652,13 @@ class CrossOriginUnsafeRequestTest(VisitorsTestCase):
             "oidc.google_link": ("/auth/google/link", {}),
             "oidc.google_link_confirm": ("/auth/google/link/confirm", {"current_password": PASSWORD}),
             "oidc.google_link_cancel": ("/auth/google/link/cancel", {}),
+            "registration.student": ("/register/student", {
+                "first_name": "Ана", "last_name": "Иванова", "email": "ana.forged@example.bg", "grade": "9",
+                "password": NEW_PASSWORD, "confirm_password": NEW_PASSWORD}),
+            "registration.teacher": ("/register/teacher", {}),
+            "registration.verify": ("/register/verify", {"code": "123456"}),
+            "registration.resend": ("/register/resend", {}),
+            "registration.cancel": ("/register/cancel", {}),
             "quiz.quiz_start_public": (cls.entry, {}),
             "quiz.quiz_attempt": (attempt, cls.one_answer(cls.open_attempt)),
             "practical.quiz_practical_upload": (f"{attempt}/practical/{DZI_SOURCE}/task/1/upload", {}),

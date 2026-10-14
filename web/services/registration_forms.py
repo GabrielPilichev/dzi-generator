@@ -297,6 +297,15 @@ def _accepted_next(value) -> str | None:
     return value if safe_redirect_target(value, "/") == value else None
 
 
+def accepted_next(value) -> str | None:
+    """The ``next`` rule of the forms on its own: ``value`` if it is kept, else ``None``.
+
+    For a ``next`` read outside a form (the chooser's query string, the session slot),
+    so that every place applies the one rule.
+    """
+    return _accepted_next(value)
+
+
 # ---------------------------------------------------------------------------- forms
 
 def _common(form: Mapping, errors: dict[str, str], echo: dict[str, Any]) -> dict[str, Any]:

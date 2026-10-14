@@ -514,8 +514,13 @@ class BridgeBoundariesTest(unittest.TestCase):
         paths = {rule.rule for rule in web_app.app.url_map.iter_rules()}
         for expected in ("/login", "/logout", "/account/password"):
             self.assertIn(expected, paths)
-        for forbidden in ("/register", "/signup", "/account/reset", "/oauth"):
+        for forbidden in ("/signup", "/account/reset", "/oauth"):
             self.assertNotIn(forbidden, paths)
+        # Registration (PR 4) is its own blueprint; none of its routes signs anyone in.
+        self.assertEqual({rule.endpoint for rule in web_app.app.url_map.iter_rules()
+                          if rule.rule.startswith("/register")},
+                         {"registration.choose", "registration.student", "registration.teacher",
+                          "registration.verify", "registration.resend", "registration.cancel"})
 
 
 if __name__ == "__main__":

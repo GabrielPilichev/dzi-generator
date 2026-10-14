@@ -44,6 +44,7 @@ from web.attempt_access import quiz_attempt_owner_session_key
 from web.blueprints.account import account_bp
 from web.blueprints.oidc import oidc_bp
 from web.blueprints.quiz import quiz_bp
+from web.blueprints.registration import registration_bp
 from web.blueprints.teacher import teacher_bp
 from web.blueprints.browsing import browsing_bp, open_existing_database_read_only
 from web.access import (
@@ -54,12 +55,14 @@ from web.access import (
     policy_for_endpoint,
 )
 from web import oauth_state
+from web import registration_settings
 from web.request_db import get_request_db
 from web.production import production_startup_in_progress, warn_if_schema_migrations_pending
 from web.public_url import PUBLIC_BASE_URL_CONFIG, PUBLIC_BASE_URL_ENV, normalize_public_base_url
 from web.services import accounts as accounts_service
 from web.services import google_oidc
 from web.services import lifecycle as lifecycle_service
+from web.services import mail as mail_service
 from web.services.subject_catalog import subject_catalog, subject_topic_groups
 from web.services import quiz as quiz_service
 from web.services.dzi_exams import (
@@ -215,6 +218,21 @@ if ((_google_client_id or _google_client_secret) and app.config[oauth_state.PROV
         RuntimeWarning,
         stacklevel=2,
     )
+# Student registration (docs/reviews/EMAIL_REGISTRATION_DESIGN.md, 7.5): a development run
+# enables it with mail settings that are usable for development (DZI_MAIL_BACKEND=console
+# shows the code in the terminal) and never refuses to start over them. web.wsgi decides
+# for production (web.production), behind the build's gate.
+app.config[registration_settings.CONFIG_KEY] = None
+if not production_startup_in_progress():
+    app.config[registration_settings.CONFIG_KEY] = registration_settings.from_environment(
+        os.environ, production=False)
+    _mail_problems = mail_service.settings_problems(os.environ, production=False)
+    if _mail_problems:
+        warnings.warn(
+            "Registration is disabled: " + "; ".join(_mail_problems) + ".",
+            RuntimeWarning,
+            stacklevel=2,
+        )
 
 
 
@@ -630,6 +648,7 @@ warn_if_schema_migrations_pending(DB_PATH, open_existing_database_read_only)
 
 app.register_blueprint(account_bp)
 app.register_blueprint(oidc_bp)
+app.register_blueprint(registration_bp)
 app.register_blueprint(browsing_bp)
 app.register_blueprint(dzi_bp)
 app.register_blueprint(practical_bp)

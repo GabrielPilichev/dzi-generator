@@ -23,6 +23,10 @@
 {% if google_message %}
     <div class="{{ google_message.kind }} login-message" role="{{ 'alert' if google_message.kind == 'error' else 'status' }}">{{ google_message.text }}</div>
 {% endif %}
+{% set registration_notice = registration_login_notice() %}
+{% if registration_notice %}
+    <div class="{{ registration_notice.kind }} login-message" role="status">{{ registration_notice.text }}</div>
+{% endif %}
 
 <form method="post" action="{{ url_for('account.login') }}" class="card form-card login-card">
     <input type="hidden" name="next" value="{{ next_url }}">
@@ -34,6 +38,9 @@
     <input id="password" name="password" type="password" autocomplete="current-password" maxlength="256" required>
 
     <button type="submit">Влез</button>
+    {% if registration_enabled %}
+    <p class="help">Нямаш профил? <a href="{{ url_for('registration.choose', next=next_url or None) }}">Регистрирай се</a></p>
+    {% endif %}
 </form>
 
 {% if google_sign_in_enabled %}

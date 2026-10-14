@@ -116,7 +116,7 @@ a coverage test walks `app.url_map` and fails on any undeclared endpoint.
 
 | Policy | Meaning | Routes |
 | --- | --- | --- |
-| `public` | any session, signed in or not | `/`, `/grade/<n>`, `/section/<slug>`, `/subjects/...`, `/physics...`, `/healthz`, `/favicon.ico`, sign-in (`/login`, `POST /login/totp`, `POST /auth/google/start`, `GET /auth/google/callback`), `POST /logout`, `/quiz/s/<public_token>` |
+| `public` | any session, signed in or not | `/`, `/grade/<n>`, `/section/<slug>`, `/subjects/...`, `/physics...`, `/healthz`, `/favicon.ico`, sign-in (`/login`, `POST /login/totp`, `POST /auth/google/start`, `GET /auth/google/callback`), `POST /logout`, `/quiz/s/<public_token>`, registration (`/register`, `/register/student`, `/register/teacher`, `/register/verify`, `POST /register/resend`, `POST /register/cancel`; see "Student registration") |
 | `teacher` | teacher or admin account | `/teacher/new`, `/teacher/assignment/<id>` |
 | `admin` | admin account only (after the second factor) | `/admin/open-question-candidates`, `/dzi...`, every other `/teacher...` route |
 | `signed_in` | any active account (student, teacher or admin) | `/account`, `/account/password`, `POST /auth/google/link`, `/auth/google/link/confirm`, `POST /auth/google/link/cancel` (the link routes admit the session; an admin is then refused by `POST /auth/google/link` and `POST /auth/google/link/confirm` with 403, while `GET .../confirm` redirects to the expired outcome and `POST .../cancel` answers `link_not_pending`; see "An admin session on the link routes") |
@@ -225,8 +225,10 @@ and are not in use.
 
 Accounts are created by `python3 -m src.manage_accounts`, and, once Google
 sign-in is activated, a first Google sign-in creates a `student` (see "Google
-sign-in"). There is no registration form, no password reset and no email
-verification. A teacher or an admin account comes from the operator only.
+sign-in"). Once student registration is activated, a verified registration
+creates a `student` too (see "Student registration"; **not activated**). There
+is no password reset, and no teacher registration. A teacher or an admin
+account comes from the operator only.
 
 **Session contents.** A successful `POST /login` (for an admin, the completed
 `POST /login/totp`) clears the session, carries
@@ -481,12 +483,70 @@ change of the session's account try to write that record; when it cannot be
 written they go on (only the cancellation says so), and a copy then stays
 usable until it expires, within the checks of the confirmation.
 
+## Student registration
+
+Specification: `docs/reviews/EMAIL_REGISTRATION_DESIGN.md` (sections 2.3, 4.3,
+6.2 to 6.4); implementation and its contract:
+`docs/reviews/EMAIL_REGISTRATION_PR4_STATUS.md`. **It is not activated.** It
+is enabled only with usable mail settings, and a production start of this build
+keeps it disabled whatever is configured: the build gate
+`registration.PRODUCTION_ACTIVATION` (`web/services/registration.py`) is off
+and no setting overrides it (`docs/DEPLOYMENT.md`, section 33). Disabled, every
+route below answers the generic 404 page after the same-origin check (a
+cross-origin POST is still 403) and no page links to it.
+
+| Route | Endpoint | Methods | Access | Integrity |
+| --- | --- | --- | --- | --- |
+| `/register` | `registration.choose` | GET | `public` | — |
+| `/register/student` | `registration.student` | GET, POST | `public` | `same_origin` |
+| `/register/teacher` | `registration.teacher` | GET, POST | `public` | `same_origin` |
+| `/register/verify` | `registration.verify` | GET, POST | `public` | `same_origin` |
+| `/register/resend` | `registration.resend` | POST | `public` | `same_origin` |
+| `/register/cancel` | `registration.cancel` | POST | `public` | `same_origin` |
+
+- **`/register/teacher` is the generic 404 in every environment** until teacher
+  quotas exist (decision D5, registration PR 7), whatever
+  `registration.TEACHER_ACTIVATION` says. A teacher registration is never
+  activated.
+- **The browser binding is the session slot `reg`**: `{"v": 1, "t": <token>,
+  "next": <validated path or "">}`. No address, name, code or password is in
+  the cookie. It is not an account key: `load_current_user` never reads it,
+  and `issue_account_session`, `issue_pending_second_factor` and `end_session`
+  drop it with everything else (the first two carry over only the
+  `quiz_attempt_owner:*` markers). A slot of any other shape is ignored.
+  Verify, resend and cancel find the registration by the keyed hash of the
+  slot's token and by nothing else; another browser has no registration.
+- **No GET writes, and no GET sets a cookie.** The verify page reads only the
+  caller's own row; expiry is written by the POSTs and by the cleanup.
+- **A signed-in account** is sent to its role's home by every `/register...`
+  route, and a POST of it starts nothing. No other route is affected.
+- **Verification does not sign in (decision D7).** A correct code creates the
+  `student` account (`email_verified_at` set) and redirects to
+  `/login?next=<validated>&registration=activated`; sign-in is email and
+  password, as for every account, and never asks for a code. Admin TOTP and
+  Google sign-in are unchanged. `/login` shows the outcome only for a known
+  `registration` code and only while registration is enabled; it echoes no
+  value.
+- **Transactions**: each service writer runs inside `BEGIN IMMEDIATE` begun by
+  the route; nothing (session, response, durable log line, mail) acts on its
+  outcome before `COMMIT` has returned; an exception or a failed commit rolls
+  back and answers the generic failure (500). The code or notice of an
+  issuance is handed to the mailer once, by the request that committed it,
+  with no transaction open, and settled afterwards in its own transaction by
+  generation number and issuance identity; never after `NotSendable`.
+- **Responses** of every `/register...` route carry `Cache-Control: no-store`
+  and `Referrer-Policy: no-referrer`. No registration value is in a URL.
+- **`next`** passes `safe_redirect_target` and, for registration only, refuses
+  any Unicode C or Z character; it is checked when the form is rendered, when
+  the slot is read and again by `/login`.
+
 ## Safe redirects
 
 `web/redirects.py` owns `safe_redirect_target`, which accepts only a same-site
 absolute path and rejects `//host`, a scheme or host, a backslash (`/\host` is
 read as `//host` by browsers) and control characters. Its callers are the
-account login and Google sign-in: `next` is validated when the form is
+account login, Google sign-in and registration (which adds its own stricter
+rule, see "Student registration"): `next` is validated when the form is
 rendered (for Google: when the transaction is created) and again when it is
 used. A denied request is redirected with `next=<request path>`, never with
 a client-supplied target or the `Referer`. The redirect to Google is the
@@ -592,6 +652,6 @@ accepts no unsafe method.
 ## Endpoint names
 
 Every endpoint is blueprint-qualified: `account.*`, `browsing.*`, `dzi.*`,
-`oidc.*`, `practical.*`, `quiz.*`, `teacher.*`. The unprefixed quiz endpoints
+`oidc.*`, `practical.*`, `quiz.*`, `registration.*`, `teacher.*`. The unprefixed quiz endpoints
 (`quiz_start`, `quiz_attempt`, `quiz_result`) and the `auth.*` endpoints no
 longer exist.
