@@ -83,6 +83,7 @@ from typing import Any, Callable, Mapping
 
 from web.services import accounts, profiles
 from web.services import registration_forms as forms
+from web.services import registration_scrub as scrub
 from web.services.mail import Mailer, OutboundEmail, SendOutcome
 
 logger = logging.getLogger("learnpilot.registration")
@@ -128,10 +129,7 @@ _SETTLED_OUTCOMES = tuple(outcome.value for outcome in SendOutcome)
 _CIRCUIT_HISTORY = (SendOutcome.ACCEPTED.value, SendOutcome.NOT_SENT.value, SendOutcome.UNKNOWN.value)
 _CIRCUIT_FAILURE = (SendOutcome.NOT_SENT.value, SendOutcome.UNKNOWN.value)
 
-_SCRUB = (
-    "email = NULL, first_name = NULL, last_name = NULL, grade = NULL, school_name = NULL, "
-    "subjects_json = NULL, password_hash = NULL, code_hash = NULL, code_expires_at = NULL"
-)
+_SCRUB = scrub.SCRUB_ASSIGNMENTS  # one definition, shared with the snapshot step (registration_scrub)
 _PENDING_COLUMNS = (
     "id, binding_hash, account_type, state, is_shadow, email, first_name, last_name, grade, "
     "school_name, subjects_json, password_hash, code_hash, code_expires_at, code_send_id, "
@@ -1126,3 +1124,123 @@ def clear_address_limit(conn: sqlite3.Connection, address_hash: str) -> int:
     deleted = conn.execute("DELETE FROM registration_sends WHERE email_hash = ?", (address_hash,)).rowcount
     logger.info("limit_clear_decided sends=%d", deleted)
     return deleted
+
+
+# ------------------------------------------------------------------------- restore (D20)
+
+RESTORE_HOLD = "restore"
+# The high-water mark of a control row the gate has to create: "no mark yet", which is what
+# an absent row means. The gate reads nothing but the copy it is given, and must not
+# invent a clock reading for the person who will later release the hold.
+NO_MARK = "1970-01-01 00:00:00"
+
+
+@dataclass(frozen=True)
+class RestoreGateResult:
+    """What ``restore_gate`` did to the copy it was given."""
+
+    voided: int           # pending registrations turned ``void`` and scrubbed
+    hold_set_at: str      # when the hold was set: this run's time, or the copy's own if it carried one
+    already_held: bool    # the copy carried a hold, which was kept as it was
+
+
+@dataclass(frozen=True)
+class RestoreStatus:
+    """The state ``registrations-restore-status`` judges. Read-only."""
+
+    pending: int
+    control_present: bool
+    held: bool
+    hold_set_at: str | None
+    high_water_at: str | None
+
+
+@dataclass(frozen=True)
+class ReleaseResult:
+    """``released`` is False when there was no hold (nothing was written). ``clock_behind``
+    says whether the wall clock is, right now, behind the high-water mark by more than 300
+    seconds: the release does not change that, and registration still answers
+    "unavailable" until the clock passes the mark or the operator runs
+    ``registrations-clock-accept``."""
+
+    released: bool
+    hold_set_at: str | None
+    clock_behind: bool
+    high_water_at: str | None
+
+
+def restore_gate(conn: sqlite3.Connection, *, clock: Callable[[], datetime]) -> RestoreGateResult:
+    """The gate of design 3.9, applied by ``deploy/learnpilot-restore.sh`` to the **staged
+    copy** of a snapshot, in the caller's ``BEGIN IMMEDIATE`` transaction.
+
+    1. Every ``pending`` registration becomes ``void`` and is scrubbed (a restored snapshot
+       could otherwise bring back a cancelled registration's code, or the attempts a code
+       had used). The recovery credentials of PR 8 do not exist yet; when they do, they are
+       voided here too.
+    2. The hold ``restore`` is set (D20 (a)). A copy that already carries a hold keeps it as
+       it is, original time included: **this function never clears a hold.** An absent
+       control row is created with :data:`NO_MARK`; an existing row keeps its high-water
+       mark, which this function neither raises nor lowers.
+
+    It reads no other database and no clock reading is compared with anything: the time is
+    only the stamp of a hold that is new. Repeatable (a second call changes nothing) and
+    atomic (the caller rolls back on any exception and the copy is as it was). It touches no
+    account, profile, subject, ledger or canonical row.
+    """
+    now = _writer_now(conn, clock)
+    voided = scrub.void_pending(conn, now)
+    control = conn.execute("SELECT hold_reason, hold_set_at FROM registration_control WHERE id = 1").fetchone()
+    if control is None:
+        conn.execute(
+            "INSERT INTO registration_control (id, high_water_at, hold_reason, hold_set_at) VALUES (1, ?, ?, ?)",
+            (NO_MARK, RESTORE_HOLD, _stamp(now)),
+        )
+        held_since, already = _stamp(now), False
+    elif control[0] is None:
+        conn.execute(
+            "UPDATE registration_control SET hold_reason = ?, hold_set_at = ? WHERE id = 1",
+            (RESTORE_HOLD, _stamp(now)),
+        )
+        held_since, already = _stamp(now), False
+    else:
+        held_since, already = control[1], True
+    logger.info("restore_gate_decided voided=%d already_held=%s", voided, already)
+    return RestoreGateResult(voided, held_since, already)
+
+
+def restore_status(conn: sqlite3.Connection) -> RestoreStatus:
+    """Read the registration state a restore must leave (design 3.9, 6.6). Writes nothing."""
+    pending = conn.execute("SELECT COUNT(*) FROM pending_registrations WHERE state = 'pending'").fetchone()[0]
+    control = conn.execute(
+        "SELECT hold_reason, hold_set_at, high_water_at FROM registration_control WHERE id = 1"
+    ).fetchone()
+    if control is None:
+        return RestoreStatus(pending, False, False, None, None)
+    return RestoreStatus(pending, True, control[0] is not None, control[1], control[2])
+
+
+def release_hold(conn: sqlite3.Connection, *, clock: Callable[[], datetime]) -> ReleaseResult:
+    """``registrations-release-hold --acknowledge-lost-history`` (design 3.9, 6.6): end the
+    restore hold. The only way it ends; nothing releases it automatically.
+
+    The caller has required the operator's acknowledgement that the issuance history since
+    the snapshot is gone. Needs the caller's open transaction and never commits. It clears
+    the hold and nothing else: **not** the high-water mark (a regressed clock stays
+    refused until the clock passes the mark or ``accept_clock``), not the ledger, a cap,
+    the circuit, or any registration row.
+    """
+    now = _writer_now(conn, clock)
+    control = conn.execute(
+        "SELECT hold_reason, hold_set_at, high_water_at FROM registration_control WHERE id = 1"
+    ).fetchone()
+    if control is None:
+        return ReleaseResult(False, None, False, None)
+    behind = _stamp(now + CLOCK_SKEW) < control[2]
+    if control[0] is None:
+        return ReleaseResult(False, None, behind, control[2])
+    conn.execute(
+        "UPDATE registration_control SET hold_reason = NULL, hold_set_at = NULL WHERE id = 1 "
+        "AND hold_reason IS NOT NULL"
+    )
+    logger.info("hold_release_decided")
+    return ReleaseResult(True, control[1], behind, control[2])

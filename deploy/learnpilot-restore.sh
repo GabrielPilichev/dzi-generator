@@ -36,6 +36,12 @@
 #
 # It releases no hold. Only `manage_lifecycle reconcile`, from the database being
 # replaced, does that.
+#
+# Registration (docs/reviews/EMAIL_REGISTRATION_DESIGN.md, 3.9, decision D20 (a)): the
+# registration cleanup timer is stopped and its service is required to be idle before
+# the live database is read; on the staged copy every pending registration is voided
+# and registration is held; the hold is never released by this script, whatever
+# happens. The operator ends it with `manage_accounts registrations-release-hold`.
 
 if [ -z "${BASH_VERSION:-}" ]; then
   echo "restore: run this script with bash" >&2
@@ -54,6 +60,8 @@ PYTHON=${LEARNPILOT_PYTHON:-/opt/learnpilot/venv/bin/python}
 SERVICE=${LEARNPILOT_SERVICE:-learnpilot}
 BACKUP_SERVICE=${LEARNPILOT_BACKUP_SERVICE:-learnpilot-backup.service}
 BACKUP_TIMER=${LEARNPILOT_BACKUP_TIMER:-learnpilot-backup.timer}
+CLEANUP_SERVICE=${LEARNPILOT_CLEANUP_SERVICE:-learnpilot-registration-cleanup.service}
+CLEANUP_TIMER=${LEARNPILOT_CLEANUP_TIMER:-learnpilot-registration-cleanup.timer}
 RUN_AS=${LEARNPILOT_USER:-learnpilot}
 RUN_GROUP=${LEARNPILOT_GROUP:-learnpilot}
 HEALTH_URL=${LEARNPILOT_HEALTH_URL:-http://127.0.0.1:8000/healthz}
@@ -86,6 +94,7 @@ PHASE=untouched      # untouched -> locked -> swap -> committed -> started
 LOCK_HELD=no
 INTERRUPTED_BEFORE=no
 TIMER_WAS_ACTIVE=no
+CLEANUP_TIMER_WAS_ACTIVE=no
 START_ATTEMPTED=no
 STAMP=
 STAGE=
@@ -228,7 +237,7 @@ finish() {
   fi
   if [ "$PHASE" = started ]; then
     say "The service is running on the restored state: the script was stopped after it had started it."
-    say "Check that the backup timer is active ($BACKUP_TIMER). Exit status $status."
+    say "Check that the backup timer ($BACKUP_TIMER) and the registration cleanup timer ($CLEANUP_TIMER) are active. Exit status $status."
     exit "$status"
   fi
 
@@ -322,11 +331,15 @@ finish() {
       if [ "$INTERRUPTED_BEFORE" = yes ]; then
         say "An EARLIER run was interrupted while it was replacing the live state, so the lock stays:"
         say "the service does not start, and no backup is taken, until a restore has finished."
+        say "The registration cleanup timer stays stopped as well (it refuses while the lock exists)."
       elif [ "$LOCK_HELD" = yes ]; then
         if sudo rm -rf -- "$LOCK"; then
           say "The restore lock was released."
           if [ "$TIMER_WAS_ACTIVE" = yes ] && ! sudo systemctl start "$BACKUP_TIMER"; then
             say "WARNING: the backup timer could not be started again: $BACKUP_TIMER"
+          fi
+          if [ "$CLEANUP_TIMER_WAS_ACTIVE" = yes ] && ! sudo systemctl start "$CLEANUP_TIMER"; then
+            say "WARNING: the registration cleanup timer could not be started again: $CLEANUP_TIMER"
           fi
         else
           say "The restore lock could not be removed: $LOCK"
@@ -348,6 +361,7 @@ finish() {
       fi
       say "What was set aside is in $REPLACED; the rest of the copy is in $STAGE."
       say "The lock stays: the service does not start and no backup is taken."
+      say "The registration cleanup timer stays stopped until a restore has finished."
       say "Do not move anything by hand and do not remove the lock. After correcting the cause, run"
       say "the script again from the beginning. It starts over, with every gate, from the snapshot."
       ;;
@@ -368,6 +382,9 @@ finish() {
         say "The restore itself is complete and the lock is released; the service is not running."
         if [ "$TIMER_WAS_ACTIVE" = yes ] && ! sudo systemctl start "$BACKUP_TIMER"; then
           say "WARNING: the backup timer could not be started again: $BACKUP_TIMER"
+        fi
+        if [ "$CLEANUP_TIMER_WAS_ACTIVE" = yes ] && ! sudo systemctl start "$CLEANUP_TIMER"; then
+          say "WARNING: the registration cleanup timer could not be started again: $CLEANUP_TIMER"
         fi
       else
         say "The lock stays. Run the script again from the beginning."
@@ -524,6 +541,19 @@ case $BACKUP_STATE in
     die 1 "it cannot be told whether a backup is running: systemd reports '${BACKUP_STATE#ActiveState=}' for $BACKUP_SERVICE"
     ;;
 esac
+# The same first look at the registration cleanup service: it only saves a wasted start. A
+# service systemd does not know is reported "inactive", which is right: nothing runs.
+CLEANUP_STATE=$(sudo systemctl show -p ActiveState "$CLEANUP_SERVICE") \
+  || die "$?" "the state of the registration cleanup service could not be read from systemd ($CLEANUP_SERVICE)"
+case $CLEANUP_STATE in
+  ActiveState=inactive | ActiveState=failed) ;;
+  ActiveState=activating | ActiveState=active | ActiveState=reloading | ActiveState=deactivating)
+    die 1 "a registration cleanup is running ($CLEANUP_SERVICE is ${CLEANUP_STATE#ActiveState=}). Wait until it has finished, then run the script again"
+    ;;
+  *)
+    die 1 "it cannot be told whether a registration cleanup is running: systemd reports '${CLEANUP_STATE#ActiveState=}' for $CLEANUP_SERVICE"
+    ;;
+esac
 STAMP=$(date -u +%Y%m%dT%H%M%SZ) || die 1 "the date could not be read"
 WAITED=0
 while sudo test -e "$STATE/restore-staging-$STAMP" || sudo test -e "$STATE/replaced-$STAMP"; do
@@ -573,6 +603,9 @@ if ! sudo mkdir -- "$LOCK"; then
   if sudo test -e "$LOCK/backup-timer-was-active"; then
     TIMER_WAS_ACTIVE=yes
   fi
+  if sudo test -e "$LOCK/registration-cleanup-timer-was-active"; then
+    CLEANUP_TIMER_WAS_ACTIVE=yes
+  fi
 fi
 LOCK_HELD=yes
 PHASE=locked
@@ -601,6 +634,34 @@ case $BACKUP_STATE in
     ;;
   *)
     die 1 "it cannot be told whether a backup is running: systemd reports '${BACKUP_STATE#ActiveState=}' for $BACKUP_SERVICE"
+    ;;
+esac
+
+# The registration cleanup writes to the live database, so it is stopped as well, and for
+# the same reason as the backup: before the live database is checkpointed and fingerprinted.
+# Stopping the timer does not stop a run that has begun, so the service is looked at once
+# the timer is stopped and the lock is held (the command refuses to start under the lock).
+CLEANUP_TIMER_STATE=$(sudo systemctl show -p ActiveState "$CLEANUP_TIMER") \
+  || die "$?" "the state of the registration cleanup timer could not be read from systemd ($CLEANUP_TIMER)"
+case $CLEANUP_TIMER_STATE in
+  ActiveState=inactive | ActiveState=failed) ;;
+  ActiveState=active | ActiveState=activating)
+    gate "note that the registration cleanup timer was active" \
+      sudo sh -c ': > "$1"' sh "$LOCK/registration-cleanup-timer-was-active"
+    CLEANUP_TIMER_WAS_ACTIVE=yes
+    gate "pause the registration cleanup timer" sudo systemctl stop "$CLEANUP_TIMER"
+    ;;
+  *) die 1 "the state of the registration cleanup timer cannot be told: systemd reports '${CLEANUP_TIMER_STATE#ActiveState=}' for $CLEANUP_TIMER" ;;
+esac
+CLEANUP_STATE=$(sudo systemctl show -p ActiveState "$CLEANUP_SERVICE") \
+  || die "$?" "the state of the registration cleanup service could not be read from systemd ($CLEANUP_SERVICE)"
+case $CLEANUP_STATE in
+  ActiveState=inactive | ActiveState=failed) ;;
+  ActiveState=activating | ActiveState=active | ActiveState=reloading | ActiveState=deactivating)
+    die 1 "a registration cleanup is running ($CLEANUP_SERVICE is ${CLEANUP_STATE#ActiveState=}). Wait until it has finished, then run the script again"
+    ;;
+  *)
+    die 1 "it cannot be told whether a registration cleanup is running: systemd reports '${CLEANUP_STATE#ActiveState=}' for $CLEANUP_SERVICE"
     ;;
 esac
 
@@ -662,6 +723,18 @@ LIFECYCLE=("${AS_SERVICE[@]}" "$PYTHON" -m src.manage_lifecycle --db "$STAGED_DB
 HINT="A '(table-rebuild)' migration has its own procedure: docs/DEPLOYMENT.md, section 9."
 gate "list the migrations pending on the copy" "${MIGRATE[@]}" --dry-run
 gate "apply the pending migrations to the copy" "${MIGRATE[@]}" --apply
+HINT=
+
+# --- 4b. registration: pending credentials voided, registration held (D20 (a)) ------------
+# On the copy, after its migration (which gives an old snapshot the registration tables) and
+# before the checkpoint and fingerprint below, so that every byte the gate changes is in the
+# bytes that are verified and compared. Nothing of the gate runs after that. The hold it sets
+# is never cleared here; a hold the snapshot already carries is kept as it was.
+
+REGISTRATIONS=("${AS_SERVICE[@]}" "$PYTHON" -m src.manage_accounts --db "$STAGED_DB")
+HINT="Registration is held after every restore (docs/DEPLOYMENT.md, section 34); this step cannot be skipped."
+gate "void pending registrations and hold registration on the copy (registrations-restore-gate)" \
+  "${REGISTRATIONS[@]}" registrations-restore-gate
 HINT=
 
 # --- 5. lifecycle gates, all on the copy -----------------------------------------------
@@ -732,6 +805,8 @@ gate "write the staged database out completely" \
 VERIFIED=$("${FINGERPRINT[@]}" "$STAGED_DB") || die "$?" "gate failed: the staged database could not be read"
 
 gate "the copy verifies (verify)" "${LIFECYCLE[@]}" verify
+gate "the copy has no pending registration and registration is held (registrations-restore-status)" \
+  "${REGISTRATIONS[@]}" registrations-restore-status --expect held
 
 say "gate: no assignment is left held for the restore, beyond the $ACCEPT_HELD acknowledged"
 HELD=0
@@ -838,6 +913,8 @@ IN_PLACE=("${AS_SERVICE[@]}" "$PYTHON" -m src.manage_lifecycle --db "$LIVE_DB")
 gate "the database now in place is byte for byte the one that was verified" \
   "${FINGERPRINT[@]}" "$LIVE_DB" --expect "$VERIFIED"
 gate "the database now in place verifies (verify)" "${IN_PLACE[@]}" verify
+gate "the database now in place has no pending registration and registration is held (registrations-restore-status)" \
+  "${AS_SERVICE[@]}" "$PYTHON" -m src.manage_accounts --db "$LIVE_DB" registrations-restore-status --expect held
 gate "the database now in place holds exactly what was acknowledged" \
   "${IN_PLACE[@]}" restore-status --expect-held "$ACCEPT_HELD"
 
@@ -864,6 +941,16 @@ if [ "$TIMER_WAS_ACTIVE" = yes ]; then
     say "WARNING: the backup timer could not be started again. Start it by hand: $BACKUP_TIMER"
   fi
 fi
+if [ "$CLEANUP_TIMER_WAS_ACTIVE" = yes ]; then
+  if sudo systemctl start "$CLEANUP_TIMER"; then
+    say "The registration cleanup timer is active again."
+  else
+    say "WARNING: the registration cleanup timer could not be started again. Start it by hand: $CLEANUP_TIMER"
+  fi
+fi
+say "REGISTRATION IS HELD: pending registrations were voided and registration answers 'unavailable' until you run"
+say "  manage_accounts registrations-release-hold --acknowledge-lost-history   (docs/DEPLOYMENT.md, section 34)."
+say "Nothing releases it by itself. Sign-in is not affected."
 if [ "$ACCEPT_HELD" -gt 0 ]; then
   say "RESTORED, NOT RECOVERED: $ACCEPT_HELD assignment(s) stay held and are closed to everyone."
   say "Nothing reopens them. See docs/DEPLOYMENT.md, section 26, 'Restore'."

@@ -120,6 +120,8 @@ exec "$@"
 . "$RESTORE_SHIMS/inject.sh"
 for unit in "$@"; do :; done
 case $unit in
+  *registration-cleanup*.timer) kind=cleanup-timer; flag=cleanup-timer-active ;;
+  *registration-cleanup*.service) kind=cleanup; flag=cleanup-active ;;
   *backup*.timer) kind=timer; flag=timer-active ;;
   *backup*.service) kind=backup; flag=backup-active ;;
   *) kind=systemctl; flag=active ;;
@@ -162,7 +164,8 @@ for arg in "$@"; do
     -c) maybe_fail "py:check"; break ;;
     --fingerprint) maybe_fail "py:fingerprint"; break ;;
     --snapshot) maybe_fail "py:preflight"; break ;;
-    --dry-run | --apply | restore-hold | restore-status | clock-recover | reconcile | verify)
+    --dry-run | --apply | restore-hold | restore-status | clock-recover | reconcile | verify \
+      | registrations-restore-gate | registrations-restore-status)
       maybe_fail "py:$arg"
       if [ "$arg" = "${RESTORE_TEST_PRETEND:-}" ]; then exit 0; fi   # "succeeds" without having run
       break
@@ -264,7 +267,7 @@ class Restore:
         self.shims = shim_directory()
         self.run_dir = self.root / "run"
         self.run_dir.mkdir()
-        for flag in ("active", "timer-active"):          # the service runs, and so does the backup timer
+        for flag in ("active", "timer-active", "cleanup-timer-active"):   # the service runs, and so do both timers
             (self.run_dir / flag).write_text("", encoding="utf-8")
         (self.run_dir / "unit-environment-files").write_text(
             f"EnvironmentFiles={self.env_file} (ignore_errors=no)\n", encoding="utf-8")
@@ -311,9 +314,15 @@ class Restore:
 
     # ------------------------------------------------------------------ what happened
 
-    def calls(self) -> list[str]:
+    def all_calls(self) -> list[str]:
         log = self.run_dir / "calls.log"
         return log.read_text(encoding="utf-8").split() if log.exists() else []
+
+    def calls(self) -> list[str]:
+        """Every call but those of the registration cleanup unit, which
+        ``tests.test_registration_restore_operations`` follows: the order of the rest is what
+        the tests of this module pin, and the cleanup calls do not move it."""
+        return [call for call in self.all_calls() if not call.startswith("cleanup-")]
 
     def started(self) -> bool:
         return any(call.startswith("systemctl-start#") for call in self.calls())
@@ -514,11 +523,15 @@ class RestoreScriptSourceTest(unittest.TestCase):
         self.assertEqual(len(starts), 1, "exactly one start of the service")
         (start,) = starts
         self.assertEqual(self.code[start], 'if ! sudo systemctl start "$SERVICE"; then')  # not in a branch or a function
-        # Every other `systemctl start` is of the backup timer, never of the service.
+        # Every other `systemctl start` is of the backup timer or the registration cleanup timer
+        # (three places each: the finish handling twice, and the end of a successful run),
+        # never of the service.
         others = [line for line in self.code if re.search(r"systemctl\s+start\b", line) and "$SERVICE" not in line]
-        self.assertEqual(len(others), 3)
+        self.assertEqual(len(others), 6)
         for line in others:
-            self.assertIn('systemctl start "$BACKUP_TIMER"', line)
+            self.assertRegex(line, r'systemctl start "\$(BACKUP|CLEANUP)_TIMER"')
+        self.assertEqual(len([line for line in others if "$BACKUP_TIMER" in line]), 3)
+        self.assertEqual(len([line for line in others if "$CLEANUP_TIMER" in line]), 3)
         later = "\n".join(self.code[start + 1:])
         self.assertNotRegex(later, r"(?m)^\s*gate\s")           # nothing mandatory is left for after the start
         self.assertNotIn("-m src.", later)                      # no tool is run after it, only named
@@ -532,16 +545,19 @@ class RestoreScriptSourceTest(unittest.TestCase):
                 '"$SNAPSHOT/questions.db" "$STAGED_DB"',
                 '-xzf "$SNAPSHOT/files.tar.gz"',
                 '"${MIGRATE[@]}" --apply',
+                '"${REGISTRATIONS[@]}" registrations-restore-gate',
                 'restore-hold --pre-restore-db "$LIVE_DB"',
                 "restore-status --expect-held all",
                 'reconcile --pre-restore-db "$LIVE_DB" --snapshot-db "$SNAPSHOT/questions.db"',
                 '"${LIFECYCLE[@]}" "${RECOVER[@]}" --verified-utc "$VERIFIED_UTC"',
                 '"${LIFECYCLE[@]}" verify',
+                '"${REGISTRATIONS[@]}" registrations-restore-status --expect held',
                 '"${LIFECYCLE[@]}" restore-status --expect-held "$ACCEPT_HELD"',
                 'gate "put the restored $tree in place"',
                 'sudo ln -- "$LIVE_DB" "$REPLACED/questions.db"',
                 'sudo mv -f -- "$STAGED_DB" "$LIVE_DB"',
                 '"${IN_PLACE[@]}" verify',
+                '--db "$LIVE_DB" registrations-restore-status --expect held',
                 '"${IN_PLACE[@]}" restore-status --expect-held "$ACCEPT_HELD"',
                 'gate "release the restore lock" sudo rm -rf -- "$LOCK"'):
             self.assertEqual(before.count(marker), 1, marker)
@@ -555,7 +571,8 @@ class RestoreScriptSourceTest(unittest.TestCase):
         self.assertGreater(len(gates), 30)
         # A gate runs an external program (or the builtin cd or test), never one of the script's own functions.
         self.assertEqual(set(gates) - {"sudo", "cd", "test", '"${AS_SERVICE[@]}"', '"${MIGRATE[@]}"',
-                                       '"${LIFECYCLE[@]}"', '"${IN_PLACE[@]}"', '"${FINGERPRINT[@]}"'}, set())
+                                       '"${LIFECYCLE[@]}"', '"${IN_PLACE[@]}"', '"${FINGERPRINT[@]}"',
+                                       '"${REGISTRATIONS[@]}"'}, set())
         # No pipeline anywhere: outside quotes and ${...}, the only "|" left after "||" is the
         # alternation of a case pattern.
         for line in self.code:
@@ -602,7 +619,7 @@ class RestoreScriptSourceTest(unittest.TestCase):
         # What the script reads back from its lock: who holds it, whether a replacement had begun,
         # whether the backup timer has to be started again. None of it lets a step be skipped.
         self.assertEqual(sorted(set(re.findall(r'"\$LOCK/([a-z-]+)"', self.text))),
-                         ["backup-timer-was-active", "pid", "swap-started"])
+                         ["backup-timer-was-active", "pid", "registration-cleanup-timer-was-active", "swap-started"])
         self.assertEqual(self.text.count("INTERRUPTED_BEFORE=yes"), 1)
         for use in re.findall(r".*INTERRUPTED_BEFORE.*", self.text):
             self.assertRegex(use, r'INTERRUPTED_BEFORE=(no|yes)$|\[ "\$INTERRUPTED_BEFORE" = yes \]')
@@ -1013,9 +1030,10 @@ class RestoreScriptFlowTest(RestoreScriptTestCase):
         self.assertEqual(calls[-3:], ["systemctl-start#1", "curl#1", "timer-start#1"])
         # hold, reconcile, clock, verify: recovery comes after reconciliation.
         self.assertEqual([call for call in calls if call.startswith("py:") and "fingerprint" not in call], [
-            "py:check#1", "py:preflight#1", "py:--dry-run#1", "py:--apply#1", "py:restore-hold#1",
-            "py:restore-status#1", "py:reconcile#1", "py:clock-recover#1", "py:verify#1", "py:restore-status#2",
-            "py:verify#2", "py:restore-status#3"])
+            "py:check#1", "py:preflight#1", "py:--dry-run#1", "py:--apply#1", "py:registrations-restore-gate#1",
+            "py:restore-hold#1", "py:restore-status#1", "py:reconcile#1", "py:clock-recover#1", "py:verify#1",
+            "py:registrations-restore-status#1", "py:restore-status#2", "py:verify#2",
+            "py:registrations-restore-status#2", "py:restore-status#3"])
         # Every gate on the copy, then uploads and vault, and the database last.
         moves = [call for call in calls if call.split("#")[0] in ("mv", "ln")]
         self.assertEqual(moves, ["mv#1", "mv#2", "mv#3", "mv#4", "ln#1", "mv#5"])
@@ -1805,6 +1823,7 @@ class RestoreScriptGateTest(RestoreScriptTestCase):
                                  "tar", "install", "mv", "ln", "py:check", "py:preflight", "py:fingerprint",
                                  "py:--dry-run",
                                  "py:--apply", "py:restore-hold", "py:restore-status", "py:clock-recover",
+                                 "py:registrations-restore-gate", "py:registrations-restore-status",
                                  "py:reconcile", "py:verify"})
         self.assertGreaterEqual(calls.index("systemctl-start#1"), 35)
 
@@ -1852,7 +1871,7 @@ class RestoreScriptGateTest(RestoreScriptTestCase):
         # return without being a failure, and 1, which is also what a crash returns.
         gates = [call for call in self.control_calls if call.startswith("py:")
                  and call not in ("py:check#1", "py:preflight#1") and "fingerprint" not in call]
-        self.assertEqual(len(gates), 10)
+        self.assertEqual(len(gates), 13)   # the three lifecycle-independent registration calls included
 
         def fail_with(case):
             call, status = case

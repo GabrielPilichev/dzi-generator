@@ -487,6 +487,14 @@ snapshot is published and every partial file is removed. There is deliberately
 no database-only fallback, so a directory named `snapshot-*` always means a
 complete snapshot.
 
+The database in a snapshot is **logically scrubbed of unverified registrations**
+(registration PR 5, decision D18 (b); section 34): in the isolated copy the
+backup API wrote, never in the live database, every pending registration becomes
+`void` and loses its address, names, password hash and code hash, before the
+copy is checked, flushed, published and hashed. Accounts, profiles, canonical
+content and the send ledger are kept. This is a logical change and not an
+erasure; section 34 lists what it does not remove.
+
 Reference data (`DZI_REFERENCE_ROOT`) is **not** in the snapshot. It is static
 official source material that the application never changes, provisioned from
 the workstation copy (section 3). Keep that copy; after losing the server,
@@ -665,7 +673,11 @@ success.
    script before it has stopped or changed anything.
 2. **Lock, pause backups, stop.** It makes the directory
    `/var/lib/learnpilot/data/restore-in-progress`, stops the backup timer if it
-   was active, looks at the backup service once more, and stops the service.
+   was active, looks at the backup service once more, stops the registration
+   cleanup timer if it was active and requires `learnpilot-registration-cleanup.service`
+   to be `inactive` or `failed` (a stopped timer does not stop a run that has
+   begun; any other state ends the restore), and stops the service. All of that
+   is before the live database is checkpointed and fingerprinted.
    While that directory exists the application refuses to start and no backup
    is taken. That holds after a reboot too: it is checked by `web.wsgi` and by
    the backup tool themselves, and by a `ConditionPathExists=` line in both
@@ -683,7 +695,11 @@ success.
 4. **Migrate the copy** to the schema of the deployed build
    (`src.manage_migrations --dry-run`, then `--apply`). A snapshot taken before
    a migration does not have it; one from before 018 has no lifecycle columns
-   at all.
+   at all. Then **the registration gate** on the copy
+   (`manage_accounts registrations-restore-gate`, decision D20 (a); section 34):
+   every pending registration is voided and scrubbed, and registration is held.
+   A hold the snapshot already carries is kept as it was. Nothing of the gate
+   runs after step 8.
 5. **Hold every assignment** on the copy: `restore-hold --pre-restore-db` with
    the live database, which also carries over the holds and the clock incident
    the live database has. `restore-status --expect-held all` then counts the
@@ -700,8 +716,10 @@ success.
    behind or 60 s ahead of, and the script then asks again, three times at
    most. The clock comes after reconciliation on purpose: recovery holds every
    test whose deadline, as reconciled, falls where the clocks disagree.
-8. **Check and count:** `verify`, and `restore-status`, which fails if any
-   assignment is still held for the restore (see "Assignments that stay held").
+8. **Check and count:** `verify`, `registrations-restore-status --expect held`
+   (no pending registration, the control row present, the hold set), and
+   `restore-status`, which fails if any assignment is still held for the
+   restore (see "Assignments that stay held").
    Then, because time has passed since the databases were looked at: the copy
    has to be byte for byte the one that was verified, its files the ones that
    were extracted, and the live database the one that was reconciled against.
@@ -711,10 +729,17 @@ success.
    place. The database comes last and is replaced by a single rename; the one
    that was live stays in `replaced-<stamp>/` under a second name. Until that
    rename, the database at the live path is the one that was live.
-10. **Check what is now in place:** `verify` and `restore-status` again.
+10. **Check what is now in place:** `verify`, `registrations-restore-status
+    --expect held` and `restore-status` again.
 11. **Unlock and start:** the lock is removed, the service started, `/healthz`
     requested (if that fails the service is stopped again), and the backup
-    timer started if it had been active.
+    timer and the registration cleanup timer started if each had been active.
+    A timer that was not active is not started. Wherever the script starts the
+    backup timer again after a failure, it starts the cleanup timer too.
+
+**Registration stays closed after every restore** until an operator runs
+`registrations-release-hold --acknowledge-lost-history` (section 34). The script
+never releases the hold, on any path.
 
 ### What the service's settings have to look like
 
@@ -772,7 +797,7 @@ The last lines the script prints say which of these happened. Only exit status
 | `WHETHER THE DATABASE WAS REPLACED COULD NOT BE ESTABLISHED` | not 0 | stopped | **stays** | Not known. Nothing was moved back. |
 | `The restored state is in place` ... `The lock stays.` | not 0 | stopped | **stays** | Restored; a final check failed. |
 | `The restore itself is complete and the lock is released; the service is not running.` | not 0 | stopped | gone | Restored and complete. The start or its health check failed, or the script was stopped during it. |
-| `The service is running on the restored state: the script was stopped after it had started it.` | not 0 | running | gone | Restored and complete. Check that the backup timer is active. |
+| `The service is running on the restored state: the script was stopped after it had started it.` | not 0 | running | gone | Restored and complete. Check that the backup timer and the registration cleanup timer are active. |
 
 `RESTORE COMPLETE` says that no assignment is held **because of the restore**,
 and nothing more. Tests that were closed are closed, deadlines are what they
@@ -968,6 +993,20 @@ no content queries and is not cached. It never creates a missing database.
 or submitting a test, uploading, creating, editing, duplicating or closing one)
 is refused with 503 until an operator confirms the clock. See section 26,
 "Clock incident".
+
+### Registration cleanup (once the timer is installed, section 34)
+
+```bash
+systemctl show -p ActiveState,Result,ExecMainStatus learnpilot-registration-cleanup.service
+systemctl list-timers learnpilot-registration-cleanup.timer
+sudo -u learnpilot /opt/learnpilot/venv/bin/python -m src.manage_accounts --db "$DZI_DB" registrations-cleanup --check
+```
+
+The service should be `inactive` (or briefly `activating`) with `Result=success`.
+`failed` means the last run did not scrub: the database was busy, the clock is
+behind the registration high-water mark, or a restore lock exists. The
+`--check` command exits non-zero when a pending registration is older than an
+hour, which is the logical-retention target of section 34 missed.
 
 ## 20. Deploy / update procedure
 
@@ -2896,13 +2935,9 @@ server is.
 sudo -u learnpilot /opt/learnpilot/venv/bin/python -m src.manage_accounts --db "$DZI_DB" registrations-cleanup --check
 ```
 
-**The cleanup timer, the restore gate and hold commands
-(`registrations-restore-gate`, `registrations-restore-status`,
-`registrations-release-hold`), the restore script's handling of registration
-and the snapshot scrub are not part of this release** (design, section 9,
-PR 5). Until they exist, a restore does not void pending registrations or set
-a hold; that does not matter while registration cannot be reached, and it is
-an activation prerequisite.
+The cleanup timer, the restore gate, the hold commands, the restore script's
+handling of registration and the snapshot scrub were not part of that release;
+they are PR 5 (section 34).
 
 ### Rollback
 
@@ -2911,6 +2946,106 @@ removes routes that answer 404, three operator commands and two `list`
 columns. No data is involved; the tables of migrations 021 and 022 stay, and
 every build that serves the database keeps shipping those migrations
 (sections 30 and 32).
+
+## 34. Registration operations (registration PR 5): cleanup timer, restore hold, snapshot scrub
+
+This release adds the operational pieces registration needs before it is ever
+enabled (`docs/reviews/EMAIL_REGISTRATION_DESIGN.md`, sections 3.9, 6.5, 6.6; PR 5
+of section 9; decisions D18 (b) and D20 (a); contract and open evidence in
+`docs/reviews/EMAIL_REGISTRATION_PR5_STATUS.md`). **Registration stays off: no
+gate is turned on and no migration is added.** Nothing here has been run on a
+server.
+
+### What the build adds
+
+- `deploy/systemd/learnpilot-registration-cleanup.service` and `.timer`: the
+  existing `registrations-cleanup` command every ten minutes (`OnCalendar=*:0/10`,
+  `Persistent=true`). A template, like the backup units: the paths are those of
+  the backup units (`/opt/learnpilot/venv`, `/opt/learnpilot/app`, the database
+  from `/etc/learnpilot/backup.env`, user `learnpilot`); change them together
+  with the other units. It needs no secret and reads the backup unit's
+  settings file, which holds state paths only.
+- `deploy/learnpilot-restore.sh`: stops the cleanup timer, requires the cleanup
+  service idle, runs the gate on the staged copy and checks the result (section 17).
+- `src.manage_accounts`: `registrations-restore-gate`, `registrations-restore-status`
+  and `registrations-release-hold`.
+- `src.backup_sqlite`: the logical scrub of the snapshot copy (section 16).
+
+### Installing the cleanup timer
+
+Once, on the server, after this build is deployed and migrations 021 and 022 are
+applied. Not part of a routine deploy: do it deliberately.
+
+```bash
+sudo cp deploy/systemd/learnpilot-registration-cleanup.service deploy/systemd/learnpilot-registration-cleanup.timer /etc/systemd/system/
+sudo systemd-analyze verify /etc/systemd/system/learnpilot-registration-cleanup.service /etc/systemd/system/learnpilot-registration-cleanup.timer
+sudo systemctl daemon-reload
+sudo systemctl enable --now learnpilot-registration-cleanup.timer
+sudo systemctl start learnpilot-registration-cleanup.service     # one run now, to see it work
+systemctl show -p ActiveState,Result learnpilot-registration-cleanup.service
+```
+
+Run `systemd-analyze verify` before enabling: the units have not been validated by
+systemd. The cleanup refuses while the restore lock exists (the unit's
+`ConditionPathExists=` and the command itself) and does nothing while the clock is
+behind the registration high-water mark. A run that cannot take the database's
+write lock fails and leaves the unit `failed`; the next tick tries again. The unit
+is a oneshot: a tick that arrives during a run starts nothing. Do not give it
+`Restart=`.
+
+### Restore: what happens to registration
+
+After every restore, registration is closed. On the staged copy the gate voids
+and scrubs every pending registration (the recovery credentials of PR 8 do not
+exist yet and will be added to the gate with that PR) and sets the hold
+`restore`; a hold the snapshot already had is kept with its time. The ledger of
+the database that was replaced is **not** carried over and nothing is merged.
+Sign-in is not affected. Pending registrants start again after the hold ends.
+
+Check, then release, with the service running:
+
+```bash
+sudo -u learnpilot /opt/learnpilot/venv/bin/python -m src.manage_accounts --db "$DZI_DB" registrations-restore-status
+sudo -u learnpilot /opt/learnpilot/venv/bin/python -m src.manage_accounts --db "$DZI_DB" registrations-release-hold --acknowledge-lost-history
+```
+
+`registrations-release-hold` prints the consequence first and refuses without the
+flag. By giving it you accept that the send accounting since the snapshot is
+gone: an address that already received 8 codes in a day may receive up to 8 more
+(80 guesses against its codes, once), and the total hourly budget and the circuit
+start from the snapshot's state. It clears the hold and nothing else: **not** the
+clock high-water mark (if the clock is behind it, the command says so and
+registration still answers "unavailable" until the clock passes the mark or you
+have checked the time and run `registrations-clock-accept`) and no limit. It
+refuses while a restore lock exists. **Nothing releases the hold automatically,
+whatever the clock does.**
+
+A database replaced by hand, outside the script, gets none of this (section 17).
+
+### Snapshots: what the scrub does and does not do
+
+A snapshot's database holds no pending registration and no personal or credential
+column of one. It is **a logical scrub**: no physical erasure is claimed or
+provided. Old bytes can remain in free pages and in unused space inside pages of
+the snapshot file, in the write-ahead log of the live database, in earlier
+snapshots, in off-server copies of earlier snapshots, and in storage below the
+application (filesystem or provider snapshots). The scrub changes no snapshot
+already published and does not touch the live database, which stays as it is. No
+rebuild of the file (`VACUUM`) and no `secure_delete` setting is used. Snapshots
+keep accounts, profiles and the ledger's keyed address hashes for as long as they
+are kept; the privacy notice (D16) has to say so.
+
+### Backup and restore of this release
+
+No schema change. Operators of an older snapshot: the restore script migrates the
+copy first (section 17, step 4), then applies the gate.
+
+### Rollback
+
+Disable the timer (`sudo systemctl disable --now learnpilot-registration-cleanup.timer`)
+and revert the code. A restore with the older script would not hold registration:
+do not use an older script on a database that has registration data. A hold already
+set stays in `registration_control` until released.
 
 ## 2 GB VPS sizing
 

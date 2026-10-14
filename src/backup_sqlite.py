@@ -7,6 +7,11 @@ running. The result is verified with PRAGMA quick_check, stored as a single
 self-contained rollback-journal file with mode 0600, and published atomically
 without overwriting anything.
 
+The isolated copy (never the live database) is logically scrubbed of unverified
+registrations before it is checked and published (docs/reviews/EMAIL_REGISTRATION_DESIGN.md,
+6.5, D18 (b)): ``scrub_pending_registrations``. Logical only: free pages, unused space
+inside pages, earlier backups and storage below the application may keep old bytes.
+
     python3 -m src.backup_sqlite --db "$DZI_DB" --output-dir /var/backups/learnpilot
     python3 -m src.backup_sqlite --db "$DZI_DB" --output /var/backups/learnpilot/pre-deploy.db
 """
@@ -21,6 +26,11 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+try:
+    from web.services import registration_scrub
+except ModuleNotFoundError:  # run as `python3 src/backup_sqlite.py`
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from web.services import registration_scrub
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 SIDECAR_SUFFIXES = ("-journal", "-wal", "-shm")
@@ -64,6 +74,28 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def scrub_pending_registrations(copy: sqlite3.Connection) -> int:
+    """D18 (b): void and scrub every pending registration of the isolated snapshot copy.
+
+    Only the copy: the connection is the one on the partial file, never on the live
+    database. Pending rows become ``void`` with every personal and credential column
+    NULL (the restore gate's step 1 without its hold). Accounts, profiles, subjects,
+    canonical content, the send ledger, the control row and already final rows are left
+    as they are. A database from before the registration storage has nothing to scrub.
+    Returns the number of rows scrubbed. Raises on any error; the caller publishes nothing.
+    """
+    if not registration_scrub.has_pending_storage(copy):
+        return 0
+    copy.execute("BEGIN IMMEDIATE")
+    try:
+        scrubbed = registration_scrub.void_pending(copy, datetime.now(timezone.utc))
+        copy.execute("COMMIT")
+    except BaseException:
+        copy.execute("ROLLBACK")
+        raise
+    return scrubbed
+
+
 def backup_database(source: Path, destination: Path) -> dict:
     source = Path(source).expanduser()
     destination = Path(destination).expanduser()
@@ -90,6 +122,9 @@ def backup_database(source: Path, destination: Path) -> dict:
             try:
                 src.backup(dst)  # pages=-1: one step, one consistent snapshot
                 dst.execute("PRAGMA journal_mode=DELETE").fetchone()
+                # After the copy and before every check, the fsync, the link and the hash: what
+                # is verified, published and hashed is the scrubbed file.
+                registrations_scrubbed = scrub_pending_registrations(dst)
                 result = [row[0] for row in dst.execute("PRAGMA quick_check")]
                 if result != ["ok"]:
                     raise BackupError(f"quick_check failed: {result[:5]}")
@@ -116,6 +151,7 @@ def backup_database(source: Path, destination: Path) -> dict:
         "bytes": destination.stat().st_size,
         "sha256": _sha256(destination),
         "quick_check": "ok",
+        "registrations_scrubbed": registrations_scrubbed,
     }
 
 

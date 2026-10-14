@@ -178,6 +178,12 @@ Proposed files: `test_registration_migration_sql.py`,
 
 ### D-R. Restore gate (PR 5; the functions are portable)
 
+*Implemented in PR 5 (unreviewed): `tests/test_registration_operations.py` and
+`tests/test_registration_restore_operations.py`; the restore-script tests run the real script
+against shims for `sudo`, `systemctl` and `curl`, so unit behaviour is simulated. Recovery
+credentials (PR 8) are not covered because they do not exist. See
+`EMAIL_REGISTRATION_PR5_STATUS.md`.*
+
 The restore gate is D20's: every restore holds; no ledger carry-over exists.
 
 | ID | Test |
