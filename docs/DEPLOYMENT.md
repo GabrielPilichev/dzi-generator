@@ -2873,7 +2873,13 @@ to the server block), then `sudo nginx -t && sudo systemctl reload nginx`. The
 (`burst=90 nodelay`, refill two a minute); `/register/verify` uses the
 sign-in zone `lp_login`. The values are proposals, to be tuned on a
 classroom-sized run before activation; the zone keys on the client address
-Nginx sees, so it is only as good as the one trusted proxy hop. A template
+Nginx sees, so it is only as good as the one trusted proxy hop. Every address
+under `/register` (including `/register` and `/register/cancel`, which have no
+limit) is answered with exactly one `Referrer-Policy: no-referrer`: its location
+repeats the server-level `X-Content-Type-Options` and `X-Frame-Options`
+(`add_header` in a location replaces the inherited ones) and hides the
+application's copy of the policy. After installing the template, check once that
+`curl -sI https://learnpilot.bg/register` shows a single `Referrer-Policy`. A template
 change is not evidence that the server's Nginx accepts it: `nginx -t` on the
 server is.
 

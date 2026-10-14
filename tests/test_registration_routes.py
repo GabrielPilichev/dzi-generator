@@ -583,6 +583,110 @@ class CodeTest(RegistrationRouteTestCase):
         self.assertEqual(self.pending()[0]["state"], "expired")
         self.assertEqual(self.users_with(EMAIL), [])
 
+    def test_code_errors_mark_the_field_invalid_and_other_pages_do_not(self):
+        marked = 'aria-invalid="true" aria-describedby="code-error"'
+        self.submit()
+        clean = self.body(self.client.get("/register/verify"))
+        self.assertNotIn("aria-invalid", clean)
+        self.assertNotIn('id="code-error"', clean)
+        wrong = self.body(self.verify("000000"))
+        self.assertIn(marked, wrong)
+        self.assertRegex(wrong, r'id="code-error" role="alert">Грешен или изтекъл код\.')
+        for _ in range(5):
+            too_many = self.body(self.verify("000000"))
+        self.assertIn(marked, too_many)
+        self.assertIn('id="code-error"', too_many)
+        # An error about waiting is not about what was typed.
+        self.at(1)
+        early = self.body(self.resend())
+        self.assertIn('id="code-error"', early)
+        self.assertNotIn("aria-invalid", early)
+
+    # ---- an ended registration is told apart from a finished one
+
+    def assertStartAgain(self, response, *, next_target=None):
+        """The "expired or started elsewhere" page: 200, no redirect, the slot spent, no account."""
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn("Location", response.headers)
+        body = self.body(response)
+        self.assertIn("Регистрацията е изтекла", body)
+        self.assertIn("Започни регистрацията отначало", body)
+        if next_target:
+            self.assertIn(html.escape(f"/register/student?next={next_target}", quote=True), body)
+        self.assertIsNone(self.slot())
+        self.assertNoAccountSession()
+        self.assertEqual(self.users_with(EMAIL), [])
+
+    def test_a_row_expired_by_unrelated_traffic_is_not_a_silent_login_redirect(self):
+        """Another browser's submission runs the inline cleanup, which expires and scrubs this
+        browser's overdue row. This browser's code then meets a final row, not a missing one."""
+        self.submit(next="/account/attempts")
+        code = self.last_code()
+        self.at(30 * 60 + 1)
+        self.submit("someone.else@example.bg", client=self.app.test_client())
+        self.assertEqual(self.pending()[0]["state"], "expired")
+        before = self.digest()
+        answer = self.verify(code)
+        self.assertStartAgain(answer, next_target="/account/attempts")
+        self.assertEqual(self.digest(), before)  # the final row was only read
+
+    def test_a_row_expired_by_the_cleanup_service_is_not_a_silent_login_redirect(self):
+        self.submit()
+        code = self.last_code()
+        self.at(30 * 60 + 1)
+        with closing(sqlite3.connect(self.db_path)) as conn:
+            conn.execute("BEGIN IMMEDIATE")
+            cleaned = registration_service.cleanup(conn, clock=lambda: self.wall)
+            conn.commit()
+        self.assertEqual((cleaned.clock_behind, cleaned.scrubbed), (False, 1))
+        self.assertStartAgain(self.verify(code))
+
+    def test_a_registration_cancelled_in_another_tab_is_not_a_silent_login_redirect(self):
+        self.submit(next="/account/attempts")
+        code = self.last_code()
+        other_tab = self.app.test_client()
+        self.set_slot(dict(self.slot()), client=other_tab)
+        self.assertEqual(self.cancel(client=other_tab).status_code, 303)
+        self.assertEqual(self.pending()[0]["state"], "void")
+        self.assertStartAgain(self.verify(code), next_target="/account/attempts")
+
+    def test_a_registration_replaced_in_another_tab_is_not_a_silent_login_redirect(self):
+        self.submit()
+        code = self.last_code()
+        other_tab = self.app.test_client()
+        self.set_slot(dict(self.slot()), client=other_tab)
+        self.assertEqual(self.submit("replacement@example.bg", client=other_tab).status_code, 303)
+        self.assertEqual([row["state"] for row in self.pending()], ["void", "pending"])
+        self.assertStartAgain(self.verify(code))
+        # The replacement is the other tab's and is untouched.
+        self.assertEqual(self.pending()[1]["state"], "pending")
+
+    def test_a_repeat_after_activation_still_goes_to_login_silently(self):
+        self.submit(next="/account/attempts")
+        code = self.last_code()
+        other_tab = self.app.test_client()
+        self.set_slot(dict(self.slot()), client=other_tab)
+        self.assertEqual(self.verify(code).status_code, 303)
+        before = self.digest()
+        repeat = self.verify(code, client=other_tab)
+        self.assertEqual((repeat.status_code, repeat.headers["Location"]), (303, "/login?next=/account/attempts"))
+        self.assertNoAccountSession(other_tab)
+        self.assertIsNone(self.slot(other_tab))
+        self.assertEqual(self.digest(), before)
+        self.assertEqual(len(self.users_with(EMAIL)), 1)
+
+    def test_a_binding_that_is_not_this_browsers_learns_nothing_of_another_final_state(self):
+        """No slot, or a slot of another token: the "other browser" page, whatever any row holds."""
+        self.submit()
+        code = self.last_code()
+        self.assertEqual(self.verify(code).status_code, 303)  # activated; this browser's slot is spent
+        stranger = self.app.test_client()
+        self.assertIn("друг браузър", self.body(self.verify(code, client=stranger)))
+        self.set_slot({"v": 1, "t": "y" * 43, "next": ""}, client=stranger)
+        answer = self.verify(code, client=stranger)
+        self.assertEqual(answer.status_code, 200)
+        self.assertNotIn("Location", answer.headers)
+
     def test_a_code_past_ten_minutes_is_refused_without_counting(self):
         self.submit()
         self.at(10 * 60)
@@ -1012,6 +1116,79 @@ class EnumerationTest(RegistrationRouteTestCase):
         self.assertEqual({m.subject for m in notices}, {registration_service.NOTICE_SUBJECT})
         for message in notices:
             self.assertNotRegex(message.text, r"\d{6}|https?://|Учител|teacher|Тест")
+
+    def test_the_application_steps_of_a_submission_and_a_resend_do_not_depend_on_the_account(self):
+        """G5, as far as a test can: the steps this application takes, in order, between
+        the request and ``send`` and between ``send`` and the response are the same for a
+        new address and an existing one, while the fake backend is told to take a
+        different stated time for a code and for a notice.
+
+        This compares the sequence of steps and their count, never elapsed time: a mocked
+        backend cannot prove equal timing, and nothing here does. The application does
+        not equalise the provider's own latency (design 3.7); that, and what a class
+        behind one NAT costs, stay activation evidence (test plan section L).
+        """
+        trace, stated, slept = [], [], []
+
+        def stated_delay(message):
+            seconds = 7.0 if message.subject == registration_service.NOTICE_SUBJECT else 0.5
+            stated.append(seconds)
+            return seconds
+
+        self.mailer.delay = stated_delay
+        self.mailer.sleep = slept.append  # records the stated time; nothing waits
+        real_send = self.mailer.send
+
+        def step(owner, name, label=None):
+            real = getattr(owner, name)
+
+            def recorded(*args, **kwargs):
+                trace.append(label or name)
+                return real(*args, **kwargs)
+
+            patcher = patch.object(owner, name, recorded)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+
+        for owner, name in ((registration_service, "availability"), (registration_service, "address_capped"),
+                            (accounts, "hash_new_password"), (registration_service, "create_pending"),
+                            (registration_service, "dispatch"), (registration_service, "settle_send"),
+                            (registration_service, "resend"), (registration_blueprint, "_utcnow")):
+            step(owner, name, "clock" if name == "_utcnow" else None)
+        self.mailer.send = lambda message: (trace.append("send"), real_send(message))[1]
+        app_sleeps = []
+        sleeping = patch("time.sleep", lambda seconds: app_sleeps.append(seconds))
+        sleeping.start()
+        self.addCleanup(sleeping.stop)
+
+        def requests(client, email):
+            del trace[:]
+            self.submit(email, client=client)
+            submitted = list(trace)
+            self.at(61)
+            del trace[:]
+            self.resend(client=client)
+            resent = list(trace)
+            self.at(0)
+            return submitted, resent
+
+        (fresh_submit, fresh_resend), (taken_submit, taken_resend), _, _ = self.pair(requests)
+
+        # Each kind took its own stated time at the backend, and that is the only difference.
+        self.assertEqual(sorted(stated), [0.5, 0.5, 7.0, 7.0])
+        self.assertEqual(sorted(slept), [0.5, 0.5, 7.0, 7.0])
+        self.assertEqual(app_sleeps, [], "the application never waits on its own")
+        self.assertEqual(fresh_submit, taken_submit)
+        self.assertEqual(fresh_resend, taken_resend)
+        for steps in (fresh_submit, fresh_resend):
+            self.assertEqual(steps.count("send"), 1)
+            self.assertEqual(steps.count("dispatch"), 1)
+            self.assertEqual(steps.count("settle_send"), 1)
+            before, after = steps[:steps.index("send")], steps[steps.index("send") + 1:]
+            self.assertLess(before.index("dispatch"), steps.index("send"))
+            # After the backend returns only the settlement follows: its clock read and itself.
+            self.assertEqual([name for name in after if name != "clock"], ["settle_send"])
+        self.assertEqual(fresh_submit.count("hash_new_password"), 1)
 
     def test_a_one_sided_delivery_failure_is_not_visible(self):
         def by_kind(message):

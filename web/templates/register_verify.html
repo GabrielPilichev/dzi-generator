@@ -18,7 +18,7 @@
 </section>
 
 {% if error %}
-    <div class="error login-message" role="alert">{{ error }}</div>
+    <div class="error login-message" id="code-error" role="alert">{{ error }}</div>
 {% endif %}
 {% if notice %}
     <div class="success login-message" role="status">{{ notice }}</div>
@@ -26,7 +26,7 @@
 
 <form method="post" action="{{ url_for('registration.verify') }}" class="card form-card login-card" autocomplete="off">
     <label for="code">Код от имейла</label>
-    <input id="code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="32" required autofocus>
+    <input id="code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="32" required autofocus{% if error and code_error %} aria-invalid="true" aria-describedby="code-error"{% endif %}>
     <button type="submit">Потвърди</button>
 </form>
 

@@ -230,6 +230,100 @@ class NginxTemplateTest(unittest.TestCase):
             self.assertIn("proxy_pass http://127.0.0.1:8000;", block)
         self.assertIn("limit_req zone=lp_login burst=40 nodelay;", self.location("/register/verify"))
 
+    # ---- the effective headers of every registration address
+
+    def site_server(self):
+        """The body of the application's own ``server`` block (the one with a server name)."""
+        start = self.text.index("    server_name learnpilot.example.com;")
+        begin = self.text.rindex("server {", 0, start)
+        return self.text[begin:]
+
+    def locations(self):
+        """``[(modifier, path_or_pattern, body)]`` of the site's locations, in file order."""
+        found = re.findall(r"^    location (= |~ |\^~ |@)?(\S+) \{\n(.*?)\n    \}$", self.site_server(), re.S | re.M)
+        return [(modifier.strip(), path, body) for modifier, path, body in found]
+
+    def server_level(self):
+        """The directives of the server block that are not inside a location."""
+        server = self.site_server()
+        return re.sub(r"^    location .*?^    \}$", "", server, flags=re.S | re.M)
+
+    def resolve(self, uri):
+        """The location Nginx selects: an exact match, else the longest prefix (unless ``^~``
+        ends the search), else the first matching regular expression, else that prefix."""
+        locations = self.locations()
+        for modifier, path, body in locations:
+            if modifier == "=" and path == uri:
+                return path, body
+        prefixes = [(len(path), path, body, modifier) for modifier, path, body in locations
+                    if modifier in ("", "^~") and uri.startswith(path)]
+        best = max(prefixes, default=None)
+        if best is not None and best[3] == "^~":
+            return best[1], best[2]
+        for modifier, pattern, body in locations:
+            if modifier == "~" and re.search(pattern, uri):
+                return pattern, body
+        self.assertIsNotNone(best, uri)
+        return best[1], best[2]
+
+    @staticmethod
+    def add_headers(body):
+        return re.findall(r'add_header (\S+) "([^"]*)"(?: always)?;', body)
+
+    def effective_headers(self, body):
+        """``add_header`` is inherited only by a location that has none of its own."""
+        own = self.add_headers(body)
+        return own if own else self.add_headers(self.server_level())
+
+    def test_every_registration_address_has_exactly_one_effective_no_referrer(self):
+        addresses = ("/register", "/register/student", "/register/teacher", "/register/verify",
+                     "/register/resend", "/register/cancel", "/register/", "/register/unknown")
+        for uri in addresses:
+            with self.subTest(uri=uri):
+                path, body = self.resolve(uri)
+                self.assertTrue(path.startswith("/register"), (uri, path))
+                headers = self.effective_headers(body)
+                self.assertEqual([value for name, value in headers if name == "Referrer-Policy"], ["no-referrer"])
+                # The upstream copy is dropped, so the two never travel together.
+                self.assertIn("proxy_hide_header Referrer-Policy;", body)
+                # The other server-level security headers survive the location's own add_header.
+                self.assertIn(("X-Content-Type-Options", "nosniff"), headers)
+                self.assertIn(("X-Frame-Options", "DENY"), headers)
+                self.assertIn("proxy_pass http://127.0.0.1:8000;", body)
+                self.assertNotIn("proxy_set_header", body)  # the server-level ones stay inherited
+                self.assertNotIn("proxy_pass_request", body)
+
+    def test_the_location_headers_repeat_the_server_ones_apart_from_the_referrer_policy(self):
+        server = dict(self.add_headers(self.server_level()))
+        self.assertEqual(server["Referrer-Policy"], "strict-origin-when-cross-origin")
+        for modifier, path, body in self.locations():
+            if (modifier == "=" and path.startswith("/register")) or path == "/register/":
+                mine = dict(self.add_headers(body))
+                self.assertEqual({k: v for k, v in mine.items() if k != "Referrer-Policy"},
+                                 {k: v for k, v in server.items() if k != "Referrer-Policy"}, path)
+                self.assertEqual(mine["Referrer-Policy"], "no-referrer", path)
+                self.assertEqual(len(self.add_headers(body)), len(server), path)
+
+    def test_registration_rate_limits_and_ordinary_pages_are_unchanged(self):
+        expected = {"/register/student": "lp_register burst=90 nodelay", "/register/teacher": "lp_register burst=90 nodelay",
+                    "/register/resend": "lp_register burst=90 nodelay", "/register/verify": "lp_login burst=40 nodelay",
+                    "/register": None, "/register/cancel": None}
+        for uri, limit in expected.items():
+            with self.subTest(uri=uri):
+                _, body = self.resolve(uri)
+                self.assertEqual(re.findall(r"limit_req zone=(.*);", body), [limit] if limit else [])
+        self.assertEqual(len(re.findall(r"limit_req zone=lp_login\b", self.text)), 4)
+        self.assertEqual(len(re.findall(r"limit_req zone=lp_register\b", self.text)), 3)
+        # Everything else keeps the server-level policy.
+        for uri in ("/", "/login", "/dzi", "/registered", "/registers/x"):
+            with self.subTest(uri=uri):
+                headers = self.effective_headers(self.resolve(uri)[1])
+                self.assertEqual([v for n, v in headers if n == "Referrer-Policy"], ["strict-origin-when-cross-origin"])
+        # The Google callback precedent is untouched.
+        callback = self.location("/auth/google/callback")
+        self.assertIn('add_header Referrer-Policy "no-referrer" always;', callback)
+        self.assertIn("limit_req zone=lp_oidc_callback burst=40 nodelay;", callback)
+
     def test_sign_in_and_google_protections_are_unchanged(self):
         for path, zone in (("/login", "lp_login burst=40"), ("/login/totp", "lp_login burst=40"),
                            ("/auth/google/start", "lp_oidc_start burst=40"),

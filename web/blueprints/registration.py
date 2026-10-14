@@ -266,8 +266,13 @@ def _no_registration(next_target: str = ""):
     return _message(NO_REGISTRATION_MESSAGE, "warning", 200, next_target=next_target)
 
 
-def _verify_page(slot: dict, *, error: str | None = None, notice: str | None = None, status: int = 200):
-    """The verify page of this browser's registration, read from its own row only."""
+def _verify_page(slot: dict, *, error: str | None = None, notice: str | None = None, status: int = 200,
+                 code_error: bool = False):
+    """The verify page of this browser's registration, read from its own row only.
+
+    ``code_error`` says the ``error`` is about the code that was typed, so that the field
+    is marked invalid; the other refusals (wait, cap, not sent) are not about the field.
+    """
     view = registration_service.pending_view(get_request_db(), _binding(slot), _utcnow())
     if view is None:
         return _no_registration(slot["next"])
@@ -276,6 +281,7 @@ def _verify_page(slot: dict, *, error: str | None = None, notice: str | None = N
         "register_verify.html",
         intro=VERIFY_INTRO.format(email=view.email),
         error=error or not_sent,
+        code_error=code_error and not not_sent,
         notice=None if not_sent else notice,
     )
     return page, status
@@ -413,13 +419,15 @@ def verify():
         return redirect(_login_url("email_taken", slot["next"]), code=303)
     if outcome is Outcome.WRONG_CODE:
         logger.info("wrong_code pending=%d", result.pending_id)
-        return _verify_page(slot, error=WRONG_CODE_MESSAGE)
+        return _verify_page(slot, error=WRONG_CODE_MESSAGE, code_error=True)
     if outcome is Outcome.CODE_EXPIRED:
-        return _verify_page(slot, error=WRONG_CODE_MESSAGE)
+        return _verify_page(slot, error=WRONG_CODE_MESSAGE, code_error=True)
     if outcome is Outcome.TOO_MANY:
-        return _verify_page(slot, error=TOO_MANY_MESSAGE)
-    if outcome is Outcome.NOT_PENDING:
-        # A repeat of a verification that already ended (design 6.2): nothing written.
+        return _verify_page(slot, error=TOO_MANY_MESSAGE, code_error=True)
+    if outcome is Outcome.NOT_PENDING and result.final_state == "activated":
+        # A repeat of a verification that succeeded (design 6.2): nothing written. Only an
+        # activated row sends the person on silently; an expired, cancelled or replaced
+        # one has no account and gets the "start again" page below.
         _drop_slot()
         return redirect(_login_url(None, slot["next"]), code=303)
     return _ended_or_unavailable(result, slot)
@@ -433,7 +441,7 @@ def _ended_or_unavailable(result, slot: dict):
             logger.info("gate_off pending=%d", result.pending_id)
             _drop_slot()
         return _unavailable()
-    # EXPIRED, NO_PENDING, NOT_PENDING: the binding has nothing left to complete.
+    # EXPIRED, NO_PENDING and a NOT_PENDING that is not activated: the binding has nothing left to complete.
     _drop_slot()
     return _no_registration(slot["next"])
 

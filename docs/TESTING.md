@@ -253,7 +253,13 @@ request, against the same file. `tests/test_registration_production.py` starts
 (only GETs and refused POSTs are made, so no sender process is ever started),
 and checks the Nginx template statically: that is not evidence that a real
 Nginx accepts it. `tests/test_registration_cli.py` runs the operator commands
-of `src.manage_accounts` against temporary databases.
+of `src.manage_accounts` against temporary databases. The Nginx checks resolve
+locations from the template text; `nginx -t` was not run against it.
+
+**Tunnels.** The development app enables registration whenever usable mail
+settings are present, so a public tunnel exposes working `/register` routes.
+Test through a tunnel only with a fake or development backend
+(`DZI_MAIL_BACKEND=console`, or `file` into a scratch directory), never real SMTP.
 
 ## Previous isolation problems
 

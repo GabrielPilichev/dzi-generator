@@ -535,7 +535,12 @@ cross-origin POST is still 403) and no page links to it.
   with no transaction open, and settled afterwards in its own transaction by
   generation number and issuance identity; never after `NotSendable`.
 - **Responses** of every `/register...` route carry `Cache-Control: no-store`
-  and `Referrer-Policy: no-referrer`. No registration value is in a URL.
+  and `Referrer-Policy: no-referrer` (the Nginx template sends no second value
+  for these addresses). No registration value is in a URL.
+- **A repeated or late verification.** Only a registration that was already
+  activated redirects silently to `/login` (no session, nothing written). A
+  registration that expired, was cancelled or was replaced answers the „Регистрацията
+  е изтекла или е започната от друг браузър“ page with the validated `next`.
 - **`next`** passes `safe_redirect_target` and, for registration only, refuses
   any Unicode C or Z character; it is checked when the form is rendered, when
   the slot is read and again by `/login`.

@@ -8,7 +8,9 @@ Earlier PRs: `EMAIL_REGISTRATION_PR1_STATUS.md`, `EMAIL_REGISTRATION_PR2_STATUS.
 `EMAIL_REGISTRATION_PR3_STATUS.md` (all merged: #335, #336, #337).
 
 **Status:** implemented in draft PR #338 on `feature/student-registration-flow`
-(base `232c832`), **not reviewed and not approved**. Registration is **not
+(base `232c832`). An independent review (Claude Cloud) returned **APPROVE WITH
+NON-BLOCKING NOTES**; its notes are addressed in "Review follow-up" below. The PR
+is **not approved by Gabriel**. Registration is **not
 activated**: both build gates are off, so a production start keeps every
 `/register...` route at the generic 404 whatever is configured. No migration,
 no deployment, no provider, no real database and no real message were involved.
@@ -123,8 +125,10 @@ commit: `ACTIVATED` → log `activated pending= user=`, drop the slot, 303 to
 `/login?next=<slot next>&registration=activated`, **no session issued**;
 `EMAIL_TAKEN` → drop, 303 to `/login?...&registration=email_taken`;
 `WRONG_CODE`/`CODE_EXPIRED` → „Грешен или изтекъл код.“; `TOO_MANY`;
-`NOT_PENDING` (a repeat of a finished verification) → drop, 303 to `/login`;
-`EXPIRED`/`NO_PENDING` → drop, "no usable registration"; `UNAVAILABLE` → 503
+`NOT_PENDING` with `final_state == "activated"` (a repeat of a verification that
+succeeded) → drop, 303 to `/login`; `NOT_PENDING` of an expired, cancelled or
+replaced row, `EXPIRED` and `NO_PENDING` → drop, "no usable registration" with
+the validated `next`; `UNAVAILABLE` → 503
 (slot dropped only for the teacher gate, which voided the row).
 
 **Cancel:** one `BEGIN IMMEDIATE` around `cancel` → `COMMIT` → drop the slot,
@@ -211,7 +215,8 @@ Only the cancellation decision above is approved. The rest are readings.
 1. **The profile gate is not added here.** D14 lists three gates "built by
    PR 4"; section 9 puts "the profile gate" with PR 6 together with the route it
    gates. Nothing in this PR has a profile route or check to gate, so only the
-   registration and teacher gates exist. Gabriel may want the constant now.
+   registration and teacher gates exist. **Approved by Gabriel:** the profile-gate
+   constant is deferred to PR 6, alongside profile enforcement.
 2. **`/register/teacher` is an unconditional 404**, not "404 while the teacher
    gate is off": the teacher form is PR 7, so a test that turns the constant on
    still gets 404 (`test_teacher_route_is_404_even_with_its_gate_patched_on`).
@@ -222,9 +227,18 @@ Only the cancellation decision above is approved. The rest are readings.
    shown on the sign-in page for `registration=activated`, looked up from a
    fixed table while registration is enabled, like the Google outcome codes. As
    with those, anyone can link to `/login?registration=activated`; it shows a
-   fixed text and changes nothing.
-4. **A repeat verification of a finished registration** (`NOT_PENDING`)
-   redirects to `/login` with no notice (design 6.2); a POST without a slot
+   fixed text and changes nothing. **Approved by Gabriel:** the fixed
+   URL-selected notice stays. It changes no account state and reflects no user
+   input. A hand-built URL can show the notice without any flow; this is an
+   accepted display limitation, not evidence of activation.
+4. **A repeat verification of a registration that was activated**
+   (`NOT_PENDING`, `Result.final_state == "activated"`) redirects to `/login` with
+   no notice (design 6.2). A `NOT_PENDING` of any other final state (`expired`,
+   `void`) is not a success: it gets the "expired or started elsewhere" page, so
+   unrelated traffic that expired the row (inline cleanup, the cleanup service) or
+   a cancellation or replacement in another tab never looks like a silent
+   sign-in redirect. `final_state` is read from the row of the caller's own
+   binding and is `None` for every other outcome. A POST without a slot
    (another browser, F8) gets the "started in another browser" page. The two
    are told apart by whether the browser holds a slot.
 5. **Status codes** are this PR's choice (above); the design fixes only 303
@@ -248,7 +262,11 @@ Only the cancellation decision above is approved. The rest are readings.
     `cancelled`, `dispatch_refused`, `rollback_failed`.
 11. **The Nginx `lp_register` zone also covers `/register/teacher`** (404 today)
     so that PR 7 needs no Nginx change; `/register/cancel` is unlimited like
-    other ordinary POSTs. Values are the design's proposal.
+    other ordinary POSTs. Values are the design's proposal. Every address under
+    `/register` has its own `location` with `add_header Referrer-Policy
+    "no-referrer" always` and `proxy_hide_header Referrer-Policy`, so exactly one
+    value is sent instead of the server-level `strict-origin-when-cross-origin`
+    plus the application's copy (see "Review follow-up", 2).
 
 ## Tests
 
@@ -270,13 +288,90 @@ Only the cancellation decision above is approved. The rest are readings.
 | K1–K4 | `test_registration_production` |
 | DL12, N4 (CLI half), N5, J4 (`list`) | `test_registration_cli` |
 
-Not done here, and why: G5 (latency instrumentation) is not asserted beyond the
-structural fact that both kinds take the same route steps; I3, I5–I7, J6–J15
+G5 is covered by `EnumerationTest.test_the_application_steps_of_a_submission_and_a_resend_do_not_depend_on_the_account`
+(added in the review follow-up, below). Not done here, and why: I3, I5–I7, J6–J15
 belong to PR 6 and PR 7; DR*, N6, N7 and the timer are PR 5; section L is
 activation evidence. The route tests were checked against five deliberate
 mutations of the blueprint (a second dispatch, the slot set before the commit,
 a settlement after `NotSendable`, a success claimed after a failed activation,
 a cancellation that ignores "unavailable"): each one fails the suite.
+
+## Review follow-up (non-blocking notes of the independent review)
+
+**Verdict recorded:** the independent review (Claude Cloud) of PR #338 at
+`1b17ee4` was **APPROVE WITH NON-BLOCKING NOTES**: no gating, transaction,
+dispatch, cancellation or logging blocker. Those reviewed contracts are
+unchanged. This is a review verdict, not Gabriel's approval. The notes and what
+was done:
+
+1. **An ended registration was answered like a finished one.** `verify`
+   redirected every `NOT_PENDING` silently to `/login`, including an expired,
+   cancelled or replaced registration that has no account. `Result` now carries
+   `final_state` (`activated`, `void` or `expired`) for `NOT_PENDING` only; the
+   route redirects silently only for `activated`, and otherwise drops the slot
+   and shows the „Регистрацията е изтекла…“ page with the validated `next`. No
+   session is issued, the transaction stays the caller's, and the state read is
+   that of the browser's own binding row. Tests: `CodeTest` (expired by inline
+   cleanup, expired by the cleanup service, cancelled in another tab, replaced in
+   another tab, repeat after activation, a binding that is not this browser's) and
+   `test_registration_service` (`final_state` for every writer).
+2. **Referrer-Policy at Nginx.** The server block sends
+   `strict-origin-when-cross-origin`, and the registration locations inherited it
+   beside the application's `no-referrer`. Each registration address now has an
+   exact location (`/register`, `/register/student`, `/register/teacher`,
+   `/register/resend`, `/register/verify`) or the `/register/` prefix location
+   (`/register/cancel` and anything else under it), following the Google
+   callback: the other two security headers are repeated, `no-referrer` is added
+   and the upstream copy is hidden. Rate limits, `proxy_pass` and the
+   inherited `proxy_*` directives are unchanged; `/register` and
+   `/register/cancel` still have no `limit_req`. `NginxTemplateTest` resolves each
+   address the way Nginx selects a location (exact, longest prefix, regular
+   expression) and checks the effective headers, limits and that every other path
+   keeps the server-level policy. **Not run:** `nginx` is not installed on the
+   machine that made this change, so `nginx -t` on this template (and on an
+   isolated copy of it) was not run; a real Nginx must still parse it, and the
+   response headers must be seen once on a deployed server.
+3. **G5 latency coverage.** `EnumerationTest.test_the_application_steps_of_a_submission_and_a_resend_do_not_depend_on_the_account`
+   records the application's own steps (availability, caps, hashing, writer,
+   dispatch, clock reads, settlement, the mailer call and any `time.sleep`) for a
+   new and for an existing address, with a fake backend told to take 7 s for a
+   notice and 0.5 s for a code (stated, never slept). It asserts the same
+   sequence, one send, one dispatch, nothing but the settlement after the send,
+   and no application sleep; it asserts no elapsed time. **A mocked test cannot
+   prove equal timing.** The provider's real latency, the application's measured
+   response times and the capacity of a classroom behind one NAT stay
+   activation evidence (test plan section L).
+4. **Verify-page accessibility.** After a wrong, expired or too-many code, the
+   code field has `aria-invalid="true"` and `aria-describedby="code-error"`,
+   pointing at the error message; wait, cap and "not sent" messages do not mark the
+   field.
+5. **Test counts.** Before these fixes the review counted **58 route tests**
+   (`tests.test_registration_routes`) and **82 tests for the PR** (58 route, 13
+   production, 11 operator-command). After the fixes: 66 route, 16 production, 11
+   operator-command = **93**, plus one new test in `test_registration_service` (91
+   in that module). Other counts are not repeated here.
+
+**Decisions approved by Gabriel (behaviour unchanged):** the profile-gate
+constant is deferred to PR 6 (deviation 1); the fixed, URL-selected activation
+notice on `/login` is kept (deviation 3). Neither is open any longer. Production
+activation stays OFF and every deployment prerequisite below still applies.
+
+**Known limitation kept:** the resend notice „Изпратихме нов код.“ (`RESENT_MESSAGE`)
+is unchanged. It is a statement about what the application did, and the
+application never learns whether a message was delivered. Better wording is
+pending a decision and is not part of this change.
+
+**Still open for activation** (unchanged by this pass): PR 5 (cleanup timer,
+restore gate, snapshot scrub); a provider, sender address and credentials; the
+`nginx -t` and header check on the server; a classroom-sized run to tune the
+`lp_register` values and measure real provider latency; and the other
+prerequisites of design 0.3. No delivery was attempted and none is claimed.
+
+**Testing through a tunnel.** In development, usable mail settings enable
+registration (`web.app`), so a public tunnel can expose working `/register`
+routes. Use a fake or development backend (`DZI_MAIL_BACKEND=console`, or
+`file` into a scratch directory), never real SMTP, when the app is reachable
+through Cloudflare or any other tunnel.
 
 ## Not verified
 

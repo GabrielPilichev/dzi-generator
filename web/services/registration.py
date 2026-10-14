@@ -203,6 +203,10 @@ class Result:
     for every issuance and resend). Both are needed to send and to settle; the number
     alone is not an identity, because SQLite reuses the numbers of a rolled-back
     transaction. ``issuance_id`` is kept out of ``repr`` and of log lines.
+
+    ``final_state`` accompanies ``NOT_PENDING`` only: ``activated``, ``void`` or
+    ``expired``, read from the caller's own binding row. It lets a caller tell a
+    registration that finished (``activated``) from one that ended without an account.
     """
 
     outcome: Outcome
@@ -211,6 +215,7 @@ class Result:
     kind: str | None = None
     user_id: int | None = None
     reason: Availability | None = None
+    final_state: str | None = None  # NOT_PENDING only: the state the row ended in
     issuance_id: str | None = field(default=None, repr=False, compare=False)
     token: str | None = field(default=None, repr=False, compare=False)
     message: OutboundEmail | None = field(default=None, repr=False, compare=False)
@@ -632,7 +637,7 @@ def _usable_row(conn: sqlite3.Connection, binding, now: datetime, teacher_enable
     if row is None:
         return None, Result(Outcome.NO_PENDING)
     if row["state"] != "pending":
-        return None, Result(Outcome.NOT_PENDING, pending_id=row["id"])
+        return None, Result(Outcome.NOT_PENDING, pending_id=row["id"], final_state=row["state"])
     blocked = _blocked(conn, now)
     if blocked is not None:
         return None, Result(Outcome.UNAVAILABLE, pending_id=row["id"], reason=blocked)
@@ -815,7 +820,7 @@ def cancel(conn: sqlite3.Connection, binding: str, *, clock: Callable[[], dateti
     if row is None:
         return Result(Outcome.NO_PENDING)
     if row["state"] != "pending":
-        return Result(Outcome.NOT_PENDING, pending_id=row["id"])
+        return Result(Outcome.NOT_PENDING, pending_id=row["id"], final_state=row["state"])
     blocked = _blocked(conn, now, hold=False)
     if blocked is not None:
         return Result(Outcome.UNAVAILABLE, pending_id=row["id"], reason=blocked)
