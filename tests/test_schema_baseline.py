@@ -164,10 +164,11 @@ class FreshDatabaseTest(BaselineTestCase):
         self.assertEqual(code, 0, out + err)
         self.assertEqual([name for name, _ in migration_rows(path)], ALL_MIGRATIONS)
         self.assertEqual(ALL_MIGRATIONS[0], "000_baseline.sql")
-        self.assertEqual(ALL_MIGRATIONS[-6:], ["016_admin_totp.sql", "017_assignment_public_token.sql",
+        self.assertEqual(ALL_MIGRATIONS[-7:], ["016_admin_totp.sql", "017_assignment_public_token.sql",
                                                "018_assignment_lifecycle.sql", "019_user_identities.sql",
                                                "020_oidc_consumed_transactions.sql",
-                                               "021_registration_schema.sql"])
+                                               "021_registration_schema.sql",
+                                               "022_registration_issuance_identity.sql"])
         # 015 (the phase-2 quiz-attempt rebuild) sits between the account migrations.
         self.assertIn("014_assignment_owner.sql", ALL_MIGRATIONS)
         self.assertEqual([name for name in ALL_MIGRATIONS if name.startswith("015_")],

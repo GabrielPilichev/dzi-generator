@@ -190,6 +190,8 @@ Sections 0.4–0.6 are history. Where they mention an option that D1–D20 did n
 | R6 | D15 is a scope deferral and is not an implementation blocker | 8.1, scope |
 | Decisions | Gabriel's approvals recorded; unselected mechanisms (D7 (B), D8 (b), D10 (b), D11 (a)/(c), D18 (a)/(c), D19 (a+)/(b), D20 (b)) removed from the implementation scope and the tests | 0.2 and throughout |
 | PR 2 review | Recorded after the independent review of PR 2 (#336, REQUEST CHANGES, narrow). **Reply policy approved by Gabriel (option 3):** a 421 is `unknown` at every stage up to the relay's final `250` for the message (a later `QUIT` failure does not revoke that acceptance, and `accepted` is never a statement about a mailbox); any other 4xx reply to the data command or to the message is `unknown`; any other 4xx reply to the recipient command is `refused`; a 5xx reply after the marker is `refused`. **`SIGCHLD` guard:** no sender is started while the process ignores `SIGCHLD`. The log event `sender_error` is named. The one-sender statement is tied to the pinned synchronous, single-thread worker. The production-start wiring of the mail settings stays with PR 4 | 3.10, 4.2, 7.5 |
+| PR 3 implementation | Recorded with draft PR 3 (#337); **not independently reviewed and not approved**. The service differs from the signatures of 6.3 in ways listed in `EMAIL_REGISTRATION_PR3_STATUS.md` ("Deviations"): the writers take a `clock` callable read under the write lock instead of `now` (3.4, test DL11), and take `secret_key`; `create_pending` and `resend` also take `sender_busy`, `total_cap` and `teacher_enabled`; a `dispatch` function enforces the order of 4.3 and that what it sends is the committed issuance, but not that a generation is sent once (approved: caller sequencing, row below); `create_verified_user` reports a collision on `users.email` structurally (a conflict-targeted insert) and no exception is classified; `cancel` is stopped by a clock behind the mark (3.8). `_USER_COLUMNS` is not widened by PR 3, which writes `email_verified_at` and has no reader of it | 3.4, 3.8, 4.3, 6.1, 6.3 |
+| PR 3 contract points approved by Gabriel | After the first review of #337, recorded here and implemented in the draft. A later independent review of the revision implementing them returned **APPROVE WITH NON-BLOCKING NOTES** (all three earlier blockers resolved; no activation or deployment approval): **(1)** one send per generation is caller sequencing: `dispatch` invokes the mailer once per call, not per generation, PR 4 prevents a duplicate `dispatch` in its handler paths, and there is no automatic retry, durable send-claim state or exactly-once claim about SMTP; **(2)** a stored random issuance identifier, `registration_sends.issuance_id` (migration 022; 32 lower-case hexadecimal characters, new for every issuance and resend), so a result of a rolled-back transaction matches no later generation even when SQLite reuses numeric ids and the code digits coincide; **(3)** verification-code input is trimmed of leading and trailing whitespace only, inner whitespace is rejected and the rest must be six ASCII digits; **(4)** settlement requires the same issuance identity, callers never settle after `NotSendable`, and a stale result cannot settle an unrelated generation that reused its number. Ledger rows from before migration 022 have no identity and are neither sent nor settled | 3.1, 4.3, 6.1, 6.3, 6.4 |
 
 ## 1. Forms and profiles
 
@@ -476,8 +478,10 @@ key, in this design or in the recovery addendum.
   code)`, lower-case hex. The key is not in the database, so a database or
   backup copy does not reveal a live code; a plain or salted hash of a
   6-digit value would. A stretching hash adds nothing for a million values.
-- Compared with `hmac.compare_digest`. A submitted value is stripped of
-  spaces and must be exactly six ASCII digits; anything else is a wrong code.
+- Compared with `hmac.compare_digest`. A submitted value is trimmed of
+  leading and trailing whitespace only and must then be exactly six ASCII
+  digits; anything else, whitespace inside the value included, is a wrong
+  code (approved, 0.7).
 - Rotating `DZI_SECRET_KEY` ends every pending registration, as it ends every
   session.
 
@@ -1106,12 +1110,21 @@ The order of a send is fixed: the code and its ledger row are committed, the
 transaction is closed, the send runs with **no transaction open** and no
 write lock held, and then a second short transaction settles the ledger row.
 
-`settle_send(conn, send_id, outcome, now)`:
+`settle_send(conn, send_id, issuance_id, outcome, clock)` (approved, 0.7: a
+generation is named by its number **and** the random identity stored with
+it, because SQLite gives the numbers of a rolled-back issuance to the next
+one):
 
+0. The ledger row of `send_id` must hold `issuance_id`. If there is no such
+   row, the identity differs, or the row has none (it predates migration
+   022), nothing is changed at all and the function says so
+   (`NOT_THIS_ISSUANCE`); that answer says nothing about whether a message
+   was sent. A caller never settles after `dispatch` refused (`NotSendable`).
 1. `UPDATE registration_sends SET outcome = ?, settled_at = ? WHERE id = ?
-   AND outcome = 'started'`. If no row changed, this generation is already
-   settled and the function does nothing more. Settling twice, or settling
-   with a different outcome later, has no effect.
+   AND issuance_id = ? AND outcome = 'started'`. If the generation is already
+   settled the function does nothing more. Settling twice, or settling with a
+   different outcome later, has no effect. Settlement belongs to the ledger
+   row: it does not need the registration to be pending or current.
 2. Only for `not_sent`: `UPDATE pending_registrations SET code_hash = NULL,
    code_expires_at = NULL, resend_after = NULL WHERE state = 'pending' AND
    code_send_id = ?`. The code that was never sent is retired and the
@@ -1143,6 +1156,13 @@ rare today; the rules and the tests do not depend on it.
 An accepted exchange means the relay took the message. It does not mean the
 message reached a mailbox; bounces and complaints are not processed and
 `provider_signature` stays unused. The application never retries by itself.
+
+**One send per generation is the caller's sequencing (approved, 0.7).** The
+service's `dispatch` hands a committed issuance to the mailer once per call;
+it does not record a claim, so a second call for the same generation before
+its settlement sends again. The blueprint (PR 4) must make a second call
+impossible in every handler path. No durable send-claim state exists and
+nothing claims that SMTP delivered exactly once.
 
 ### 4.4 Delivery configuration (D17)
 
@@ -1318,6 +1338,13 @@ CREATE TABLE registration_sends (
 CREATE INDEX idx_registration_sends_email ON registration_sends(email_hash, attempted_at);
 CREATE INDEX idx_registration_sends_time ON registration_sends(attempted_at);
 
+-- Added by migration 022 (approved, 0.7): the identity of an issuance. NULL for a row
+-- from before that migration, which is then never sent and never settled.
+-- ALTER TABLE registration_sends ADD COLUMN issuance_id TEXT
+--     CHECK (issuance_id IS NULL OR <exactly 32 bytes of 0-9a-f>);
+-- CREATE UNIQUE INDEX idx_registration_sends_issuance
+--     ON registration_sends(issuance_id) WHERE issuance_id IS NOT NULL;
+
 CREATE TABLE registration_control (
     id INTEGER PRIMARY KEY CHECK (id = 1),
     high_water_at TEXT NOT NULL,
@@ -1403,6 +1430,11 @@ commits after a returned outcome and rolls back after an exception.
 | `web/services/profiles.py` | `get_profile(conn, user_id)`, `create_profile(...)`, `update_profile(...)`, `display_name(first_name, last_name)` (PR 1); `needs_profile(conn, user)` arrives with PR 6, because it reads `profile_required_at` and the profile gate (approved after the PR 1 review) |
 | `web/services/accounts.py` (additions) | `hash_new_password(password, email)`; `create_verified_user(conn, *, email, display_name, role, password_hash, verified_at)` with `role` limited to `student`; PR 7 extends it to `teacher` (D5) |
 | `web/services/mail.py`, `web/services/mail_sender.py` | section 4 |
+
+**As implemented by PR 3** the signatures above differ in their parameters
+(a `clock` callable and `secret_key` in the writers, the issuance identity in
+`settle_send`, and more): the exact API and the caller's obligations are in
+`EMAIL_REGISTRATION_PR3_STATUS.md`, which awaits review.
 
 **Clock-first rule, for every writer.** In `create_pending`, `resend`,
 `verify` and `cleanup`, the applicable check is made first, inside the

@@ -13,9 +13,21 @@ at a time (design, section 9). **PR 1** (migration 021, the profile service and
 the form validators; storage and validation only, no route) is merged (#335):
 `docs/reviews/EMAIL_REGISTRATION_PR1_STATUS.md`. **PR 2** (the mail interface,
 the isolated sender script, the backends and settings validation; no caller, no
-route, no database change) is implemented in draft #336 and awaits independent
-review: `docs/reviews/EMAIL_REGISTRATION_PR2_STATUS.md`. No other PR is
-started, and no deployment, provider or real database was touched.
+route, no database change) is merged (#336):
+`docs/reviews/EMAIL_REGISTRATION_PR2_STATUS.md`. **PR 3** (the registration
+service: pending lifecycle, codes, send ledger, caps, circuit, settlement,
+clock policy, cleanup and the activation of student registrations; no route,
+no gate, no caller; migration 022 adds one nullable column and one index to
+the send ledger) is implemented in draft #337 and awaits independent review:
+`docs/reviews/EMAIL_REGISTRATION_PR3_STATUS.md`. After the first review of
+#337 Gabriel approved four contract points, recorded in design 0.7 and
+implemented there: one send per generation is the caller's sequencing
+(`dispatch` invokes the mailer once per call; PR 4 prevents duplicates; no
+retry, send-claim state or exactly-once claim); a stored random issuance
+identifier; verification-code input trimmed at the ends only, then six ASCII
+digits; settlement by the same issuance identity, and never after
+`NotSendable`. No other PR is started, and no deployment, provider or real
+database was touched.
 
 Revisions 1, 2 and 3 were each independently reviewed and returned with
 REQUEST CHANGES, the third narrowly (two defects in the sender contract and
