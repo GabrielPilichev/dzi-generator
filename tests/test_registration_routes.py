@@ -601,6 +601,45 @@ class CodeTest(RegistrationRouteTestCase):
         early = self.body(self.resend())
         self.assertIn('id="code-error"', early)
         self.assertNotIn("aria-invalid", early)
+        # Every displayed error sits in the element aria-describedby names, when it names one.
+        self.assertRegex(early, r'id="code-error" role="alert">Можеш да поискаш нов код след малко\.')
+
+    def assertUnmarkedError(self, page, text):
+        self.assertRegex(page, r'id="code-error" role="alert">' + re.escape(html.escape(text, quote=False)))
+        self.assertNotIn("aria-invalid", page)
+        self.assertNotIn("aria-describedby", page)
+
+    def test_resend_exhausted_address_capped_and_not_sent_do_not_mark_the_field(self):
+        self.submit()
+        for n in range(1, 4):
+            self.at(61 * n)
+            self.resend()
+        self.at(61 * 4)
+        self.assertUnmarkedError(self.body(self.resend()), "Не можеш да поискаш повече кодове.")
+
+        # Three sends from other browsers, then this browser's own and its resend: the hour is full.
+        for n in range(3):
+            self.at(1000 + n)
+            self.submit("capped@example.bg", client=self.app.test_client())
+        capped_client = self.app.test_client()
+        self.at(1002)
+        self.submit("capped@example.bg", client=capped_client)
+        self.at(1002 + 61)
+        self.assertEqual(self.resend(client=capped_client).status_code, 303)
+        self.at(1002 + 122)
+        capped = self.resend(client=capped_client)
+        self.assertEqual(capped.status_code, 429)
+        self.assertUnmarkedError(self.body(capped), "Твърде много имейли към този адрес. Опитай отново по-късно.")
+
+        # A code retired after NOT_SENT: the delivery explanation wins over a code error.
+        self.mailer.outcome = SendOutcome.NOT_SENT
+        retired = self.app.test_client()
+        self.submit("retired@example.bg", client=retired)
+        not_sent = "Не успяхме да изпратим имейла. Опитай отново след малко."
+        self.assertUnmarkedError(self.body(retired.get("/register/verify")), not_sent)
+        wrong = self.body(self.verify("000000", client=retired))
+        self.assertUnmarkedError(wrong, not_sent)
+        self.assertNotIn("Грешен или изтекъл код.", wrong)
 
     # ---- an ended registration is told apart from a finished one
 

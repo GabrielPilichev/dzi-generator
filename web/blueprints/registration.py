@@ -272,6 +272,8 @@ def _verify_page(slot: dict, *, error: str | None = None, notice: str | None = N
 
     ``code_error`` says the ``error`` is about the code that was typed, so that the field
     is marked invalid; the other refusals (wait, cap, not sent) are not about the field.
+    When the code was retired by a NOT_SENT delivery, that explanation is shown instead of
+    any other error and the field is not marked, so the text and the aria attributes agree.
     """
     view = registration_service.pending_view(get_request_db(), _binding(slot), _utcnow())
     if view is None:
@@ -280,7 +282,7 @@ def _verify_page(slot: dict, *, error: str | None = None, notice: str | None = N
     page = render_template(
         "register_verify.html",
         intro=VERIFY_INTRO.format(email=view.email),
-        error=error or not_sent,
+        error=not_sent or error,
         code_error=code_error and not not_sent,
         notice=None if not_sent else notice,
     )
