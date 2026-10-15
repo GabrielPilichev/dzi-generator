@@ -687,13 +687,20 @@ success.
    the restore's own directory, which the service cannot write
    (`/var/lib/learnpilot-restore/pending-backup-timer`,
    `/var/lib/learnpilot-restore/pending-registration-cleanup-timer`), and flushes
-   it to disk (`sync` of the note and of that directory). Who holds the lock is
-   recorded there too (`restore-owner`), not in the lock. Taking the lock (or
-   taking over an abandoned one) with the record of its holder, writing a note
-   and stopping its timer, and later starting a timer and its note's removal
-   are each one step under one guard, `flock` on that directory: no other run
-   of the script comes in between. The notes do not block anything; only the
-   lock does.
+   it to disk (`sync` of the note and of that directory). Who holds the restore
+   is recorded there too (`restore-owner`), not in the lock: the lock directory
+   sits in a directory the service can write, and it is only the signal that
+   keeps the application and the units from starting. Whether it is there or
+   not decides nothing for the script. Taking the restore (or taking over an
+   abandoned one) with the record of its holder, writing a note and stopping its
+   timer, and later starting a timer and its note's removal are each one step
+   under one guard, `flock` on that directory: no other run of the script comes
+   in between. Every command the script then has root or the service user carry
+   out holds a second lock, `/var/lib/learnpilot-restore/lifetime`, for as long
+   as it runs, and first checks that its run still holds the restore. An
+   abandoned restore is taken over only if its recorded holder is not running
+   and no command it started is left (section 34). The notes do not block
+   anything; only the lock does.
    While that directory exists the application refuses to start and no backup
    is taken. That holds after a reboot too: it is checked by `web.wsgi` and by
    the backup tool themselves, and by a `ConditionPathExists=` line in both
@@ -740,7 +747,12 @@ success.
    has to be byte for byte the one that was verified, its files the ones that
    were extracted, and the live database the one that was reconciled against.
    If anything wrote to any of them in the meantime, nothing is replaced.
-9. **Replace the live state.** The live uploads and vault are moved to
+9. **Replace the live state.** First the script records, in its own directory,
+   that the replacement begins (`/var/lib/learnpilot-restore/swap-state`,
+   flushed to disk). That record stays until a restore has finished, or until
+   this run has moved everything back itself: a later run that finds it knows
+   that the live state may be half replaced, whatever has become of the lock
+   directory. The live uploads and vault are moved to
    `/var/lib/learnpilot/replaced-<stamp>/` and the copy's are moved into their
    place. The database comes last and is replaced by a single rename; the one
    that was live stays in `replaced-<stamp>/` under a second name. Until that
@@ -748,14 +760,16 @@ success.
 10. **Check what is now in place:** `verify`, `registrations-restore-status
     --expect held` and `restore-status` again.
 11. **Unlock and start:** the lock is removed, the service started, `/healthz`
-    requested (if that fails the service is stopped again), and the backup
-    timer and the registration cleanup timer started if each had been active.
+    requested (if that fails the service is stopped again); the run holds the
+    restore until then. Once the service runs, the restore's records go (its
+    holder, and the replacement recorded as begun), and the backup
+    timer and the registration cleanup timer are started if each had been active.
     A timer that was not active is not started. Wherever the script starts the
     backup timer again after a failure, it starts the cleanup timer too. A
     timer's note is removed only after the timer was started successfully, and
-    a timer is started and its note removed only while no restore lock exists:
-    if another restore has taken the lock in the meantime, the timer and its
-    note are left to that restore. If a timer cannot be started (or its note
+    a timer is started and its note removed only while no restore is held or
+    left unfinished: if another restore has taken over in the meantime, the
+    timer and its note are left to that restore. If a timer cannot be started (or its note
     cannot be removed), the other one is still started, the script tries once
     more, and it ends **not 0**, with the note kept (`NOT ACTIVE AGAIN YET`).
     The next run of the script starts a noted timer first thing, in its
@@ -878,10 +892,25 @@ live state as it is then.
   starting, and start it as on any other day (section 11).
 
 If the script says `another restore is running`, one is: the process recorded
-as the holder of the lock (`/var/lib/learnpilot-restore/restore-owner`) is a
-running restore. If no restore is running and the lock is there, an earlier run
-did not finish: running the script again takes the lock over and says so. Two
-runs started together cannot both take it over.
+as the holder of the restore (`/var/lib/learnpilot-restore/restore-owner`) is a
+running restore, whether the lock directory is there or not. If no restore is
+running and its records are there, an earlier run did not finish: running the
+script again takes it over and says so. Two runs started together cannot both
+take it over.
+
+If the script says `a command an earlier restore started is still running`, the
+earlier run is gone but something it started is not: a move, a copy, a
+migration of the copy, a checkpoint. It holds
+`/var/lib/learnpilot-restore/lifetime`, and while it does the script takes
+nothing over: it could still change the live state under a new restore. Nothing
+was touched. See what holds it with
+`sudo fuser -v /var/lib/learnpilot-restore/lifetime`. If it is making progress,
+let it end. If it is stuck, end it (`sudo kill PID`,
+then `sudo kill -9 PID`) and run `fuser` again until nothing is listed. A
+process that even `kill -9` does not end (state `D` in `ps`, waiting for a disk)
+ends only with a reboot. Then run the script again: it takes the restore over
+and starts from the beginning. Do not edit or delete the files in
+`/var/lib/learnpilot-restore` to get past this message.
 
 ### Assignments that stay held
 
@@ -3055,19 +3084,63 @@ steps 2 and 11). Its intent is a note in the restore's own directory,
 `/var/lib/learnpilot-restore`, written and flushed (file, then directory) before
 the timer is stopped, and removed only after the timer was started again.
 
-**One guard, `flock` on that directory, orders everything the restore does with
-the lock, the notes and the timers.** Each of these is one step under it: taking
-the lock, or taking over an abandoned one, together with the record of its
-holder (`restore-owner`); writing a timer's note, flushing it and stopping the
-timer, which only the run that holds the lock does; starting a timer and then
-removing its note, which happens only while no restore lock exists at all; giving
-the lock back. So a run that recovers a timer can never remove the note of a
-restore that has taken the lock, and a run that gave its lock back and finds a new
-restore holding one leaves the timer and the note to that restore (and ends not
-0). The guard is the kernel's: it goes away with the processes that held it, a
-crash included. A signal to the script, or a `SIGKILL` of it, does not cut a step
-under the guard short (it is carried out by processes of its own); a power loss,
-or a kill of every process at once, can, between any two of its commands.
+**What decides is in that directory, not in the lock directory.** The lock
+directory (`/var/lib/learnpilot/data/restore-in-progress`) keeps the
+application, the backup and the cleanup from starting, and that is all it does:
+it sits in a directory the service can write, so the service user could remove
+or replace it. The script never takes it as evidence. It records who holds the
+restore in `restore-owner`, and that a replacement of the live state has begun in
+`swap-state` (flushed to disk before the first move, and kept until a restore has
+finished or the run that began it has moved everything back).
+
+**Two locks, always taken in this order.**
+
+1. *The guard*, `flock` on the directory. Each of these is one step under it:
+   taking the restore (or taking over an abandoned one) together with the record
+   of its holder; writing a timer's note, flushing it and stopping the timer,
+   which only the holder does; recording the replacement as begun, or as taken
+   back; starting a timer and then removing its note, which happens only while no
+   restore is held or left unfinished (no `restore-owner`, and no lock
+   directory either); giving the restore back.
+2. *The lifetime lock*, `flock` on `lifetime` in that directory. Every command
+   the script has root or the service user carry out once it holds the restore
+   (a copy, a move, a checkpoint, a migration of the copy, the stop and start of
+   the service) is run as `sudo flock -s lifetime sh -c ... COMMAND`: it checks,
+   under the lock, that its run is still the recorded holder, and then becomes
+   the command, which keeps the lock's descriptor. The service user's commands
+   are run through `setpriv`, not `sudo -u`, because `sudo` closes the
+   descriptors it was given before it runs a command. So the lock is held by the
+   process that does the work, and by whatever that process starts, until the
+   last of them has ended or died, whatever became of the script. (`setpriv`
+   comes with util-linux. The pre-flight already runs the service user's
+   commands through it, so a `setpriv` without `--reset-env` stops the script
+   before anything is changed.)
+
+Taking over an abandoned restore takes the lifetime lock exclusively, without
+waiting, and only under the guard. Only the step that takes the restore holds
+both locks, and it never waits for the second. So a restore is taken over only
+if its recorded holder is not a running restore **and** no command it started is
+alive. A command that starts after the takeover finds a new holder recorded and
+is not carried out. The lock directory being there, missing or replaced changes
+none of this.
+
+So a run that recovers a timer can never remove the note of a restore that holds
+it. A run that finished and finds a new restore holding one leaves the timer and
+the note to that restore (and ends not 0). A command left over from a killed run
+can never write over the state a later restore put in place. The locks are the
+kernel's: each goes away with the processes that hold it, a crash included. A
+signal to the script, or a `SIGKILL` of it, does not cut a step under the guard
+short (it is carried out by processes of its own); a power loss, or a kill of
+every process at once, can, between any two of its commands.
+
+**A command that does not end.** If a command an earlier restore started hangs
+(a disk that does not answer), it keeps the lifetime lock, and every later run
+refuses to take the restore over (`a command an earlier restore started is still
+running`). That is deliberate: two runs that both write the live state are worse
+than a restore that waits. What to do is in section 17, "If it stops":
+`sudo fuser -v /var/lib/learnpilot-restore/lifetime`, end that process, and
+check that nothing is listed any more. Only a reboot ends one that `kill -9`
+does not.
 
 A run that is stopped (signal) or fails after the service was started retries
 the start, keeps its exit status, and still says what the restored state holds
@@ -3101,15 +3174,22 @@ directory, a pipe, a second name of another file) stops the script, which then
 repairs nothing and writes, reads and removes nothing through it. Every step
 under the guard checks the same again before it uses a record. As only root can
 change anything there, what is checked is what is used. The guard is that
-directory, so it is protected as the records are.
+directory, and the lifetime lock a file in it, so both are protected as the
+records are. The records are `restore-owner`, `swap-state`, `lifetime` and the
+two `pending-*-timer` notes.
 
-**Upgrading to this script needs nothing.** No released version kept a note
-outside the lock. A lock an earlier version left is taken over as before: its
-markers (`backup-timer-was-active`, `registration-cleanup-timer-was-active`)
-become notes, and a `pid` file in it is ignored (the holder is recorded in
-`restore-owner` now, and nothing is written into the lock but its own mark). So
-do not deploy this script while a restore of an earlier version is running: it
-would not see that run, and would take its lock over.
+**Upgrading to this script.** No released version kept a note outside the lock.
+A lock an earlier version left is taken over: in the same step, before the new
+holder is recorded, its markers (`backup-timer-was-active`,
+`registration-cleanup-timer-was-active`, `swap-started`) are written as notes
+and as `swap-state` and flushed to disk. If that cannot be done, nothing changes
+hands, and the lock and its markers are as they were. A `pid` file in it is
+ignored, and nothing is ever written into the lock directory. An earlier
+version's restore that is still running is therefore not seen: its holder is
+not recorded and its commands do not hold the lifetime lock. **Do not deploy this
+script while a restore of an earlier version is running**; let it finish, or
+make sure that it and everything it started have ended, first. Compatibility
+with a running older restore is not implemented.
 Only the build of this PR that was reviewed, 39157f5 (never merged), kept notes in
 `/var/lib/learnpilot/restore-pending-*`. The script refuses to run while one
 is there, and does not trust it: the service can write that directory. Look at
@@ -3120,12 +3200,14 @@ remove the old file (`sudo rm -f -- /var/lib/learnpilot/restore-pending-<timer>`
 
 A noted timer that systemd refused to start stays noted until it is started. After
 correcting the cause, the next run of the script starts it first. To bring it
-back without a restore, take the guard, make sure that no restore lock exists,
-start the timer, and only then remove its note, all in one command:
+back without a restore, take the guard, make sure that no restore is held or left
+unfinished (no `restore-owner`, and no lock directory either), start the timer,
+and only then remove its note, all in one command:
 
 ```bash
 sudo flock /var/lib/learnpilot-restore sh -ec '
-  if [ -e /var/lib/learnpilot/data/restore-in-progress ] || [ -L /var/lib/learnpilot/data/restore-in-progress ]; then
+  if [ -e /var/lib/learnpilot-restore/restore-owner ] || [ -e /var/lib/learnpilot/data/restore-in-progress ] \
+    || [ -L /var/lib/learnpilot/data/restore-in-progress ]; then
     echo "a restore is running or was left unfinished: the timer stays stopped for it" >&2
     exit 1
   fi
@@ -3136,8 +3218,10 @@ sudo flock /var/lib/learnpilot-restore sh -ec '
 
 (The backup timer likewise: `learnpilot-backup.timer`, `pending-backup-timer`.) It
 fails, and removes nothing, if the start fails. Never remove a note in any other
-way: without the guard, or while a restore lock exists, it can be the note of a
-restore that is running, and that timer would then stay stopped for good.
+way: without the guard, or while a restore is held or left unfinished, it can be
+the note of a restore that is running, and that timer would then stay stopped for
+good. Never remove `restore-owner`, `swap-state` or `lifetime` by hand: a restore
+left unfinished is ended by running the script again, which takes it over.
 
 A database replaced by hand, outside the script, gets none of this (section 17).
 
@@ -3168,8 +3252,12 @@ Disable the timer (`sudo systemctl disable --now learnpilot-registration-cleanup
 and revert the code. A restore with the older script would not hold registration:
 do not use an older script on a database that has registration data. A hold already
 set stays in `registration_control` until released. An older script does not read
-`/var/lib/learnpilot-restore`: before a rollback, bring back any timer noted there
-(command above).
+`/var/lib/learnpilot-restore`. Roll back only when no restore is running or left
+unfinished: `restore-owner` and `swap-state` absent, and nothing listed by
+`sudo fuser -v /var/lib/learnpilot-restore/lifetime`. A restore left unfinished
+is finished with this script first, because an older one would neither see that
+a replacement had begun nor keep a left-over command out. Then bring back any
+timer noted there (command above).
 
 ## 2 GB VPS sizing
 

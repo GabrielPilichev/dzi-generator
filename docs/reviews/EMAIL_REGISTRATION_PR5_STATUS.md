@@ -7,10 +7,11 @@ Earlier PRs: `EMAIL_REGISTRATION_PR1_STATUS.md` to `PR4_STATUS.md` (merged: #335
 Operator guide: `docs/DEPLOYMENT.md`, section 34 (and sections 16, 17, 19).
 
 **Status:** PR #339, branch `feature/registration-operations`. Committed: `36cffbe` (implementation),
-`b719728` (fixes after the first independent review) and `39157f5` (the timer fix after the second).
-The third independent review, of `39157f5`, asked for changes: two blockers in the timer recovery.
-Their fixes (below, "Ownership, guard and records") are **unstaged and uncommitted** on top of
-`39157f5`, **awaiting independent review, not approved**. Registration is **not activated**: both
+`b719728` (fixes after the first independent review), `39157f5` (the timer fix after the second) and
+`f75ca8d` (ownership, guard and records after the third). The fourth independent review, of
+`f75ca8d`, asked for changes: four P1 blockers in restore ownership and recovery. Their fixes (below,
+"Lifetime exclusion, protected ownership and swap state") are **unstaged and uncommitted** on top of
+`f75ca8d`, **awaiting independent review, not approved**. Registration is **not activated**: both
 build gates stay off. No migration, no schema change, no deployment, no provider, no real database,
 no real message, no server. Nothing here has run under systemd or on Linux.
 
@@ -121,9 +122,13 @@ repository regression for the migration of in-lock markers; the held-count messa
 restart needed the retry; manual recovery guidance that was an unlocked "check, then remove"; the
 durability of a note's removal not described.
 
-### Ownership, guard and records (unstaged, awaiting independent review)
+### Ownership, guard and records, committed as `f75ca8d`
 
-In `deploy/learnpilot-restore.sh`; operator text in `docs/DEPLOYMENT.md`, sections 2, 17 and 34.
+Kept as it was reviewed. Its timer-record concurrency and record-path fixes were confirmed by the
+fourth review and are unchanged; what it left open (item 9 below, and ownership that went by the
+lock directory and by the holder's own process) is what the fourth review's blockers are about.
+In `deploy/learnpilot-restore.sh` at `f75ca8d`; operator text in `docs/DEPLOYMENT.md`, sections 2,
+17 and 34.
 
 1. **Records outside the service's reach.** `/var/lib/learnpilot-restore` (`LEARNPILOT_RESTORE_RECORDS`;
    refused if relative, not plain — `//`, `.`, `..`, a space, a final `/` — or inside
@@ -253,6 +258,150 @@ concurrent cases fail on the state they find). Weakening one thing at a time:
 | Records allowed inside the state directory | 2 | both in-state paths |
 | The note removed after a failed start | 28 | across the restart, concurrency and recovery tests |
 
+### Fourth independent review, of `f75ca8d2fab4b347ef633ee55d6868c048ecc957`: REQUEST CHANGES
+
+The timer-record concurrency and the record-path symlink findings of the third review were confirmed
+as resolved, and so were the schema-scrub and hold-release fixes. Four P1 blockers:
+
+| # | Finding |
+| --- | --- |
+| 1 | `swap-started` was still written by root through the lock directory, which the service can replace (privileged truncation through a planted link); and with the mark removed or suppressed, recovery released the lock and restarted the timers over a half-replaced state. |
+| 2 | A takeover went by the liveness of the holder's own process. A command it had started could survive it: A's final rename paused, A killed, B took over and finished, A's rename then put A's copy over B's live database, losing a write made after B. |
+| 3 | Taking the restore went by whether the lock directory was there. Renamed or removed under a running restore, the next run made a fresh one and wrote itself over the recorded holder without consulting it. |
+| 4 | Both legacy timer markers could be lost: a timer-state query that failed before the notes were written, recovery starts that also failed, and the cleanup that removed the legacy lock with the markers in it. |
+
+### Lifetime exclusion, protected ownership and swap state (unstaged, awaiting independent review)
+
+In `deploy/learnpilot-restore.sh`; operator text in `docs/DEPLOYMENT.md`, sections 17 and 34.
+
+**Where authority is.** In `/var/lib/learnpilot-restore` (root's, 0700, checked as in `f75ca8d`):
+`restore-owner` (the process id of the run that holds the restore), `swap-state` (a replacement of
+the live state has begun), `lifetime` (the lifetime lock's file) and the two timer notes. The lock
+directory `$STATE/data/restore-in-progress` stays what the application and the units look at, and
+nothing else: the script never reads it as evidence of ownership or of a replacement, and never writes
+into it (it makes and removes the directory itself; `rm -rf` on a planted link removes the link).
+
+**Two locks, one order.** (1) The guard: `flock` on the records directory, for the short steps that
+take or give back the restore, write or remove a record, or stop or start a timer. (2) The lifetime
+lock: `flock` on `lifetime`. Only `ACQUIRE` holds both, and it takes the second with `-n`, so it never
+waits for it; no process holding the lifetime lock ever asks for the guard. No cycle, so no deadlock.
+
+1. **Lifetime exclusion, inherited by every mutating descendant (blocker 2).** Once a run holds the
+   restore, every root or service-user command it starts runs as
+   `sudo flock -s lifetime sh -c OWNED OWNER_RECORD PID COMMAND...` (`AS_OWNER`): `OWNED` checks under
+   the shared lock that `restore-owner` still names this run, then `exec`s the command. The process
+   doing the work therefore holds the lock's open file description, and so does everything it starts,
+   until the last of them has ended or died; util-linux `flock` also keeps it in its own process while
+   it waits for the command. Service-user commands go through `setpriv --reuid --regid --init-groups
+   --reset-env --` rather than `sudo -u`: sudo closes descriptors from 3 up before it runs a command
+   (`closefrom`), setpriv keeps them, so a Python gate, `sqlite3` or `tar` holds the lock itself. This
+   covers every command after `ACQUIRE`: the stop and start of the service, both checkpoints, the
+   copies and `install`s, the extraction, migrations, gate, hold, reconcile, clock, the fingerprints,
+   the moves, the second name, the final rename, `rmdir`, and in `finish` the moves back, the removal
+   of the copy and the stop. The steps under the guard are serialized by the guard instead, and
+   `systemctl show` only reads. A test pins that no other `sudo` follows `AS_OWNER=`.
+2. **Takeover (blocker 2, 3).** `ACQUIRE`, under the guard, in this order: the recorded holder is read
+   whatever the lock directory looks like (a running `learnpilot-restore` → refused, 3; content that is
+   not a process id → refused as inconsistent, 5); then the lifetime lock is taken exclusively with
+   `-n` and kept until the step ends (any command of an earlier run still alive → refused, 4, "a command
+   an earlier restore started is still running"); then a lock path that is a link or not a directory is
+   refused. A command of the earlier run that starts after this step finds the new holder and is not
+   carried out. A command stuck for good keeps every later run out: refusing is the conservative
+   choice, and the operator ends it (section 17: `fuser -v lifetime`, `kill`, check again; a reboot
+   for one in state `D`).
+3. **Swap state (blocker 1).** Before the first move, a guarded step (`SWAP begin`, holder only) writes
+   `swap-state` and flushes it, file and directory. It goes only (a) with a restore that has finished,
+   when the service runs (`RELEASE owner`), or (b) when this run took its own replacement back
+   completely (`SWAP clear`; never a record of an earlier run). `RELEASE all`, the way back for a run
+   that replaced nothing, refuses while it exists. `ACQUIRE` reports it ("swap:begun") and that alone
+   makes the run treat the earlier one as interrupted while replacing: the lock stays on failure, no
+   timer is started. Removing, emptying or replacing the lock directory changes none of that.
+4. **Holding the restore until the service runs.** At the end the lock directory goes first (`RELEASE
+   lock`: the service refuses to start under it), the run still holds the restore through the start and
+   the health check, and only then are its records given back (`RELEASE owner`), and the timers
+   started. A failed start is stopped again by the holder, which then gives the records back.
+5. **Legacy intents migrated before anything can fail (blocker 4).** In `ACQUIRE`, after the
+   holder and lifetime checks and before the new holder is written: each legacy mark in the lock
+   directory (`backup-timer-was-active`, `registration-cleanup-timer-was-active`, `swap-started`) is
+   written as a note or as `swap-state`, and flushed. If any of it fails, the step ends without
+   recording a holder: the lock directory and its markers are as they were, the run stops untouched
+   (`the restore could not be taken ... as they were`). From then on the intents are in the records,
+   so a failure anywhere later (a timer state systemd cannot report, starts that fail) leaves the notes,
+   and the next run brings the timers back. The script no longer reads the markers itself.
+6. **Recovery of a timer goes by the records.** `RESTART` starts a timer and removes its note only if
+   there is no `restore-owner` (and no lock directory either): a lock directory removed under a running
+   restore does not let a recovery start that restore's timers.
+7. **Unchanged:** the guard and the record checks of `f75ca8d`; a note never dropped because a timer
+   is found inactive; inactive timers never started; both timers attempted; signal statuses kept; no
+   exit 0 while a noted timer is not active; the schema-scrub and hold-release fixes.
+
+**Not changed, and stated.** An earlier version's restore that is still running is not seen: its holder
+is not recorded and its commands do not hold the lifetime lock. Deploying this script while one runs
+stays prohibited (section 34); compatibility is not implemented. A rollback is done only with no
+restore held or left unfinished (section 34). `ACQUIRE` reads the legacy marks in the lock directory
+with `test -e` (existence only; it follows a link, writes nothing through it). Taking the restore when
+a holder's process id was reused by another `learnpilot-restore` refuses, conservatively.
+
+Regressions, in `tests/test_registration_restore_operations.py`:
+
+- `SurvivingWriterTest`: A paused inside a command that changes the live state (the final rename, as
+  root; the checkpoint of the live database, as the service user through `setpriv`), A's own process
+  killed, the lock directory kept, removed or replaced: B is refused ("a command an earlier restore
+  started is still running") and reaches no stop, copy, move, timer or new holder; the live database is
+  unchanged. Then A's command finishes, or is killed with A's process group; only after every process
+  of A has ended does the next run take over and finish, and a write made after it is still there (6
+  cases). A command of A that was started but had not yet taken the lifetime lock when A died: B
+  takes over and finishes, then the command takes the lock, finds A no longer the holder, and does
+  nothing (the final rename never runs; a write made after B stays). A source test pins that every root
+  or service-user command after `AS_OWNER=` goes through it.
+- `LockDirectoryIsNoAuthorityTest`: A alive at its prompt for the time, the lock directory removed,
+  replaced by a directory, or by a link to a sentinel directory: B is refused ("another restore is
+  running (process A)"), starts no timer, keeps A's notes, holder and timers as they are; A then
+  finishes, and the sentinel is untouched (3 cases). A holder record that is not a process id is
+  refused as inconsistent: nothing touched, every record byte-identical.
+- `SwapStateTest`: links planted at `swap-started`, `pid` and a timer marker in the lock directory of a
+  running restore: nothing is written through them, the sentinel is byte-identical (3 cases). A run
+  killed half-way through the replacement, the lock directory kept, removed or emptied: the next run,
+  failing before it replaces anything, keeps the lock, the service and the timers stopped and the record
+  (3 cases); a finished run ends it. The record goes when a run took its own replacement back, and stays
+  when a final check fails after the database was replaced.
+- `LegacyIntentMigrationTest`: a lock of an earlier version with both markers and both timers inactive:
+  a timer state systemd cannot report, then both starts failing: both notes kept, and a clean run brings
+  both back; the migration failing at its first or second flush, or not running at all: the lock and its
+  markers as they were, no holder recorded, then clean recovery (3 cases); a takeover killed after the
+  migration, then clean recovery. A lock of an earlier version with `swap-started`, from a run killed
+  half-way through the replacement: the next run, failing, keeps the lock and writes `swap-state`; with
+  the lock directory then removed, the run after it still keeps everything stopped; a finished run ends
+  it.
+- Adapted from `f75ca8d`: the "gave its lock back" concurrency case now pauses the first run after its
+  records are given back (the lock directory alone no longer marks a restore as over); the
+  interrupted-run tests look for `swap-state` in the records.
+
+The `sudo` shim now closes descriptors from 3 up before it runs a command, as sudo does; it does not
+stay behind as the command's parent, as sudo does. The `setpriv` shim only drops its options.
+
+Mutation evidence, on disposable copies of the tree outside the repository, running
+`SurvivingWriterTest`, `LockDirectoryIsNoAuthorityTest`, `SwapStateTest`, `LegacyIntentMigrationTest`,
+`ConcurrentRestoreTest`, `InterruptedRestoreTest` and `test_lifecycle_restore_script.InterruptedRunTest`
+(38 tests, with subtests; failing cases counted). The fixed tree passes. The script of `f75ca8d`: 31
+failing cases, across every one of the four blockers' tests. Weakening one thing at a time:
+
+| Copy | Failing cases | Which |
+| --- | --- | --- |
+| Taking the restore does not ask for the lifetime lock | 6 | all 6 surviving-command cases |
+| Commands not under the lifetime lock (holder check kept) | 7 | all 6 surviving-command cases, and the source test |
+| Service-user commands through `sudo -u` (descriptor closed) | 3 | the 2 checkpoint cases (the service user's command), and the source test |
+| No holder check in each command | 0, then 1 | survived the first set: added `test_a_command_of_a_killed_restore_that_takes_the_lifetime_lock_after_a_takeover_is_not_carried_out`, which rejects it (and `f75ca8d`) |
+| Holder consulted only when the lock directory is there | 3 | the lock directory removed under a live A, and the 2 surviving-command cases with it removed |
+| Recovery of a timer by the lock directory only | 3 | the same three |
+| Replacement not recorded as begun | 13 | the 3 partial-replacement cases, when the record goes, and 9 interrupted-run cases |
+| An earlier version's `swap-started` not carried over | 0, then 1 | survived the first set: added `test_a_replacement_an_earlier_version_had_begun_is_carried_into_the_records_before_anything_else`, which rejects it (and `f75ca8d`) |
+| Legacy timer markers not migrated | 5 | the timer-state failure, the 3 migration-failure cases, the takeover and recovery |
+| New holder recorded before the migration | 2 | the two failed flushes (no holder must be recorded) |
+
+The two added tests were run afterwards on the fixed tree, on `f75ca8d` and on the mutant each was added
+for; each passes on the first and fails on the other two.
+
 ## What PR 5 contains
 
 | Piece | Where |
@@ -297,7 +446,10 @@ concurrent cases fail on the state they find). Weakening one thing at a time:
   or failed once the service was started. A timer that was not active is never started. Its note
   goes only once the start succeeded, and only while no restore lock exists; otherwise the run does
   not exit 0 and the next run starts the timer first (no lock) or at its end (lock taken over).
-  Protocol: "The timer fix" and "Ownership, guard and records" above.
+  Protocol: "The timer fix", "Ownership, guard and records" and "Lifetime exclusion, protected
+  ownership and swap state" above. Who holds the restore and whether a replacement has begun are in
+  root's records, never in the lock directory; every command after the restore is taken holds the
+  lifetime lock.
 - Step 4b, after the migration of the copy and before the final fingerprint:
   `registrations-restore-gate` on the staged copy. Step 8 and step 10: `registrations-restore-status
   --expect held` (staged copy, then the database in place). Nothing of the gate runs after the
@@ -397,6 +549,10 @@ cryptography 50.0.2). Results are in the final report of the implementation sess
 | Timer active/inactive; cleanup running; interrupted and each finish path | `CleanupCoordinationTest`, `InterruptedRestoreTest` |
 | Restore ownership and the guard: overlapping recovery and restore, a run that gave its lock back, two takeovers, a kill inside a guarded step | `ConcurrentRestoreTest` |
 | The restore's records: place, path checks, in-lock markers, the 39157f5 location, removal failure, outcome on the retry path | `RecordsStorageTest`; `test_lifecycle_restore_script.InterruptedRunTest` (holder, `pid` link) |
+| Lifetime exclusion: a surviving command of a killed restore; every command after the restore is taken | `SurvivingWriterTest` |
+| The lock directory removed or replaced under a running restore | `LockDirectoryIsNoAuthorityTest` |
+| Swap state in the records: planted links, an interrupted partial replacement, when the record goes | `SwapStateTest` |
+| Legacy timer and swap markers migrated before anything can fail | `LegacyIntentMigrationTest` |
 | Staged-copy invalidation, persistent hold, existing hold, no carry-over, accounts and canonical content kept | `RegistrationGateOnTheStagedCopyTest` |
 | N7, N9 (order, hash, live untouched, failure publishes nothing) | `SnapshotScrubTest`; `test_backup_sqlite.py`, `test_application_backup.py` unchanged |
 | Units against the real parser | `UnitFilesTest` |
@@ -407,7 +563,11 @@ cryptography 50.0.2). Results are in the final report of the implementation sess
 only records the call: nothing shows that a note survives a power loss, and a SIGKILL in the
 harness (also `KILLALL`, of the whole process group) is killed processes, not a lost page cache.
 `sudo` runs as the test user, so "root" in the records checks is the effective user there, and
-`/usr` stands for a directory of someone else.
+`/usr` stands for a directory of someone else. The `sudo` shim closes descriptors from 3 up before it
+runs a command, as sudo's `closefrom` does, but does not stay behind as the command's parent; the
+`setpriv` shim drops its options and runs the command, so it shows that the script asks setpriv to
+keep the descriptor, not that util-linux setpriv does (it does not close descriptors; unverified
+here).
 
 **The guard, and what is real about it.** macOS has no util-linux `flock(1)`. The `flock` shim uses
 it where it is installed (`/usr/bin/flock` or `/bin/flock`, i.e. on Linux) and otherwise runs
@@ -430,9 +590,14 @@ logs and pauses before the real `ps`; the `rm` shim fails only for the one path 
   util-linux `flock(1)` on `/var/lib/learnpilot-restore` (exclusion between two real runs, release
   on a crash, descriptor inheritance by `sh` and `systemctl`); the records checks run as root on
   Ubuntu (GNU `ls -ldn` output, an SELinux `.`, `/var/lib` and `/var` as root's 0755); the
-  `swap-started` mark in a service-writable lock directory (item 9 above), still open.
+  descriptor inheritance as Ubuntu really does it: util-linux `flock -s FILE COMMAND` keeping the lock
+  in its child and in itself, `setpriv --reset-env` keeping descriptors and resetting the environment
+  as `sudo -u` did, sudo with `use_pty` (the command in a pty session of its own) and what becomes of a
+  command when the script's process group is killed; `fuser -v` on the lifetime file as the operator
+  guide uses it.
 - The health-check additions (DEPLOYMENT 19) were not executed anywhere.
 - No claim of VPS validation is made.
 - Still open from the design: D16 (privacy), D17 configuration, Nginx evidence, sender
   containment evidence, teacher quotas (PR 7), password recovery (PR 8, which must extend the gate,
-  status and scrub), and an independent review of "Ownership, guard and records" above.
+  status and scrub), and an independent review of "Lifetime exclusion, protected ownership and swap
+  state" above.

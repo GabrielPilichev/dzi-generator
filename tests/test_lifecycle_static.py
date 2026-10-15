@@ -450,11 +450,11 @@ class DeploymentGuideTest(unittest.TestCase):
         script = (ROOT / "deploy" / "learnpilot-restore.sh").read_text(encoding="utf-8")
         script_order = [script.index(marker) for marker in (
             "-m src.restore_preflight --snapshot", 'sudo flock "$RECORDS" sh -c "$CHECKED$ACQUIRE"',
-            'gate "stop the service" sudo systemctl stop "$SERVICE"', '"$SNAPSHOT/questions.db" "$STAGED_DB"',
+            'gate "stop the service" "${AS_OWNER[@]}" systemctl stop "$SERVICE"', '"$SNAPSHOT/questions.db" "$STAGED_DB"',
             '"${MIGRATE[@]}" --apply', "restore-hold --pre-restore-db", "reconcile --pre-restore-db",
             '"${RECOVER[@]}" --verified-utc', '"${LIFECYCLE[@]}" verify', 'gate "put the restored $tree in place"',
-            'sudo mv -f -- "$STAGED_DB" "$LIVE_DB"', '"${IN_PLACE[@]}" verify',
-            'gate "release the restore lock"', 'if ! sudo systemctl start "$SERVICE"; then')]
+            '"${AS_OWNER[@]}" mv -f -- "$STAGED_DB" "$LIVE_DB"', '"${IN_PLACE[@]}" verify',
+            'gate "release the restore lock"', 'if ! "${AS_OWNER[@]}" systemctl start "$SERVICE"; then')]
         self.assertEqual(script_order, sorted(script_order))
 
     def test_the_guide_states_the_restore_contract(self):

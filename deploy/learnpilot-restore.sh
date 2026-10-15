@@ -43,24 +43,31 @@
 # and registration is held; the hold is never released by this script, whatever
 # happens. The operator ends it with `manage_accounts registrations-release-hold`.
 #
-# Timers (design 3.9: "the timer comes back on every path the backup timer does"), and who
-# holds the lock. The restore keeps its own records where only root can change them, in
-# $RECORDS (/var/lib/learnpilot-restore: root's, mode 0700, never inside the state directory,
-# which the service can write): who holds the lock (restore-owner), and for each timer the
-# restore stopped, a note that it is to be started again. That directory is also the guard:
-# every step that takes, takes over or gives back the lock, writes or removes a note, or
-# stops or starts a timer for the restore runs as one command under flock(1) on it. Under
-# the guard:
-#   * the lock is made, or an abandoned one taken over, and its holder recorded, in one step;
-#   * a timer is noted (written, then flushed to disk, file and directory) and then stopped,
-#     in one step, only by the run that holds the lock;
-#   * a timer is started again, and its note removed only after that start succeeded, in one
-#     step, only while no restore lock exists at all.
-# So no run removes the note of a restore that holds the lock, and none starts a timer that a
-# restore keeps stopped. A run that finds a note and no lock starts that timer in its
-# pre-flight; a run that takes a lock over keeps the note and starts the timer when it ends.
-# A run never drops a note because it finds the timer inactive, and it does not exit 0 while
-# a timer it is to start again is not active.
+# Who holds the restore, what it has begun, and the timers (design 3.9: "the timer comes back on
+# every path the backup timer does"). The lock next to the database is only a signal to the
+# application and the units: it sits in a directory the service can write, and it decides
+# nothing for this script. What decides is kept where only root can change it, in $RECORDS
+# (/var/lib/learnpilot-restore: root's, mode 0700, never inside the state directory):
+#   restore-owner   the process id of the run that holds the restore;
+#   swap-state      present from before the first move of the live state until a restore has
+#                   finished: a partial replacement is never mistaken for none;
+#   pending-*-timer a timer the restore stopped and is to start again;
+#   lifetime        the lifetime lock (below).
+# Two locks, always taken in this order, and the second never waited for while the first is held:
+#   1. the guard, flock(1) on $RECORDS: every step that takes or gives back the restore, writes
+#      or removes a record, or stops or starts a timer for the restore is one command under it;
+#   2. the lifetime lock, flock(1) on $RECORDS/lifetime: every command this run has root or the
+#      service user carry out once it holds the restore runs under it (shared), checks first that
+#      this run is still the recorded holder, and then becomes the command itself, so that the
+#      process doing the work holds the lock for as long as it can do anything. Taking over an
+#      abandoned restore takes it exclusively without waiting: while any command of an earlier
+#      run is still alive, whatever became of that run, the restore is not taken over.
+# A restore is taken over only if its recorded holder is not a running restore and no command of
+# it is left; the lock directory being there or not changes nothing about that. A timer is noted
+# (written, then flushed to disk, file and directory) and then stopped only by the holder; it is
+# started again, and its note removed only after that start succeeded, only while no restore is
+# held or left unfinished. A run never drops a note because it finds the timer inactive, and it
+# does not exit 0 while a timer it is to start again is not active.
 
 if [ -z "${BASH_VERSION:-}" ]; then
   echo "restore: run this script with bash" >&2
@@ -91,6 +98,8 @@ LOCK=$STATE/data/restore-in-progress   # web.services.lifecycle.RESTORE_LOCK_NAM
 # section 34). They block nothing; only the lock does.
 RECORDS=${LEARNPILOT_RESTORE_RECORDS:-/var/lib/learnpilot-restore}
 OWNER_RECORD=$RECORDS/restore-owner
+SWAP_RECORD=$RECORDS/swap-state
+LIFETIME=$RECORDS/lifetime
 TIMER_NOTE=$RECORDS/pending-backup-timer
 CLEANUP_TIMER_NOTE=$RECORDS/pending-registration-cleanup-timer
 case $STATE in
@@ -138,6 +147,7 @@ INTERRUPTED_BEFORE=no
 TIMER_WAS_ACTIVE=no
 CLEANUP_TIMER_WAS_ACTIVE=no
 START_ATTEMPTED=no
+UNLOCKED=no          # the lock directory was removed by this run, at the end, before the start
 STAMP=
 STAGE=
 STAGED_DB=
@@ -289,66 +299,124 @@ CHECKED='set -eu
   }
 '
 
-# The pre-flight: the directory is made if it is not there (mode 0700), and checked with every
-# record in it. Not under the guard, which is this directory and so has to exist first.
+# The pre-flight: RECORDS LIFETIME RECORD... The directory is made if it is not there (mode 0700)
+# and checked with every record in it; the lifetime lock's file is made if it is missing. Not under
+# the guard, which is this directory and so has to exist first.
 PREPARE='
   above "$1"
   if [ ! -e "$1" ] && [ ! -L "$1" ]; then
     mkdir -m 0700 -- "$1" || [ -d "$1" ]
   fi
   directory "$1" last
-  shift
+  record "$2"
+  if [ ! -e "$2" ]; then
+    : >> "$2"
+  fi
+  shift 2
   for each in "$@"; do
     record "$each"
   done'
 
-# Under the guard: RECORDS LOCK OWNER_RECORD PID NOTE... Makes the lock, or takes over one that no
-# running restore holds, and records this run as its holder, in one step: no other run can look
-# at the lock in between. 0 made, 2 taken over (each with a line "noted:NOTE" for every note
-# there), 3 another restore holds it (its process id is printed).
+# Under the guard: RECORDS LOCK OWNER_RECORD PID LIFETIME SWAP_RECORD NOTE TIMER NOTE TIMER.
+# Takes the restore, in one step: no other run can look at it while this one is half-way.
+#   * The recorded holder is consulted whatever the lock directory looks like: if it is a running
+#     restore, 3 ("holder:PID"); if the record is not a process id, 5 (it is not what this script
+#     writes: nothing is decided from it).
+#   * The lifetime lock is then taken exclusively, without waiting: if any command of an earlier
+#     run still holds it, 4. It is held until this step ends, so a command of an earlier run that
+#     starts in between finds this run recorded and refuses.
+#   * What an earlier version of this script kept in the lock directory (a timer that was active,
+#     a replacement that had begun) is written into the records and flushed to disk before
+#     anything else; if that fails, nothing has changed hands and the lock is as it was.
+#   * Only then is this run recorded as the holder, and the lock directory made if it is missing.
+# 0 a new restore; 2 an earlier one taken over. A line "noted:NOTE" for each note and "swap:begun"
+# if a replacement is recorded as begun.
 ACQUIRE='
   records "$1"
-  record "$3"
-  lock=$2 owner_record=$3 pid=$4
-  shift 4
-  for note in "$@"; do
-    record "$note"
+  lock=$2 owner_record=$3 pid=$4 lifetime=$5 swap=$6
+  for each in "$3" "$5" "$6" "$7" "$9"; do
+    record "$each"
   done
-  status=0
-  if [ -e "$lock" ] || [ -L "$lock" ] || ! mkdir -- "$lock"; then
-    if [ -L "$lock" ] || [ ! -d "$lock" ]; then
-      refuse "the restore lock could not be made: $lock"
-    fi
-    holder=
-    if [ -e "$owner_record" ]; then
-      holder=$(cat -- "$owner_record")
-    fi
+  earlier=no
+  if [ -e "$owner_record" ]; then
+    earlier=yes
+    holder=$(cat -- "$owner_record")
     case $holder in
-      "" | *[!0-9]* | "$pid") ;;
+      "" | "$pid") ;;
+      *[!0-9]*)
+        echo "restore: the record of who holds the restore is not a process id: $owner_record" >&2
+        exit 5
+        ;;
       *)
         if running=$(ps -p "$holder" -o args=); then
           case $running in
             *learnpilot-restore*)
-              echo "$holder"
+              echo "holder:$holder"
               exit 3
               ;;
           esac
         fi
         ;;
     esac
-    status=2
+  fi
+  exec 8< "$lifetime"
+  if ! flock -x -n 8; then
+    exit 4
+  fi
+  if [ -L "$lock" ] || { [ -e "$lock" ] && [ ! -d "$lock" ]; }; then
+    refuse "the restore lock is not a directory: $lock"
+  fi
+  if [ -d "$lock" ]; then
+    earlier=yes
+    if [ -e "$lock/backup-timer-was-active" ] && [ ! -e "$7" ]; then
+      printf "%s\n" "$8" > "$7"
+      sync -- "$7" "$1"
+    fi
+    if [ -e "$lock/registration-cleanup-timer-was-active" ] && [ ! -e "$9" ]; then
+      printf "%s\n" "${10}" > "$9"
+      sync -- "$9" "$1"
+    fi
+    if [ -e "$lock/swap-started" ] && [ ! -e "$swap" ]; then
+      printf "%s\n" "begun under an earlier version of this script" > "$swap"
+      sync -- "$swap" "$1"
+    fi
   fi
   printf "%s\n" "$pid" > "$owner_record"
-  for note in "$@"; do
+  if [ ! -d "$lock" ]; then
+    mkdir -- "$lock"
+  fi
+  for note in "$7" "$9"; do
     if [ -e "$note" ]; then
       echo "noted:$note"
     fi
   done
-  exit "$status"'
+  if [ -e "$swap" ]; then
+    echo "swap:begun"
+  fi
+  if [ "$earlier" = yes ]; then
+    exit 2
+  fi'
 
-# Under the guard: RECORDS LOCK OWNER_RECORD PID NOTE TIMER STOP. Only for the run that holds the
-# lock: the note is written and flushed to disk (file, then directory), and then, if STOP is yes,
-# the timer is stopped. A run that dies at any point after the stop leaves the note.
+# Every command this run has carried out once it holds the restore: OWNER_RECORD PID COMMAND...,
+# run as `sudo flock -s LIFETIME sh -c ...` (AS_OWNER, below). Under the shared lifetime lock: if
+# this run is no longer the recorded holder, the command is not carried out. Otherwise the shell
+# becomes the command, which keeps the lock's descriptor: the lock is held by the process that
+# does the work, and by whatever it starts, until the last of them has ended.
+OWNED='
+  record "$1"
+  holder=
+  if [ -e "$1" ]; then
+    holder=$(cat -- "$1")
+  fi
+  if [ "$holder" != "$2" ]; then
+    refuse "this run (process $2) does not hold the restore any more; not carried out: $3"
+  fi
+  shift 2
+  exec "$@"'
+
+# Under the guard: RECORDS LOCK OWNER_RECORD PID NOTE TIMER STOP. Only for the holder of the
+# restore: the note is written and flushed to disk (file, then directory), and then, if STOP is
+# yes, the timer is stopped. A run that dies at any point after the stop leaves the note.
 PAUSE='
   records "$1"
   record "$3"
@@ -357,8 +425,8 @@ PAUSE='
   if [ -e "$3" ]; then
     holder=$(cat -- "$3")
   fi
-  if [ -L "$2" ] || [ ! -d "$2" ] || [ "$holder" != "$4" ]; then
-    refuse "this run does not hold the restore lock: $2"
+  if [ "$holder" != "$4" ]; then
+    refuse "this run does not hold the restore: $2"
   fi
   printf "%s\n" "$6" > "$5"
   sync -- "$5" "$1"
@@ -366,49 +434,94 @@ PAUSE='
     systemctl stop "$6"
   fi'
 
-# Under the guard: RECORDS LOCK NOTE TIMER noted|flagged. Only while no restore lock exists (3
-# otherwise: a restore is running or was left unfinished, and the timer stays as it is): the
-# timer is started (with "noted", only if it has a note: 2 otherwise), and then, only if that
-# succeeded, its note removed. 4 the start failed (the note stays), 5 the note could not be
-# removed. The removal is flushed to disk as well; a power loss before that can bring the note
-# back, and the next run then starts an active timer once more, which changes nothing.
+# Under the guard: RECORDS OWNER_RECORD PID SWAP_RECORD begin|clear. Only for the holder: the
+# replacement is recorded as begun, and flushed to disk, before the first move of the live state;
+# the record is removed only when this run has taken its own replacement back completely (clear),
+# or with the restore when it has finished (RELEASE).
+SWAP='
+  records "$1"
+  record "$2"
+  record "$4"
+  holder=
+  if [ -e "$2" ]; then
+    holder=$(cat -- "$2")
+  fi
+  if [ "$holder" != "$3" ]; then
+    refuse "this run does not hold the restore: $2"
+  fi
+  if [ "$5" = begin ]; then
+    printf "%s\n" "begun by process $3" > "$4"
+    sync -- "$4" "$1"
+  else
+    rm -f -- "$4"
+    sync -- "$1"
+  fi'
+
+# Under the guard: RECORDS LOCK OWNER_RECORD NOTE TIMER noted|flagged. Only while no restore is held
+# or was left unfinished, which the records say and not the lock directory (3 otherwise; and 3 as
+# well while a lock directory is there): the timer is started (with "noted", only if it has a
+# note: 2 otherwise), and then, only if that succeeded, its note removed. 4 the start failed (the
+# note stays), 5 the note could not be removed. The removal is flushed to disk as well; a power
+# loss before that can bring the note back, and the next run then starts an active timer once
+# more, which changes nothing.
 RESTART='
   records "$1"
   record "$3"
-  if [ -e "$2" ] || [ -L "$2" ]; then
+  record "$4"
+  if [ -e "$3" ] || [ -e "$2" ] || [ -L "$2" ]; then
     exit 3
   fi
-  if [ "$5" = noted ] && [ ! -e "$3" ]; then
+  if [ "$6" = noted ] && [ ! -e "$4" ]; then
     exit 2
   fi
-  if ! systemctl start "$4"; then
+  if ! systemctl start "$5"; then
     exit 4
   fi
-  if ! rm -f -- "$3"; then
+  if ! rm -f -- "$4"; then
     exit 5
   fi
   if ! sync -- "$1"; then
-    echo "restore: the removal of $3 may not be on disk yet: if the machine stops now, the next run starts $4 once more" >&2
+    echo "restore: the removal of $4 may not be on disk yet: if the machine stops now, the next run starts $5 once more" >&2
   fi'
 
-# Under the guard: RECORDS LOCK OWNER_RECORD PID all|empty. Gives the lock back, only if this run
-# holds it: all of it, or (empty) only if there is nothing in it.
+# Under the guard: RECORDS LOCK OWNER_RECORD PID SWAP_RECORD lock|owner|all|empty. Only for the
+# holder. lock: the lock directory goes (the end of a successful run, before the start); owner:
+# the restore has finished, its records go (after the start); all: nothing was replaced, both go,
+# and never while a replacement is recorded as begun; empty: stopped while the restore was being
+# taken, the lock directory goes only if there is nothing in it, the records only with it.
 RELEASE='
   records "$1"
   record "$3"
+  record "$5"
   holder=
   if [ -e "$3" ]; then
     holder=$(cat -- "$3")
   fi
   if [ "$holder" != "$4" ]; then
-    refuse "the restore lock is not held by this run: $2"
+    refuse "this run does not hold the restore: $2"
   fi
-  if [ "$5" = all ]; then
-    rm -rf -- "$2"
-  else
-    rmdir -- "$2"
-  fi
-  rm -f -- "$3"'
+  case $6 in
+    lock)
+      rm -rf -- "$2"
+      ;;
+    owner)
+      rm -f -- "$5" "$3"
+      sync -- "$1"
+      ;;
+    all)
+      if [ -e "$5" ]; then
+        refuse "a replacement of the live state is recorded as begun ($5): the restore is not given back"
+      fi
+      rm -rf -- "$2"
+      rm -f -- "$3"
+      ;;
+    *)
+      rmdir -- "$2"
+      if [ ! -e "$5" ]; then
+        rm -f -- "$3"
+      fi
+      ;;
+  esac'
 
 say() {
   printf 'restore: %s\n' "$*" >&2 || return 0   # a terminal that has gone away stops nothing
@@ -465,7 +578,7 @@ restart_timers() {   # restart_timers flagged, or noted: start again each timer 
   local failed=0 status
   if [ "$1" = noted ] || [ "$TIMER_WAS_ACTIVE" = yes ]; then
     status=0
-    sudo flock "$RECORDS" sh -c "$CHECKED$RESTART" sh "$RECORDS" "$LOCK" "$TIMER_NOTE" "$BACKUP_TIMER" "$1" \
+    sudo flock "$RECORDS" sh -c "$CHECKED$RESTART" sh "$RECORDS" "$LOCK" "$OWNER_RECORD" "$TIMER_NOTE" "$BACKUP_TIMER" "$1" \
       || status=$?
     case $status in
       0)
@@ -476,7 +589,7 @@ restart_timers() {   # restart_timers flagged, or noted: start again each timer 
       3)
         if [ "$1" = flagged ]; then
           failed=1
-          say "WARNING: the backup timer was not started again: a restore lock exists again, and the restore that holds it keeps the note ($TIMER_NOTE)"
+          say "WARNING: the backup timer was not started again: a restore is held, or was left unfinished, and keeps the note ($TIMER_NOTE)"
         fi
         ;;
       4)
@@ -497,7 +610,7 @@ restart_timers() {   # restart_timers flagged, or noted: start again each timer 
   fi
   if [ "$1" = noted ] || [ "$CLEANUP_TIMER_WAS_ACTIVE" = yes ]; then
     status=0
-    sudo flock "$RECORDS" sh -c "$CHECKED$RESTART" sh "$RECORDS" "$LOCK" "$CLEANUP_TIMER_NOTE" "$CLEANUP_TIMER" "$1" \
+    sudo flock "$RECORDS" sh -c "$CHECKED$RESTART" sh "$RECORDS" "$LOCK" "$OWNER_RECORD" "$CLEANUP_TIMER_NOTE" "$CLEANUP_TIMER" "$1" \
       || status=$?
     case $status in
       0)
@@ -508,7 +621,7 @@ restart_timers() {   # restart_timers flagged, or noted: start again each timer 
       3)
         if [ "$1" = flagged ]; then
           failed=1
-          say "WARNING: the registration cleanup timer was not started again: a restore lock exists again, and the restore that holds it keeps the note ($CLEANUP_TIMER_NOTE)"
+          say "WARNING: the registration cleanup timer was not started again: a restore is held, or was left unfinished, and keeps the note ($CLEANUP_TIMER_NOTE)"
         fi
         ;;
       4)
@@ -553,7 +666,7 @@ outcome() {          # outcome complete, or outcome stopped: what the restored s
 }
 
 finish() {
-  local status=$? index entry kind rest undone at_live lock
+  local status=$? index entry kind rest undone at_live
   trap - EXIT
   trap '' HUP INT QUIT TERM      # what follows is not to be cut short in its turn
   if [ "$status" -eq 0 ] && [ "$PHASE" = started ]; then
@@ -570,11 +683,12 @@ finish() {
 
   if [ "$PHASE" = untouched ]; then
     if [ "$LOCK_HELD" = maybe ]; then
-      # Stopped in the instant the lock was being taken. It is given back only if this run is
-      # recorded as its holder, and only if it is empty: a lock that was taken over can hold
-      # the mark of an earlier run.
+      # Stopped in the instant the restore was being taken. It is given back only if this run is
+      # recorded as its holder, and only if the lock directory is empty: a restore that was
+      # taken over can hold the marks of an earlier run.
       if sudo test -d "$LOCK" \
-        && ! sudo flock "$RECORDS" sh -c "$CHECKED$RELEASE" sh "$RECORDS" "$LOCK" "$OWNER_RECORD" "$$" empty; then
+        && ! sudo flock "$RECORDS" sh -c "$CHECKED$RELEASE" sh "$RECORDS" "$LOCK" "$OWNER_RECORD" "$$" \
+          "$SWAP_RECORD" empty; then
         say "A restore lock is left that this run does not give back: $LOCK"
       fi
     fi
@@ -584,8 +698,17 @@ finish() {
   fi
   if [ "$PHASE" = started ]; then
     say "The service is running on the restored state: the script was stopped after it had started it."
-    # The retry. The status stays the one this run ended with (a signal's, or the failure's),
-    # whatever the retry achieves: a run that did not end in order is not reported as a success.
+    # The restore has finished: its records go, then the timers are started. The status stays the
+    # one this run ended with (a signal's, or the failure's), whatever this achieves: a run that
+    # did not end in order is not reported as a success.
+    if [ "$LOCK_HELD" = yes ]; then
+      if sudo flock "$RECORDS" sh -c "$CHECKED$RELEASE" sh "$RECORDS" "$LOCK" "$OWNER_RECORD" "$$" \
+        "$SWAP_RECORD" owner; then
+        LOCK_HELD=no
+      else
+        say "The restore could not be recorded as finished ($OWNER_RECORD): its timers stay stopped."
+      fi
+    fi
     if ! restart_timers flagged; then
       say "The retry from the failure handling did not start every timer."
     fi
@@ -627,12 +750,12 @@ finish() {
           rest=${entry#*|}
           case $kind in
             move)
-              if ! sudo sh -c "$UNMOVE" sh "${rest%%|*}" "${rest#*|}"; then
+              if ! "${AS_OWNER[@]}" sh -c "$UNMOVE" sh "${rest%%|*}" "${rest#*|}"; then
                 undone=no
               fi
               ;;
             link)
-              if ! sudo sh -c "$UNLINK" sh "${rest%%|*}" "${rest#*|}"; then
+              if ! "${AS_OWNER[@]}" sh -c "$UNLINK" sh "${rest%%|*}" "${rest#*|}"; then
                 undone=no
               fi
               ;;
@@ -646,8 +769,9 @@ finish() {
           fi
         done
         if [ "$undone" = yes ]; then
-          # The mark of an earlier interrupted run is not this run's to remove.
-          if [ "$INTERRUPTED_BEFORE" = yes ] || sudo rm -f -- "$LOCK/swap-started"; then
+          # The record of an earlier interrupted run is not this run's to remove.
+          if [ "$INTERRUPTED_BEFORE" = yes ] \
+            || sudo flock "$RECORDS" sh -c "$CHECKED$SWAP" sh "$RECORDS" "$OWNER_RECORD" "$$" "$SWAP_RECORD" clear; then
             PHASE=locked
             say "The replacement had begun and was taken back completely."
           fi
@@ -665,8 +789,8 @@ finish() {
       say "Nothing was replaced: the live database, uploads and vault are exactly as they were."
       case $STAGE in
         "$STATE"/restore-staging-*)
-          if sudo test -e "$STAGE"; then
-            if sudo rm -rf -- "$STAGE"; then
+          if "${AS_OWNER[@]}" test -e "$STAGE"; then
+            if "${AS_OWNER[@]}" rm -rf -- "$STAGE"; then
               say "The copy this run made was removed: $STAGE"
             else
               say "The copy this run made could not be removed: $STAGE"
@@ -677,7 +801,7 @@ finish() {
       case $REPLACED in
         "$STATE"/replaced-*)
           # Made for this run and empty again: nothing is kept in it.
-          if sudo test -d "$REPLACED" && ! sudo rmdir -- "$REPLACED"; then
+          if "${AS_OWNER[@]}" test -d "$REPLACED" && ! "${AS_OWNER[@]}" rmdir -- "$REPLACED"; then
             say "Not empty, left in place: $REPLACED"
           fi
           ;;
@@ -687,7 +811,9 @@ finish() {
         say "the service does not start, and no backup is taken, until a restore has finished."
         say "The registration cleanup timer stays stopped as well (it refuses while the lock exists)."
       elif [ "$LOCK_HELD" = yes ]; then
-        if sudo flock "$RECORDS" sh -c "$CHECKED$RELEASE" sh "$RECORDS" "$LOCK" "$OWNER_RECORD" "$$" all; then
+        if sudo flock "$RECORDS" sh -c "$CHECKED$RELEASE" sh "$RECORDS" "$LOCK" "$OWNER_RECORD" "$$" \
+          "$SWAP_RECORD" all; then
+          LOCK_HELD=no
           say "The restore lock was released."
           if ! restart_timers flagged; then
             say "Not every timer that was active before the restore could be started again."
@@ -721,15 +847,16 @@ finish() {
       say "What it replaced is in $REPLACED."
       if [ "$START_ATTEMPTED" = yes ]; then
         # Whatever became of the start: a script that ends like this leaves no service running.
-        if sudo systemctl stop "$SERVICE"; then
+        if "${AS_OWNER[@]}" systemctl stop "$SERVICE"; then
           say "The service was stopped again."
         else
           say "WARNING: the service could not be stopped; check it by hand: $SERVICE"
         fi
       fi
-      lock=0
-      sudo sh -c 'if [ -e "$1" ] || [ -L "$1" ]; then exit 10; fi; exit 11' sh "$LOCK" || lock=$?
-      if [ "$lock" -eq 11 ]; then
+      if [ "$UNLOCKED" = yes ] \
+        && sudo flock "$RECORDS" sh -c "$CHECKED$RELEASE" sh "$RECORDS" "$LOCK" "$OWNER_RECORD" "$$" \
+          "$SWAP_RECORD" owner; then
+        LOCK_HELD=no
         say "The restore itself is complete and the lock is released; the service is not running."
         if ! restart_timers flagged; then
           say "Not every timer that was active before the restore could be started again."
@@ -824,7 +951,11 @@ if [ -z "$SUSPECT_FROM" ] && [ -n "$SUSPECT_TO" ]; then
   die 2 "--suspect-from and --suspect-to are given together"
 fi
 
-AS_SERVICE=(sudo -u "$RUN_AS")
+# The service user, taken on by root with setpriv(1) rather than `sudo -u`: sudo closes the
+# descriptors it was given before it runs a command, setpriv keeps them, so the command itself
+# holds the lifetime lock (AS_OWNER, once this run holds the restore).
+SERVICE_USER=(setpriv --reuid="$RUN_AS" --regid="$RUN_GROUP" --init-groups --reset-env --)
+AS_SERVICE=(sudo "${SERVICE_USER[@]}")
 AUDIT=(--operator "$OPERATOR" --audit-log "$AUDIT_LOG")
 FINGERPRINT=("${AS_SERVICE[@]}" "$PYTHON" -m src.restore_preflight --fingerprint)
 RECOVER=(clock-recover)
@@ -834,7 +965,7 @@ fi
 
 # --- 1. pre-flight: nothing is modified and the service keeps running --------------
 
-for tool in sudo systemctl sqlite3 tar install mv ln rm mkdir rmdir cat grep ps curl date sleep sync flock ls id; do
+for tool in sudo systemctl sqlite3 tar install mv ln rm mkdir rmdir cat grep ps curl date sleep sync flock ls id setpriv; do
   if ! command -v "$tool" > /dev/null; then
     die 2 "a program this script needs is not installed: $tool"
   fi
@@ -843,7 +974,8 @@ gate "the application checkout is the working directory" cd "$APP"
 gate "the operator tooling is in the checkout" test -f src/manage_lifecycle.py
 gate "sudo can be used" sudo true
 gate "the restore's own records are where only root can change them ($RECORDS)" \
-  sudo sh -c "$CHECKED$PREPARE" sh "$RECORDS" "$OWNER_RECORD" "$TIMER_NOTE" "$CLEANUP_TIMER_NOTE"
+  sudo sh -c "$CHECKED$PREPARE" sh "$RECORDS" "$LIFETIME" "$OWNER_RECORD" "$SWAP_RECORD" "$TIMER_NOTE" \
+  "$CLEANUP_TIMER_NOTE"
 # Where a build that was never released kept its notes: in the state directory, which the service
 # can write. Nothing there is trusted, followed or acted on; the operator looks (section 34).
 for UNRELEASED in "$STATE/restore-pending-backup-timer" "$STATE/restore-pending-registration-cleanup-timer"; do
@@ -943,42 +1075,54 @@ fi
 
 # --- 2. the lock, then backups paused and the service stopped -------------------------
 
-LOCK_HELD=maybe          # until the next lines have run, the lock may or may not be this run's (finish)
-# Made, or taken over if no running restore holds it, with this run recorded as its holder: one
-# step under the guard (ACQUIRE), so no other run can look at the lock while it is half made.
+LOCK_HELD=maybe          # until the next lines have run, the restore may or may not be this run's (finish)
+# Taken, or taken over if no running restore holds it and no command of an earlier run is left,
+# with this run recorded as its holder: one step under the guard (ACQUIRE), so no other run can
+# look at the restore while it is half taken. What decides is in the records, not the lock
+# directory: a directory that is missing, or was put back by someone else, changes nothing.
 TAKEN=0
 ACQUIRED=$(sudo flock "$RECORDS" sh -c "$CHECKED$ACQUIRE" sh "$RECORDS" "$LOCK" "$OWNER_RECORD" "$$" \
-  "$TIMER_NOTE" "$CLEANUP_TIMER_NOTE") || TAKEN=$?
+  "$LIFETIME" "$SWAP_RECORD" "$TIMER_NOTE" "$BACKUP_TIMER" "$CLEANUP_TIMER_NOTE" "$CLEANUP_TIMER") || TAKEN=$?
 case $TAKEN in
   0) ;;
-  2)
-    say "An earlier restore did not finish: its lock is still there ($LOCK). This run takes it over."
-    if sudo test -e "$LOCK/swap-started"; then
-      INTERRUPTED_BEFORE=yes
-      say "That run was interrupted WHILE REPLACING the live uploads and vault. This run starts over"
-      say "from the snapshot; what the earlier run set aside stays where it is."
-    fi
-    # Markers an earlier version of this script left inside the lock: taken over as notes below.
-    if sudo test -e "$LOCK/backup-timer-was-active"; then
-      TIMER_WAS_ACTIVE=yes
-    fi
-    if sudo test -e "$LOCK/registration-cleanup-timer-was-active"; then
-      CLEANUP_TIMER_WAS_ACTIVE=yes
-    fi
-    ;;
+  2) say "An earlier restore did not finish (its records are in $RECORDS). This run takes it over." ;;
   3)
     LOCK_HELD=no
-    die 1 "another restore is running (process $ACQUIRED). Nothing was touched by this one"
+    die 1 "another restore is running (process ${ACQUIRED#holder:}). Nothing was touched by this one"
+    ;;
+  4)
+    LOCK_HELD=no
+    HINT="Find what holds $LIFETIME (sudo fuser -v $LIFETIME), let it end or end it, and check that it is gone (docs/DEPLOYMENT.md, section 17)."
+    die 1 "a command an earlier restore started is still running: the restore is not taken over while it can still change the live state. Nothing was touched by this run"
+    ;;
+  5)
+    LOCK_HELD=no
+    die 1 "the record of who holds the restore cannot be read as such ($OWNER_RECORD): nothing is decided from it. Nothing was touched by this run; see docs/DEPLOYMENT.md, section 34"
     ;;
   *)
-    die "$TAKEN" "the restore lock could not be taken: $LOCK (exit status $TAKEN)"
+    LOCK_HELD=no
+    die "$TAKEN" "the restore could not be taken (exit status $TAKEN): the lock, its records and what an earlier run left in it are as they were"
     ;;
 esac
+# Every command from here on: under the shared lifetime lock, and only while this run is the
+# recorded holder (OWNED). The service user's commands as well, through setpriv, which keeps the
+# lock's descriptor for the command itself.
+AS_OWNER=(sudo flock -s "$LIFETIME" sh -c "$CHECKED$OWNED" sh "$OWNER_RECORD" "$$")
+AS_SERVICE=("${AS_OWNER[@]}" "${SERVICE_USER[@]}")
+FINGERPRINT=("${AS_SERVICE[@]}" "$PYTHON" -m src.restore_preflight --fingerprint)
 LOCK_HELD=yes
 PHASE=locked
+case $ACQUIRED in
+  *"swap:begun"*)
+    INTERRUPTED_BEFORE=yes
+    say "That run was interrupted WHILE REPLACING the live uploads and vault. This run starts over"
+    say "from the snapshot; what the earlier run set aside stays where it is."
+    ;;
+esac
 # Whatever an earlier run left to be started again stays to be started again, whatever state the
-# timer is found in now. The notes were read in the step that took the lock; from then on only
-# this run changes them.
+# timer is found in now. The notes were read in the step that took the restore (and a marker an
+# earlier version of this script left in the lock directory made a note there first); from then on
+# only this run changes them.
 case $ACQUIRED in
   *"noted:$TIMER_NOTE"*) TIMER_WAS_ACTIVE=yes ;;
 esac
@@ -1052,7 +1196,7 @@ case $CLEANUP_STATE in
     ;;
 esac
 
-gate "stop the service" sudo systemctl stop "$SERVICE"
+gate "stop the service" "${AS_OWNER[@]}" systemctl stop "$SERVICE"
 SERVICE_STATE=$(sudo systemctl show -p ActiveState "$SERVICE") \
   || die "$?" "gate failed: the state of the service could not be read from systemd after it was stopped"
 case $SERVICE_STATE in
@@ -1067,7 +1211,7 @@ if [ "$REPLACED_UNREADABLE" = no ]; then
   HINT="If the database being replaced cannot be used at all, see --replaced-database-unreadable."
   gate "write the database being replaced out completely" \
     "${AS_SERVICE[@]}" sqlite3 "$LIVE_DB" 'PRAGMA wal_checkpoint(TRUNCATE);'
-  gate "the database being replaced is complete in its main file" sudo sh -c '
+  gate "the database being replaced is complete in its main file" "${AS_OWNER[@]}" sh -c '
     set -eu
     if [ -s "$1"-wal ]; then
       echo "restore: the write-ahead log still holds data: $1-wal" >&2
@@ -1087,9 +1231,9 @@ STAGE=$STATE/restore-staging-$STAMP
 REPLACED=$STATE/replaced-$STAMP
 STAGED_DB=$STAGE/questions.db
 
-gate "create the staging directory" sudo install -d -o "$RUN_AS" -g "$RUN_GROUP" -m 0700 "$STAGE"
+gate "create the staging directory" "${AS_OWNER[@]}" install -d -o "$RUN_AS" -g "$RUN_GROUP" -m 0700 "$STAGE"
 gate "copy the snapshot database to staging" \
-  sudo install -o "$RUN_AS" -g "$RUN_GROUP" -m 0600 "$SNAPSHOT/questions.db" "$STAGED_DB"
+  "${AS_OWNER[@]}" install -o "$RUN_AS" -g "$RUN_GROUP" -m 0600 "$SNAPSHOT/questions.db" "$STAGED_DB"
 say "gate: the staged database is in WAL mode"
 MODE=$("${AS_SERVICE[@]}" sqlite3 "$STAGED_DB" 'PRAGMA journal_mode=WAL;') \
   || die "$?" "gate failed: the journal mode of the staged database could not be set"
@@ -1097,7 +1241,7 @@ if [ "$MODE" != wal ]; then
   die 1 "gate failed: the staged database is not in WAL mode ($MODE)"
 fi
 gate "create the staged upload and vault roots" \
-  sudo install -d -o "$RUN_AS" -g "$RUN_GROUP" -m 0750 "$STAGE/uploads" "$STAGE/vault"
+  "${AS_OWNER[@]}" install -d -o "$RUN_AS" -g "$RUN_GROUP" -m 0750 "$STAGE/uploads" "$STAGE/vault"
 gate "extract the snapshot files to staging" "${AS_SERVICE[@]}" tar -C "$STAGE" -xzf "$SNAPSHOT/files.tar.gz"
 FILES_STAGED=$("${FINGERPRINT[@]}" "$STAGE/uploads" "$STAGE/vault") \
   || die "$?" "gate failed: the extracted files could not be read"
@@ -1208,7 +1352,7 @@ fi
 # only read (some SQLite builds keep them). Nothing has either database open, so
 # the copy's are removed and the live ones are set aside below.
 
-gate "the staged database is complete in its main file" sudo sh -c '
+gate "the staged database is complete in its main file" "${AS_OWNER[@]}" sh -c '
   set -eu
   if [ -s "$1"-wal ]; then
     echo "restore: the write-ahead log still holds data: $1-wal" >&2
@@ -1225,7 +1369,7 @@ gate "the staged database is byte for byte the one that was verified" \
 gate "the staged uploads and vault are byte for byte what was extracted" \
   "${FINGERPRINT[@]}" "$STAGE/uploads" "$STAGE/vault" --expect "$FILES_STAGED"
 if [ "$REPLACED_UNREADABLE" = no ]; then
-  gate "the database being replaced is still complete in its main file" sudo sh -c '
+  gate "the database being replaced is still complete in its main file" "${AS_OWNER[@]}" sh -c '
     set -eu
     if [ -s "$1"-wal ] || [ -e "$1"-journal ]; then
       echo "restore: written to since it was examined: $1" >&2
@@ -1242,31 +1386,34 @@ HINT=
 # return, and after it nothing is left to do but to check and to start.
 
 gate "create the directory for the replaced state" \
-  sudo install -d -o "$RUN_AS" -g "$RUN_GROUP" -m 0700 "$REPLACED"
-gate "record in the lock that the replacement begins" sudo sh -c ': > "$1"' sh "$LOCK/swap-started"
+  "${AS_OWNER[@]}" install -d -o "$RUN_AS" -g "$RUN_GROUP" -m 0700 "$REPLACED"
+# Recorded, and flushed to disk, where only root can change it, before the first move: whatever is
+# done to the lock directory, the next run knows that a replacement had begun.
+gate "record, in the restore's records, that the replacement begins" \
+  sudo flock "$RECORDS" sh -c "$CHECKED$SWAP" sh "$RECORDS" "$OWNER_RECORD" "$$" "$SWAP_RECORD" begin
 PHASE=swap
 
 for tree in uploads vault; do
-  if sudo test -e "$STATE/$tree"; then
+  if "${AS_OWNER[@]}" test -e "$STATE/$tree"; then
     UNDO+=("move|$STATE/$tree|$REPLACED/$tree")
-    gate "set the live $tree aside" sudo sh -c "$MOVE" sh "$STATE/$tree" "$REPLACED/$tree"
+    gate "set the live $tree aside" "${AS_OWNER[@]}" sh -c "$MOVE" sh "$STATE/$tree" "$REPLACED/$tree"
   fi
   UNDO+=("move|$STAGE/$tree|$STATE/$tree")
-  gate "put the restored $tree in place" sudo sh -c "$MOVE" sh "$STAGE/$tree" "$STATE/$tree"
+  gate "put the restored $tree in place" "${AS_OWNER[@]}" sh -c "$MOVE" sh "$STAGE/$tree" "$STATE/$tree"
 done
 
 if [ "$REPLACED_UNREADABLE" = no ]; then
   # The live database stays at its path until the rename that replaces it; a
   # second name for the same file keeps it afterwards.
   for sidecar in -wal -shm; do
-    if sudo test -e "$LIVE_DB$sidecar"; then
+    if "${AS_OWNER[@]}" test -e "$LIVE_DB$sidecar"; then
       UNDO+=("move|$LIVE_DB$sidecar|$REPLACED/questions.db$sidecar")
       gate "set the empty questions.db$sidecar aside" \
-        sudo sh -c "$MOVE" sh "$LIVE_DB$sidecar" "$REPLACED/questions.db$sidecar"
+        "${AS_OWNER[@]}" sh -c "$MOVE" sh "$LIVE_DB$sidecar" "$REPLACED/questions.db$sidecar"
     fi
   done
   UNDO+=("link|$LIVE_DB|$REPLACED/questions.db")
-  gate "keep the database being replaced" sudo ln -- "$LIVE_DB" "$REPLACED/questions.db"
+  gate "keep the database being replaced" "${AS_OWNER[@]}" ln -- "$LIVE_DB" "$REPLACED/questions.db"
   # The file that is about to lose its place, read under its second name: it is
   # the one reconciliation examined, to the byte, or it is not replaced.
   HINT="Something wrote to it while the restore was running. Find out what, then run the script again."
@@ -1276,23 +1423,23 @@ if [ "$REPLACED_UNREADABLE" = no ]; then
   # The one step that is not taken back. If the script is stopped at this line,
   # before or after the rename, what it does next is decided by what is at the
   # live path then (see finish), never by whether the next line was reached.
-  gate "replace the live database by the copy" sudo mv -f -- "$STAGED_DB" "$LIVE_DB"
+  gate "replace the live database by the copy" "${AS_OWNER[@]}" mv -f -- "$STAGED_DB" "$LIVE_DB"
 else
   # Not usable as evidence, and possibly not readable: set aside as it is, with
   # whatever belongs to it. Until the copy is in place there is no database at
   # the live path, and nothing can be started.
   for part in "" -wal -shm -journal; do
-    if sudo test -e "$LIVE_DB$part"; then
+    if "${AS_OWNER[@]}" test -e "$LIVE_DB$part"; then
       UNDO+=("move|$LIVE_DB$part|$REPLACED/questions.db$part")
       gate "set the unusable questions.db$part aside" \
-        sudo sh -c "$MOVE" sh "$LIVE_DB$part" "$REPLACED/questions.db$part"
+        "${AS_OWNER[@]}" sh -c "$MOVE" sh "$LIVE_DB$part" "$REPLACED/questions.db$part"
     fi
   done
   # As above: not taken back, and judged by what is at the live path.
-  gate "put the copy in place as the live database" sudo sh -c "$MOVE" sh "$STAGED_DB" "$LIVE_DB"
+  gate "put the copy in place as the live database" "${AS_OWNER[@]}" sh -c "$MOVE" sh "$STAGED_DB" "$LIVE_DB"
 fi
 PHASE=committed
-if ! sudo rmdir -- "$STAGE"; then
+if ! "${AS_OWNER[@]}" rmdir -- "$STAGE"; then
   say "note: the staging directory is not empty and was left in place: $STAGE"
 fi
 
@@ -1308,11 +1455,13 @@ gate "the database now in place holds exactly what was acknowledged" \
 # --- 8. unlock and start: the only start in this file, reached only through every gate above ---
 
 say "every gate passed"
+# The lock directory goes (the service refuses to start while it is there); this run stays the
+# holder of the restore until the service runs, so that no other run takes it over in between.
 gate "release the restore lock" \
-  sudo flock "$RECORDS" sh -c "$CHECKED$RELEASE" sh "$RECORDS" "$LOCK" "$OWNER_RECORD" "$$" all
-LOCK_HELD=no
+  sudo flock "$RECORDS" sh -c "$CHECKED$RELEASE" sh "$RECORDS" "$LOCK" "$OWNER_RECORD" "$$" "$SWAP_RECORD" lock
+UNLOCKED=yes
 START_ATTEMPTED=yes      # from here on, a script that does not end well stops the service again (finish)
-if ! sudo systemctl start "$SERVICE"; then
+if ! "${AS_OWNER[@]}" systemctl start "$SERVICE"; then
   die 1 "the service did not start"
 fi
 if ! curl -fsS "$HEALTH_URL"; then
@@ -1322,6 +1471,12 @@ PHASE=started
 
 say "------------------------------------------------------------------"
 say "The service is running on the restored state. What it replaced is in $REPLACED."
+# The restore has finished: its records go (the holder, and the replacement recorded as begun).
+if ! sudo flock "$RECORDS" sh -c "$CHECKED$RELEASE" sh "$RECORDS" "$LOCK" "$OWNER_RECORD" "$$" "$SWAP_RECORD" \
+  owner; then
+  die 1 "the restore could not be recorded as finished ($OWNER_RECORD); its timers stay stopped"
+fi
+LOCK_HELD=no
 if ! restart_timers flagged; then
   die 1 "a timer that was active before the restore is not active again (finish tries once more)"
 fi

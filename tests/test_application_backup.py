@@ -724,7 +724,7 @@ class RestoreDocumentationTest(unittest.TestCase):
         # script the guide names (its gates are tested in tests/test_lifecycle_restore_script.py).
         self.assertIn("deploy/learnpilot-restore.sh", restore)
         script = (Path(__file__).resolve().parents[1] / "deploy/learnpilot-restore.sh").read_text(encoding="utf-8")
-        stop = script.index('gate "stop the service" sudo systemctl stop "$SERVICE"')
+        stop = script.index('gate "stop the service" "${AS_OWNER[@]}" systemctl stop "$SERVICE"')
         database = script.index('"$SNAPSHOT/questions.db" "$STAGED_DB"')
         extract = script.index('-xzf "$SNAPSHOT/files.tar.gz"')
         files_in_place = script.index('gate "put the restored $tree in place"')
