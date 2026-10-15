@@ -33,8 +33,13 @@ zone and three operator commands; no migration) is implemented in draft #338
 and awaits independent review: `docs/reviews/EMAIL_REGISTRATION_PR4_STATUS.md`.
 With it Gabriel approved that a registration hold does not block the
 cancellation of pending data (the hold and the clock mark are preserved; a
-regressed clock still refuses; design 0.7). No other PR is started, and no
-deployment, provider or real database was touched.
+regressed clock still refuses; design 0.7). **PR 5** (operations: the cleanup unit and timer, the restore script's
+cleanup coordination and registration gate, the status and release commands, and
+the logical snapshot scrub; decisions D18 (b) and D20 (a); no migration) is
+implemented on `feature/registration-operations`, unreviewed and unapproved:
+`docs/reviews/EMAIL_REGISTRATION_PR5_STATUS.md`. Its Linux and systemd evidence
+has not been produced. No other PR is started, and no deployment, provider or
+real database was touched.
 
 Revisions 1, 2 and 3 were each independently reviewed and returned with
 REQUEST CHANGES, the third narrowly (two defects in the sender contract and

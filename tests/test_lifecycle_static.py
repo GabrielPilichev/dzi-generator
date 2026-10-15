@@ -348,7 +348,9 @@ class PhaseIsolationTest(unittest.TestCase):
         migration = (ROOT / "web/migrations/018_assignment_lifecycle.sql").read_text(encoding="utf-8")
         for later in LATER_PHASE_NAMES:
             self.assertNotIn(later, migration)
-        self.assertFalse(list((ROOT / "deploy" / "systemd").glob("*cleanup*")))
+        # The registration cleanup units (registration PR 5) are not the lifecycle's later phase.
+        self.assertFalse([path for path in (ROOT / "deploy" / "systemd").glob("*cleanup*")
+                          if not path.name.startswith("learnpilot-registration-cleanup.")])
         self.assertFalse((ROOT / "src" / "cleanup_assignment_details.py").exists())
 
     def test_no_lifecycle_code_queries_a_time_source_or_the_network(self):
@@ -447,12 +449,12 @@ class DeploymentGuideTest(unittest.TestCase):
         # The script does these in the same order (its own tests prove the behaviour).
         script = (ROOT / "deploy" / "learnpilot-restore.sh").read_text(encoding="utf-8")
         script_order = [script.index(marker) for marker in (
-            "-m src.restore_preflight --snapshot", 'sudo mkdir -- "$LOCK"',
-            'gate "stop the service" sudo systemctl stop "$SERVICE"', '"$SNAPSHOT/questions.db" "$STAGED_DB"',
+            "-m src.restore_preflight --snapshot", 'sudo flock "$RECORDS" sh -c "$CHECKED$ACQUIRE"',
+            'gate "stop the service" "${AS_OWNER[@]}" systemctl stop "$SERVICE"', '"$SNAPSHOT/questions.db" "$STAGED_DB"',
             '"${MIGRATE[@]}" --apply', "restore-hold --pre-restore-db", "reconcile --pre-restore-db",
             '"${RECOVER[@]}" --verified-utc', '"${LIFECYCLE[@]}" verify', 'gate "put the restored $tree in place"',
-            'sudo mv -f -- "$STAGED_DB" "$LIVE_DB"', '"${IN_PLACE[@]}" verify',
-            'gate "release the restore lock"', 'if ! sudo systemctl start "$SERVICE"; then')]
+            '"${AS_OWNER[@]}" mv -f -- "$STAGED_DB" "$LIVE_DB"', '"${IN_PLACE[@]}" verify',
+            'gate "release the restore lock"', 'if ! "${AS_OWNER[@]}" systemctl start "$SERVICE"; then')]
         self.assertEqual(script_order, sorted(script_order))
 
     def test_the_guide_states_the_restore_contract(self):

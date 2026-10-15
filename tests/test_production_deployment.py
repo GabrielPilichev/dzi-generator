@@ -858,7 +858,7 @@ class DeploymentTemplateTest(unittest.TestCase):
         self.assertNotIn("mv /var/lib/learnpilot/data /var", guide)
         restore = self.read("deploy/learnpilot-restore.sh")
         self.assertIn("for tree in uploads vault; do", restore)
-        self.assertIn('sudo mv -f -- "$STAGED_DB" "$LIVE_DB"', restore)
+        self.assertIn('"${AS_OWNER[@]}" mv -f -- "$STAGED_DB" "$LIVE_DB"', restore)
         # What it moves out of the state directory: the two trees, and the database with its sidecars.
         moved = set(re.findall(r'sh -c "\$MOVE" sh "(\$[A-Z_]+[^"]*)" "\$REPLACED', restore))
         self.assertEqual(moved, {"$STATE/$tree", "$LIVE_DB$sidecar", "$LIVE_DB$part"})

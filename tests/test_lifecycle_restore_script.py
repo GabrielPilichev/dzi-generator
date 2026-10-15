@@ -35,6 +35,7 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import time
 import unittest
 from collections import namedtuple
 from concurrent.futures import ThreadPoolExecutor
@@ -63,23 +64,37 @@ SECRET = "never-show-this-secret-value-of-the-service"
 
 # Sourced by every shim. $RESTORE_RUN is the directory of one server: its call log, its
 # counters, the files that stand for "the service is active" and "the timer is active",
-# and the process id of the script.
+# and the process id of the script. Several runs can work on one server at the same time:
+# each has its own $RESTORE_TAG, and with it its own counters, call log and process id.
 INJECT = r"""
 run=${RESTORE_RUN:?}
+tag=${RESTORE_TAG:-}
+pause() {   # pause POINT: the run waits here, holding whatever it holds, until the test lets it go on
+  : > "$run/paused$tag.$1"
+  waited=0
+  until [ -e "$run/resume$tag.$1" ]; do
+    waited=$((waited + 1))
+    if [ "$waited" -gt 2400 ]; then echo "shim: never let go on at $1" >&2; exit 98; fi
+    sleep 0.05
+  done
+}
 maybe_fail() {
   name=$1
-  file="$run/count.$(printf '%s' "$name" | tr -c 'A-Za-z0-9_.-' '_')"
+  file="$run/count$tag.$(printf '%s' "$name" | tr -c 'A-Za-z0-9_.-' '_')"
   count=0
   if [ -f "$file" ]; then count=$(cat "$file"); fi
   count=$((count + 1))
   echo "$count" > "$file"
-  echo "$name#$count" >> "$run/calls.log"
+  echo "$name#$count" >> "$run/calls$tag.log"
   for spec in ${RESTORE_TEST_HOOK:-}; do      # something else happens just before this call
     if [ "${spec%%=*}" = "$name#$count" ]; then "${spec#*=}"; fi
   done
+  for spec in ${RESTORE_TEST_PAUSE:-}; do     # the run waits just before this call does its work
+    if [ "$spec" = "$name#$count" ]; then pause "$spec"; fi
+  done
   for spec in ${RESTORE_TEST_KILL:-}; do
     if [ "$spec" = "$name#$count" ]; then
-      kill -9 "$(cat "$run/script.pid")"   # the script dies here, like the machine would
+      kill -9 "$(cat "$run/script$tag.pid")"   # the script dies here, like the machine would
       exit 137
     fi
   done
@@ -101,8 +116,21 @@ afterwards() {
     "") ;;
     TERM | INT | HUP)
       echo "shim: SIG$after to the script right after $name#$count" >&2
-      kill -s "$after" "$(cat "$run/script.pid")"
+      kill -s "$after" "$(cat "$run/script$tag.pid")"
       ;;
+    KILL)
+      echo "shim: SIGKILL to the script right after $name#$count did its work" >&2
+      kill -9 "$(cat "$run/script$tag.pid")"   # the script stops just after this call
+      exit 137
+      ;;
+    KILLALL)
+      # The machine stops just after this call: the script and everything it started, this shim
+      # and the step it is part of included (each run is a process group of its own).
+      echo "shim: SIGKILL to the whole run right after $name#$count did its work" >&2
+      kill -9 -- "-$(cat "$run/script$tag.pid")"
+      exit 137
+      ;;
+    PAUSE) pause "$name#$count" ;;
     *)
       echo "shim: $name#$count did its work and exits $after" >&2
       exit "$after"
@@ -112,14 +140,25 @@ afterwards() {
 """
 
 SHIMS = {
+    # Like sudo, it closes every descriptor from 3 up before it runs the command (sudo's closefrom): a
+    # lock the caller holds is not handed on through it. Unlike sudo, it does not stay as its parent.
     "sudo": r"""
 if [ "${1:-}" = "-u" ]; then shift 2; fi
+for fd in /dev/fd/*; do
+  fd=${fd##*/}
+  case $fd in
+    0 | 1 | 2) ;;
+    *) eval "exec $fd>&-" 2>/dev/null ;;
+  esac
+done
 exec "$@"
 """,
     "systemctl": r"""
 . "$RESTORE_SHIMS/inject.sh"
 for unit in "$@"; do :; done
 case $unit in
+  *registration-cleanup*.timer) kind=cleanup-timer; flag=cleanup-timer-active ;;
+  *registration-cleanup*.service) kind=cleanup; flag=cleanup-active ;;
   *backup*.timer) kind=timer; flag=timer-active ;;
   *backup*.service) kind=backup; flag=backup-active ;;
   *) kind=systemctl; flag=active ;;
@@ -150,10 +189,77 @@ case $1 in
 esac
 afterwards
 """,
+    # Records the call, and in flushed$tag.log what a call that was not failed was asked to flush; it
+    # cannot show that Linux flushes anything.
+    "sync": r"""
+. "$RESTORE_SHIMS/inject.sh"
+maybe_fail sync
+printf '%s %s\n' "$name#$count" "$*" >> "$run/flushed$tag.log"
+afterwards
+""",
     "curl": r"""
 . "$RESTORE_SHIMS/inject.sh"
 maybe_fail curl
 echo ok
+""",
+    # flock(1) as the script calls it: flock [-s|-x] [-n] DIRECTORY|FILE COMMAND [ARGUMENT...], or
+    # flock [-s|-x] [-n] DESCRIPTOR. The guard (a directory) is logged as "flock#N" when it is asked
+    # for and as "guard#N" once it is held; the lifetime lock (a file) as "life#N" before it is asked
+    # for; a descriptor is not logged. util-linux flock(1) is used where it is installed (Linux);
+    # elsewhere (macOS has none) flock.py takes the same flock(2) locks. The exclusion is the kernel's
+    # either way; the behaviour of util-linux flock(1) itself is shown only where it is installed.
+    "flock": r"""
+. "$RESTORE_SHIMS/inject.sh"
+options=
+while [ "$#" -gt 0 ]; do
+  case $1 in
+    -s | -x | -n) options="$options $1"; shift ;;
+    *) break ;;
+  esac
+done
+target=$1
+shift
+real=
+for candidate in /usr/bin/flock /bin/flock; do
+  if [ -x "$candidate" ]; then real=$candidate; break; fi
+done
+if [ "$#" -gt 0 ] && [ -d "$target" ]; then
+  maybe_fail flock
+  afterwards
+  set -- "$RESTORE_SHIMS/guarded" "$@"
+elif [ "$#" -gt 0 ]; then
+  maybe_fail life
+  afterwards
+fi
+if [ -n "$real" ]; then exec "$real" $options "$target" "$@"; fi
+exec "$RESTORE_REAL_PYTHON" -I "$RESTORE_SHIMS/flock.py" $options "$target" "$@"
+""",
+    # setpriv(1) as the script calls it: setpriv OPTION... -- COMMAND. The tests run as one user.
+    "setpriv": r"""
+while [ "$#" -gt 0 ] && [ "$1" != -- ]; do shift; done
+shift
+exec "$@"
+""",
+    "guarded": r"""
+. "$RESTORE_SHIMS/inject.sh"
+maybe_fail guard
+afterwards
+exec "$@"
+""",
+    "ps": r"""
+. "$RESTORE_SHIMS/inject.sh"
+maybe_fail ps
+exec /bin/ps "$@"
+""",
+    # The real rm, unless it is given the one path a test names: then it fails, and removes nothing.
+    "rm": r"""
+for arg in "$@"; do
+  if [ -n "${RESTORE_TEST_RM_REFUSES:-}" ] && [ "$arg" = "$RESTORE_TEST_RM_REFUSES" ]; then
+    echo "shim: rm refused for $arg" >&2
+    exit 1
+  fi
+done
+exec /bin/rm "$@"
 """,
     "python": r"""
 . "$RESTORE_SHIMS/inject.sh"
@@ -162,7 +268,8 @@ for arg in "$@"; do
     -c) maybe_fail "py:check"; break ;;
     --fingerprint) maybe_fail "py:fingerprint"; break ;;
     --snapshot) maybe_fail "py:preflight"; break ;;
-    --dry-run | --apply | restore-hold | restore-status | clock-recover | reconcile | verify)
+    --dry-run | --apply | restore-hold | restore-status | clock-recover | reconcile | verify \
+      | registrations-restore-gate | registrations-restore-status)
       maybe_fail "py:$arg"
       if [ "$arg" = "${RESTORE_TEST_PRETEND:-}" ]; then exit 0; fi   # "succeeds" without having run
       break
@@ -172,8 +279,43 @@ done
 exec "$RESTORE_REAL_PYTHON" -B "$@"
 """,
 }
+FLOCK_PY = '''"""flock(1) where util-linux is not installed.
+
+flock [-s|-x] [-n] PATH COMMAND [ARGUMENT...]: flock(2) on PATH (a directory or a file), a lock that
+the command inherits: it is held by the command and by everything it starts, until the last of them
+has ended or died. flock [-s|-x] [-n] DESCRIPTOR: flock(2) on a descriptor this process inherited,
+which stays locked for as long as its holder keeps it open. -n: 1 at once if it is taken."""
+import fcntl
+import os
+import sys
+
+arguments = sys.argv[1:]
+mode, wait = fcntl.LOCK_EX, True
+while arguments and arguments[0] in ("-s", "-x", "-n"):
+    option = arguments.pop(0)
+    if option == "-n":
+        wait = False
+    else:
+        mode = fcntl.LOCK_SH if option == "-s" else fcntl.LOCK_EX
+target, *command = arguments
+flags = mode if wait else mode | fcntl.LOCK_NB
+if target.isdigit() and not command:
+    try:
+        fcntl.flock(int(target), flags)
+    except BlockingIOError:
+        sys.exit(1)
+    sys.exit(0)
+descriptor = os.open(target, os.O_RDONLY)
+try:
+    fcntl.flock(descriptor, flags)
+except BlockingIOError:
+    sys.exit(1)
+os.set_inheritable(descriptor, True)
+os.execvp(command[0], command)
+'''
+HOLD = object()      # Restore.start(stdin=HOLD): the time is typed later, by the test
 # The script under its own process id, recorded where the shims find it.
-LAUNCH = 'echo $$ > "$RESTORE_RUN/script.pid"; exec bash "$0" "$@"'
+LAUNCH = 'echo $$ > "$RESTORE_RUN/script${RESTORE_TAG:-}.pid"; exec bash "$0" "$@"'
 _shims: dict = {}
 
 
@@ -187,6 +329,7 @@ def shim_directory() -> Path:
         unittest.addModuleCleanup(directory.cleanup)
         path = Path(directory.name).resolve()
         (path / "inject.sh").write_text(INJECT, encoding="utf-8")
+        (path / "flock.py").write_text(FLOCK_PY, encoding="utf-8")
         scripts = dict(SHIMS)
         for tool in WRAPPED_TOOLS:
             real = shutil.which(tool)
@@ -233,6 +376,8 @@ class Restore:
         cleanup(directory.cleanup)
         self.root = Path(directory.name).resolve()
         self.state = self.root / "state"
+        # The restore's own records (root's /var/lib/learnpilot-restore): the script makes it.
+        self.records = self.root / "records"
         self.live_db = self.state / "data" / "questions.db"
         self.lock = Path(lifecycle.restore_lock_path(self.live_db))
         for path, text in (("data/reference/official.txt", "reference"),
@@ -264,7 +409,7 @@ class Restore:
         self.shims = shim_directory()
         self.run_dir = self.root / "run"
         self.run_dir.mkdir()
-        for flag in ("active", "timer-active"):          # the service runs, and so does the backup timer
+        for flag in ("active", "timer-active", "cleanup-timer-active"):   # the service runs, and so do both timers
             (self.run_dir / flag).write_text("", encoding="utf-8")
         (self.run_dir / "unit-environment-files").write_text(
             f"EnvironmentFiles={self.env_file} (ignore_errors=no)\n", encoding="utf-8")
@@ -275,16 +420,51 @@ class Restore:
 
     # ------------------------------------------------------------------ running
 
-    def run(self, *arguments, fail="", kill="", after="", stdin=None, operator=OPERATOR,
-            note="грешен ъпдейт на друга таблица", **extra_env):
+    def run(self, *arguments, stdin=None, **options):
+        return self.wait(self.start(*arguments, stdin=stdin, **options))
+
+    def start(self, *arguments, tag="", fail="", kill="", after="", pause="", stdin=None, operator=OPERATOR,
+              note="грешен ъпдейт на друга таблица", **extra_env):
+        """The script, started and not waited for. Each run is a process group of its own (what
+        ``KILLALL`` kills); runs on one server at the same time need tags of their own."""
         argv = ["bash", "-c", LAUNCH, str(SCRIPT), "--snapshot", str(self.snapshot), "--operator", operator]
         if "--replaced-database-unreadable" not in arguments and note is not None:
             argv += ["--evidence-note", note]
-        for counter in self.run_dir.glob("count.*"):      # "mv#3" is the third mv of this run
+        for counter in self.run_dir.glob(f"count{tag}.*"):      # "mv#3" is the third mv of this run
             counter.unlink()
-        result = subprocess.run([*argv, *map(str, arguments)], input=utc() + "\n" if stdin is None else stdin,
-                                capture_output=True, text=True, cwd=self.root, timeout=180,
-                                env=self.environment(fail, kill, RESTORE_TEST_AFTER=after, **extra_env))
+        environment = self.environment(fail, kill, RESTORE_TEST_AFTER=after, RESTORE_TEST_PAUSE=pause,
+                                       RESTORE_TAG=tag, **extra_env)
+        command = [*argv, *map(str, arguments)]
+        if stdin is HOLD:     # nothing is typed until the test types it (type_the_time): the run waits there
+            return subprocess.Popen(command, stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                    text=True, cwd=self.root, start_new_session=True, env=environment)
+        typed = self.root / f"typed{tag}"                        # what is typed when the script asks
+        typed.write_text(utc() + "\n" if stdin is None else stdin, encoding="utf-8")
+        with typed.open(encoding="utf-8") as given:
+            return subprocess.Popen(command, stdin=given, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                                    text=True, cwd=self.root, start_new_session=True, env=environment)
+
+    @staticmethod
+    def type_the_time(process):
+        process.stdin.write(utc() + "\n")
+        process.stdin.close()
+
+    @staticmethod
+    def waits_for_input(process) -> bool:
+        """The script itself is running and has no command running: it waits at its prompt."""
+        children = subprocess.run(["pgrep", "-P", str(process.pid)], capture_output=True, text=True).stdout
+        return process.poll() is None and not children.split()
+
+    def wait(self, process, timeout=180):
+        if process.stdin is not None and process.stdin.closed:
+            process.stdin = None
+        try:
+            stdout, stderr = process.communicate(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            os.killpg(process.pid, 9)
+            process.communicate()
+            raise
+        result = subprocess.CompletedProcess(process.args, process.returncode, stdout, stderr)
         if SECRET in result.stdout + result.stderr:      # whatever a run prints, never a secret of the service
             raise AssertionError("the script printed a value from the service's environment file")
         return result
@@ -299,6 +479,7 @@ class Restore:
             "LEARNPILOT_STATE": str(self.state), "LEARNPILOT_APP": str(ROOT),
             "LEARNPILOT_PYTHON": str(self.shims / "python"),
             "LEARNPILOT_USER": _shims["user"], "LEARNPILOT_GROUP": _shims["group"],
+            "LEARNPILOT_RESTORE_RECORDS": str(self.records),
             **extra_env,
         }
 
@@ -307,13 +488,44 @@ class Restore:
         for counter in self.run_dir.glob("count.*"):
             counter.unlink()
         return subprocess.run(["bash", "-c", command_line], input=utc() + "\n" if stdin is None else stdin,
-                              capture_output=True, text=True, env=self.environment(), cwd=self.root, timeout=180)
+                              capture_output=True, text=True, env=self.environment(), cwd=self.root, timeout=180,
+                              start_new_session=True)
+
+    # ------------------------------------------------------------------ runs at the same time
+
+    def paused(self, tag: str, point: str) -> bool:
+        return (self.run_dir / f"paused{tag}.{point}").exists()
+
+    def go_on(self, tag: str, point: str):
+        (self.run_dir / f"resume{tag}.{point}").write_text("", encoding="utf-8")
+
+    @staticmethod
+    def wait_until(condition, what: str, timeout: float = 90):
+        deadline = time.monotonic() + timeout
+        while not condition():
+            if time.monotonic() > deadline:
+                raise AssertionError(f"timed out waiting until {what}")
+            time.sleep(0.02)
 
     # ------------------------------------------------------------------ what happened
 
-    def calls(self) -> list[str]:
-        log = self.run_dir / "calls.log"
+    def all_calls(self, tag: str = "") -> list[str]:
+        log = self.run_dir / f"calls{tag}.log"
         return log.read_text(encoding="utf-8").split() if log.exists() else []
+
+    def flushed(self, tag: str = "") -> dict[str, list[str]]:
+        """Every sync that was carried out, by call ("sync#2"): the paths it was asked to flush."""
+        log = self.run_dir / f"flushed{tag}.log"
+        lines = log.read_text(encoding="utf-8").splitlines() if log.exists() else []
+        return {call: [path for path in paths if path != "--"] for call, *paths in map(str.split, lines)}
+
+    def calls(self) -> list[str]:
+        """Every call but those of the registration cleanup unit, the flushes of the timer notes, the
+        guard, the lifetime lock and the look at who holds the restore, which ``tests.test_registration_restore_operations``
+        follows: the order of the rest is what the tests of this module pin, and those calls do not
+        move it."""
+        return [call for call in self.all_calls() if not call.startswith(("cleanup-", "sync#", "flock#", "guard#",
+                                                                           "ps#", "life#"))]
 
     def started(self) -> bool:
         return any(call.startswith("systemctl-start#") for call in self.calls())
@@ -513,12 +725,20 @@ class RestoreScriptSourceTest(unittest.TestCase):
         starts = [number for number, line in enumerate(self.code) if 'systemctl start "$SERVICE"' in line]
         self.assertEqual(len(starts), 1, "exactly one start of the service")
         (start,) = starts
-        self.assertEqual(self.code[start], 'if ! sudo systemctl start "$SERVICE"; then')  # not in a branch or a function
-        # Every other `systemctl start` is of the backup timer, never of the service.
-        others = [line for line in self.code if re.search(r"systemctl\s+start\b", line) and "$SERVICE" not in line]
-        self.assertEqual(len(others), 3)
-        for line in others:
-            self.assertIn('systemctl start "$BACKUP_TIMER"', line)
+        self.assertEqual(self.code[start], 'if ! "${AS_OWNER[@]}" systemctl start "$SERVICE"; then')  # not in a branch or a function
+        # The one other `systemctl start` is of a timer: the step under the guard (RESTART) that
+        # restart_timers runs for the backup timer and for the registration cleanup timer, once
+        # each; never of the service. restart_timers is run by the pre-flight (notes an earlier run
+        # left), by the end of a successful run and by finish (lock given back; restore complete
+        # without a start; stopped after the start).
+        others = [line.strip() for line in self.code if re.search(r"systemctl\s+start\b", line) and "$SERVICE" not in line]
+        self.assertEqual(others, ['if ! systemctl start "$6"; then'])
+        restarts = re.findall(r'sudo flock "\$RECORDS" sh -c "\$CHECKED\$RESTART" sh "\$RECORDS" "\$LOCK" '
+                              r'"\$OWNER_RECORD" "\$SWAP_RECORD"[\s\\]+"\$(\w+)"[\s\\]+'
+                              r'"\$(\w+)" "\$1"', self.text)
+        self.assertEqual(restarts, [("TIMER_NOTE", "BACKUP_TIMER"), ("CLEANUP_TIMER_NOTE", "CLEANUP_TIMER")])
+        self.assertEqual(len(re.findall(r"if ! restart_timers flagged; then", self.text)), 4)
+        self.assertEqual(len(re.findall(r"if ! restart_timers noted; then", self.text)), 1)
         later = "\n".join(self.code[start + 1:])
         self.assertNotRegex(later, r"(?m)^\s*gate\s")           # nothing mandatory is left for after the start
         self.assertNotIn("-m src.", later)                      # no tool is run after it, only named
@@ -526,36 +746,40 @@ class RestoreScriptSourceTest(unittest.TestCase):
         order = []
         for marker in (
                 "-m src.restore_preflight --snapshot",
-                'sudo mkdir -- "$LOCK"',
-                'sudo systemctl stop "$BACKUP_TIMER"',
-                'gate "stop the service" sudo systemctl stop "$SERVICE"',
+                'sudo flock "$RECORDS" sh -c "$CHECKED$ACQUIRE"',
+                '"$TIMER_NOTE" "$BACKUP_TIMER" "$STOP_IT"',
+                'gate "stop the service" "${AS_OWNER[@]}" systemctl stop "$SERVICE"',
                 '"$SNAPSHOT/questions.db" "$STAGED_DB"',
                 '-xzf "$SNAPSHOT/files.tar.gz"',
                 '"${MIGRATE[@]}" --apply',
+                '"${REGISTRATIONS[@]}" registrations-restore-gate',
                 'restore-hold --pre-restore-db "$LIVE_DB"',
                 "restore-status --expect-held all",
                 'reconcile --pre-restore-db "$LIVE_DB" --snapshot-db "$SNAPSHOT/questions.db"',
                 '"${LIFECYCLE[@]}" "${RECOVER[@]}" --verified-utc "$VERIFIED_UTC"',
                 '"${LIFECYCLE[@]}" verify',
+                '"${REGISTRATIONS[@]}" registrations-restore-status --expect held',
                 '"${LIFECYCLE[@]}" restore-status --expect-held "$ACCEPT_HELD"',
                 'gate "put the restored $tree in place"',
-                'sudo ln -- "$LIVE_DB" "$REPLACED/questions.db"',
-                'sudo mv -f -- "$STAGED_DB" "$LIVE_DB"',
+                '"${AS_OWNER[@]}" ln -- "$LIVE_DB" "$REPLACED/questions.db"',
+                '"${AS_OWNER[@]}" mv -f -- "$STAGED_DB" "$LIVE_DB"',
                 '"${IN_PLACE[@]}" verify',
+                '--db "$LIVE_DB" registrations-restore-status --expect held',
                 '"${IN_PLACE[@]}" restore-status --expect-held "$ACCEPT_HELD"',
-                'gate "release the restore lock" sudo rm -rf -- "$LOCK"'):
+                'gate "release the restore lock"'):
             self.assertEqual(before.count(marker), 1, marker)
             order.append(before.index(marker))
         self.assertEqual(order, sorted(order))
 
     def test_no_mandatory_command_can_hide_its_failure(self):
         functions = set(re.findall(r"(?m)^(\w+)\(\) \{", self.source))
-        self.assertEqual(functions, {"say", "usage", "die", "gate", "finish"})
+        self.assertEqual(functions, {"say", "usage", "die", "gate", "finish", "restart_timers", "timers_left", "outcome"})
         gates = re.findall(r'(?m)^\s*gate "[^"]*"(?: \\\n\s*| )(\S+)', self.source)
         self.assertGreater(len(gates), 30)
         # A gate runs an external program (or the builtin cd or test), never one of the script's own functions.
-        self.assertEqual(set(gates) - {"sudo", "cd", "test", '"${AS_SERVICE[@]}"', '"${MIGRATE[@]}"',
-                                       '"${LIFECYCLE[@]}"', '"${IN_PLACE[@]}"', '"${FINGERPRINT[@]}"'}, set())
+        self.assertEqual(set(gates) - {"sudo", "cd", "test", '"${AS_OWNER[@]}"', '"${AS_SERVICE[@]}"', '"${MIGRATE[@]}"',
+                                       '"${LIFECYCLE[@]}"', '"${IN_PLACE[@]}"', '"${FINGERPRINT[@]}"',
+                                       '"${REGISTRATIONS[@]}"'}, set())
         # No pipeline anywhere: outside quotes and ${...}, the only "|" left after "||" is the
         # alternation of a case pattern.
         for line in self.code:
@@ -599,10 +823,15 @@ class RestoreScriptSourceTest(unittest.TestCase):
         self.assertEqual(len(mentions), 2)                       # the option, and the sentence that refuses it
         self.assertEqual(self.code[mentions[0]].strip(), "--complete-swap)")
         self.assertTrue(self.code[mentions[1]].strip().startswith('die 2 "--complete-swap does not exist any more.'))
-        # What the script reads back from its lock: who holds it, whether a replacement had begun,
-        # whether the backup timer has to be started again. None of it lets a step be skipped.
-        self.assertEqual(sorted(set(re.findall(r'"\$LOCK/([a-z-]+)"', self.text))),
-                         ["backup-timer-was-active", "pid", "swap-started"])
+        # What the script reads back from its lock: whether a replacement had begun, and, from a
+        # lock an earlier version of this script left, whether a timer has to be started again (now
+        # noted in the restore's own records). Who holds the lock is recorded there too, not in the
+        # lock, which sits in a directory the service can write. None of it lets a step be skipped.
+        self.assertEqual(re.findall(r'"\$LOCK/', self.text), [])
+        # Inside it, only in the step that takes the restore, and only to see what an earlier version
+        # left there: each such mark is written into the records before anything else.
+        self.assertEqual(sorted(set(re.findall(r'"\$lock/([a-z-]+)"', self.text))),
+                         ["backup-timer-was-active", "registration-cleanup-timer-was-active", "swap-started"])
         self.assertEqual(self.text.count("INTERRUPTED_BEFORE=yes"), 1)
         for use in re.findall(r".*INTERRUPTED_BEFORE.*", self.text):
             self.assertRegex(use, r'INTERRUPTED_BEFORE=(no|yes)$|\[ "\$INTERRUPTED_BEFORE" = yes \]')
@@ -612,7 +841,7 @@ class RestoreScriptSourceTest(unittest.TestCase):
                       self.text)                                               # if it is another run's
         self.assertEqual(self.text.count("STAGE=$STATE/restore-staging-$STAMP"), 1)
         self.assertEqual(self.text.count("restore-staging-*"), 2)   # listing what was left behind; the guard of rm
-        self.assertEqual(self.text.count("rm -rf --"), 3)           # this run's copy, and the lock (twice)
+        self.assertEqual(self.text.count("rm -rf --"), 3)           # this run's copy, and the lock (RELEASE, twice)
         # The service's settings are asked of systemd, and nothing of them is ever echoed.
         for asked in ('show -p EnvironmentFiles "$SERVICE"', 'show -p Environment "$SERVICE"',
                       'show -p ActiveState "$BACKUP_SERVICE"', 'show -p ActiveState "$SERVICE"'):
@@ -623,11 +852,11 @@ class RestoreScriptSourceTest(unittest.TestCase):
         self.assertIn(f"LOCK=$STATE/data/{lifecycle.RESTORE_LOCK_NAME}", self.source)
 
     def test_the_database_is_replaced_last_and_by_one_rename(self):
-        flip = 'gate "replace the live database by the copy" sudo mv -f -- "$STAGED_DB" "$LIVE_DB"'
+        flip = 'gate "replace the live database by the copy" "${AS_OWNER[@]}" mv -f -- "$STAGED_DB" "$LIVE_DB"'
         self.assertEqual(self.text.count(flip), 1)
         position = self.text.index(flip)
         for earlier in ('gate "put the restored $tree in place"', "PRAGMA wal_checkpoint(TRUNCATE);",
-                        'gate "keep the database being replaced" sudo ln -- "$LIVE_DB" "$REPLACED/questions.db"',
+                        'gate "keep the database being replaced" "${AS_OWNER[@]}" ln -- "$LIVE_DB" "$REPLACED/questions.db"',
                         '"${LIFECYCLE[@]}" restore-status --expect-held "$ACCEPT_HELD"'):
             self.assertLess(self.text.index(earlier), position, earlier)
         # After it nothing changes the live state any more: two read-only checks, the lock, the start.
@@ -645,23 +874,29 @@ class RestoreScriptSourceTest(unittest.TestCase):
         # First it looks: what is at the live path, to the byte.
         look = [swap.index(step) for step in (
             '"${FINGERPRINT[@]}" "$LIVE_DB" --expect "$VERIFIED"', '"${FINGERPRINT[@]}" "$STAGED_DB" --expect "$VERIFIED"',
-            "case $at_live in", 'sudo sh -c "$UNMOVE"')]
+            "case $at_live in", '"${AS_OWNER[@]}" sh -c "$UNMOVE"')]
         self.assertEqual(look, sorted(look))
         # The copy is there: committed, and nothing is moved or removed on that path.
         copy = swap.split("      copy)", 1)[1].split("      original)", 1)[0]
         self.assertIn("PHASE=committed", copy)
-        self.assertNotRegex(copy, r"\b(mv|rm|sudo)\b")
+        self.assertNotRegex(copy, r"\b(mv|rm|sudo|AS_OWNER)\b")
         # Neither: nothing is moved back either, and the phase stays what keeps the lock.
         neither = swap.split("      *)\n        say", 1)[1]
-        self.assertNotRegex(neither, r"\b(mv|rm|sudo)\b|PHASE=")
+        self.assertNotRegex(neither, r"\b(mv|rm|sudo|AS_OWNER)\b|PHASE=")
         # "Nothing was replaced" is said in one place, reached only as `locked`.
         self.assertEqual(finish.count("Nothing was replaced"), 1)
         self.assertEqual(finish.count("PHASE=locked"), 1)
-        self.assertLess(finish.index('if [ "$INTERRUPTED_BEFORE" = yes ] || sudo rm -f -- "$LOCK/swap-started"; then'),
+        # The record of the replacement goes only once this run has taken its own replacement back.
+        self.assertLess(finish.index('if [ "$INTERRUPTED_BEFORE" = yes ] \\\n'
+                                     '            || sudo flock "$RECORDS" sh -c "$CHECKED$SWAP" sh "$RECORDS" '
+                                     '"$OWNER_RECORD" "$$" "$SWAP_RECORD" clear; then'),
                         finish.index("PHASE=locked"))
         # No file is removed on the way back except a second name of the live database, checked as one.
         self.assertIn('if [ "$1" -ef "$2" ]; then\n  rm -f -- "$2"', self.source)
-        self.assertEqual(len(re.findall(r"\brm -f -- ", self.text)), 3)   # that, the copy's empty log, one mark
+        # That, and the copy's empty log; a timer's note, after its timer started (RESTART); the record of
+        # a replacement this run took back itself (SWAP); the records of the restore when it is given
+        # back (RELEASE, three ways).
+        self.assertEqual(len(re.findall(r"\brm -f -- ", self.text)), 7)
         # Every step is written down before it is made, in one assignment.
         for step in re.findall(r'(?m)^ *UNDO\+=\(.*\)\n(.*)', self.source):
             self.assertRegex(step, r'^\s*gate "')
@@ -1013,9 +1248,10 @@ class RestoreScriptFlowTest(RestoreScriptTestCase):
         self.assertEqual(calls[-3:], ["systemctl-start#1", "curl#1", "timer-start#1"])
         # hold, reconcile, clock, verify: recovery comes after reconciliation.
         self.assertEqual([call for call in calls if call.startswith("py:") and "fingerprint" not in call], [
-            "py:check#1", "py:preflight#1", "py:--dry-run#1", "py:--apply#1", "py:restore-hold#1",
-            "py:restore-status#1", "py:reconcile#1", "py:clock-recover#1", "py:verify#1", "py:restore-status#2",
-            "py:verify#2", "py:restore-status#3"])
+            "py:check#1", "py:preflight#1", "py:--dry-run#1", "py:--apply#1", "py:registrations-restore-gate#1",
+            "py:restore-hold#1", "py:restore-status#1", "py:reconcile#1", "py:clock-recover#1", "py:verify#1",
+            "py:registrations-restore-status#1", "py:restore-status#2", "py:verify#2",
+            "py:registrations-restore-status#2", "py:restore-status#3"])
         # Every gate on the copy, then uploads and vault, and the database last.
         moves = [call for call in calls if call.split("#")[0] in ("mv", "ln")]
         self.assertEqual(moves, ["mv#1", "mv#2", "mv#3", "mv#4", "ln#1", "mv#5"])
@@ -1805,6 +2041,7 @@ class RestoreScriptGateTest(RestoreScriptTestCase):
                                  "tar", "install", "mv", "ln", "py:check", "py:preflight", "py:fingerprint",
                                  "py:--dry-run",
                                  "py:--apply", "py:restore-hold", "py:restore-status", "py:clock-recover",
+                                 "py:registrations-restore-gate", "py:registrations-restore-status",
                                  "py:reconcile", "py:verify"})
         self.assertGreaterEqual(calls.index("systemctl-start#1"), 35)
 
@@ -1852,7 +2089,7 @@ class RestoreScriptGateTest(RestoreScriptTestCase):
         # return without being a failure, and 1, which is also what a crash returns.
         gates = [call for call in self.control_calls if call.startswith("py:")
                  and call not in ("py:check#1", "py:preflight#1") and "fingerprint" not in call]
-        self.assertEqual(len(gates), 10)
+        self.assertEqual(len(gates), 13)   # the three lifecycle-independent registration calls included
 
         def fail_with(case):
             call, status = case
@@ -2062,7 +2299,7 @@ class InterruptedRunTest(RestoreScriptTestCase):
             # Until the last rename, the database at the live path is the one that was live.
             self.assertEqual(server.live_db.read_bytes(), server.original["data/questions.db"])
             self.assertEqual((server.locked(), server.active(), server.timer_active()), (True, False, False))
-            self.assertTrue(server.lock.joinpath("swap-started").exists())
+            self.assertTrue((server.records / "swap-state").exists())       # where only root can change it
             again = server.run()
             self.assertEqual(again.returncode, 0, again.stdout + again.stderr)
             self.assertIn("An earlier restore did not finish", again.stderr)
@@ -2091,7 +2328,7 @@ class InterruptedRunTest(RestoreScriptTestCase):
     def test_cut_off_before_the_replacement_the_lock_is_given_back_by_the_next_run_even_if_it_fails(self):
         server, _stamp = self.interrupted("py:reconcile#1")
         self.assertTrue(server.locked())
-        self.assertFalse(server.lock.joinpath("swap-started").exists())
+        self.assertFalse((server.records / "swap-state").exists())
         self.assertEqual(server.live_files(), server.original)
         # The next run fails too, cleanly. Nothing was ever replaced, so the lock goes and the timer returns.
         (abandoned,) = server.staging()
@@ -2110,7 +2347,7 @@ class InterruptedRunTest(RestoreScriptTestCase):
         self.assertIn("An EARLIER run was interrupted while it was replacing the live state, so the lock stays",
                       result.stderr)
         self.assertEqual((server.locked(), server.timer_active(), server.active()), (True, False, False))
-        self.assertTrue(server.lock.joinpath("swap-started").exists())
+        self.assertTrue((server.records / "swap-state").exists())
         self.assertIsNotNone(server.application_refuses())
         again = server.run()
         self.assertEqual(again.returncode, 0, again.stdout + again.stderr)
@@ -2122,13 +2359,33 @@ class InterruptedRunTest(RestoreScriptTestCase):
         self.addCleanup(running.wait)
         self.addCleanup(running.kill)
         server.lock.mkdir()
-        server.lock.joinpath("pid").write_text(f"{running.pid}\n", encoding="utf-8")
+        server.records.mkdir(mode=0o700)       # who holds the lock is recorded where only root can write
+        (server.records / "restore-owner").write_text(f"{running.pid}\n", encoding="utf-8")
         result = server.run()
         self.assertEqual(result.returncode, 1, result.stderr)
         self.assertIn(f"another restore is running (process {running.pid})", result.stderr)
         self.assertIn(UNTOUCHED, result.stderr)
         self.assertEqual((server.active(), server.live_files(), server.staging()), (True, server.original, []))
         self.assertTrue(server.locked())      # the other run's lock, not touched
+        self.assertEqual((server.records / "restore-owner").read_text(encoding="utf-8"), f"{running.pid}\n")
+
+    def test_nothing_in_the_lock_is_written_through_or_taken_as_its_holder(self):
+        # Review of 39157f5: the lock sits in a directory the service can write, and root read and
+        # wrote a pid file in it, through a symbolic link as well. The holder is recorded in the
+        # restore's own records instead, and nothing is written into the lock but its own mark.
+        server = self.server()
+        running = subprocess.Popen(["bash", "-c", "sleep 60; :", "learnpilot-restore.sh"])
+        self.addCleanup(running.wait)
+        self.addCleanup(running.kill)
+        server.lock.mkdir()
+        sentinel = server.root / "sentinel"
+        sentinel.write_bytes(f"{running.pid}\n".encode())                  # a running "restore", by its id
+        server.lock.joinpath("pid").symlink_to(sentinel)
+        result = server.run()
+        self.assertEqual(result.returncode, 0, result.stderr)              # an abandoned lock: taken over
+        self.assertIn("An earlier restore did not finish", result.stderr)
+        self.assertEqual(sentinel.read_bytes(), f"{running.pid}\n".encode())
+        self.assert_restored(server)
 
 
 class BackupOverlapTest(RestoreScriptTestCase):
@@ -2224,8 +2481,9 @@ class BackupOverlapTest(RestoreScriptTestCase):
         script = SCRIPT.read_text(encoding="utf-8")
         looks = [match.start() for match in re.finditer(r'show -p ActiveState "\$BACKUP_SERVICE"', script)]
         self.assertEqual(len(looks), 2)
-        self.assertLess(looks[0], script.index('sudo mkdir -- "$LOCK"'))
-        self.assertLess(script.index('sudo mkdir -- "$LOCK"'), looks[1])
+        lock = script.index('sudo flock "$RECORDS" sh -c "$CHECKED$ACQUIRE"')
+        self.assertLess(looks[0], lock)
+        self.assertLess(lock, looks[1])
         self.assertLess(looks[1], script.index('gate "stop the service"'))
 
         server = self.server()
@@ -2265,21 +2523,34 @@ class BackupOverlapTest(RestoreScriptTestCase):
         server = self.server()
         self.assertEqual(server.run(kill="mv#4").returncode, -9)
         self.assertFalse(server.timer_active())
-        self.assertTrue(server.lock.joinpath("backup-timer-was-active").exists())
+        self.assertTrue((server.records / "pending-backup-timer").exists())   # in the restore's own records
+        self.assertFalse(server.lock.joinpath("backup-timer-was-active").exists())
         with self.assertRaises(BackupError):          # the timer could be started by hand, or by a reboot:
             server.backup()                           # the tool itself refuses
         self.assertEqual(server.run(fail="py:verify#1=1").returncode, 1)
         self.assertFalse(server.timer_active())       # a failed attempt is not a safe end
         self.assertEqual(server.run().returncode, 0)
         self.assertTrue(server.timer_active())        # the run that finished remembered that it had been on
+        self.assertFalse((server.records / "pending-backup-timer").exists())
         self.assertEqual(server.calls()[-1], "timer-start#1")
 
-    def test_a_failed_restart_of_the_timer_is_said_loudly_and_is_not_a_failed_restore(self):
+    def test_a_failed_restart_of_the_timer_is_a_failed_run_and_the_next_run_starts_it(self):
+        # Review of b719728: a failed restart ended with exit 0 and the note gone.
         server = self.server()
-        result = server.run(fail="timer-start#1=1")
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("WARNING: the backup timer could not be started again. Start it by hand", result.stderr)
-        self.assertTrue(server.active())
+        result = server.run(fail="timer-start#1=1 timer-start#2=1")    # the restart, and finish's retry
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertIn("WARNING: the backup timer could not be started again", result.stderr)
+        self.assertNotIn("RESTORE COMPLETE", result.stderr)
+        self.assertTrue(server.active())                                # the restore itself is in place
+        self.assertEqual((server.timer_active(), server.locked()), (False, False))
+        self.assertTrue((server.records / "pending-backup-timer").exists())
+        earlier = len(server.calls())
+        self.assertEqual(server.run().returncode, 0)
+        calls = server.calls()[earlier:]                                # this run's: the log is kept
+        self.assertLess(calls.index("timer-start#1"), calls.index("py:preflight#1"))   # first thing
+        self.assertEqual(calls[-1], "timer-start#2")
+        self.assertTrue(server.timer_active())
+        self.assertFalse((server.records / "pending-backup-timer").exists())
 
 
 class DocumentedCommandTest(RestoreScriptTestCase):

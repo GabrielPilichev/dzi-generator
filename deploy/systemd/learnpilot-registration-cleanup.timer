@@ -1,0 +1,15 @@
+# Registration cleanup every ten minutes (design 6.5, decision D18).
+# Install and enable together with learnpilot-registration-cleanup.service; see
+# docs/DEPLOYMENT.md, section 34. Runs whether or not anyone visits the site.
+
+[Unit]
+Description=LearnPilot registration cleanup every ten minutes
+
+[Timer]
+OnCalendar=*:0/10
+AccuracySec=30s
+# One run after downtime or a restore pause, if ticks were missed.
+Persistent=true
+
+[Install]
+WantedBy=timers.target

@@ -189,6 +189,24 @@ def build_parser() -> argparse.ArgumentParser:
              "(ends a 'clock behind' refusal).",
     )
     sub.add_parser(
+        "registrations-restore-gate",
+        help="Used by deploy/learnpilot-restore.sh on the STAGED copy of a snapshot: void and scrub every "
+             "pending registration and hold registration (a hold the copy already has is kept). "
+             "One transaction; repeatable.",
+    )
+    status = sub.add_parser(
+        "registrations-restore-status",
+        help="Read-only: show the registration hold and pending count; with --expect, exit non-zero unless "
+             "no registration is pending, the control row exists and the hold is in the expected state.",
+    )
+    status.add_argument("--expect", choices=("held", "open"), help="the hold state the database must be in")
+    sub.add_parser(
+        "registrations-release-hold",
+        help="End the hold a restore set: the only way it ends. Requires --acknowledge-lost-history.",
+    ).add_argument(
+        "--acknowledge-lost-history", action="store_true",
+        help="Accept that the registration send accounting since the snapshot is gone.")
+    sub.add_parser(
         "clear-registration-limit",
         help=f"Delete the registration send history of one email: it may receive 8 more codes the same day "
              f"(needs the application's {SECRET_KEY_ENV}).",
@@ -707,6 +725,15 @@ def cmd_registrations_cleanup(conn, args) -> str:
             )
         return "registrations-cleanup --check: OK (no pending registration is older than an hour)"
     conn.execute("BEGIN IMMEDIATE")
+    # Looked for again with the write lock held: a restore that took its lock while this
+    # run waited for the database must not find a cleanup writing after it. A lock made
+    # between this look and the commit is caught by the restore's fingerprint of the live
+    # database (deploy/learnpilot-restore.sh), as a failed restore.
+    if lifecycle.restore_lock_present(args.database_path):
+        raise OperatorError(
+            "a restore of this database began while the cleanup waited for the database "
+            f"({lifecycle.restore_lock_path(args.database_path)} exists); nothing was changed"
+        )
     result = registration.cleanup(conn, clock=_utcnow)
     if result.clock_behind:
         raise OperatorError(
@@ -730,6 +757,93 @@ def cmd_registrations_clock_accept(conn, args) -> str:
         f"registration high-water mark was {accepted.previous} UTC; it is now the current time, "
         f"{accepted.current} UTC. Registration refuses again if the clock goes back further."
     )
+
+
+def cmd_registrations_restore_gate(conn, args) -> str:
+    """Design 3.9: the gate, on the staged copy named by ``--db``. One transaction: the
+    caller commits after this returns and rolls back after any exception."""
+    require_registration_tables(conn)
+    conn.execute("BEGIN IMMEDIATE")
+    result = registration.restore_gate(conn, clock=_utcnow)
+    kept = " (the copy already carried a hold, kept as it was)" if result.already_held else ""
+    return (
+        f"registrations-restore-gate: {result.voided} pending registration(s) voided and scrubbed; "
+        f"registration held since {result.hold_set_at} UTC{kept}"
+    )
+
+
+def cmd_registrations_restore_status(conn, args) -> str:
+    """Design 3.9, 6.6. Never writes: the connection is made read-only for the statement."""
+    require_registration_tables(conn)
+    conn.execute("PRAGMA query_only = ON")
+    state = registration.restore_status(conn)
+    held = "held" if state.held else "open"
+    summary = (
+        f"registrations-restore-status: {state.pending} pending registration(s); "
+        f"control row {'present' if state.control_present else 'MISSING'}; registration {held}"
+        + (f" since {state.hold_set_at} UTC" if state.held else "")
+    )
+    if args.expect is None:
+        return summary
+    problems = []
+    if state.pending:
+        problems.append(f"{state.pending} pending registration(s) exist")
+    if not state.control_present:
+        problems.append("the registration control row is missing")
+    elif held != args.expect:
+        problems.append(f"registration is {held}, expected {args.expect}")
+    if problems:
+        raise CheckFailed(f"{summary}\nregistrations-restore-status --expect {args.expect}: FAIL\n"
+                          + "\n".join(f"  - {problem}" for problem in problems))
+    return f"{summary}\nregistrations-restore-status --expect {args.expect}: OK"
+
+
+RELEASE_CONSEQUENCE = (
+    "Releasing the registration hold accepts that the send accounting from before the restore is lost:\n"
+    "  - the ledger starts from the snapshot's state, so an address that already received 8 codes in a day\n"
+    "    may receive up to 8 further codes in that same day (80 guesses against its codes, once);\n"
+    "  - the total hourly budget and the circuit start from the snapshot's state too;\n"
+    "  - nothing else changes: the clock high-water mark is NOT lowered (use registrations-clock-accept,\n"
+    "    after checking the time, if the clock is behind it), and no limit is cleared."
+)
+
+
+def cmd_registrations_release_hold(conn, args) -> str:
+    """Design 3.9: the only way a restore hold ends. The consequence is printed first."""
+    from web.services import lifecycle
+
+    print(RELEASE_CONSEQUENCE)
+    if not args.acknowledge_lost_history:
+        raise OperatorError(
+            "refused: this command releases the hold only with --acknowledge-lost-history, which states "
+            "that the lost issuance history above is accepted. Nothing was changed"
+        )
+    require_registration_tables(conn)
+    if lifecycle.restore_lock_present(args.database_path):
+        raise OperatorError(
+            "a restore of this database is in progress or was left unfinished "
+            f"({lifecycle.restore_lock_path(args.database_path)} exists); nothing was changed"
+        )
+    conn.execute("BEGIN IMMEDIATE")
+    # Looked for again with the write lock held: a restore that took its lock while this
+    # command waited for the database must not find its hold gone. The dispatcher rolls
+    # back, so neither the hold nor the high-water mark changes.
+    if lifecycle.restore_lock_present(args.database_path):
+        raise OperatorError(
+            "a restore of this database began while the release waited for the database "
+            f"({lifecycle.restore_lock_path(args.database_path)} exists); nothing was changed"
+        )
+    result = registration.release_hold(conn, clock=_utcnow)
+    if not result.released:
+        return "registration is not held; nothing was changed"
+    message = f"registration hold (set {result.hold_set_at} UTC) released; the high-water mark is unchanged."
+    if result.clock_behind:
+        message += (
+            f" The clock is behind the high-water mark ({result.high_water_at} UTC) by more than 300 seconds, "
+            "so registration still answers 'unavailable'. Check the server's time; "
+            "registrations-clock-accept ends that refusal."
+        )
+    return message
 
 
 def cmd_clear_registration_limit(conn, args) -> str:
@@ -774,6 +888,9 @@ COMMANDS = {
     "list": cmd_list,
     "registrations-cleanup": cmd_registrations_cleanup,
     "registrations-clock-accept": cmd_registrations_clock_accept,
+    "registrations-restore-gate": cmd_registrations_restore_gate,
+    "registrations-restore-status": cmd_registrations_restore_status,
+    "registrations-release-hold": cmd_registrations_release_hold,
     "clear-registration-limit": cmd_clear_registration_limit,
 }
 
