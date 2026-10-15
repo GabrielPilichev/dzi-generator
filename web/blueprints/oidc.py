@@ -42,7 +42,7 @@ from web.redirects import safe_redirect_target
 from web.request_db import get_request_db, request_db_if_open
 from web.request_integrity import OAUTH_STATE, SAME_ORIGIN, integrity_policy
 from web.services import accounts as accounts_service
-from web.services import google_oidc, login_throttle, oidc_accounts
+from web.services import google_oidc, login_throttle, oidc_accounts, profiles
 
 oidc_bp = Blueprint("oidc", __name__)
 
@@ -264,7 +264,10 @@ def _sign_in(transaction: dict, profile: oidc_accounts.GoogleProfile) -> str:
     conn = get_request_db()
     conn.execute("BEGIN IMMEDIATE")
     try:
-        result = oidc_accounts.sign_in_or_onboard(conn, profile)
+        # With the profile gate on, a student created here is marked in this same
+        # transaction (docs/reviews/EMAIL_REGISTRATION_DESIGN.md, 7.4); nobody else is.
+        result = oidc_accounts.sign_in_or_onboard(
+            conn, profile, require_profile=profiles.enabled_in(current_app.config))
         if result.user is None:
             conn.rollback()
         else:
@@ -282,7 +285,13 @@ def _sign_in(transaction: dict, profile: oidc_accounts.GoogleProfile) -> str:
     _log_callback(result.outcome, oauth_state.INTENT_SIGNIN, user_id=user["id"])
     # The role is the one read at the write, so a target chosen while anonymous
     # cannot pick the fallback.
-    return safe_redirect_target(transaction["next"], role_home(user["role"]))
+    target = safe_redirect_target(transaction["next"], role_home(user["role"]))
+    if result.profile_required:
+        # A student created with the mark goes to the profile form first, carrying the
+        # validated target (validated again when the form is submitted and when it is
+        # used). The redirect is a plain GET; nothing is started on the way.
+        return url_for("account.profile", next=target)
+    return target
 
 
 def _prepare_link(transaction: dict, profile: oidc_accounts.GoogleProfile) -> str:
