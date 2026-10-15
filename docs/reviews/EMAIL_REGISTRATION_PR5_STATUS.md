@@ -7,13 +7,14 @@ Earlier PRs: `EMAIL_REGISTRATION_PR1_STATUS.md` to `PR4_STATUS.md` (merged: #335
 Operator guide: `docs/DEPLOYMENT.md`, section 34 (and sections 16, 17, 19).
 
 **Status:** PR #339, branch `feature/registration-operations`. Committed: `36cffbe` (implementation),
-`b719728` (fixes after the first independent review), `39157f5` (the timer fix after the second) and
-`f75ca8d` (ownership, guard and records after the third). The fourth independent review, of
-`f75ca8d`, asked for changes: four P1 blockers in restore ownership and recovery. Their fixes (below,
-"Lifetime exclusion, protected ownership and swap state") are **unstaged and uncommitted** on top of
-`f75ca8d`, **awaiting independent review, not approved**. Registration is **not activated**: both
-build gates stay off. No migration, no schema change, no deployment, no provider, no real database,
-no real message, no server. Nothing here has run under systemd or on Linux.
+`b719728` (fixes after the first independent review), `39157f5` (the timer fix after the second),
+`f75ca8d` (ownership, guard and records after the third) and `cc4e2d5` (lifetime exclusion, protected
+ownership and swap state after the fourth). The fifth independent review, of
+`cc4e2d599f805791bcf320474252c68cc13bc105`, asked for changes: three recovery defects around an
+unfinished replacement. Their fixes (below, "Recovery over an unfinished replacement") are **unstaged
+and uncommitted** on top of `cc4e2d5`, **awaiting independent review, not approved**. Registration is
+**not activated**: both build gates stay off. No migration, no schema change, no deployment, no
+provider, no real database, no real message, no server. Nothing here has run under systemd or on Linux.
 
 ## Review history
 
@@ -270,7 +271,7 @@ as resolved, and so were the schema-scrub and hold-release fixes. Four P1 blocke
 | 3 | Taking the restore went by whether the lock directory was there. Renamed or removed under a running restore, the next run made a fresh one and wrote itself over the recorded holder without consulting it. |
 | 4 | Both legacy timer markers could be lost: a timer-state query that failed before the notes were written, recovery starts that also failed, and the cleanup that removed the legacy lock with the markers in it. |
 
-### Lifetime exclusion, protected ownership and swap state (unstaged, awaiting independent review)
+### Lifetime exclusion, protected ownership and swap state, committed as `cc4e2d5`
 
 In `deploy/learnpilot-restore.sh`; operator text in `docs/DEPLOYMENT.md`, sections 17 and 34.
 
@@ -402,6 +403,110 @@ failing cases, across every one of the four blockers' tests. Weakening one thing
 The two added tests were run afterwards on the fixed tree, on `f75ca8d` and on the mutant each was added
 for; each passes on the first and fails on the other two.
 
+### Fifth independent review, of `cc4e2d599f805791bcf320474252c68cc13bc105`: REQUEST CHANGES
+
+Independently confirmed as resolved: the surviving-descendant exclusion (lifetime lock), protected
+ownership, the record-path security, the schema-scrub rejection and the hold-release fixes. Three
+recovery defects remained, all around a replacement of the live state that had not finished:
+
+| # | Finding |
+| --- | --- |
+| 1 | `RELEASE empty` removed an empty lock directory over an unfinished replacement. A killed before its second move (live uploads set aside, the copy's not in place); B, taking it over, signalled (SIGTERM) during the guarded `ps` look at A: the step still recorded B, and B's failure handling removed the empty lock although `swap-state` was there and the live uploads were missing. The application could then start. |
+| 2 | `RESTART` did not look at `swap-state`. The flush of a migrated `swap-started` failed after both timer notes were written: `swap-state` without `restore-owner`. With the service-writable lock directory removed, the pre-flight of a later run (which then failed) started both timers and removed their notes over the half-replaced state. The documented manual recovery had the same gap. |
+| 3 | A retried migration did not repeat a failed flush. The second migrated note's flush failed; the retry found the note there, skipped the flush, recorded its holder with no `sync` at all, then failed (timer state not readable, starts failing) and its failure handling removed the lock with the legacy markers in it. |
+
+### Recovery over an unfinished replacement (unstaged, awaiting independent review)
+
+The invariant, checked against every branch of `RELEASE` and `RESTART`: **while `swap-state` records a
+replacement that has not finished, the lock directory is not removed and no timer is started, whoever is
+recorded as the holder and whatever is left of the lock directory.** In `deploy/learnpilot-restore.sh`;
+operator text in `docs/DEPLOYMENT.md`, section 34. The ownership protocol, the guard, the lifetime lock
+and the record checks are unchanged.
+
+1. **`RELEASE empty` (finding 1).** After the holder check, and before `rmdir`: if `swap-state` exists,
+   refuse (`a replacement of the live state is recorded as begun (...): the restore lock stays`). The
+   lock directory and the records stay; `finish` says `A restore lock is left that this run does not give
+   back`, and the next run takes the restore over. A run that is not the recorded holder (taking it
+   failed, or no holder is recorded) was already refused by the holder check and still is.
+2. **`RESTART` (finding 2).** It now takes `SWAP_RECORD` (arguments: `RECORDS LOCK OWNER_RECORD
+   SWAP_RECORD NOTE TIMER noted|flagged`), checks it as a record (`record`: a link, a directory, a pipe
+   or a second name is refused, status 1), and returns 3 while it exists, independently of
+   `restore-owner` and of the lock directory. 3 keeps the note; in a pre-flight it starts nothing, at the
+   end of a run it is reported (`WARNING ... a restore is held, or was left unfinished`) and the run does
+   not exit 0. The documented manual recovery (section 34) refuses as well when anything stands at
+   `restore-owner`, `swap-state` or the lock path (`-e` or `-L`, so a link, dangling or not, or a
+   directory fails closed), and the guide says that an orphaned `swap-state` is ended by running the
+   script, never by hand.
+3. **Migration flushes (finding 3).** In `ACQUIRE`, the legacy marks are written into the records as
+   before (only if missing). Then **every** note and `swap-state` that exists is flushed, file and
+   directory (`sync -- RECORD RECORDS`), whether this attempt wrote it, an earlier failed attempt wrote
+   it, or it was there for another reason; only then is the holder written. A failed `sync` ends the step
+   with status 1 before the holder is recorded: the legacy markers stay in the lock directory (nothing
+   can remove them without being the holder) and the run stops untouched (`... as they were`). The cost
+   is one more `sync` per existing record when a restore is taken over.
+4. **The other branches, reviewed and unchanged.** `RELEASE all` already refuses while `swap-state`
+   exists. `RELEASE lock` and `RELEASE owner` run only for the holder, after its own `SWAP begin`
+   rewrote `swap-state` and after every gate that follows the final rename (`lock`), or once the service
+   runs on the restored state (`owner`); the replacement they end is the one this run finished.
+   `SWAP clear` is called only when no earlier run's record was found (`INTERRUPTED_BEFORE=no`), after
+   this run moved everything back. `restart_timers` is called in the pre-flight, after `RELEASE all`,
+   after `RELEASE owner`, and after the start whether or not `RELEASE owner` succeeded; every one of
+   those calls now meets the `swap-state` check in `RESTART` itself.
+
+Regressions, in `tests/test_registration_restore_operations.py` (each deterministic: the signal is sent
+while the run is paused under the guard, failures are injected at a numbered call; no lock is tampered
+with in the first):
+
+- `SwapStateTest.test_a_takeover_cut_short_while_it_looks_at_the_holder_leaves_a_partial_replacement_locked`:
+  A killed at its second move; B paused at `ps#1` inside `ACQUIRE`, sent SIGTERM, SIGINT or SIGHUP,
+  released: B ends with the signal's status, is the recorded holder, and `swap-state`, the lock
+  directory, the missing live uploads and the old vault are all still there; `web.production` refuses to
+  start; no timer or service is started or stopped by B. A finished run then ends it (3 cases).
+- `LegacyIntentMigrationTest.test_a_replacement_record_left_without_a_holder_keeps_every_noted_timer_stopped`:
+  a legacy lock from a run killed at its second move, with `swap-started` and the markers of the backup
+  timer, the cleanup timer or both; the flush of `swap-state` fails (after each note's); the lock
+  directory is removed; the next run fails its pre-flight: no timer start, every note and `swap-state`
+  kept, both timers inactive, the live uploads still missing. A finished run then brings back exactly
+  the noted timers (3 cases).
+- `LegacyIntentMigrationTest.test_a_migration_retried_after_a_failed_flush_flushes_every_record_again_before_it_changes_hands`:
+  a legacy lock; the first, the second or (with `swap-started`) the third flush fails; the retry has a
+  timer state systemd cannot report and both starts failing. Hooks note, just before each `sync`, whether
+  a holder is recorded and what is in the lock directory; the `sync` shim now logs what each call that
+  was carried out flushed (`flushed.log`). Each note (and `swap-state`) is flushed with the records
+  directory while no holder is recorded and every legacy marker is still in the lock; then the holder is
+  recorded (`An earlier restore did not finish`), the notes outlive the failure handling, and a clean run
+  brings both timers back (3 cases). The shim records the order of the syncs, not that anything reaches
+  a disk.
+- `DocumentedTimerRecoveryTest`: the command of section 34, extracted from `docs/DEPLOYMENT.md` as it
+  stands, paths substituted, run under the shims: it starts a noted timer and removes its note when
+  nothing is there, and refuses (no start, note kept) with `swap-state` as a file, a dangling link or a
+  directory, with `restore-owner`, and with the lock directory (6 cases).
+- Source pins updated for the new `RESTART` arguments (`RestoreScriptOrderTest`,
+  `test_lifecycle_restore_script.RestoreScriptSourceTest`); no assertion was dropped.
+
+Mutation evidence, on disposable copies of the tree outside the repository (`rsync` without `.git`),
+running the four new tests (15 cases) and the two updated source pins (`RestoreScriptOrderTest`,
+`RestoreScriptSourceTest`); failing cases counted. The fixed tree passes. The tree with the script and
+`docs/DEPLOYMENT.md` of `cc4e2d5` (tests and harness of this change): 14 failing, every case of the four
+new tests that concerns a finding (3 takeover, 3 orphaned record, 3 retried migration, the 3 `swap-state`
+cases of the documented command) and both source pins; the 3 other cases of the documented command
+(nothing there, `restore-owner`, the lock) pass there as well, as they should. Weakening one thing at a
+time:
+
+| Copy | Failing cases | Which |
+| --- | --- | --- |
+| `RELEASE empty` without the `swap-state` check | 3 | the 3 takeover cases (TERM, INT, HUP) |
+| `RESTART` without the `swap-state` check (record check kept) | 3 | the 3 orphaned-record cases |
+| The documented command without the `swap-state` lines | 3 | its 3 `swap-state` cases |
+| The documented command with `-e swap-state` only | 1 | the dangling link |
+| `ACQUIRE` flushing only what this attempt wrote (as `cc4e2d5`) | 3 | the 3 retried-migration cases |
+| `ACQUIRE` flushing the notes again, not `swap-state` | 4 | the retried migration with `swap-started`; the 3 orphaned-record cases (their first run no longer fails at the `swap-state` flush, and takes the restore) |
+| `ACQUIRE` flushing after the holder is recorded | 6 | the 3 retried-migration cases; the 3 orphaned-record cases (`restore-owner` left behind by the failed step) |
+
+Every copy passes `bash -n`. The test of the third finding first errored instead of failing on
+`cc4e2d5` (no `sync` at all, so no hook log) and matched a flush of the first attempt; both were
+corrected (an absent log reads as no syncs; the retry runs under its own tag) before the counts above.
+
 ## What PR 5 contains
 
 | Piece | Where |
@@ -444,10 +549,11 @@ for; each passes on the first and fails on the other two.
 - The timer is started again wherever the backup timer is: after a failure that gave the lock back,
   after "restore complete, service not running", after a successful start, and after a run stopped
   or failed once the service was started. A timer that was not active is never started. Its note
-  goes only once the start succeeded, and only while no restore lock exists; otherwise the run does
-  not exit 0 and the next run starts the timer first (no lock) or at its end (lock taken over).
-  Protocol: "The timer fix", "Ownership, guard and records" and "Lifetime exclusion, protected
-  ownership and swap state" above. Who holds the restore and whether a replacement has begun are in
+  goes only once the start succeeded, and only while no restore is held or left unfinished (no
+  `restore-owner`, no `swap-state`, no lock directory); otherwise the run does not exit 0 and the
+  next run starts the timer first (none of them there) or at its end (restore taken over and
+  finished). Protocol: "The timer fix", "Ownership, guard and records", "Lifetime exclusion, protected
+  ownership and swap state" and "Recovery over an unfinished replacement" above. Who holds the restore and whether a replacement has begun are in
   root's records, never in the lock directory; every command after the restore is taken holds the
   lifetime lock.
 - Step 4b, after the migration of the copy and before the final fingerprint:
@@ -551,8 +657,9 @@ cryptography 50.0.2). Results are in the final report of the implementation sess
 | The restore's records: place, path checks, in-lock markers, the 39157f5 location, removal failure, outcome on the retry path | `RecordsStorageTest`; `test_lifecycle_restore_script.InterruptedRunTest` (holder, `pid` link) |
 | Lifetime exclusion: a surviving command of a killed restore; every command after the restore is taken | `SurvivingWriterTest` |
 | The lock directory removed or replaced under a running restore | `LockDirectoryIsNoAuthorityTest` |
-| Swap state in the records: planted links, an interrupted partial replacement, when the record goes | `SwapStateTest` |
-| Legacy timer and swap markers migrated before anything can fail | `LegacyIntentMigrationTest` |
+| Swap state in the records: planted links, an interrupted partial replacement, when the record goes, a takeover cut short over a partial replacement | `SwapStateTest` |
+| Legacy timer and swap markers migrated before anything can fail; an orphaned `swap-state` keeps the timers stopped; a retried migration flushes again before the holder changes | `LegacyIntentMigrationTest` |
+| The documented manual timer recovery, run as it stands in the guide | `DocumentedTimerRecoveryTest` |
 | Staged-copy invalidation, persistent hold, existing hold, no carry-over, accounts and canonical content kept | `RegistrationGateOnTheStagedCopyTest` |
 | N7, N9 (order, hash, live untouched, failure publishes nothing) | `SnapshotScrubTest`; `test_backup_sqlite.py`, `test_application_backup.py` unchanged |
 | Units against the real parser | `UnitFilesTest` |
@@ -599,5 +706,9 @@ logs and pauses before the real `ps`; the `rm` shim fails only for the one path 
 - No claim of VPS validation is made.
 - Still open from the design: D16 (privacy), D17 configuration, Nginx evidence, sender
   containment evidence, teacher quotas (PR 7), password recovery (PR 8, which must extend the gate,
-  status and scrub), and an independent review of "Lifetime exclusion, protected ownership and swap
-  state" above.
+  status and scrub), and an independent review of "Recovery over an unfinished replacement" above.
+- Power loss: the regressions of finding 3 show the order of the `sync` calls (the shim logs them),
+  not that a record survives a lost page cache; GNU `sync -- FILE DIR` on the production filesystem is
+  still unrun. The signal in the finding 1 regression is delivered by the test while the step is paused;
+  bash's deferral of the trap until the command substitution ends was observed with macOS
+  `/bin/bash` 3.2.57, not with Ubuntu's bash 5.

@@ -326,8 +326,11 @@ PREPARE='
 #     run still holds it, 4. It is held until this step ends, so a command of an earlier run that
 #     starts in between finds this run recorded and refuses.
 #   * What an earlier version of this script kept in the lock directory (a timer that was active,
-#     a replacement that had begun) is written into the records and flushed to disk before
-#     anything else; if that fails, nothing has changed hands and the lock is as it was.
+#     a replacement that had begun) is written into the records. Then every note and swap-state
+#     that is there is flushed to disk (file, then directory), written now or by an earlier attempt
+#     that failed before its flush: a retry repeats the flush, it never takes a record's presence
+#     as proof that it is on disk. If any of that fails, nothing has changed hands and the lock and
+#     what is in it are as they were.
 #   * Only then is this run recorded as the holder, and the lock directory made if it is missing.
 # 0 a new restore; 2 an earlier one taken over. A line "noted:NOTE" for each note and "swap:begun"
 # if a replacement is recorded as begun.
@@ -370,17 +373,19 @@ ACQUIRE='
     earlier=yes
     if [ -e "$lock/backup-timer-was-active" ] && [ ! -e "$7" ]; then
       printf "%s\n" "$8" > "$7"
-      sync -- "$7" "$1"
     fi
     if [ -e "$lock/registration-cleanup-timer-was-active" ] && [ ! -e "$9" ]; then
       printf "%s\n" "${10}" > "$9"
-      sync -- "$9" "$1"
     fi
     if [ -e "$lock/swap-started" ] && [ ! -e "$swap" ]; then
       printf "%s\n" "begun under an earlier version of this script" > "$swap"
-      sync -- "$swap" "$1"
     fi
   fi
+  for each in "$7" "$9" "$swap"; do
+    if [ -e "$each" ]; then
+      sync -- "$each" "$1"
+    fi
+  done
   printf "%s\n" "$pid" > "$owner_record"
   if [ ! -d "$lock" ]; then
     mkdir -- "$lock"
@@ -457,9 +462,11 @@ SWAP='
     sync -- "$1"
   fi'
 
-# Under the guard: RECORDS LOCK OWNER_RECORD NOTE TIMER noted|flagged. Only while no restore is held
-# or was left unfinished, which the records say and not the lock directory (3 otherwise; and 3 as
-# well while a lock directory is there): the timer is started (with "noted", only if it has a
+# Under the guard: RECORDS LOCK OWNER_RECORD SWAP_RECORD NOTE TIMER noted|flagged. Only while no
+# restore is held or was left unfinished, which the records say and not the lock directory: 3 while
+# a holder is recorded, while a replacement is recorded as begun (swap-state, with a holder or
+# without one: a replacement that did not finish leaves the live state half replaced), and as well
+# while a lock directory is there. Otherwise the timer is started (with "noted", only if it has a
 # note: 2 otherwise), and then, only if that succeeded, its note removed. 4 the start failed (the
 # note stays), 5 the note could not be removed. The removal is flushed to disk as well; a power
 # loss before that can bring the note back, and the next run then starts an active timer once
@@ -468,27 +475,30 @@ RESTART='
   records "$1"
   record "$3"
   record "$4"
-  if [ -e "$3" ] || [ -e "$2" ] || [ -L "$2" ]; then
+  record "$5"
+  if [ -e "$3" ] || [ -e "$4" ] || [ -e "$2" ] || [ -L "$2" ]; then
     exit 3
   fi
-  if [ "$6" = noted ] && [ ! -e "$4" ]; then
+  if [ "$7" = noted ] && [ ! -e "$5" ]; then
     exit 2
   fi
-  if ! systemctl start "$5"; then
+  if ! systemctl start "$6"; then
     exit 4
   fi
-  if ! rm -f -- "$4"; then
+  if ! rm -f -- "$5"; then
     exit 5
   fi
   if ! sync -- "$1"; then
-    echo "restore: the removal of $4 may not be on disk yet: if the machine stops now, the next run starts $5 once more" >&2
+    echo "restore: the removal of $5 may not be on disk yet: if the machine stops now, the next run starts $6 once more" >&2
   fi'
 
 # Under the guard: RECORDS LOCK OWNER_RECORD PID SWAP_RECORD lock|owner|all|empty. Only for the
 # holder. lock: the lock directory goes (the end of a successful run, before the start); owner:
 # the restore has finished, its records go (after the start); all: nothing was replaced, both go,
 # and never while a replacement is recorded as begun; empty: stopped while the restore was being
-# taken, the lock directory goes only if there is nothing in it, the records only with it.
+# taken, the lock directory goes only if there is nothing in it and no replacement is recorded as
+# begun (a takeover of a half-replaced state that is cut short leaves the application locked out),
+# the records only with it.
 RELEASE='
   records "$1"
   record "$3"
@@ -516,10 +526,11 @@ RELEASE='
       rm -f -- "$3"
       ;;
     *)
-      rmdir -- "$2"
-      if [ ! -e "$5" ]; then
-        rm -f -- "$3"
+      if [ -e "$5" ]; then
+        refuse "a replacement of the live state is recorded as begun ($5): the restore lock stays"
       fi
+      rmdir -- "$2"
+      rm -f -- "$3"
       ;;
   esac'
 
@@ -578,8 +589,8 @@ restart_timers() {   # restart_timers flagged, or noted: start again each timer 
   local failed=0 status
   if [ "$1" = noted ] || [ "$TIMER_WAS_ACTIVE" = yes ]; then
     status=0
-    sudo flock "$RECORDS" sh -c "$CHECKED$RESTART" sh "$RECORDS" "$LOCK" "$OWNER_RECORD" "$TIMER_NOTE" "$BACKUP_TIMER" "$1" \
-      || status=$?
+    sudo flock "$RECORDS" sh -c "$CHECKED$RESTART" sh "$RECORDS" "$LOCK" "$OWNER_RECORD" "$SWAP_RECORD" "$TIMER_NOTE" \
+      "$BACKUP_TIMER" "$1" || status=$?
     case $status in
       0)
         TIMER_WAS_ACTIVE=no
@@ -610,8 +621,8 @@ restart_timers() {   # restart_timers flagged, or noted: start again each timer 
   fi
   if [ "$1" = noted ] || [ "$CLEANUP_TIMER_WAS_ACTIVE" = yes ]; then
     status=0
-    sudo flock "$RECORDS" sh -c "$CHECKED$RESTART" sh "$RECORDS" "$LOCK" "$OWNER_RECORD" "$CLEANUP_TIMER_NOTE" "$CLEANUP_TIMER" "$1" \
-      || status=$?
+    sudo flock "$RECORDS" sh -c "$CHECKED$RESTART" sh "$RECORDS" "$LOCK" "$OWNER_RECORD" "$SWAP_RECORD" \
+      "$CLEANUP_TIMER_NOTE" "$CLEANUP_TIMER" "$1" || status=$?
     case $status in
       0)
         CLEANUP_TIMER_WAS_ACTIVE=no

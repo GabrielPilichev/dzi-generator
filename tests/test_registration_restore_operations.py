@@ -23,6 +23,7 @@ import stat
 import time
 import unittest
 from contextlib import closing, redirect_stderr, redirect_stdout
+from pathlib import Path
 
 from src import manage_accounts
 from tests import test_lifecycle_restore_script as base
@@ -1105,6 +1106,46 @@ class SwapStateTest(RegistrationRestoreTestCase):
         self.assertTrue((other.records / "swap-state").exists())
         self.assertTrue((other.records / "restore-owner").exists())
 
+    def test_a_takeover_cut_short_while_it_looks_at_the_holder_leaves_a_partial_replacement_locked(self):
+        # Review of cc4e2d5, finding 1. A killed between its two moves of the uploads; B, taking it over, is
+        # signalled while it looks at A's process under the guard. The step still records B as the holder,
+        # and B's failure handling gave back the empty lock directory although swap-state said that the
+        # live state was half replaced: the application could start on it. Nothing is done to the lock.
+        cases = (("TERM", 143), ("INT", 130), ("HUP", 129))
+
+        def check(case):
+            how, status = case
+            server = self.server()
+            self.assertEqual(server.run(kill="mv#2").returncode, -9)       # the live uploads set aside, no others in
+            self.assertFalse((server.state / "uploads").exists())
+            taking = server.start(tag="-b", pause="ps#1")
+            server.wait_until(lambda: server.paused("-b", "ps#1") or taking.poll() is not None, "B looks at the holder")
+            self.assertTrue(server.paused("-b", "ps#1"), server.wait(taking).stderr if taking.poll() is not None else "")
+            os.kill(int((server.run_dir / "script-b.pid").read_text(encoding="utf-8")), getattr(signal, f"SIG{how}"))
+            server.go_on("-b", "ps#1")
+            result = server.wait(taking)
+            self.assertEqual(result.returncode, status, result.stderr)
+            self.assertIn(f"interrupted (SIG{how})", result.stderr)
+            self.assertIn("A restore lock is left that this run does not give back", result.stderr)
+            # The protected record, the lock the application obeys and the mixed live state are as A left them.
+            self.assertEqual((server.records / "restore-owner").read_text(encoding="utf-8").strip(),
+                             (server.run_dir / "script-b.pid").read_text(encoding="utf-8").strip())
+            self.assertTrue((server.records / "swap-state").exists())
+            self.assertTrue(server.locked())
+            self.assertIn("in progress or was left unfinished", server.application_refuses())
+            self.assertFalse((server.state / "uploads").exists())
+            self.assertEqual((server.state / "vault/Generated/live.md").read_text(encoding="utf-8"),
+                             "a note written after the snapshot")                   # the vault not yet replaced
+            self.assertEqual(self.state(server), (True, False, True, False, True))
+            self.assertFalse(server.active())
+            self.assertFalse([call for call in server.all_calls("-b") if "-start#" in call or "-stop#" in call])
+            # A run that finishes ends it.
+            done = server.run(tag="-c")
+            self.assertEqual(done.returncode, 0, done.stderr)
+            self.assert_restored(server, abandoned=1)
+            self.assertFalse((server.records / "swap-state").exists())
+        self.each(cases, check)
+
 
 class LegacyIntentMigrationTest(RegistrationRestoreTestCase):
     """Review of f75ca8d, blocker 4. The timer markers an earlier version left in its lock were only read
@@ -1115,24 +1156,49 @@ class LegacyIntentMigrationTest(RegistrationRestoreTestCase):
     its markers are as they were."""
 
     MARKERS = ("backup-timer-was-active", "registration-cleanup-timer-was-active")
+    MARKER = dict(zip((BACKUP["name"], CLEANUP["name"]), MARKERS))
 
-    def legacy(self):
-        """A lock an earlier version left: both timers stopped, the markers in it, none of the records."""
+    def legacy(self, swap=False, marked=TIMERS):
+        """A lock an earlier version left: both timers stopped, a marker in it for each timer of ``marked``,
+        none of the records. With ``swap``, that run was killed between its two moves of the uploads (the
+        live uploads set aside, the copy's not in place) and its lock holds ``swap-started`` as well."""
         server = self.server()
-        self.assertEqual(server.run(kill="py:reconcile#1").returncode, -9)
-        for name in (BACKUP["note"], CLEANUP["note"], "restore-owner"):
+        self.assertEqual(server.run(kill="mv#2" if swap else "py:reconcile#1").returncode, -9)
+        for name in (BACKUP["note"], CLEANUP["note"], "restore-owner", *(("swap-state",) if swap else ())):
             (server.records / name).unlink()
-        for marker in self.MARKERS:
-            (server.lock / marker).write_text("", encoding="utf-8")
+        for timer in marked:
+            (server.lock / self.MARKER[timer["name"]]).write_text("", encoding="utf-8")
+        if swap:
+            (server.lock / "swap-started").write_text("", encoding="utf-8")
         server.lock.joinpath("pid").write_text("999999\n", encoding="utf-8")
         self.assertEqual(self.state(server), (True, False, False, False, False))
+        self.assertEqual(sorted(path.name for path in server.records.iterdir()), ["lifetime"])
         return server
 
-    def assert_markers_kept(self, server):
+    def assert_markers_kept(self, server, swap=False):
         self.assertTrue(server.locked())
-        self.assertEqual(sorted(path.name for path in server.lock.iterdir()), sorted((*self.MARKERS, "pid")))
+        self.assertEqual(sorted(path.name for path in server.lock.iterdir()),
+                         sorted((*self.MARKERS, "pid", *(("swap-started",) if swap else ()))))
         self.assertFalse((server.records / "restore-owner").exists())
         self.assertEqual((server.timer_active(), self.cleanup_timer_active(server)), (False, False))
+
+    def watch_the_flushes(self, server, count=8):
+        """Hooks for a run: just before each of its first ``count`` syncs, whether a holder is recorded
+        and what is in the lock directory. ``seen()`` reads them back by call ("sync#2")."""
+        log = server.run_dir / "seen-at-sync.log"
+        hooks = []
+        for number in range(1, count + 1):
+            body = (f'holder=no-holder; if [ -e "{server.records}/restore-owner" ]; then holder=holder; fi\n'
+                    f'printf "sync#{number} %s %s\\n" "$holder" "$(ls "{server.lock}" 2>/dev/null | sort | tr "\\n" ,)"'
+                    f' >> "{log}"')
+            hooks.append(f"sync#{number}={self.hook(server, f'seen-at-sync-{number}', body)}")
+        return " ".join(hooks)
+
+    @staticmethod
+    def seen(server):
+        log = server.run_dir / "seen-at-sync.log"
+        lines = log.read_text(encoding="utf-8").splitlines() if log.exists() else []    # no sync at all
+        return {call: (holder, rest[0] if rest else "") for call, holder, *rest in map(str.split, lines)}
 
     def assert_recovered(self, server):
         result = server.run()
@@ -1190,6 +1256,127 @@ class LegacyIntentMigrationTest(RegistrationRestoreTestCase):
         self.assertEqual(self.state(server), (True, False, True, False, True))
         self.assert_recovered(server)
 
+    def test_a_replacement_record_left_without_a_holder_keeps_every_noted_timer_stopped(self):
+        # Review of cc4e2d5, finding 2. The flush of the migrated swap-started failed after the timer notes
+        # were written: swap-state without restore-owner. The service user removed the lock directory, and
+        # the pre-flight of the next run started the noted timers and removed their notes over a half-replaced
+        # state, because the recovery looked only at restore-owner and the lock directory.
+        def check(marked):
+            server = self.legacy(swap=True, marked=marked)
+            failed = server.run(fail=f"sync#{len(marked) + 1}=1")          # swap-state's, after each note's
+            self.assertEqual(failed.returncode, 1, failed.stderr)
+            self.assertIn("the lock, its records and what an earlier run left in it are as they were", failed.stderr)
+            self.assertEqual(sorted(path.name for path in server.records.iterdir()),
+                             sorted(("lifetime", "swap-state", *(timer["note"] for timer in marked))))
+            shutil.rmtree(server.lock)                                     # what the service user can do to it
+            earlier = len(server.all_calls())
+            result = server.run(fail="py:preflight#1=1")
+            self.assertEqual(result.returncode, 1, result.stderr)
+            self.assertIn(base.UNTOUCHED, result.stderr)
+            self.assertFalse([call for call in server.all_calls()[earlier:] if "-start#" in call])
+            self.assertEqual(sorted(path.name for path in server.records.iterdir()),
+                             sorted(("lifetime", "swap-state", *(timer["note"] for timer in marked))))
+            self.assertEqual((server.timer_active(), self.cleanup_timer_active(server)), (False, False))
+            self.assertFalse((server.state / "uploads").exists())          # still half replaced
+            # A run that finishes ends it, and brings back what was noted, and only that.
+            done = server.run()
+            self.assertEqual(done.returncode, 0, done.stderr)
+            self.assertIn("That run was interrupted WHILE REPLACING", done.stderr)
+            self.assertEqual((server.state / "uploads/practical/restored.txt").read_text(encoding="utf-8"), "restored")
+            self.assertIsNone(server.application_refuses())
+            for timer in TIMERS:
+                self.assertEqual(self.state_of(server, timer), (False, timer in marked, False), timer["name"])
+            self.assertEqual(sorted(path.name for path in server.records.iterdir()), ["lifetime"])
+        self.each(((BACKUP,), (CLEANUP,), TIMERS), check)
+
+    def test_a_migration_retried_after_a_failed_flush_flushes_every_record_again_before_it_changes_hands(self):
+        # Review of cc4e2d5, finding 3. A failed flush of a migrated record left the record written and not
+        # flushed; the retry took the record's presence for the flush, recorded its holder without a single
+        # sync, then failed (a timer state systemd could not report, starts that failed) and removed the lock
+        # with the markers in it. The shim records the order of the syncs, not that anything reaches a disk.
+        cases = (("sync#1", False), ("sync#2", False), ("sync#3", True))
+
+        def check(case):
+            failing, swap = case
+            server = self.legacy(swap=swap)
+            first = server.run(fail=f"{failing}=1")
+            self.assertEqual(first.returncode, 1, first.stderr)
+            self.assertIn("the lock, its records and what an earlier run left in it are as they were", first.stderr)
+            self.assert_markers_kept(server, swap=swap)
+            (server.run_dir / "timer-state").write_text("ERROR", encoding="utf-8")
+            hooks = self.watch_the_flushes(server)
+            result = server.run(tag="-retry", fail="timer-start#1=1 cleanup-timer-start#1=1", RESTORE_TEST_HOOK=hooks)
+            self.assertEqual(result.returncode, 1, result.stderr)
+            self.assertIn("An earlier restore did not finish", result.stderr)          # it took the restore
+            self.assertIn("the state of the backup timer could not be read from systemd", result.stderr)
+            markers = ",".join(sorted((*self.MARKERS, "pid", *(("swap-started",) if swap else ())))) + ","
+            seen, flushed = self.seen(server), server.flushed("-retry")          # the retry's syncs, and only those
+            records = [server.records / timer["note"] for timer in TIMERS]
+            if swap:
+                records.append(server.records / "swap-state")
+            for record in records:
+                calls = [call for call, paths in flushed.items() if paths == [str(record), str(server.records)]]
+                self.assertTrue(calls, f"{record.name} was not flushed again: {flushed}")
+                # Flushed, with its directory, while no holder was recorded and the markers were all there.
+                self.assertEqual(seen[calls[0]], ("no-holder", markers), record.name)
+                self.assertTrue(record.exists())
+            self.assertEqual((server.timer_active(), self.cleanup_timer_active(server)), (False, False))
+            self.assertEqual(server.locked(), swap)        # given back only if nothing had been replaced
+            (server.run_dir / "timer-state").unlink()
+            done = server.run()
+            self.assertEqual(done.returncode, 0, done.stderr)
+            self.assertEqual(self.state(server), (False, True, False, True, False))
+            self.assertIsNone(server.application_refuses())
+        self.each(cases, check)
+
+
+class DocumentedTimerRecoveryTest(RegistrationRestoreTestCase):
+    """docs/DEPLOYMENT.md, section 34, "Bringing a noted timer back without a restore": the command as it
+    stands there, with the paths of a test server, under the same shims. Review of cc4e2d5, finding 2: the
+    manual recovery follows the rule of the script's, and refuses while a replacement is recorded as begun,
+    whatever is or is not left of the holder and the lock, and while anything at all stands at those names."""
+
+    def documented(self, server):
+        text = (ROOT / "docs" / "DEPLOYMENT.md").read_text(encoding="utf-8")
+        section = text.split("#### Bringing a noted timer back without a restore", 1)[1]
+        command = section.split("```bash\n", 1)[1].split("```", 1)[0]
+        self.assertIn("learnpilot-registration-cleanup.timer", command)
+        return (command.replace("/var/lib/learnpilot-restore", str(server.records))
+                .replace("/var/lib/learnpilot/", f"{server.state}/"))
+
+    def test_a_noted_timer_is_brought_back_only_while_nothing_says_a_restore_is_held_or_unfinished(self):
+        def file(path):
+            path.write_text("begun by process 1\n", encoding="utf-8")
+
+        def dangling(path):
+            path.symlink_to(path.parent / "nowhere")
+
+        cases = {"nothing": None, "swap-state": ("swap-state", file), "swap-state, a dangling link": ("swap-state", dangling),
+                 "swap-state, a directory": ("swap-state", Path.mkdir), "restore-owner": ("restore-owner", file),
+                 "the lock directory": (None, None)}
+
+        def check(label):
+            server = self.server()
+            server.records.mkdir(mode=0o700)
+            note = server.records / CLEANUP["note"]
+            note.write_text(f"{CLEANUP['unit']}\n", encoding="utf-8")
+            (server.run_dir / CLEANUP["flag"]).unlink()
+            if label == "the lock directory":
+                server.lock.mkdir()
+            elif cases[label] is not None:
+                name, make = cases[label]
+                make(server.records / name)
+            result = server.run_as_documented(self.documented(server))
+            if label == "nothing":
+                self.assertEqual(result.returncode, 0, result.stderr)
+                self.assertEqual((self.cleanup_timer_active(server), note.exists()), (True, False))
+                return
+            self.assertNotEqual(result.returncode, 0, result.stderr)
+            self.assertIn("a restore is running or was left unfinished", result.stderr)
+            self.assertEqual((self.cleanup_timer_active(server), note.exists()), (False, True))
+            self.assertFalse([call for call in server.all_calls() if call.startswith("cleanup-timer-start")])
+        self.each(cases, check)
+
 
 class RestoreScriptOrderTest(unittest.TestCase):
     """Test plan N6 on the text of the script: where the coordination and the gate sit."""
@@ -1229,12 +1416,13 @@ class RestoreScriptOrderTest(unittest.TestCase):
     def test_the_cleanup_timer_is_started_wherever_the_backup_timer_is(self):
         # Both in restart_timers, one after the other, by the same step under the guard.
         backup = [m.start() for m in re.finditer(r'"\$CHECKED\$RESTART" sh "\$RECORDS" "\$LOCK" "\$OWNER_RECORD" '
-                                                 r'"\$TIMER_NOTE" "\$BACKUP_TIMER"', self.code)]
+                                                 r'"\$SWAP_RECORD" "\$TIMER_NOTE" \\\s+"\$BACKUP_TIMER"', self.code)]
         cleanup = [m.start() for m in re.finditer(r'"\$CHECKED\$RESTART" sh "\$RECORDS" "\$LOCK" "\$OWNER_RECORD" '
-                                                  r'"\$CLEANUP_TIMER_NOTE" "\$CLEANUP_TIMER"', self.code)]
+                                                  r'"\$SWAP_RECORD" \\\s+"\$CLEANUP_TIMER_NOTE" "\$CLEANUP_TIMER"',
+                                                  self.code)]
         self.assertEqual((len(backup), len(cleanup)), (1, 1))
         body = self.code.split("restart_timers() {", 1)[1].split("\n}\n", 1)[0]
-        self.assertIn('"$TIMER_NOTE" "$BACKUP_TIMER" "$1"', body)
+        self.assertIn('"$BACKUP_TIMER" "$1"', body)
         self.assertIn('"$CLEANUP_TIMER_NOTE" "$CLEANUP_TIMER" "$1"', body)
         self.assertLess(backup[0], cleanup[0])
         self.assertEqual(self.code.count('"$TIMER_WAS_ACTIVE" = yes'), self.code.count('"$CLEANUP_TIMER_WAS_ACTIVE" = yes'))

@@ -3100,8 +3100,10 @@ finished or the run that began it has moved everything back).
    of its holder; writing a timer's note, flushing it and stopping the timer,
    which only the holder does; recording the replacement as begun, or as taken
    back; starting a timer and then removing its note, which happens only while no
-   restore is held or left unfinished (no `restore-owner`, and no lock
-   directory either); giving the restore back.
+   restore is held or left unfinished (no `restore-owner`, no `swap-state`, and
+   no lock directory either); giving the restore back. A run stopped while it
+   takes the restore removes the lock directory only if it is empty and no
+   `swap-state` is recorded: a half-replaced state stays locked.
 2. *The lifetime lock*, `flock` on `lifetime` in that directory. Every command
    the script has root or the service user carry out once it holds the restore
    (a copy, a move, a checkpoint, a migration of the copy, the stop and start of
@@ -3182,8 +3184,10 @@ two `pending-*-timer` notes.
 A lock an earlier version left is taken over: in the same step, before the new
 holder is recorded, its markers (`backup-timer-was-active`,
 `registration-cleanup-timer-was-active`, `swap-started`) are written as notes
-and as `swap-state` and flushed to disk. If that cannot be done, nothing changes
-hands, and the lock and its markers are as they were. A `pid` file in it is
+and as `swap-state`. Then every note and `swap-state` there is flushed to disk,
+including one an earlier attempt wrote and could not flush: a retry flushes
+again and never takes a record being there for its flush. If any of that cannot
+be done, nothing changes hands, and the lock and its markers are as they were. A `pid` file in it is
 ignored, and nothing is ever written into the lock directory. An earlier
 version's restore that is still running is therefore not seen: its holder is
 not recorded and its commands do not hold the lifetime lock. **Do not deploy this
@@ -3201,13 +3205,14 @@ remove the old file (`sudo rm -f -- /var/lib/learnpilot/restore-pending-<timer>`
 A noted timer that systemd refused to start stays noted until it is started. After
 correcting the cause, the next run of the script starts it first. To bring it
 back without a restore, take the guard, make sure that no restore is held or left
-unfinished (no `restore-owner`, and no lock directory either), start the timer,
-and only then remove its note, all in one command:
+unfinished (no `restore-owner`, no `swap-state`, and no lock directory either),
+start the timer, and only then remove its note, all in one command:
 
 ```bash
 sudo flock /var/lib/learnpilot-restore sh -ec '
-  if [ -e /var/lib/learnpilot-restore/restore-owner ] || [ -e /var/lib/learnpilot/data/restore-in-progress ] \
-    || [ -L /var/lib/learnpilot/data/restore-in-progress ]; then
+  if [ -e /var/lib/learnpilot-restore/restore-owner ] || [ -L /var/lib/learnpilot-restore/restore-owner ] \
+    || [ -e /var/lib/learnpilot-restore/swap-state ] || [ -L /var/lib/learnpilot-restore/swap-state ] \
+    || [ -e /var/lib/learnpilot/data/restore-in-progress ] || [ -L /var/lib/learnpilot/data/restore-in-progress ]; then
     echo "a restore is running or was left unfinished: the timer stays stopped for it" >&2
     exit 1
   fi
@@ -3217,7 +3222,12 @@ sudo flock /var/lib/learnpilot-restore sh -ec '
 ```
 
 (The backup timer likewise: `learnpilot-backup.timer`, `pending-backup-timer`.) It
-fails, and removes nothing, if the start fails. Never remove a note in any other
+fails, and removes nothing, if the start fails. It refuses as well when anything
+at all stands at one of those three names (a link, a directory): that is not
+what the script leaves, and nothing is decided from it. A `swap-state` without
+`restore-owner` and without a lock directory still means that the live state may
+be half replaced: the timers stay stopped, and the script is run again, which
+finishes the restore and then starts them. Never remove a note in any other
 way: without the guard, or while a restore is held or left unfinished, it can be
 the note of a restore that is running, and that timer would then stay stopped for
 good. Never remove `restore-owner`, `swap-state` or `lifetime` by hand: a restore

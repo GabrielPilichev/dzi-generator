@@ -189,10 +189,12 @@ case $1 in
 esac
 afterwards
 """,
-    # Records the call (and what it was asked to flush); it cannot show that Linux flushes anything.
+    # Records the call, and in flushed$tag.log what a call that was not failed was asked to flush; it
+    # cannot show that Linux flushes anything.
     "sync": r"""
 . "$RESTORE_SHIMS/inject.sh"
 maybe_fail sync
+printf '%s %s\n' "$name#$count" "$*" >> "$run/flushed$tag.log"
 afterwards
 """,
     "curl": r"""
@@ -511,6 +513,12 @@ class Restore:
         log = self.run_dir / f"calls{tag}.log"
         return log.read_text(encoding="utf-8").split() if log.exists() else []
 
+    def flushed(self, tag: str = "") -> dict[str, list[str]]:
+        """Every sync that was carried out, by call ("sync#2"): the paths it was asked to flush."""
+        log = self.run_dir / f"flushed{tag}.log"
+        lines = log.read_text(encoding="utf-8").splitlines() if log.exists() else []
+        return {call: [path for path in paths if path != "--"] for call, *paths in map(str.split, lines)}
+
     def calls(self) -> list[str]:
         """Every call but those of the registration cleanup unit, the flushes of the timer notes, the
         guard, the lifetime lock and the look at who holds the restore, which ``tests.test_registration_restore_operations``
@@ -724,9 +732,9 @@ class RestoreScriptSourceTest(unittest.TestCase):
         # left), by the end of a successful run and by finish (lock given back; restore complete
         # without a start; stopped after the start).
         others = [line.strip() for line in self.code if re.search(r"systemctl\s+start\b", line) and "$SERVICE" not in line]
-        self.assertEqual(others, ['if ! systemctl start "$5"; then'])
+        self.assertEqual(others, ['if ! systemctl start "$6"; then'])
         restarts = re.findall(r'sudo flock "\$RECORDS" sh -c "\$CHECKED\$RESTART" sh "\$RECORDS" "\$LOCK" '
-                              r'"\$OWNER_RECORD" "\$(\w+)" '
+                              r'"\$OWNER_RECORD" "\$SWAP_RECORD"[\s\\]+"\$(\w+)"[\s\\]+'
                               r'"\$(\w+)" "\$1"', self.text)
         self.assertEqual(restarts, [("TIMER_NOTE", "BACKUP_TIMER"), ("CLEANUP_TIMER_NOTE", "CLEANUP_TIMER")])
         self.assertEqual(len(re.findall(r"if ! restart_timers flagged; then", self.text)), 4)
