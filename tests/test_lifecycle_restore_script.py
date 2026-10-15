@@ -103,6 +103,11 @@ afterwards() {
       echo "shim: SIG$after to the script right after $name#$count" >&2
       kill -s "$after" "$(cat "$run/script.pid")"
       ;;
+    KILL)
+      echo "shim: SIGKILL to the script right after $name#$count did its work" >&2
+      kill -9 "$(cat "$run/script.pid")"   # the machine stops just after this call
+      exit 137
+      ;;
     *)
       echo "shim: $name#$count did its work and exits $after" >&2
       exit "$after"
@@ -150,6 +155,12 @@ case $1 in
     ;;
   start) : > "$run/$flag" ;;
 esac
+afterwards
+""",
+    # Records the call (and what it was asked to flush); it cannot show that Linux flushes anything.
+    "sync": r"""
+. "$RESTORE_SHIMS/inject.sh"
+maybe_fail sync
 afterwards
 """,
     "curl": r"""
@@ -319,10 +330,10 @@ class Restore:
         return log.read_text(encoding="utf-8").split() if log.exists() else []
 
     def calls(self) -> list[str]:
-        """Every call but those of the registration cleanup unit, which
-        ``tests.test_registration_restore_operations`` follows: the order of the rest is what
-        the tests of this module pin, and the cleanup calls do not move it."""
-        return [call for call in self.all_calls() if not call.startswith("cleanup-")]
+        """Every call but those of the registration cleanup unit and the flushes of the timer notes,
+        which ``tests.test_registration_restore_operations`` follows: the order of the rest is what
+        the tests of this module pin, and those calls do not move it."""
+        return [call for call in self.all_calls() if not call.startswith(("cleanup-", "sync#"))]
 
     def started(self) -> bool:
         return any(call.startswith("systemctl-start#") for call in self.calls())
@@ -347,7 +358,8 @@ class Restore:
         files = {}
         for path in sorted(self.state.rglob("*")):
             relative = path.relative_to(self.state).as_posix()
-            if path.is_file() and not relative.startswith(("restore-staging-", "replaced-", "data/restore-in-progress")) \
+            if path.is_file() and not relative.startswith(("restore-staging-", "replaced-", "data/restore-in-progress",
+                                                           "restore-pending-")) \
                     and not relative.endswith(("-wal", "-shm", "lifecycle-operator.log")):
                 files[relative] = path.read_bytes()
         return files
@@ -523,15 +535,17 @@ class RestoreScriptSourceTest(unittest.TestCase):
         self.assertEqual(len(starts), 1, "exactly one start of the service")
         (start,) = starts
         self.assertEqual(self.code[start], 'if ! sudo systemctl start "$SERVICE"; then')  # not in a branch or a function
-        # Every other `systemctl start` is of the backup timer or the registration cleanup timer
-        # (three places each: the finish handling twice, and the end of a successful run),
-        # never of the service.
+        # Every other `systemctl start` is of the backup timer or the registration cleanup timer,
+        # once each, in restart_timers; never of the service. restart_timers is run by the
+        # pre-flight (notes an earlier run left), by the end of a successful run and by finish
+        # (lock given back; restore complete without a start; stopped after the start).
         others = [line for line in self.code if re.search(r"systemctl\s+start\b", line) and "$SERVICE" not in line]
-        self.assertEqual(len(others), 6)
+        self.assertEqual(len(others), 2)
         for line in others:
-            self.assertRegex(line, r'systemctl start "\$(BACKUP|CLEANUP)_TIMER"')
-        self.assertEqual(len([line for line in others if "$BACKUP_TIMER" in line]), 3)
-        self.assertEqual(len([line for line in others if "$CLEANUP_TIMER" in line]), 3)
+            self.assertRegex(line, r'systemctl start "\$(BACKUP|CLEANUP)_TIMER" && sudo rm -f -- "\$(CLEANUP_)?TIMER_NOTE"')
+        self.assertEqual(len([line for line in others if "$BACKUP_TIMER" in line]), 1)
+        self.assertEqual(len([line for line in others if "$CLEANUP_TIMER" in line]), 1)
+        self.assertEqual(len(re.findall(r"if ! restart_timers; then", self.text)), 5)
         later = "\n".join(self.code[start + 1:])
         self.assertNotRegex(later, r"(?m)^\s*gate\s")           # nothing mandatory is left for after the start
         self.assertNotIn("-m src.", later)                      # no tool is run after it, only named
@@ -566,7 +580,7 @@ class RestoreScriptSourceTest(unittest.TestCase):
 
     def test_no_mandatory_command_can_hide_its_failure(self):
         functions = set(re.findall(r"(?m)^(\w+)\(\) \{", self.source))
-        self.assertEqual(functions, {"say", "usage", "die", "gate", "finish", "restart_timers"})
+        self.assertEqual(functions, {"say", "usage", "die", "gate", "finish", "restart_timers", "timers_left"})
         gates = re.findall(r'(?m)^\s*gate "[^"]*"(?: \\\n\s*| )(\S+)', self.source)
         self.assertGreater(len(gates), 30)
         # A gate runs an external program (or the builtin cd or test), never one of the script's own functions.
@@ -617,7 +631,8 @@ class RestoreScriptSourceTest(unittest.TestCase):
         self.assertEqual(self.code[mentions[0]].strip(), "--complete-swap)")
         self.assertTrue(self.code[mentions[1]].strip().startswith('die 2 "--complete-swap does not exist any more.'))
         # What the script reads back from its lock: who holds it, whether a replacement had begun,
-        # whether the backup timer has to be started again. None of it lets a step be skipped.
+        # and, from a lock an earlier version of this script left, whether a timer has to be
+        # started again (now noted outside the lock). None of it lets a step be skipped.
         self.assertEqual(sorted(set(re.findall(r'"\$LOCK/([a-z-]+)"', self.text))),
                          ["backup-timer-was-active", "pid", "registration-cleanup-timer-was-active", "swap-started"])
         self.assertEqual(self.text.count("INTERRUPTED_BEFORE=yes"), 1)
@@ -678,7 +693,8 @@ class RestoreScriptSourceTest(unittest.TestCase):
                         finish.index("PHASE=locked"))
         # No file is removed on the way back except a second name of the live database, checked as one.
         self.assertIn('if [ "$1" -ef "$2" ]; then\n  rm -f -- "$2"', self.source)
-        self.assertEqual(len(re.findall(r"\brm -f -- ", self.text)), 3)   # that, the copy's empty log, one mark
+        # That, the copy's empty log, one mark; and the two timer notes, each after its timer started.
+        self.assertEqual(len(re.findall(r"\brm -f -- ", self.text)), 5)
         # Every step is written down before it is made, in one assignment.
         for step in re.findall(r'(?m)^ *UNDO\+=\(.*\)\n(.*)', self.source):
             self.assertRegex(step, r'^\s*gate "')
@@ -2284,21 +2300,34 @@ class BackupOverlapTest(RestoreScriptTestCase):
         server = self.server()
         self.assertEqual(server.run(kill="mv#4").returncode, -9)
         self.assertFalse(server.timer_active())
-        self.assertTrue(server.lock.joinpath("backup-timer-was-active").exists())
+        self.assertTrue((server.state / "restore-pending-backup-timer").exists())   # outside the lock
+        self.assertFalse(server.lock.joinpath("backup-timer-was-active").exists())
         with self.assertRaises(BackupError):          # the timer could be started by hand, or by a reboot:
             server.backup()                           # the tool itself refuses
         self.assertEqual(server.run(fail="py:verify#1=1").returncode, 1)
         self.assertFalse(server.timer_active())       # a failed attempt is not a safe end
         self.assertEqual(server.run().returncode, 0)
         self.assertTrue(server.timer_active())        # the run that finished remembered that it had been on
+        self.assertFalse((server.state / "restore-pending-backup-timer").exists())
         self.assertEqual(server.calls()[-1], "timer-start#1")
 
-    def test_a_failed_restart_of_the_timer_is_said_loudly_and_is_not_a_failed_restore(self):
+    def test_a_failed_restart_of_the_timer_is_a_failed_run_and_the_next_run_starts_it(self):
+        # Review of b719728: a failed restart ended with exit 0 and the note gone.
         server = self.server()
-        result = server.run(fail="timer-start#1=1")
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("WARNING: the backup timer could not be started again. Start it by hand", result.stderr)
-        self.assertTrue(server.active())
+        result = server.run(fail="timer-start#1=1 timer-start#2=1")    # the restart, and finish's retry
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertIn("WARNING: the backup timer could not be started again", result.stderr)
+        self.assertNotIn("RESTORE COMPLETE", result.stderr)
+        self.assertTrue(server.active())                                # the restore itself is in place
+        self.assertEqual((server.timer_active(), server.locked()), (False, False))
+        self.assertTrue((server.state / "restore-pending-backup-timer").exists())
+        earlier = len(server.calls())
+        self.assertEqual(server.run().returncode, 0)
+        calls = server.calls()[earlier:]                                # this run's: the log is kept
+        self.assertLess(calls.index("timer-start#1"), calls.index("py:preflight#1"))   # first thing
+        self.assertEqual(calls[-1], "timer-start#2")
+        self.assertTrue(server.timer_active())
+        self.assertFalse((server.state / "restore-pending-backup-timer").exists())
 
 
 class DocumentedCommandTest(RestoreScriptTestCase):

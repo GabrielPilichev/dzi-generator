@@ -677,7 +677,12 @@ success.
    cleanup timer if it was active and requires `learnpilot-registration-cleanup.service`
    to be `inactive` or `failed` (a stopped timer does not stop a run that has
    begun; any other state ends the restore), and stops the service. All of that
-   is before the live database is checkpointed and fingerprinted.
+   is before the live database is checkpointed and fingerprinted. Before it
+   stops a timer, it writes a note that the timer is to be started again,
+   **outside** the lock (`/var/lib/learnpilot/restore-pending-backup-timer`,
+   `/var/lib/learnpilot/restore-pending-registration-cleanup-timer`), and flushes
+   it to disk (`sync` of the note and of `/var/lib/learnpilot`). The notes do not
+   block anything; only the lock does.
    While that directory exists the application refuses to start and no backup
    is taken. That holds after a reboot too: it is checked by `web.wsgi` and by
    the backup tool themselves, and by a `ConditionPathExists=` line in both
@@ -735,7 +740,13 @@ success.
     requested (if that fails the service is stopped again), and the backup
     timer and the registration cleanup timer started if each had been active.
     A timer that was not active is not started. Wherever the script starts the
-    backup timer again after a failure, it starts the cleanup timer too.
+    backup timer again after a failure, it starts the cleanup timer too. A
+    timer's note is removed only after the timer was started successfully. If a
+    timer cannot be started, the other one is still started, the script tries
+    once more, and it ends **not 0**, with the note kept (`NOT ACTIVE AGAIN YET`).
+    The next run of the script starts a noted timer first thing, in its
+    pre-flight, when no restore lock is there (with a lock, when that run ends),
+    and does not end with 0 while it cannot.
 
 **Registration stays closed after every restore** until an operator runs
 `registrations-release-hold --acknowledge-lost-history` (section 34). The script
@@ -797,7 +808,8 @@ The last lines the script prints say which of these happened. Only exit status
 | `WHETHER THE DATABASE WAS REPLACED COULD NOT BE ESTABLISHED` | not 0 | stopped | **stays** | Not known. Nothing was moved back. |
 | `The restored state is in place` ... `The lock stays.` | not 0 | stopped | **stays** | Restored; a final check failed. |
 | `The restore itself is complete and the lock is released; the service is not running.` | not 0 | stopped | gone | Restored and complete. The start or its health check failed, or the script was stopped during it. |
-| `The service is running on the restored state: the script was stopped after it had started it.` | not 0 | running | gone | Restored and complete. Check that the backup timer and the registration cleanup timer are active. |
+| `The service is running on the restored state: the script was stopped after it had started it.` | not 0 | running | gone | Restored and complete. The script started the noted timers again; if one could not be, `NOT ACTIVE AGAIN YET` follows. |
+| `NOT ACTIVE AGAIN YET: a timer that was active before the restore is still stopped.` | not 0 | as said above it | as said above it | A timer could not be started again; its note in `/var/lib/learnpilot` stays and the exit status is not 0. Find out why (`systemctl status <timer>`) and correct it; the next run of the script starts the noted timer before anything else (section 34). |
 
 `RESTORE COMPLETE` says that no assignment is held **because of the restore**,
 and nothing more. Tests that were closed are closed, deadlines are what they
@@ -3022,10 +3034,29 @@ SQLite's write lock (a restore that begins while the command waits stops it,
 with the hold and the mark unchanged). **Nothing releases the hold automatically,
 whatever the clock does.**
 
-If the restore script is stopped (signal) or a step fails after it has started the
-service, it still starts again each timer that was active before the run, and only
-those. Killed outright after it released the lock (`SIGKILL`, power loss), it cannot:
-check `systemctl list-timers` and start a missing timer by hand.
+The cleanup timer comes back on every path the backup timer does (section 17,
+steps 2 and 11). Its intent is a note on disk, outside the restore lock, written
+and flushed before the timer is stopped and removed only after the timer was
+started again. A run that is stopped (signal) or fails after the service was
+started retries the start and keeps its exit status; a run killed outright
+(`SIGKILL`, power loss) leaves the note, and the next run of the script starts
+the timer before anything else (or, if a lock is left, at its end). Starting a
+timer that already runs is harmless, so a note can be acted on more than once.
+The script never ends with 0 while a noted timer is not active.
+
+A noted timer that systemd refused to start stays noted until it is started. After
+correcting the cause, the next run of the script starts it first. To bring it
+back without a restore, start it, check it runs, and only then remove its note,
+in that order:
+
+```bash
+sudo systemctl start learnpilot-registration-cleanup.timer
+systemctl is-active learnpilot-registration-cleanup.timer
+sudo rm /var/lib/learnpilot/restore-pending-registration-cleanup-timer
+```
+
+(The backup timer likewise: `learnpilot-backup.timer`, `restore-pending-backup-timer`.)
+Never remove a note of a timer that is not active.
 
 A database replaced by hand, outside the script, gets none of this (section 17).
 

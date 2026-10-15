@@ -26,6 +26,13 @@ from tests.registration_support import EMAIL, KEY, password_hash, student
 from web.services import registration
 
 SCRIPT = base.SCRIPT
+BACKUP = {"name": "backup", "call": "timer", "flag": "timer-active", "note": "restore-pending-backup-timer",
+          "label": "backup timer", "unit": "learnpilot-backup.timer"}
+CLEANUP = {"name": "cleanup", "call": "cleanup-timer", "flag": "cleanup-timer-active",
+           "note": "restore-pending-registration-cleanup-timer", "label": "registration cleanup timer",
+           "unit": "learnpilot-registration-cleanup.timer"}
+TIMERS = (BACKUP, CLEANUP)
+OTHER = {"backup": CLEANUP, "cleanup": BACKUP}
 ROOT = base.ROOT
 
 
@@ -250,7 +257,8 @@ class InterruptedRestoreTest(RegistrationRestoreTestCase):
         server = self.server()
         self.assertEqual(server.run(kill="mv#4").returncode, -9)
         self.assertEqual((server.timer_active(), self.cleanup_timer_active(server)), (False, False))
-        self.assertTrue(server.lock.joinpath("registration-cleanup-timer-was-active").exists())
+        self.assertTrue((server.state / CLEANUP["note"]).exists())                 # outside the lock
+        self.assertFalse(server.lock.joinpath("registration-cleanup-timer-was-active").exists())
         # The command refuses under the lock, whoever starts it.
         code, _, err = run_cli("--db", str(server.live_db), "registrations-cleanup")
         self.assertEqual(code, 1)
@@ -279,65 +287,197 @@ class InterruptedRestoreTest(RegistrationRestoreTestCase):
                 self.assertEqual((server.locked(), server.timer_active(), self.cleanup_timer_active(server)),
                                  (False, True, True))
 
-    def test_a_restart_of_the_cleanup_timer_that_fails_is_said_loudly_and_is_not_a_failed_restore(self):
-        server = self.server()
-        result = server.run(fail="cleanup-timer-start#1=1")
+    # --- design 3.9: the timers come back, or the run says so, fails, and the next run brings them back ---
+    # Review of b719728: a restart that failed, or a SIGKILL around the restarts, lost the intent.
+
+    def state(self, server):
+        """(lock, backup active, backup note, cleanup active, cleanup note)."""
+        return (server.locked(), server.timer_active(), (server.state / BACKUP["note"]).exists(),
+                self.cleanup_timer_active(server), (server.state / CLEANUP["note"]).exists())
+
+    def assert_recovered_by_a_clean_run(self, server):
+        earlier = len(server.all_calls())
+        result = server.run()
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("WARNING: the registration cleanup timer could not be started again", result.stderr)
-        self.assertTrue(server.active())
+        self.assertEqual(self.state(server), (False, True, False, True, False))
+        self.assertIn("RESTORE COMPLETE", result.stderr)
+        return server.all_calls()[earlier:]
 
-    # --- the service is already running again: an ending that is not success still restores the timers ---
+    def test_a_restart_that_fails_once_is_retried_and_the_run_still_fails(self):
+        def check(timer):
+            server = self.server()
+            result = server.run(fail=f"{timer['call']}-start#1=1")
+            self.assertEqual(result.returncode, 1, result.stderr)
+            self.assertNotIn("RESTORE COMPLETE", result.stderr)
+            self.assertIn(f"WARNING: the {timer['label']} could not be started again", result.stderr)
+            self.assertEqual(self.state(server), (False, True, False, True, False))   # the retry started it
+            calls = server.all_calls()
+            self.assertIn(f"{timer['call']}-start#2", calls)
+            self.assertIn(f"{OTHER[timer['name']]['call']}-start#1", calls)           # the other was attempted
+        self.each(TIMERS, check)
 
-    def assert_timers(self, server, backup, cleanup):
-        self.assertEqual((server.locked(), server.timer_active(), self.cleanup_timer_active(server)),
-                         (False, backup, cleanup))
+    def test_a_restart_that_fails_twice_keeps_its_note_fails_and_a_clean_run_recovers_it(self):
+        def check(timer):
+            server = self.server()
+            result = server.run(fail=f"{timer['call']}-start#1=1 {timer['call']}-start#2=1")
+            self.assertEqual(result.returncode, 1, result.stderr)
+            self.assertIn("NOT ACTIVE AGAIN YET", result.stderr)
+            self.assertTrue(server.active())                              # the restore itself is in place
+            expected = {"backup": (False, False, True, True, False), "cleanup": (False, True, False, False, True)}
+            self.assertEqual(self.state(server), expected[timer["name"]])  # the other one came back
+            calls = self.assert_recovered_by_a_clean_run(server)
+            self.assertLess(calls.index(f"{timer['call']}-start#1"), calls.index("py:preflight#1"))
+        self.each(TIMERS, check)
 
-    def test_a_signal_between_the_two_timer_restarts_still_restores_the_second_timer(self):
-        for how, status in (("TERM", 143), ("INT", 130), ("HUP", 129)):
-            with self.subTest(signal=how):
+    def test_repeated_failure_keeps_the_note_whatever_the_timer_is_found_in_and_fails_each_time(self):
+        def check(timer):
+            server = self.server()
+            server.run(fail=f"{timer['call']}-start#1=1 {timer['call']}-start#2=1")
+            failing = " ".join(f"{timer['call']}-start#{n}=1" for n in range(1, 5))
+            for attempt in range(2):
+                result = server.run(fail=failing)                 # pre-flight recovery, end and retry all fail
+                self.assertEqual(result.returncode, 1, (attempt, result.stderr))
+                self.assertNotIn("RESTORE COMPLETE", result.stderr)
+                # Found inactive under the lock, and still noted: the note is not dropped.
+                self.assertTrue((server.state / timer["note"]).exists())
+                self.assertFalse((server.run_dir / timer["flag"]).exists())
+                self.assertFalse(server.locked())
+            self.assert_recovered_by_a_clean_run(server)
+        self.each(TIMERS, check)
+
+    def test_a_signal_right_after_a_restart_still_brings_both_back_and_keeps_the_signal_status(self):
+        cases = [(timer, how, status) for timer in TIMERS for how, status in (("TERM", 143), ("INT", 130), ("HUP", 129))]
+
+        def check(case):
+            timer, how, status = case
+            server = self.server()
+            result = server.run(after=f"{timer['call']}-start#1={how}")      # for the backup timer: between the two
+            self.assertEqual(result.returncode, status, result.stderr)
+            self.assertTrue(server.active())
+            self.assertEqual(self.state(server), (False, True, False, True, False))
+            self.assertIn("The registration cleanup timer is active again.", result.stderr)
+            self.assert_recovered_by_a_clean_run(server)
+        self.each(cases, check)
+
+    def test_a_restart_and_its_retry_failing_around_a_signal_keep_the_note_and_the_signal_status(self):
+        def check(timer):
+            server = self.server()
+            other = OTHER[timer["name"]]
+            # The signal arrives right after the other timer's start; this one fails before and in the retry.
+            result = server.run(fail=f"{timer['call']}-start#1=1 {timer['call']}-start#2=1",
+                                after=f"{other['call']}-start#1=TERM")
+            self.assertEqual(result.returncode, 143, result.stderr)
+            self.assertTrue((server.state / timer["note"]).exists())
+            self.assertFalse((server.run_dir / timer["flag"]).exists())
+            self.assertTrue((server.run_dir / other["flag"]).exists())
+            self.assertFalse((server.state / other["note"]).exists())
+            self.assertFalse(server.locked())
+            self.assert_recovered_by_a_clean_run(server)
+        self.each(TIMERS, check)
+
+    def test_sigkill_around_the_restarts_loses_nothing_and_the_next_run_recovers(self):
+        cases = (
+            # killed before the first restart: both noted, both off
+            ("kill", "timer-start#1", (False, False, True, False, True)),
+            # killed between the two restarts: the backup timer is back, the cleanup timer noted
+            ("kill", "cleanup-timer-start#1", (False, True, False, False, True)),
+            # killed after a start and before its note was removed: started again, harmlessly
+            ("after", "timer-start#1=KILL", (False, True, True, False, True)),
+            ("after", "cleanup-timer-start#1=KILL", (False, True, False, True, True)),
+        )
+
+        def check(case):
+            how, where, expected = case
+            server = self.server()
+            result = server.run(**{how: where})
+            self.assertEqual(result.returncode, -9, result.stderr)
+            self.assertTrue(server.active())                    # the service had been started
+            self.assertEqual(self.state(server), expected)
+            calls = self.assert_recovered_by_a_clean_run(server)
+            self.assertLess(calls.index("cleanup-timer-start#1"), calls.index("py:preflight#1"))
+        self.each(cases, check)
+
+    def test_sigkill_after_a_note_is_on_disk_and_before_the_stop_is_taken_over_under_the_lock(self):
+        for sync in ("sync#1", "sync#2"):
+            with self.subTest(after=sync):
                 server = self.server()
-                result = server.run(after=f"timer-start#1={how}")
-                self.assertEqual(result.returncode, status, result.stderr)
-                self.assertTrue(server.active())                      # the service is on the restored state
-                self.assert_timers(server, True, True)
-                calls = server.all_calls()
-                self.assertEqual((calls.count("timer-start#1"), calls.count("cleanup-timer-start#1")), (1, 1))
-                self.assertIn("The registration cleanup timer is active again.", result.stderr)
-                # A restore after it starts from what is really there, and ends with both timers.
+                result = server.run(after=f"{sync}=KILL")
+                self.assertEqual(result.returncode, -9, result.stderr)
+                self.assertTrue(server.locked())                # nothing is started under the lock
+                noted = (server.state / BACKUP["note"]).exists(), (server.state / CLEANUP["note"]).exists()
+                self.assertEqual(noted, (True, sync == "sync#2"))
+                earlier = len(server.all_calls())
                 self.assertEqual(server.run().returncode, 0)
-                self.assert_timers(server, True, True)
+                calls = server.all_calls()[earlier:]
+                self.assertNotIn("timer-start#1", calls[:calls.index("systemctl-start#1")])   # not before the end
+                self.assertEqual(self.state(server), (False, True, False, True, False))
 
-    def test_a_signal_during_the_last_restart_leaves_nothing_undone(self):
+    def test_an_unresolved_note_survives_a_run_that_leaves_the_lock_and_the_next_one_takes_it_over(self):
         server = self.server()
-        result = server.run(after="cleanup-timer-start#1=TERM")
-        self.assertEqual(result.returncode, 143, result.stderr)
-        self.assert_timers(server, True, True)
+        server.run(fail="cleanup-timer-start#1=1 cleanup-timer-start#2=1")
+        self.assertEqual(self.state(server), (False, True, False, False, True))
+        # The next run cannot start it in its pre-flight, and is then cut off while replacing the state.
+        result = server.run(fail="cleanup-timer-start#1=1", kill="mv#4")
+        self.assertEqual(result.returncode, -9)
+        self.assertTrue(server.locked())
+        self.assertTrue((server.state / CLEANUP["note"]).exists())
+        self.assertFalse(self.cleanup_timer_active(server))
+        # The run that takes the lock over finds it inactive, keeps the note, and starts it at its end.
+        earlier = len(server.all_calls())
+        self.assertEqual(server.run().returncode, 0)
+        calls = server.all_calls()[earlier:]
+        self.assertNotIn("cleanup-timer-stop#1", calls)
+        self.assertGreater(calls.index("cleanup-timer-start#1"), calls.index("systemctl-start#1"))
+        self.assertEqual(self.state(server), (False, True, False, True, False))
 
-    def test_a_failed_backup_timer_restart_does_not_keep_the_cleanup_timer_off(self):
+    def test_a_run_that_fails_its_pre_flight_still_recovers_a_note_first_or_says_it_could_not(self):
         server = self.server()
-        result = server.run(fail="timer-start#1=1")
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("WARNING: the backup timer could not be started again", result.stderr)
-        self.assert_timers(server, False, True)
+        server.run(fail="cleanup-timer-start#1=1 cleanup-timer-start#2=1")
+        result = server.run(fail="cleanup-timer-start#1=1 py:preflight#1=1")
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertIn(base.UNTOUCHED, result.stderr)
+        self.assertIn("NOT ACTIVE AGAIN YET", result.stderr)
+        self.assertEqual(self.state(server), (False, True, False, False, True))
+        result = server.run(fail="py:preflight#1=1")
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertIn(base.UNTOUCHED, result.stderr)
+        self.assertNotIn("NOT ACTIVE AGAIN YET", result.stderr)
+        self.assertEqual(self.state(server), (False, True, False, True, False))   # recovered, then untouched
 
     def test_a_timer_that_was_inactive_stays_inactive_whatever_interrupts_the_restarts(self):
-        for inactive, signal_after in (("cleanup-timer-active", "timer-start#1"),
-                                       ("timer-active", "cleanup-timer-start#1")):
-            with self.subTest(inactive=inactive):
-                server = self.server()
-                (server.run_dir / inactive).unlink()
-                active_after = signal_after
-                result = server.run(after=f"{active_after}=TERM")
-                self.assertEqual(result.returncode, 143, result.stderr)
-                again = {"cleanup-timer-active": (True, False), "timer-active": (False, True)}[inactive]
-                self.assert_timers(server, *again)
-                calls = server.all_calls()
-                if inactive == "cleanup-timer-active":
-                    self.assertFalse([call for call in calls if call.startswith("cleanup-")])
-                else:
-                    self.assertNotIn("timer-start#1", calls)
-                self.assertEqual(server.run().returncode, 0)            # and the next restore keeps it so
-                self.assert_timers(server, *again)
+        cases = [(inactive, how) for inactive in TIMERS
+                 for how in ({"after": f"{OTHER[inactive['name']]['call']}-start#1=TERM"},
+                             {"fail": f"{OTHER[inactive['name']]['call']}-start#1=1 "
+                                      f"{OTHER[inactive['name']]['call']}-start#2=1"},
+                             {"kill": f"{OTHER[inactive['name']]['call']}-start#1"},
+                             {})]
+
+        def check(case):
+            inactive, how = case
+            server = self.server()
+            (server.run_dir / inactive["flag"]).unlink()
+            server.run(**how)
+            self.assertFalse((server.run_dir / inactive["flag"]).exists())
+            self.assertFalse((server.state / inactive["note"]).exists())
+            self.assertEqual(server.run().returncode, 0)                    # and the next run keeps it so
+            self.assertFalse((server.run_dir / inactive["flag"]).exists())
+            self.assertFalse((server.state / inactive["note"]).exists())
+            self.assertFalse([call for call in server.all_calls() if call.startswith(f"{inactive['call']}-start")])
+            self.assertTrue((server.run_dir / OTHER[inactive["name"]]["flag"]).exists())
+        self.each(cases, check)
+
+    def test_the_notes_are_made_like_the_lock_and_flushed_before_each_timer_is_stopped(self):
+        server = self.server()
+        result = server.run(kill="systemctl-stop#1")            # both timers stopped, the service not yet
+        self.assertEqual(result.returncode, -9)
+        calls = server.all_calls()
+        self.assertEqual([call for call in calls if call.startswith(("sync#", "timer-stop", "cleanup-timer-stop"))],
+                         ["sync#1", "timer-stop#1", "sync#2", "cleanup-timer-stop#1"])
+        for timer in TIMERS:
+            note = server.state / timer["note"]
+            self.assertEqual(note.read_text(encoding="utf-8"), f"{timer['unit']}\n")
+            self.assertEqual(note.parent, server.lock.parent.parent)     # in the state root, not in the lock
+            self.assertEqual(stat.S_IMODE(note.stat().st_mode) & 0o022, 0)
 
 
 class RestoreScriptOrderTest(unittest.TestCase):

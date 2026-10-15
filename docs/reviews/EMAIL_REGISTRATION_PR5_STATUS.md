@@ -6,32 +6,103 @@ Tests: `docs/reviews/EMAIL_REGISTRATION_TEST_PLAN.md`, DR1–DR9, N5–N7, N9.
 Earlier PRs: `EMAIL_REGISTRATION_PR1_STATUS.md` to `PR4_STATUS.md` (merged: #335–#338).
 Operator guide: `docs/DEPLOYMENT.md`, section 34 (and sections 16, 17, 19).
 
-**Status:** implemented on `feature/registration-operations` (base `05537cd`; independent review
-done on `36cffbe`, verdict REQUEST CHANGES; fixes below on top of it), **unstaged and uncommitted**.
-The review fixes are **not independently reviewed and not approved**. Registration is **not activated**: both build gates
-stay off. No migration, no schema change, no deployment, no provider, no real database, no real
-message, no server. Nothing here has run under systemd or on Linux.
+**Status:** PR #339, branch `feature/registration-operations`. Committed: `36cffbe` (implementation)
+and `b719728` (fixes after the first independent review). The second independent review, of
+`b719728`, asked for changes to the timer recovery; that fix (below) is **unstaged and uncommitted**
+on top of `b719728`, **awaiting independent review, not approved**. Registration is **not
+activated**: both build gates stay off. No migration, no schema change, no deployment, no
+provider, no real database, no real message, no server. Nothing here has run under systemd or on
+Linux.
 
-## Independent review of `36cffbe`: REQUEST CHANGES, three blockers fixed
+## Review history
 
-| # | Finding | Fix | Regression (fails on `36cffbe`, passes now) |
+### First independent review, of `36cffbe`: REQUEST CHANGES
+
+Three blockers; `b719728` addressed them. The second review found that the timer fix (1) did not
+resolve the finding; it resolved findings 2 and 3 independently.
+
+| # | Finding | Fix in `b719728` | Second review |
 | --- | --- | --- | --- |
-| 1 | `deploy/learnpilot-restore.sh`: SIGTERM after the first timer restart (`timer-start#1=TERM`) left exit 143 with the cleanup timer off; the lock and its marker were already gone, so a later restore saw an inactive timer and never restored it. | The restarts are one function, `restart_timers`. The intent (`TIMER_WAS_ACTIVE`, `CLEANUP_TIMER_WAS_ACTIVE`) is cleared per timer only after its start command returned. `finish` calls it again for `PHASE=started` with a non-zero status, so the interrupted and the not-yet-started timer are both started. Timers that were inactive are never started. | `InterruptedRestoreTest`: signals TERM/INT/HUP between the restarts and after the last, a failed backup-timer restart, initially inactive timers (each one), and a following restore. |
-| 2 | `registration_scrub.has_pending_storage` treated an existing table lacking a column (`closed_at` renamed) as absent legacy storage: unscrubbed pending data was published with `quick_check=ok` and a valid hash. | Only a missing table returns "nothing to scrub". An existing table without a required column raises `UnsupportedRegistrationSchema`; `scrub_pending_registrations` turns it into `BackupError`, so nothing is published and the partial file is removed. | `SnapshotScrubTest.test_an_existing_registration_table_that_cannot_be_scrubbed_fails_the_backup_closed` (renamed `closed_at`, `password_hash`, `state`; populated pending rows; no artifact, no partial file; CLI exit 1). Pre-021 and normal backups: existing tests. |
-| 3 | `registrations-release-hold` looked for the restore lock only before `BEGIN IMMEDIATE`. | Looks again with the write lock held; refuses, the dispatcher rolls back, the hold, its time, the mark and the ledger stay. | `OperatorCommandsTest.test_a_restore_lock_made_while_the_release_waits_for_the_database_stops_it`: two connections in a fixed order (first look passes, writer holds SQLite, lock appears, writer lets go). |
+| 1 | `deploy/learnpilot-restore.sh`: SIGTERM after the first timer restart (`timer-start#1=TERM`) left exit 143 with the cleanup timer off; the lock and its marker were already gone, so a later restore saw an inactive timer and never restored it. | `restart_timers`, called again from `finish` after the start. | **Not resolved**: see below. |
+| 2 | `registration_scrub.has_pending_storage` treated an existing table lacking a column (`closed_at` renamed) as absent legacy storage: unscrubbed pending data was published with `quick_check=ok` and a valid hash. | Only a missing table returns "nothing to scrub". An existing table without a required column raises `UnsupportedRegistrationSchema`; `scrub_pending_registrations` turns it into `BackupError`, so nothing is published and the partial file is removed. Regression: `SnapshotScrubTest.test_an_existing_registration_table_that_cannot_be_scrubbed_fails_the_backup_closed`. | Resolved. Unchanged since. |
+| 3 | `registrations-release-hold` looked for the restore lock only before `BEGIN IMMEDIATE`. | Looks again with the write lock held; refuses, the dispatcher rolls back, the hold, its time, the mark and the ledger stay. Regression: `OperatorCommandsTest.test_a_restore_lock_made_while_the_release_waits_for_the_database_stops_it`. | Resolved. Unchanged since. |
 
-Documentation correction: the gate **does take the current time** for the timestamps it writes
-(`closed_at` of voided registrations, the time of a new hold). It does not accept or reset the
-clock and never sets or changes the high-water mark. The earlier wording ("reads no clock") is
-corrected here, in `web/services/registration.py` and in DEPLOYMENT section 34.
+`b719728` also corrected the gate's documentation: the gate **does take the current time** for the
+timestamps it writes (`closed_at` of voided registrations, the time of a new hold). It does not
+accept or reset the clock and never sets or changes the high-water mark.
 
-Evidence for the fixes is from the shim harness and temporary databases only; the three regressions
-were each shown to fail with the old code restored. Residual: a restore killed with `SIGKILL` (or
-a power loss) after it released the lock cannot restart the timers, and nothing records the intent
-any more; DEPLOYMENT 34 tells the operator to check the timers. No change to that was made
-(it would need a durable marker outside the lock).
+### Second independent review, of `b7197288b0eab9d1f80e8ab3ce8309ff07dc28f8`: REQUEST CHANGES
 
-## What PR 5 contains
+Remaining blocker: `restart_timers` cleared a timer's flag even when `systemctl start` failed. For
+either timer: one failed restart ended with exit 0, the timer inactive and the intent gone; a later
+failure-free restore ended with exit 0 and the timer still inactive; a start and its retry failing
+around SIGTERM ended with 143 and the intent lost; a SIGKILL before or between the restarts lost
+the intent too (it lived in the lock, which is removed before the start, and in shell variables).
+Advice to check the timers by hand does not meet design 3.9 ("the timer comes back on every path
+the backup timer does").
+
+### The timer fix (unstaged, awaiting independent review)
+
+Protocol, in `deploy/learnpilot-restore.sh`:
+
+1. **Note, outside the lock.** One file per timer in the state root, root-owned like the lock and
+   written the same way (`sudo sh -c 'printf ... > file'`), holding the unit name:
+   `$STATE/restore-pending-backup-timer`, `$STATE/restore-pending-registration-cleanup-timer`.
+   They block nothing (the application and both units look only at the lock).
+2. **On disk before the stop.** For a timer found `active`/`activating`, or already noted: the note
+   is written, then `sync -- NOTE $STATE` (file, then directory), each a gate, and only then is the
+   timer stopped. A run that cannot write or flush the note stops before it stops the timer.
+3. **Never dropped by an observation.** A note found when the lock is taken (fresh or taken over)
+   makes the timer "to be started again", whatever state the timer is in now. Markers an earlier
+   version of the script left in a taken-over lock (`backup-timer-was-active`,
+   `registration-cleanup-timer-was-active`) are taken over as notes. A timer that was inactive and
+   not noted is never started.
+4. **Removed only after a successful start.** `restart_timers` runs
+   `systemctl start TIMER && rm -f -- NOTE` for each noted timer, clears the flag only if both
+   succeeded, always goes on to the other timer, and returns 1 if any timer failed.
+5. **Failures propagate.** At the end of a successful run, a failed restart is `die 1` (no
+   `RESTORE COMPLETE`). `finish`, for a run stopped or failed after the start, retries
+   `restart_timers` and exits with the status the run ended with (143/130/129 for a signal, 1 for a
+   failure), even if the retry succeeded. After a failure that gave the lock back, and after
+   "restore complete, service not running", `finish` restarts the noted timers the same way.
+   Whenever a timer is still noted at the end, `NOT ACTIVE AGAIN YET` is printed with the paths.
+6. **Recovery by the next run.** Right after `sudo true` in the pre-flight, if no restore lock
+   exists, each noted timer is started (and its note removed) before anything else. If that fails,
+   the run says so and goes on; the note stays, the run retries at its end and cannot exit 0 while
+   the timer is not active. With a lock present nothing is started in the pre-flight: a restore is
+   running or unfinished, and the run that takes the lock over starts the timer when it ends.
+
+What this guarantees, from the script's order (shim evidence only): from the moment a timer is
+stopped until it has been started again, a note naming it is on disk outside the lock, and no exit
+status 0 is possible while a noted timer is not active. A SIGKILL or power loss anywhere leaves
+either the timer active or its note; between a successful start and the removal of the note, both
+(the next run starts it again, harmlessly). What it does **not** prove: that GNU `sync FILE DIR`
+makes the note survive a power loss on the production filesystem (an assumption about coreutils
+and the filesystem; unverified), that real systemd behaves like the shim, or that a timer that
+systemd refuses to start can ever be started; such a timer stays noted and every run fails until
+it is fixed. If two restores are started at the same instant, the pre-flight recovery of one can
+start a timer the other has just stopped under its lock; the units' `ConditionPathExists=!` and
+the cleanup command's own refusal keep that timer from doing anything until the lock is gone.
+
+Regressions (in `tests/test_registration_restore_operations.py`, `InterruptedRestoreTest`, each
+timer separately, and `tests/test_lifecycle_restore_script.py`, `BackupOverlapTest`): first restart
+fails and the retry succeeds (exit 1, timer active, note gone); restart and retry both fail (exit 1,
+note kept, other timer started) and a clean run recovers it before its pre-flight; repeated failure
+across runs keeps the note and fails each time although the timer is found inactive; TERM, INT and
+HUP right after a restart (exit status kept, both active); a restart and its retry failing around
+TERM (143, note kept) and recovery; SIGKILL before the first restart, between the restarts, and after
+a start before its note was removed, each followed by recovery; SIGKILL after a note was flushed and
+before the stop (taken over under the lock, started at the end); an unresolved note surviving a run
+that leaves the lock; a pre-flight failure after recovery and with recovery failing; initially
+inactive timers under a signal, a failed restart of the other timer, a SIGKILL and a clean run;
+the order note → flush → stop and the notes' place and mode. Mutation evidence, on disposable copies
+of the tree outside the repository, running `InterruptedRestoreTest` and `BackupOverlapTest`
+(23 tests, with subtests): the fixed tree passes; the script of `b719728` fails 24 cases; reverting
+one part of the fix at a time fails 13 (a failed start clears the note), 8 (no pre-flight
+recovery), 1 (note written after the stop), 10 (no retry in `finish`), 3 (an inactive timer drops
+its note) and 7 (a failed restart only warns, exit 0).
+
+## What PR 5 contains## What PR 5 contains
 
 | Piece | Where |
 | --- | --- |
@@ -65,15 +136,16 @@ any more; DEPLOYMENT 34 tells the operator to check the timers. No change to tha
 ### Restore script
 
 - After the lock and the backup-timer/service handling, and before the live database is
-  checkpointed and fingerprinted: the cleanup timer is stopped (if it was active; noted in
-  `$LOCK/registration-cleanup-timer-was-active`) and the cleanup service must be `inactive` or
-  `failed`. A first look in the pre-flight avoids a wasted start. Any other state, or a state
+  checkpointed and fingerprinted: the cleanup timer is stopped (if it was active; noted first,
+  outside the lock, in `$STATE/restore-pending-registration-cleanup-timer`, flushed to disk) and
+  the cleanup service must be `inactive` or `failed`. A first look in the pre-flight avoids a wasted start. Any other state, or a state
   systemd cannot give, ends the restore (`activating`, `active`, `reloading`, `deactivating`:
   "a registration cleanup is running").
 - The timer is started again wherever the backup timer is: after a failure that gave the lock back,
-  after "restore complete, service not running", and after a successful start. A timer that was
-  not active is never started. After an interrupted run (lock stays) the marker in the lock makes
-  the next run restore it.
+  after "restore complete, service not running", after a successful start, and after a run stopped
+  or failed once the service was started. A timer that was not active is never started. Its note
+  goes only once the start succeeded; otherwise the run does not exit 0 and the next run starts the
+  timer first (no lock) or at its end (lock taken over). Protocol: "The timer fix" above.
 - Step 4b, after the migration of the copy and before the final fingerprint:
   `registrations-restore-gate` on the staged copy. Step 8 and step 10: `registrations-restore-status
   --expect held` (staged copy, then the database in place). Nothing of the gate runs after the
@@ -176,8 +248,10 @@ cryptography 50.0.2). Results are in the final report of the implementation sess
 | Units against the real parser | `UnitFilesTest` |
 | Documented residuals | `SnapshotScrubTest.test_the_documented_residuals…` |
 
-**Simulated, not real:** the restore tests run the real script with shims for `sudo`, `systemctl`
-and `curl`; they show the script's control flow, not systemd's behaviour.
+**Simulated, not real:** the restore tests run the real script with shims for `sudo`, `systemctl`,
+`sync` and `curl`; they show the script's control flow, not systemd's behaviour. The `sync` shim
+only records the call: nothing shows that a note survives a power loss, and a SIGKILL in the
+harness is a killed process, not a lost page cache.
 
 ## Not verified / remaining activation prerequisites
 
@@ -185,9 +259,11 @@ and `curl`; they show the script's control flow, not systemd's behaviour.
   on a quiet server and scrubbing an expired registration; `ConditionPathExists=` refusing a run
   under the lock; the full restore script on Linux with its gate, an interrupted run, a run started
   while a cleanup executes, and a second restore on top of a held one; a snapshot taken by the
-  backup unit followed by a test restore; `ProtectSystem=strict` with the unit's `ReadWritePaths`.
+  backup unit followed by a test restore; `ProtectSystem=strict` with the unit's `ReadWritePaths`;
+  GNU `sync -- FILE DIR` on the production filesystem, and a timer note surviving a real power loss
+  or crash; real `systemctl start` failures of a timer and the recovery by the next run.
 - The health-check additions (DEPLOYMENT 19) were not executed anywhere.
 - No claim of VPS validation is made.
 - Still open from the design: D16 (privacy), D17 configuration, Nginx evidence, sender
   containment evidence, teacher quotas (PR 7), password recovery (PR 8, which must extend the gate,
-  status and scrub), and an independent review of this PR.
+  status and scrub), and an independent review of the timer fix described above.

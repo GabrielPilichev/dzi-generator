@@ -42,6 +42,15 @@
 # the live database is read; on the staged copy every pending registration is voided
 # and registration is held; the hold is never released by this script, whatever
 # happens. The operator ends it with `manage_accounts registrations-release-hold`.
+#
+# Timers (design 3.9: "the timer comes back on every path the backup timer does"): before a
+# timer is stopped, a note that it is to be started again is written OUTSIDE the lock
+# ($STATE/restore-pending-<timer>) and flushed to disk (file and directory). The note goes
+# only once `systemctl start` of that timer has succeeded. No ending of this script removes
+# a note otherwise, and a run never drops one because it finds the timer inactive. A run
+# that finds a note and no lock starts that timer first, in its pre-flight; a run that takes
+# a lock over keeps the note and starts the timer when it ends. A run that cannot start a
+# noted timer again does not exit 0.
 
 if [ -z "${BASH_VERSION:-}" ]; then
   echo "restore: run this script with bash" >&2
@@ -68,6 +77,9 @@ HEALTH_URL=${LEARNPILOT_HEALTH_URL:-http://127.0.0.1:8000/healthz}
 AUDIT_LOG=${LEARNPILOT_AUDIT_LOG:-$STATE/lifecycle-operator.log}
 LIVE_DB=$STATE/data/questions.db
 LOCK=$STATE/data/restore-in-progress   # web.services.lifecycle.RESTORE_LOCK_NAME
+# Outside the lock, which blocks the start of the service: these do not.
+TIMER_NOTE=$STATE/restore-pending-backup-timer
+CLEANUP_TIMER_NOTE=$STATE/restore-pending-registration-cleanup-timer
 case $STATE in
   /*) ;;
   *)
@@ -208,25 +220,38 @@ gate() {             # gate "WHAT IT ESTABLISHES" COMMAND [ARGUMENT...]
   fi
 }
 
-restart_timers() {   # after the service has started: each timer that was active, once, even when interrupted
-  # The flag of a timer is cleared only after its start command has returned, so a signal
-  # that cuts this short leaves the other timer (and the interrupted one) still pending
-  # for finish, which calls this again.
+restart_timers() {   # restart_timers: each timer noted as active is started again; 1 if one is not
+  # A timer's note is removed, and its flag cleared, only after its start has succeeded:
+  # a signal or a SIGKILL anywhere in here leaves the note, and starting a timer that is
+  # already active again is harmless. One timer that cannot be started does not keep the
+  # other from being started.
+  local failed=0
   if [ "$TIMER_WAS_ACTIVE" = yes ]; then
-    if sudo systemctl start "$BACKUP_TIMER"; then
+    if sudo systemctl start "$BACKUP_TIMER" && sudo rm -f -- "$TIMER_NOTE"; then
+      TIMER_WAS_ACTIVE=no
       say "The backup timer is active again."
     else
-      say "WARNING: the backup timer could not be started again. Start it by hand: $BACKUP_TIMER"
+      failed=1
+      say "WARNING: the backup timer could not be started again ($BACKUP_TIMER); it stays noted in $TIMER_NOTE"
     fi
-    TIMER_WAS_ACTIVE=no
   fi
   if [ "$CLEANUP_TIMER_WAS_ACTIVE" = yes ]; then
-    if sudo systemctl start "$CLEANUP_TIMER"; then
+    if sudo systemctl start "$CLEANUP_TIMER" && sudo rm -f -- "$CLEANUP_TIMER_NOTE"; then
+      CLEANUP_TIMER_WAS_ACTIVE=no
       say "The registration cleanup timer is active again."
     else
-      say "WARNING: the registration cleanup timer could not be started again. Start it by hand: $CLEANUP_TIMER"
+      failed=1
+      say "WARNING: the registration cleanup timer could not be started again ($CLEANUP_TIMER); it stays noted in $CLEANUP_TIMER_NOTE"
     fi
-    CLEANUP_TIMER_WAS_ACTIVE=no
+  fi
+  return "$failed"
+}
+
+timers_left() {      # what is still to be started again, said plainly (nothing if nothing is)
+  if [ "$TIMER_WAS_ACTIVE" = yes ] || [ "$CLEANUP_TIMER_WAS_ACTIVE" = yes ]; then
+    say "NOT ACTIVE AGAIN YET: a timer that was active before the restore is still stopped. Its note stays"
+    say "($TIMER_NOTE, $CLEANUP_TIMER_NOTE). The next run of this script starts it again (first thing when no"
+    say "restore lock is left, otherwise when that run ends), and does not exit 0 while it cannot."
   fi
 }
 
@@ -254,15 +279,19 @@ finish() {
         say "A restore lock is there that this run did not make: $LOCK"
       fi
     fi
+    timers_left
     say "Nothing was touched, and the service was left as it was. Exit status $status."
     exit "$status"
   fi
   if [ "$PHASE" = started ]; then
     say "The service is running on the restored state: the script was stopped after it had started it."
-    # The lock is gone, and with it the note of which timers were active; the intent is
-    # kept in TIMER_WAS_ACTIVE / CLEANUP_TIMER_WAS_ACTIVE until a timer has been started.
-    restart_timers
-    say "Check that the backup timer ($BACKUP_TIMER) and the registration cleanup timer ($CLEANUP_TIMER) are active. Exit status $status."
+    # The retry. The status stays the one this run ended with (a signal's, or the failure's),
+    # whatever the retry achieves: a run that did not end in order is not reported as a success.
+    if ! restart_timers; then
+      say "The retry from the failure handling did not start every timer."
+    fi
+    timers_left
+    say "REGISTRATION IS HELD until registrations-release-hold (docs/DEPLOYMENT.md, section 34). Exit status $status."
     exit "$status"
   fi
 
@@ -360,11 +389,8 @@ finish() {
       elif [ "$LOCK_HELD" = yes ]; then
         if sudo rm -rf -- "$LOCK"; then
           say "The restore lock was released."
-          if [ "$TIMER_WAS_ACTIVE" = yes ] && ! sudo systemctl start "$BACKUP_TIMER"; then
-            say "WARNING: the backup timer could not be started again: $BACKUP_TIMER"
-          fi
-          if [ "$CLEANUP_TIMER_WAS_ACTIVE" = yes ] && ! sudo systemctl start "$CLEANUP_TIMER"; then
-            say "WARNING: the registration cleanup timer could not be started again: $CLEANUP_TIMER"
+          if ! restart_timers; then
+            say "Not every timer that was active before the restore could be started again."
           fi
         else
           say "The restore lock could not be removed: $LOCK"
@@ -405,17 +431,15 @@ finish() {
       sudo sh -c 'if [ -e "$1" ] || [ -L "$1" ]; then exit 10; fi; exit 11' sh "$LOCK" || lock=$?
       if [ "$lock" -eq 11 ]; then
         say "The restore itself is complete and the lock is released; the service is not running."
-        if [ "$TIMER_WAS_ACTIVE" = yes ] && ! sudo systemctl start "$BACKUP_TIMER"; then
-          say "WARNING: the backup timer could not be started again: $BACKUP_TIMER"
-        fi
-        if [ "$CLEANUP_TIMER_WAS_ACTIVE" = yes ] && ! sudo systemctl start "$CLEANUP_TIMER"; then
-          say "WARNING: the registration cleanup timer could not be started again: $CLEANUP_TIMER"
+        if ! restart_timers; then
+          say "Not every timer that was active before the restore could be started again."
         fi
       else
         say "The lock stays. Run the script again from the beginning."
       fi
       ;;
   esac
+  timers_left
   say "THE SERVICE WAS NOT STARTED. Exit status $status."
   exit "$status"
 }
@@ -510,7 +534,7 @@ fi
 
 # --- 1. pre-flight: nothing is modified and the service keeps running --------------
 
-for tool in sudo systemctl sqlite3 tar install mv ln rm mkdir rmdir cat grep ps curl date sleep; do
+for tool in sudo systemctl sqlite3 tar install mv ln rm mkdir rmdir cat grep ps curl date sleep sync; do
   if ! command -v "$tool" > /dev/null; then
     die 2 "a program this script needs is not installed: $tool"
   fi
@@ -518,6 +542,24 @@ done
 gate "the application checkout is the working directory" cd "$APP"
 gate "the operator tooling is in the checkout" test -f src/manage_lifecycle.py
 gate "sudo can be used" sudo true
+# A timer an earlier run stopped and did not get going again: its note is there and no lock
+# is (a lock means a restore is running or unfinished, and the timers stay stopped for it).
+# It is started now, before anything else. If it cannot be, this run goes on and tries again
+# when it ends; it cannot exit 0 while the timer is not active.
+if ! sudo test -e "$LOCK" && ! sudo test -L "$LOCK"; then
+  if sudo test -e "$TIMER_NOTE"; then
+    TIMER_WAS_ACTIVE=yes
+  fi
+  if sudo test -e "$CLEANUP_TIMER_NOTE"; then
+    CLEANUP_TIMER_WAS_ACTIVE=yes
+  fi
+  if [ "$TIMER_WAS_ACTIVE" = yes ] || [ "$CLEANUP_TIMER_WAS_ACTIVE" = yes ]; then
+    say "An earlier restore left a timer stopped that was active before it. Starting it again now."
+    if ! restart_timers; then
+      say "This run goes on; it starts the timer again when it ends, and fails if it still cannot."
+    fi
+  fi
+fi
 gate "the application's Python can be run as the service user" "${AS_SERVICE[@]}" "$PYTHON" -c 'import sqlite3, tarfile'
 gate "the snapshot is complete and there is room and one filesystem for the copy" \
   "${AS_SERVICE[@]}" "$PYTHON" -m src.restore_preflight --snapshot "$SNAPSHOT" --state-root "$STATE"
@@ -625,6 +667,7 @@ if ! sudo mkdir -- "$LOCK"; then
     say "That run was interrupted WHILE REPLACING the live uploads and vault. This run starts over"
     say "from the snapshot; what the earlier run set aside stays where it is."
   fi
+  # Markers an earlier version of this script left inside the lock: taken over as notes below.
   if sudo test -e "$LOCK/backup-timer-was-active"; then
     TIMER_WAS_ACTIVE=yes
   fi
@@ -635,17 +678,31 @@ fi
 LOCK_HELD=yes
 PHASE=locked
 gate "record this run in the restore lock" sudo sh -c 'printf "%s\n" "$2" > "$1"' sh "$LOCK/pid" "$$"
+# Whatever an earlier run left to be started again stays to be started again, whatever state
+# the timer is found in now.
+if sudo test -e "$TIMER_NOTE"; then
+  TIMER_WAS_ACTIVE=yes
+fi
+if sudo test -e "$CLEANUP_TIMER_NOTE"; then
+  CLEANUP_TIMER_WAS_ACTIVE=yes
+fi
 
 TIMER_STATE=$(sudo systemctl show -p ActiveState "$BACKUP_TIMER") \
   || die "$?" "the state of the backup timer could not be read from systemd ($BACKUP_TIMER)"
 case $TIMER_STATE in
   ActiveState=inactive | ActiveState=failed) ;;
-  ActiveState=active | ActiveState=activating)
-    gate "note that the backup timer was active" sudo sh -c ': > "$1"' sh "$LOCK/backup-timer-was-active"
-    TIMER_WAS_ACTIVE=yes
-    gate "pause the backup timer" sudo systemctl stop "$BACKUP_TIMER"
-    ;;
+  ActiveState=active | ActiveState=activating) TIMER_WAS_ACTIVE=yes ;;
   *) die 1 "the state of the backup timer cannot be told: systemd reports '${TIMER_STATE#ActiveState=}' for $BACKUP_TIMER" ;;
+esac
+# The note is on disk (file, then directory) before the timer is stopped: a run that dies
+# at any point after the stop leaves the note.
+if [ "$TIMER_WAS_ACTIVE" = yes ]; then
+  gate "note, outside the lock, that the backup timer is to be started again" \
+    sudo sh -c 'printf "%s\n" "$2" > "$1"' sh "$TIMER_NOTE" "$BACKUP_TIMER"
+  gate "the note of the backup timer is on disk" sudo sync -- "$TIMER_NOTE" "$STATE"
+fi
+case $TIMER_STATE in
+  ActiveState=active | ActiveState=activating) gate "pause the backup timer" sudo systemctl stop "$BACKUP_TIMER" ;;
 esac
 # With the lock held no backup starts any more (the unit's condition, and the tool
 # itself). One that was started before the lock is still running: this is the look
@@ -670,13 +727,18 @@ CLEANUP_TIMER_STATE=$(sudo systemctl show -p ActiveState "$CLEANUP_TIMER") \
   || die "$?" "the state of the registration cleanup timer could not be read from systemd ($CLEANUP_TIMER)"
 case $CLEANUP_TIMER_STATE in
   ActiveState=inactive | ActiveState=failed) ;;
+  ActiveState=active | ActiveState=activating) CLEANUP_TIMER_WAS_ACTIVE=yes ;;
+  *) die 1 "the state of the registration cleanup timer cannot be told: systemd reports '${CLEANUP_TIMER_STATE#ActiveState=}' for $CLEANUP_TIMER" ;;
+esac
+if [ "$CLEANUP_TIMER_WAS_ACTIVE" = yes ]; then
+  gate "note, outside the lock, that the registration cleanup timer is to be started again" \
+    sudo sh -c 'printf "%s\n" "$2" > "$1"' sh "$CLEANUP_TIMER_NOTE" "$CLEANUP_TIMER"
+  gate "the note of the registration cleanup timer is on disk" sudo sync -- "$CLEANUP_TIMER_NOTE" "$STATE"
+fi
+case $CLEANUP_TIMER_STATE in
   ActiveState=active | ActiveState=activating)
-    gate "note that the registration cleanup timer was active" \
-      sudo sh -c ': > "$1"' sh "$LOCK/registration-cleanup-timer-was-active"
-    CLEANUP_TIMER_WAS_ACTIVE=yes
     gate "pause the registration cleanup timer" sudo systemctl stop "$CLEANUP_TIMER"
     ;;
-  *) die 1 "the state of the registration cleanup timer cannot be told: systemd reports '${CLEANUP_TIMER_STATE#ActiveState=}' for $CLEANUP_TIMER" ;;
 esac
 CLEANUP_STATE=$(sudo systemctl show -p ActiveState "$CLEANUP_SERVICE") \
   || die "$?" "the state of the registration cleanup service could not be read from systemd ($CLEANUP_SERVICE)"
@@ -959,7 +1021,9 @@ PHASE=started
 
 say "------------------------------------------------------------------"
 say "The service is running on the restored state. What it replaced is in $REPLACED."
-restart_timers
+if ! restart_timers; then
+  die 1 "a timer that was active before the restore could not be started again (finish tries once more)"
+fi
 say "REGISTRATION IS HELD: pending registrations were voided and registration answers 'unavailable' until you run"
 say "  manage_accounts registrations-release-hold --acknowledge-lost-history   (docs/DEPLOYMENT.md, section 34)."
 say "Nothing releases it by itself. Sign-in is not affected."
