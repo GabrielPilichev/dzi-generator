@@ -6,13 +6,13 @@ Tests: `docs/reviews/EMAIL_REGISTRATION_TEST_PLAN.md`, DR1–DR9, N5–N7, N9.
 Earlier PRs: `EMAIL_REGISTRATION_PR1_STATUS.md` to `PR4_STATUS.md` (merged: #335–#338).
 Operator guide: `docs/DEPLOYMENT.md`, section 34 (and sections 16, 17, 19).
 
-**Status:** PR #339, branch `feature/registration-operations`. Committed: `36cffbe` (implementation)
-and `b719728` (fixes after the first independent review). The second independent review, of
-`b719728`, asked for changes to the timer recovery; that fix (below) is **unstaged and uncommitted**
-on top of `b719728`, **awaiting independent review, not approved**. Registration is **not
-activated**: both build gates stay off. No migration, no schema change, no deployment, no
-provider, no real database, no real message, no server. Nothing here has run under systemd or on
-Linux.
+**Status:** PR #339, branch `feature/registration-operations`. Committed: `36cffbe` (implementation),
+`b719728` (fixes after the first independent review) and `39157f5` (the timer fix after the second).
+The third independent review, of `39157f5`, asked for changes: two blockers in the timer recovery.
+Their fixes (below, "Ownership, guard and records") are **unstaged and uncommitted** on top of
+`39157f5`, **awaiting independent review, not approved**. Registration is **not activated**: both
+build gates stay off. No migration, no schema change, no deployment, no provider, no real database,
+no real message, no server. Nothing here has run under systemd or on Linux.
 
 ## Review history
 
@@ -41,9 +41,11 @@ the intent too (it lived in the lock, which is removed before the start, and in 
 Advice to check the timers by hand does not meet design 3.9 ("the timer comes back on every path
 the backup timer does").
 
-### The timer fix (unstaged, awaiting independent review)
+### The timer fix, committed as `39157f5`
 
-Protocol, in `deploy/learnpilot-restore.sh`:
+Kept as it was reviewed. Points 1 (where the notes are) and 6 (the pre-flight's unlocked look at the
+lock) are replaced by "Ownership, guard and records" below; the rest stands, now carried out under
+the guard. Protocol, in `deploy/learnpilot-restore.sh` at `39157f5`:
 
 1. **Note, outside the lock.** One file per timer in the state root, root-owned like the lock and
    written the same way (`sudo sh -c 'printf ... > file'`), holding the unit name:
@@ -102,7 +104,156 @@ one part of the fix at a time fails 13 (a failed start clears the note), 8 (no p
 recovery), 1 (note written after the stop), 10 (no retry in `finish`), 3 (an inactive timer drops
 its note) and 7 (a failed restart only warns, exit 0).
 
-## What PR 5 contains## What PR 5 contains
+### Third independent review, of `39157f5fa8f12f121333b3df6ff2d6c85ccc6b02`: REQUEST CHANGES
+
+Two blockers, both in the timer recovery; the fixes of the first two reviews (schema scrub fails
+closed, release-hold looks for the lock again under SQLite's write lock) were confirmed and are
+unchanged.
+
+| # | Finding |
+| --- | --- |
+| 1 | No exclusion between recovery and restore ownership. A recovery run could pass its unlocked "no restore lock" check, pause, then remove the note that another restore had written before stopping its timer; a SIGKILL of that restore left the timer inactive with no intent, and the next restore ended with exit 0 without it. The same race after a restore gave its lock back and before `restart_timers` had finished. |
+| 2 | The notes were in the service-writable `$STATE`, and root followed a planted symbolic link when writing them: creation through a dangling link, truncation of an existing target (reproduced). |
+
+Related, to inspect: the takeover's handling of `$LOCK/pid` (read and written by root through a
+link) and the window between `mkdir` of the lock and the write of its pid. Non-blocking: no
+repository regression for the migration of in-lock markers; the held-count message lost when the
+restart needed the retry; manual recovery guidance that was an unlocked "check, then remove"; the
+durability of a note's removal not described.
+
+### Ownership, guard and records (unstaged, awaiting independent review)
+
+In `deploy/learnpilot-restore.sh`; operator text in `docs/DEPLOYMENT.md`, sections 2, 17 and 34.
+
+1. **Records outside the service's reach.** `/var/lib/learnpilot-restore` (`LEARNPILOT_RESTORE_RECORDS`;
+   refused if relative, not plain — `//`, `.`, `..`, a space, a final `/` — or inside
+   `LEARNPILOT_STATE`) holds `restore-owner` (the process id of the run that holds the lock),
+   `pending-backup-timer` and `pending-registration-cleanup-timer`. Section 2 makes it root's, 0700;
+   the pre-flight makes it (`mkdir -m 0700`, after the directories above it are checked) if it is
+   missing.
+2. **Checked, and nothing repaired.** Every program that touches it runs as root and starts with the
+   same checks (`CHECKED`): every directory from `/` down is a directory and not a link, belongs to
+   root or the effective user, and is writable by no one else unless sticky; the directory itself
+   belongs to the effective user and has mode exactly 0700 (an SELinux `.` or macOS `@` is allowed,
+   an ACL `+` is not); each record is absent or a regular file of that owner with one link. A link
+   (dangling or not), a directory, a pipe or a second name of another file is refused. The
+   pre-flight gate runs them before anything is stopped; every step under the guard runs them again
+   before it uses a record. As only root can change anything on that path, and the script changes
+   it only under the guard, what is checked is what is used. The 39157f5 location
+   (`$STATE/restore-pending-*`) is never followed or trusted: if anything is there, the pre-flight
+   stops, untouched, and points to section 34.
+3. **One guard: `sudo flock "$RECORDS" sh -c PROGRAM`.** flock(1) takes an exclusive flock(2) lock on
+   the directory and runs the program with the descriptor inherited by it and by everything it
+   starts (`systemctl`, `sync`, `rm`, `ps`): the guard is held until the last of them has ended, and
+   the kernel releases it when they die. No program in a step starts anything that outlives it
+   (`systemctl` asks systemd, whose units do not inherit our descriptors, and `start`/`stop` wait for
+   their job). A signal to the script, or a SIGKILL of it, does not cut a step short (its processes
+   are not the script's process); a power loss or a kill of the whole process group can, between two
+   of its commands. The guard is held only for these short steps, never while the script waits for
+   the operator or runs a restore gate.
+4. **The steps.** `ACQUIRE`: make the lock, or take over one whose recorded holder is not a running
+   `learnpilot-restore` (else exit 3: "another restore is running"), write `restore-owner`, report
+   the notes there. `PAUSE` (per timer, only for the holder of the lock): write the note, `sync` it
+   and the directory, then stop the timer if it was active. `RESTART` (per timer): if any restore
+   lock exists, exit 3 and touch nothing; otherwise start the timer and, only if that succeeded,
+   remove the note and `sync` the directory (4: start failed, note kept; 5: started, note not
+   removed). `RELEASE`: only for the recorded holder, remove the lock (all, or only if empty) and
+   `restore-owner`. Nothing else in the script makes or removes the lock, a note or the holder
+   record, or starts or stops a timer.
+5. **What follows.** A note is removed only in a step that saw no lock and started its timer; a lock
+   is made only in a step under the same guard; a timer is stopped by the restore only in a step of
+   the lock's holder, after its note is on disk. So: a recovery paused anywhere in its step keeps
+   any restore from taking the lock until it is done, and the restore then finds the timer active
+   and notes and stops it; a run that gave its lock back and finds a new restore holding one leaves
+   the timer and the note to it, warns (`a restore lock exists again`), and ends not 0; two runs
+   that find an abandoned lock cannot both take it over, and none looks at a lock half-made (the
+   `mkdir`-to-pid window is gone).
+6. **Unchanged from `39157f5`, now under the guard:** a note is never dropped because a timer is
+   found inactive; initially inactive timers are never started; both timers are always attempted;
+   signal statuses are kept; no exit 0 while a noted timer is not active. In-lock markers of an
+   earlier version (`backup-timer-was-active` from the released script, and
+   `registration-cleanup-timer-was-active`) become notes on takeover. Diagnostics tell apart a timer
+   that could not be started, one whose note could not be removed, one left to a restore that holds
+   the lock again, and a step that did not run.
+7. **Outcome kept on the retry path.** When the restart needed `finish`'s retry (or a signal came
+   after the start), the run still says registration is held and, with `--accept-held N`,
+   `RESTORED, NOT RECOVERED: N assignment(s) stay held`; it keeps its non-zero exit, and it never
+   says `RESTORE COMPLETE`.
+8. **Durability.** A note is written and flushed (file, then directory) before its timer is stopped.
+   Its removal is flushed (directory) after the start; a power loss before that flush can bring the
+   note back, and the next run then starts that timer once more: nothing changes if it is active,
+   and it is started again if an operator had stopped it on purpose in between (the run says so).
+9. **Related findings.** `$LOCK/pid` is no longer read or written: the holder is in `restore-owner`.
+   A `pid` file, or a link, in a lock an earlier version left is ignored, and nothing is written
+   through it (regression below). The `mkdir`-to-pid race is closed by item 4. **Not changed, and
+   still open:** root still creates the `swap-started` mark inside the lock with `: >`. The lock sits
+   in `$STATE/data`, which the service can write, so a service user who replaces the lock directory
+   could plant a link there and have root truncate its target when a replacement begins. This is
+   not part of the timer protocol, and fixing it means changing how the lock directory is made and
+   trusted, so it is left for a follow-up. The same directory lets the service user rename or remove
+   the lock itself, as it always could. Legacy markers are still read with `test -e`, which follows
+   a link but only tests existence.
+10. **Operator migration.** None from a released version (none kept notes outside the lock). Do not
+   deploy this script while an older version's restore is running: it ignores `$LOCK/pid` and would
+   take that lock over. Notes of 39157f5 (never merged) in `$STATE/restore-pending-*` stop the
+   pre-flight until an operator handles them (section 34). Manual recovery is now one command that
+   takes the guard, refuses while a restore lock exists, starts the timer and only then removes the
+   note (section 34). After a rollback, bring back any timer noted in `/var/lib/learnpilot-restore`:
+   an older script does not read it.
+
+Regressions, in `tests/test_registration_restore_operations.py` unless marked otherwise. Concurrent
+runs: two scripts on one server at the same time, each with its own call log, paused where the shims
+are told (`ConcurrentRestoreTest`):
+
+- A pre-flight recovery paused before, or just after, its start while another restore takes the
+  lock, notes and stops that timer, and is then SIGKILLed. Both timers, the other one active or
+  inactive at the start: 8 cases. The restore's note is kept, and a third run takes the lock over
+  and brings back exactly what was active.
+- A restore paused after it gave its lock back and before its timers are restarted, while a new
+  restore recovers, takes the lock, notes, stops and is SIGKILLed: the first ends 1 with the
+  warning, starts nothing, keeps the notes and still reports what it restored. Both timers × other
+  active or inactive: 4 cases, then takeover and recovery.
+- Two runs that find an abandoned lock, one paused in the middle of the takeover: the other is
+  refused with "another restore is running (process <first>)", untouched; the first completes.
+- A kill of the whole run (`KILLALL`) inside a step under the guard (holding the guard before the
+  lock is made, after a note's flush, after a stop, after each start): nothing lost, and the next
+  run is not kept waiting by the guard.
+
+Records (`RecordsStorageTest`): a dangling link, a link to a sentinel file, a directory, a named pipe
+and a second name of a sentinel, at each of the three record paths (15 cases): refused before
+anything is stopped, the sentinel byte-identical, nothing created through the link. The records
+directory as a link, a file, modes 0750, 0705 and 0770, root's (`/usr`, run as a non-root user), a
+directory above it writable by the group or by anyone, a link above it: refused before anything is
+stopped. A sticky directory above it is accepted and a missing directory made 0700. A relative,
+non-plain or in-state path: exit 2 before anything runs. In-lock markers of an earlier version become
+notes, and only their timers come back (backup, cleanup, both). A note at the 39157f5 location, file or
+link, is not followed or acted on. A note that cannot be removed is told apart from a timer that
+cannot be started, and recovered by the next run. A restore that needed the retry still says
+`RESTORED, NOT RECOVERED: 2 assignment(s)`. In `tests/test_lifecycle_restore_script.py`,
+`InterruptedRunTest`: the "another restore is running" refusal reads the holder from `restore-owner`,
+and a `pid` link in an abandoned lock that names a running process is neither trusted nor written
+through.
+
+Mutation evidence, on disposable copies of the tree outside the repository, running
+`ConcurrentRestoreTest`, `RecordsStorageTest`, `InterruptedRestoreTest`, `BackupOverlapTest` and the
+two `InterruptedRunTest` cases above (37 tests, with subtests; failing cases counted). The fixed tree
+passes. The script of `39157f5`: 79 failing cases (many only because the notes are elsewhere; the
+concurrent cases fail on the state they find). Weakening one thing at a time:
+
+| Copy | Failing cases | Which |
+| --- | --- | --- |
+| No guard (`flock` removed from all 8 steps) | 12 | all 8 paused-recovery cases, the two takeovers; 3 others only by the text or call numbering they pin. The 4 "gave its lock back" cases pass: that race is closed by the lock check in `RESTART` (next row), not by the guard alone. |
+| `RESTART` ignores the lock | 8 | all 4 "gave its lock back" cases, and 4 takeover cases of `InterruptedRestoreTest`/`BackupOverlapTest` |
+| `ACQUIRE` ignores a running holder | 2 | the two takeovers; "another restore is running" |
+| Records not checked for their type | 15 | all 15 record cases |
+| Only the link check of a record removed | 6 | the 6 link cases |
+| The directory checks removed (itself and above) | 9 | all 9 directory cases |
+| Only the directories above not checked | 3 | group- and world-writable above, link above |
+| A removal failure reported as a start failure | 2 | both timers |
+| Records allowed inside the state directory | 2 | both in-state paths |
+| The note removed after a failed start | 28 | across the restart, concurrency and recovery tests |
+
+## What PR 5 contains
 
 | Piece | Where |
 | --- | --- |
@@ -136,16 +287,17 @@ its note) and 7 (a failed restart only warns, exit 0).
 ### Restore script
 
 - After the lock and the backup-timer/service handling, and before the live database is
-  checkpointed and fingerprinted: the cleanup timer is stopped (if it was active; noted first,
-  outside the lock, in `$STATE/restore-pending-registration-cleanup-timer`, flushed to disk) and
-  the cleanup service must be `inactive` or `failed`. A first look in the pre-flight avoids a wasted start. Any other state, or a state
+  checkpointed and fingerprinted: the cleanup timer is stopped (if it was active; noted first, in
+  the same step under the guard, in `/var/lib/learnpilot-restore/pending-registration-cleanup-timer`,
+  flushed to disk) and the cleanup service must be `inactive` or `failed`. A first look in the pre-flight avoids a wasted start. Any other state, or a state
   systemd cannot give, ends the restore (`activating`, `active`, `reloading`, `deactivating`:
   "a registration cleanup is running").
 - The timer is started again wherever the backup timer is: after a failure that gave the lock back,
   after "restore complete, service not running", after a successful start, and after a run stopped
   or failed once the service was started. A timer that was not active is never started. Its note
-  goes only once the start succeeded; otherwise the run does not exit 0 and the next run starts the
-  timer first (no lock) or at its end (lock taken over). Protocol: "The timer fix" above.
+  goes only once the start succeeded, and only while no restore lock exists; otherwise the run does
+  not exit 0 and the next run starts the timer first (no lock) or at its end (lock taken over).
+  Protocol: "The timer fix" and "Ownership, guard and records" above.
 - Step 4b, after the migration of the copy and before the final fingerprint:
   `registrations-restore-gate` on the staged copy. Step 8 and step 10: `registrations-restore-status
   --expect held` (staged copy, then the database in place). Nothing of the gate runs after the
@@ -243,6 +395,8 @@ cryptography 50.0.2). Results are in the final report of the implementation sess
 | Release and the clock independently | `StatusAndReleaseTest`, `OperatorCommandsTest.test_release_reports…` |
 | N6 (script order and timer symmetry) | `RestoreScriptOrderTest`, `CleanupCoordinationTest`, `InterruptedRestoreTest` |
 | Timer active/inactive; cleanup running; interrupted and each finish path | `CleanupCoordinationTest`, `InterruptedRestoreTest` |
+| Restore ownership and the guard: overlapping recovery and restore, a run that gave its lock back, two takeovers, a kill inside a guarded step | `ConcurrentRestoreTest` |
+| The restore's records: place, path checks, in-lock markers, the 39157f5 location, removal failure, outcome on the retry path | `RecordsStorageTest`; `test_lifecycle_restore_script.InterruptedRunTest` (holder, `pid` link) |
 | Staged-copy invalidation, persistent hold, existing hold, no carry-over, accounts and canonical content kept | `RegistrationGateOnTheStagedCopyTest` |
 | N7, N9 (order, hash, live untouched, failure publishes nothing) | `SnapshotScrubTest`; `test_backup_sqlite.py`, `test_application_backup.py` unchanged |
 | Units against the real parser | `UnitFilesTest` |
@@ -251,7 +405,18 @@ cryptography 50.0.2). Results are in the final report of the implementation sess
 **Simulated, not real:** the restore tests run the real script with shims for `sudo`, `systemctl`,
 `sync` and `curl`; they show the script's control flow, not systemd's behaviour. The `sync` shim
 only records the call: nothing shows that a note survives a power loss, and a SIGKILL in the
-harness is a killed process, not a lost page cache.
+harness (also `KILLALL`, of the whole process group) is killed processes, not a lost page cache.
+`sudo` runs as the test user, so "root" in the records checks is the effective user there, and
+`/usr` stands for a directory of someone else.
+
+**The guard, and what is real about it.** macOS has no util-linux `flock(1)`. The `flock` shim uses
+it where it is installed (`/usr/bin/flock` or `/bin/flock`, i.e. on Linux) and otherwise runs
+`FLOCK_PY` (`tests/test_lifecycle_restore_script.py`): `flock(2)` with `LOCK_EX` on the directory,
+the descriptor handed on to the command by `exec`. So the exclusion and its release on death that
+the concurrent tests show are the kernel's, on macOS, in this session. They do not show the
+behaviour of util-linux `flock(1)` itself (opening a directory, passing the descriptor to the
+command, its exit statuses), nor Linux's `flock(2)`; those need a Linux run. The `ps` shim only
+logs and pauses before the real `ps`; the `rm` shim fails only for the one path a test names.
 
 ## Not verified / remaining activation prerequisites
 
@@ -261,9 +426,13 @@ harness is a killed process, not a lost page cache.
   while a cleanup executes, and a second restore on top of a held one; a snapshot taken by the
   backup unit followed by a test restore; `ProtectSystem=strict` with the unit's `ReadWritePaths`;
   GNU `sync -- FILE DIR` on the production filesystem, and a timer note surviving a real power loss
-  or crash; real `systemctl start` failures of a timer and the recovery by the next run.
+  or crash; real `systemctl start` failures of a timer and the recovery by the next run;
+  util-linux `flock(1)` on `/var/lib/learnpilot-restore` (exclusion between two real runs, release
+  on a crash, descriptor inheritance by `sh` and `systemctl`); the records checks run as root on
+  Ubuntu (GNU `ls -ldn` output, an SELinux `.`, `/var/lib` and `/var` as root's 0755); the
+  `swap-started` mark in a service-writable lock directory (item 9 above), still open.
 - The health-check additions (DEPLOYMENT 19) were not executed anywhere.
 - No claim of VPS validation is made.
 - Still open from the design: D16 (privacy), D17 configuration, Nginx evidence, sender
   containment evidence, teacher quotas (PR 7), password recovery (PR 8, which must extend the gate,
-  status and scrub), and an independent review of the timer fix described above.
+  status and scrub), and an independent review of "Ownership, guard and records" above.

@@ -43,14 +43,24 @@
 # and registration is held; the hold is never released by this script, whatever
 # happens. The operator ends it with `manage_accounts registrations-release-hold`.
 #
-# Timers (design 3.9: "the timer comes back on every path the backup timer does"): before a
-# timer is stopped, a note that it is to be started again is written OUTSIDE the lock
-# ($STATE/restore-pending-<timer>) and flushed to disk (file and directory). The note goes
-# only once `systemctl start` of that timer has succeeded. No ending of this script removes
-# a note otherwise, and a run never drops one because it finds the timer inactive. A run
-# that finds a note and no lock starts that timer first, in its pre-flight; a run that takes
-# a lock over keeps the note and starts the timer when it ends. A run that cannot start a
-# noted timer again does not exit 0.
+# Timers (design 3.9: "the timer comes back on every path the backup timer does"), and who
+# holds the lock. The restore keeps its own records where only root can change them, in
+# $RECORDS (/var/lib/learnpilot-restore: root's, mode 0700, never inside the state directory,
+# which the service can write): who holds the lock (restore-owner), and for each timer the
+# restore stopped, a note that it is to be started again. That directory is also the guard:
+# every step that takes, takes over or gives back the lock, writes or removes a note, or
+# stops or starts a timer for the restore runs as one command under flock(1) on it. Under
+# the guard:
+#   * the lock is made, or an abandoned one taken over, and its holder recorded, in one step;
+#   * a timer is noted (written, then flushed to disk, file and directory) and then stopped,
+#     in one step, only by the run that holds the lock;
+#   * a timer is started again, and its note removed only after that start succeeded, in one
+#     step, only while no restore lock exists at all.
+# So no run removes the note of a restore that holds the lock, and none starts a timer that a
+# restore keeps stopped. A run that finds a note and no lock starts that timer in its
+# pre-flight; a run that takes a lock over keeps the note and starts the timer when it ends.
+# A run never drops a note because it finds the timer inactive, and it does not exit 0 while
+# a timer it is to start again is not active.
 
 if [ -z "${BASH_VERSION:-}" ]; then
   echo "restore: run this script with bash" >&2
@@ -77,9 +87,12 @@ HEALTH_URL=${LEARNPILOT_HEALTH_URL:-http://127.0.0.1:8000/healthz}
 AUDIT_LOG=${LEARNPILOT_AUDIT_LOG:-$STATE/lifecycle-operator.log}
 LIVE_DB=$STATE/data/questions.db
 LOCK=$STATE/data/restore-in-progress   # web.services.lifecycle.RESTORE_LOCK_NAME
-# Outside the lock, which blocks the start of the service: these do not.
-TIMER_NOTE=$STATE/restore-pending-backup-timer
-CLEANUP_TIMER_NOTE=$STATE/restore-pending-registration-cleanup-timer
+# The restore's own records, outside everything the service can write (docs/DEPLOYMENT.md,
+# section 34). They block nothing; only the lock does.
+RECORDS=${LEARNPILOT_RESTORE_RECORDS:-/var/lib/learnpilot-restore}
+OWNER_RECORD=$RECORDS/restore-owner
+TIMER_NOTE=$RECORDS/pending-backup-timer
+CLEANUP_TIMER_NOTE=$RECORDS/pending-registration-cleanup-timer
 case $STATE in
   /*) ;;
   *)
@@ -90,6 +103,23 @@ esac
 case $STATE in
   *"|"* | *[[:space:]]*)
     echo "restore: LEARNPILOT_STATE must not contain a space or a vertical bar" >&2
+    exit 2
+    ;;
+esac
+case $RECORDS in
+  /*[!/]) ;;
+  *)
+    echo "restore: LEARNPILOT_RESTORE_RECORDS has to be an absolute path to a directory, without a final /" >&2
+    exit 2
+    ;;
+esac
+case $RECORDS/ in
+  *"|"* | *[[:space:]]* | *//* | */./* | */../*)
+    echo "restore: LEARNPILOT_RESTORE_RECORDS must be a plain path: no space, vertical bar, //, . or .." >&2
+    exit 2
+    ;;
+  "$STATE"/*)
+    echo "restore: LEARNPILOT_RESTORE_RECORDS must not be inside LEARNPILOT_STATE: the service can change what is there" >&2
     exit 2
     ;;
 esac
@@ -174,6 +204,212 @@ for wanted in "$@"; do
   fi
 done'
 
+# --- the restore's own records, and the guard ---------------------------------------------
+# Each of the programs below runs as root. CHECKED comes first in every one of them. Every
+# directory from / down to $RECORDS is a directory, not a symbolic link, belongs to root (or to
+# whoever runs this) and can be written by no one else; a sticky directory, such as /tmp, is
+# accepted above $RECORDS, as only the owner of an entry can rename it there. $RECORDS itself
+# is a directory of that same owner, with mode 0700. A record in it is absent, or a plain file
+# of that owner with a single name. Anything else is refused: nothing is created, written,
+# read or removed through it, and nothing is repaired. As no one but root can change anything
+# there, what is checked is what is used.
+CHECKED='set -eu
+  umask 077
+  me=$(id -u)
+  refuse() {
+    echo "restore: $*" >&2
+    exit 1
+  }
+  inspect() {        # inspect PATH: its type and mode, its number of names and its owner, as ls shows them
+    line=$(LC_ALL=C ls -ldn -- "$1") || refuse "cannot be examined: $1"
+    set -- $line
+    mode=$1 names=$2 owner=$3
+  }
+  directory() {      # directory PATH above, or directory PATH last
+    inspect "$1"
+    case $mode in
+      d*) ;;
+      l*) refuse "a symbolic link, not a directory: $1" ;;
+      *) refuse "not a directory: $1" ;;
+    esac
+    case $mode in
+      *+) refuse "it has an access control list: $1" ;;
+    esac
+    if [ "$2" = last ]; then
+      if [ "$owner" != "$me" ]; then
+        refuse "owned by uid $owner, not by uid $me: $1"
+      fi
+      case $mode in
+        drwx------ | drwx------. | drwx------@) ;;
+        *) refuse "its mode is $mode: no one but its owner may have access to it: $1" ;;
+      esac
+    else
+      if [ "$owner" != 0 ] && [ "$owner" != "$me" ]; then
+        refuse "owned by uid $owner, neither by root nor by uid $me: $1"
+      fi
+      case $mode in
+        ?????????[tT]*) ;;
+        ?????w* | ????????w*) refuse "others can write to it (mode $mode): $1" ;;
+      esac
+    fi
+  }
+  above() {          # above DIR: every directory above DIR, from / down
+    directory / above
+    path=
+    rest=${1#/}
+    while :; do
+      case $rest in
+        */*)
+          path=$path/${rest%%/*}
+          rest=${rest#*/}
+          directory "$path" above
+          ;;
+        *) break ;;
+      esac
+    done
+  }
+  records() {        # records DIR: every directory above DIR, then DIR itself
+    above "$1"
+    directory "$1" last
+  }
+  record() {         # record PATH: absent, or a plain file of that owner with a single name
+    if [ -L "$1" ]; then
+      refuse "a symbolic link where a record of the restore belongs: $1"
+    fi
+    if [ -e "$1" ]; then
+      inspect "$1"
+      case $mode in
+        -*) ;;
+        *) refuse "not a plain file where a record of the restore belongs: $1" ;;
+      esac
+      if [ "$owner" != "$me" ] || [ "$names" != 1 ]; then
+        refuse "a record of the restore that is not its own (owner uid $owner, $names names): $1"
+      fi
+    fi
+  }
+'
+
+# The pre-flight: the directory is made if it is not there (mode 0700), and checked with every
+# record in it. Not under the guard, which is this directory and so has to exist first.
+PREPARE='
+  above "$1"
+  if [ ! -e "$1" ] && [ ! -L "$1" ]; then
+    mkdir -m 0700 -- "$1" || [ -d "$1" ]
+  fi
+  directory "$1" last
+  shift
+  for each in "$@"; do
+    record "$each"
+  done'
+
+# Under the guard: RECORDS LOCK OWNER_RECORD PID NOTE... Makes the lock, or takes over one that no
+# running restore holds, and records this run as its holder, in one step: no other run can look
+# at the lock in between. 0 made, 2 taken over (each with a line "noted:NOTE" for every note
+# there), 3 another restore holds it (its process id is printed).
+ACQUIRE='
+  records "$1"
+  record "$3"
+  lock=$2 owner_record=$3 pid=$4
+  shift 4
+  for note in "$@"; do
+    record "$note"
+  done
+  status=0
+  if [ -e "$lock" ] || [ -L "$lock" ] || ! mkdir -- "$lock"; then
+    if [ -L "$lock" ] || [ ! -d "$lock" ]; then
+      refuse "the restore lock could not be made: $lock"
+    fi
+    holder=
+    if [ -e "$owner_record" ]; then
+      holder=$(cat -- "$owner_record")
+    fi
+    case $holder in
+      "" | *[!0-9]* | "$pid") ;;
+      *)
+        if running=$(ps -p "$holder" -o args=); then
+          case $running in
+            *learnpilot-restore*)
+              echo "$holder"
+              exit 3
+              ;;
+          esac
+        fi
+        ;;
+    esac
+    status=2
+  fi
+  printf "%s\n" "$pid" > "$owner_record"
+  for note in "$@"; do
+    if [ -e "$note" ]; then
+      echo "noted:$note"
+    fi
+  done
+  exit "$status"'
+
+# Under the guard: RECORDS LOCK OWNER_RECORD PID NOTE TIMER STOP. Only for the run that holds the
+# lock: the note is written and flushed to disk (file, then directory), and then, if STOP is yes,
+# the timer is stopped. A run that dies at any point after the stop leaves the note.
+PAUSE='
+  records "$1"
+  record "$3"
+  record "$5"
+  holder=
+  if [ -e "$3" ]; then
+    holder=$(cat -- "$3")
+  fi
+  if [ -L "$2" ] || [ ! -d "$2" ] || [ "$holder" != "$4" ]; then
+    refuse "this run does not hold the restore lock: $2"
+  fi
+  printf "%s\n" "$6" > "$5"
+  sync -- "$5" "$1"
+  if [ "$7" = yes ]; then
+    systemctl stop "$6"
+  fi'
+
+# Under the guard: RECORDS LOCK NOTE TIMER noted|flagged. Only while no restore lock exists (3
+# otherwise: a restore is running or was left unfinished, and the timer stays as it is): the
+# timer is started (with "noted", only if it has a note: 2 otherwise), and then, only if that
+# succeeded, its note removed. 4 the start failed (the note stays), 5 the note could not be
+# removed. The removal is flushed to disk as well; a power loss before that can bring the note
+# back, and the next run then starts an active timer once more, which changes nothing.
+RESTART='
+  records "$1"
+  record "$3"
+  if [ -e "$2" ] || [ -L "$2" ]; then
+    exit 3
+  fi
+  if [ "$5" = noted ] && [ ! -e "$3" ]; then
+    exit 2
+  fi
+  if ! systemctl start "$4"; then
+    exit 4
+  fi
+  if ! rm -f -- "$3"; then
+    exit 5
+  fi
+  if ! sync -- "$1"; then
+    echo "restore: the removal of $3 may not be on disk yet: if the machine stops now, the next run starts $4 once more" >&2
+  fi'
+
+# Under the guard: RECORDS LOCK OWNER_RECORD PID all|empty. Gives the lock back, only if this run
+# holds it: all of it, or (empty) only if there is nothing in it.
+RELEASE='
+  records "$1"
+  record "$3"
+  holder=
+  if [ -e "$3" ]; then
+    holder=$(cat -- "$3")
+  fi
+  if [ "$holder" != "$4" ]; then
+    refuse "the restore lock is not held by this run: $2"
+  fi
+  if [ "$5" = all ]; then
+    rm -rf -- "$2"
+  else
+    rmdir -- "$2"
+  fi
+  rm -f -- "$3"'
+
 say() {
   printf 'restore: %s\n' "$*" >&2 || return 0   # a terminal that has gone away stops nothing
 }
@@ -220,29 +456,76 @@ gate() {             # gate "WHAT IT ESTABLISHES" COMMAND [ARGUMENT...]
   fi
 }
 
-restart_timers() {   # restart_timers: each timer noted as active is started again; 1 if one is not
-  # A timer's note is removed, and its flag cleared, only after its start has succeeded:
-  # a signal or a SIGKILL anywhere in here leaves the note, and starting a timer that is
-  # already active again is harmless. One timer that cannot be started does not keep the
-  # other from being started.
-  local failed=0
-  if [ "$TIMER_WAS_ACTIVE" = yes ]; then
-    if sudo systemctl start "$BACKUP_TIMER" && sudo rm -f -- "$TIMER_NOTE"; then
-      TIMER_WAS_ACTIVE=no
-      say "The backup timer is active again."
-    else
-      failed=1
-      say "WARNING: the backup timer could not be started again ($BACKUP_TIMER); it stays noted in $TIMER_NOTE"
-    fi
+restart_timers() {   # restart_timers flagged, or noted: start again each timer this run is to start again
+  # (flagged), or each one that has a note (noted: the pre-flight); 1 if one of them is not active.
+  # Each timer is one step under the guard (RESTART): only while no restore lock exists, the start,
+  # then, only if it succeeded, the removal of the note. A signal to this script, or a SIGKILL of it,
+  # does not cut that step short: another process carries it out. A timer that cannot be started does
+  # not keep the other from being started.
+  local failed=0 status
+  if [ "$1" = noted ] || [ "$TIMER_WAS_ACTIVE" = yes ]; then
+    status=0
+    sudo flock "$RECORDS" sh -c "$CHECKED$RESTART" sh "$RECORDS" "$LOCK" "$TIMER_NOTE" "$BACKUP_TIMER" "$1" \
+      || status=$?
+    case $status in
+      0)
+        TIMER_WAS_ACTIVE=no
+        say "The backup timer is active again."
+        ;;
+      2) ;;
+      3)
+        if [ "$1" = flagged ]; then
+          failed=1
+          say "WARNING: the backup timer was not started again: a restore lock exists again, and the restore that holds it keeps the note ($TIMER_NOTE)"
+        fi
+        ;;
+      4)
+        TIMER_WAS_ACTIVE=yes
+        failed=1
+        say "WARNING: the backup timer could not be started again ($BACKUP_TIMER); it stays noted in $TIMER_NOTE"
+        ;;
+      5)
+        TIMER_WAS_ACTIVE=yes
+        failed=1
+        say "WARNING: the backup timer was started again, but its note could not be removed ($TIMER_NOTE); the next run starts it once more and removes the note"
+        ;;
+      *)
+        failed=1
+        say "WARNING: the backup timer could not be started again: the step did not run (exit status $status); a note it has stays ($TIMER_NOTE)"
+        ;;
+    esac
   fi
-  if [ "$CLEANUP_TIMER_WAS_ACTIVE" = yes ]; then
-    if sudo systemctl start "$CLEANUP_TIMER" && sudo rm -f -- "$CLEANUP_TIMER_NOTE"; then
-      CLEANUP_TIMER_WAS_ACTIVE=no
-      say "The registration cleanup timer is active again."
-    else
-      failed=1
-      say "WARNING: the registration cleanup timer could not be started again ($CLEANUP_TIMER); it stays noted in $CLEANUP_TIMER_NOTE"
-    fi
+  if [ "$1" = noted ] || [ "$CLEANUP_TIMER_WAS_ACTIVE" = yes ]; then
+    status=0
+    sudo flock "$RECORDS" sh -c "$CHECKED$RESTART" sh "$RECORDS" "$LOCK" "$CLEANUP_TIMER_NOTE" "$CLEANUP_TIMER" "$1" \
+      || status=$?
+    case $status in
+      0)
+        CLEANUP_TIMER_WAS_ACTIVE=no
+        say "The registration cleanup timer is active again."
+        ;;
+      2) ;;
+      3)
+        if [ "$1" = flagged ]; then
+          failed=1
+          say "WARNING: the registration cleanup timer was not started again: a restore lock exists again, and the restore that holds it keeps the note ($CLEANUP_TIMER_NOTE)"
+        fi
+        ;;
+      4)
+        CLEANUP_TIMER_WAS_ACTIVE=yes
+        failed=1
+        say "WARNING: the registration cleanup timer could not be started again ($CLEANUP_TIMER); it stays noted in $CLEANUP_TIMER_NOTE"
+        ;;
+      5)
+        CLEANUP_TIMER_WAS_ACTIVE=yes
+        failed=1
+        say "WARNING: the registration cleanup timer was started again, but its note could not be removed ($CLEANUP_TIMER_NOTE); the next run starts it once more and removes the note"
+        ;;
+      *)
+        failed=1
+        say "WARNING: the registration cleanup timer could not be started again: the step did not run (exit status $status); a note it has stays ($CLEANUP_TIMER_NOTE)"
+        ;;
+    esac
   fi
   return "$failed"
 }
@@ -250,8 +533,22 @@ restart_timers() {   # restart_timers: each timer noted as active is started aga
 timers_left() {      # what is still to be started again, said plainly (nothing if nothing is)
   if [ "$TIMER_WAS_ACTIVE" = yes ] || [ "$CLEANUP_TIMER_WAS_ACTIVE" = yes ]; then
     say "NOT ACTIVE AGAIN YET: a timer that was active before the restore is still stopped. Its note stays"
-    say "($TIMER_NOTE, $CLEANUP_TIMER_NOTE). The next run of this script starts it again (first thing when no"
-    say "restore lock is left, otherwise when that run ends), and does not exit 0 while it cannot."
+    say "in $RECORDS. The next run of this script starts it again (first thing when no restore lock is"
+    say "left, otherwise when that run ends), and does not exit 0 while it cannot."
+  fi
+}
+
+outcome() {          # outcome complete, or outcome stopped: what the restored state holds, once the service runs on it
+  say "REGISTRATION IS HELD: pending registrations were voided and registration answers 'unavailable' until you run"
+  say "  manage_accounts registrations-release-hold --acknowledge-lost-history   (docs/DEPLOYMENT.md, section 34)."
+  say "Nothing releases it by itself. Sign-in is not affected."
+  if [ "$ACCEPT_HELD" -gt 0 ]; then
+    say "RESTORED, NOT RECOVERED: $ACCEPT_HELD assignment(s) stay held and are closed to everyone."
+    say "Nothing reopens them. See docs/DEPLOYMENT.md, section 26, 'Restore'."
+  elif [ "$1" = complete ]; then
+    say "RESTORE COMPLETE: no assignment is held for the restore."
+  else
+    say "No assignment is held for the restore."
   fi
 }
 
@@ -273,10 +570,12 @@ finish() {
 
   if [ "$PHASE" = untouched ]; then
     if [ "$LOCK_HELD" = maybe ]; then
-      # Stopped in the instant the lock was being made. An empty lock is this run's
-      # (another run's has its owner written in it), and rmdir removes nothing else.
-      if sudo test -d "$LOCK" && ! sudo rmdir -- "$LOCK"; then
-        say "A restore lock is there that this run did not make: $LOCK"
+      # Stopped in the instant the lock was being taken. It is given back only if this run is
+      # recorded as its holder, and only if it is empty: a lock that was taken over can hold
+      # the mark of an earlier run.
+      if sudo test -d "$LOCK" \
+        && ! sudo flock "$RECORDS" sh -c "$CHECKED$RELEASE" sh "$RECORDS" "$LOCK" "$OWNER_RECORD" "$$" empty; then
+        say "A restore lock is left that this run does not give back: $LOCK"
       fi
     fi
     timers_left
@@ -287,11 +586,12 @@ finish() {
     say "The service is running on the restored state: the script was stopped after it had started it."
     # The retry. The status stays the one this run ended with (a signal's, or the failure's),
     # whatever the retry achieves: a run that did not end in order is not reported as a success.
-    if ! restart_timers; then
+    if ! restart_timers flagged; then
       say "The retry from the failure handling did not start every timer."
     fi
+    outcome stopped
     timers_left
-    say "REGISTRATION IS HELD until registrations-release-hold (docs/DEPLOYMENT.md, section 34). Exit status $status."
+    say "Exit status $status."
     exit "$status"
   fi
 
@@ -387,9 +687,9 @@ finish() {
         say "the service does not start, and no backup is taken, until a restore has finished."
         say "The registration cleanup timer stays stopped as well (it refuses while the lock exists)."
       elif [ "$LOCK_HELD" = yes ]; then
-        if sudo rm -rf -- "$LOCK"; then
+        if sudo flock "$RECORDS" sh -c "$CHECKED$RELEASE" sh "$RECORDS" "$LOCK" "$OWNER_RECORD" "$$" all; then
           say "The restore lock was released."
-          if ! restart_timers; then
+          if ! restart_timers flagged; then
             say "Not every timer that was active before the restore could be started again."
           fi
         else
@@ -431,7 +731,7 @@ finish() {
       sudo sh -c 'if [ -e "$1" ] || [ -L "$1" ]; then exit 10; fi; exit 11' sh "$LOCK" || lock=$?
       if [ "$lock" -eq 11 ]; then
         say "The restore itself is complete and the lock is released; the service is not running."
-        if ! restart_timers; then
+        if ! restart_timers flagged; then
           say "Not every timer that was active before the restore could be started again."
         fi
       else
@@ -534,7 +834,7 @@ fi
 
 # --- 1. pre-flight: nothing is modified and the service keeps running --------------
 
-for tool in sudo systemctl sqlite3 tar install mv ln rm mkdir rmdir cat grep ps curl date sleep sync; do
+for tool in sudo systemctl sqlite3 tar install mv ln rm mkdir rmdir cat grep ps curl date sleep sync flock ls id; do
   if ! command -v "$tool" > /dev/null; then
     die 2 "a program this script needs is not installed: $tool"
   fi
@@ -542,23 +842,22 @@ done
 gate "the application checkout is the working directory" cd "$APP"
 gate "the operator tooling is in the checkout" test -f src/manage_lifecycle.py
 gate "sudo can be used" sudo true
-# A timer an earlier run stopped and did not get going again: its note is there and no lock
-# is (a lock means a restore is running or unfinished, and the timers stay stopped for it).
-# It is started now, before anything else. If it cannot be, this run goes on and tries again
-# when it ends; it cannot exit 0 while the timer is not active.
-if ! sudo test -e "$LOCK" && ! sudo test -L "$LOCK"; then
-  if sudo test -e "$TIMER_NOTE"; then
-    TIMER_WAS_ACTIVE=yes
+gate "the restore's own records are where only root can change them ($RECORDS)" \
+  sudo sh -c "$CHECKED$PREPARE" sh "$RECORDS" "$OWNER_RECORD" "$TIMER_NOTE" "$CLEANUP_TIMER_NOTE"
+# Where a build that was never released kept its notes: in the state directory, which the service
+# can write. Nothing there is trusted, followed or acted on; the operator looks (section 34).
+for UNRELEASED in "$STATE/restore-pending-backup-timer" "$STATE/restore-pending-registration-cleanup-timer"; do
+  if sudo test -e "$UNRELEASED" || sudo test -L "$UNRELEASED"; then
+    die 1 "there is a timer note where no released version of this script keeps one: $UNRELEASED. It was not acted on; see docs/DEPLOYMENT.md, section 34"
   fi
-  if sudo test -e "$CLEANUP_TIMER_NOTE"; then
-    CLEANUP_TIMER_WAS_ACTIVE=yes
-  fi
-  if [ "$TIMER_WAS_ACTIVE" = yes ] || [ "$CLEANUP_TIMER_WAS_ACTIVE" = yes ]; then
-    say "An earlier restore left a timer stopped that was active before it. Starting it again now."
-    if ! restart_timers; then
-      say "This run goes on; it starts the timer again when it ends, and fails if it still cannot."
-    fi
-  fi
+done
+# A timer an earlier run stopped and did not get going again has a note. It is started now,
+# before anything else, if no restore lock exists (a lock means a restore is running or was left
+# unfinished, and the timers stay stopped for it); that is decided under the guard, in the same
+# step as the start. If it cannot be started, this run goes on and tries again when it ends; it
+# cannot exit 0 while the timer is not active.
+if ! restart_timers noted; then
+  say "This run goes on; it starts the timer again when it ends, and fails if it still cannot."
 fi
 gate "the application's Python can be run as the service user" "${AS_SERVICE[@]}" "$PYTHON" -c 'import sqlite3, tarfile'
 gate "the snapshot is complete and there is room and one filesystem for the copy" \
@@ -645,65 +944,67 @@ fi
 # --- 2. the lock, then backups paused and the service stopped -------------------------
 
 LOCK_HELD=maybe          # until the next lines have run, the lock may or may not be this run's (finish)
-if ! sudo mkdir -- "$LOCK"; then
-  LOCK_HELD=no
-  if ! sudo test -d "$LOCK"; then
-    die 1 "the restore lock could not be made: $LOCK"
-  fi
-  OWNER=$(sudo cat -- "$LOCK/pid") || OWNER=
-  case $OWNER in
-    '' | *[!0-9]*) ;;
-    *)
-      if RUNNING=$(sudo ps -p "$OWNER" -o args=); then
-        case $RUNNING in
-          *learnpilot-restore*) die 1 "another restore is running (process $OWNER). Nothing was touched by this one" ;;
-        esac
-      fi
-      ;;
-  esac
-  say "An earlier restore did not finish: its lock is still there ($LOCK). This run takes it over."
-  if sudo test -e "$LOCK/swap-started"; then
-    INTERRUPTED_BEFORE=yes
-    say "That run was interrupted WHILE REPLACING the live uploads and vault. This run starts over"
-    say "from the snapshot; what the earlier run set aside stays where it is."
-  fi
-  # Markers an earlier version of this script left inside the lock: taken over as notes below.
-  if sudo test -e "$LOCK/backup-timer-was-active"; then
-    TIMER_WAS_ACTIVE=yes
-  fi
-  if sudo test -e "$LOCK/registration-cleanup-timer-was-active"; then
-    CLEANUP_TIMER_WAS_ACTIVE=yes
-  fi
-fi
+# Made, or taken over if no running restore holds it, with this run recorded as its holder: one
+# step under the guard (ACQUIRE), so no other run can look at the lock while it is half made.
+TAKEN=0
+ACQUIRED=$(sudo flock "$RECORDS" sh -c "$CHECKED$ACQUIRE" sh "$RECORDS" "$LOCK" "$OWNER_RECORD" "$$" \
+  "$TIMER_NOTE" "$CLEANUP_TIMER_NOTE") || TAKEN=$?
+case $TAKEN in
+  0) ;;
+  2)
+    say "An earlier restore did not finish: its lock is still there ($LOCK). This run takes it over."
+    if sudo test -e "$LOCK/swap-started"; then
+      INTERRUPTED_BEFORE=yes
+      say "That run was interrupted WHILE REPLACING the live uploads and vault. This run starts over"
+      say "from the snapshot; what the earlier run set aside stays where it is."
+    fi
+    # Markers an earlier version of this script left inside the lock: taken over as notes below.
+    if sudo test -e "$LOCK/backup-timer-was-active"; then
+      TIMER_WAS_ACTIVE=yes
+    fi
+    if sudo test -e "$LOCK/registration-cleanup-timer-was-active"; then
+      CLEANUP_TIMER_WAS_ACTIVE=yes
+    fi
+    ;;
+  3)
+    LOCK_HELD=no
+    die 1 "another restore is running (process $ACQUIRED). Nothing was touched by this one"
+    ;;
+  *)
+    die "$TAKEN" "the restore lock could not be taken: $LOCK (exit status $TAKEN)"
+    ;;
+esac
 LOCK_HELD=yes
 PHASE=locked
-gate "record this run in the restore lock" sudo sh -c 'printf "%s\n" "$2" > "$1"' sh "$LOCK/pid" "$$"
-# Whatever an earlier run left to be started again stays to be started again, whatever state
-# the timer is found in now.
-if sudo test -e "$TIMER_NOTE"; then
-  TIMER_WAS_ACTIVE=yes
-fi
-if sudo test -e "$CLEANUP_TIMER_NOTE"; then
-  CLEANUP_TIMER_WAS_ACTIVE=yes
-fi
+# Whatever an earlier run left to be started again stays to be started again, whatever state the
+# timer is found in now. The notes were read in the step that took the lock; from then on only
+# this run changes them.
+case $ACQUIRED in
+  *"noted:$TIMER_NOTE"*) TIMER_WAS_ACTIVE=yes ;;
+esac
+case $ACQUIRED in
+  *"noted:$CLEANUP_TIMER_NOTE"*) CLEANUP_TIMER_WAS_ACTIVE=yes ;;
+esac
 
 TIMER_STATE=$(sudo systemctl show -p ActiveState "$BACKUP_TIMER") \
   || die "$?" "the state of the backup timer could not be read from systemd ($BACKUP_TIMER)"
+STOP_IT=no
 case $TIMER_STATE in
   ActiveState=inactive | ActiveState=failed) ;;
-  ActiveState=active | ActiveState=activating) TIMER_WAS_ACTIVE=yes ;;
+  ActiveState=active | ActiveState=activating)
+    TIMER_WAS_ACTIVE=yes
+    STOP_IT=yes
+    ;;
   *) die 1 "the state of the backup timer cannot be told: systemd reports '${TIMER_STATE#ActiveState=}' for $BACKUP_TIMER" ;;
 esac
-# The note is on disk (file, then directory) before the timer is stopped: a run that dies
-# at any point after the stop leaves the note.
+# The note is on disk (file, then directory) before the timer is stopped, in the same step under
+# the guard (PAUSE), by the holder of the lock: a run that dies at any point after the stop leaves
+# the note.
 if [ "$TIMER_WAS_ACTIVE" = yes ]; then
-  gate "note, outside the lock, that the backup timer is to be started again" \
-    sudo sh -c 'printf "%s\n" "$2" > "$1"' sh "$TIMER_NOTE" "$BACKUP_TIMER"
-  gate "the note of the backup timer is on disk" sudo sync -- "$TIMER_NOTE" "$STATE"
+  gate "note that the backup timer is to be started again, flush the note to disk, then pause the timer" \
+    sudo flock "$RECORDS" sh -c "$CHECKED$PAUSE" sh "$RECORDS" "$LOCK" "$OWNER_RECORD" "$$" \
+    "$TIMER_NOTE" "$BACKUP_TIMER" "$STOP_IT"
 fi
-case $TIMER_STATE in
-  ActiveState=active | ActiveState=activating) gate "pause the backup timer" sudo systemctl stop "$BACKUP_TIMER" ;;
-esac
 # With the lock held no backup starts any more (the unit's condition, and the tool
 # itself). One that was started before the lock is still running: this is the look
 # that counts, and there is nothing between it and the lock for a backup to slip into.
@@ -725,21 +1026,20 @@ esac
 # the timer is stopped and the lock is held (the command refuses to start under the lock).
 CLEANUP_TIMER_STATE=$(sudo systemctl show -p ActiveState "$CLEANUP_TIMER") \
   || die "$?" "the state of the registration cleanup timer could not be read from systemd ($CLEANUP_TIMER)"
+STOP_IT=no
 case $CLEANUP_TIMER_STATE in
   ActiveState=inactive | ActiveState=failed) ;;
-  ActiveState=active | ActiveState=activating) CLEANUP_TIMER_WAS_ACTIVE=yes ;;
+  ActiveState=active | ActiveState=activating)
+    CLEANUP_TIMER_WAS_ACTIVE=yes
+    STOP_IT=yes
+    ;;
   *) die 1 "the state of the registration cleanup timer cannot be told: systemd reports '${CLEANUP_TIMER_STATE#ActiveState=}' for $CLEANUP_TIMER" ;;
 esac
 if [ "$CLEANUP_TIMER_WAS_ACTIVE" = yes ]; then
-  gate "note, outside the lock, that the registration cleanup timer is to be started again" \
-    sudo sh -c 'printf "%s\n" "$2" > "$1"' sh "$CLEANUP_TIMER_NOTE" "$CLEANUP_TIMER"
-  gate "the note of the registration cleanup timer is on disk" sudo sync -- "$CLEANUP_TIMER_NOTE" "$STATE"
+  gate "note that the registration cleanup timer is to be started again, flush the note to disk, then pause the timer" \
+    sudo flock "$RECORDS" sh -c "$CHECKED$PAUSE" sh "$RECORDS" "$LOCK" "$OWNER_RECORD" "$$" \
+    "$CLEANUP_TIMER_NOTE" "$CLEANUP_TIMER" "$STOP_IT"
 fi
-case $CLEANUP_TIMER_STATE in
-  ActiveState=active | ActiveState=activating)
-    gate "pause the registration cleanup timer" sudo systemctl stop "$CLEANUP_TIMER"
-    ;;
-esac
 CLEANUP_STATE=$(sudo systemctl show -p ActiveState "$CLEANUP_SERVICE") \
   || die "$?" "the state of the registration cleanup service could not be read from systemd ($CLEANUP_SERVICE)"
 case $CLEANUP_STATE in
@@ -1008,7 +1308,8 @@ gate "the database now in place holds exactly what was acknowledged" \
 # --- 8. unlock and start: the only start in this file, reached only through every gate above ---
 
 say "every gate passed"
-gate "release the restore lock" sudo rm -rf -- "$LOCK"
+gate "release the restore lock" \
+  sudo flock "$RECORDS" sh -c "$CHECKED$RELEASE" sh "$RECORDS" "$LOCK" "$OWNER_RECORD" "$$" all
 LOCK_HELD=no
 START_ATTEMPTED=yes      # from here on, a script that does not end well stops the service again (finish)
 if ! sudo systemctl start "$SERVICE"; then
@@ -1021,18 +1322,10 @@ PHASE=started
 
 say "------------------------------------------------------------------"
 say "The service is running on the restored state. What it replaced is in $REPLACED."
-if ! restart_timers; then
-  die 1 "a timer that was active before the restore could not be started again (finish tries once more)"
+if ! restart_timers flagged; then
+  die 1 "a timer that was active before the restore is not active again (finish tries once more)"
 fi
-say "REGISTRATION IS HELD: pending registrations were voided and registration answers 'unavailable' until you run"
-say "  manage_accounts registrations-release-hold --acknowledge-lost-history   (docs/DEPLOYMENT.md, section 34)."
-say "Nothing releases it by itself. Sign-in is not affected."
-if [ "$ACCEPT_HELD" -gt 0 ]; then
-  say "RESTORED, NOT RECOVERED: $ACCEPT_HELD assignment(s) stay held and are closed to everyone."
-  say "Nothing reopens them. See docs/DEPLOYMENT.md, section 26, 'Restore'."
-else
-  say "RESTORE COMPLETE: no assignment is held for the restore."
-fi
+outcome complete
 say "That is all it says. Closed assignments are closed and deadlines are what they were; an"
 say "assignment can still be held for a clock review (manage_lifecycle hold-list)."
 exit 0
