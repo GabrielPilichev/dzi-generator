@@ -83,7 +83,6 @@ def quiz_start_public(public_token):
                     conn,
                     assignment,
                     user_id=principal.user_id,
-                    display_name=principal.display_name,
                     # Decided inside the service, under its writer lock, and only where
                     # an attempt would be created (docs/reviews/EMAIL_REGISTRATION_DESIGN.md
                     # 7.4). This view looks up no attempt of its own.

@@ -178,7 +178,7 @@ class GateOffTest(AttemptGateTestCase):
             with closing(web_app.quiz_db()) as conn:
                 assignment = quiz_service.quiz_fetch_assignment(conn, self.assignment_id)
                 result = quiz_service.quiz_start_or_resume_attempt(
-                    conn, assignment, user_id=account["id"], display_name="Ученик")
+                    conn, assignment, user_id=account["id"])
         self.assertTrue(result.created)
         self.assertFalse(result.profile_required)
 
@@ -270,23 +270,23 @@ class PrecedenceTest(AttemptGateTestCase):
         with closing(web_app.quiz_db()) as conn:
             assignment = quiz_service.quiz_fetch_assignment(conn, self.assignment_id)
             first = quiz_service.quiz_start_or_resume_attempt(
-                conn, assignment, user_id=account["id"], display_name="Ученик", profile_gate=True)
+                conn, assignment, user_id=account["id"], profile_gate=True)
             self.assertEqual(first, quiz_service.QuizAttemptStart(None, False, False, closed=False, profile_required=True))
             self.assertFalse(conn.in_transaction)
             self.assertEqual(self.attempt_count(), 0)
             # With the gate off the very same call creates the attempt, ...
             created = quiz_service.quiz_start_or_resume_attempt(
-                conn, assignment, user_id=account["id"], display_name="Ученик", profile_gate=False)
+                conn, assignment, user_id=account["id"], profile_gate=False)
             self.assertTrue(created.created)
             # ... and with it on, the existing attempt is now resumed.
             resumed = quiz_service.quiz_start_or_resume_attempt(
-                conn, assignment, user_id=account["id"], display_name="Ученик", profile_gate=True)
+                conn, assignment, user_id=account["id"], profile_gate=True)
             self.assertEqual((resumed.attempt_id, resumed.created, resumed.profile_required),
                              (created.attempt_id, False, False))
             closed = self.assignment(self.teacher, closed_at=self.T0 - HOUR, closed_by_user_id=self.teacher["id"])
             outcome = quiz_service.quiz_start_or_resume_attempt(
                 conn, quiz_service.quiz_fetch_assignment(conn, closed), user_id=account["id"],
-                display_name="Ученик", profile_gate=True)
+                profile_gate=True)
             self.assertEqual((outcome.closed, outcome.profile_required, outcome.attempt_id), (True, False, None))
 
 
@@ -367,7 +367,7 @@ class LockedDecisionTest(AttemptGateTestCase):
                 with closing(web_app.quiz_db()) as conn:
                     assignment = quiz_service.quiz_fetch_assignment(conn, self.assignment_id)
                     result.append(quiz_service.quiz_start_or_resume_attempt(
-                        conn, assignment, user_id=account["id"], display_name="Ученик", profile_gate=True))
+                        conn, assignment, user_id=account["id"], profile_gate=True))
             except Exception as exc:  # noqa: BLE001 - reported below
                 errors.append(exc)
 
@@ -444,6 +444,100 @@ class LockedDecisionTest(AttemptGateTestCase):
         self.assertTrue(outcome.created)
 
 
+class SnapshotNameUnderLockTest(AttemptGateTestCase):
+    """The ``student_name`` snapshot is the ``users.display_name`` committed when the insert
+    runs, not the one the request loaded before it waited for the writer lock.
+
+    These drive the real ``POST`` of the student link: the access hook loads the principal
+    (and so the name in the session's row) before the view reaches ``_begin_write``; a second
+    connection holds the write lock from before that moment and changes the account while the
+    request waits."""
+
+    OLD_NAME = "Old Google Name"
+
+    def post_while_the_lock_is_held(self, client, *, while_held, assignment_id=None):
+        reached, responses, errors = threading.Event(), [], []
+        real = lifecycle._begin_write
+
+        def reaching(conn):
+            reached.set()
+            return real(conn)
+
+        def post():
+            try:
+                responses.append(self.start(client, assignment_id or self.assignment_id))
+            except Exception as exc:  # noqa: BLE001 - reported below
+                errors.append(exc)
+
+        holder = web_app.quiz_db()
+        try:
+            holder.execute("BEGIN IMMEDIATE")
+            with patch.object(lifecycle, "_begin_write", reaching):
+                thread = threading.Thread(target=post)
+                thread.start()
+                self.assertTrue(reached.wait(10))
+                while_held(holder)
+                holder.commit()
+                thread.join(30)
+        finally:
+            holder.close()
+        self.assertEqual(errors, [])
+        self.assertEqual(len(responses), 1)
+        return responses[0]
+
+    def earlier_attempt(self, account, name):
+        """An attempt that exists before the start: its snapshot must never change."""
+        earlier = self.assignment(self.teacher)
+        self.attempt(earlier, account, started_at=self.T0 - HOUR, name=name)
+        return earlier
+
+    def test_a_profile_completed_while_the_start_waits_is_stored_as_the_attempt_name(self):
+        account, client = self.student(display_name=self.OLD_NAME)
+        earlier = self.earlier_attempt(account, "Преди Профила")
+
+        def complete(holder):
+            profiles.complete_student_profile(
+                holder, account["id"], first_name="Мария", last_name="Петрова", grade=10,
+                now=self.clock.wall().replace(tzinfo=timezone.utc))
+
+        response = self.post_while_the_lock_is_held(client, while_held=complete)
+        self.assert_started(response)
+        self.assertEqual(self.rows("SELECT display_name FROM users WHERE id = ?", (account["id"],)),
+                         [("Мария Петрова",)])
+        self.assertEqual(
+            self.rows("SELECT assignment_id, student_name FROM quiz_attempts ORDER BY assignment_id"),
+            [(self.assignment_id, "Мария Петрова"), (earlier, "Преди Профила")])
+
+    def test_a_profile_edited_while_the_start_waits_is_stored_as_the_attempt_name(self):
+        account, client = self.student(marked=False, profile=True, display_name="Мария Петрова")
+        earlier = self.earlier_attempt(account, "Мария Петрова")
+
+        def edit(holder):
+            profiles.save_profile(
+                holder, account["id"], first_name="Анна", last_name="Иванова", grade=11,
+                now=self.clock.wall().replace(tzinfo=timezone.utc))
+
+        response = self.post_while_the_lock_is_held(client, while_held=edit)
+        self.assert_started(response)
+        self.assertEqual(self.rows("SELECT display_name FROM users WHERE id = ?", (account["id"],)),
+                         [("Анна Иванова",)])
+        self.assertEqual(
+            self.rows("SELECT assignment_id, student_name FROM quiz_attempts ORDER BY assignment_id"),
+            [(self.assignment_id, "Анна Иванова"), (earlier, "Мария Петрова")])
+
+    def test_an_edit_after_the_attempt_exists_leaves_its_snapshot_alone(self):
+        account, client = self.student(marked=False, display_name="Първо Име")
+        self.assert_started(self.start(client, self.assignment_id))
+        with closing(web_app.quiz_db()) as conn:
+            accounts.set_display_name(conn, account["id"], "Второ Име")
+            conn.commit()
+        self.assert_started(self.start(client, self.assignment_id))           # resumed, not recreated
+        self.assertEqual(self.rows("SELECT student_name FROM quiz_attempts"), [("Първо Име",)])
+
+    def test_the_service_takes_no_name_argument(self):
+        self.assertNotIn("display_name", inspect.signature(quiz_service.quiz_start_or_resume_attempt).parameters)
+
+
 class ConcurrentStartTest(AttemptGateTestCase):
     WORKERS = 6
 
@@ -457,7 +551,7 @@ class ConcurrentStartTest(AttemptGateTestCase):
                     assignment = quiz_service.quiz_fetch_assignment(conn, self.assignment_id)
                     barrier.wait(timeout=10)
                     results.append(quiz_service.quiz_start_or_resume_attempt(
-                        conn, assignment, user_id=account["id"], display_name="Ученик", profile_gate=True))
+                        conn, assignment, user_id=account["id"], profile_gate=True))
             except Exception as exc:  # noqa: BLE001 - reported below
                 errors.append(exc)
 

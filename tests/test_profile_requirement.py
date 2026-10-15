@@ -355,7 +355,7 @@ class ValidateProfileTest(unittest.TestCase):
         result = forms.validate_profile(self.STUDENT, "student")
         self.assertTrue(result.ok)
         self.assertEqual(result.values, {"account_type": "student", "first_name": "Мария", "last_name": "Петрова",
-                                         "grade": 10, "next": None})
+                                         "grade": 10, "next": None, "next_refused": False})
         self.assertIsNone(result.password)
         self.assertNotIn("email", result.values)
         self.assertNotIn("email", result.echo)
@@ -374,9 +374,9 @@ class ValidateProfileTest(unittest.TestCase):
                  "confirm_password": "a-long-enough-password", "school_name": SCHOOL, "subject": ["it"]}
         result = forms.validate_profile({**self.STUDENT, **extra}, "student")
         self.assertTrue(result.ok)
-        self.assertEqual(set(result.values), {"account_type", "first_name", "last_name", "grade", "next"})
+        self.assertEqual(set(result.values), {"account_type", "first_name", "last_name", "grade", "next", "next_refused"})
         self.assertEqual(result.values["account_type"], "student")
-        self.assertEqual(set(result.echo), {"first_name", "last_name", "grade", "next"})
+        self.assertEqual(set(result.echo), {"first_name", "last_name", "grade", "next", "next_refused"})
         with self.assertRaises(ValueError):
             forms.validate_profile(self.STUDENT, "admin")
         with self.assertRaises(ValueError):
@@ -401,6 +401,26 @@ class ValidateProfileTest(unittest.TestCase):
                 self.assertTrue(result.ok)
                 self.assertIsNone(result.values["next"])
                 self.assertEqual(result.echo["next"], "")
+
+    def test_a_refused_target_is_reported_as_a_yes_no_and_never_echoed(self):
+        refused = ("//evil.example", "https://evil.example/", "/a\\b", "/a b", "/‮evil", "x" * 600, "relative")
+        for bad in refused:
+            with self.subTest(next=bad):
+                result = forms.validate_profile({**self.STUDENT, "next": bad}, "student")
+                self.assertEqual((result.values["next_refused"], result.echo["next_refused"]), (True, True))
+                self.assertNotIn(bad, repr(result))
+        for absent in ("", None, ["/ok"]):
+            with self.subTest(next=absent):
+                result = forms.validate_profile({**self.STUDENT, "next": absent}, "student")
+                self.assertEqual((result.values["next_refused"], result.echo["next_refused"]), (False, False))
+        # The marker carried by an earlier rendering counts only as the fixed literal, and a kept target wins.
+        for marker, expected in (("1", True), ("0", False), ("true", False), ("", False), ("//evil.example", False)):
+            with self.subTest(marker=marker):
+                form = {**self.STUDENT, "next_refused": marker}
+                self.assertIs(forms.validate_profile(form, "student").values["next_refused"], expected)
+        target = "/quiz/s/" + "A" * 43
+        kept = forms.validate_profile({**self.STUDENT, "next": target, "next_refused": "1"}, "student")
+        self.assertEqual((kept.values["next"], kept.values["next_refused"]), (target, False))
 
 
 if __name__ == "__main__":

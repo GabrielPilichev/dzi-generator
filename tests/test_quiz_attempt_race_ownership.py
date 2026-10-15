@@ -222,7 +222,7 @@ class QuizAttemptRaceOwnershipTest(IsolatedAppTestCase):
             assignment = quiz_service.quiz_fetch_assignment(connection, int(cursor.lastrowid))
             with self.assertRaises(sqlite3.IntegrityError):
                 quiz_service.quiz_start_or_resume_attempt(
-                    connection, assignment, user_id=987654321, display_name="Никой")
+                    connection, assignment, user_id=987654321)
         finally:
             connection.close()
         self.assertEqual(self._attempts(int(assignment["id"])), [])

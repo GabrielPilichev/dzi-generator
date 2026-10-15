@@ -428,8 +428,10 @@ def _profile_page(conn, principal, *, echo=None, errors=None, status: int = 200,
                                required=False, saved=False, grades=forms.GRADES, subjects=[]), status
     if echo is None:
         echo = _profile_echo(profile) if profile is not None else {}
-        # Only a target the form rules keep is echoed back; a rejected one never is.
+        # Only a target the form rules keep is echoed back; a rejected one never is, but the
+        # fact that one was refused is, so that the submission still goes to the role's home.
         echo["next"] = forms.accepted_next(request.args.get("next")) or ""
+        echo["next_refused"] = forms.next_refused(request.args.get("next"), None)
     required = profiles_service.needs_profile(conn, {"id": principal.user_id}, enabled=True)
     return render_template(
         "account_profile.html",
@@ -445,17 +447,18 @@ def _profile_page(conn, principal, *, echo=None, errors=None, status: int = 200,
     ), status
 
 
-def _profile_return_target(accepted_next: str, submitted: bool, role) -> str:
+def _profile_return_target(accepted_next: str, refused: bool, role) -> str:
     """Where a saved profile goes on: by GET, never starting anything.
 
-    A kept ``next`` is validated again here and used; one that was submitted and not
-    kept becomes the role's home and is never echoed; with no ``next`` at all the form
-    shows the saved profile.
+    A kept ``next`` is validated again here and used; a target that was offered and not
+    kept (``refused``, which survives retries and the GET-then-POST round trip as a
+    yes/no, never as the target) becomes the current role's home; with no ``next`` at all
+    the form shows the saved profile.
     """
     home = url_for(role_home(role))
     if accepted_next:
         return safe_redirect_target(accepted_next, home)
-    if submitted:
+    if refused:
         return home
     return url_for("account.profile", saved=1)
 
@@ -516,8 +519,7 @@ def profile():
         logger.warning("profile_save_failed user=%s error=%s", principal.user_id, type(exc).__name__)
         return _profile_page(conn, principal, echo=validated.echo, failure=PROFILE_FAILURE_MESSAGE, status=500)
     # The session is untouched: no key was rotated, so every device stays signed in.
-    submitted_next = bool(request.form.get("next"))
-    return redirect(_profile_return_target(values["next"] or "", submitted_next, principal.role), code=303)
+    return redirect(_profile_return_target(values["next"] or "", values["next_refused"], principal.role), code=303)
 
 
 @account_bp.route("/account/password", methods=["GET", "POST"])

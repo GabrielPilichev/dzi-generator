@@ -48,6 +48,7 @@
 {% else %}
 <form method="post" action="{{ url_for('account.profile') }}" class="card form-card login-card" novalidate>
     <input type="hidden" name="next" value="{{ echo.get('next', '') }}">
+    {% if echo.get('next_refused') %}<input type="hidden" name="next_refused" value="1">{% endif %}
 
     <label for="first_name">Име</label>
     <input id="first_name" name="first_name" type="text" value="{{ echo.get('first_name', '') }}" autocomplete="given-name" maxlength="39" required autofocus{% if errors.get('first_name') %} aria-invalid="true" aria-describedby="first_name-error"{% endif %}>

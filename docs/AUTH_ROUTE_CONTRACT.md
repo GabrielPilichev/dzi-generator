@@ -608,15 +608,23 @@ start never reads that setting.
   result (closed assignment or not); a closed assignment shows its closed notice;
   only then `needs_profile`, answered with a `303` to
   `/account/profile?next=/quiz/s/<token>` and no attempt row; otherwise the attempt
-  is created as before. The view looks up no attempt of its own. Attempt pages,
+  is created as before. The view looks up no attempt of its own. The new attempt's
+  `student_name` is `users.display_name` as committed at the insert, selected by
+  the `INSERT` itself under the writer lock (the service takes no name argument),
+  so a name loaded before the request waited for the lock is never stored;
+  existing attempts keep their snapshots. Attempt pages,
   saving, submitting, results, `/account/attempts`, browsing and the account pages
   are never blocked.
 - **`next`** is kept only when the registration rule keeps it (a safe same-site
   path without a Unicode C or Z character, at most 512 characters) when the form
   is rendered and when it is submitted, and passes `safe_redirect_target` again
-  when it is used. A submitted target that is refused becomes the role's home and
-  is never echoed; with no target the saved profile is shown. The return is a
-  plain GET: completing a profile never starts an attempt.
+  when it is used. A target that was offered (a query string or a submitted field)
+  and refused becomes the current role's home and is never echoed: the form
+  remembers the refusal as the fixed hidden field `next_refused=1` (a yes/no, not
+  the target), so a validation retry or the GET-then-POST round trip still ends at
+  the role's home; a kept `next` always wins over the indicator. With no target and
+  no indicator the saved profile is shown. The return is a plain GET: completing a
+  profile never starts an attempt.
 - **A role change** (`set-role`) never writes, deletes or reinterprets a profile
   or the mark. A marked student promoted to teacher or admin is no longer asked;
   demoted again, is asked again. A profile keeps the type it was declared with.

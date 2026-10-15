@@ -308,6 +308,25 @@ def accepted_next(value) -> str | None:
     return _accepted_next(value)
 
 
+# The value of the hidden field that tells the profile form "a target was offered and
+# refused". It is a fixed literal, never the refused target, so nothing refused is echoed.
+NEXT_REFUSED = "1"
+
+
+def next_refused(next_value, marker) -> bool:
+    """Whether a ``next`` was offered to the profile form and is not kept.
+
+    True for a non-empty ``next_value`` that ``accepted_next`` refuses, and for the fixed
+    ``marker`` (``NEXT_REFUSED``) that an earlier rendering of the form carried when it
+    refused one. A kept ``next`` always wins; an absent or empty ``next`` with no marker is
+    false, which is the "no target at all" case. The marker is only ever read for this
+    yes/no, so a forged one can do no more than send the account to its role's home.
+    """
+    if _accepted_next(next_value) is not None:
+        return False
+    return (isinstance(next_value, str) and next_value != "") or marker == NEXT_REFUSED
+
+
 # ---------------------------------------------------------------------------- forms
 
 def _common(form: Mapping, errors: dict[str, str], echo: dict[str, Any]) -> dict[str, Any]:
@@ -401,7 +420,8 @@ def validate_profile(form: Mapping, account_type: str) -> ValidationResult:
     or the account's role, never from a submitted field. A student's form holds
     ``first_name``, ``last_name`` and ``grade``; a teacher's holds ``first_name``,
     ``last_name``, ``school_name`` and ``subject``/``subject_other``. ``next`` is kept
-    only when ``accepted_next`` keeps it. The result's ``password`` is always ``None``.
+    only when ``accepted_next`` keeps it; a refused one is reported as ``next_refused`` (a
+    yes/no, also carried by the form's hidden ``next_refused`` field) and never echoed. The result's ``password`` is always ``None``.
     """
     if account_type not in (STUDENT, TEACHER):
         raise ValueError("Невалиден вид акаунт.")
@@ -439,6 +459,9 @@ def validate_profile(form: Mapping, account_type: str) -> ValidationResult:
 
     values["next"] = _accepted_next(form.get("next"))
     echo["next"] = values["next"] or ""     # never the raw, rejected input
+    # A refused target is remembered as a yes/no so that a retry or a GET-then-POST round
+    # trip still sends the account to its role's home, not to the saved profile.
+    values["next_refused"] = echo["next_refused"] = next_refused(form.get("next"), form.get("next_refused"))
     if errors:
         return ValidationResult(values=None, errors=errors, echo=echo)
     return ValidationResult(values=values, errors={}, echo=echo)

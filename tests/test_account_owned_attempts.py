@@ -363,7 +363,7 @@ class AccountAttemptCreationTest(AccountAttemptTestCase):
             assignment = quiz.quiz_fetch_assignment(conn, assignment_id)
             for user_id in (None, 0, -1, True, "7", 7.0):
                 with self.subTest(user_id=user_id), self.assertRaises(ValueError):
-                    quiz.quiz_start_or_resume_attempt(conn, assignment, user_id=user_id, display_name="Някой")
+                    quiz.quiz_start_or_resume_attempt(conn, assignment, user_id=user_id)
         self.assertEqual(self.attempts_of(assignment_id), [])
 
 
@@ -1085,7 +1085,7 @@ class ConcurrentStartTest(AccountAttemptTestCase):
                     assignment = quiz.quiz_fetch_assignment(conn, assignment_id)
                     barrier.wait(timeout=10)
                     results.append(quiz.quiz_start_or_resume_attempt(
-                        conn, assignment, user_id=student["id"], display_name="Нетърпелив"))
+                        conn, assignment, user_id=student["id"]))
             except Exception as exc:  # noqa: BLE001 - reported below
                 errors.append(exc)
 

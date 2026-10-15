@@ -2070,16 +2070,20 @@ def _quiz_is_open_now(conn, assignment_id: int, now_text: str) -> bool:
 
 
 def quiz_start_or_resume_attempt(
-    conn, assignment, *, user_id: int, display_name: str, profile_gate: bool = False
+    conn, assignment, *, user_id: int, profile_gate: bool = False
 ) -> QuizAttemptStart:
     """Return the account's attempt at the assignment, or create and commit one.
 
     ``user_id`` is the id of the validated current account and the only identity
     used: the attempt is looked up by ``(assignment_id, user_id)`` and seeded from
-    the id. ``display_name`` is stored as the ``student_name`` snapshot teachers
-    see; it identifies nobody, so a later rename finds the same attempt and two
-    accounts with one name get separate attempts. Historical attempts
-    (``user_id`` NULL) are never matched, whatever their name.
+    the id. The ``student_name`` snapshot teachers see is the account's
+    ``users.display_name`` as committed at the instant of the insert: it is selected by
+    the INSERT itself, under the writer lock, and is not an argument, so a name the
+    caller loaded before waiting for the lock (a profile completed or edited meanwhile)
+    can never be stored. It identifies nobody, so a later rename finds the same attempt
+    and two accounts with one name get separate attempts. Historical attempts
+    (``user_id`` NULL) are never matched, whatever their name. An id with no account
+    stores no row (the foreign key refuses it).
 
     A new attempt is inserted only while the assignment is ``OPEN`` at the ``now``
     sampled under the writer lock: the open check and the insert are one
@@ -2165,14 +2169,14 @@ def quiz_start_or_resume_attempt(
                         assignment_id, user_id, student_name, seed, question_ids_json,
                         score_total, started_at
                     )
-                    SELECT :assignment_id, :user_id, :student_name, :seed, :question_ids_json,
-                           :score_total, :now
+                    SELECT :assignment_id, :user_id,
+                           (SELECT display_name FROM users WHERE id = :user_id),
+                           :seed, :question_ids_json, :score_total, :now
                     FROM quiz_assignments
                     WHERE id = :assignment_id
                       AND """ + lifecycle.OPEN_PREDICATE_SQL, {
                     "assignment_id": assignment_id,
                     "user_id": user_id,
-                    "student_name": display_name,
                     "seed": seed,
                     "question_ids_json": question_ids_json,
                     "score_total": score_total,

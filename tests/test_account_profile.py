@@ -8,11 +8,13 @@ the gate-off tests leave it at the build's default. No mail is sent and nothing 
 
 import html
 import itertools
+import re
 import sqlite3
 import tempfile
 from contextlib import closing
 from pathlib import Path
 from unittest.mock import patch
+from urllib.parse import urlsplit
 
 from tests import runtime_fixtures
 from tests.auth_helpers import set_account_session
@@ -492,6 +494,131 @@ class CreateProfileTest(ProfileRouteTestCase):
         self.assertEqual(response.status_code, 409)
         self.assertIn(FAILURE, self.text(response))
         self.assertEqual(self.user(account["id"], "role"), "teacher")
+
+
+HIDDEN_INPUT = re.compile(r'<input type="hidden" name="([^"]+)" value="([^"]*)">')
+UNSAFE_TARGETS = ("//evil.example/x", "https://evil.example/", "/a\\evil", "evil.example", "/" + "a" * 600, "/‮evil")
+
+
+class RefusedNextRoundTripTest(ProfileRouteTestCase):
+    """A ``next`` the form refused is remembered as a yes/no through rendering and retries.
+
+    The hidden fields of the rendered page are posted back as a browser would, so the
+    GET -> POST and the invalid-POST -> corrected-POST round trips are real. The refused
+    target itself is never rendered; it is validated again where it is used."""
+
+    HOMES = {"student": "/", "teacher": "/teacher/new", "admin": "/teacher"}
+
+    def hidden(self, response):
+        return {name: html.unescape(value) for name, value in HIDDEN_INPUT.findall(self.body(response))}
+
+    def assert_location(self, response, expected):
+        self.assertEqual((response.status_code, response.headers["Location"]), (303, expected))
+        location = urlsplit(response.headers["Location"])
+        self.assertEqual((location.scheme, location.netloc), ("", ""))             # never an external redirect
+        self.assertFalse(response.headers["Location"].startswith("//"))
+        self.assertNotIn("evil", response.headers["Location"])
+
+    def test_an_unsafe_next_on_get_then_a_successful_submission_goes_to_the_role_home(self):
+        for bad in UNSAFE_TARGETS:
+            with self.subTest(next=bad):
+                _, client = self.signed_in("student")
+                page = self.get(client, "/account/profile", query_string={"next": bad})
+                fields = self.hidden(page)
+                self.assertEqual(fields, {"next": "", "next_refused": "1"})
+                self.assertNotIn("evil", self.body(page))
+                self.assert_location(self.post(client, {**fields, **STUDENT_FORM}), "/")
+
+    def test_an_unsafe_next_with_invalid_fields_then_a_corrected_submission_goes_to_the_role_home(self):
+        invalid = {"first_name": "", "last_name": "Петрова", "grade": "10"}
+        for bad in UNSAFE_TARGETS:
+            with self.subTest(next=bad):
+                _, client = self.signed_in("student")
+                # Straight from the GET page, and with the raw target posted directly (a stale
+                # or hand-built form): both retries carry the indicator and never the target.
+                from_page = self.hidden(self.get(client, "/account/profile", query_string={"next": bad}))
+                for first in ({**from_page, **invalid}, {**invalid, "next": bad}):
+                    retry = self.post(client, first)
+                    self.assertEqual(retry.status_code, 200)
+                    self.assertIn("Въведи име.", self.text(retry))
+                    self.assertNotIn("evil", self.body(retry))
+                    fields = self.hidden(retry)
+                    self.assertEqual(fields, {"next": "", "next_refused": "1"})
+                    second = self.post(client, {**fields, **invalid})              # still invalid: again a retry
+                    self.assertEqual(self.hidden(second), {"next": "", "next_refused": "1"})
+                self.assert_location(self.post(client, {**self.hidden(retry), **STUDENT_FORM}), "/")
+
+    def test_a_genuinely_absent_next_keeps_the_current_behaviour(self):
+        for query in ({}, {"next": ""}):
+            with self.subTest(query=query):
+                _, client = self.signed_in("student")
+                fields = self.hidden(self.get(client, "/account/profile", query_string=query))
+                self.assertEqual(fields, {"next": ""})                              # no indicator
+                retry = self.post(client, {**fields, "first_name": "", "last_name": "Петрова", "grade": "10"})
+                self.assertEqual(self.hidden(retry), {"next": ""})
+                response = self.post(client, {**self.hidden(retry), **STUDENT_FORM})
+                self.assertEqual((response.status_code, response.headers["Location"]), (303, "/account/profile?saved=1"))
+
+    def test_a_valid_next_is_preserved_through_the_page_and_a_retry(self):
+        _, client = self.signed_in("student")
+        fields = self.hidden(self.get(client, f"/account/profile?next={START}"))
+        self.assertEqual(fields, {"next": START})
+        retry = self.post(client, {**fields, "first_name": "", "last_name": "Петрова", "grade": "10"})
+        self.assertEqual(self.hidden(retry), {"next": START})
+        self.assert_location(self.post(client, {**self.hidden(retry), **STUDENT_FORM}), START)
+
+    def test_a_valid_next_wins_over_the_indicator(self):
+        _, client = self.signed_in("student")
+        response = self.post(client, {**STUDENT_FORM, "next": START, "next_refused": "1"})
+        self.assert_location(response, START)
+
+    def test_the_indicator_is_a_yes_no_and_a_forged_one_can_only_reach_the_role_home(self):
+        _, client = self.signed_in("student")
+        self.assert_location(self.post(client, {**STUDENT_FORM, "next_refused": "1"}), "/")
+        for forged in ("0", "", "yes", "true", "//evil.example", "https://evil.example/"):
+            with self.subTest(next_refused=forged):
+                _, other = self.signed_in("student")
+                response = self.post(other, {**STUDENT_FORM, "next_refused": forged})
+                self.assertEqual((response.status_code, response.headers["Location"]), (303, "/account/profile?saved=1"))
+                self.assertNotIn("evil", self.body(response))
+
+    def test_the_fallback_is_the_role_at_the_time_of_the_submission(self):
+        for role, home in (("teacher", "/teacher/new"), ("admin", "/teacher")):
+            with self.subTest(role=role):
+                account, client = self.signed_in("student", profile="student")
+                fields = self.hidden(self.get(client, "/account/profile", query_string={"next": "//evil.example"}))
+                self.assertEqual(fields, {"next": "", "next_refused": "1"})       # rendered for a student ...
+                self.execute("UPDATE users SET role = ? WHERE id = ?", (role, account["id"]))
+                self.assert_location(                                             # ... used for the current role
+                    self.post(client, {**fields, "first_name": "Ана", "last_name": "Иванова", "grade": "9"}), home)
+
+    def test_every_role_with_a_stored_profile_falls_back_to_its_own_home(self):
+        for role, kind, form in (("student", "student", STUDENT_FORM), ("teacher", "teacher", TEACHER_FORM),
+                                 ("admin", "teacher", TEACHER_FORM)):
+            with self.subTest(role=role):
+                _, client = self.signed_in(role, profile=kind)
+                fields = self.hidden(self.get(client, "/account/profile", query_string={"next": "https://evil.example/"}))
+                self.assertEqual(fields, {"next": "", "next_refused": "1"})
+                self.assert_location(self.post(client, {**fields, **form}), self.HOMES[role])
+
+    def test_the_target_is_validated_again_at_use_after_a_round_trip(self):
+        _, client = self.signed_in("student")
+        fields = self.hidden(self.get(client, f"/account/profile?next={START}"))
+        with patch.object(account_blueprint, "safe_redirect_target", lambda value, fallback: fallback):
+            self.assert_location(self.post(client, {**fields, **STUDENT_FORM}), "/")
+
+    def test_the_failure_pages_carry_the_indicator_and_never_the_target(self):
+        account, client = self.signed_in("student")
+        self.execute("UPDATE users SET role = 'teacher' WHERE id = ?", (account["id"],))   # no form for a teacher
+        denied = self.post(client, {**STUDENT_FORM, "next": "//evil.example"})
+        self.assertEqual(denied.status_code, 403)
+        self.assertNotIn("evil", self.body(denied))
+        _, other = self.signed_in("student")
+        with patch.object(profiles, "complete_student_profile", side_effect=sqlite3.OperationalError("boom")):
+            failed = self.post(other, {**STUDENT_FORM, "next": "//evil.example"})
+        self.assertEqual(failed.status_code, 500)
+        self.assertNotIn("evil", self.body(failed))
+        self.assertEqual(self.hidden(failed), {"next": "", "next_refused": "1"})
 
 
 class EditProfileTest(ProfileRouteTestCase):

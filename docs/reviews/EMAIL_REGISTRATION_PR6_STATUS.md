@@ -6,6 +6,37 @@ Tests: `docs/reviews/EMAIL_REGISTRATION_TEST_PLAN.md`, A2, I5, I6, J5 to J13, J1
 Earlier PRs: `EMAIL_REGISTRATION_PR1_STATUS.md` to `PR5_STATUS.md` (merged: #335 to #339).
 Routes: `docs/AUTH_ROUTE_CONTRACT.md`, "Account profile". Operator text: `docs/DEPLOYMENT.md`, section 35.
 
+## Review of `429697efea47e18b4e9c8842322639a5e9299305`: REQUEST CHANGES, and the fixes
+
+An independent review of the pushed head `429697efea47e18b4e9c8842322639a5e9299305` (PR #340) gave the verdict
+**REQUEST CHANGES** with two independent findings. Both are fixed in the working tree, **unstaged and uncommitted**;
+**the fixes are not independently reviewed**.
+
+1. **The new attempt's `student_name` came from a principal loaded before the writer lock.** A start loads its principal
+   before it waits for SQLite; a profile completed or edited meanwhile changed `users.display_name` and the gate saw it, but
+   the insert stored the stale name (reproduced: `Old Google Name` after a completion, then `Мария Петрова` after an edit to
+   `Анна Иванова`). `quiz_start_or_resume_attempt` no longer takes a `display_name` argument: its `INSERT ... SELECT` selects
+   `users.display_name` itself, in the same statement and the same writer transaction as the open check, so the stored name is
+   the committed one at that instant. The route no longer passes the principal's name, and there is no route-level lookup.
+   Resume, result, closed-notice precedence, the profile decision and every existing snapshot are unchanged; an id with no account
+   still stores nothing (`NOT NULL`/foreign key, `IntegrityError`, as before). Files: `web/services/quiz.py`,
+   `web/blueprints/quiz.py`; five existing test modules lost the obsolete argument at their call sites.
+2. **A refused `next` became indistinguishable from an absent one after rendering.** An unsafe `next` was rendered as an empty
+   hidden field, so a validation retry or a GET-then-POST round trip ended at `/account/profile?saved=1` instead of the role's
+   home. The form now carries a second hidden field, the fixed literal `next_refused=1`, whenever a target was offered and refused
+   (`registration_forms.next_refused`, set by `validate_profile` and by the GET rendering). The refused target is never echoed.
+   After a save the target is `safe_redirect_target(kept next)` if one was kept (validated again at use), else the **current**
+   role's home if the indicator is present, else `?saved=1` (unchanged for a genuinely absent or empty `next`). A kept `next` wins
+   over the indicator; a forged indicator can only reach the role's home. Files: `web/services/registration_forms.py`,
+   `web/blueprints/account.py`, `web/templates/account_profile.html`; `docs/AUTH_ROUTE_CONTRACT.md` describes both.
+
+Tests added: `tests.test_profile_attempt_gate.SnapshotNameUnderLockTest` (4) and `tests.test_account_profile.RefusedNextRoundTripTest` (10);
+what they cover and the mutation evidence are in the report of the fix, not repeated as a claim of review here.
+
+**Still pending Gabriel's decision, and not marked approved by these fixes:** the development-only `DZI_PROFILES_ENABLED`
+(deviation 2); the anonymous gate-off redirect to `/login` instead of the generic 404 (deviation 4); a save without `next`
+returning to `?saved=1` (deviation 7); `display_name` rewritten only when the names change (deviation 9).
+
 **Status:** implemented on `feature/account-profile-flow` (draft PR), on top of `4197818`
 (`419781831e925b5dcf4a7ca35b92ed688864fcef`, which holds no change). The working tree is **unstaged and
 uncommitted**, **not independently reviewed and not approved**. The profile flow is **not activated**: the
@@ -75,7 +106,7 @@ interpreters (`tests/test_profile_gate.py`).
   `session_key` are never written, so every session stays valid; `quiz_attempts.user_id`, the `quiz_attempt_owner:*` markers
   and every stored `student_name` are untouched. Later attempts copy the new `display_name`.
 * After a save: a `next` that the form rules kept and `safe_redirect_target` accepts again at use is followed (a GET); a
-  submitted `next` that was refused becomes the role's home and is never echoed; with no `next` the saved profile is shown
+  `next` that was offered and refused (remembered across retries as the hidden `next_refused=1`) becomes the current role's home and is never echoed; with no `next` the saved profile is shown
   (`?saved=1`). Completing never starts an attempt.
 
 **`profiles.needs_profile(conn, user, *, enabled)`** is true only when `enabled` is exactly `True`, the account's current role
