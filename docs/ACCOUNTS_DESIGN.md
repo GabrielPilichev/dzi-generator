@@ -62,7 +62,7 @@ has started with account-owned quiz attempts (migration 015, §24).
   `email_verified_at`, and returns `None` (writing nothing) when the address
   already has an account. Migration 022 adds `registration_sends.issuance_id`,
   the random identity of an issuance. `_USER_COLUMNS` does not read the column.
-- Implemented in draft (#338), not reviewed, **not activated**: student
+- Merged (#338), **not activated**: student
   registration routes (email registration PR 4;
   `docs/reviews/EMAIL_REGISTRATION_PR4_STATUS.md`, `docs/AUTH_ROUTE_CONTRACT.md`
   "Student registration"). A verified registration creates a `student` with
@@ -72,6 +72,19 @@ has started with account-owned quiz attempts (migration 015, §24).
   exists. Sign-in, the throttle, admin TOTP, Google sign-in and every
   CLI-created account are unchanged; `manage_accounts list` shows the
   verification date and the declared type.
+- Merged (#339), **not activated**: registration operations (email registration
+  PR 5; `docs/reviews/EMAIL_REGISTRATION_PR5_STATUS.md`): the cleanup unit and
+  timer, the restore hold and the logical scrub of backup copies. No schema change.
+- Implemented in draft, **not activated** and not independently reviewed: the
+  account profile flow (email registration PR 6;
+  `docs/reviews/EMAIL_REGISTRATION_PR6_STATUS.md`, `docs/AUTH_ROUTE_CONTRACT.md`
+  "Account profile"). Migration `023_profile_required.sql` adds the nullable column
+  `users.profile_required_at` (NULL for every account that exists); `/account/profile`,
+  the profile on `/account`, the mark written when Google onboarding creates a
+  student, and the profile check before a new attempt exist behind the build gate
+  `profiles.PRODUCTION_ACTIVATION`, off. While it is off none of them is reachable or
+  visible, and attempt creation is unchanged. A profile is a declaration and
+  `users.role` stays the only authority.
 - **Implemented, not activated: Google OIDC sign-in** (PR #331; §13, "Google
   sign-in as implemented"; specification
   `docs/reviews/GOOGLE_OIDC_DESIGN.md`). Automatic student onboarding, linking
@@ -850,7 +863,10 @@ reachable registration route.
 
 - **v1:** no reset flow and no email verification. (Migration 021 later added
   the nullable column `users.email_verified_at` for registration; it is NULL for
-  every account, and nothing reads or sets it yet.)
+  every account except one created by a verified registration, which is not
+  activated, and no access decision reads it. Migration 023 added
+  `users.profile_required_at`, the profile mark; see §15 and the
+  status list above.)
 - **Recovery:** the operator runs `manage_accounts set-password` on the
   server, which rotates `session_key`, and passes the new password out of
   band. The user then changes it at `/account/password`.
@@ -1143,6 +1159,16 @@ account forms.**
 - **Held briefly, not stored:** while a link awaits confirmation, the Google
   subject, reported email and name are in the person's signed session cookie
   for at most three minutes.
+- **Collected only behind gates that are off (registration PRs 4 and 6; the
+  amendment this paragraph needs is an activation prerequisite and is not made
+  here):** the code can store a first and last name and a class (8 to 12) for a
+  student, and a school and one to three subjects for a teacher, in
+  `user_profiles`, and a "profile required" mark in `users.profile_required_at`.
+  While the registration and profile gates are off nothing collects or shows them,
+  so the next list is still true of every running build. Their purpose, who may see
+  them and how long they are kept are not decided (decision D16 of
+  `docs/reviews/EMAIL_REGISTRATION_DESIGN.md`) and none may be invented by an
+  implementation.
 - **Not collected:** date of birth, school, class, phone, IP address, user
   agent, login history; from Google also the profile picture, given and family
   name, locale, organisation domain, and any Google token. No Google API is
@@ -1185,6 +1211,7 @@ account forms.**
 | `019_user_identities.sql` (phase 2) | New table and index | None; the table starts empty | Restart only | The table is read and written only by Google sign-in (§13), which is not activated, so while it is off nothing uses the table. Once it is on and identities exist, a build from before the sign-in code leaves them inert and accounts created through Google cannot sign in under it (`docs/DEPLOYMENT.md`, section 29, "Rollback and restore"). A build without 019 refuses to start on the migrated database, as for every migration since the lifecycle release: a recovery build keeps the migration, and a snapshot restore does not lead to a build from before it (`docs/DEPLOYMENT.md`, sections 21 and 27). |
 | `020_oidc_consumed_transactions.sql` (phase 2) | New table, no index | None; the table starts empty | Restart only | Google sign-in (§13) is the only caller of the storage, at three call sites, and is not activated; while it is off nothing is written, and the records already written stay and are not deleted for a rollback. As for 019: a build without 020 refuses to start on the migrated database, a recovery build keeps the migration, and a snapshot restore does not lead to a build from before it (`docs/DEPLOYMENT.md`, sections 21 and 28). |
 | `021_registration_schema.sql` (registration PR 1) | One nullable column on `users` (`email_verified_at`) and five new tables with their indexes | None; every account has the column NULL and the tables start empty | Restart only | Nothing reads or writes the column or the tables except the profile service, which has no caller, and no gate exists to turn on. Code from before the migration names its `users` columns and runs unchanged. As for 019 and 020: a build without 021 refuses to start on the migrated database, a recovery build keeps the migration, and a snapshot restore does not lead to a build from before it (`docs/DEPLOYMENT.md`, section 30). |
+| `023_profile_required.sql` (registration PR 6) | One nullable column on `users` (`profile_required_at`) | None; every account has the column NULL, so no account is marked or asked | Restart only | Nothing reads the column while the profile gate is off, and the only writer is Google onboarding with the gate on. Code from before the migration names its `users` columns and runs unchanged. As for 019 to 021: a build without 023 refuses to start on the migrated database, a recovery build keeps the migration, and a snapshot restore does not lead to a build from before it (`docs/DEPLOYMENT.md`, section 35). |
 
 **Runner constraint (applies to 015 only; runner support is in place)**
 

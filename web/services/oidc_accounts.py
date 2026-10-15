@@ -128,18 +128,28 @@ def student_display_name(value) -> str:
 @dataclass(frozen=True, repr=False)
 class SignIn:
     """``outcome`` is SIGNED_IN or CREATED with the ``user`` row to issue a session
-    for, or a refusal (NOT_ALLOWED, EMAIL_EXISTS) with no user."""
+    for, or a refusal (NOT_ALLOWED, EMAIL_EXISTS) with no user.
+
+    ``profile_required`` is true only for CREATED when the caller asked for the mark
+    (``require_profile``): the account was written with ``profile_required_at`` set."""
 
     outcome: str
     user: dict | None = None
+    profile_required: bool = False
 
 
-def sign_in_or_onboard(conn: sqlite3.Connection, profile: GoogleProfile) -> SignIn:
+def sign_in_or_onboard(conn: sqlite3.Connection, profile: GoogleProfile, *,
+                       require_profile: bool = False) -> SignIn:
     """Sign in the account of a Google identity, or create a student for a new one.
 
     The caller holds the write lock and commits after SIGNED_IN or CREATED; after a
     refusal or an exception it rolls back. The user and the identity are written in
     that one transaction, so neither exists without the other.
+
+    ``require_profile`` is the profile gate (docs/reviews/EMAIL_REGISTRATION_DESIGN.md,
+    7.4, decision D11). When true, and only for an account created here, the account is
+    marked ``profile_required_at`` in the same transaction. An account that is signed in,
+    refused or already existing is never marked, whatever the flag says.
     """
     # First, and the email plays no part in it.
     found = identities.find_identity(conn, google_oidc.ISSUER, profile.subject)
@@ -171,7 +181,9 @@ def sign_in_or_onboard(conn: sqlite3.Connection, profile: GoogleProfile) -> Sign
     )
     identities.record_identity_login(conn, identity_id)
     accounts.record_login(conn, user_id)
-    return SignIn(CREATED, accounts.get_user_by_id(conn, user_id))
+    if require_profile:
+        accounts.mark_profile_required(conn, user_id)
+    return SignIn(CREATED, accounts.get_user_by_id(conn, user_id), profile_required=bool(require_profile))
 
 
 # --------------------------------------------------------------------------- linking

@@ -261,6 +261,43 @@ settings are present, so a public tunnel exposes working `/register` routes.
 Test through a tunnel only with a fake or development backend
 (`DZI_MAIL_BACKEND=console`, or `file` into a scratch directory), never real SMTP.
 
+## Account profile tests
+
+Registration PR 6 (`docs/reviews/EMAIL_REGISTRATION_PR6_STATUS.md`). Every database is a
+temporary clone or build from migrations and canonical data; none is `data/questions.db`,
+no mail is sent and no socket is opened.
+
+- `tests/test_profile_required_migration_sql.py` upgrades a temporary database from
+  migration 022, with accounts of every kind in it, to 023 and compares it with a fresh
+  build; every existing account stays NULL. It also pins the file (one `ALTER TABLE`), the
+  manifest level and that no canonical file changes.
+- `tests/test_profile_requirement.py` tests `profiles.needs_profile` over every
+  combination of gate, role, mark and profile type, the accounts additions
+  (`mark_profile_required`, `set_display_name`, `profile_requirement`), the atomic profile
+  functions and the profile form validators. A failed second write is injected and the
+  caller rolls back, as a view does.
+- `tests/test_account_profile.py` gives every test its own database and switches the gate
+  on through the application configuration (`app.config[profiles.CONFIG_KEY]`). It covers
+  the gate-off 404 and invisible link, the page for each account kind, creation and
+  editing, unchanged roles, sessions, ownership and historical names, `next`, same-origin
+  refusal, escaping, atomicity (an injected failure after the profile insert and a failed
+  `COMMIT` through `FlakyCommits`) and the independence of the three gates.
+- `tests/test_profile_google_onboarding.py` reuses the fake Google of
+  `tests/google_oidc_support.py`: the mark of a created student, the same transaction
+  (traced statements), rollback, and the accounts that are never marked.
+- `tests/test_profile_attempt_gate.py` uses `tests/lifecycle_support.py` (a frozen
+  lifecycle clock) and covers the order of the decision (resume, closed notice, then the
+  profile), no attempt row on a profile-required outcome, and concurrency: the profile
+  check is evaluated under the writer lock, which the tests hold from a second connection
+  while the start waits, and two simultaneous starts create nothing. A test patches
+  `lifecycle._begin_write` only to learn that the start reached the lock; nothing sleeps.
+- `tests/test_profile_gate.py` starts `web.wsgi` and `web.app` in fresh interpreters: the
+  build constant is the only thing that can turn the flow on in production, whatever
+  `DZI_PROFILES_ENABLED` holds, and a development run reads that setting.
+
+**Tunnels.** `DZI_PROFILES_ENABLED` turns the flow on in a development run only. Do not set
+it when sharing a localhost tunnel unless that is the point of the test.
+
 ## Previous isolation problems
 
 - `web.app` used to run `quiz_apply_migration()` at import time, before unittest

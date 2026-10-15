@@ -239,5 +239,68 @@ class SchemaTest(RegistrationCliTestCase):
         self.assertEqual((rows["t@example.bg"]["verified"], rows["t@example.bg"]["type"]), ("-", "-"))
 
 
+class ProfileMarkOperatorTest(RegistrationCliTestCase):
+    """PR 6, test plan J11 and J12: no command marks anybody, and ``set-role`` writes neither a
+    profile nor the mark (the mark is written by Google onboarding only)."""
+
+    MARK = "2026-10-15 09:00:00"
+    COLUMNS = ("id", "email", "display_name", "role", "password_hash", "is_active", "session_key", "email_verified_at",
+               "profile_required_at")
+
+    def make(self, email, *, role="student", marked=False, profile=False):
+        with closing(self.connect()) as conn:
+            user_id = accounts.create_user(conn, display_name="Ана Иванова", email=email, role=role,
+                                           password="a-long-enough-password")
+            if marked:
+                conn.execute("UPDATE users SET profile_required_at = ? WHERE id = ?", (self.MARK, user_id))
+            if profile:
+                conn.execute("INSERT INTO user_profiles (user_id, account_type, first_name, last_name, grade, "
+                             "grade_set_at) VALUES (?, 'student', 'Ана', 'Иванова', 9, ?)", (user_id, self.MARK))
+            conn.commit()
+        return user_id
+
+    def snapshot(self):
+        with closing(self.connect()) as conn:
+            return ([tuple(r) for r in conn.execute(f"SELECT {', '.join(self.COLUMNS)} FROM users ORDER BY id")],
+                    [tuple(r) for r in conn.execute("SELECT * FROM user_profiles ORDER BY user_id")],
+                    [tuple(r) for r in conn.execute("SELECT * FROM teacher_subjects")])
+
+    def test_set_role_changes_the_role_and_the_key_and_nothing_about_the_profile_or_the_mark(self):  # J12
+        marked, profiled = self.make("marked@example.bg", marked=True), self.make("profiled@example.bg", profile=True)
+        for email, user_id in (("marked@example.bg", marked), ("profiled@example.bg", profiled)):
+            for role in ("teacher", "student", "admin", "student"):
+                before = self.snapshot()
+                self.assertEqual(self.run_cli("set-role", "--email", email, "--role", role), 0, self.err)
+                after = self.snapshot()
+                self.assertEqual(after[1:], before[1:])      # profiles and subjects: byte for byte
+                for old, new in zip(before[0], after[0]):
+                    keep = [i for i, name in enumerate(self.COLUMNS) if name not in ("role", "session_key")]
+                    self.assertEqual([new[i] for i in keep], [old[i] for i in keep])
+
+    def test_no_command_marks_an_existing_account_and_none_is_named_for_it(self):  # J11
+        self.make("a@example.bg"), self.make("b@example.bg", role="teacher")
+        before = self.snapshot()
+        for argv in (("list",), ("sign-out", "--email", "a@example.bg"), ("disable", "--email", "a@example.bg"),
+                     ("enable", "--email", "a@example.bg"), ("set-role", "--email", "a@example.bg", "--role", "student"),
+                     ("registrations-cleanup",), ("registrations-clock-accept",),
+                     ("clear-registration-limit", "--email", "a@example.bg")):
+            self.run_cli(*argv)
+        self.assertEqual([row[-1] for row in self.snapshot()[0]], [None, None])
+        for name in ("require-profile", "mark-profile", "require_profile"):
+            with redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+                manage_accounts.main(["--db", str(self.db), name, "--email", "a@example.bg"])
+        self.assertEqual(self.snapshot()[1:], before[1:])
+        source = (ROOT / "src" / "manage_accounts.py").read_text(encoding="utf-8")
+        self.assertNotIn("profile_required_at", source)
+        self.assertNotIn("require-profile", source)
+
+    def test_list_is_unchanged_by_the_mark(self):
+        self.make("marked@example.bg", marked=True)
+        self.assertEqual(self.run_cli("list"), 0, self.err)
+        header = self.out.splitlines()[0].split("\t")
+        self.assertEqual(header[-2:], ["verified", "type"])
+        self.assertNotIn(self.MARK, self.out)
+
+
 if __name__ == "__main__":
     unittest.main()

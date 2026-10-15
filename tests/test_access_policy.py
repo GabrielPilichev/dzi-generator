@@ -75,6 +75,9 @@ EXPECTED_ACCESS_MATRIX = {
     # Admin TOTP (PR T): public because a pending second factor is not a principal.
     "account.login_totp": access.PUBLIC,
     "account.password": access.SIGNED_IN,
+    # Registration PR 6: the profile page. Signed in; 404 for everyone while the profile
+    # gate is off, which is the build's default.
+    "account.profile": access.SIGNED_IN,
     # Accounts phase 2: the signed-in account's own attempts (any role).
     "quiz.my_attempts": access.QUIZ_TAKER,
     # Google sign-in (PR #331). The callback is public and has its own integrity

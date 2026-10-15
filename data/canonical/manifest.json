@@ -2,7 +2,7 @@
   "format": "learnpilot-canonical-content",
   "format_version": 1,
   "schema": {
-    "migration_level": "022_registration_issuance_identity.sql",
+    "migration_level": "023_profile_required.sql",
     "migrations": [
       "000_baseline.sql",
       "001_quiz_tables.sql",
@@ -26,7 +26,8 @@
       "019_user_identities.sql",
       "020_oidc_consumed_transactions.sql",
       "021_registration_schema.sql",
-      "022_registration_issuance_identity.sql"
+      "022_registration_issuance_identity.sql",
+      "023_profile_required.sql"
     ]
   },
   "classification": {

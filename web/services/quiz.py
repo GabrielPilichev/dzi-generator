@@ -42,7 +42,7 @@ from src.subject_content import (
 from web import db as web_db
 from web.access import Principal, can_manage_assignment
 from web.assignment_tokens import is_valid_public_token, write_with_new_public_token
-from web.services import dzi_exams, lifecycle
+from web.services import dzi_exams, lifecycle, profiles
 from web.services.question_visuals import (
     attach_question_visual_assets,
     fetch_question_visual_assets,
@@ -1995,12 +1995,17 @@ class QuizPlanError(ValueError):
 
 class QuizAttemptStart(NamedTuple):
     """``closed``: the assignment accepts no new attempt and the account has none;
-    ``attempt_id`` is then ``None`` and nothing was created."""
+    ``attempt_id`` is then ``None`` and nothing was created.
+
+    ``profile_required``: the assignment is open, the account has no attempt and would
+    get a new one, but ``profiles.needs_profile`` is true; ``attempt_id`` is ``None`` and
+    nothing was created. Never together with ``closed``."""
 
     attempt_id: int | None
     submitted: bool
     created: bool
     closed: bool = False
+    profile_required: bool = False
 
 
 def quiz_fetch_attempt(conn, attempt_id: int):
@@ -2055,7 +2060,18 @@ def quiz_shuffle_plan_within_groups(assignment_question_plan: dict, rng) -> dict
     return shuffled_plan
 
 
-def quiz_start_or_resume_attempt(conn, assignment, *, user_id: int, display_name: str) -> QuizAttemptStart:
+def _quiz_is_open_now(conn, assignment_id: int, now_text: str) -> bool:
+    """Whether the insert of ``quiz_start_or_resume_attempt`` would accept this instant:
+    the same predicate it restates, asked on its own."""
+    return conn.execute(
+        "SELECT 1 FROM quiz_assignments WHERE id = :assignment_id AND " + lifecycle.OPEN_PREDICATE_SQL,
+        {"assignment_id": assignment_id, "now": now_text},
+    ).fetchone() is not None
+
+
+def quiz_start_or_resume_attempt(
+    conn, assignment, *, user_id: int, display_name: str, profile_gate: bool = False
+) -> QuizAttemptStart:
     """Return the account's attempt at the assignment, or create and commit one.
 
     ``user_id`` is the id of the validated current account and the only identity
@@ -2074,6 +2090,14 @@ def quiz_start_or_resume_attempt(conn, assignment, *, user_id: int, display_name
     second finds the first's row. A mixed assignment's questions are shuffled
     within their closed and open groups for the new attempt only; an existing
     attempt is returned as stored.
+
+    ``profile_gate`` is the profile gate of the running application (docs/reviews/
+    EMAIL_REGISTRATION_DESIGN.md, 7.4). While it is false (the default) nothing below
+    changes. While it is true the decision has one order, made here and nowhere else:
+    an existing attempt resumes or shows its result, closed or not; a closed assignment
+    without one shows its closed notice; only then, at the point where an attempt would
+    be created, ``profiles.needs_profile`` is read under the writer lock, and when it is
+    true the result is ``profile_required`` and nothing is inserted.
 
     Raises :class:`QuizPlanError` for an unreadable stored plan and
     ``lifecycle.LifecycleUnavailable`` for a held assignment or an unusable
@@ -2121,6 +2145,17 @@ def quiz_start_or_resume_attempt(conn, assignment, *, user_id: int, display_name
         if lifecycle_row is None:
             raise LookupError(f"assignment {assignment_id} does not exist")
         view = transaction.examine(lifecycle_row)
+        if (
+            profile_gate
+            and not view.malformed
+            and _quiz_is_open_now(conn, assignment_id, transaction.now_text)
+            and profiles.needs_profile(conn, {"id": user_id}, enabled=True)
+        ):
+            # The account has no attempt and the assignment is open at the instant the
+            # insert below would use, so an attempt would be created: it is not.
+            # Nothing was written, the high-water mark included.
+            transaction.discard()
+            return QuizAttemptStart(None, False, False, profile_required=True)
         if not view.malformed:
             # The open check and the insert are one statement: there is no gap
             # between them, and started_at is the instant that satisfied it.

@@ -356,8 +356,10 @@ class AuthorizationTest(ProfileTestCase):
             self.assertNotIn(forbidden, " ".join(statements), forbidden)
 
     def test_only_the_profile_service_touches_the_profile_tables(self):
+        # PR 6 adds the one caller that is not the service itself: the profile page of the
+        # account blueprint, and the application's gate setting (web/app.py).
         allowed = {"web/services/profiles.py", "web/migrations/021_registration_schema.sql",
-                   "src/canonical_tables.py"}
+                   "src/canonical_tables.py", "web/blueprints/account.py", "web/app.py"}
         pattern = re.compile(r"user_profiles|teacher_subjects|services\.profiles|import profiles\b")
         found = []
         for directory in ("web", "src", "deploy"):

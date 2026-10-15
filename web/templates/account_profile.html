@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}Данни за профила{% endblock %}
+
+{% block body_class %}management-page management-login-page{% endblock %}
+
+{% block breadcrumb %}
+    <a href="{{ url_for('browsing.index') }}">Начало</a>
+    <span>›</span>
+    <a href="{{ url_for('account.overview') }}">Профил</a>
+    <span>›</span>
+    Данни за профила
+{% endblock %}
+
+{% macro field_error(name) %}
+    {% if errors.get(name) %}
+        <p class="error field-error" id="{{ name }}-error" role="alert">{{ errors[name] }}</p>
+    {% endif %}
+{% endmacro %}
+
+{% block content %}
+<section class="hero login-hero">
+    <p class="eyebrow">Профил</p>
+    <h1>Данни за профила</h1>
+    {% if form_type == 'student' %}
+        <p class="subtitle">Име, фамилия и клас. Не искаме имейл или парола.</p>
+    {% elif form_type == 'teacher' %}
+        <p class="subtitle">Име, фамилия, училище и предмети.</p>
+    {% endif %}
+</section>
+
+{% if failure %}
+    <div class="error login-message" role="alert">{{ failure }}</div>
+{% endif %}
+{% if required and not failure %}
+    <div class="warning login-message" role="status">Попълни профила си, за да започнеш теста.</div>
+{% endif %}
+{% if saved %}
+    <div class="success login-message" role="status">Профилът е запазен.</div>
+{% endif %}
+
+{% if form_type is none %}
+<section class="card form-card login-card account-card">
+    <h2>Няма попълнен профил</h2>
+    <p>Този акаунт няма профил с декларирани данни. Не се иска нищо от теб.</p>
+    <a class="button secondary" href="{{ url_for('account.overview') }}">Назад към профила</a>
+</section>
+{% else %}
+<form method="post" action="{{ url_for('account.profile') }}" class="card form-card login-card" novalidate>
+    <input type="hidden" name="next" value="{{ echo.get('next', '') }}">
+
+    <label for="first_name">Име</label>
+    <input id="first_name" name="first_name" type="text" value="{{ echo.get('first_name', '') }}" autocomplete="given-name" maxlength="39" required autofocus{% if errors.get('first_name') %} aria-invalid="true" aria-describedby="first_name-error"{% endif %}>
+    {{ field_error('first_name') }}
+
+    <label for="last_name">Фамилия</label>
+    <input id="last_name" name="last_name" type="text" value="{{ echo.get('last_name', '') }}" autocomplete="family-name" maxlength="39" required{% if errors.get('last_name') %} aria-invalid="true" aria-describedby="last_name-error"{% endif %}>
+    {{ field_error('last_name') }}
+
+    {% if form_type == 'student' %}
+        <label for="grade">Клас</label>
+        <select id="grade" name="grade" required{% if errors.get('grade') %} aria-invalid="true" aria-describedby="grade-error"{% endif %}>
+            <option value="">Избери клас</option>
+            {% for grade in grades %}
+                <option value="{{ grade }}"{% if echo.get('grade') == grade|string %} selected{% endif %}>{{ grade }}. клас</option>
+            {% endfor %}
+        </select>
+        {{ field_error('grade') }}
+    {% else %}
+        <label for="school_name">Училище</label>
+        <input id="school_name" name="school_name" type="text" value="{{ echo.get('school_name', '') }}" maxlength="120" required{% if errors.get('school_name') %} aria-invalid="true" aria-describedby="school_name-error"{% endif %}>
+        <p class="help">Име и населено място, напр. СУ „Васил Левски“, Пловдив</p>
+        {{ field_error('school_name') }}
+
+        {% set chosen = echo.get('subject', []) %}
+        <fieldset class="profile-subjects">
+            <legend>Предмети, по които преподаваш</legend>
+            {% for choice in subjects %}
+                <label class="checkbox-row" for="subject-{{ choice.id }}">
+                    <input id="subject-{{ choice.id }}" type="checkbox" name="subject" value="{{ choice.id }}"{% if choice.id in chosen %} checked{% endif %}>
+                    <span>{{ choice.title }}</span>
+                </label>
+            {% endfor %}
+            <label class="checkbox-row" for="subject-other">
+                <input id="subject-other" type="checkbox" name="subject" value="other"{% if 'other' in chosen %} checked{% endif %}>
+                <span>Друг предмет</span>
+            </label>
+            {{ field_error('subject') }}
+        </fieldset>
+
+        <label for="subject_other">Друг предмет (име)</label>
+        <input id="subject_other" name="subject_other" type="text" value="{{ echo.get('subject_other', '') }}" maxlength="60"{% if errors.get('subject_other') %} aria-invalid="true" aria-describedby="subject_other-error"{% endif %}>
+        {{ field_error('subject_other') }}
+    {% endif %}
+
+    <button type="submit">{% if has_profile %}Запази промените{% else %}Запази профила{% endif %}</button>
+    <p class="help">Имейлът, паролата и правата на профила не се променят оттук.</p>
+</form>
+{% endif %}
+{% endblock %}

@@ -119,7 +119,7 @@ a coverage test walks `app.url_map` and fails on any undeclared endpoint.
 | `public` | any session, signed in or not | `/`, `/grade/<n>`, `/section/<slug>`, `/subjects/...`, `/physics...`, `/healthz`, `/favicon.ico`, sign-in (`/login`, `POST /login/totp`, `POST /auth/google/start`, `GET /auth/google/callback`), `POST /logout`, `/quiz/s/<public_token>`, registration (`/register`, `/register/student`, `/register/teacher`, `/register/verify`, `POST /register/resend`, `POST /register/cancel`; see "Student registration") |
 | `teacher` | teacher or admin account | `/teacher/new`, `/teacher/assignment/<id>` |
 | `admin` | admin account only (after the second factor) | `/admin/open-question-candidates`, `/dzi...`, every other `/teacher...` route |
-| `signed_in` | any active account (student, teacher or admin) | `/account`, `/account/password`, `POST /auth/google/link`, `/auth/google/link/confirm`, `POST /auth/google/link/cancel` (the link routes admit the session; an admin is then refused by `POST /auth/google/link` and `POST /auth/google/link/confirm` with 403, while `GET .../confirm` redirects to the expired outcome and `POST .../cancel` answers `link_not_pending`; see "An admin session on the link routes") |
+| `signed_in` | any active account (student, teacher or admin) | `/account`, `/account/password`, `/account/profile` (the generic 404 while the profile gate is off; see "Account profile"), `POST /auth/google/link`, `/auth/google/link/confirm`, `POST /auth/google/link/cancel` (the link routes admit the session; an admin is then refused by `POST /auth/google/link` and `POST /auth/google/link/confirm` with 403, while `GET .../confirm` redirects to the expired outcome and `POST .../cancel` answers `link_not_pending`; see "An admin session on the link routes") |
 | `quiz_taker` | any account that may take quizzes: student, teacher or admin (`can_take_quizzes`) | `/account/attempts` |
 | `assignment_owner` | admin account or teacher account; the view checks the loaded assignment and answers 404 | `/teacher/assignments`, `/teacher/assignment/<id>/edit`, `/duplicate`, `/close` (POST only), `/results` (GET and the open-answer review POST), `/results.csv`, `/qr.svg`, `/teacher/practical-submissions`, `/teacher/practical/submission-file/<file_id>/download` |
 | `attempt_owner` | route is reachable; the view checks attempt ownership and answers 404 | `/quiz/attempt/<id>`, `/quiz/attempt/<id>/result`, `/quiz/attempt/<id>/practical/...` |
@@ -212,7 +212,8 @@ quiz_assignments.owner_user_id
   owner-scoped. The official resource download
   (`/dzi/practical/resource/<id>/download`) and `/dzi...` stay `admin`.
 
-`signed_in` is used only by `/account/password`.
+`signed_in` is used by the account pages (`/account`, `/account/password`, `/account/profile`) and the
+Google link routes.
 
 `current_principal()` never reads the session: it returns the principal
 `load_current_user()` put on `g`, or anonymous.
@@ -228,7 +229,8 @@ sign-in is activated, a first Google sign-in creates a `student` (see "Google
 sign-in"). Once student registration is activated, a verified registration
 creates a `student` too (see "Student registration"; **not activated**). There
 is no password reset, and no teacher registration. A teacher or an admin
-account comes from the operator only.
+account comes from the operator only. A profile (names and class, or school
+and subjects) is a declaration and never an authority; see "Account profile".
 
 **Session contents.** A successful `POST /login` (for an admin, the completed
 `POST /login/totp`) clears the session, carries
@@ -410,6 +412,15 @@ signed-in session. The first three rows below are pinned by
 The blueprint is `oidc`. No path says "login" or "logout", and no route
 registers, resets or unlinks anything.
 
+**Onboarding and the profile gate (registration PR 6).** With the profile gate
+off, a first Google sign-in redirects exactly as before and writes no mark. With
+it on, the callback that creates a student (`CREATED`) writes
+`users.profile_required_at` in the same transaction as the account and the
+identity, and redirects to `/account/profile?next=<validated target>`; a failure
+of any of the three writes rolls back all of them. A repeated sign-in, an
+account that existed before, an email collision, a teacher and an admin are never
+marked and redirect as before. See "Account profile".
+
 **The `oauth_state` mechanism.** Exactly one view declares it, and a view that
 declares it accepts no unsafe method; `provider_signature` stays unused. A
 start puts a transaction into the signed session: state, nonce, PKCE verifier,
@@ -545,13 +556,80 @@ cross-origin POST is still 403) and no page links to it.
   any Unicode C or Z character; it is checked when the form is rendered, when
   the slot is read and again by `/login`.
 
+## Account profile
+
+Specification: `docs/reviews/EMAIL_REGISTRATION_DESIGN.md` (sections 7.3 and
+7.4); implementation and its contract:
+`docs/reviews/EMAIL_REGISTRATION_PR6_STATUS.md`. **It is not activated.** The
+build gate `profiles.PRODUCTION_ACTIVATION` (`web/services/profiles.py`) is off
+and no setting overrides it in production (`docs/DEPLOYMENT.md`, section 35). A
+development run turns the flow on with `DZI_PROFILES_ENABLED`; a production
+start never reads that setting.
+
+| Route | Endpoint | Methods | Access | Integrity |
+| --- | --- | --- | --- | --- |
+| `/account/profile` | `account.profile` | GET, POST | `signed_in` | `same_origin` |
+
+- **Gate off (the build's default).** `/account/profile` is the generic 404 for
+  every signed-in account (an anonymous visitor is sent to `/login?next=...`
+  first, like for every `signed_in` page; a cross-origin POST is still 403).
+  `/account` shows no profile section and no link to it. Google onboarding
+  redirects exactly as before and writes no mark. Starting an attempt is exactly
+  as before. A `users.profile_required_at` that exists stays stored and is
+  ignored.
+- **Gate on.** The form is the one of the account's **stored profile type**,
+  whatever its role is now: a student-type profile shows first name, last name
+  and class (8 to 12); a teacher-type profile shows first name, last name,
+  school and subjects. An account with no profile is offered the student form
+  while its current role is `student`; a teacher or an admin without a profile
+  is told that there is none, is offered no form, and a POST creates nothing
+  (403). No teacher onboarding exists. No email or password is asked for, read
+  or stored, and no field named `role`, `account_type`, `is_admin`,
+  `email_verified_at` or `profile_required_at` is read.
+- **A save is one transaction owned by the view** (`BEGIN IMMEDIATE`, commit,
+  rollback after any exception): the profile and, when the names are new, the
+  `display_name` are written together or not at all. The role, email,
+  `email_verified_at`, active state and `session_key` are never written, so every
+  session stays valid; `quiz_attempts.user_id`, the `quiz_attempt_owner:*`
+  markers and every stored `student_name` are untouched. Later attempts copy the
+  new `display_name`. A failure answers the generic failure (500) and shows
+  nothing as saved.
+- **Who is marked.** A student created through Google onboarding while the gate
+  is on gets `profile_required_at` in the transaction that creates the account,
+  and is redirected to `/account/profile?next=<validated target>`. Nobody else is
+  marked: not an existing Google account, a CLI-created account, an existing
+  student or a teacher or an admin; no command marks existing accounts.
+- **Where it is asked.** `profiles.needs_profile` is true only when the gate is
+  on, the account's current role is `student`, `profile_required_at` is set and
+  no `user_profiles` row of any type exists. It is read in one place:
+  `quiz_start_or_resume_attempt`, under its writer lock, at the point where an
+  attempt would be created. The order of `POST /quiz/s/<public_token>` is: not
+  signed in or not allowed (as before); an existing attempt resumes or shows its
+  result (closed assignment or not); a closed assignment shows its closed notice;
+  only then `needs_profile`, answered with a `303` to
+  `/account/profile?next=/quiz/s/<token>` and no attempt row; otherwise the attempt
+  is created as before. The view looks up no attempt of its own. Attempt pages,
+  saving, submitting, results, `/account/attempts`, browsing and the account pages
+  are never blocked.
+- **`next`** is kept only when the registration rule keeps it (a safe same-site
+  path without a Unicode C or Z character, at most 512 characters) when the form
+  is rendered and when it is submitted, and passes `safe_redirect_target` again
+  when it is used. A submitted target that is refused becomes the role's home and
+  is never echoed; with no target the saved profile is shown. The return is a
+  plain GET: completing a profile never starts an attempt.
+- **A role change** (`set-role`) never writes, deletes or reinterprets a profile
+  or the mark. A marked student promoted to teacher or admin is no longer asked;
+  demoted again, is asked again. A profile keeps the type it was declared with.
+- **Responses** to a signed-in account carry `Cache-Control: no-store` like every
+  account page.
+
 ## Safe redirects
 
 `web/redirects.py` owns `safe_redirect_target`, which accepts only a same-site
 absolute path and rejects `//host`, a scheme or host, a backslash (`/\host` is
 read as `//host` by browsers) and control characters. Its callers are the
-account login, Google sign-in and registration (which adds its own stricter
-rule, see "Student registration"): `next` is validated when the form is
+account login, Google sign-in, registration and the profile page (the last two add
+their own stricter rule, see "Student registration" and "Account profile"): `next` is validated when the form is
 rendered (for Google: when the transaction is created) and again when it is
 used. A denied request is redirected with `next=<request path>`, never with
 a client-supplied target or the `Referer`. The redirect to Google is the

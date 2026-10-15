@@ -1776,6 +1776,19 @@ link Google with the existing flow. An admin never links (2.6). Google stays
 off in production; nothing here changes `google_oidc.PRODUCTION_ACTIVATION`
 or its prerequisites.
 
+**As implemented by PR 6** (`EMAIL_REGISTRATION_PR6_STATUS.md`, which awaits review). The
+signatures and the gate differ from the sketches above in these ways, each recorded there as a
+point for the reviewer: `profiles.needs_profile(conn, user, *, enabled)` takes the gate as a
+required argument (the service has no Flask) and reads the account's current role and mark from
+the row under the caller's lock, using only `user["id"]`; `accounts._USER_COLUMNS` is **not**
+widened with `profile_required_at` (6.1 says it would be), so no request reads the column and a
+database below migration 023 is not broken for every page; the gate is `profiles.PRODUCTION_ACTIVATION`
+in production and `app.config["PROFILES_ENABLED"]`, which a development run sets from
+`DZI_PROFILES_ENABLED` and a production start sets from the constant alone; the accounts service
+gained `set_display_name`, `mark_profile_required` and `profile_requirement`; and while the gate is off
+an anonymous request for `/account/profile` is sent to sign-in like every `signed_in` page, while a
+signed-in account gets the 404.
+
 ### 7.5 Configuration and rollout
 
 - Registration is **enabled** when a mail backend is configured and usable

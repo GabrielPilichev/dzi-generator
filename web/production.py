@@ -11,7 +11,8 @@ And it refuses a database whose restore is in progress or was left unfinished
 Sign-in is by account. Google sign-in is the one optional addition, and this build
 keeps it disabled in production whatever is configured (``google_sign_in_provider``).
 Student registration likewise stays disabled while its build gate is off, whatever mail
-settings are configured (``registration_production_settings``).
+settings are configured (``registration_production_settings``), and the account-profile
+flow stays disabled while ``profiles.PRODUCTION_ACTIVATION`` is off (``profiles_production_enabled``).
 Error messages name settings, never their values.
 """
 
@@ -34,7 +35,12 @@ from web.public_url import (
 from web.registration_settings import CONFIG_KEY as REGISTRATION_CONFIG_KEY
 from web.registration_settings import configured_names as configured_mail_settings
 from web.registration_settings import from_environment as registration_from_environment
-from web.services import google_oidc, mail as mail_service, registration as registration_service
+from web.services import (
+    google_oidc,
+    mail as mail_service,
+    profiles as profiles_service,
+    registration as registration_service,
+)
 from web.services.totp import TOTP_KEY_ENV
 from web.services.totp import key_problem as totp_key_problem
 
@@ -204,6 +210,24 @@ def registration_production_settings(environ: Mapping[str, str]):
                 ", ".join(configured))
         return None
     return registration_from_environment(environ, production=True)
+
+
+def profiles_production_enabled(environ: Mapping[str, str]) -> bool:
+    """Whether a production start enables the profile flow: the activation gate.
+
+    The flow (``/account/profile``, its link, the redirect after Google onboarding, the
+    new-attempt check and the writing of the mark) is not activated before its
+    prerequisites. The build holds that line with ``profiles.PRODUCTION_ACTIVATION``,
+    which no setting overrides: the development setting ``DZI_PROFILES_ENABLED`` is never
+    read here. While the gate is off, that setting being present is reported once, by its
+    name and never by its value, and changes nothing.
+    """
+    if not profiles_service.PRODUCTION_ACTIVATION:
+        if environ.get(profiles_service.DEVELOPMENT_ENV):
+            logging.getLogger(__name__).warning(
+                "%s is set, but this build does not enable account profiles.", profiles_service.DEVELOPMENT_ENV)
+        return False
+    return True
 
 
 def production_config_errors(environ: Mapping[str, str]) -> list[str]:
@@ -501,6 +525,8 @@ def create_production_app(environ: Mapping[str, str] | None = None):
         environ, flask_app.config[PUBLIC_BASE_URL_CONFIG])
     # Registration: nothing unless the build's gate is on (registration_production_settings).
     flask_app.config[REGISTRATION_CONFIG_KEY] = registration_production_settings(environ)
+    # Profiles: nothing unless the build's gate is on (profiles_production_enabled).
+    flask_app.config[profiles_service.CONFIG_KEY] = profiles_production_enabled(environ)
     if not isinstance(flask_app.wsgi_app, ProxyFix):
         flask_app.wsgi_app = trusted_proxy(flask_app.wsgi_app)
     return flask_app
