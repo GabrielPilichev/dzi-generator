@@ -4,10 +4,17 @@ Design: `docs/reviews/EMAIL_REGISTRATION_DESIGN.md` (sections 7.1, 7.3 and 9, PR
 Status and results: `docs/reviews/EMAIL_REGISTRATION_PR7_STATUS.md`. Test plan: `EMAIL_REGISTRATION_TEST_PLAN.md`.
 This is the "short scope for PR 7" the design asks for (section 9, row 7; open item 1a).
 
-Branch `feature/teacher-registration-quotas`, started from `fd44c8f` (on top of `ede0c0b`, PR 6, #340). Implemented in `b15d02b`
-(PR #341). **Review history:** an independent review of exactly `b15d02b` returned **REQUEST CHANGES** (three findings); the fixes were committed as
-`3537f4f3ad9a28ee9aa147a6d93af4e6863da1ac`; an independent review of exactly `3537f4f` returned **REQUEST CHANGES** (two P2 findings). Both are answered
-in "Review findings" below. **The fixes of the second review are uncommitted in the working tree and await independent review.** Nothing is approved.
+Branch `feature/teacher-registration-quotas`, started from `fd44c8f` (on top of `ede0c0b`, PR 6, #340). **Provenance (PR #341):**
+
+1. `b15d02b067459ceded9dc4d096f7e2082ce7c81d`: the implementation. An independent review of exactly that SHA returned **REQUEST CHANGES** (three findings).
+2. `3537f4f3ad9a28ee9aa147a6d93af4e6863da1ac`: the fixes for those three. An independent review of exactly that SHA returned **REQUEST CHANGES** (two P2 findings).
+3. `e39fa9fe6224528a2bda202654f0e18ce17c85be` ("Preserve fractional quota history and registration return targets"): the fixes for those two. The independent Claude review of exactly that SHA
+   returned **APPROVE WITH NON-BLOCKING NOTES**. That is the reviewed content.
+4. **Subsequent cleanup, not part of the reviewed content, uncommitted in the working tree and not reviewed:** the legacy-timestamp parser is restricted to ASCII digits
+   (`_LEGACY_TIMESTAMP`: `[0-9]` and `re.ASCII`), with its tests, and the policies Gabriel approved after that review are recorded in the documents (below). No behaviour of the review's
+   subject changes except that a `created_at` written with another script's digits is now unplaceable instead of being given an age.
+
+The review verdict is not an activation and does not approve any gate; production registration, teacher, profile and Google gates stay off.
 
 ## What PR 7 does
 
@@ -23,22 +30,40 @@ in "Review findings" below. **The fixes of the second review are uncommitted in 
    submitted data alone: the role is the route's literal.
 3. Documentation, tests, and the two carried corrections to the PR 6 status text.
 
-## Approved decisions (input)
+## Approved decisions
 
-Chronology. The first six bullets were approved by Gabriel **before** implementation. The last two (admin accounts, no development switch) were approved by
-Gabriel **after** the review of `b15d02b` and before the commit `3537f4f`; they were proposed as I6 and I11. Nothing was approved after the review of `3537f4f`.
+Chronology of approvals by Gabriel:
 
-* 20 creations per teacher in a rolling 24 hours; 10 open assignments per teacher.
-* Closing frees an open slot and does not refund creation allowance.
-* Enforced atomically across creation paths.
-* A verified teacher registration receives role `teacher` only when the teacher gate permits activation.
-* Production registration, teacher, profile and Google gates stay **off**.
-* **Admin creations are recorded and exempt from refusal** (approved by Gabriel after the review of `b15d02b`; it was proposed as I6).
-* **No development switch for the teacher gate** (approved by Gabriel after the review of `b15d02b`; it was proposed as I11).
+1. **Before implementation:** 20 creations per teacher in a rolling 24 hours; 10 open assignments per teacher; closing frees an open slot and does not refund creation allowance;
+   enforced atomically across creation paths; a verified teacher registration receives role `teacher` only when the teacher gate permits activation; production registration, teacher,
+   profile and Google gates stay **off**.
+2. **After the review of `b15d02b`:** admin creations are recorded and exempt from refusal (proposed as I6); no development switch for the teacher gate (proposed as I11).
+3. **After the review of `e39fa9f`** (recorded here with the ASCII-parser cleanup). Each of these was an interpretation (I1, I2, I3, I10, I13, retention, lost history) and is now approved:
+   * **Window (I1):** the existing rolling window `(now − 24 hours, now]`, with **conservative counting of tolerated future rows** (a legacy value up to a day ahead keeps counting until it is a day old).
+   * **Date-only timestamps** map to **23:59:59 UTC** of that day (I13).
+   * **Timestamps before 2000-01-01 are rejected** (I13).
+   * **Future tolerance is one day** (I13).
+   * **Nonzero fractions round upward**; the possible sub-second difference of the window that whole-second accounting causes is **accepted** (I13).
+   * **Held assignments count as open; a passed deadline frees an open slot** (I2).
+   * **The daily refusal takes precedence over the open-limit refusal** (I3).
+   * **Statuses:** daily **429**, open **409**, unreliable accounting **503** (I10, I12).
+   * **Ledger retention:** the creation-ledger history is kept for the account's lifetime, **subject to the unresolved privacy/retention activation prerequisite (D16)**. That is not a legal
+     conclusion; the retention period, purpose and visibility of the ledger are still to be settled with the privacy text, and this approval is not an activation.
+   * **After known lost history, creation stays closed until a separately reviewed recovery procedure exists.** This is an **operational requirement**, not a claim that an automatic hold or
+     recovery mechanism exists: the code neither detects such a loss nor holds creation, and no recovery procedure is written.
 
-Everything else under "Interpretations" is **not approved**: in particular the exact boundary semantics (I1), held and deadline behaviour of
-the open count (I2), the refusal precedence (I3), the accounting rules and status (I12), and every timestamp rule of I13 (date-only mapping, the
-2000-01-01 cutoff, the one-day future tolerance, the rounding of fractions). **No recovery policy for lost history is approved** (see I12).
+**Not approved as such, and still implemented as interpretations:** I4 (whose creations count), I5 (current-role changes), I7 (the limits apply to every teacher account), I8 (existing assignments, no retroactive
+denial; reconciliation at the first admission), I9 (unowned rows), the remaining parts of I10 (the form is shown again with the typed values, no `Retry-After`), the reconciliation mechanism and fail-closed
+design of I12 (its 503 status is approved), the bounds not listed above (14-hour offset limit, offset or no-offset reading as UTC), and **the exact wording of the three Bulgarian refusal messages below**: approving a
+status or a behaviour does not approve its wording.
+
+**The three refusal messages, exactly** (`assignment_quota.MESSAGES_BG`):
+
+| Reason | Status | Text |
+| --- | --- | --- |
+| `quota_daily` | 429 | Достигна лимита от 20 нови теста за 24 часа. Затварянето на тест не връща този лимит. Опитай отново по-късно. |
+| `quota_open` | 409 | Имаш 10 отворени теста, колкото е позволено. Затвори някой от тях, за да създадеш нов. |
+| `quota_accounting` | 503 | Създаването на нови тестове е временно спряно за този профил, докато се проверят данните за досегашните му тестове. Обърни се към администратор. |
 
 ## Creation paths (inventory)
 
@@ -57,17 +82,17 @@ exists in one place only.
 
 ## Interpretations (judgement; each is a place Gabriel may overrule)
 
-These are not approved decisions. They are the narrowest reading of the approved text that can be implemented, and each is
-written down so that it can be changed.
+These began as the narrowest reading of the approved text that can be implemented. The ones marked **approved** were approved by Gabriel after the review of `e39fa9f` (see "Approved decisions");
+the others are still interpretations and each is written down so that it can be changed.
 
-* **I1. Window.** Rolling means the half-open interval (now − 24 h, now]. A creation exactly 24 h old no longer counts; one a
+* **I1. Window (approved, with conservative counting of tolerated future rows).** Rolling means the half-open interval (now − 24 h, now]. A creation exactly 24 h old no longer counts; one a
   second younger does. The 20th creation is allowed, the 21st refused. `now` is the lifecycle writer clock, sampled
-  **after** the lock is held.
-* **I2. Open.** "Open" is the lifecycle state `open` for the owner's rows: not closed manually, deadline not passed, no
+  **after** the lock is held. Whole-second accounting can make the window differ by less than a second from the exact instant; that is accepted.
+* **I2. Open (approved).** "Open" is the lifecycle state `open` for the owner's rows: not closed manually, deadline not passed, no
   expiry or grace-end marker. A deadline that passes frees the slot just as a manual close does. A **held** assignment
   (`lifecycle_hold`) that is otherwise open **counts as open**, because the teacher cannot close it and it will be served
   again when the hold clears. The 10th open assignment is allowed, the 11th refused.
-* **I3. Which limit is reported when both are exceeded.** The daily limit, because closing something cannot help.
+* **I3. Which limit is reported when both are exceeded (approved).** The daily limit, because closing something cannot help.
 * **I4. Whose creations count.** The account named by `users.id` (the owner), whatever role it has now. A duplicate is a
   creation of the duplicating account, not of the source's owner. A refusal consumes nothing and is not itself counted.
 * **I5. Current-role changes.** The role is read from `users` under the lock. Quotas are enforced unless the role is
@@ -87,7 +112,7 @@ written down so that it can be changed.
   and has no ledger row. A creation by a principal without an account id (only tests and the retired shared sign-in produced
   one; no request principal lacks an id today) stays possible at the service level, is unowned and unaccounted. It is
   unreachable from any route.
-* **I10. Refusals.** `POST /teacher/new` answers the form again with status 429 (daily) or 409 (open), a Bulgarian message and
+* **I10. Refusals (statuses approved; wording and the rest not).** `POST /teacher/new` answers the form again with status 429 (daily), 409 (open) or 503 (unreliable accounting), a Bulgarian message and
   the typed values kept; the copy form on the assignment page does the same. No assignment, token, ledger row, clock mark or
   vault note is written. No `Retry-After` is sent.
 * **I11. Teacher gate in development (approved).** `registration.TEACHER_ACTIVATION` stays the single switch, read per request. **No
@@ -97,15 +122,14 @@ written down so that it can be changed.
   or nothing. It is the same for an admin (history belongs to the account after a role change). The account's creation **fails closed**
   (`quota_accounting`, status 503, Bulgarian message, nothing written) when an unrecorded assignment has a NULL, malformed, ambiguous or
   implausible `created_at`, or when a ledger row disagrees with its assignment's owner. A deleted ledger row whose assignment survives is
-  re-recorded, not forgiven. **Not recoverable:** an assignment row that was deleted before any admission recorded it. **Stated limits (none is an approved
-  quota exception, and no recovery policy is approved):** deleted unrecorded history cannot be reconciled; a build that creates without this admission,
-  concurrently with PR 7 builds, is prohibited (it enforces nothing while it runs, and the later admission only counts surviving rows); and after a
-  **known history loss** creation must not reopen for the affected accounts until a reviewed reconstruction, or a conservative hold and recovery procedure, has
-  been established. Neither exists yet, and the code neither detects the loss nor holds creation. A start-up notice
+  re-recorded, not forgiven. **Not recoverable:** an assignment row that was deleted before any admission recorded it. **Stated limits:** deleted unrecorded history cannot be
+  reconciled; a build that creates without this admission, concurrently with PR 7 builds, is prohibited (it enforces nothing while it runs, and the later admission only counts surviving
+  rows); and **after known lost history, creation stays closed until a separately reviewed recovery procedure exists** (an approved operational requirement). The code neither
+  detects the loss nor holds creation, and no recovery procedure exists yet; none of this is a quota exception. A start-up notice
   (`production.assignment_accounting_warning`) counts such rows; it never refuses to start and is not what keeps the limits safe.
   Recovery or rollback builds must keep this admission (DEPLOYMENT, section 36). Operator handling: the owner stays refused until the value
   is corrected from a snapshot-verified source (DEPLOYMENT).
-* **I13. Legacy timestamps (not approved).** `normalize_legacy_timestamp` (all rules in its docstring, tested): the only writer of
+* **I13. Legacy timestamps (the date-only mapping, the 2000-01-01 cutoff, the one-day tolerance and the round-up are approved).** `normalize_legacy_timestamp` (all rules in its docstring, tested): the only writer of
   `created_at` was `CURRENT_TIMESTAMP` (UTC). Accepted and kept at their age: the canonical form, ISO with `T`, fractional seconds of any number of
   digits, `Z` and numeric offsets up to 14 h (converted to UTC **before** anything is rounded or compared); **a time without an offset is UTC**; **a date
   alone is the end of that day, 23:59:59 UTC** (never older than it is). Rejected, never treated as old: NULL, empty or padded strings, numbers, other
@@ -117,6 +141,9 @@ written down so that it can be changed.
   second (`…:00.999999999Z` is `…:01`) and a zero fraction is the second itself; rounding up can only keep an allowance spent longer, never refund it early. Both bounds are
   checked on the instant before any rounding: the lower bound (`1999-12-31T23:59:59.9` is refused although it rounds to 2000-01-01) and the future bound (exactly `now`
   plus a day is accepted, any positive excess, however small, is refused).
+  **ASCII only (cleanup after `e39fa9f`, not reviewed).** Every digit of the value must be an ASCII digit `0`–`9` (`[0-9]` with `re.ASCII`). Python's `\d` also matches the decimal digits of other scripts
+  (Arabic-Indic, fullwidth, Devanagari, Bengali) and `int()` reads them, so such a value would have been given an age that no `CURRENT_TIMESTAMP` could have written; it is now unplaceable like any other
+  unusable value (the account is refused until an operator corrects it). The supported ASCII forms, the exact fractions, the conversion and the bounds are unchanged.
 
 ## Durable accounting (migration 024)
 
@@ -124,7 +151,8 @@ Additive: one new table `assignment_creations (id, owner_user_id → users, assi
 `assignment_id` is a plain integer **without** a foreign key, so deleting an assignment (no code does; the retention cleanup of
 `docs/ASSIGNMENT_LIFECYCLE_DESIGN.md` does not exist yet) never touches the ledger and never refunds an allowance. The ledger is
 runtime state, never exported to `data/canonical`. Retention: kept as long as the account exists; accounts are disabled, never
-deleted. It holds an account id, a time and an assignment number, no name, email or text. Old code ignores the table, so the *schema*
+deleted. It holds an account id, a time and an assignment number, no name, email or text. **Approved retention:** the history is kept for the account's lifetime, subject to the unresolved privacy and
+retention activation prerequisite (D16): the ledger's purpose, visibility and period are not settled and nothing here is a legal conclusion. Old code ignores the table, so the *schema*
 needs no change on a code rollback, **but accounting does**: code that does not know the ledger creates unrecorded, unlimited assignments.
 A build that keeps migration 024 must therefore keep the quota admission (I12); the surviving rows such a build leaves are recovered at
 the next admission, never forgiven.
@@ -139,7 +167,7 @@ the next admission, never forgiven.
 
 ## Review findings (3537f4f: REQUEST CHANGES) and their answers
 
-| # | Finding | Answer (uncommitted, awaiting independent review) |
+| # | Finding | Answer (committed as `e39fa9f`; its independent review: APPROVE WITH NON-BLOCKING NOTES) |
 | --- | --- | --- |
 | 1 (P2) | `normalize_legacy_timestamp` captured the fraction and discarded it: twenty assignments stamped `2026-03-01T09:00:00.999999999Z` allowed twenty more creations at 2026-03-02 09:00:00; offset-bearing fractions did the same; fractions could pass the future-tolerance boundary. | I13 "Precision": exact instant, nonzero fraction rounded up, both bounds checked on the instant before rounding, offsets converted first, any number of digits. |
 | 2 (P2) | The shared failure and unavailable helpers rendered an empty return target: gate-off after a teacher began lost `/teacher/new`; an injected verification failure and a resend during a restore hold lost `/account/attempts`. | The helpers take the validated target (the form's value on submit, the revalidated slot elsewhere, read before the binding is retired); no binding or an invalid one stays targetless; a raw request value is never used. |

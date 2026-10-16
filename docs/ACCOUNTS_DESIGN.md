@@ -1377,8 +1377,8 @@ moment. After any restore, run `manage_accounts sign-out` for all users.
   codes themselves are PR T, §23, CLI-only).
 - `declared_type`, plans, entitlements, billing. (Teacher creation quotas are no longer
   deferred: registration PR 7 limits creations per account to 20 in a rolling 24 hours and
-  10 open assignments, `docs/reviews/EMAIL_REGISTRATION_PR7_SCOPE.md`; it is implemented,
-  awaiting independent review, and does not change any role's access.)
+  10 open assignments, `docs/reviews/EMAIL_REGISTRATION_PR7_SCOPE.md`; it is implemented on PR #341, reviewed
+  at `e39fa9f` (APPROVE WITH NON-BLOCKING NOTES), not activated, and does not change any role's access.)
 - Student-data retention period and erasure tooling (product/legal decision).
 - An admin web UI for users.
 

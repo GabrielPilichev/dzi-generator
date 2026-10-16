@@ -163,7 +163,7 @@ form of `POST /teacher/new` or by `POST /teacher/assignment/<id>/duplicate`, is 
 creations in a rolling 24 hours and at most 10 open assignments. The decision is made inside
 `quiz_create_assignment`, in the lifecycle writer transaction, after authorization (a foreign or unowned source is still 404)
 and after input validation; it never changes who may do what. A refusal answers the form again, with the typed values, a
-Bulgarian message and status **429** (daily limit) or **409** (open limit), and writes nothing: no assignment, public token,
+Bulgarian message and status **429** (daily limit) or **409** (open limit; the daily refusal takes precedence when both apply, and a held but otherwise open assignment counts as open while a passed deadline frees a slot), and writes nothing: no assignment, public token,
 ledger row, clock mark or vault note. A third refusal, status **503** with its own Bulgarian message, means the account's creation history could not be
 placed with confidence (an unrecorded assignment with a NULL, malformed or implausible `created_at`, or an inconsistent ledger row); it is cleared by an
 operator, not by the teacher (`docs/DEPLOYMENT.md`, section 36). Before the limits are decided the admission records the account's unrecorded

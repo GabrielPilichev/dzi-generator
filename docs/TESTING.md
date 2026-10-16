@@ -334,6 +334,9 @@ clone or build from migrations and canonical data and every vault is a temporary
   resend or verify during a restore hold, a hold that appears between the submit's read and its write, a cancel refused by the clock, and a
   teacher's verify or resend after the gate went off (the target is read before the binding is retired); a missing or forged binding stays
   targetless and an unsafe target is never echoed.
+- `tests/test_assignment_accounting.py::NormalizeTimestampTest` also pins that only ASCII digits are read: every digit position of five ASCII
+  bases is replaced in turn by the same digit of four other scripts (304 subtests) and must be unplaceable, a database-level test refuses the
+  account (503) on such a `created_at`, and a separate test keeps the ASCII forms, exact fractions and bounds unchanged.
 - `tests/test_assignment_accounting.py::NormalizeTimestampTest` and `FractionalAllowanceTest` (review of `3537f4f`) pin the exact-instant rules:
   fractions of any length are rounded up, never truncated, so the reproduction (twenty creations at `…09:00:00.999999999Z`) still counts; the
   window edge with zero and nonzero fractions, offset-bearing fractions, UTC day and year crossings, the lower bound and the exact future bound.
@@ -355,7 +358,8 @@ verification, the chooser entry always shown, and `admin` added to the registrat
 Mutation checks for the review of `3537f4f` (a scratch copy, each mutant applied, run and reverted by a script): the fraction truncated, a zero fraction
 rounded up, positivity judged on six digits, the fraction limited to six or nine digits, the future bound ignoring or excluding the exact instant,
 the fraction comparison made inclusive or blind below a microsecond, the lower bound checked after rounding, the offset flipped or ignored, and
-every return-target pass-through removed or replaced by a raw request value: all fail at least one test (one equivalent mutant survives).
+every return-target pass-through removed or replaced by a raw request value: all fail at least one test (one equivalent mutant survives). For the ASCII
+restriction (scratch copy): `\d` restored in the year, the month and day, the time, the fraction, the offset, and everywhere without `re.ASCII`: all fail.
 
 **Tunnels.** The teacher gate has no development setting. Nothing in a localhost tunnel can turn the teacher form on.
 

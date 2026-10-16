@@ -158,6 +158,39 @@ class NormalizeTimestampTest(unittest.TestCase):
         self.assertIsNone(self.norm("1999-12-31 23:59:59"))
         self.assertEqual(self.norm("2000-01-01T02:00:00+02:00"), "2000-01-01 00:00:00")
 
+    def test_only_ascii_digits_are_accepted_in_every_position(self):
+        """``\\d`` matches other scripts' digits and ``int()`` reads them: none may be given an age."""
+        scripts = {"arabic-indic": 0x0660, "fullwidth": 0xFF10, "devanagari": 0x0966, "bengali": 0x09E6}
+        bases = ("2026-03-01", "2026-03-01 09:30:45", "2026-03-01T09:30:45.125+02:30", "2026-03-01T09:30:45.0001Z",
+                 "2026-03-01 09:30:45.5")
+        for base in bases:
+            self.assertIsNotNone(self.norm(base), base)                  # the ASCII original is accepted
+            for index, char in enumerate(base):
+                if not char.isdigit():
+                    continue
+                for name, zero in scripts.items():
+                    value = base[:index] + chr(zero + int(char)) + base[index + 1:]
+                    with self.subTest(script=name, position=index, base=base):
+                        self.assertTrue(value[index].isdecimal() and not value[index].isascii())
+                        self.assertIsNone(self.norm(value), value)
+        # A digit that is not a decimal digit at all was never matched; kept as a control.
+        self.assertIsNone(self.norm("2026-03-01 09:00:00.\u00b2"))
+
+    def test_ascii_forms_keep_their_exact_handling_after_the_ascii_restriction(self):
+        for value, expected in {
+            "2026-03-01 09:00:00": "2026-03-01 09:00:00",
+            "2026-03-01": "2026-03-01 23:59:59",
+            "2026-03-01T11:00:00+02:00": "2026-03-01 09:00:00",
+            "2026-03-01T11:00:00+0200": "2026-03-01 09:00:00",
+            "2026-03-01 09:00:00.0001": "2026-03-01 09:00:01",
+            "2026-03-01 09:00:00.0000": "2026-03-01 09:00:00",
+            "2026-03-01T09:00:00." + "0" * 40 + "1Z": "2026-03-01 09:00:01",
+            "2026-03-03 09:00:00": "2026-03-03 09:00:00",
+        }.items():
+            self.assertEqual(self.norm(value), expected, value)
+        self.assertIsNone(self.norm("2026-03-03 09:00:00.0000001"))     # the exact future bound still holds
+        self.assertIsNone(self.norm("1999-12-31 23:59:59.9"))           # and the lower one
+
 
 class AccountingTestCase(QuotaTestCase):
     def seed(self, account, values, *, closed=True):
@@ -445,6 +478,16 @@ class UnplaceableHistoryTest(AccountingTestCase):
         self.sql("DELETE FROM quiz_assignments WHERE id IN (%s)" % ",".join(map(str, ids[:10])))
         for _ in range(10):
             self.create_closed(account)                                # only the 10 survivors were found
+        self.assertRefused(DAILY, account)
+
+    def test_a_unicode_digit_date_refuses_the_account_instead_of_giving_it_an_age(self):
+        account = create_account(web_app.QUIZ_DB_PATH, "teacher")
+        self.seed(account, ["2026-03-02 08:00:00"] * 19)
+        bad = self.seed(account, ["\u0662\u0660\u0662\u0666-03-02 08:00:00"])[0]   # Arabic-Indic digits in the year
+        before = self.digest()
+        self.refused_for_accounting(account)
+        self.assertEqual(self.digest(), before)
+        self.set_created_at(bad, "2026-03-02 08:00:00")
         self.assertRefused(DAILY, account)
 
 

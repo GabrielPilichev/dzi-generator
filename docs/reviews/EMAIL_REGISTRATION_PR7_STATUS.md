@@ -8,28 +8,44 @@ Routes: `docs/AUTH_ROUTE_CONTRACT.md`, "Creation limits" and "Student registrati
 
 ## Status
 
-**Review history.**
+**Review history and provenance** (PR #341):
 
-1. `b15d02b067459ceded9dc4d096f7e2082ce7c81d` (PR #341, "Add teacher registration and atomic assignment quotas", on top of `fd44c8f`) was independently reviewed at that exact SHA and returned
+1. `b15d02b067459ceded9dc4d096f7e2082ce7c81d` ("Add teacher registration and atomic assignment quotas", on top of `fd44c8f`) was independently reviewed at that exact SHA and returned
    **REQUEST CHANGES** with three findings (P1 rollback creates unaccounted quota history; P2 the migration's epoch fallback refunds recent legacy creations; P2 teacher restart links open
    the student form). Gabriel approved admin-exempt recording and no teacher development switch after that review.
 2. The fixes for those three were committed as `3537f4f3ad9a28ee9aa147a6d93af4e6863da1ac`. That exact SHA was independently reviewed and returned **REQUEST CHANGES** with two P2 findings:
    fractional timestamps had their fraction discarded and could refund an allowance early (including at the future-tolerance bound); the failure, unavailable and gate-off pages dropped the validated return target.
-3. **The fixes for those two (below: precision rules and return-target handling) are unstaged and uncommitted in the working tree, were made after the review of `3537f4f`, and await independent review.**
-   Nothing is approved, merged or activated.
+3. The fixes for those two (precision rules and return-target handling, below) were committed as `e39fa9fe6224528a2bda202654f0e18ce17c85be` ("Preserve fractional quota history and registration return targets").
+   The independent Claude review of exactly that SHA returned **APPROVE WITH NON-BLOCKING NOTES**. That is the reviewed content.
+4. **Subsequent cleanup, uncommitted and not part of the reviewed content:** the legacy-timestamp parser accepts ASCII digits only (below), with its tests; and the policies Gabriel approved after the review
+   are recorded in the documents. Nothing is staged or committed; this cleanup has not been reviewed.
+
+A review verdict is not an activation, a merge or an approval of a gate.
 
 `registration.TEACHER_ACTIVATION`, `registration.PRODUCTION_ACTIVATION`, `profiles.PRODUCTION_ACTIVATION` and `google_oidc.PRODUCTION_ACTIVATION` are all
 still `False`, and no setting or environment variable overrides any of them in production. No real `data/questions.db`, vault, credential, provider, running
 service, deployment or tunnel was involved. Canonical JSONL content is unchanged. The quota limits, unlike the gates, apply as soon as this build runs
 (DEPLOYMENT section 36). Approving this implementation will not be an activation.
 
-## Approved decisions (input)
+## Approved decisions
 
-Per teacher: at most 20 assignment creations in a rolling 24 hours; at most 10 open assignments; closing frees an open slot and refunds no
-creation; enforced atomically across creation paths; a verified teacher registration receives role `teacher` only when the teacher gate permits
-activation; every production gate stays off. **Approved after the review of #341:** admin creations are recorded and exempt from refusal; no
-development switch for the teacher gate. **Not approved** (interpretations, scope I1 to I3 and I5, I7 to I10, I12, I13): the exact boundary semantics, held and
-deadline behaviour of the open count, refusal precedence, the accounting and timestamp rules below, and the refusal statuses.
+Per teacher: at most 20 assignment creations in a rolling 24 hours; at most 10 open assignments; closing frees an open slot and refunds no creation; enforced atomically across creation paths; a verified
+teacher registration receives role `teacher` only when the teacher gate permits activation; every production gate stays off. **Approved after the review of `b15d02b`:** admin creations are recorded and
+exempt from refusal; no development switch for the teacher gate. **Approved after the review of `e39fa9f`** (full list and chronology in the scope, "Approved decisions"):
+
+* the rolling window `(now − 24 hours, now]`, with conservative counting of tolerated future rows (I1); the whole-second accounting's possible sub-second difference of the window is accepted;
+* date-only timestamps map to 23:59:59 UTC; timestamps before 2000-01-01 are rejected; the future tolerance is one day; nonzero fractions round upward (I13);
+* held assignments count as open and a passed deadline frees an open slot (I2); the daily refusal takes precedence over the open-limit refusal (I3);
+* statuses: daily 429, open 409, unreliable accounting 503;
+* creation-ledger history is kept for the account's lifetime, **subject to the unresolved privacy and retention activation prerequisite (D16)**, which is not settled and is no legal conclusion;
+* after known lost history, creation stays closed until a separately reviewed recovery procedure exists: an **operational requirement**, not a claim that an automatic hold or recovery mechanism exists.
+
+**Not approved:** I4, I5, I7, I8, I9, the remaining parts of I10 (typed values kept, no `Retry-After`) and of I12 (the reconciliation mechanism; only its 503 is approved), and **the exact wording of the three refusal
+messages**: approving a status or a behaviour does not approve its wording. The messages as built (`assignment_quota.MESSAGES_BG`):
+
+* daily (429): 'Достигна лимита от 20 нови теста за 24 часа. Затварянето на тест не връща този лимит. Опитай отново по-късно.'
+* open (409): 'Имаш 10 отворени теста, колкото е позволено. Затвори някой от тях, за да създадеш нов.'
+* accounting (503): 'Създаването на нови тестове е временно спряно за този профил, докато се проверят данните за досегашните му тестове. Обърни се към администратор.'
 
 ## What PR 7 contains
 
@@ -124,13 +140,18 @@ a second younger than 24 hours. Now:
 * the lower bound is checked on the instant (`1999-12-31T23:59:59.9` is refused although it rounds to 2000-01-01); the future bound too: `now` plus exactly one day is accepted, any positive excess, however small, is refused, including when the bound has microseconds itself;
 * ordinary whole-second timestamps behave exactly as before; a refusal still writes nothing.
 
-The round-up, like the other timestamp rules, is **not an approved interpretation**.
+The round-up, the date-only mapping, the 2000-01-01 cutoff and the one-day tolerance are **approved**. The 14-hour offset limit and reading a time without an offset as UTC are not separately approved.
 
-### Interpretations that still need Gabriel (from the scope)
+**ASCII digits only (cleanup after `e39fa9f`, not reviewed).** `_LEGACY_TIMESTAMP` is `[0-9]` with `re.ASCII`. Python's `\d` also matches the decimal digits of other scripts and `int()` reads them (`٢٠٢٦-03-01`
+would have been read as 2026), so a value no `CURRENT_TIMESTAMP` could have written was given an age. Such a value, in the year, month, day, hour, minute, second, offset or fraction, is now unplaceable like any
+unusable value: the account's creation is refused (503) until an operator corrects the value, and nothing is written. The supported ASCII forms, the exact fractions, the offset conversion, the bounds and the
+conservative rounding are unchanged. The start-up report's clock is not changed.
 
-I1 window `(now − 24 h, now]`; I2 held-but-open counts as open and a passed deadline frees a slot; I3 the daily limit is reported first; I4 account-based counting, a copy counts for the copier; I5 the role
-is read under the lock and quotas are enforced unless it is `admin`; I7 the limits apply to every teacher account, operator-created or not; I8 no history is written by the migration; I9 unowned rows; I10 status
-codes (429/409/503) and no `Retry-After`; I12 and I13 the accounting and timestamp rules above. **Approved, no longer open:** I6 (admins recorded, exempt) and I11 (no development switch).
+### Interpretations that are not yet approved (from the scope)
+
+I4 account-based counting, a copy counts for the copier; I5 the role is read under the lock and quotas are enforced unless it is `admin`; I7 the limits apply to every teacher account, operator-created or not; I8 no history is
+written by the migration and the first admission records it; I9 unowned rows; the rest of I10 (typed values kept, no `Retry-After`); the reconciliation design of I12; the wording of the three messages. **Approved, no longer open:**
+I1, I2, I3, the statuses of I10 and I12, the timestamp policies of I13, ledger retention (subject to D16), the lost-history requirement, I6 (admins recorded, exempt) and I11 (no development switch).
 
 ## Teacher registration
 
@@ -167,7 +188,7 @@ Python 3.12.15, SQLite 3.53.4, Flask 3.1.3, Werkzeug 3.1.9, segno 1.6.6, Authlib
 (`test_profile_required_migration_sql...test_a_fresh_canonical_build_has_the_column_and_no_account`, "023 is the last migration"). It was loosened and the four migration-level
 modules were re-run (88 tests, OK). **That was not a green final full run, and the full suite has not been repeated since.** It ran as a background task (the foreground limit is 10 minutes).
 
-**After the review of `3537f4f` (this change), no full-suite repeat** (the change is confined to the timestamp normalizer, the message helpers of the registration blueprint and documents; the
+**For the review of `3537f4f` (committed as `e39fa9f`), no full-suite repeat** (the change is confined to the timestamp normalizer, the message helpers of the registration blueprint and documents; the
 affected suites below cover what reads them). Environment as above, temporary databases only:
 
 * New and changed modules: `test_assignment_accounting` 57 (44 before; 13 new), `test_assignment_quota` 57, `test_assignment_creations_migration_sql` 16, `test_teacher_registration` 85 (75 before; 10 new, plus one gate-off pin corrected): **OK**.
@@ -186,15 +207,25 @@ affected suites below cover what reads them). Environment as above, temporary da
 **Earlier rounds, unchanged.** Review of `b15d02b`: 977 and 555 tests OK in two batches; the new regressions at that time failed against `b15d02b` (62 failures, 54 errors, every rollback test in rollback-journal and WAL mode, which are separate classes each asserting
 `PRAGMA journal_mode`); 16 mutants on `reconcile`, the normalizer, the inconsistency check, partial recording, the future bound, the anti-join, the navigation and the start-up notice, all killed except one equivalent (`str()` coercion of non-strings).
 
+**Subsequent ASCII-digit cleanup (uncommitted, not reviewed), no full-suite or full-audit repeat.** Real dependencies, temporary databases only:
+
+* `test_assignment_accounting` **60** (57 before; 3 new), `test_assignment_quota` **57**, `test_assignment_creations_migration_sql` **16**, `test_teacher_registration` **85**: **all OK**. `ast` parse of the two changed Python files and `git diff --check`: clean.
+* New tests: every digit position of five ASCII bases (date only; canonical; `T` with fraction and offset; `T` with a long fraction and `Z`; canonical with fraction) replaced in turn by the same digit of Arabic-Indic, fullwidth, Devanagari
+  and Bengali (304 subtests) must be `None`; the ASCII forms, exact fractions and bounds are unchanged (a separate test); and an assignment dated with Arabic-Indic digits refuses the account (503), writes nothing and is admitted
+  once corrected.
+* **The Unicode-digit regression rejects the previous parser.** The tree of `e39fa9f` exported with `git archive` and the new accounting test module copied over it: 60 tests, **305 failures** in the two Unicode tests (304 subtests and the database test);
+  the ASCII-preservation test passes on both.
+* **Mutation checks** (scratch copy, reverted by a script): restoring `\d` in the year, in the month and day, in the time, in the fraction, in the offset, and everywhere without `re.ASCII`: **all killed**.
+
 ## Not verified / remaining
 
-* **Fixes await independent review** (the two P2 fixes after the review of `3537f4f`; the earlier three were reviewed at `3537f4f`). Nothing was looked at in a browser; the teacher form uses existing classes. Nothing ran on Linux or under the real unit; no real SQLite database, deployment, provider or message was involved.
+* **The ASCII-digit cleanup awaits independent review**; the content of `e39fa9f` was reviewed (APPROVE WITH NON-BLOCKING NOTES). Nothing was looked at in a browser; the teacher form uses existing classes. Nothing ran on Linux or under the real unit; no real SQLite database, deployment, provider or message was involved.
 * Concurrency was tested with threads on macOS temporary databases in rollback-journal and WAL mode; production's WAL under the real Gunicorn worker is not tested.
 * The migration has run only on temporary databases. The accounting rules have not met a real database: how many real assignments have an unplaceable `created_at`, and how many teachers start above 10 open assignments, is unknown.
-* **Recovery limitations (stated, not approved policy):** deleted unrecorded history **cannot be reconciled**; a build that creates without the admission, concurrently with PR 7 builds, is **prohibited** (it can create unlimited assignments while it runs, and recovery only counts the surviving rows afterwards);
-  after a **known history loss** (rows deleted before they were recorded, a restore to an older snapshot, a replaced database) creation must **not reopen** for the affected accounts until a reviewed reconstruction, or a conservative hold and recovery procedure, is established. None exists: the code can neither detect the loss nor
-  hold creation, and nothing here is an approved quota exception or an approved recovery policy. The restore returns the ledger to the snapshot's moment.
-* **Needs Gabriel:** the unapproved interpretations listed above (notably I1 to I3, I12, I13 including the date-only mapping, the 2000-01-01 cutoff, the one-day future tolerance and the round-up of fractions, retention, and the 503 for an unplaceable history), a recovery or hold procedure for lost history, the wording of the three refusal messages, and whether the restart should instead remember the form the person began (it would need the binding to carry a type, which this fix does not change).
+* **Recovery limitations:** deleted unrecorded history **cannot be reconciled**; a build that creates without the admission, concurrently with PR 7 builds, is **prohibited** (it can create unlimited assignments while it runs, and recovery only counts the surviving rows afterwards);
+  after a **known history loss** (rows deleted before they were recorded, a restore to an older snapshot, a replaced database) **creation stays closed until a separately reviewed recovery procedure exists** (an approved operational requirement). No such procedure is written, and the code
+  can neither detect the loss nor hold creation: keeping creation closed is an operator action (the Nginx block of DEPLOYMENT section 36). Nothing here is a quota exception. The restore returns the ledger to the snapshot's moment.
+* **Needs Gabriel:** the wording of the three refusal messages, the interpretations listed above as not yet approved, the recovery procedure itself, the ledger's retention period and purpose together with D16, and whether the restart should instead remember the form the person began (it would need the binding to carry a type, which this fix does not change).
 * Activation prerequisites unchanged and not done: the privacy policy and D16 (purpose, visibility and retention of the school and subject fields, minors, and the ledger), the amendment of `ACCOUNTS_DESIGN.md` §15, the provider and sender, capacity, the Linux/systemd evidence of PR 5, password recovery
-  (PR 8), and independent review of this PR. Teacher verification does not exist: the role is a verified mailbox plus self-declaration.
+  (PR 8), and the approval of this PR (reviewed content at `e39fa9f`: APPROVE WITH NON-BLOCKING NOTES; the ASCII cleanup is not reviewed). Teacher verification does not exist: the role is a verified mailbox plus self-declaration.
 * Not covered: a quota override or operator command; per-IP or per-person limits; a `Retry-After`; showing the remaining allowance on `/teacher/new`.

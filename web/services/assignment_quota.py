@@ -83,9 +83,12 @@ STATUS_CODES = {REASON_DAILY: 429, REASON_OPEN: 409, REASON_ACCOUNTING: 503}
 # Legacy ``created_at`` values (see normalize_legacy_timestamp).
 LEGACY_FUTURE_TOLERANCE = timedelta(days=1)
 LEGACY_EARLIEST = datetime(2000, 1, 1)
+# ASCII digits only: in Python ``\d`` also matches the digits of other scripts (``٢٠٢٦``), which ``int()`` would
+# read as numbers, so a value no ``CURRENT_TIMESTAMP`` could have written would be accepted and given an age.
 _LEGACY_TIMESTAMP = re.compile(
-    r"(\d{4})-(\d{2})-(\d{2})"
-    r"(?:[ T](\d{2}):(\d{2}):(\d{2})(?:\.(\d+))?(Z|[+-]\d{2}:?\d{2})?)?"
+    r"([0-9]{4})-([0-9]{2})-([0-9]{2})"
+    r"(?:[ T]([0-9]{2}):([0-9]{2}):([0-9]{2})(?:\.([0-9]+))?(Z|[+-][0-9]{2}:?[0-9]{2})?)?",
+    re.ASCII,
 )
 
 
