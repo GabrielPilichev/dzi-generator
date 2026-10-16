@@ -3417,10 +3417,25 @@ no ledger row and no limit. Returning to this code does not forgive them: the ne
 transaction, by the age their `created_at` shows, and then decides. **What is recovered:** every surviving assignment row. **What is not:** a row that was
 deleted before any admission recorded it; nothing can reconstruct it.
 
-Interpretation of `quiz_assignments.created_at` (the only writer was `CURRENT_TIMESTAMP`, UTC): the canonical form; ISO with `T`; fractional seconds (cut);
-`Z` or a numeric offset up to 14 h (converted to UTC); **no offset means UTC**; **a date alone means 23:59:59 UTC of that day**. Anything else is *unplaceable*:
+**Limits of recovery, stated plainly.** (1) Assignment rows deleted before they were recorded **cannot be reconciled**: the ledger and the table both lack them. (2) A build that
+creates assignments without this admission, running at the same time as or between PR 7 builds, is **prohibited**: it enforces nothing while it runs, and recovery afterwards
+only counts the surviving rows. (3) After **known history loss** (rows deleted before they were recorded, a restore to an older snapshot, a replaced database) this build cannot
+see the gap and **does not hold creation**; creation must **not be reopened** for the affected accounts until a reviewed reconstruction from evidence, or a conservative hold
+and recovery procedure, has been established. **No such procedure is written or approved here**, and none of these limits is an approved quota exception: they are the stated
+boundary of what the code can know. Keep the creation block of "Rollback" in place meanwhile; nothing in the application enforces that.
+
+Interpretation of `quiz_assignments.created_at` (the only writer was `CURRENT_TIMESTAMP`, UTC): the canonical form; ISO with `T`; fractional seconds of
+any number of digits (see **precision** below); `Z` or a numeric offset up to 14 h (converted to UTC before anything else is decided); **no offset means UTC**;
+**a date alone means 23:59:59 UTC of that day**. Anything else is *unplaceable*:
 NULL, empty or padded text, a number, another layout, an impossible date or offset, a value before 2000-01-01 (the epoch included) and a value more than a day
 after the server's writer clock. A value up to a day ahead is kept as it is and counts until it is a day old (conservative, and bounded by that day).
+
+**Precision.** The ledger counts whole seconds, but the instant in `created_at` is judged exactly, to the last digit given: a fraction is never truncated and never
+limited to six digits. A **nonzero** fraction is rounded **up** to the next whole second (`…09:00:00.999999999Z` is recorded as `…09:00:01`, so it stays in the window
+until 24 hours after that second); a zero fraction (`.000`, however many zeros) is the second itself. Rounding up can keep an allowance spent a moment longer than the
+exact instant would; it can never refund one early. The lower bound (2000-01-01) and the future bound (writer clock plus one day) are checked on the exact instant,
+before any rounding: exactly the bound is accepted, any positive excess, however small, is unplaceable. These rules are not an approved interpretation (date-only
+mapping, the 2000-01-01 cutoff, the one-day tolerance and the round-up are Gabriel's to confirm).
 
 **Operator handling of a refused account (status 503, log line `needs review` at start-up):**
 
@@ -3441,7 +3456,7 @@ logger; it names counts only and never prevents a start, and it is **not** what 
 
 The standard procedure of section 20, with nothing added to it.
 
-- Migration 024 is additive (one new table, one index, one `INSERT ... SELECT` from `quiz_assignments`) and is not a table rebuild.
+- Migration 024 is additive (one new table, one index, no row written) and is not a table rebuild.
   `quiz_assignments`, `users` and every other table are untouched. Nobody is signed out.
 - On a database that already has every migration through `023_profile_required.sql` the dry run of step 7 lists exactly
   `024_assignment_creations.sql`. If it lists earlier migrations too, the database is behind that level.

@@ -85,7 +85,7 @@ LEGACY_FUTURE_TOLERANCE = timedelta(days=1)
 LEGACY_EARLIEST = datetime(2000, 1, 1)
 _LEGACY_TIMESTAMP = re.compile(
     r"(\d{4})-(\d{2})-(\d{2})"
-    r"(?:[ T](\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,9}))?(Z|[+-]\d{2}:?\d{2})?)?"
+    r"(?:[ T](\d{2}):(\d{2}):(\d{2})(?:\.(\d+))?(Z|[+-]\d{2}:?\d{2})?)?"
 )
 
 
@@ -105,8 +105,10 @@ def normalize_legacy_timestamp(value, now: datetime) -> str | None:
     and by tools, and each keeps the age it has:
 
     * canonical ``YYYY-MM-DD HH:MM:SS``, and the ISO form with ``T``, with optional fractional
-      seconds (cut to the second);
-    * an explicit offset (``Z``, ``+02:00``, ``+0200``, up to 14 hours) is converted to UTC;
+      seconds of **any number of digits**;
+    * an explicit offset (``Z``, ``+02:00``, ``+0200``, up to 14 hours) is converted to UTC
+      **before** anything is rounded or compared, so a fraction that carries a second across a
+      minute, hour, day or year boundary of UTC is rounded in UTC;
     * **a time with no offset is UTC**, as the default wrote it. That is an assumption, stated;
     * **a date alone is the end of that day, 23:59:59 UTC**: the latest instant it can mean in
       UTC, so a recent date-only row is never counted as older than it is;
@@ -114,6 +116,16 @@ def normalize_legacy_timestamp(value, now: datetime) -> str | None:
       not an impossible calendar date or offset, not a value before 2000-01-01 and **not a value
       more than a day after** ``now`` (``LEGACY_FUTURE_TOLERANCE``, which absorbs the end-of-day
       rule and clock differences). These return ``None`` and are never treated as old.
+
+    **Precision.** The instant is validated exactly, to the last digit given: a fraction is never
+    truncated and never limited to the microseconds of ``datetime``. The ledger counts whole
+    seconds, so a **nonzero** fraction is rounded **up** to the next whole second (an instant
+    that is 24 hours and a nanosecond old is not yet outside the window, and ``…:00.9`` is
+    recorded as ``…:01``); a zero fraction (``.000``) is the second itself. Rounding up can only
+    keep an allowance spent longer than the exact instant would, never refund it early. The
+    lower bound is checked on the instant (``1999-12-31T23:59:59.9`` is before 2000-01-01 and is
+    refused although it rounds to it), and the future bound on the instant too: exactly
+    ``now`` plus a day is accepted, any positive excess over it, however small, is refused.
 
     ``now`` is naive UTC (the lifecycle writer clock). A value up to a day ahead is kept as it
     is, so it counts in the window until it is a day old: the count is deliberately conservative
@@ -124,22 +136,37 @@ def normalize_legacy_timestamp(value, now: datetime) -> str | None:
     found = _LEGACY_TIMESTAMP.fullmatch(value)
     if found is None:
         return None
-    year, month, day, hour, minute, second, fraction, offset = found.groups()
+    year, month, day, hour, minute, second, digits, offset = found.groups()
     try:
         if hour is None:
             moment = datetime(int(year), int(month), int(day), 23, 59, 59)
         else:
             moment = datetime(int(year), int(month), int(day), int(hour), int(minute), int(second))
             if offset is not None and offset != "Z":
-                digits = offset[1:].replace(":", "")
-                hours, minutes = int(digits[:2]), int(digits[2:])
+                numbers = offset[1:].replace(":", "")
+                hours, minutes = int(numbers[:2]), int(numbers[2:])
                 if minutes > 59 or hours > 14 or (hours == 14 and minutes):
                     return None
                 delta = timedelta(hours=hours, minutes=minutes)
                 moment = moment - delta if offset[0] == "+" else moment + delta
+        # The fraction is never converted to a number: its digits are compared as text, so no
+        # length of fraction is cut, rounded or refused for being long.
+        positive = digits is not None and digits.strip("0") != ""
+        if moment < LEGACY_EARLIEST:
+            return None  # the whole second is already before the bound, so the instant is
+        excess = moment - (now + LEGACY_FUTURE_TOLERANCE)    # the whole second against the bound, exact
+        if excess > timedelta(0):
+            return None
+        if positive and excess > -timedelta(seconds=1):
+            # Inside the bound's own second: the instant is beyond it when its fraction exceeds the
+            # bound's remaining fraction (a whole-second ``now`` leaves 0, so any positive fraction).
+            remaining = f"{-(excess // timedelta(microseconds=1)):06d}"
+            padded = digits.ljust(6, "0")
+            if padded[:6] > remaining or (padded[:6] == remaining and padded[6:].strip("0") != ""):
+                return None
+        if positive:
+            moment += timedelta(seconds=1)
     except (ValueError, OverflowError):
-        return None
-    if moment < LEGACY_EARLIEST or moment > now + LEGACY_FUTURE_TOLERANCE:
         return None
     return lifecycle.format_timestamp(moment)
 

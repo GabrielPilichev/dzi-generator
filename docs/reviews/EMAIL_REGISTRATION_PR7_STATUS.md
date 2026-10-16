@@ -8,10 +8,15 @@ Routes: `docs/AUTH_ROUTE_CONTRACT.md`, "Creation limits" and "Student registrati
 
 ## Status
 
-**Review history.** `b15d02b067459ceded9dc4d096f7e2082ce7c81d` (PR #341, "Add teacher registration and atomic assignment quotas", on top of `fd44c8f`) was
-independently reviewed at that exact SHA and returned **REQUEST CHANGES** with three findings (P1 rollback creates unaccounted quota history; P2 the
-migration's epoch fallback refunds recent legacy creations; P2 teacher restart links open the student form). **The fixes described below are
-unstaged and uncommitted, were made after that review, and await independent review.** Nothing is approved, merged or activated.
+**Review history.**
+
+1. `b15d02b067459ceded9dc4d096f7e2082ce7c81d` (PR #341, "Add teacher registration and atomic assignment quotas", on top of `fd44c8f`) was independently reviewed at that exact SHA and returned
+   **REQUEST CHANGES** with three findings (P1 rollback creates unaccounted quota history; P2 the migration's epoch fallback refunds recent legacy creations; P2 teacher restart links open
+   the student form). Gabriel approved admin-exempt recording and no teacher development switch after that review.
+2. The fixes for those three were committed as `3537f4f3ad9a28ee9aa147a6d93af4e6863da1ac`. That exact SHA was independently reviewed and returned **REQUEST CHANGES** with two P2 findings:
+   fractional timestamps had their fraction discarded and could refund an allowance early (including at the future-tolerance bound); the failure, unavailable and gate-off pages dropped the validated return target.
+3. **The fixes for those two (below: precision rules and return-target handling) are unstaged and uncommitted in the working tree, were made after the review of `3537f4f`, and await independent review.**
+   Nothing is approved, merged or activated.
 
 `registration.TEACHER_ACTIVATION`, `registration.PRODUCTION_ACTIVATION`, `profiles.PRODUCTION_ACTIVATION` and `google_oidc.PRODUCTION_ACTIVATION` are all
 still `False`, and no setting or environment variable overrides any of them in production. No real `data/questions.db`, vault, credential, provider, running
@@ -37,7 +42,7 @@ deadline behaviour of the open count, refusal precedence, the accounting and tim
 | The open count without writing the open predicate twice | `web/services/lifecycle.py` (`UNCLOSED_STATE_SQL`, `count_unclosed_owned`; `OPEN_PREDICATE_SQL` is unchanged text) |
 | Refusals on `/teacher/new` (both kinds) and the copy form | `web/blueprints/teacher.py` |
 | Start-up notice for unplaceable history (never refuses to start) | `web/production.py` (`assignment_accounting_warning`) |
-| Restart links to the chooser | `web/blueprints/registration.py`, `web/templates/register_message.html` |
+| Restart links to the chooser, with the validated return target on every message page | `web/blueprints/registration.py`, `web/templates/register_message.html` |
 | Teacher activation: role entry, school and subjects to the profile, ledger check | `web/services/registration.py`, `web/services/accounts.py` |
 | Teacher route, form, chooser entry, shared submit | `web/blueprints/registration.py`, `web/templates/register_teacher.html` (new), `web/templates/register_choose.html` |
 | Tests | `tests/test_assignment_quota.py`, `tests/test_assignment_creations_migration_sql.py`, `tests/test_teacher_registration.py`, `tests/test_assignment_accounting.py` and `tests/legacy_creation.py` (new); pins updated in `tests/test_registration_routes.py`, `test_registration_service.py`, `test_account_profile.py`, `test_schema_baseline.py`, `test_build_database.py`, `test_canonical_content.py`, `test_database_test_support.py` |
@@ -104,11 +109,22 @@ INDEX idx_assignment_creations_owner ON (owner_user_id, created_at)
 
 ### Timestamp rules (finding 2)
 
-`normalize_legacy_timestamp(value, now)`, full list in its docstring and the scope (I13): UTC throughout; canonical, ISO `T`, fractional seconds cut, `Z` and offsets up to 14 h converted;
+`normalize_legacy_timestamp(value, now)`, full list in its docstring and the scope (I13): UTC throughout; canonical, ISO `T`, fractional seconds of any number of digits, `Z` and offsets up to 14 h converted **first**;
 **no offset = UTC**; **date-only = 23:59:59 UTC of that day**. Rejected (the owner is refused, never treated as old): NULL, empty or padded text, numbers, other layouts, impossible dates or offsets,
 before 2000-01-01 (the epoch included), **more than one day after the writer clock**. **Future values, explicitly:** a value up to a day ahead is kept as it is and counts until it is a day old, so the
 count is conservative there; the window count itself has no upper bound by design (a lifecycle row is never ahead of a later `now`), and the one-day bound lives in the normalizer so an implausible future date cannot hold an
 account for years. Operator handling is in DEPLOYMENT section 36.
+
+**Precision (review of `3537f4f`, finding 1).** Before, the fraction was matched and dropped, so `2026-03-01T09:00:00.999999999Z` counted as `09:00:00`, which left the window at 2026-03-02 09:00:00 although the creation was
+a second younger than 24 hours. Now:
+
+* the instant is judged exactly, to the last digit given; the fraction is never converted to a number (its digits are compared as text), so no `datetime` microsecond limit and no length of fraction (nine digits, forty, five thousand) discards a significant digit;
+* the ledger counts whole seconds, so a **nonzero** fraction is rounded **up** to the next second and a zero fraction (`.0`, `.000000000`) is the second itself. Rounding up can only keep an allowance spent longer than the exact instant would, never refund it early;
+* an offset is applied before the rounding, so a fraction that carries a second across a UTC minute, hour, day, month or year boundary is rounded in UTC (`2026-03-02T01:59:59.1+02:00` is `2026-03-02 00:00:00`);
+* the lower bound is checked on the instant (`1999-12-31T23:59:59.9` is refused although it rounds to 2000-01-01); the future bound too: `now` plus exactly one day is accepted, any positive excess, however small, is refused, including when the bound has microseconds itself;
+* ordinary whole-second timestamps behave exactly as before; a refusal still writes nothing.
+
+The round-up, like the other timestamp rules, is **not an approved interpretation**.
 
 ### Interpretations that still need Gabriel (from the scope)
 
@@ -137,6 +153,10 @@ codes (429/409/503) and no `Retry-After`; I12 and I13 the accounting and timesta
 * **Restart navigation (finding 3).** Cancel, and every page that ends a registration (expired, cancelled elsewhere, replaced, no binding, teacher gate off, unavailable, failure), now
   links to the chooser `/register` with the stored `next` (revalidated when the slot is read and again by the chooser), never to `/register/student` or `/register/teacher`; with the teacher gate
   off the chooser offers the student form only. The binding, expiry, void and scrub rules are unchanged. A restart from the teacher flow therefore costs one more click, for both flows.
+* **Return target on the unavailable, failure and gate-off pages (review of `3537f4f`, finding 2).** The shared helpers `_unavailable` and `_failure` now take the target like `_no_registration` did.
+  Submit passes the validated form value (`accepted_next` already ran in the form); verify, resend and cancel pass the revalidated slot's `next`, which is read from the slot dict **before** the binding is
+  retired, so the gate-off page of a teacher who began at `/teacher/new` still carries it although the session key is gone. A missing slot, a slot of another shape or a forged `next` gives a targetless page
+  (no row is read, nothing is echoed); no raw request value is ever used. Binding, lifecycle, no-session and dispatch behaviour are unchanged.
 
 ## Tests
 
@@ -147,27 +167,34 @@ Python 3.12.15, SQLite 3.53.4, Flask 3.1.3, Werkzeug 3.1.9, segno 1.6.6, Authlib
 (`test_profile_required_migration_sql...test_a_fresh_canonical_build_has_the_column_and_no_account`, "023 is the last migration"). It was loosened and the four migration-level
 modules were re-run (88 tests, OK). **That was not a green final full run, and the full suite has not been repeated since.** It ran as a background task (the foreground limit is 10 minutes).
 
-**After the review of b15d02b (this change), no full-suite repeat** (the change is confined to the quota module, one migration comment, the registration restart links and a start-up notice, and
-the adjacent suites below cover what reads them):
+**After the review of `3537f4f` (this change), no full-suite repeat** (the change is confined to the timestamp normalizer, the message helpers of the registration blueprint and documents; the
+affected suites below cover what reads them). Environment as above, temporary databases only:
 
-* New and changed modules: `test_assignment_accounting` 44 (new), `test_assignment_quota` 57, `test_assignment_creations_migration_sql` 16, `test_teacher_registration` 75 (10 are `RestartNavigationTest`): **OK**.
-* Affected suites in two batches, real dependencies, temporary databases: **977 tests OK** (quota, accounting, migration, registration, profile, access policy, route snapshots, lifecycle static, baseline, build, canonical,
-  test-support) and **555 tests OK** (assignment ownership, owner routes, duplicate, tokens, teacher blueprint, admin TOTP, practical review, lifecycle clock, production deployment, registration restore, application backup, and others).
-* **Both journal modes.** The rollback regressions run in two classes, rollback-journal (`DELETE`) and `WAL`; each asserts the mode with `PRAGMA journal_mode` before it starts.
-* **The new regressions reject the previous implementation.** An export of `b15d02b` with only an import shim (`REASON_ACCOUNTING`) run against the new tests: 62 failures and 54 errors (the errors are
-  the normalizer and start-up notice that did not exist), including every rollback test in both modes, every legacy-format allowance, the unplaceable cases and 13 navigation tests.
-* **Mutation checks** (each applied, run against the accounting, navigation and quota modules, and reverted by a script; not part of the suite): removing `reconcile`; running it only after the admin exemption; date-only as
-  start of day; unplaceable values as year 2000; offset sign flipped; the future tolerance made huge; ISO `T` unsupported; the inconsistency check removed; partial recording of placeable rows; the future bound removed; the
-  recorded-row anti-join narrowed to open assignments; the chooser links changed back to the student form (cancel, no binding, the message page); the start-up notice made fatal: **all killed**. One mutant, coercing non-strings with `str()`,
-  survives and is equivalent (the regular expression rejects what it produces). The earlier mutation list for quotas and teacher registration (TESTING.md) was not re-run.
+* New and changed modules: `test_assignment_accounting` 57 (44 before; 13 new), `test_assignment_quota` 57, `test_assignment_creations_migration_sql` 16, `test_teacher_registration` 85 (75 before; 10 new, plus one gate-off pin corrected): **OK**.
+* Affected suites, one batch of 33 modules with real dependencies: **1325 tests OK** (quota, accounting, migration, all registration modules, teacher registration, profile and profile-gate modules, access policy, auth guard, lifecycle static and clock,
+  baseline, build, canonical, test support, production deployment, subject registry, owner routes, teacher lifecycle routes). `py_compile` of the four changed Python files and `git diff --check`: clean.
+* **The new regressions reject the previous implementation.** The tree of `3537f4f` exported with `git archive` and the current two test modules copied over it: 142 tests, **57 failures and 3 errors**, **23 distinct tests** (20 new and 3 whose
+  old expectations were corrected; 23 tests are new in all): the reproduction (twenty assignments at `…09:00:00.999999999Z`), the exact lower boundary with zero and nonzero fractions, more than six fractional digits, offset-bearing fractions, UTC day and year crossings, the exact future
+  bound and any positive excess, refusal atomicity, and every return-target case (failed verification, resend, cancel and submission; submission and resend or verify during a restore hold; a hold appearing between the read and the write;
+  a cancel refused by the clock; gate-off verify and resend). Three of the new tests are guards and pass on both (ordinary timestamps at the window edge; a binding retired by expiry keeps its target; an unsafe target is never carried).
+* **Mutation checks** (23 mutants applied to a scratch copy, run against the normalizer, fractional allowance, legacy-format, navigation and route modules, and reverted by a script; not part of the suite): fraction truncated instead of rounded up; zero fractions rounded up too; positivity
+  judged on six digits; the fraction limited to nine or to six digits; future bound ignoring the fraction; exact future bound excluded; `>` made `>=` in the fraction comparison; sub-microsecond digits ignored in that comparison; lower bound checked after rounding;
+  offset sign flipped; offset ignored; and eleven navigation mutants (verify, resend, cancel and submit failure or unavailable pages each dropping the target; the unavailable page after a hold between read and write;
+  the submit trusting the raw request `next`; the message page echoing a raw request `next`): **all killed**, after one added test killed the submit's second unavailable page, which the first run showed unpinned. One mutant (the resend failure reading the
+  session value instead of the slot dict, which is the same value) is equivalent and survives. The mutation lists of earlier rounds (this file, TESTING.md) were not re-run.
+
+**Earlier rounds, unchanged.** Review of `b15d02b`: 977 and 555 tests OK in two batches; the new regressions at that time failed against `b15d02b` (62 failures, 54 errors, every rollback test in rollback-journal and WAL mode, which are separate classes each asserting
+`PRAGMA journal_mode`); 16 mutants on `reconcile`, the normalizer, the inconsistency check, partial recording, the future bound, the anti-join, the navigation and the start-up notice, all killed except one equivalent (`str()` coercion of non-strings).
 
 ## Not verified / remaining
 
-* **Fixes await independent review.** Nothing was looked at in a browser; the teacher form uses existing classes. Nothing ran on Linux or under the real unit; no real SQLite database, deployment, provider or message was involved.
+* **Fixes await independent review** (the two P2 fixes after the review of `3537f4f`; the earlier three were reviewed at `3537f4f`). Nothing was looked at in a browser; the teacher form uses existing classes. Nothing ran on Linux or under the real unit; no real SQLite database, deployment, provider or message was involved.
 * Concurrency was tested with threads on macOS temporary databases in rollback-journal and WAL mode; production's WAL under the real Gunicorn worker is not tested.
 * The migration has run only on temporary databases. The accounting rules have not met a real database: how many real assignments have an unplaceable `created_at`, and how many teachers start above 10 open assignments, is unknown.
-* **Gaps by design:** an assignment row deleted before it was recorded; a build without the admission can create unlimited assignments while it runs (it can only be recovered afterwards); the restore returns the ledger to the snapshot's moment.
-* **Needs Gabriel:** the unapproved interpretations listed above (notably I2, I3, I12, I13 and the 503 for an unplaceable history), the wording of the three refusal messages, and whether the restart should instead remember the form the person began (it would need the binding to carry a type, which this fix does not change).
+* **Recovery limitations (stated, not approved policy):** deleted unrecorded history **cannot be reconciled**; a build that creates without the admission, concurrently with PR 7 builds, is **prohibited** (it can create unlimited assignments while it runs, and recovery only counts the surviving rows afterwards);
+  after a **known history loss** (rows deleted before they were recorded, a restore to an older snapshot, a replaced database) creation must **not reopen** for the affected accounts until a reviewed reconstruction, or a conservative hold and recovery procedure, is established. None exists: the code can neither detect the loss nor
+  hold creation, and nothing here is an approved quota exception or an approved recovery policy. The restore returns the ledger to the snapshot's moment.
+* **Needs Gabriel:** the unapproved interpretations listed above (notably I1 to I3, I12, I13 including the date-only mapping, the 2000-01-01 cutoff, the one-day future tolerance and the round-up of fractions, retention, and the 503 for an unplaceable history), a recovery or hold procedure for lost history, the wording of the three refusal messages, and whether the restart should instead remember the form the person began (it would need the binding to carry a type, which this fix does not change).
 * Activation prerequisites unchanged and not done: the privacy policy and D16 (purpose, visibility and retention of the school and subject fields, minors, and the ledger), the amendment of `ACCOUNTS_DESIGN.md` §15, the provider and sender, capacity, the Linux/systemd evidence of PR 5, password recovery
   (PR 8), and independent review of this PR. Teacher verification does not exist: the role is a verified mailbox plus self-declaration.
 * Not covered: a quota override or operator command; per-IP or per-person limits; a `Retry-After`; showing the remaining allowance on `/teacher/new`.

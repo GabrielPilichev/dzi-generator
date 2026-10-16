@@ -40,8 +40,9 @@ class NormalizeTimestampTest(unittest.TestCase):
         cases = {
             "2026-03-01 09:00:01": "2026-03-01 09:00:01",           # what CURRENT_TIMESTAMP writes
             "2026-03-01T09:00:01": "2026-03-01 09:00:01",           # ISO with T: naive means UTC
-            "2026-03-01T09:00:01.123456": "2026-03-01 09:00:01",    # fraction cut to the second
-            "2026-03-01 09:00:01.5": "2026-03-01 09:00:01",
+            "2026-03-01T09:00:01.123456": "2026-03-01 09:00:02",    # a nonzero fraction rounds UP to the next second
+            "2026-03-01 09:00:01.5": "2026-03-01 09:00:02",
+            "2026-03-01 09:00:01.000": "2026-03-01 09:00:01",       # a zero fraction is the second itself
             "2026-03-01T09:00:01Z": "2026-03-01 09:00:01",
             "2026-03-01T11:00:01+02:00": "2026-03-01 09:00:01",     # offsets are converted to UTC
             "2026-03-01T11:00:01+0200": "2026-03-01 09:00:01",
@@ -66,7 +67,8 @@ class NormalizeTimestampTest(unittest.TestCase):
                "2026/03/01", "01.03.2026", "1 March 2026", "yesterday", "2026-03-01 09:00", "2026-3-1",
                "2026-02-30", "2026-13-01", "2026-03-01 25:00:00", "2026-03-01 09:61:00", "2026-03-01 09:00:61",
                "2026-03-01T09:00:00+15:00", "2026-03-01T09:00:00+14:30", "2026-03-01T09:00:00+02:60",
-               "2026-03-01T09:00:00 UTC", "2026-03-01T09:00:00+2", "2026-03-01T09:00:00.1234567890",
+               "2026-03-01T09:00:00 UTC", "2026-03-01T09:00:00+2", "2026-03-01T09:00:00.", "2026-03-01T09:00:00.Z",
+               "2026-03-01T09:00:00,5", "2026-03-01T09:00:00.1_0",
                "0000-00-00 00:00:00", "1999-12-31 23:59:59", "1970-01-01 00:00:00", "0001-01-01",
                "2026-03-01 09:00:00\x00", "2026-03-01 09:00:00; DROP TABLE users"]
         for value in bad:
@@ -80,6 +82,70 @@ class NormalizeTimestampTest(unittest.TestCase):
         self.assertIsNone(self.norm("2026-03-04"))
         # The bound is the caller's now, not the machine's.
         self.assertEqual(self.norm("2026-03-03 09:00:01", NOW + timedelta(seconds=1)), "2026-03-03 09:00:01")
+
+    def test_the_upper_bound_is_checked_on_the_exact_instant(self):
+        bound = "2026-03-03 09:00:00"
+        self.assertEqual(self.norm(bound), bound)                                       # exactly now + 1 day
+        for zeros in ("", ".0", ".000000", ".000000000", "." + "0" * 40):
+            self.assertEqual(self.norm(bound + zeros), bound, zeros)                    # a zero fraction is not an excess
+        for tail in (".1", ".5", ".000001", ".0000001", ".000000001", ".0000000000001", "." + "0" * 40 + "1"):
+            with self.subTest(excess=tail):
+                self.assertIsNone(self.norm(bound + tail))                              # any positive excess, however small
+        self.assertEqual(self.norm("2026-03-03 08:59:59.999999999"), "2026-03-03 09:00:00")   # just inside: kept, rounded up
+        # With offsets: the same instants, written elsewhere.
+        self.assertEqual(self.norm("2026-03-03T11:00:00+02:00"), bound)
+        self.assertIsNone(self.norm("2026-03-03T11:00:00.0000000001+02:00"))
+        self.assertIsNone(self.norm("2026-03-03T04:00:00.1-05:00"))
+        self.assertEqual(self.norm("2026-03-03T04:00:00.000-05:00"), bound)
+        # A bound that itself has microseconds is compared exactly too.
+        half = NOW + timedelta(microseconds=500000)
+        self.assertEqual(self.norm("2026-03-03 09:00:00.5", half), "2026-03-03 09:00:01")
+        self.assertIsNone(self.norm("2026-03-03 09:00:00.5000001", half))
+        self.assertEqual(self.norm("2026-03-03 09:00:00.4999999", half), "2026-03-03 09:00:01")
+
+    def test_a_nonzero_fraction_is_never_truncated_or_cut_at_six_digits(self):
+        for tail in (".000001", ".0000001", ".000000001", ".0000000001", "." + "0" * 30 + "1", ".9", ".999999999999999999"):
+            with self.subTest(fraction=tail):
+                self.assertEqual(self.norm("2026-03-01 09:00:00" + tail), "2026-03-01 09:00:01")
+        for tail in (".0", ".000000", ".0000000", "." + "0" * 30):
+            with self.subTest(fraction=tail):
+                self.assertEqual(self.norm("2026-03-01 09:00:00" + tail), "2026-03-01 09:00:00")
+        # No length is special: the digits are compared as text, never converted to a number.
+        self.assertEqual(self.norm("2026-03-01 09:00:00." + "0" * 5000 + "1"), "2026-03-01 09:00:01")
+        self.assertEqual(self.norm("2026-03-01 09:00:00." + "0" * 5000), "2026-03-01 09:00:00")
+        self.assertIsNone(self.norm("2026-03-03 09:00:00." + "0" * 5000 + "1"))
+
+    def test_offset_bearing_fractions_are_converted_to_utc_before_rounding(self):
+        cases = {
+            "2026-03-01T11:00:00.5+02:00": "2026-03-01 09:00:01",
+            "2026-03-01T04:00:00.0000001-05:00": "2026-03-01 09:00:01",
+            "2026-03-01T11:00:00.000+02:00": "2026-03-01 09:00:00",
+            # rounding up crosses a UTC minute / hour / day / month / year boundary
+            "2026-03-01T09:00:59.5Z": "2026-03-01 09:01:00",
+            "2026-03-01T09:59:59.000000001Z": "2026-03-01 10:00:00",
+            "2026-03-01T23:59:59.5Z": "2026-03-02 00:00:00",
+            "2026-03-02T01:59:59.1+02:00": "2026-03-02 00:00:00",    # 23:59:59.1 UTC the day before
+            "2026-03-01T18:59:59.1-05:00": "2026-03-02 00:00:00",
+            "2026-02-28T23:59:59.5Z": "2026-03-01 00:00:00",         # month
+            "2026-03-01T13:59:59.2+14:00": "2026-03-01 00:00:00",    # 2026-02-28 23:59:59.2 UTC
+            "2026-02-28T23:59:59.3-14:00": "2026-03-01 14:00:00",
+        }
+        for value, expected in cases.items():
+            with self.subTest(value=value):
+                self.assertEqual(self.norm(value), expected)
+        self.assertEqual(self.norm("2027-01-01T00:00:00.5Z", datetime(2027, 6, 1)), "2027-01-01 00:00:01")
+        self.assertEqual(self.norm("2026-12-31T23:59:59.5Z", datetime(2027, 6, 1)), "2027-01-01 00:00:00")
+        self.assertEqual(self.norm("2026-12-31T23:59:59.5-02:00", datetime(2027, 6, 1)), "2027-01-01 02:00:00")
+
+    def test_the_lower_bound_is_checked_on_the_exact_instant(self):
+        self.assertEqual(self.norm("2000-01-01 00:00:00"), "2000-01-01 00:00:00")
+        self.assertEqual(self.norm("2000-01-01 00:00:00.000000000"), "2000-01-01 00:00:00")
+        self.assertEqual(self.norm("2000-01-01 00:00:00.000000001"), "2000-01-01 00:00:01")
+        # Before the bound by less than a second: it would round up *to* the bound, but it is refused.
+        for value in ("1999-12-31 23:59:59.9", "1999-12-31 23:59:59.999999999", "1999-12-31T23:59:59.5Z",
+                      "2000-01-01T01:59:59.9+02:00", "1999-12-31T18:59:59.999-05:00"):
+            with self.subTest(value=value):
+                self.assertIsNone(self.norm(value))
 
     def test_the_result_is_always_the_ledger_layout(self):
         for value in ("2026-03-01", "2026-03-01T09:00:01.9+01:00", "2000-01-01 00:00:00"):
@@ -143,7 +209,7 @@ class LegacyFormatAllowanceTest(AccountingTestCase):
         ids = self.seed(account, ["2026-03-02T10:00:00+02:00", "2026-03-01", "2026-03-02T08:00:00.9"])
         new = self.create(account)
         self.assertEqual(self.ledger(account), [(ids[0], "2026-03-02 08:00:00"), (ids[1], "2026-03-01 23:59:59"),
-                                                (ids[2], "2026-03-02 08:00:00"), (new, "2026-03-02 09:00:00")])
+                                                (ids[2], "2026-03-02 08:00:01"), (new, "2026-03-02 09:00:00")])
 
     def test_age_is_preserved_at_the_window_edge_in_every_shape(self):
         # The same two instants in four shapes: exactly 24 h old at T0 (not counted), one second younger (counted).
@@ -185,6 +251,113 @@ class LegacyFormatAllowanceTest(AccountingTestCase):
         self.assertEqual(self.ledger(account)[0][0], first)
         self.assertIn("2026-03-02 09:30:00", [row[1] for row in self.ledger(account)])
         self.assertEqual(self.ledger(account)[-1], (second, "2026-03-02 10:00:00"))
+
+
+class FractionalAllowanceTest(AccountingTestCase):
+    """Review of 3537f4f, finding 1: a fraction must never refund an allowance early.
+
+    Twenty rows carry the same instant; the question is only whether they still count at ``now``.
+    A nonzero fraction rounds up to the next whole second, a zero fraction does not.
+    """
+
+    def assertCounts(self, value, now=NOW, *, counts):
+        account = create_account(web_app.QUIZ_DB_PATH, "teacher")
+        self.at(now)
+        self.seed(account, [value] * 20)
+        if counts:
+            self.assertRefused(DAILY, account)
+            self.assertEqual(self.ledger(account), [])                 # a refusal writes nothing
+        else:
+            new = self.create(account)
+            self.assertEqual(len(self.ledger(account)), 21)
+            self.assertEqual(self.ledger(account)[-1][0], new)
+
+    def test_the_review_reproduction_twenty_creations_at_09_00_00_999999999_still_count(self):
+        self.assertCounts("2026-03-01T09:00:00.999999999Z", counts=True)
+
+    def test_exact_lower_boundary_zero_fraction_leaves_the_window_and_any_positive_fraction_stays(self):
+        for value in ("2026-03-01 09:00:00", "2026-03-01T09:00:00Z", "2026-03-01T09:00:00.0Z",
+                      "2026-03-01T09:00:00.000000Z", "2026-03-01T09:00:00.000000000Z",
+                      "2026-03-01T09:00:00." + "0" * 40 + "Z"):
+            with self.subTest(value=value, counts=False):
+                self.assertCounts(value, counts=False)
+        for value in ("2026-03-01T09:00:00.1Z", "2026-03-01T09:00:00.5Z", "2026-03-01T09:00:00.000001Z",
+                      "2026-03-01T09:00:00.999999Z", "2026-03-01 09:00:00.250000", "2026-03-01T09:00:01Z"):
+            with self.subTest(value=value, counts=True):
+                self.assertCounts(value, counts=True)
+
+    def test_more_than_six_fractional_digits_are_not_discarded(self):
+        for value in ("2026-03-01T09:00:00.0000001Z", "2026-03-01T09:00:00.0000000001Z",
+                      "2026-03-01T09:00:00.000000000000001Z", "2026-03-01T09:00:00." + "0" * 40 + "1Z",
+                      "2026-03-01T09:00:00.999999999999Z"):
+            with self.subTest(value=value, counts=True):
+                self.assertCounts(value, counts=True)
+
+    def test_an_instant_before_the_boundary_rounds_up_to_it_and_is_outside_the_window(self):
+        for value in ("2026-03-01T08:59:59.000000001Z", "2026-03-01T08:59:59.5Z", "2026-03-01T08:59:59.999999999Z",
+                      "2026-03-01 08:59:59.9", "2026-03-01T08:59:59.9999999999999Z"):
+            with self.subTest(value=value, counts=False):
+                self.assertCounts(value, counts=False)
+
+    def test_offset_bearing_fractions_use_the_utc_instant(self):
+        for value in ("2026-03-01T11:00:00.5+02:00", "2026-03-01T04:00:00.000000001-05:00",
+                      "2026-03-01T23:00:00.0000001+14:00", "2026-03-01T11:00:00.999999999+0200"):
+            with self.subTest(value=value, counts=True):
+                self.assertCounts(value, counts=True)
+        for value in ("2026-03-01T11:00:00.000+02:00", "2026-03-01T10:59:59.5+02:00",
+                      "2026-03-01T04:00:00.000000000-05:00", "2026-03-01T03:59:59.999999999-05:00"):
+            with self.subTest(value=value, counts=False):
+                self.assertCounts(value, counts=False)
+
+    def test_a_fraction_that_crosses_a_utc_day_or_year_boundary_is_rounded_in_utc(self):
+        day = datetime(2026, 3, 3, 0, 0, 0)                           # the window starts 2026-03-02 00:00:00
+        self.assertCounts("2026-03-02T02:00:00.1+02:00", day, counts=True)    # 00:00:00.1 UTC
+        self.assertCounts("2026-03-02T01:59:59.1+02:00", day, counts=False)   # 23:59:59.1 UTC the day before
+        self.assertCounts("2026-03-01T23:59:59.999999999Z", day, counts=False)
+        self.assertCounts("2026-03-02T00:00:00.000000001Z", day, counts=True)
+        year = datetime(2027, 1, 2, 0, 0, 0)                          # the window starts 2027-01-01 00:00:00
+        self.assertCounts("2026-12-31T23:59:59.5Z", year, counts=False)
+        self.assertCounts("2027-01-01T00:00:00.000000001Z", year, counts=True)
+        self.assertCounts("2026-12-31T21:59:59.5-02:00", year, counts=False)  # 2027-01-01 00:00:00 rounded up
+        self.assertCounts("2026-12-31T22:00:00.5-02:00", year, counts=True)
+
+    def test_the_future_tolerance_is_checked_on_the_instant_before_any_rounding(self):
+        exactly = "2026-03-03T09:00:00"
+        for value in (exactly + "Z", exactly + ".000Z", exactly + "." + "0" * 40 + "Z", "2026-03-03T11:00:00+02:00",
+                      "2026-03-03T11:00:00.0000000+02:00"):
+            with self.subTest(value=value, outcome="admitted"):
+                account = create_account(web_app.QUIZ_DB_PATH, "teacher")
+                self.seed(account, [value])
+                new = self.create(account)                             # exactly now + 1 day: allowed
+                self.assertEqual(self.ledger(account)[0][1], "2026-03-03 09:00:00")
+                self.assertEqual(self.ledger(account)[-1][0], new)
+        for value in (exactly + ".1Z", exactly + ".000000001Z", exactly + ".0000000001Z", exactly + "." + "0" * 40 + "1Z",
+                      "2026-03-03T11:00:00.000001+02:00", "2026-03-03T04:00:00.5-05:00", "2026-03-03T09:00:01Z"):
+            with self.subTest(value=value, outcome="refused"):
+                account = create_account(web_app.QUIZ_DB_PATH, "teacher")
+                self.seed(account, ["2026-03-02 08:00:00"] * 19)
+                self.seed(account, [value])
+                self.refused_for_accounting(account)                   # and nothing was written (assertRefused)
+                self.assertEqual(self.ledger(account), [])
+        # A value just inside rounds up to the bound itself and is kept.
+        account = create_account(web_app.QUIZ_DB_PATH, "teacher")
+        self.seed(account, ["2026-03-03T08:59:59.999999999Z"])
+        self.create(account)
+        self.assertEqual(self.ledger(account)[0][1], "2026-03-03 09:00:00")
+
+    def test_ordinary_timestamps_keep_their_exact_edge(self):
+        self.assertCounts("2026-03-01 09:00:00", counts=False)
+        self.assertCounts("2026-03-01 09:00:01", counts=True)
+        self.assertCounts("2026-03-02 09:00:00", counts=True)
+
+    def test_a_refusal_for_a_fraction_beyond_tolerance_is_atomic_and_heals_on_correction(self):
+        account = create_account(web_app.QUIZ_DB_PATH, "teacher")
+        ids = self.seed(account, ["2026-03-02 08:00:00"] * 19 + ["2026-03-03 09:00:00.000000001"])
+        before = self.digest()
+        self.refused_for_accounting(account)
+        self.assertEqual(self.digest(), before)
+        self.set_created_at(ids[-1], "2026-03-03 09:00:00")
+        self.assertRefused(DAILY, account)
 
 
 class UnplaceableHistoryTest(AccountingTestCase):

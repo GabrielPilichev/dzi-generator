@@ -286,12 +286,12 @@ def _message(text: str, kind: str, status: int, *, next_target: str = ""):
     return page, status
 
 
-def _unavailable():
-    return _message(UNAVAILABLE_MESSAGE, "error", 503)
+def _unavailable(next_target: str = ""):
+    return _message(UNAVAILABLE_MESSAGE, "error", 503, next_target=next_target)
 
 
-def _failure():
-    return _message(FAILURE_MESSAGE, "error", 500)
+def _failure(next_target: str = ""):
+    return _message(FAILURE_MESSAGE, "error", 500, next_target=next_target)
 
 
 def _no_registration(next_target: str = ""):
@@ -369,8 +369,9 @@ def _submit(settings: RegistrationSettings, validated, *, account_type: str, ren
     # Both are decided again by the service under the write lock.
     available = registration_service.availability(
         conn, now, sender_busy=mail.sender_busy(), total_cap=settings.total_cap)
+    next_target = validated.values["next"] or ""     # accepted_next() already ran in the form
     if available is not registration_service.Availability.AVAILABLE:
-        return _unavailable()
+        return _unavailable(next_target)
     if registration_service.address_capped(conn, registration_service.email_hash(secret_key, email), now):
         return render_form(validated.echo, notice=ADDRESS_CAPPED_MESSAGE, status=429)
 
@@ -391,15 +392,15 @@ def _submit(settings: RegistrationSettings, validated, *, account_type: str, ren
         )
     except Exception as exc:
         logger.warning("submit_failed error=%s", type(exc).__name__)
-        return _failure()
+        return _failure(next_target)
 
     if issued.outcome is Outcome.UNAVAILABLE:
-        return _unavailable()
+        return _unavailable(next_target)
     if issued.outcome is Outcome.ADDRESS_CAPPED:
         return render_form(validated.echo, notice=ADDRESS_CAPPED_MESSAGE, status=429)
     if issued.outcome is not Outcome.ISSUED:
         logger.warning("submit_unexpected outcome=%s", issued.outcome.value)
-        return _failure()
+        return _failure(next_target)
     # Committed: the registration exists. The slot, the log line and the send follow.
     logger.info("submitted pending=%d send=%d", issued.pending_id, issued.send_id)
     _store_slot(issued.token, validated.values["next"])
@@ -454,7 +455,7 @@ def verify():
         # Rolled back: no account, the registration pending with its code and attempts
         # as before. The slot stays, so the same code can be tried again.
         logger.warning("activation_failed error=%s", type(exc).__name__)
-        return _failure()
+        return _failure(slot["next"])
 
     outcome = result.outcome
     if outcome is Outcome.ACTIVATED:
@@ -488,7 +489,7 @@ def _ended_or_unavailable(result, slot: dict):
             # The service voided the row: the binding is spent.
             logger.info("gate_off pending=%d", result.pending_id)
             _drop_slot()
-        return _unavailable()
+        return _unavailable(slot["next"])    # read from the slot dict, which outlives the dropped session key
     # EXPIRED, NO_PENDING and a NOT_PENDING that is not activated: the binding has nothing left to complete.
     _drop_slot()
     return _no_registration(slot["next"])
@@ -515,7 +516,7 @@ def resend():
         )
     except Exception as exc:
         logger.warning("resend_failed error=%s", type(exc).__name__)
-        return _failure()
+        return _failure(slot["next"])
 
     outcome = issued.outcome
     if outcome is Outcome.ISSUED:
@@ -549,10 +550,10 @@ def cancel():
         result = _write(conn, registration_service.cancel, _binding(slot), clock=_utcnow)
     except Exception as exc:
         logger.warning("cancel_failed error=%s", type(exc).__name__)
-        return _failure()
+        return _failure(slot["next"])
     if result.outcome is Outcome.UNAVAILABLE:
         # The clock is behind the high-water mark: nothing was voided, the slot stays.
-        return _unavailable()
+        return _unavailable(slot["next"])
     if result.outcome is Outcome.CANCELLED:
         logger.info("cancelled pending=%d", result.pending_id)
     _drop_slot()

@@ -330,7 +330,13 @@ clone or build from migrations and canonical data and every vault is a temporary
   gate-off pending rows, activation failures and dispatch and settlement (one dispatch per issuance, the same send number and
   issuance identity settled, nothing settled after `NotSendable`, no retry).
 - `tests/test_teacher_registration.py::RestartNavigationTest` pins that cancel and every ended, unavailable or failed registration page
-  restart at the chooser, for both flows, with the validated `next`.
+  restart at the chooser, for both flows, with the validated `next`: a failed verification, resend, cancel or submission, a submission or
+  resend or verify during a restore hold, a hold that appears between the submit's read and its write, a cancel refused by the clock, and a
+  teacher's verify or resend after the gate went off (the target is read before the binding is retired); a missing or forged binding stays
+  targetless and an unsafe target is never echoed.
+- `tests/test_assignment_accounting.py::NormalizeTimestampTest` and `FractionalAllowanceTest` (review of `3537f4f`) pin the exact-instant rules:
+  fractions of any length are rounded up, never truncated, so the reproduction (twenty creations at `…09:00:00.999999999Z`) still counts; the
+  window edge with zero and nonzero fractions, offset-bearing fractions, UTC day and year crossings, the lower bound and the exact future bound.
 - Existing tests that pinned "a teacher registration is never activated" or "`/register/teacher` is always 404" now pin the
   gate-off half and point at the new module; the migration level, the runtime-table lists and the manifest moved to 024.
 
@@ -345,6 +351,11 @@ the window's exclusive bound made inclusive, the exemption removed, the two limi
 or the decision removed, the open predicate weakened, a pre-lock time used, the refusal mapped to a deadline error, the teacher role
 entry removed, the subjects or school not passed to the profile, the ledger check removed, the gate always true or ignored at
 verification, the chooser entry always shown, and `admin` added to the registration roles: all fail at least one test.
+
+Mutation checks for the review of `3537f4f` (a scratch copy, each mutant applied, run and reverted by a script): the fraction truncated, a zero fraction
+rounded up, positivity judged on six digits, the fraction limited to six or nine digits, the future bound ignoring or excluding the exact instant,
+the fraction comparison made inclusive or blind below a microsecond, the lower bound checked after rounding, the offset flipped or ignored, and
+every return-target pass-through removed or replaced by a raw request value: all fail at least one test (one equivalent mutant survives).
 
 **Tunnels.** The teacher gate has no development setting. Nothing in a localhost tunnel can turn the teacher form on.
 

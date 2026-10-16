@@ -16,6 +16,7 @@ import logging
 import re
 import sqlite3
 from contextlib import closing
+from datetime import timedelta
 from pathlib import Path
 from unittest.mock import patch
 
@@ -1066,7 +1067,8 @@ class RestartNavigationTest(TeacherRouteTestCase):
         self.set_gate(False)
         response = self.verify(self.last_code())
         self.assertEqual(response.status_code, 503)
-        self.assertRestartsAtChooser(response)                               # the slot is spent; nothing is invented
+        self.assertRestartsAtChooser(response, self.NEXT)                    # the validated target survives the spent slot
+        self.assertIsNone(self.slot())
         self.assertNotIn("/register/teacher", self.body(self.client.get(self.restart_link(response))))
 
     def test_the_unavailable_and_failure_pages_restart_at_the_chooser(self):
@@ -1079,6 +1081,140 @@ class RestartNavigationTest(TeacherRouteTestCase):
         failed = self.submit_teacher("fail@example.bg")
         self.assertEqual(failed.status_code, 500)
         self.assertRestartsAtChooser(failed)
+
+    # ---- review of 3537f4f, finding 2: the unavailable, failure and gate-off pages keep the validated target
+
+    KINDS = ("student", "teacher")
+
+    def fresh(self):
+        """A browser of its own for the next account type."""
+        self.client = self.app.test_client()
+
+    def test_a_failed_verification_keeps_the_return_target_and_the_binding(self):
+        for kind in self.KINDS:
+            self.fresh()
+            self.begin(kind, email=f"{kind}.vfail@example.bg", next=self.NEXT)
+            code = self.last_code()
+            self.flaky(1)
+            response = self.verify(code)
+            self.assertEqual(response.status_code, 500)
+            self.assertRestartsAtChooser(response, self.NEXT)
+            self.assertEqual(self.slot()["next"], self.NEXT)                 # the binding is untouched
+            self.assertEqual(self.users_with(f"{kind}.vfail@example.bg"), [])
+            self.assertNoAccountSession()
+
+    def test_a_failed_resend_and_a_failed_cancel_keep_the_return_target(self):
+        for kind in self.KINDS:
+            self.fresh()
+            self.begin(kind, email=f"{kind}.rfail@example.bg", next=self.NEXT)
+            self.flaky(1, 2)                                                 # the resend's commit, then the cancel's
+            for response in (self.resend(), self.cancel()):
+                self.assertEqual(response.status_code, 500)
+                self.assertRestartsAtChooser(response, self.NEXT)
+            self.assertIsNotNone(self.slot())
+
+    def test_a_failed_submission_keeps_the_validated_form_target(self):
+        for kind in self.KINDS:
+            self.fresh()
+            self.flaky(1)
+            response = self.begin(kind, email=f"{kind}.sfail@example.bg", next=self.NEXT)
+            self.assertEqual(response.status_code, 500)
+            self.assertRestartsAtChooser(response, self.NEXT)
+            self.assertIsNone(self.slot())
+
+    def test_a_submission_during_a_restore_hold_keeps_the_validated_form_target(self):
+        self.set_control(hold="restore")
+        for kind in self.KINDS:
+            self.fresh()
+            response = self.begin(kind, email=f"{kind}.hold@example.bg", next=self.NEXT)
+            self.assertEqual(response.status_code, 503)
+            self.assertRestartsAtChooser(response, self.NEXT)
+            self.assertIsNone(self.slot())
+
+    def test_a_hold_that_appears_between_the_read_and_the_write_keeps_the_form_target(self):
+        # The pre-check passes, the service refuses under the write lock: the second ``_unavailable`` of the submit.
+        self.set_control(hold="restore")
+        with patch.object(registration_service, "availability", return_value=Availability.AVAILABLE):
+            for kind in self.KINDS:
+                self.fresh()
+                response = self.begin(kind, email=f"{kind}.race@example.bg", next=self.NEXT)
+                self.assertEqual(response.status_code, 503)
+                self.assertRestartsAtChooser(response, self.NEXT)
+                self.assertIsNone(self.slot())
+
+    def test_resend_and_verify_during_a_restore_hold_keep_the_return_target_and_the_binding(self):
+        for kind in self.KINDS:
+            self.fresh()
+            self.begin(kind, email=f"{kind}.rhold@example.bg", next=self.NEXT)
+            code = self.last_code()
+            self.set_control(hold="restore")
+            for response in (self.resend(), self.verify(code)):
+                self.assertEqual(response.status_code, 503)
+                self.assertRestartsAtChooser(response, self.NEXT)
+            self.assertEqual(self.slot()["next"], self.NEXT)                 # a hold does not spend the binding
+            self.set_control()
+
+    def test_a_cancel_refused_by_the_clock_keeps_the_return_target(self):
+        for kind in self.KINDS:
+            self.fresh()
+            self.begin(kind, email=f"{kind}.clock@example.bg", next=self.NEXT)
+            self.set_control(high_water=self.wall + timedelta(hours=1))
+            response = self.cancel()
+            self.assertEqual(response.status_code, 503)
+            self.assertRestartsAtChooser(response, self.NEXT)
+            self.assertIsNotNone(self.slot())
+            self.set_control()
+
+    def test_gate_off_after_a_teacher_began_keeps_the_saved_target_on_verify_and_resend(self):
+        for action in ("verify", "resend"):
+            with self.subTest(action=action):
+                self.client = self.app.test_client()
+                self.submit_teacher(f"gate.{action}@example.bg", next="/teacher/new")
+                code = self.last_code()
+                patcher = patch.object(registration_service, "TEACHER_ACTIVATION", False)
+                patcher.start()
+                try:
+                    response = self.verify(code) if action == "verify" else self.resend()
+                finally:
+                    patcher.stop()
+                self.assertEqual(response.status_code, 503)
+                self.assertRestartsAtChooser(response, "/teacher/new")      # captured before the binding was retired
+                self.assertIsNone(self.slot())
+                self.assertEqual(self.users_with(f"gate.{action}@example.bg"), [])
+                # The binding is spent: asking again has no target to offer.
+                self.assertRestartsAtChooser(self.verify("000000"))
+                self.assertRestartsAtChooser(self.resend())
+
+    def test_retiring_the_binding_does_not_lose_the_target_of_the_ended_page(self):
+        for kind in self.KINDS:
+            self.fresh()
+            self.begin(kind, email=f"{kind}.retire@example.bg", next=self.NEXT)
+            self.at(self.wall_seconds() + 1801)
+            response = self.resend()
+            self.assertEqual(response.status_code, 200)
+            self.assertRestartsAtChooser(response, self.NEXT)
+            self.assertIsNone(self.slot())
+
+    def test_an_unsafe_target_is_never_carried_to_these_pages(self):
+        self.set_control(hold="restore")
+        for bad in ("//evil.example/x", "https://evil.example", "javascript:alert(1)", "/a b", "/x\r\nSet-Cookie: a=b"):
+            for kind in self.KINDS:
+                self.fresh()
+                response = self.begin(kind, email=f"{kind}.bad@example.bg", next=bad)
+                self.assertEqual(response.status_code, 503)
+                self.assertRestartsAtChooser(response)                       # targetless, and nothing echoed
+                self.assertNotIn("evil.example", self.body(response))
+                self.assertNotIn("javascript:", self.body(response))
+        self.set_control()
+        self.begin("teacher", next=self.NEXT)
+        slot = dict(self.slot())
+        slot["next"] = "//evil.example/x"                                    # a forged cookie: ignored whole
+        self.set_slot(slot)
+        self.set_control(hold="restore")
+        for response in (self.resend(), self.verify("000000"), self.cancel()):
+            self.assertNotIn("evil.example", self.body(response))
+        self.assertRestartsAtChooser(self.resend())
+        self.assertNotIn("next=", self.restart_link(self.resend()))
 
     def test_the_stored_next_is_revalidated_and_never_echoed_when_unsafe(self):
         self.begin("teacher", next=self.NEXT)

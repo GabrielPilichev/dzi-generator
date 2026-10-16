@@ -550,7 +550,10 @@ cross-origin POST is still 403) and no page links to it.
 - **Every restart goes to the chooser.** Cancel, and every page that ends a registration (expired, cancelled elsewhere, replaced, no binding,
   teacher gate off, service unavailable, failure) link „Започни регистрацията отначало“ to `/register` with the stored `next` when it passed
   `accepted_next`, never to `/register/student` or `/register/teacher`: the binding does not say which form began the flow, and neither is offered
-  to someone who began the other. The binding and lifecycle rules are unchanged.
+  to someone who began the other. The binding and lifecycle rules are unchanged. **The unavailable (503), failure (500) and ended pages keep the same validated
+  target**: the submit pages take it from the validated form value, every other page from the revalidated slot, read before the binding is dropped, so a teacher
+  whose gate was turned off, a failed verification or a resend during a restore hold still returns to the saved page. No binding, or a slot of another shape, gives a page
+  with no target; a raw request value is never used and an unsafe one is never echoed.
 - **A signed-in account** is sent to its role's home by every `/register...`
   route, and a POST of it starts nothing. No other route is affected.
 - **Verification does not sign in (decision D7).** A correct code creates the
