@@ -164,7 +164,10 @@ creations in a rolling 24 hours and at most 10 open assignments. The decision is
 `quiz_create_assignment`, in the lifecycle writer transaction, after authorization (a foreign or unowned source is still 404)
 and after input validation; it never changes who may do what. A refusal answers the form again, with the typed values, a
 Bulgarian message and status **429** (daily limit) or **409** (open limit), and writes nothing: no assignment, public token,
-ledger row, clock mark or vault note. Closing frees an open slot and never a creation; an admin account's creations are
+ledger row, clock mark or vault note. A third refusal, status **503** with its own Bulgarian message, means the account's creation history could not be
+placed with confidence (an unrecorded assignment with a NULL, malformed or implausible `created_at`, or an inconsistent ledger row); it is cleared by an
+operator, not by the teacher (`docs/DEPLOYMENT.md`, section 36). Before the limits are decided the admission records the account's unrecorded
+assignments from the age they show; a build that keeps migration 024 must keep it. Closing frees an open slot and never a creation; an admin account's creations are
 recorded and not refused. The owner management pages (detail, edit, close, results, CSV, QR, practical review) are
 unaffected at any count.
 
@@ -544,6 +547,10 @@ cross-origin POST is still 403) and no page links to it.
   slot's token and by nothing else; another browser has no registration.
 - **No GET writes, and no GET sets a cookie.** The verify page reads only the
   caller's own row; expiry is written by the POSTs and by the cleanup.
+- **Every restart goes to the chooser.** Cancel, and every page that ends a registration (expired, cancelled elsewhere, replaced, no binding,
+  teacher gate off, service unavailable, failure) link „Започни регистрацията отначало“ to `/register` with the stored `next` when it passed
+  `accepted_next`, never to `/register/student` or `/register/teacher`: the binding does not say which form began the flow, and neither is offered
+  to someone who began the other. The binding and lifecycle rules are unchanged.
 - **A signed-in account** is sent to its role's home by every `/register...`
   route, and a POST of it starts nothing. No other route is affected.
 - **Verification does not sign in (decision D7).** A correct code creates the

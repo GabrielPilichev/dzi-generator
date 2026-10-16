@@ -1,7 +1,8 @@
 """024 adds the assignment creation ledger (EMAIL_REGISTRATION PR 7).
 
-One new table, ``assignment_creations``, and one index. It is filled once, from the owned
-assignments that exist when the migration runs, and nothing else changes. Every database in
+One new table, ``assignment_creations``, and one index. **No row is written**: the history of
+assignments that already exist is recorded by the first admission of each owner's next creation
+(``tests.test_assignment_accounting``), under one set of timestamp rules. Nothing else changes. Every database in
 this module is temporary: built by the shared migration runner from the repository's
 migration files, or cloned by ``tests.support.build_test_database``. None of them is
 ``data/questions.db``.
@@ -119,25 +120,15 @@ class UpgradeTest(UpgradedDatabaseTestCase):
         self.assertEqual(self.conn.execute("PRAGMA foreign_key_check").fetchall(), [])
         self.assertEqual(self.conn.execute("PRAGMA integrity_check").fetchall(), [("ok",)])
 
-    def test_one_row_per_owned_assignment_and_none_for_an_unowned_one(self):
+    def test_the_migration_writes_no_ledger_row(self):
         self.migrate()
-        # 71 has a created_at outside the layout, 75 an ISO 'T' form, 76 none: all recorded as the
-        # epoch, which no window reaches. 81 has no owner and gets no row.
-        self.assertEqual(self.ledger(), [
-            (51, 71, EPOCH),
-            (51, 72, "2026-03-02 09:00:00"),
-            (62, 73, "2026-03-02 10:30:15"),
-            (61, 74, "2026-03-03 08:00:00"),
-            (51, 75, EPOCH),
-            (51, 76, EPOCH),
-        ])
-        self.assertIsNone(self.conn.execute(f"SELECT 1 FROM {TABLE} WHERE assignment_id = 81").fetchone())
+        self.assertEqual(self.ledger(), [])
+        # Every owned assignment awaits recording (including the badly dated ones, which the
+        # first admission of their owner places or refuses); the unowned one is nobody's.
+        from web.services import assignment_quota
 
-    def test_closed_and_open_assignments_are_both_counted(self):
-        self.migrate()
-        closed = self.conn.execute("SELECT id FROM quiz_assignments WHERE closed_at IS NOT NULL ORDER BY id").fetchall()
-        self.assertIn((72,), closed)
-        self.assertIsNotNone(self.conn.execute(f"SELECT 1 FROM {TABLE} WHERE assignment_id = 72").fetchone())
+        self.assertEqual([row[0] for row in assignment_quota.unrecorded_assignments(self.conn)],
+                         [71, 72, 73, 74, 75, 76])
 
     def test_existing_assignments_are_not_touched_or_closed(self):
         before = self.conn.execute("SELECT * FROM quiz_assignments ORDER BY id").fetchall()
@@ -157,7 +148,7 @@ class UpgradeTest(UpgradedDatabaseTestCase):
         self.assertNotIn("table-rebuild", report)
         self.assertFalse(manage_migrations.is_table_rebuild_migration(MIGRATION, migration_text()))
         sql = statements().upper()
-        for forbidden in ("DROP ", "ALTER ", "DELETE FROM", "UPDATE ", "TRIGGER"):
+        for forbidden in ("DROP ", "ALTER ", "DELETE FROM", "UPDATE ", "TRIGGER", "INSERT "):
             self.assertNotIn(forbidden, sql)
 
     def test_reapplying_is_a_noop_in_the_runner(self):
@@ -168,29 +159,23 @@ class UpgradeTest(UpgradedDatabaseTestCase):
         self.reopen()
         self.assertEqual(self.ledger(), before)
 
-    def test_the_backfill_statement_cannot_count_an_assignment_twice(self):
-        """Run again outside the runner, the copy meets the UNIQUE assignment_id and fails whole."""
-        self.migrate()
-        before = self.ledger()
-        statement = "INSERT INTO" + statements().split("INSERT INTO", 1)[1]
-        with self.assertRaises(sqlite3.IntegrityError):
-            self.conn.execute(statement)
-        self.conn.rollback()
-        self.assertEqual(self.ledger(), before)
-
     def test_code_that_predates_the_migration_creates_assignments_unchanged(self):
         """Explicit column lists: an insert that does not know the ledger still works (it just is not counted)."""
         self.migrate()
         self.conn.execute("INSERT INTO quiz_assignments (section_id, title_bg, question_count, owner_user_id) "
                           "VALUES (11, 'Старият код', 1, 51)")
         self.conn.commit()
-        self.assertEqual(len(self.ledger()), 6)
+        self.assertEqual(self.ledger(), [])    # it records nothing: web.services.assignment_quota.reconcile does
 
 
 class TableDefinitionTest(UpgradedDatabaseTestCase):
     def setUp(self):
         super().setUp()
         self.migrate()
+        self.conn.execute(
+            "INSERT INTO assignment_creations (owner_user_id, assignment_id, created_at) VALUES "
+            "(51, 72, '2026-03-02 09:00:00'), (62, 73, '2026-03-02 10:30:15'), (61, 74, '2026-03-03 08:00:00')")
+        self.conn.commit()
 
     def test_columns(self):
         columns = [(row[1], row[2], row[3], row[5]) for row in self.conn.execute(f"PRAGMA table_info({TABLE})")]
@@ -216,7 +201,7 @@ class TableDefinitionTest(UpgradedDatabaseTestCase):
             with self.subTest(value=value), self.assertRaises(sqlite3.IntegrityError):
                 self.conn.execute(f"INSERT INTO {TABLE} (owner_user_id, assignment_id, created_at) VALUES (51, ?, ?)",
                                   (500 + index, value))
-        self.assertEqual(len(self.ledger()), 6)
+        self.assertEqual(len(self.ledger()), 3)
 
     def test_owner_and_assignment_are_required_and_the_owner_must_exist(self):
         for owner, assignment in ((None, 600), (51, None), (51, 0), (51, -1), (51, "seven"), (9999, 601)):

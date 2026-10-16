@@ -3393,13 +3393,15 @@ operator created it or not (below).
   allowances; nothing here limits a person.
 - **Refusals** answer the form again (status 429 for the daily limit, 409 for the open limit) with a Bulgarian message, and write nothing:
   no assignment, token, ledger row, clock mark or vault note.
-- **Who is limited.** Accounts of role `teacher`. **Accounts of role `admin` are recorded in the ledger and never refused**
-  (an interpretation of "per teacher", awaiting Gabriel's decision: `EMAIL_REGISTRATION_PR7_SCOPE.md`, I6). The role is read from the
+- **Who is limited.** Accounts of role `teacher`. **Accounts of role `admin` are recorded in the ledger and never refused** (approved by Gabriel;
+  `EMAIL_REGISTRATION_PR7_SCOPE.md`, I6). The role is read from the
   `users` row under the lock, so an operator's `set-role` takes effect at the next creation. An assignment with no owner belongs to nobody.
-- **Existing teachers and assignments.** Nothing is closed, hidden or edited. Migration 024 copies one ledger row per existing *owned*
-  assignment (its `created_at`), so a creation made shortly before the deploy still counts in its window, and every open assignment counts toward the
-  10. A teacher who already has 10 or more open assignments keeps them all and can manage, edit and close them; they cannot create or copy
+- **Existing teachers and assignments.** Nothing is closed, hidden or edited. Migration 024 writes **no** ledger row. The first creation of each
+  account records, under the writer lock and from the `created_at` they carry, every owned assignment that has no ledger row (below), so a creation
+  made shortly before the deploy still counts in its window; every open assignment counts toward the 10. A teacher who already has 10 or more open assignments keeps them all and can manage, edit and close them; they cannot create or copy
   another until fewer than 10 are open. Expect this for any long-time teacher: tell them before the deploy.
+- **The ledger is verified at every creation.** Before the limits are decided, the creating account's history is reconciled (below). If it cannot be
+  placed the creation is refused with status 503 and nothing is written, until an operator corrects it.
 - **There is no override.** No command raises or clears a limit, and none was added. A teacher at a limit closes tests or waits.
 - **The teacher gate.** `TEACHER_ACTIVATION` in `web/services/registration.py` is `False`. While it is: `/register/teacher` is the generic 404
   (after the same-origin check), the chooser has no teacher entry, and a teacher registration that is pending is voided and scrubbed at its next
@@ -3407,6 +3409,33 @@ operator created it or not (below).
   **no development setting was added** for it (a local try-out edits the constant). With the student gate also off, nothing of registration is reachable.
 - **Activation of a teacher** (a later, separately authorised release only): a correct code creates the `teacher` account, its profile and its
   one to three subject rows in one transaction, and a database without the `assignment_creations` table refuses to do it.
+
+### Accounting recovery and timestamp rules
+
+Code that does not know the ledger (a rollback or recovery build that kept migration 024 but not the quota admission) creates owned assignments with
+no ledger row and no limit. Returning to this code does not forgive them: the next creation by the owning account records them, in the same writer
+transaction, by the age their `created_at` shows, and then decides. **What is recovered:** every surviving assignment row. **What is not:** a row that was
+deleted before any admission recorded it; nothing can reconstruct it.
+
+Interpretation of `quiz_assignments.created_at` (the only writer was `CURRENT_TIMESTAMP`, UTC): the canonical form; ISO with `T`; fractional seconds (cut);
+`Z` or a numeric offset up to 14 h (converted to UTC); **no offset means UTC**; **a date alone means 23:59:59 UTC of that day**. Anything else is *unplaceable*:
+NULL, empty or padded text, a number, another layout, an impossible date or offset, a value before 2000-01-01 (the epoch included) and a value more than a day
+after the server's writer clock. A value up to a day ahead is kept as it is and counts until it is a day old (conservative, and bounded by that day).
+
+**Operator handling of a refused account (status 503, log line `needs review` at start-up):**
+
+1. Do not edit the live file in place. Take a snapshot (section 16) and inspect its `questions.db` with `immutable=1`:
+   `SELECT a.id, a.owner_user_id, a.created_at FROM quiz_assignments a LEFT JOIN assignment_creations c ON c.assignment_id = a.id WHERE a.owner_user_id IS NOT NULL AND c.id IS NULL;`
+   lists the unrecorded assignments; the unplaceable ones are those whose `created_at` is outside the list above. A ledger row whose owner differs from its assignment's:
+   `SELECT c.assignment_id FROM assignment_creations c JOIN quiz_assignments a ON a.id = c.assignment_id WHERE a.owner_user_id IS NOT c.owner_user_id;`
+2. Decide each value from evidence (the assignment's attempts' `started_at`, the vault note named for its date, the snapshot history). A guess that is too old refunds
+   allowance, so when in doubt choose the later time.
+3. Correct it in one reviewed statement per row, in a maintenance window under the application's write lock (stop the service or use the restore gate's discipline of
+   section 17), e.g. `UPDATE quiz_assignments SET created_at = '2026-03-01 09:00:00' WHERE id = 123;`. No command was added. The next creation by that account is admitted
+   on its whole history.
+
+The start-up notice (`assignment creation history needs review: N unrecorded assignment(s) with an unusable created_at and M inconsistent ledger row(s)`) is logged on the lifecycle
+logger; it names counts only and never prevents a start, and it is **not** what protects the limits: the admission is.
 
 ### Deployment order
 
@@ -3416,6 +3445,7 @@ The standard procedure of section 20, with nothing added to it.
   `quiz_assignments`, `users` and every other table are untouched. Nobody is signed out.
 - On a database that already has every migration through `023_profile_required.sql` the dry run of step 7 lists exactly
   `024_assignment_creations.sql`. If it lists earlier migrations too, the database is behind that level.
+- The migration writes no rows, so a database just migrated has an empty ledger; the first creation of each account records its history.
 - Apply in step 8, after the step 3 snapshot. From this release on the application refuses to start on a schema without migration 024
   (section 9), and the creation of an assignment needs the table.
 - Nothing is configured. Do not look for a setting: there is none.
@@ -3425,23 +3455,22 @@ sidecars, and `immutable=1` on the live file can miss frames still in the WAL. `
 
 ```bash
 SNAP=/var/backups/learnpilot/snapshot-<stamp>/questions.db   # a snapshot taken after the deploy
-sqlite3 "file:$SNAP?immutable=1" \
-  "SELECT u.role, COUNT(*) AS creations FROM assignment_creations c JOIN users u ON u.id = c.owner_user_id GROUP BY u.role;"
+sqlite3 "file:$SNAP?immutable=1" "SELECT COUNT(*) FROM assignment_creations;"        # 0 until accounts create again
 sqlite3 "file:$SNAP?immutable=1" \
   "SELECT owner_user_id, COUNT(*) AS open_now FROM quiz_assignments WHERE owner_user_id IS NOT NULL AND closed_at IS NULL \
    AND expiry_observed_at IS NULL AND submissions_closed_at IS NULL GROUP BY owner_user_id HAVING COUNT(*) > 10;"
 curl -s -o /dev/null -w '%{http_code}\n' https://learnpilot.bg/register/teacher   # 404
 ```
 
-The second query lists teachers who start above the open limit (their open count by this approximation ignores deadlines that passed but
-were not yet observed). The first should equal the number of owned assignments that existed at the time of the migration, plus new creations.
+The second query lists teachers who start above the open limit (their count ignores deadlines that passed but were not yet observed). The start-up log
+shows the notice above if any assignment has an unusable `created_at`; fix those before teachers return to creating.
 
 ### Backup and restore
 
 The ledger is part of the live database, so the snapshot of section 16 and the restore of section 17 carry it, and the restore script is not
-changed. **A restore returns the ledger to the snapshot's moment**, and with it the daily allowance: creations made after the snapshot are forgotten
-along with the assignments themselves. A snapshot from before this release is migrated by the restore script, which builds the ledger from its
-assignments. `assignment_creations` is runtime state and is never exported to `data/canonical`.
+changed. **A restore returns the ledger to the snapshot's moment**; assignments created after the snapshot are lost with it, and the ledger rows with them.
+A snapshot from before this release is migrated by the restore script to an empty ledger, and its assignments are recorded at the next creation of
+their owners, exactly as after the deploy. `assignment_creations` is runtime state and is never exported to `data/canonical`.
 
 ### Retention
 
@@ -3452,12 +3481,15 @@ pins that nothing but the quota module writes it.
 
 ### Rollback
 
-**Forward fix first.**
+**Forward fix first. A rollback or recovery build must keep the quota admission.**
 
-- Once migration 024 is applied, every build that serves this database ships `024_assignment_creations.sql`, a recovery build included
-  (section 21). If code has to be reverted, keep the migration with its entry in the migration list and level of `data/canonical/manifest.json`. The
-  table stays. Code from before this release names its columns, does not know the table, and creates assignments without recording them: during
-  such a window creations are unlimited and unrecorded, and the next build counts only what was recorded.
+- Once migration 024 is applied, every build that serves this database ships `024_assignment_creations.sql` (section 21) **and
+  `web/services/assignment_quota.py` with its call in `quiz_create_assignment`**. If code has to be reverted, revert around them: keep the
+  migration with its entry in the migration list and level of `data/canonical/manifest.json`, the table, the module and the call.
+- **Do not run a build that creates assignments without the admission against a 024 database.** Such a build records nothing and enforces nothing, so a
+  teacher could create without limit. This build cannot prevent it; the next PR 7 admission recovers the surviving rows (above) but cannot undo the
+  assignments themselves. If an older build is unavoidable, block the creation routes first (Nginx: return 503 for `POST /teacher/new` and
+  `POST /teacher/assignment/*/duplicate`) and lift the block only when this build is back.
 - A snapshot restore is not a route to a build from before 024. Do not use `--replaced-database-unreadable` to get past that refusal.
 - To lift the limits without a revert there is no switch. This is a code change and a deploy.
 

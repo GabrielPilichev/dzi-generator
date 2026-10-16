@@ -19,7 +19,7 @@
 <div class="{{ kind }} login-message" role="{{ 'alert' if kind == 'error' else 'status' }}">{{ message }}</div>
 
 <div class="card form-card login-card">
-    <a class="button" href="{{ url_for('registration.student', next=next_url or None) }}">Започни регистрацията отначало</a>
+    <a class="button" href="{{ url_for('registration.choose', next=next_url or None) }}">Започни регистрацията отначало</a>
     <a class="button secondary" href="{{ url_for('account.login', next=next_url or None) }}">Вход</a>
 </div>
 {% endblock %}

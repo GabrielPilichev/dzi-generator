@@ -135,8 +135,11 @@ class ConstantsTest(QuotaTestCase):
         for reason in (assignment_quota.REASON_DAILY, assignment_quota.REASON_OPEN):
             self.assertRegex(assignment_quota.MESSAGES_BG[reason], r"[А-Яа-я]")
             self.assertNotRegex(assignment_quota.MESSAGES_BG[reason], r"[A-Za-z]")
+        self.assertRegex(assignment_quota.MESSAGES_BG[assignment_quota.REASON_ACCOUNTING], r"[А-Яа-я]")
+        self.assertNotRegex(assignment_quota.MESSAGES_BG[assignment_quota.REASON_ACCOUNTING], r"[A-Za-z]")
         self.assertEqual(assignment_quota.STATUS_CODES,
-                         {assignment_quota.REASON_DAILY: 429, assignment_quota.REASON_OPEN: 409})
+                         {assignment_quota.REASON_DAILY: 429, assignment_quota.REASON_OPEN: 409,
+                          assignment_quota.REASON_ACCOUNTING: 503})
         self.assertIn("20", assignment_quota.MESSAGES_BG[assignment_quota.REASON_DAILY])
         self.assertIn("10", assignment_quota.MESSAGES_BG[assignment_quota.REASON_OPEN])
 
@@ -267,11 +270,13 @@ class OpenLimitTest(QuotaTestCase):
 class ExistingAssignmentsTest(QuotaTestCase):
     """Scope I8: nothing is closed, hidden or refused retroactively; only new creations are limited."""
 
-    def seed_owned(self, account, count, **columns):
+    def seed_owned(self, account, count, *, created_at="2026-03-02 08:00:00", closed=False):
+        """Rows as code that does not know the ledger leaves them (explicitly dated: the clock is frozen)."""
         for index in range(count):
-            self.sql("INSERT INTO quiz_assignments (section_id, title_bg, question_count, owner_user_id, public_token) "
-                     "VALUES (?, ?, 1, ?, ?)", self.section_id, f"Съществуващ {index}", account["id"],
-                     f"{account['id']:03d}{index:040d}")
+            self.sql("INSERT INTO quiz_assignments (section_id, title_bg, question_count, owner_user_id, public_token, "
+                     "created_at, closed_at, closed_by_user_id) VALUES (?, ?, 1, ?, ?, ?, ?, ?)",
+                     self.section_id, f"Съществуващ {index}", account["id"], f"{account['id']:03d}{index:040d}",
+                     created_at, created_at if closed else None, account["id"] if closed else None)
 
     def test_existing_open_assignments_count_toward_the_open_limit(self):
         self.seed_owned(self.teacher, 12)
@@ -290,15 +295,16 @@ class ExistingAssignmentsTest(QuotaTestCase):
         new = self.create(self.teacher)                              # 9 open
         self.assertIn(new, self.assignments(self.teacher))
 
-    def test_assignments_made_before_the_ledger_existed_do_not_count_as_creations_unless_backfilled(self):
-        """Rows inserted without the service have no ledger row; only migration 024 copies history."""
-        self.seed_owned(self.teacher, 5)
+    def test_existing_recent_assignments_are_recorded_at_the_next_admission_and_count(self):
+        """No row was written by the migration; the admission records them, by their age, then counts."""
+        self.seed_owned(self.teacher, 5, closed=True)
         self.assertEqual(self.ledger(self.teacher), [])
-        self.fill(self.teacher, 20)
+        self.fill(self.teacher, 15)                                   # 5 recorded on the way + 15 = 20
+        self.assertEqual(len(self.ledger(self.teacher)), 20)
         self.assertRefused(assignment_quota.REASON_DAILY)
 
     def test_a_pre_migration_creation_inside_the_window_counts(self):
-        """What the migration's copy produces: ledger rows with the old created_at values."""
+        """Ledger rows with the old created_at values, as reconciliation writes them."""
         for index in range(20):
             self.sql("INSERT INTO assignment_creations (owner_user_id, assignment_id, created_at) VALUES (?, ?, ?)",
                      self.teacher["id"], 7_000_000 + index, "2026-03-01 10:00:00")
@@ -775,7 +781,8 @@ class StaticPinsTest(QuotaTestCase):
             self.assertNotRegex(text, r"(INSERT|UPDATE|DELETE|REPLACE)[^;\"']{0,60}assignment_creations", name)
         text = (ROOT / "web/services/assignment_quota.py").read_text(encoding="utf-8")
         writes = re.findall(r"(INSERT|UPDATE|DELETE|REPLACE)\b[^\"']{0,40}assignment_creations", text, re.IGNORECASE)
-        self.assertEqual([w.upper() for w in writes], ["INSERT"])                # never an update or a delete
+        self.assertEqual({w.upper() for w in writes}, {"INSERT"})               # never an update or a delete
+        self.assertEqual(len(writes), 2)                                         # the admission's record and reconcile
 
     def test_the_decision_precedes_the_insert_in_the_creation_function(self):
         source = (ROOT / "web/services/quiz.py").read_text(encoding="utf-8")

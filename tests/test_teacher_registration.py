@@ -961,3 +961,141 @@ class TeacherEnvironmentTest(TeacherRouteTestCase):
             text = path.read_text(encoding="utf-8")
             if path.name != "registration.py":
                 self.assertNotRegex(text, r"^\s*TEACHER_ACTIVATION\s*=", path.name)
+
+
+# --------------------------------------------------------------------------- restart navigation
+
+
+class RestartNavigationTest(TeacherRouteTestCase):
+    """Review finding 3: a restart never lands on a form the person did not start.
+
+    After a cancellation, an expiry, a missing or ended binding, an unavailable service or a failure the
+    person is sent to the chooser, with the validated ``next``; the binding and lifecycle rules are untouched.
+    """
+
+    NEXT = "/account/attempts"
+
+    def begin(self, kind, **extra):
+        if kind == "student":
+            return self.submit(**extra)
+        return self.submit_teacher(**extra)
+
+    def restart_link(self, response):
+        page = response.get_data(as_text=True)
+        found = re.search(r'<a class="button" href="([^"]*)">Започни регистрацията отначало</a>', page)
+        self.assertIsNotNone(found, "the restart link is on the page")
+        return found.group(1).replace("&amp;", "&")
+
+    def assertRestartsAtChooser(self, response, next_target=None):
+        link = self.restart_link(response)
+        self.assertEqual(link, "/register" + (f"?next={next_target}" if next_target else ""))
+        self.assertNotIn("/register/student", link)
+        self.assertNotIn("/register/teacher", link)
+
+    def test_cancel_returns_to_the_chooser_for_both_flows_and_keeps_the_rules(self):
+        for kind in ("student", "teacher"):
+            with self.subTest(kind=kind):
+                self.client = self.app.test_client()
+                email = f"{kind}.cancel@example.bg"
+                self.assertEqual(self.begin(kind, email=email, next=self.NEXT).status_code, 303)
+                cancelled = self.cancel()
+                self.assertEqual((cancelled.status_code, cancelled.headers["Location"]), (303, f"/register?next={self.NEXT}"))
+                self.assertIsNone(self.slot())
+                row = [r for r in self.pending() if r["id"] == max(p["id"] for p in self.pending())][0]
+                self.assertEqual(row["state"], "void")                       # the lifecycle rule is unchanged
+                self.assertIsNone(row["email"])
+                self.assertEqual(self.users_with(email), [])
+                # Nothing is left to cancel: still the chooser, with nothing invented.
+                self.assertEqual(self.cancel().headers["Location"], "/register")
+
+    def test_the_chooser_after_a_restart_offers_what_the_gate_allows(self):
+        self.begin("teacher", next=self.NEXT)
+        page = self.body(self.client.get(self.cancel().headers["Location"]))
+        self.assertIn(f'href="/register/student?next={self.NEXT}"', page)
+        self.assertIn(f'href="/register/teacher?next={self.NEXT}"', page)
+        self.set_gate(False)
+        page = self.body(self.client.get(f"/register?next={self.NEXT}"))
+        self.assertIn("Ученик съм", page)
+        self.assertNotIn("/register/teacher", page)
+
+    def test_an_expired_registration_restarts_at_the_chooser_for_both_flows(self):
+        for kind in ("student", "teacher"):
+            with self.subTest(kind=kind):
+                self.client = self.app.test_client()
+                self.begin(kind, email=f"{kind}.expired@example.bg", next=self.NEXT)
+                self.at(self.wall_seconds() + 1801)
+                response = self.verify("000000")
+                self.assertEqual(response.status_code, 200)
+                self.assertIn("Регистрацията е изтекла", self.body(response))
+                self.assertRestartsAtChooser(response, self.NEXT)
+                self.assertIsNone(self.slot())
+
+    def wall_seconds(self):
+        return int((self.wall - T0).total_seconds())
+
+    def test_a_registration_cancelled_in_another_tab_restarts_at_the_chooser(self):
+        for kind in ("student", "teacher"):
+            with self.subTest(kind=kind):
+                self.client = self.app.test_client()
+                self.begin(kind, email=f"{kind}.tab@example.bg", next=self.NEXT)
+                copy = self.app.test_client()
+                self.set_slot(dict(self.slot()), client=copy)
+                self.cancel(client=copy)
+                response = self.verify("000000")
+                self.assertRestartsAtChooser(response, self.NEXT)
+
+    def test_a_missing_binding_restarts_at_the_chooser_with_no_next(self):
+        fresh = self.app.test_client()
+        for response in (self.verify("123456", client=fresh), self.resend(client=fresh)):
+            self.assertEqual(response.status_code, 200)
+            self.assertRestartsAtChooser(response)
+
+    def test_a_replaced_registration_restarts_at_the_chooser(self):
+        for kind in ("student", "teacher"):
+            with self.subTest(kind=kind):
+                self.client = self.app.test_client()
+                self.begin(kind, email=f"{kind}.old@example.bg", next=self.NEXT)
+                copy = self.app.test_client()
+                self.set_slot(dict(self.slot()), client=copy)
+                self.begin(kind, email=f"{kind}.new@example.bg", next=self.NEXT)    # voids the first browser's row
+                response = self.verify("000000", client=copy)
+                self.assertRestartsAtChooser(response, self.NEXT)
+
+    def test_the_gate_off_page_for_a_teacher_registration_restarts_at_the_chooser(self):
+        self.submit_teacher(next=self.NEXT)
+        self.set_gate(False)
+        response = self.verify(self.last_code())
+        self.assertEqual(response.status_code, 503)
+        self.assertRestartsAtChooser(response)                               # the slot is spent; nothing is invented
+        self.assertNotIn("/register/teacher", self.body(self.client.get(self.restart_link(response))))
+
+    def test_the_unavailable_and_failure_pages_restart_at_the_chooser(self):
+        self.set_control(hold="restore")
+        response = self.submit_teacher()
+        self.assertEqual(response.status_code, 503)
+        self.assertRestartsAtChooser(response)
+        self.set_control()
+        self.flaky(1)
+        failed = self.submit_teacher("fail@example.bg")
+        self.assertEqual(failed.status_code, 500)
+        self.assertRestartsAtChooser(failed)
+
+    def test_the_stored_next_is_revalidated_and_never_echoed_when_unsafe(self):
+        self.begin("teacher", next=self.NEXT)
+        slot = dict(self.slot())
+        slot["next"] = "//evil.example/x"                                    # a forged cookie value is ignored whole
+        self.set_slot(slot)
+        response = self.verify("000000")
+        self.assertRestartsAtChooser(response)
+        self.assertNotIn("evil.example", self.body(response))
+        for bad in ("//evil.example", "https://evil.example", "/x\r\nSet-Cookie: a=b", "/a b", "javascript:alert(1)"):
+            page = self.body(self.client.get("/register", query_string={"next": bad}))
+            self.assertNotIn("evil.example", page)
+            self.assertNotIn("javascript:", page)
+            self.assertIn('href="/register/student"', page)
+
+    def test_the_restart_page_links_nothing_to_a_form_by_itself(self):
+        self.begin("teacher", next=self.NEXT)
+        verify_page = self.body(self.client.get("/register/verify"))
+        self.assertIn('action="/register/cancel"', verify_page)             # cancel is a POST, then the chooser
+        self.assertNotIn('href="/register/student', verify_page)

@@ -92,7 +92,7 @@ minors, purpose and retention of the profile fields) is an activation
 prerequisite; no legal conclusion is recorded. The configuration and
 delivery validation of D17 are activation prerequisites. The quota values of
 D5 are approved (20 creations per rolling 24 hours, 10 open assignments) and built by PR 7, whose
-interpretations and one unresolved choice (admin accounts) are in
+interpretations (admin accounts are approved as recorded and exempt) are in
 `EMAIL_REGISTRATION_PR7_SCOPE.md`. The sub-decision of 5.2 (recovery for never-verified
 addresses) is open.
 
@@ -197,7 +197,7 @@ Sections 0.4–0.6 are history. Where they mention an option that D1–D20 did n
 | Cancellation during a hold (approved by Gabriel with PR 4) | **A registration hold does not block the cancellation of pending data.** `cancel` voids and scrubs this browser's pending row while a `restore` hold is set; the hold and the high-water mark are left exactly as they were, so a cancellation never reopens registration. A clock behind the mark still refuses a cancellation under the existing service contract (nothing is voided, 3.8). This confirms the reading PR 3 implemented (its deviation 7) | 3.8, 6.3, 6.4 |
 | PR 4 implementation | Recorded with draft PR 4 (#338). **Independently reviewed: APPROVE WITH NON-BLOCKING NOTES at exact SHA `6d370aca7f3d8e914dd5dcfa25bbb2f85ba30f42`, with production registration OFF.** Deployment and activation are **not** approved. Changes after that SHA (the not-sent message precedence, the extended accessibility test, the G5 wording qualification and this record) are subsequent cleanup and were not part of the reviewed content. The student blueprint, templates and `reg` slot, the two build gates (`registration.PRODUCTION_ACTIVATION`, `registration.TEACHER_ACTIVATION`, both off), production and development wiring of the mail settings, the `learnpilot.registration` handler, the Nginx zone and the operator commands `registrations-cleanup [--check]`, `registrations-clock-accept` and `clear-registration-limit`. Its deviations and open points are in `EMAIL_REGISTRATION_PR4_STATUS.md`: among them, the profile gate is left to PR 6 (approved by Gabriel; D14 lists three gates, section 9 puts the profile gate with PR 6), and the fixed URL-selected `/login` activation notice is kept (approved; a hand-built URL can show it without a flow, an accepted display limitation), and `_USER_COLUMNS` is still not widened because no account reader needs `email_verified_at` (`list` reads it with its own query and tolerates its absence) | 6.2, 6.4, 6.6, 7.3, 7.5 |
 | PR 5, PR 6 merged | PR 5 was merged as #339 (squash `3d2e0d56ef2b57d66d65d640fb289c9c9041e6ce`, tree equal to the reviewed `65bee1e`). PR 6 was merged as #340 (squash `ede0c0b36ee3d163e317a93da744ff146b2c7c1e`, tree `4ff1a515d2498c598b35e91e3c8f778a9443ab95`, equal to the tree of `c1d3b8f6a6b7d2651c4b4c3db152acd2c49655aa`), whose independent review gave **APPROVE WITH NON-BLOCKING NOTES** at that exact SHA (`EMAIL_REGISTRATION_PR6_STATUS.md`). A merge is not an activation. | 9 |
-| PR 7 implementation | Implemented on `feature/teacher-registration-quotas`, unstaged and uncommitted when recorded, **not independently reviewed and not approved**. Approved by Gabriel: per teacher at most 20 assignment creations in a rolling 24 hours and 10 open assignments; closing frees an open slot and refunds no creation; atomic across creation paths; role `teacher` for a verified teacher registration only when the teacher gate permits; every production gate off. Built: `assignment_quota` service and migration 024 (`assignment_creations`), the decision inside `quiz_create_assignment`, the teacher form, subjects, activation and gate checks. Interpretations, and the one unresolved choice (admin accounts are recorded, not limited), are in `EMAIL_REGISTRATION_PR7_SCOPE.md`; results in `EMAIL_REGISTRATION_PR7_STATUS.md`. | 6.3, 7.1, 7.3 |
+| PR 7 implementation | Implemented on `feature/teacher-registration-quotas` and committed as `b15d02b067459ceded9dc4d096f7e2082ce7c81d` (PR #341); an independent review of exactly that SHA returned **REQUEST CHANGES** (three findings: rollback creating unaccounted history, the migration's epoch fallback refunding recent legacy creations, and teacher restart links opening the student form). The fixes are uncommitted and **await independent review**; nothing is approved. Approved by Gabriel: per teacher at most 20 assignment creations in a rolling 24 hours and 10 open assignments; closing frees an open slot and refunds no creation; atomic across creation paths; role `teacher` for a verified teacher registration only when the teacher gate permits; every production gate off. Built: `assignment_quota` service and migration 024 (`assignment_creations`), the decision inside `quiz_create_assignment`, the teacher form, subjects, activation and gate checks. Gabriel then approved: admin creations are recorded and exempt from refusal; no development switch for the teacher gate. The other interpretations (boundaries, held/deadline open count, refusal precedence) are not approved. They are in `EMAIL_REGISTRATION_PR7_SCOPE.md`; results in `EMAIL_REGISTRATION_PR7_STATUS.md`. | 6.3, 7.1, 7.3 |
 
 ## 1. Forms and profiles
 
@@ -1664,14 +1664,18 @@ is also the one place the limits are decided: inside the lifecycle writer transa
 transaction after the lock is held, before the insert; the ledger row (`assignment_creations`, migration 024) is written in the
 same transaction. Every creation path (new test, new mixed test, copy of a test) therefore passes through it. The
 limits are per account, not per person. A refusal writes nothing at all and shows a Bulgarian message
-(status 429 for the daily limit, 409 for the open limit). Admin accounts are recorded and not refused (an interpretation,
-needing Gabriel's decision); an assignment with no owner is counted for nobody; existing assignments are copied into the
-ledger by the migration and none is closed or hidden. *Teacher registration.* `/register/teacher`, its chooser entry, its
+(status 429 for the daily limit, 409 for the open limit). Admin accounts are recorded and not refused (approved by Gabriel);
+an assignment with no owner is counted for nobody; none is closed or hidden. **The ledger is verified at every admission**
+(review of #341, finding 1): the migration writes no row, and the creating account's unrecorded assignments are recorded under the
+writer lock from the age their `created_at` shows (rules in `assignment_quota.normalize_legacy_timestamp`), all or nothing; an
+unplaceable value or an inconsistent row refuses that account's creation (status 503) until corrected. A rollback or recovery build
+must keep this admission. *Teacher registration.* `/register/teacher`, its chooser entry, its
 resend, its verification and its activation are behind `registration.TEACHER_ACTIVATION`, read at each request, which stays
 `False`. A correct code creates the `users` row (role `teacher`, the route's literal), the teacher profile and its subject rows in
 one transaction; a pending teacher row met with the gate off is voided and never becomes a student; an address that already has
-an account, of any role, is never changed. No development switch for the teacher gate was added (the profile gate has one,
-approved separately).
+an account, of any role, is never changed. No development switch for the teacher gate was added (approved by Gabriel; the profile gate has one, approved separately).
+Every restart of a registration (cancel, expiry, missing or ended binding, unavailable, failure) goes to the validated chooser, never to a
+form the person did not begin.
 
 ### 7.2 Privacy and minors (activation prerequisites, not designed here)
 

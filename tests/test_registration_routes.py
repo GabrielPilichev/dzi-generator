@@ -391,14 +391,14 @@ class BindingTest(RegistrationRouteTestCase):
         self.submit(next="/account/attempts")
         cancelled = self.cancel()
         self.assertEqual((cancelled.status_code, cancelled.headers["Location"]),
-                         (303, "/register/student?next=/account/attempts"))
+                         (303, "/register?next=/account/attempts"))   # the chooser: never a form the person did not start
         self.assertIsNone(self.slot())
         row = self.pending()[0]
         self.assertEqual(row["state"], "void")
         for column in SENSITIVE:
             self.assertIsNone(row[column])
         # Nothing is left to cancel or to verify.
-        self.assertEqual(self.cancel().headers["Location"], "/register/student")
+        self.assertEqual(self.cancel().headers["Location"], "/register")
         self.assertEqual(self.client.get("/register/verify").headers["Location"], "/register")
 
     def test_signed_in_accounts_start_nothing_on_register_routes_only(self):
@@ -651,7 +651,8 @@ class CodeTest(RegistrationRouteTestCase):
         self.assertIn("Регистрацията е изтекла", body)
         self.assertIn("Започни регистрацията отначало", body)
         if next_target:
-            self.assertIn(html.escape(f"/register/student?next={next_target}", quote=True), body)
+            self.assertIn(html.escape(f"/register?next={next_target}", quote=True), body)
+        self.assertNotIn("/register/student", body.split("Започни регистрацията отначало")[0].rsplit("<a ", 1)[-1])
         self.assertIsNone(self.slot())
         self.assertNoAccountSession()
         self.assertEqual(self.users_with(EMAIL), [])

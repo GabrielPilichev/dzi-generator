@@ -542,7 +542,7 @@ def cancel():
         return signed_in
     slot = _slot()
     if slot is None:
-        return redirect(url_for("registration.student"), code=303)
+        return redirect(url_for("registration.choose"), code=303)
 
     conn = get_request_db()
     try:
@@ -556,4 +556,7 @@ def cancel():
     if result.outcome is Outcome.CANCELLED:
         logger.info("cancelled pending=%d", result.pending_id)
     _drop_slot()
-    return redirect(url_for("registration.student", next=slot["next"] or None), code=303)
+    # Back to the chooser, not to a form: the binding does not say which form began the
+    # registration, and the student form must not be offered to someone who began as a
+    # teacher. The stored next passed accepted_next when the slot was read.
+    return redirect(url_for("registration.choose", next=slot["next"] or None), code=303)

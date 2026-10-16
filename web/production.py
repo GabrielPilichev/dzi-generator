@@ -322,6 +322,33 @@ def lifecycle_clock_problem(db_path, open_read_only) -> str | None:
         conn.close()
 
 
+def assignment_accounting_warning(db_path, open_read_only) -> str | None:
+    """A warning when assignment creation history is incomplete or unplaceable; never writes.
+
+    A start-up *notice* only: it never refuses to start and it is not what keeps the limits
+    safe. Every creation reconciles its own account's history under the writer lock and fails
+    closed when it cannot (``web.services.assignment_quota``). This only tells the operator
+    that some account will be refused until its ``created_at`` values are corrected, and
+    how many assignments await recording. It names counts, never an account or a value.
+    """
+    from datetime import datetime, timezone
+
+    from web.services import assignment_quota
+
+    conn = open_read_only(db_path)
+    try:
+        if conn.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'assignment_creations'").fetchone() is None:
+            return None
+        report = assignment_quota.accounting_report(conn, datetime.now(timezone.utc).replace(tzinfo=None))
+    finally:
+        conn.close()
+    if not (report["unplaceable"] or report["inconsistent"]):
+        return None
+    return ("assignment creation history needs review: %(unplaceable)d unrecorded assignment(s) with an "
+            "unusable created_at and %(inconsistent)d inconsistent ledger row(s); the owning accounts "
+            "cannot create assignments until an operator corrects them (docs/DEPLOYMENT.md, section 36)") % report
+
+
 def timezone_data_problem() -> str | None:
     """Deadlines are computed in named IANA zones; without the zone database every
     deadline form would fail. Nothing ever falls back to UTC or the server zone."""
@@ -507,6 +534,9 @@ def create_production_app(environ: Mapping[str, str] | None = None):
     configure_lifecycle_logging()
     configure_oidc_logging()
     configure_registration_logging()
+    accounting_warning = assignment_accounting_warning(web_app.DB_PATH, web_app.open_existing_database_read_only)
+    if accounting_warning:
+        lifecycle.logger.warning("%s", accounting_warning)
 
     flask_app = web_app.app
     public_host = normalize_public_host(environ[PUBLIC_HOST_ENV])

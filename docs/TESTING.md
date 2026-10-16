@@ -305,8 +305,13 @@ clone or build from migrations and canonical data and every vault is a temporary
 `data/questions.db` or the repository's `vault/`. Mail is `InMemoryMailer`: nothing is sent and no socket is opened.
 
 - `tests/test_assignment_creations_migration_sql.py` upgrades a temporary database from migration 023, with owned,
-  unowned, closed and badly dated assignments in it, to 024: the copy into the ledger, nothing else changed, the table's
+  unowned, closed and badly dated assignments in it, to 024: no ledger row is written, nothing else changed, the table's
   constraints, a deletion of an assignment leaving the ledger alone, and parity with a fresh build.
+- `tests/test_assignment_accounting.py` (review findings 1 and 2): the timestamp normalizer's rules; reconciliation of legacy shapes at the
+  window edge; the unplaceable cases; admins; and `tests/legacy_creation.py`, a verbatim copy of the pre-PR 7 `quiz_create_assignment`
+  (compared with git when the base commit is available), run against the PR 7 schema in rollback-journal and WAL mode in two classes
+  (`RollbackRegressionJournalTest`, `RollbackRegressionWalTest`). The old function stamps `created_at` with SQLite's own clock, so those
+  classes move the frozen lifecycle clock to the real present. The start-up notice is tested on private databases.
 - `tests/test_assignment_quota.py` runs on a frozen lifecycle clock (`tests.support.lifecycle_time`). The service tests call
   `quiz_create_assignment` as the routes do and cover the exact window and open-count boundaries, closing versus the
   daily allowance, deadlines, holds, roles and role changes, existing assignments, unowned rows, and atomicity (a
@@ -324,12 +329,14 @@ clone or build from migrations and canonical data and every vault is a temporary
   (`registration_service.TEACHER_ACTIVATION`; no setting exists): the form, validation, journey, sign-in, access matrix,
   gate-off pending rows, activation failures and dispatch and settlement (one dispatch per issuance, the same send number and
   issuance identity settled, nothing settled after `NotSendable`, no retry).
+- `tests/test_teacher_registration.py::RestartNavigationTest` pins that cancel and every ended, unavailable or failed registration page
+  restart at the chooser, for both flows, with the validated `next`.
 - Existing tests that pinned "a teacher registration is never activated" or "`/register/teacher` is always 404" now pin the
   gate-off half and point at the new module; the migration level, the runtime-table lists and the manifest moved to 024.
 
 ```sh
 python -B -m unittest tests.test_assignment_creations_migration_sql tests.test_assignment_quota \
-  tests.test_teacher_registration
+  tests.test_assignment_accounting tests.test_teacher_registration
 python -B -m unittest discover -s tests
 ```
 

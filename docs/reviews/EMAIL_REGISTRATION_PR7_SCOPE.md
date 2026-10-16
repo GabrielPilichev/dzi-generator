@@ -4,7 +4,9 @@ Design: `docs/reviews/EMAIL_REGISTRATION_DESIGN.md` (sections 7.1, 7.3 and 9, PR
 Status and results: `docs/reviews/EMAIL_REGISTRATION_PR7_STATUS.md`. Test plan: `EMAIL_REGISTRATION_TEST_PLAN.md`.
 This is the "short scope for PR 7" the design asks for (section 9, row 7; open item 1a).
 
-Branch `feature/teacher-registration-quotas`, started from `fd44c8f` (on top of `ede0c0b`, PR 6, #340). Nothing is committed.
+Branch `feature/teacher-registration-quotas`, started from `fd44c8f` (on top of `ede0c0b`, PR 6, #340). Implemented in `b15d02b`
+(PR #341), which an independent review returned **REQUEST CHANGES** (three findings, answered in "Review findings" below; the fixes are
+uncommitted and **await independent review**).
 
 ## What PR 7 does
 
@@ -27,6 +29,11 @@ Branch `feature/teacher-registration-quotas`, started from `fd44c8f` (on top of 
 * Enforced atomically across creation paths.
 * A verified teacher registration receives role `teacher` only when the teacher gate permits activation.
 * Production registration, teacher, profile and Google gates stay **off**.
+* **Admin creations are recorded and exempt from refusal** (approved by Gabriel after the review of #341; it was proposed as I6).
+* **No development switch for the teacher gate** (approved by Gabriel after the review of #341; it was proposed as I11).
+
+Everything else under "Interpretations" is **not approved**: in particular the exact boundary semantics (I1), held and deadline behaviour of
+the open count (I2) and the refusal precedence (I3).
 
 ## Creation paths (inventory)
 
@@ -61,16 +68,15 @@ written down so that it can be changed.
 * **I5. Current-role changes.** The role is read from `users` under the lock. Quotas are enforced unless the role is
   `admin`. An operator who changes a role changes only what is enforced from then on; history is by account and is never
   reinterpreted. A promoted-then-demoted account finds its earlier creations still counted.
-* **I6. Admin accounts (substantive, unresolved).** The brief says "per teacher" and approves no admin limit and no admin
-  exemption. Applying the limits to admins would invent a limit on the operator's own tooling; exempting them would invent an
-  exemption. PR 7 does neither silently: **admin creations are recorded in the ledger but not refused**, so the numbers exist
-  if Gabriel later decides to limit them. This is one constant (`assignment_quota.EXEMPT_ROLES`). **Needs Gabriel's decision.**
+* **I6. Admin accounts (approved).** Admin creations are recorded in the ledger and not refused, so they count if the account's role
+  changes. One constant: `assignment_quota.EXEMPT_ROLES`. Their unrecorded history is reconciled and their unplaceable data refused like
+  anyone's (I12).
 * **I7. Existing teachers.** The limits apply to every account of role `teacher`, whether it was created by the operator or will
   register itself. They are per account, not per person: a person with several addresses has several allowances. No claim
   of per-person abuse prevention is made.
-* **I8. Existing assignments (no retroactive denial).** Migration 024 copies one ledger row per existing owned assignment
-  (`owner_user_id` and `created_at`), so a creation made shortly before the deploy still counts in its window. Nothing is
-  closed, hidden, edited or made unreachable. A teacher who already has 10 or more open assignments keeps all of them and may
+* **I8. Existing assignments (no retroactive denial).** Migration 024 writes **no** ledger row (review finding 2: one set of timestamp rules,
+  in Python). Every owned assignment without a ledger row is recorded, by its normalized age, by the first creation admission of its owner
+  (I12), so a creation made shortly before the deploy still counts in its window. Nothing is closed, hidden, edited or made unreachable. A teacher who already has 10 or more open assignments keeps all of them and may
   edit, close and view them; they cannot create or copy another until fewer than 10 are open.
 * **I9. NULL / legacy owners.** An assignment with `owner_user_id IS NULL` belongs to no account: it is in nobody's open count
   and has no ledger row. A creation by a principal without an account id (only tests and the retired shared sign-in produced
@@ -79,9 +85,24 @@ written down so that it can be changed.
 * **I10. Refusals.** `POST /teacher/new` answers the form again with status 429 (daily) or 409 (open), a Bulgarian message and
   the typed values kept; the copy form on the assignment page does the same. No assignment, token, ledger row, clock mark or
   vault note is written. No `Retry-After` is sent.
-* **I11. Teacher gate in development.** `registration.TEACHER_ACTIVATION` stays the single switch, read per request, as it is
-  today. **No development environment variable is added** (PR 6 added one for the profile gate with Gabriel's approval; this
-  PR does not assume the same approval). A local try-out edits the constant. **Question for Gabriel.**
+* **I11. Teacher gate in development (approved).** `registration.TEACHER_ACTIVATION` stays the single switch, read per request. **No
+  development environment variable is added.** A local try-out edits the constant.
+* **I12. The ledger is verified and repaired at every admission (review finding 1).** Under the writer lock, before the limits are decided,
+  `assignment_quota.reconcile` records the acting account's assignments that have no ledger row, from the `created_at` they carry, all
+  or nothing. It is the same for an admin (history belongs to the account after a role change). The account's creation **fails closed**
+  (`quota_accounting`, status 503, Bulgarian message, nothing written) when an unrecorded assignment has a NULL, malformed, ambiguous or
+  implausible `created_at`, or when a ledger row disagrees with its assignment's owner. A deleted ledger row whose assignment survives is
+  re-recorded, not forgiven. **Not recoverable:** an assignment row that was deleted before any admission recorded it. A start-up notice
+  (`production.assignment_accounting_warning`) counts such rows; it never refuses to start and is not what keeps the limits safe.
+  Recovery or rollback builds must keep this admission (DEPLOYMENT, section 36). Operator handling: the owner stays refused until the value
+  is corrected from a snapshot-verified source (DEPLOYMENT).
+* **I13. Legacy timestamps (review finding 2).** `normalize_legacy_timestamp` (all rules in its docstring, tested): the only writer of
+  `created_at` was `CURRENT_TIMESTAMP` (UTC). Accepted and kept at their age: the canonical form, ISO with `T`, fractional seconds (cut), `Z`
+  and numeric offsets up to 14 h (converted to UTC); **a time without an offset is UTC**; **a date alone is the end of that day, 23:59:59 UTC**
+  (never older than it is). Rejected, never treated as old: NULL, empty or padded strings, numbers, other layouts, impossible dates or
+  offsets, anything before 2000-01-01 (the epoch included) and anything **more than one day after the writer clock**. A value up to a day
+  ahead is kept as it is and counts until it is a day old: the count is conservative there and only there (the count has no upper bound by
+  design; the bound exists in the normalizer, so an implausible future date cannot hold an account for years).
 
 ## Durable accounting (migration 024)
 
@@ -89,8 +110,18 @@ Additive: one new table `assignment_creations (id, owner_user_id → users, assi
 `assignment_id` is a plain integer **without** a foreign key, so deleting an assignment (no code does; the retention cleanup of
 `docs/ASSIGNMENT_LIFECYCLE_DESIGN.md` does not exist yet) never touches the ledger and never refunds an allowance. The ledger is
 runtime state, never exported to `data/canonical`. Retention: kept as long as the account exists; accounts are disabled, never
-deleted. It holds an account id, a time and an assignment number, no name, email or text. Old code ignores the table, so a code
-rollback needs no schema change.
+deleted. It holds an account id, a time and an assignment number, no name, email or text. Old code ignores the table, so the *schema*
+needs no change on a code rollback, **but accounting does**: code that does not know the ledger creates unrecorded, unlimited assignments.
+A build that keeps migration 024 must therefore keep the quota admission (I12); the surviving rows such a build leaves are recovered at
+the next admission, never forgiven.
+
+## Review findings (b15d02b: REQUEST CHANGES) and their answers
+
+| # | Finding | Answer (uncommitted, awaiting independent review) |
+| --- | --- | --- |
+| 1 (P1) | Rolling back to the exact pre-PR 7 creation function and returning created 20 unaccounted assignments; another 20 succeeded (journal and WAL). | I12: reconcile under the writer lock at every admission, fail closed on what cannot be placed, admins included; docs no longer allow old-code creation against 024; tests run the exact base function in both journal modes. |
+| 2 (P2) | The migration turned parseable ISO and date-only values into the epoch, refunding recent legacy creations. | I13 and I8: one Python normalizer with explicit rules; the migration writes nothing; NULL/malformed/ambiguous/implausible values quarantine the owner instead of becoming ancient. |
+| 3 (P2) | Teacher cancel/restart and expired flows linked to the student form. | Every restart goes to the validated chooser (`/register`, with the stored `next`); the binding and lifecycle rules are unchanged. |
 
 ## Out of scope
 

@@ -17,21 +17,26 @@ PRAGMA foreign_keys = ON;
 -- counted twice. owner_user_id is RESTRICT: an account that has history is never deleted
 -- (accounts are disabled, not deleted, in any case).
 --
--- created_at is the lifecycle writer clock of the creating transaction, read after the write
--- lock was taken, in the lifecycle layout 'YYYY-MM-DD HH:MM:SS' (UTC) so that the window is a
--- text comparison. The CHECK is the four-part form of migrations 020 and 021: length() and GLOB
+-- created_at is the lifecycle writer clock of the creating transaction, read after the write lock
+-- was taken (or, for a reconciled row, the normalized age of the assignment), in the lifecycle layout
+-- 'YYYY-MM-DD HH:MM:SS' (UTC) so that the window is a text comparison. The CHECK is the four-part form of migrations 020 and 021: length() and GLOB
 -- both stop at a NUL byte, so the byte length is checked too.
 --
--- Existing assignments (no retroactive denial): one row is copied for each assignment that has
--- an owner, with the owner and the created_at it already has, so a creation made shortly before
--- this migration still counts in its window. Nothing is closed, hidden or changed. An assignment
--- with no owner (owner_user_id IS NULL) belongs to no account and gets no row. A created_at that
--- is not in the layout (the column is nullable and was never constrained) is recorded as the
--- epoch, which is outside every window.
+-- Existing assignments (no retroactive denial) and history this table does not have: the migration
+-- writes NO rows. Every owned assignment that has no ledger row is recorded, from the created_at it
+-- carries, by the first admission of its owner's next creation (web/services/assignment_quota.py,
+-- reconcile), inside the same writer transaction and by one set of timestamp rules
+-- (normalize_legacy_timestamp, written in Python only: a copy in SQL would be a second set of rules).
+-- That also covers assignments created later by code that does not know this table (a rollback or
+-- recovery build): they are recorded at the next admission, and an account whose data cannot be placed
+-- with confidence (NULL, malformed or implausible created_at) is refused until an operator corrects it.
+-- An assignment row deleted before it was ever recorded cannot be reconstructed. Nothing is closed,
+-- hidden or changed. An assignment with no owner (owner_user_id IS NULL) belongs to no account.
 --
--- Additive only: a new table and one index; quiz_assignments and users are not touched. Code
--- that predates this migration names its columns and ignores the table, so a rollback of the
--- code needs no schema change.
+-- Additive only: a new table and one index; quiz_assignments and users are not touched. Code that
+-- predates this migration names its columns and still runs against the schema, but it does not
+-- record creations and does not enforce the limits: a build that keeps this migration must keep
+-- web/services/assignment_quota.py and its call in quiz_create_assignment (docs/DEPLOYMENT.md, section 36).
 CREATE TABLE assignment_creations (
     id INTEGER PRIMARY KEY,
     owner_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
@@ -46,15 +51,3 @@ CREATE TABLE assignment_creations (
 
 CREATE INDEX idx_assignment_creations_owner
     ON assignment_creations(owner_user_id, created_at);
-
-INSERT INTO assignment_creations (owner_user_id, assignment_id, created_at)
-SELECT owner_user_id, id,
-       CASE WHEN typeof(created_at) = 'text'
-                 AND length(created_at) = 19
-                 AND length(CAST(created_at AS BLOB)) = 19
-                 AND created_at GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9] [0-9][0-9]:[0-9][0-9]:[0-9][0-9]'
-            THEN created_at
-            ELSE '1970-01-01 00:00:00' END
-FROM quiz_assignments
-WHERE owner_user_id IS NOT NULL
-ORDER BY id;
