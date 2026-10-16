@@ -14,7 +14,9 @@ and return a :class:`ValidationResult`; ``public_email`` is the email rule on it
 * **The email** goes through ``accounts.normalize_email`` (the form sign-in uses) and
   then through the narrower public rule of section 1.3. Existing accounts and sign-in
   are not affected by that rule.
-* **The account type is the function called**, never a submitted value. A field named
+* **The account type is the function called**, never a submitted value. (The profile
+  form, ``validate_profile``, takes the type of the stored profile from its caller; no
+  submitted field names it.) A field named
   ``role``, ``account_type``, ``is_admin``, ``email_verified_at`` or
   ``profile_required_at`` is not read.
 * **Subjects** are ids of ``src.subject_registry`` or ``other``; the registry is read
@@ -306,6 +308,25 @@ def accepted_next(value) -> str | None:
     return _accepted_next(value)
 
 
+# The value of the hidden field that tells the profile form "a target was offered and
+# refused". It is a fixed literal, never the refused target, so nothing refused is echoed.
+NEXT_REFUSED = "1"
+
+
+def next_refused(next_value, marker) -> bool:
+    """Whether a ``next`` was offered to the profile form and is not kept.
+
+    True for a non-empty ``next_value`` that ``accepted_next`` refuses, and for the fixed
+    ``marker`` (``NEXT_REFUSED``) that an earlier rendering of the form carried when it
+    refused one. A kept ``next`` always wins; an absent or empty ``next`` with no marker is
+    false, which is the "no target at all" case. The marker is only ever read for this
+    yes/no, so a forged one can do no more than send the account to its role's home.
+    """
+    if _accepted_next(next_value) is not None:
+        return False
+    return (isinstance(next_value, str) and next_value != "") or marker == NEXT_REFUSED
+
+
 # ---------------------------------------------------------------------------- forms
 
 def _common(form: Mapping, errors: dict[str, str], echo: dict[str, Any]) -> dict[str, Any]:
@@ -388,3 +409,59 @@ def validate_teacher(form: Mapping) -> ValidationResult:
     echo["subject_other"] = _echo_text(form.get("subject_other"), MAX_SUBJECT_OTHER_LENGTH)
     values["subjects"] = _clean_subjects(form, errors)
     return _result(values, errors, echo, form)
+
+
+def validate_profile(form: Mapping, account_type: str) -> ValidationResult:
+    """Validate the profile form of ``/account/profile`` (design 7.4): the declared fields
+    of ``account_type`` and nothing about the login.
+
+    No email and no password is read, asked for or echoed. ``account_type`` is the type
+    of the profile being created or edited, chosen by the caller from the stored profile
+    or the account's role, never from a submitted field. A student's form holds
+    ``first_name``, ``last_name`` and ``grade``; a teacher's holds ``first_name``,
+    ``last_name``, ``school_name`` and ``subject``/``subject_other``. ``next`` is kept
+    only when ``accepted_next`` keeps it; a refused one is reported as ``next_refused`` (a
+    yes/no, also carried by the form's hidden ``next_refused`` field) and never echoed. The result's ``password`` is always ``None``.
+    """
+    if account_type not in (STUDENT, TEACHER):
+        raise ValueError("Невалиден вид акаунт.")
+    errors: dict[str, str] = {}
+    echo: dict[str, Any] = {}
+    values: dict[str, Any] = {"account_type": account_type}
+    first_name, first_error = clean_name(form.get("first_name"), MESSAGES["first_name_empty"])
+    last_name, last_error = clean_name(form.get("last_name"), MESSAGES["last_name_empty"])
+    if first_error:
+        errors["first_name"] = first_error
+    if last_error:
+        errors["last_name"] = last_error
+    values["first_name"], values["last_name"] = first_name, last_name
+    for name in ("first_name", "last_name"):
+        echo[name] = _echo_text(form.get(name), MAX_NAME_LENGTH)
+
+    if account_type == STUDENT:
+        submitted_grade = form.get("grade")
+        echo["grade"] = _echo_text(str(submitted_grade) if type(submitted_grade) is int else submitted_grade, 2)
+        grade = clean_grade(submitted_grade)
+        if grade is None:
+            errors["grade"] = MESSAGES["grade"]
+        values["grade"] = grade
+    else:
+        submitted_school = form.get("school_name")
+        echo["school_name"] = _echo_text(submitted_school, MAX_SCHOOL_LENGTH)
+        school = clean_school(submitted_school)
+        if school is None:
+            errors["school_name"] = MESSAGES["school"]
+        values["school_name"] = school
+        echo["subject"] = [_echo_text(item, MAX_SUBJECT_ID_LENGTH)
+                           for item in _multi(form, "subject")[:MAX_SUBJECTS + 1]]
+        echo["subject_other"] = _echo_text(form.get("subject_other"), MAX_SUBJECT_OTHER_LENGTH)
+        values["subjects"] = _clean_subjects(form, errors)
+
+    values["next"] = _accepted_next(form.get("next"))
+    echo["next"] = values["next"] or ""     # never the raw, rejected input
+    # A refused target is remembered as a yes/no so that a retry or a GET-then-POST round
+    # trip still sends the account to its role's home, not to the saved profile.
+    values["next_refused"] = echo["next_refused"] = next_refused(form.get("next"), form.get("next_refused"))
+    if errors:
+        return ValidationResult(values=None, errors=errors, echo=echo)
+    return ValidationResult(values=values, errors={}, echo=echo)

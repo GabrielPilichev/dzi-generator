@@ -63,6 +63,7 @@ from web.services import accounts as accounts_service
 from web.services import google_oidc
 from web.services import lifecycle as lifecycle_service
 from web.services import mail as mail_service
+from web.services import profiles as profiles_service
 from web.services.subject_catalog import subject_catalog, subject_topic_groups
 from web.services import quiz as quiz_service
 from web.services.dzi_exams import (
@@ -234,6 +235,15 @@ if not production_startup_in_progress():
             stacklevel=2,
         )
 
+
+# Account profiles (docs/reviews/EMAIL_REGISTRATION_DESIGN.md, 7.3 and 7.4): off unless
+# a development run turns the flow on with DZI_PROFILES_ENABLED. web.wsgi decides for
+# production (web.production), where the build's gate ``profiles.PRODUCTION_ACTIVATION``
+# is the only thing that can turn it on and no setting overrides it.
+app.config[profiles_service.CONFIG_KEY] = False
+if not production_startup_in_progress():
+    app.config[profiles_service.CONFIG_KEY] = (
+        (os.environ.get(profiles_service.DEVELOPMENT_ENV) or "").strip().lower() in TRUE_ENV_VALUES)
 
 
 # ---------------------------------------------------------------------------

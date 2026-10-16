@@ -533,7 +533,7 @@ class StudentLinkTest(PublicTokenAppTestCase):
         with closing(web_app.quiz_db()) as conn:
             attempt_id = quiz.quiz_start_or_resume_attempt(
                 conn, quiz.quiz_fetch_assignment(conn, self.legacy_id),
-                user_id=self.student["id"], display_name="Ученик").attempt_id
+                user_id=self.student["id"]).attempt_id
         self.assertEqual(self.submit(client, attempt_id).status_code, 302)
         response = client.get(f"/quiz/attempt/{attempt_id}/result")
         self.assertEqual(response.status_code, 200)

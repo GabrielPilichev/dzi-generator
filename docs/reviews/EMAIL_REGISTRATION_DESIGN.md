@@ -1394,7 +1394,7 @@ All but the last in a new blueprint `registration`
 | `/register/verify` | GET, POST | `public` | `same_origin` | |
 | `/register/resend` | POST | `public` | `same_origin` | |
 | `/register/cancel` | POST | `public` | `same_origin` | „Грешен имейл? Започни отново“ |
-| `/account/profile` | GET, POST | `signed_in` | `same_origin` | View and edit (7.4); 404 while the profile gate is off |
+| `/account/profile` | GET, POST | `public` at the hook; the view requires a signed-in account | `same_origin` | View and edit (7.4); 404 for everybody, anonymous included, while the profile gate is off (the gate is checked before the sign-in) |
 
 Rules, each an existing convention applied to the new routes:
 
@@ -1775,6 +1775,19 @@ not come into being through Google; a teacher registers by email and may then
 link Google with the existing flow. An admin never links (2.6). Google stays
 off in production; nothing here changes `google_oidc.PRODUCTION_ACTIVATION`
 or its prerequisites.
+
+**As implemented by PR 6** (`EMAIL_REGISTRATION_PR6_STATUS.md`, which awaits review). The
+signatures and the gate differ from the sketches above in these ways, each recorded there as a
+point for the reviewer: `profiles.needs_profile(conn, user, *, enabled)` takes the gate as a
+required argument (the service has no Flask) and reads the account's current role and mark from
+the row under the caller's lock, using only `user["id"]`; `accounts._USER_COLUMNS` is **not**
+widened with `profile_required_at` (6.1 says it would be), so no request reads the column and a
+database below migration 023 is not broken for every page; the gate is `profiles.PRODUCTION_ACTIVATION`
+in production and `app.config["PROFILES_ENABLED"]`, which a development run sets from
+`DZI_PROFILES_ENABLED` and a production start sets from the constant alone; the accounts service
+gained `set_display_name`, `mark_profile_required` and `profile_requirement`; and while the gate is off
+`/account/profile` is declared `public` at the access hook and checks the gate first, so every visitor, anonymous
+included, gets the generic 404 (approved by Gabriel; the view then applies the `signed_in` rule itself when the gate is on).
 
 ### 7.5 Configuration and rollout
 

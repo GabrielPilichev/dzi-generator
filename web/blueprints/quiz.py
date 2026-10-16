@@ -11,11 +11,16 @@ submitted is decided by the service inside its writer transaction; what a page
 shows comes from the same state function (:func:`web.services.lifecycle.evaluate`).
 A held assignment and an unusable clock raise
 ``lifecycle.LifecycleUnavailable``, which ``web.app`` answers with 503.
+
+Profile gate (docs/reviews/EMAIL_REGISTRATION_DESIGN.md, 7.4): while it is on, the same
+service decision, after resuming and after the closed notice, may answer "profile
+required" instead of creating an attempt; this view then redirects (303) to the profile
+form. Nothing else here is ever blocked by a missing profile.
 """
 
 from __future__ import annotations
 
-from flask import Blueprint, abort, redirect, render_template, request, url_for
+from flask import Blueprint, abort, current_app, redirect, render_template, request, url_for
 
 from web.access import (
     ATTEMPT_OWNER,
@@ -27,7 +32,7 @@ from web.access import (
 )
 from web.attempt_access import require_quiz_attempt_access
 from web.request_integrity import SAME_ORIGIN, integrity_policy
-from web.services import lifecycle
+from web.services import lifecycle, profiles
 from web.services import quiz as quiz_service
 
 
@@ -78,7 +83,10 @@ def quiz_start_public(public_token):
                     conn,
                     assignment,
                     user_id=principal.user_id,
-                    display_name=principal.display_name,
+                    # Decided inside the service, under its writer lock, and only where
+                    # an attempt would be created (docs/reviews/EMAIL_REGISTRATION_DESIGN.md
+                    # 7.4). This view looks up no attempt of its own.
+                    profile_gate=profiles.enabled_in(current_app.config),
                 )
             except quiz_service.QuizPlanError:
                 abort(400)
@@ -93,6 +101,10 @@ def quiz_start_public(public_token):
         if start.closed:
             # Decided under the writer lock, at the instant the lock was obtained.
             closed, status_code = True, 409
+        elif start.profile_required:
+            # No attempt was created. The profile form returns to this page by GET: the
+            # student presses the button again, and nothing starts by itself.
+            return redirect(url_for("account.profile", next=request.path), code=303)
         elif start.submitted:
             return redirect(url_for("quiz.quiz_result", attempt_id=start.attempt_id))
         else:

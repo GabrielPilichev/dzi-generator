@@ -2856,6 +2856,49 @@ input[type="file"]:focus-visible {
   font-size: 0.86rem;
   line-height: 1.55;
 }
+/* Account profile (docs/reviews/EMAIL_REGISTRATION_DESIGN.md, 7.4): a subject checklist
+   and the profile summary of /account. Colors come from the shared tokens only. */
+.login-card fieldset.profile-subjects {
+  margin: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-md);
+}
+.profile-subjects legend {
+  padding: 0 var(--space-1);
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+  font-weight: 850;
+}
+.login-card .checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: var(--space-1) 0;
+  color: var(--color-text);
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+.login-card .checkbox-row input[type="checkbox"] {
+  width: auto;
+  min-height: 0;
+  flex: none;
+}
+.profile-details {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--space-1) var(--space-4);
+  margin: 0;
+}
+.profile-details dt {
+  color: var(--color-text-muted);
+  font-weight: 850;
+}
+.profile-details dd {
+  margin: 0;
+  color: var(--color-text);
+  min-width: 0;
+}
 .login-card button.google-sign-in-button,
 .login-card button.google-sign-in-button:hover,
 .login-card button.google-sign-in-button:active {

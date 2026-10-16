@@ -21,6 +21,35 @@
     <div class="{{ google_message.kind }} login-message" role="{{ 'alert' if google_message.kind == 'error' else 'status' }}">{{ google_message.text }}</div>
 {% endif %}
 
+{% if profile_summary %}
+<section class="card form-card login-card account-card" id="profile">
+    <h2>Данни за профила</h2>
+    {% if profile_summary.required %}
+        <div class="warning" role="status">Попълни профила си, за да започнеш теста.</div>
+    {% endif %}
+    {% if profile_summary.profile %}
+        {% set profile = profile_summary.profile %}
+        <dl class="profile-details">
+            <dt>Вид</dt><dd>{{ profile_summary.type_label }}</dd>
+            <dt>Име</dt><dd>{{ profile.first_name }}</dd>
+            <dt>Фамилия</dt><dd>{{ profile.last_name }}</dd>
+            {% if profile.account_type == 'student' %}
+                <dt>Клас</dt><dd>{{ profile.grade }}. клас</dd>
+            {% else %}
+                <dt>Училище</dt><dd>{{ profile.school_name }}</dd>
+                <dt>Предмети</dt><dd>{% for subject in profile.subjects %}{{ subject.label }}{% if not loop.last %}, {% endif %}{% endfor %}</dd>
+            {% endif %}
+        </dl>
+        <a class="button secondary" href="{{ url_for('account.profile') }}">Редактирай данните</a>
+    {% elif profile_summary.can_complete %}
+        <p>Още не си попълнил име, фамилия и клас.</p>
+        <a class="button" href="{{ url_for('account.profile') }}">Попълни профила</a>
+    {% else %}
+        <p>Този акаунт няма профил с декларирани данни. Не се иска нищо от теб.</p>
+    {% endif %}
+</section>
+{% endif %}
+
 <section class="card form-card login-card account-card">
     <h2>Начини за вход</h2>
     <ul class="notice-list account-sign-in-methods">

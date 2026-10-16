@@ -1,8 +1,8 @@
 """Account sign-in, sign-out, the account page and password change (Accounts PR 4,
 admin TOTP PR T).
 
-``/login``, ``POST /login/totp``, ``POST /logout``, ``/account`` and
-``/account/password``. This module authenticates with a password; the account session
+``/login``, ``POST /login/totp``, ``POST /logout``, ``/account``, ``/account/password`` and
+``/account/profile``. This module authenticates with a password; the account session
 (``uid``, ``sk``, ``iat``) is issued by ``web.account_session``, and role, name and
 active state stay in the ``users`` row and are loaded per request by ``web.app``.
 
@@ -17,18 +17,26 @@ Password sign-in is unchanged by Google sign-in (``web.blueprints.oidc``), which
 a second way in for students and teachers and never one for an admin. This module
 shows that flow's outcomes on the sign-in page and on the account page and takes no
 part in it otherwise.
-The module imports neither ``web.app`` nor another controller.
+``/account/profile`` (docs/reviews/EMAIL_REGISTRATION_DESIGN.md, 7.3 and 7.4) shows and
+edits what a person declared (names and class, or school and subjects) and exists only
+while the profile gate is on: until then it is the generic 404, and ``/account`` shows no
+profile and no link to it. A profile is a declaration, never authorization: saving one
+writes ``user_profiles`` and, with the names, ``users.display_name`` in one transaction,
+and never the role, the email, the verification time, the active state or the session
+key. The module imports neither ``web.app`` nor another controller.
 """
 
 from __future__ import annotations
 
 import logging
+import sqlite3
 from datetime import datetime, timezone
 
-from flask import Blueprint, current_app, redirect, render_template, request, session, url_for
+from flask import Blueprint, abort, current_app, redirect, render_template, request, session, url_for
 
+from src import subject_registry
 from web import oauth_state
-from web.access import PUBLIC, SIGNED_IN, access_policy, current_principal
+from web.access import PUBLIC, SIGNED_IN, access_policy, current_principal, is_route_allowed
 from web.account_session import (
     account_throttle_key,
     end_session,
@@ -46,6 +54,8 @@ from web.services import accounts as accounts_service
 from web.services import google_oidc
 from web.services import identities as identities_service
 from web.services import login_throttle
+from web.services import profiles as profiles_service
+from web.services import registration_forms as forms
 from web.services import totp as totp_service
 
 account_bp = Blueprint("account", __name__)
@@ -73,6 +83,11 @@ SECOND_FACTOR_NOT_ENROLLED_MESSAGE = (
 )
 
 ROLE_LABELS = {"admin": "Админ", "teacher": "Учител", "student": "Ученик"}
+
+# Texts of /account/profile (design 1.2 and 7.4).
+PROFILE_REQUIRED_MESSAGE = "Попълни профила си, за да започнеш теста."
+PROFILE_SAVED_MESSAGE = "Профилът е запазен."
+PROFILE_FAILURE_MESSAGE = "Нещо се обърка и нищо не беше записано. Опитай отново."
 
 # Outcomes of a Google sign-in or link (docs/reviews/GOOGLE_OIDC_DESIGN.md, 1.9): the
 # ``google`` code a redirect carries, its text, how it is shown and the pages that
@@ -331,10 +346,25 @@ def logout():
     return redirect(url_for("browsing.index"))
 
 
+def _profile_summary(principal) -> dict | None:
+    """What /account shows of the profile, or ``None`` while the gate is off (no section, no link)."""
+    if not _profiles_enabled():
+        return None
+    conn = get_request_db()
+    profile = profiles_service.get_profile(conn, principal.user_id)
+    return {
+        "profile": profile,
+        "type_label": {forms.STUDENT: "Ученик", forms.TEACHER: "Учител"}.get(profile["account_type"]) if profile else None,
+        "can_complete": profile is None and principal.role == "student",
+        "required": profiles_service.needs_profile(conn, {"id": principal.user_id}, enabled=True),
+    }
+
+
 @account_bp.route("/account", methods=["GET"])
 @access_policy(SIGNED_IN)
 def overview():
-    """The account's own page: who it is and how it signs in. Reads only."""
+    """The account's own page: who it is, how it signs in and, while the profile gate is on,
+    what it declared. Reads only."""
     principal = current_principal()
     account = loaded_account()
     google_identities = [
@@ -345,6 +375,7 @@ def overview():
     can_use_google = principal.role != "admin"
     return render_template(
         "account.html",
+        profile_summary=_profile_summary(principal),
         account_email=account["email"],
         has_password=bool(account["has_password"]),
         google_identities=google_identities,
@@ -354,6 +385,151 @@ def overview():
         can_link=enabled and can_use_google and account["has_password"] and not google_identities,
         can_use_google=can_use_google,
     )
+
+
+def _profiles_enabled() -> bool:
+    return profiles_service.enabled_in(current_app.config)
+
+
+def _subject_choices() -> list[dict]:
+    """The subjects of the registry a teacher-type profile can name, in registry order."""
+    return [{"id": subject.id, "title": subject.title} for subject in subject_registry.all_subjects()]
+
+
+def _profile_echo(profile: dict) -> dict:
+    """The form values of a stored profile, in the shape ``validate_profile`` echoes."""
+    echo = {"first_name": profile["first_name"], "last_name": profile["last_name"]}
+    if profile["account_type"] == forms.STUDENT:
+        echo["grade"] = str(profile["grade"])
+    else:
+        echo["school_name"] = profile["school_name"]
+        echo["subject"] = [item["subject_id"] or forms.OTHER_SUBJECT for item in profile["subjects"]]
+        echo["subject_other"] = next((item["label"] for item in profile["subjects"] if item["subject_id"] is None), "")
+    return echo
+
+
+def _profile_form_type(profile: dict | None, role) -> str | None:
+    """The type of form the account is offered, or ``None`` for none.
+
+    The stored profile's own ``account_type`` decides, whatever the role is now. Without
+    a profile only a current student is offered the student form; a teacher or an admin
+    is offered nothing, and no teacher onboarding exists here.
+    """
+    if profile is not None:
+        return profile["account_type"]
+    return forms.STUDENT if role == "student" else None
+
+
+def _profile_page(conn, principal, *, echo=None, errors=None, status: int = 200, failure: str | None = None):
+    profile = profiles_service.get_profile(conn, principal.user_id)
+    form_type = _profile_form_type(profile, principal.role)
+    if form_type is None:
+        return render_template("account_profile.html", form_type=None, echo={}, errors={}, failure=failure,
+                               required=False, saved=False, grades=forms.GRADES, subjects=[]), status
+    if echo is None:
+        echo = _profile_echo(profile) if profile is not None else {}
+        # Only a target the form rules keep is echoed back; a rejected one never is, but the
+        # fact that one was refused is, so that the submission still goes to the role's home.
+        echo["next"] = forms.accepted_next(request.args.get("next")) or ""
+        echo["next_refused"] = forms.next_refused(request.args.get("next"), None)
+    required = profiles_service.needs_profile(conn, {"id": principal.user_id}, enabled=True)
+    return render_template(
+        "account_profile.html",
+        form_type=form_type,
+        echo=echo,
+        errors=errors or {},
+        failure=failure,
+        required=required,
+        saved=request.method == "GET" and request.args.get("saved") == "1",
+        grades=forms.GRADES,
+        subjects=_subject_choices(),
+        has_profile=profile is not None,
+    ), status
+
+
+def _profile_return_target(accepted_next: str, refused: bool, role) -> str:
+    """Where a saved profile goes on: by GET, never starting anything.
+
+    A kept ``next`` is validated again here and used; a target that was offered and not
+    kept (``refused``, which survives retries and the GET-then-POST round trip as a
+    yes/no, never as the target) becomes the current role's home; with no ``next`` at all
+    the form shows the saved profile.
+    """
+    home = url_for(role_home(role))
+    if accepted_next:
+        return safe_redirect_target(accepted_next, home)
+    if refused:
+        return home
+    return url_for("account.profile", saved=1)
+
+
+@account_bp.route("/account/profile", methods=["GET", "POST"])
+@access_policy(PUBLIC)
+@integrity_policy(SAME_ORIGIN)
+def profile():
+    """View and edit the account's profile (design 7.4).
+
+    The policy is ``public`` on purpose: the access hook runs before the view, so a
+    ``signed_in`` policy would send an anonymous visitor to the login before the gate was
+    looked at. While the gate is off the answer is the generic 404 for everybody; the
+    sign-in requirement of ``signed_in`` is then applied here, with the hook's own rule
+    (``is_route_allowed``) and the same redirect. Same-origin protection is a separate
+    check that runs before both.
+    """
+    if not _profiles_enabled():
+        abort(404)
+    principal = current_principal()
+    if not is_route_allowed(SIGNED_IN, principal):
+        return redirect(url_for("account.login", next=request.path))
+    conn = get_request_db()
+    if request.method == "GET":
+        return _profile_page(conn, principal)
+
+    form_type = _profile_form_type(profiles_service.get_profile(conn, principal.user_id), principal.role)
+    if form_type is None:
+        # A teacher or an admin without a profile: nothing is created, nothing is asked.
+        return _profile_page(conn, principal, status=403)
+    validated = forms.validate_profile(request.form, form_type)
+    if not validated.ok:
+        return _profile_page(conn, principal, echo=validated.echo, errors=validated.errors)
+
+    now = _utcnow()
+    values = validated.values
+    conn.execute("BEGIN IMMEDIATE")
+    try:
+        # Read again under the lock: a concurrent save or role change decides here, not
+        # what was read before the form was validated.
+        stored = profiles_service.get_profile(conn, principal.user_id)
+        state = accounts_service.profile_requirement(conn, principal.user_id)
+        if state is None or _profile_form_type(stored, state["role"]) != form_type:
+            conn.rollback()
+            return _profile_page(conn, principal, echo=validated.echo, failure=PROFILE_FAILURE_MESSAGE, status=409)
+        if stored is None:
+            profiles_service.complete_student_profile(
+                conn, principal.user_id, first_name=values["first_name"], last_name=values["last_name"],
+                grade=values["grade"], now=now)
+        elif form_type == forms.STUDENT:
+            profiles_service.save_profile(
+                conn, principal.user_id, first_name=values["first_name"], last_name=values["last_name"],
+                grade=values["grade"], now=now)
+        else:
+            profiles_service.save_profile(
+                conn, principal.user_id, first_name=values["first_name"], last_name=values["last_name"],
+                school_name=values["school_name"], subjects=values["subjects"], now=now)
+        conn.commit()
+    except BaseException as exc:
+        if conn.in_transaction:
+            try:
+                conn.rollback()
+            except sqlite3.Error as rollback_error:
+                logger.warning("profile_rollback_failed error=%s", type(rollback_error).__name__)
+        if not isinstance(exc, Exception):
+            raise
+        # Rolled back: neither the profile nor the display name was written.
+        logger.warning("profile_save_failed user=%s error=%s", principal.user_id, type(exc).__name__)
+        return _profile_page(conn, principal, echo=validated.echo, failure=PROFILE_FAILURE_MESSAGE, status=500)
+    # The session is untouched: no key was rotated, so every device stays signed in.
+    return redirect(_profile_return_target(values["next"] or "", values["next_refused"], principal.role), code=303)
 
 
 @account_bp.route("/account/password", methods=["GET", "POST"])

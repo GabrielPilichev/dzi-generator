@@ -377,7 +377,9 @@ class ProductionStartupTest(unittest.TestCase):
             self.assertNotIn(secret, result.stdout + result.stderr)
         # Account authentication is the only authority (Accounts PR9/PR10).
         self.assertEqual(report["legacy_config_keys"], [])
-        self.assertEqual(report["auth_rules"], ["/login", "/login/totp", "/logout"])
+        # "/account/profile" is the account profile page (registration PR 6), not the retired
+        # "/profile/<profile>" switch the probe's word filter was written to catch.
+        self.assertEqual(report["auth_rules"], ["/account/profile", "/login", "/login/totp", "/logout"])
         self.assertNotIn("auth", report["blueprints"])
         for path in ("/tester/login", "/admin/login"):
             self.assertEqual(report["legacy"][f"GET {path}"], 404)

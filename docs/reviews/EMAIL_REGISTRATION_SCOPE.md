@@ -29,17 +29,23 @@ digits; settlement by the same issuance identity, and never after
 `NotSendable`. **PR 4** (the student routes, templates and browser slot, the
 transactions and single dispatch of each issuance, the build gates, kept off,
 the production wiring of the mail settings, the registration logger, the Nginx
-zone and three operator commands; no migration) is implemented in draft #338
-and awaits independent review: `docs/reviews/EMAIL_REGISTRATION_PR4_STATUS.md`.
+zone and three operator commands; no migration) is merged (#338):
+`docs/reviews/EMAIL_REGISTRATION_PR4_STATUS.md`.
 With it Gabriel approved that a registration hold does not block the
 cancellation of pending data (the hold and the clock mark are preserved; a
 regressed clock still refuses; design 0.7). **PR 5** (operations: the cleanup unit and timer, the restore script's
 cleanup coordination and registration gate, the status and release commands, and
-the logical snapshot scrub; decisions D18 (b) and D20 (a); no migration) is
-implemented on `feature/registration-operations`, unreviewed and unapproved:
-`docs/reviews/EMAIL_REGISTRATION_PR5_STATUS.md`. Its Linux and systemd evidence
-has not been produced. No other PR is started, and no deployment, provider or
-real database was touched.
+the logical snapshot scrub; decisions D18 (b) and D20 (a); no migration) is merged
+(#339, squash commit `3d2e0d56ef2b57d66d65d640fb289c9c9041e6ce`, whose tree equals that of
+the reviewed `65bee1e`): `docs/reviews/EMAIL_REGISTRATION_PR5_STATUS.md`. Its Linux and
+systemd evidence has not been produced. **PR 6** (the account profile flow: migration
+`023_profile_required.sql`, `/account/profile` and the profile on `/account`, the build gate
+`profiles.PRODUCTION_ACTIVATION`, kept off, `profiles.needs_profile`, the mark written at Google
+onboarding for a newly created student only, and the profile check at the locked decision to
+create a new attempt) is implemented on `feature/account-profile-flow` (draft PR), unreviewed
+and unapproved, **not activated**: `docs/reviews/EMAIL_REGISTRATION_PR6_STATUS.md`. Approval of
+its implementation will not be activation. No other PR is started (PR 7 quotas and PR 8
+recovery are not), and no deployment, provider or real database was touched.
 
 Revisions 1, 2 and 3 were each independently reviewed and returned with
 REQUEST CHANGES, the third narrowly (two defects in the sender contract and

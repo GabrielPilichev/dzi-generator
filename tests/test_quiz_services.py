@@ -165,7 +165,7 @@ class QuizAttemptTransactionTest(IsolatedAppTestCase):
     def _student(self):
         """Start arguments of a new account: the only identity an attempt has."""
         account = create_account(web_app.app.config["DB_PATH"], display_name="Ана Тестова")
-        return {"user_id": account["id"], "display_name": "Ана Тестова"}
+        return {"user_id": account["id"]}
 
     def _attempt_rows(self, assignment_id):
         with quiz_service.quiz_connection() as conn:  # a separate connection: sees only commits

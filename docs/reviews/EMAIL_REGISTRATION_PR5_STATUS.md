@@ -6,15 +6,35 @@ Tests: `docs/reviews/EMAIL_REGISTRATION_TEST_PLAN.md`, DR1–DR9, N5–N7, N9.
 Earlier PRs: `EMAIL_REGISTRATION_PR1_STATUS.md` to `PR4_STATUS.md` (merged: #335–#338).
 Operator guide: `docs/DEPLOYMENT.md`, section 34 (and sections 16, 17, 19).
 
-**Status:** PR #339, branch `feature/registration-operations`. Committed: `36cffbe` (implementation),
-`b719728` (fixes after the first independent review), `39157f5` (the timer fix after the second),
-`f75ca8d` (ownership, guard and records after the third) and `cc4e2d5` (lifetime exclusion, protected
-ownership and swap state after the fourth). The fifth independent review, of
-`cc4e2d599f805791bcf320474252c68cc13bc105`, asked for changes: three recovery defects around an
-unfinished replacement. Their fixes (below, "Recovery over an unfinished replacement") are **unstaged
-and uncommitted** on top of `cc4e2d5`, **awaiting independent review, not approved**. Registration is
-**not activated**: both build gates stay off. No migration, no schema change, no deployment, no
-provider, no real database, no real message, no server. Nothing here has run under systemd or on Linux.
+**Status:** merged as PR #339 (branch `feature/registration-operations`). Committed on that branch:
+`36cffbe` (implementation), `b719728` (fixes after the first independent review), `39157f5` (the timer
+fix after the second), `f75ca8d` (ownership, guard and records after the third), `cc4e2d5` (lifetime
+exclusion, protected ownership and swap state after the fourth) and `65bee1e`
+(`65bee1e156baab8aa0d5395b9df0bf9d5871312a`, "Preserve partial-swap coordination and retry migration
+barriers"), the commit of the fixes to the three recovery defects found by the fifth independent review, of
+`cc4e2d599f805791bcf320474252c68cc13bc105`. **Correction:** an earlier version of this paragraph described
+those fixes (below, "Recovery over an unfinished replacement") as unstaged and uncommitted on top of
+`cc4e2d5`, awaiting independent review; they are the content of `65bee1e`, which is committed.
+
+Merge provenance, as `git` shows it: `main` holds the work as one squash commit,
+`3d2e0d56ef2b57d66d65d640fb289c9c9041e6ce`, "Add registration cleanup, restore holds and snapshot
+scrubbing (#339)" (author GabrielPilichev, committer GitHub, 2026-10-15 18:37:09 +0300). It is not a merge
+of the branch's history: `65bee1e` is not its ancestor, but the two commits have the same tree
+(`7c63fcd228c7ed17668acee50b7e51de3af58d4e`), so the merged content is exactly the content of `65bee1e`.
+The squash commit's own message records the verification: the author's initial full suite of 3919 tests and
+a final 555 affected tests; an independent Codex follow-up **at `65bee1e`** with the verdict approve with
+non-blocking notes (179 focused tests, the sandbox-affected methods passing unrestricted reruns, and
+independent signal, record-validation and migration-barrier probes); and bash syntax, compilation,
+whitespace and temporary-database checks. That is the reviewed SHA. The message also notes that one
+non-blocking status-document sentence still described committed work as uncommitted; it is the sentence
+corrected here, and the heading of the section below carried the same wording. This repository does not
+hold the review itself, so those results are quoted from the commit message and were not repeated for this
+correction.
+
+Registration is **not activated**: both build gates stay off. No migration, no schema change, no
+deployment, no provider, no real database, no real message, no server. **Nothing here has run under
+systemd or on Linux:** Linux, root, util-linux `flock`, `setpriv`, `sudo`, systemd, GNU `sync` and
+power-loss durability remain unverified activation evidence, as before.
 
 ## Review history
 
@@ -415,7 +435,7 @@ recovery defects remained, all around a replacement of the live state that had n
 | 2 | `RESTART` did not look at `swap-state`. The flush of a migrated `swap-started` failed after both timer notes were written: `swap-state` without `restore-owner`. With the service-writable lock directory removed, the pre-flight of a later run (which then failed) started both timers and removed their notes over the half-replaced state. The documented manual recovery had the same gap. |
 | 3 | A retried migration did not repeat a failed flush. The second migrated note's flush failed; the retry found the note there, skipped the flush, recorded its holder with no `sync` at all, then failed (timer state not readable, starts failing) and its failure handling removed the lock with the legacy markers in it. |
 
-### Recovery over an unfinished replacement (unstaged, awaiting independent review)
+### Recovery over an unfinished replacement (committed as `65bee1e`)
 
 The invariant, checked against every branch of `RELEASE` and `RESTART`: **while `swap-state` records a
 replacement that has not finished, the lock directory is not removed and no timer is started, whoever is
@@ -506,6 +526,13 @@ time:
 Every copy passes `bash -n`. The test of the third finding first errored instead of failing on
 `cc4e2d5` (no `sync` at all, so no hook log) and matched a flush of the first attempt; both were
 corrected (an absent log reads as no syncs; the retry runs under its own tag) before the counts above.
+
+### Follow-up review at `65bee1e`: APPROVE WITH NON-BLOCKING NOTES (recorded in the merge commit)
+
+Recorded only in the message of the squash commit `3d2e0d5` (see Status), not in a document of this
+repository: the three recovery defects of the fifth review are fixed, with non-blocking notes. The
+fixes are the next section. Linux, root, `flock`, `setpriv`, `sudo`, systemd, GNU `sync` and power-loss
+behaviour were not exercised.
 
 ## What PR 5 contains
 

@@ -388,6 +388,59 @@ def record_login(conn: sqlite3.Connection, user_id: int) -> None:
     conn.execute("UPDATE users SET last_login_at = CURRENT_TIMESTAMP WHERE id = ?", (user_id,))
 
 
+def set_display_name(conn: sqlite3.Connection, user_id: int, display_name: str) -> str:
+    """Change what the account is shown as, and return the stored name.
+
+    ``display_name`` is what a later attempt copies into its ``student_name`` snapshot;
+    attempts that exist keep the name they were started with. It writes ``display_name``
+    and ``updated_at`` and nothing else: the role, the email, ``email_verified_at``, the
+    active state, the credentials and the session key stay as they are, so every session
+    of the account stays valid (unlike :func:`set_password`, :func:`set_role` and
+    :func:`set_active`, which re-key). ``ValueError`` for a name outside 2 to 80
+    characters, ``LookupError`` for an unknown account. Never commits.
+    """
+    name = _validate_display_name(display_name)
+    cursor = conn.execute(
+        "UPDATE users SET display_name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?", (name, user_id)
+    )
+    if cursor.rowcount != 1:
+        raise LookupError(f"Няма потребител с id {user_id}.")
+    return name
+
+
+def mark_profile_required(conn: sqlite3.Connection, user_id: int) -> None:
+    """Set ``profile_required_at`` of a student that has no mark yet (design 7.4, D11).
+
+    Written by exactly one caller: the transaction that creates a student through Google
+    sign-in while the profile gate is on. It refuses to mark anything else: ``LookupError``
+    when the account is not a student, does not exist or is already marked, so a repeated
+    or misdirected call changes nothing. Only ``profile_required_at`` is written; the
+    session key is not rotated. Never commits.
+    """
+    cursor = conn.execute(
+        "UPDATE users SET profile_required_at = CURRENT_TIMESTAMP "
+        "WHERE id = ? AND role = 'student' AND profile_required_at IS NULL",
+        (user_id,),
+    )
+    if cursor.rowcount != 1:
+        raise LookupError(f"Профилът на потребител {user_id} не може да бъде отбелязан като задължителен.")
+
+
+def profile_requirement(conn: sqlite3.Connection, user_id) -> dict | None:
+    """The row's current ``role`` and ``profile_required_at``, or ``None`` for no account.
+
+    A read of the two columns ``profiles.needs_profile`` decides on. They are not part
+    of the loaded account (``_USER_COLUMNS``) on purpose: the decision is made on the row
+    as it is under the caller's lock, not on what a request loaded earlier.
+    """
+    if not isinstance(user_id, int) or isinstance(user_id, bool) or not 0 < user_id < 2**63:
+        return None
+    row = conn.execute("SELECT role, profile_required_at FROM users WHERE id = ?", (user_id,)).fetchone()
+    if row is None:
+        return None
+    return {"role": row[0], "profile_required_at": row[1]}
+
+
 def _update_user(conn: sqlite3.Connection, user_id: int, assignments: str, params: tuple) -> str:
     """Apply ``assignments`` (may be empty) plus a fresh session key; return that key."""
     session_key = _new_session_key()

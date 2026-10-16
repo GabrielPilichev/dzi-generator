@@ -178,7 +178,7 @@ Proposed files: `test_registration_migration_sql.py`,
 
 ### D-R. Restore gate (PR 5; the functions are portable)
 
-*Implemented in PR 5 (unreviewed): `tests/test_registration_operations.py` and
+*Implemented in PR 5 (merged, #339; Linux evidence outstanding): `tests/test_registration_operations.py` and
 `tests/test_registration_restore_operations.py`; the restore-script tests run the real script
 against shims for `sudo`, `systemctl` and `curl`, so unit behaviour is simulated. Recovery
 credentials (PR 8) are not covered because they do not exist. See
@@ -279,6 +279,13 @@ not assert equal delivery or equal duration.
 | I7 | Quotas (PR 7): the approved limits refuse creation past them, per teacher, without affecting another teacher or an admin. |
 
 ## J. Existing accounts, Google and profiles (PRs 4 and 6)
+
+*PR 6 (implemented, not independently reviewed): J5 to J13 and J15 are in `tests/test_account_profile.py`,
+`tests/test_profile_google_onboarding.py`, `tests/test_profile_attempt_gate.py`,
+`tests/test_profile_requirement.py` and `tests/test_registration_cli.py`; I5 and I6 in the first and the
+fourth; A2 for `profile_required_at` in `tests/test_profile_required_migration_sql.py`; K3 for the
+profile gate in `tests/test_profile_gate.py`. J1 is the existing suites, unchanged apart from the sweep
+lists. See `EMAIL_REGISTRATION_PR6_STATUS.md` for what is and is not covered.*
 
 | ID | Test |
 | --- | --- |

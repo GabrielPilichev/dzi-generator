@@ -3269,6 +3269,109 @@ is finished with this script first, because an older one would neither see that
 a replacement had begun nor keep a left-over command out. Then bring back any
 timer noted there (command above).
 
+## 35. Account profile flow and migration 023 (registration PR 6): shipped disabled
+
+This release adds migration `023_profile_required.sql`, the profile page
+(`/account/profile`), the profile on `/account`, the mark `profile_required_at`
+written at Google onboarding, the profile check at the start of a new quiz
+attempt, and the build gate that keeps all of it off
+(`docs/reviews/EMAIL_REGISTRATION_DESIGN.md`, sections 6.1, 7.3 and 7.4; PR 6 of
+section 9; contract in `docs/reviews/EMAIL_REGISTRATION_PR6_STATUS.md`; routes in
+`docs/AUTH_ROUTE_CONTRACT.md`, "Account profile").
+
+**The profile flow is not activated, and this build cannot activate it in
+production.** Nothing in this section has been carried out on any server, and no
+activation prerequisite of the design (0.3) is met.
+
+### What the build does
+
+- **The gate.** `PRODUCTION_ACTIVATION` in `web/services/profiles.py` is `False`.
+  While it is, `web.wsgi`:
+  - answers `/account/profile` with the generic 404 page for every signed-in
+    account (an anonymous visitor is sent to `/login?next=...`, as for every
+    account page; a cross-origin POST is still 403);
+  - shows no profile section and no link on `/account`;
+  - redirects after Google onboarding exactly as before and writes no mark;
+  - starts a new attempt exactly as before, whatever `profile_required_at`
+    holds (a mark that exists stays stored and is ignored).
+
+  No setting and no environment variable overrides the constant in production.
+  `DZI_PROFILES_ENABLED` is read by a **development** run (`web.app`) only, to
+  turn the flow on locally (`1`, `true`, `yes` or `on`); `web.production` never
+  reads it to decide anything. If it is set while the constant is off, the start
+  logs one warning that names the setting and never its value: `DZI_PROFILES_ENABLED
+  is set, but this build does not enable account profiles.` It is never a reason to
+  refuse to start. A later, separately authorised release sets the constant to
+  `True`, after the prerequisites of design 0.3, and the profile gate is the
+  step after the student gate in the rollout order of design 7.5.
+- **Migration 023** adds one nullable column, `users.profile_required_at`; see
+  below. Nothing reads it while the gate is off. It is not part of the loaded
+  account (`accounts._USER_COLUMNS` is unchanged), so no request reads it.
+- **The mark** is written in one place only: the transaction in which Google
+  onboarding creates a student, and only while the gate is on. **No existing
+  account is marked and no operator command marks one** (there is no
+  `require-profile`): every account that exists when the migration runs has NULL.
+- **The check** is made inside `quiz_start_or_resume_attempt`, under the writer
+  lock, at the point where an attempt would be created, after an existing attempt
+  and a closed assignment have been handled as before. It creates no row.
+- `manage_accounts list` is unchanged. `set-role` writes neither a profile nor the
+  mark.
+
+### Deployment order
+
+The standard procedure of section 20, with nothing added to it.
+
+- The migration is additive and is not a table rebuild: `ALTER TABLE users ADD
+  COLUMN profile_required_at TEXT`. No row is written; every existing account,
+  its password hash, session key, second factor, identity, profile, assignment
+  and attempt is untouched. Nobody is signed out.
+- On a database that already has every migration through
+  `022_registration_issuance_identity.sql` the dry run of step 7 lists exactly
+  `023_profile_required.sql`. If it lists earlier migrations too, the database is
+  behind that level; see the section that introduces each (sections 30 and 32 for
+  021 and 022).
+- Apply in step 8, after the step 3 snapshot, only what the dry run listed. From
+  this release on the application refuses to start on a schema without migration
+  023 (section 9).
+- Nothing is configured and nothing is for an account, operator or teacher to do
+  afterwards. Do not set `DZI_PROFILES_ENABLED` in `/etc/learnpilot/learnpilot.env`:
+  it would only produce the warning above.
+
+Check after deploying that the flow is invisible:
+
+```bash
+# Signed in as any account: 404. (Anonymous: a redirect to /login, as for every account page.)
+curl -s -o /dev/null -w '%{http_code}\n' -b "$SESSION_COOKIE" https://learnpilot.bg/account/profile
+curl -s -b "$SESSION_COOKIE" https://learnpilot.bg/account | grep -c '/account/profile'   # 0
+```
+
+### Backup and restore
+
+Unchanged. The column is part of the live database, so the snapshot of section 16
+and the restore of section 17 cover it; `deploy/learnpilot-restore.sh` is not
+changed. A snapshot from before this release is migrated to the deployed schema by
+the restore script (section 17, step 4), which adds the NULL column. `users` is
+runtime state and is never exported to `data/canonical`.
+
+### Rollback
+
+**There is no behaviour to revert while the gate is off.** Forward fix first.
+
+- **Once migration 023 is applied, every build that serves this database ships
+  `023_profile_required.sql`, a recovery build included** (section 21). If
+  application code has to be reverted, revert the code and keep the migration
+  together with its entry in the migration list and level of
+  `data/canonical/manifest.json`. The column stays; it is not dropped or emptied.
+  Code from before this release names its `users` columns and runs unchanged
+  against the migrated schema.
+- A snapshot restore is not a route to a build from before 023, for the reasons
+  sections 27, 28 and 30 give for migrations 019 to 021. Do not use
+  `--replaced-database-unreadable` to get past that refusal.
+- **Turning the gate back off after it was on** (a later release) is a code change
+  and a restart: `/account/profile` is 404 again, the link and the check are gone,
+  and the marks and profiles written meanwhile stay in the database and are
+  ignored. No data is deleted.
+
 ## 2 GB VPS sizing
 
 Initial configuration from capacity testing: Gunicorn `workers = 1`,

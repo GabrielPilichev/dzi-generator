@@ -75,6 +75,11 @@ EXPECTED_ACCESS_MATRIX = {
     # Admin TOTP (PR T): public because a pending second factor is not a principal.
     "account.login_totp": access.PUBLIC,
     "account.password": access.SIGNED_IN,
+    # Registration PR 6: the profile page. Public at the hook so that the disabled gate is
+    # decided before any sign-in redirect (404 for everybody while the profile gate is off,
+    # the build's default); the view then requires a signed-in account itself, with the hook's
+    # own rule and redirect (tests/test_account_profile.py, GateOrderTest).
+    "account.profile": access.PUBLIC,
     # Accounts phase 2: the signed-in account's own attempts (any role).
     "quiz.my_attempts": access.QUIZ_TAKER,
     # Google sign-in (PR #331). The callback is public and has its own integrity

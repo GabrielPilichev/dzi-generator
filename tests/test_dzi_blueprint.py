@@ -21,6 +21,7 @@ EXPECTED_URL_MAP = (
     ('/account', ('GET',), 'signed_in', None),
     ('/account/attempts', ('GET',), 'quiz_taker', None),
     ('/account/password', ('GET', 'POST'), 'signed_in', 'same_origin'),
+    ('/account/profile', ('GET', 'POST'), 'public', 'same_origin'),
     # Google sign-in (PR #331). The callback is the one GET with an integrity
     # mechanism of its own; the other four are ordinary same-origin POST routes.
     ('/auth/google/callback', ('GET',), 'public', 'oauth_state'),
