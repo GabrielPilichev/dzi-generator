@@ -363,7 +363,7 @@ lists. See `EMAIL_REGISTRATION_PR6_STATUS.md` for what is and is not covered.*
 ## M. Password recovery (PR 8, decision D10)
 
 Planned with its addendum; the proposed plan is
-`docs/reviews/PASSWORD_RECOVERY_TEST_PLAN.md` (not reviewed), which maps M1–M6
+`docs/reviews/PASSWORD_RECOVERY_TEST_PLAN.md` (revision 2, not approved), which maps M1–M6
 and the equivalents below to its own test ids. At minimum the equivalents of D1–D11, DL1–DL10,
 DS1–DS8, DC1–DC8, DR1–DR9, E3–E5, F1–F3,
 G1–G6, H1–H7 and N1–N5 for the

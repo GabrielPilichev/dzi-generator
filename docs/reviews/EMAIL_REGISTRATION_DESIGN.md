@@ -594,12 +594,16 @@ belongs to. It holds no address, no name and no code.
 - A ledger row is never updated except to settle its own outcome (4.3), and
   is deleted only by the cleanup, 48 hours after `attempted_at` (6.5).
 
-`login_throttle` is reused where its policy fits (sign-in). It is not used for
-these caps: its window and its cleanup are fixed at fifteen minutes for every
-row. (This sentence once also named "later, recovery attempts"; the recovery
-addendum, `PASSWORD_RECOVERY_DESIGN.md` 5.6, proposes not counting recovery
-codes in the throttle, because it is keyed by the address and would let anyone
-lock a victim out of sign-in. Not yet decided.)
+`login_throttle` is reused where its policy fits (sign-in and, later,
+recovery attempts). It is not used for these caps: its window and its cleanup
+are fixed at fifteen minutes for every row.
+
+**Proposed amendment (RD10 of `PASSWORD_RECOVERY_DESIGN.md`, 5.6; not
+selected, not approved).** If Gabriel selects RD10 as recommended, the words
+"and, later, recovery attempts" above are withdrawn: wrong recovery codes are
+not counted in `login_throttle`, because it is keyed by the address and would
+let anyone lock a victim out of sign-in by typing wrong recovery codes. Until
+then the approved sentence above stands unchanged.
 
 ### 3.5 Work budget and the mail circuit
 
@@ -1273,13 +1277,19 @@ Requirements the addendum must meet:
   get no code and the same visible answer.
 
 **The addendum** is `docs/reviews/PASSWORD_RECOVERY_DESIGN.md`, with
-`PASSWORD_RECOVERY_SCOPE.md` and `PASSWORD_RECOVERY_TEST_PLAN.md`: a proposal,
-not reviewed and not approved. Its open decisions RD1–RD16 (its section 0.3)
-include the never-verified question (RD1, recommended: not eligible) and what
-a non-eligible address receives (RD2). Where it says recovery shares a
-mechanism of this design (the send ledger, the caps, the circuit, the
-high-water mark, the restore hold, the cleanup command), it proposes extending
-that mechanism, not a parallel one.
+`PASSWORD_RECOVERY_SCOPE.md` and `PASSWORD_RECOVERY_TEST_PLAN.md`: a proposal
+in its second revision (the first returned REQUEST CHANGES from its
+independent review), not approved. Its open decisions RD1–RD18 (its section
+0.3) include the never-verified question (RD1, recommended: not eligible) and
+what a non-eligible address receives (RD2). Three would **amend** requirements
+of this design and are marked so there: RD4 (eight-digit recovery codes, D6),
+RD7 (no `not_sent` retirement for recovery, 4.3) and RD10 (recovery guesses
+kept out of `login_throttle`, 3.4). RD17 proposes an interpretation of
+"voids **every** other pending recovery code" above (by the session-key
+digest, without writing the other rows), for Gabriel to confirm. Where it says
+recovery shares a mechanism of this design (the send ledger, the caps, the
+circuit, the high-water mark, the restore hold, the cleanup command), it
+proposes extending that mechanism, not a parallel one.
 
 ### 5.3 Deferred, with limits and support handling (D15)
 
@@ -1859,7 +1869,7 @@ gate from being turned on and blocks no PR (0.3).
 | # | Item | Kind |
 | --- | --- | --- |
 | 1 | **No open decision blocks PR 1–6.** D1–D15 and D18–D20 are approved (0.2). Approval does not authorize an implementation; each PR starts when Gabriel says so. | Neither |
-| 1a | ~~Quota values for PR 7~~ are approved (20 creations per rolling 24 hours, 10 open assignments) and PR 7 has its scope (`EMAIL_REGISTRATION_PR7_SCOPE.md`). **PR 8** needs its own addendum, including the recovery eligibility of never-verified addresses (5.2). The addendum is drafted (`PASSWORD_RECOVERY_DESIGN.md`, a proposal, not reviewed); its review and Gabriel's decisions on its RD1–RD16 remain. | Implementation blocker for PR 8 only |
+| 1a | ~~Quota values for PR 7~~ are approved (20 creations per rolling 24 hours, 10 open assignments) and PR 7 has its scope (`EMAIL_REGISTRATION_PR7_SCOPE.md`). **PR 8** needs its own addendum, including the recovery eligibility of never-verified addresses (5.2). The addendum is drafted (`PASSWORD_RECOVERY_DESIGN.md`, a proposal in revision 2 after an independent REQUEST CHANGES); its review and Gabriel's decisions on its RD1–RD18, including three proposed amendments of this design (RD4, RD7, RD10), remain. | Implementation blocker for PR 8 only |
 | 2 | **D16** (privacy and minors) and the **configuration of D17** (sender address and domain, credentials, provider or relay, set with the VPS). | Activation prerequisite |
 | 3 | **Teacher quotas** exist since PR 7 (7.1), implemented; independently reviewed at `e39fa9f` (APPROVE WITH NON-BLOCKING NOTES). | Activation prerequisite for the teacher gate (met by the code, not an activation; D16 and the other prerequisites stay open). Not for the student form. |
 | 4 | **No privacy page, no retention period, no settled position on minors' consent, no stated purpose for the profile fields** (7.2). | Activation prerequisite |
@@ -1938,7 +1948,7 @@ as a rule; it would be justified only for a concrete open problem.
 | 5 | Operations: cleanup timer unit; the restore gate, status and release functions and commands (hold after every restore, D20); the restore script's gate, cleanup-job handling and final validation; the logical snapshot scrub (D18 (b)); health checks. | None open (D18, D20 decided) | 4 | Opus High | yes (operations; Linux evidence required) |
 | 6 | `/account/profile`, profile on `/account`, the profile gate; the migration adding `users.profile_required_at`, the mark at Google onboarding, `profiles.needs_profile` and the new-attempt check. | None open (D2, D11 decided) | 5 | Sonnet High | yes |
 | 7 | Teacher quotas (own short scope: `EMAIL_REGISTRATION_PR7_SCOPE.md`), then role `teacher` for a verified teacher registration (D5), the teacher form and subjects behind `TEACHER_ACTIVATION`. Migration 024. | Quota values: approved (20 per rolling 24 h; 10 open). Open: admin accounts (scope, I6) | 6 | Sonnet High | yes (security) |
-| 8 | Password recovery, from its own addendum (5.2, `PASSWORD_RECOVERY_DESIGN.md`), before public opening (D10). The addendum proposes three sequential scopes (8.1 storage and service, 8.2 operations, 8.3 routes and gate; its section 10). | The addendum, reviewed; its decisions | 7 | Opus High | yes (security, a separate Opus High session per scope) |
+| 8 | Password recovery, from its own addendum (5.2, `PASSWORD_RECOVERY_DESIGN.md`), before public opening (D10). The addendum proposes three sequential scopes (8.1 storage and operations, with nothing that creates a recovery row; 8.2 the service, with no caller; 8.3 routes and gate; its section 10), so that no build capable of creating a recovery row lacks the cleanup, restore and snapshot integration. | The addendum, reviewed; its decisions | 7 | Opus High | yes (security, a separate Opus High session per scope) |
 | — | Activation: separate, explicitly authorised, after the prerequisites of 0.3. Student registration does not wait for PR 7. | D16; configuration of D17 | — | — | — |
 
 **Approved after the PR 1 review (not independently reviewed).** (1) The first PR
