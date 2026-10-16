@@ -42,10 +42,16 @@ systemd evidence has not been produced. **PR 6** (the account profile flow: migr
 `023_profile_required.sql`, `/account/profile` and the profile on `/account`, the build gate
 `profiles.PRODUCTION_ACTIVATION`, kept off, `profiles.needs_profile`, the mark written at Google
 onboarding for a newly created student only, and the profile check at the locked decision to
-create a new attempt) is implemented on `feature/account-profile-flow` (draft PR), unreviewed
-and unapproved, **not activated**: `docs/reviews/EMAIL_REGISTRATION_PR6_STATUS.md`. Approval of
-its implementation will not be activation. No other PR is started (PR 7 quotas and PR 8
-recovery are not), and no deployment, provider or real database was touched.
+create a new attempt) is merged (#340, squash `ede0c0b36ee3d163e317a93da744ff146b2c7c1e`, whose tree equals that of
+`c1d3b8f6a6b7d2651c4b4c3db152acd2c49655aa`, independently reviewed there: APPROVE WITH NON-BLOCKING NOTES) and
+**not activated**: `docs/reviews/EMAIL_REGISTRATION_PR6_STATUS.md`. **PR 7** (per-account assignment
+quotas, migration `024_assignment_creations.sql`, and gated teacher registration, with the teacher gate kept off) is
+implemented on `feature/teacher-registration-quotas` (PR #341; committed as `b15d02b`, `3537f4f`, `e39fa9f` and `5f834ae`; the first two were each independently reviewed at their
+exact SHA and returned **REQUEST CHANGES**, and `e39fa9f` and `5f834ae` each returned **APPROVE WITH NON-BLOCKING NOTES**; `5f834ae` holds the ASCII-digit cleanup of the timestamp parser and the recording of Gabriel's
+policies; later provenance-only edits to the documents are outside that reviewed commit), **not
+activated**: `docs/reviews/EMAIL_REGISTRATION_PR7_SCOPE.md` and `EMAIL_REGISTRATION_PR7_STATUS.md`. Approval of its
+implementation will not be activation. PR 8 (recovery) is not started, and no deployment, provider or real
+database was touched.
 
 Revisions 1, 2 and 3 were each independently reviewed and returned with
 REQUEST CHANGES, the third narrowly (two defects in the sender contract and
@@ -62,7 +68,8 @@ them. Still open, and unaffected by the verdict: Linux
 unit, signal, descriptor and worker-replacement evidence is outstanding;
 provider behaviour, delivery capacity, timers and restore, and privacy are
 activation prerequisites; teacher quotas are a prerequisite for the teacher
-gate (quota values are not yet selected). Nothing here authorizes an
+gate (values approved with PR 7: 20 creations per rolling 24 hours and 10 open
+assignments; implemented, independent review outstanding). Nothing here authorizes an
 implementation, a deployment or an activation.
 
 ## Prerequisites (all merged, none activated)
@@ -200,9 +207,10 @@ purpose, who may see them and how long they are kept are not, and stay with D16.
 These are two different lists and are kept apart in the design.
 
 - **Implementation decisions** (design, 0.2): all approved; none holds up
-  PR 1–6. What remains open for implementation: the **quota values** and a
-  short scope for PR 7, and the **addendum** of PR 8 (including recovery for
-  never-verified addresses). **D15** (deferral of email change, a password for
+  PR 1–7. What remains open for implementation: the **addendum** of PR 8
+  (including recovery for never-verified addresses). PR 7's quota values are
+  approved and its short scope is `EMAIL_REGISTRATION_PR7_SCOPE.md`, which
+  also lists the one choice still needing Gabriel (admin accounts). **D15** (deferral of email change, a password for
   a Google-only account, and merging) blocks no PR: the limits and support
   handling of design 5.3 apply while the deferral stands. Approval does not
   authorize starting a PR.
@@ -236,7 +244,8 @@ These are two different lists and are kept apart in the design.
   on Linux, with a test restore.
 - Password recovery (PR 8, D10) delivered before public opening.
 - Teacher quotas decided and implemented before the **teacher** gate is
-  turned on. They do not hold up student registration.
+  turned on (decided and implemented by PR 7; independent review outstanding).
+  They do not hold up student registration.
 - Independent security review of the implementation PRs marked for it.
 - Google's own activation prerequisites, unchanged and separate.
 

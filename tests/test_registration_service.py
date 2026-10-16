@@ -49,11 +49,13 @@ class AccountsAdditionsTest(RegistrationTestCase):
         self.assertTrue(row["session_key"])
         self.assertTrue(self.conn.in_transaction)  # never commits
 
-    def test_refuses_every_role_but_student(self):
-        for role in ("admin", "teacher", "", None, "Student", "student "):
+    def test_refuses_every_role_but_student_and_teacher(self):
+        # A verified registration can end in these two roles only (PR 7); never admin.
+        for role in ("admin", "", None, "Student", "student ", "Teacher", "tester"):
             with self.subTest(role=role), self.assertRaises(ValueError):
                 self.create(role=role)
         self.assertEqual(self.count("users"), 0)
+        self.assertEqual(accounts.VERIFIED_REGISTRATION_ROLES, ("student", "teacher"))
 
     def test_refuses_a_missing_or_unnormalised_email(self):
         for email in (None, "", "Ana@Example.bg", " ana@example.bg", "no-at", 7):
@@ -569,7 +571,8 @@ class VerificationTest(RegistrationTestCase):
 
 
 class TeacherTest(RegistrationTestCase):
-    """A teacher registration is never activated before PR 7 (design 6.3 step 5, K5)."""
+    """A teacher registration is activated only behind the teacher gate (design 6.3 step 5, K5);
+    the activation itself is tested in ``tests.test_teacher_registration``."""
 
     def test_no_teacher_row_without_the_gate(self):
         before = self.digest()
@@ -577,24 +580,24 @@ class TeacherTest(RegistrationTestCase):
         self.assertEqual((result.outcome, result.reason), (Outcome.UNAVAILABLE, Availability.TEACHER_OFF))
         self.assertUnchanged(before)
 
-    def test_teacher_row_is_voided_at_verification_whatever_the_flag(self):
-        for enabled in (False, True):
-            with self.subTest(teacher_enabled=enabled):
-                issued = self.submit(cleaned=teacher(f"t{int(enabled)}@example.bg"), teacher_enabled=True)
-                self.assertEqual(self.pending(issued.pending_id)["account_type"], "teacher")
-                pupil = self.submit(f"s{int(enabled)}@example.bg")
-                result = self.verify(issued, code_of(issued), teacher_enabled=enabled)
-                self.assertEqual((result.outcome, result.reason), (Outcome.UNAVAILABLE, Availability.TEACHER_OFF))
-                self.assertScrubbed(issued.pending_id, "void")
-                self.assertEqual(self.pending(issued.pending_id)["code_attempts"], 0)
-                self.assertEqual(self.verify(pupil, code_of(pupil)).outcome, Outcome.ACTIVATED)
-        self.assertEqual([user["role"] for user in self.users()], ["student", "student"])
+    def test_teacher_row_is_voided_at_verification_while_the_gate_is_off(self):
+        issued = self.submit(cleaned=teacher("t0@example.bg"), teacher_enabled=True)
+        self.assertEqual(self.pending(issued.pending_id)["account_type"], "teacher")
+        pupil = self.submit("s0@example.bg")
+        result = self.verify(issued, code_of(issued), teacher_enabled=False)
+        self.assertEqual((result.outcome, result.reason), (Outcome.UNAVAILABLE, Availability.TEACHER_OFF))
+        self.assertScrubbed(issued.pending_id, "void")
+        self.assertEqual(self.pending(issued.pending_id)["code_attempts"], 0)
+        self.assertEqual(self.verify(pupil, code_of(pupil)).outcome, Outcome.ACTIVATED)
+        # Never turned into a student, and the voided row cannot be completed later.
+        self.assertEqual([user["role"] for user in self.users()], ["student"])
+        self.assertEqual(self.verify(issued, code_of(issued), teacher_enabled=True).outcome, Outcome.NOT_PENDING)
         self.assertEqual(self.count("teacher_subjects"), 0)
 
-    def test_resend_voids_a_teacher_row_and_issues_nothing(self):
+    def test_resend_voids_a_teacher_row_while_the_gate_is_off_and_issues_nothing(self):
         issued = self.submit(cleaned=teacher(), teacher_enabled=True)
         self.at(61)
-        result = self.resend(issued, teacher_enabled=True)
+        result = self.resend(issued, teacher_enabled=False)
         self.assertEqual((result.outcome, result.message), (Outcome.UNAVAILABLE, None))
         self.assertScrubbed(issued.pending_id, "void")
         self.assertEqual(len(self.sends()), 1)

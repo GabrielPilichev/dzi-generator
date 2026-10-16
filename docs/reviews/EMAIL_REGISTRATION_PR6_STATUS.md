@@ -11,8 +11,16 @@ Routes: `docs/AUTH_ROUTE_CONTRACT.md`, "Account profile". Operator text: `docs/D
 * `429697efea47e18b4e9c8842322639a5e9299305`: an independent review (PR #340) gave **REQUEST CHANGES** with two findings.
 * `d3e6d6e0564fd8aba7a04e8de6f365f4ef1f61e4` (committed, "Fix profile name snapshots and rejected return-target handling"): the
   fixes below. An independent review of exactly this SHA gave **APPROVE WITH NON-BLOCKING NOTES**.
-* **After that SHA, and outside what was reviewed:** the gate-order cleanup in "Gate order and the four approvals" below. It is in the
-  working tree, **unstaged and uncommitted**, and has **not been independently reviewed**.
+* `c1d3b8f6a6b7d2651c4b4c3db152acd2c49655aa` (committed, "Apply approved profile gate ordering and record decisions"): the gate-order
+  cleanup in "Gate order and the four approvals" below. An independent review of exactly this SHA gave **APPROVE WITH NON-BLOCKING
+  NOTES** after 344 tests and nine probes, and a policy-reversion mutation produced the expected failures. This record replaces the text
+  that called the cleanup "unstaged and uncommitted" and not independently reviewed: it was committed and then reviewed.
+* **Merge provenance, from repository history:** the branch was merged on `main` as the squash commit
+  `ede0c0b36ee3d163e317a93da744ff146b2c7c1e` ("Add account profiles and gated profile completion (#340)", 2026-10-16). Its tree
+  (`4ff1a515d2498c598b35e91e3c8f778a9443ab95`) is identical to the tree of `c1d3b8f`, so the reviewed content is the merged content. The squash
+  message records the approval at `c1d3b8f` and that the full suite was not repeated after the reviewed change (the 4120-test run below
+  is the earlier full run). `c1d3b8f` is not an ancestor of `main` (a squash), and exists in the repository as the branch tip. The
+  merge is not an activation: nothing here changes any gate, and no browser, Linux or systemd validation is claimed.
 
 The two findings and their fixes, as committed in `d3e6d6e`:
 
@@ -48,9 +56,9 @@ Gabriel approved four choices of this PR:
 4. **`display_name` is rewritten only when the profile names changed**, so an operator-set name survives (deviation 9). Already the
    behaviour; not rewritten.
 
-Approval 2 needed a change (after `d3e6d6e`, not independently reviewed): the access hook runs before the view, so a `signed_in`
+Approval 2 needed a change (after `d3e6d6e`; reviewed at `c1d3b8f`): the access hook runs before the view, so a `signed_in`
 policy sent an anonymous visitor to `/login` before the gate was looked at. `account.profile` is now declared `public`; the view checks
-the gate first (`abort(404)` for everybody, no redirect, no `Set-Cookie`, no write) and only then applies the `signed_in` rule itself with
+the gate first (`abort(404)` for everybody, no redirect, no `Set-Cookie` of its own, no write) and only then applies the `signed_in` rule itself with
 the hook's own function (`access.is_route_allowed`) and the same redirect `/login?next=/account/profile`. Same-origin protection is a
 separate before-request check and still comes first (a cross-origin or origin-less POST is 403 whether the gate is on or off). With
 the gate on, anonymous, disabled-account and signed-in requests behave as before. Files: `web/blueprints/account.py`; the route-policy
@@ -59,9 +67,16 @@ pins in `tests/test_access_policy.py`, `tests/test_account_login.py`, `tests/tes
 (`GateOffTest`: every visitor and method gets the 404 with no redirect, cookie or write to any table, no session issued, same-origin
 first; `GateOrderTest`: the existing login flow with the gate on).
 
+*Qualification of "no cookie" (recorded with PR 7; the tests use valid or anonymous sessions only).* The 404 and the view issue no session and
+set no cookie of their own. A request that arrives carrying a **stale account identity** (a disabled account, a rotated session key or an
+expired session) is cleaned by `load_current_user` in `web/app.py` **before the view runs**: it drops the identity keys from the session,
+and the response may therefore carry a `Set-Cookie` that removes the invalid identity. That cookie never issues or renews an authenticated
+session, and the same happens on every route, with the profile gate on or off.
+
 **Status:** implemented on `feature/account-profile-flow` (draft PR #340), committed in `4197818`, `f0afa55`, `429697e` and
-`d3e6d6e0564fd8aba7a04e8de6f365f4ef1f61e4`, on top of `3d2e0d5` (#339). `d3e6d6e` is independently reviewed (APPROVE WITH NON-BLOCKING
-NOTES); the gate-order cleanup after it is not, and is unstaged. Nothing here is a merge or an activation approval. The profile flow is **not activated**: the
+`d3e6d6e0564fd8aba7a04e8de6f365f4ef1f61e4` and `c1d3b8f6a6b7d2651c4b4c3db152acd2c49655aa`, on top of `3d2e0d5` (#339). `d3e6d6e` and then `c1d3b8f`
+(the gate-order cleanup) were each independently reviewed (APPROVE WITH NON-BLOCKING NOTES), and the branch was merged as `ede0c0b`
+(#340; see "Review history"). Nothing here is an activation approval. The profile flow is **not activated**: the
 build gate `profiles.PRODUCTION_ACTIVATION` is `False`, so a production start keeps `/account/profile`, its link,
 the redirect after Google onboarding, the mark and the new-attempt check switched off whatever is configured.
 Registration (`registration.PRODUCTION_ACTIVATION`, `TEACHER_ACTIVATION`) and Google sign-in
@@ -235,7 +250,7 @@ profile, an attempt, a closure, an unmark and a role change made while the start
 
 ## Not verified / remaining
 
-* The gate-order cleanup after `d3e6d6e` is not independently reviewed. Nothing was looked at in a browser: the markup renders through the test client, and the colours come from the
+* The gate-order cleanup was reviewed at `c1d3b8f` (see "Review history"); no full-suite repeat was made after it. Nothing was looked at in a browser: the markup renders through the test client, and the colours come from the
   shared tokens, but the contrast of the new warning, the checklist and the definition list has not been checked on a screen.
 * Nothing ran on Linux or under the real unit; no real SQLite database, deployment, provider or message was involved.
 * Activation prerequisites unchanged and not done: the privacy policy and D16 (purpose, visibility and retention of the profile fields, minors),

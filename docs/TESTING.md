@@ -298,6 +298,71 @@ no mail is sent and no socket is opened.
 **Tunnels.** `DZI_PROFILES_ENABLED` turns the flow on in a development run only. Do not set
 it when sharing a localhost tunnel unless that is the point of the test.
 
+## Assignment quota and teacher registration tests
+
+Registration PR 7 (`docs/reviews/EMAIL_REGISTRATION_PR7_STATUS.md`). Every database is a temporary
+clone or build from migrations and canonical data and every vault is a temporary directory; none is
+`data/questions.db` or the repository's `vault/`. Mail is `InMemoryMailer`: nothing is sent and no socket is opened.
+
+- `tests/test_assignment_creations_migration_sql.py` upgrades a temporary database from migration 023, with owned,
+  unowned, closed and badly dated assignments in it, to 024: no ledger row is written, nothing else changed, the table's
+  constraints, a deletion of an assignment leaving the ledger alone, and parity with a fresh build.
+- `tests/test_assignment_accounting.py` (review findings 1 and 2): the timestamp normalizer's rules; reconciliation of legacy shapes at the
+  window edge; the unplaceable cases; admins; and `tests/legacy_creation.py`, a verbatim copy of the pre-PR 7 `quiz_create_assignment`
+  (compared with git when the base commit is available), run against the PR 7 schema in rollback-journal and WAL mode in two classes
+  (`RollbackRegressionJournalTest`, `RollbackRegressionWalTest`). The old function stamps `created_at` with SQLite's own clock, so those
+  classes move the frozen lifecycle clock to the real present. The start-up notice is tested on private databases.
+- `tests/test_assignment_quota.py` runs on a frozen lifecycle clock (`tests.support.lifecycle_time`). The service tests call
+  `quiz_create_assignment` as the routes do and cover the exact window and open-count boundaries, closing versus the
+  daily allowance, deadlines, holds, roles and role changes, existing assignments, unowned rows, and atomicity (a
+  refusal changes no table, the clock row included; a failure injected with a real trigger after the insert consumes no
+  allowance). The concurrency tests use threads with one connection each: the last daily slot and the last open slot go to
+  exactly one of four simultaneous requests, and a request that waits for the lock is judged at the time it gets it
+  (a second connection holds `BEGIN IMMEDIATE`, the test clock moves, nothing sleeps for a limit; one 0.4 s pause lets the
+  waiting thread reach the lock). The route tests go through the application: both kinds of `/teacher/new`, the copy form,
+  status, message, kept values, no vault note in the temporary vault, authorization before the quota, and a 500 for an
+  injected storage failure. The static pins keep the one insert, the one decision before it, and the one writer of the ledger.
+- `tests/test_teacher_registration.py` has a service layer (activation of a teacher: account, profile and subject rows together; a
+  trigger-injected failure at every subject write, at the account, the profile and the final state; no role from submitted
+  data; existing addresses of every role; gate off; a database without the ledger) and a route layer on the registration route
+  fixture (`tests.test_registration_routes.RegistrationRouteTestCase`) with the teacher gate patched on
+  (`registration_service.TEACHER_ACTIVATION`; no setting exists): the form, validation, journey, sign-in, access matrix,
+  gate-off pending rows, activation failures and dispatch and settlement (one dispatch per issuance, the same send number and
+  issuance identity settled, nothing settled after `NotSendable`, no retry).
+- `tests/test_teacher_registration.py::RestartNavigationTest` pins that cancel and every ended, unavailable or failed registration page
+  restart at the chooser, for both flows, with the validated `next`: a failed verification, resend, cancel or submission, a submission or
+  resend or verify during a restore hold, a hold that appears between the submit's read and its write, a cancel refused by the clock, and a
+  teacher's verify or resend after the gate went off (the target is read before the binding is retired); a missing or forged binding stays
+  targetless and an unsafe target is never echoed.
+- `tests/test_assignment_accounting.py::NormalizeTimestampTest` also pins that only ASCII digits are read: every digit position of five ASCII
+  bases is replaced in turn by the same digit of four other scripts (304 subtests) and must be unplaceable, a database-level test refuses the
+  account (503) on such a `created_at`, and a separate test keeps the ASCII forms, exact fractions and bounds unchanged.
+- `tests/test_assignment_accounting.py::NormalizeTimestampTest` and `FractionalAllowanceTest` (review of `3537f4f`) pin the exact-instant rules:
+  fractions of any length are rounded up, never truncated, so the reproduction (twenty creations at `…09:00:00.999999999Z`) still counts; the
+  window edge with zero and nonzero fractions, offset-bearing fractions, UTC day and year crossings, the lower bound and the exact future bound.
+- Existing tests that pinned "a teacher registration is never activated" or "`/register/teacher` is always 404" now pin the
+  gate-off half and point at the new module; the migration level, the runtime-table lists and the manifest moved to 024.
+
+```sh
+python -B -m unittest tests.test_assignment_creations_migration_sql tests.test_assignment_quota \
+  tests.test_assignment_accounting tests.test_teacher_registration
+python -B -m unittest discover -s tests
+```
+
+Mutation checks used while writing them (each applied, run and reverted by a script; not part of the suite): `>=` to `>` in either limit,
+the window's exclusive bound made inclusive, the exemption removed, the two limits reported in the other order, the ledger write
+or the decision removed, the open predicate weakened, a pre-lock time used, the refusal mapped to a deadline error, the teacher role
+entry removed, the subjects or school not passed to the profile, the ledger check removed, the gate always true or ignored at
+verification, the chooser entry always shown, and `admin` added to the registration roles: all fail at least one test.
+
+Mutation checks for the review of `3537f4f` (a scratch copy, each mutant applied, run and reverted by a script): the fraction truncated, a zero fraction
+rounded up, positivity judged on six digits, the fraction limited to six or nine digits, the future bound ignoring or excluding the exact instant,
+the fraction comparison made inclusive or blind below a microsecond, the lower bound checked after rounding, the offset flipped or ignored, and
+every return-target pass-through removed or replaced by a raw request value: all fail at least one test (one equivalent mutant survives). For the ASCII
+restriction (scratch copy): `\d` restored in the year, the month and day, the time, the fraction, the offset, and everywhere without `re.ASCII`: all fail.
+
+**Tunnels.** The teacher gate has no development setting. Nothing in a localhost tunnel can turn the teacher form on.
+
 ## Previous isolation problems
 
 - `web.app` used to run `quiz_apply_migration()` at import time, before unittest

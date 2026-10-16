@@ -1159,7 +1159,7 @@ account forms.**
 - **Held briefly, not stored:** while a link awaits confirmation, the Google
   subject, reported email and name are in the person's signed session cookie
   for at most three minutes.
-- **Collected only behind gates that are off (registration PRs 4 and 6; the
+- **Collected only behind gates that are off (registration PRs 4, 6 and 7; the
   amendment this paragraph needs is an activation prerequisite and is not made
   here):** the code can store a first and last name and a class (8 to 12) for a
   student, and a school and one to three subjects for a teacher, in
@@ -1169,6 +1169,11 @@ account forms.**
   them and how long they are kept are not decided (decision D16 of
   `docs/reviews/EMAIL_REGISTRATION_DESIGN.md`) and none may be invented by an
   implementation.
+- **Also recorded, for every account that creates an assignment (registration PR 7):** a ledger of
+  creations in `assignment_creations`: the account id, the assignment number and the time. It holds
+  no name, email or text, is kept as long as the account exists, and is what keeps the daily
+  limit from being refunded when an assignment is closed or deleted. It is a running build's
+  data, unlike the profile fields.
 - **Not collected:** date of birth, school, class, phone, IP address, user
   agent, login history; from Google also the profile picture, given and family
   name, locale, organisation domain, and any Google token. No Google API is
@@ -1370,7 +1375,10 @@ moment. After any restore, run `manage_accounts sign-out` for all users.
   after the identity was added.
 - Web-based TOTP enrolment or self-service recovery (admin TOTP and recovery
   codes themselves are PR T, §23, CLI-only).
-- `declared_type`, plans, entitlements, billing, teacher creation quotas.
+- `declared_type`, plans, entitlements, billing. (Teacher creation quotas are no longer
+  deferred: registration PR 7 limits creations per account to 20 in a rolling 24 hours and
+  10 open assignments, `docs/reviews/EMAIL_REGISTRATION_PR7_SCOPE.md`; it is implemented on PR #341, reviewed
+  at `e39fa9f` and at `5f834ae` (each APPROVE WITH NON-BLOCKING NOTES), not activated, and does not change any role's access.)
 - Student-data retention period and erasure tooling (product/legal decision).
 - An admin web UI for users.
 

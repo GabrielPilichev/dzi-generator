@@ -42,7 +42,7 @@ from src.subject_content import (
 from web import db as web_db
 from web.access import Principal, can_manage_assignment
 from web.assignment_tokens import is_valid_public_token, write_with_new_public_token
-from web.services import dzi_exams, lifecycle, profiles
+from web.services import assignment_quota, dzi_exams, lifecycle, profiles
 from web.services.question_visuals import (
     attach_question_visual_assets,
     fetch_question_visual_assets,
@@ -243,20 +243,43 @@ def quiz_create_assignment(
     question_plan_json: str | None = None,
     deadline_at: str | None = None,
     display_timezone: str = lifecycle.DEFAULT_TIMEZONE,
+    transaction: lifecycle.LifecycleWrite | None = None,
 ) -> int:
     """Insert with the creator's stable account id as the owner and a new public token.
 
-    The caller supplies the current Principal and owns the transaction. An
-    admin's authorization bypass does not change who owns the new row. Every
-    assignment created here, a duplicate included, gets its own
-    ``public_token``; nothing updates it afterwards.
+    The caller supplies the current Principal. An admin's authorization bypass does not
+    change who owns the new row. Every assignment created here, a duplicate included, gets
+    its own ``public_token``; nothing updates it afterwards.
 
     ``deadline_at`` is the validated exclusive cutoff (``lifecycle.resolve_deadline``)
     or ``None`` for "no deadline"; ``display_timezone`` is stored either way. A
     duplicate passes its own choice: nothing of the source's lifecycle is copied.
+
+    **This is the one place an assignment is inserted, and the one place the per-account
+    creation limits are decided** (``web.services.assignment_quota``), so no creation path can
+    skip them. The decision, the insert and the ledger row are made inside one lifecycle
+    writer transaction, with ``now`` taken from it after the lock was held: a caller already
+    inside one passes it as ``transaction``; any other caller gets one begun here, which this
+    function leaves open. Either way the caller owns the commit, as before. A refusal raises
+    ``assignment_quota.QuotaExceeded`` before anything is written; a transaction begun here is
+    rolled back, and the caller's own holds nothing of the refused creation. An account-less principal (no ``user_id``) creates an unowned row that no limit
+    can count.
     """
     if not principal.is_teacher:
         raise ValueError("Assignment creation requires teacher capability")
+    if transaction is None:
+        # The writer lock is taken here and left held: the caller commits or rolls back.
+        own = lifecycle.begin_write(conn)
+        try:
+            return quiz_create_assignment(
+                conn, principal=principal, section_id=section_id, title_bg=title_bg,
+                question_count=question_count, time_limit_minutes=time_limit_minutes,
+                question_plan_json=question_plan_json, deadline_at=deadline_at,
+                display_timezone=display_timezone, transaction=own)
+        except BaseException:
+            if conn.in_transaction:
+                conn.rollback()
+            raise
 
     def insert(public_token: str) -> int:
         cursor = conn.execute("""
@@ -268,9 +291,14 @@ def quiz_create_assignment(
               question_plan_json, principal.user_id, public_token))
         return int(cursor.lastrowid)
 
+    transaction.admit()
+    if principal.user_id is not None:
+        assignment_quota.enforce(conn, principal.user_id, transaction.now)
     assignment_id = write_with_new_public_token(conn, insert)
     lifecycle.set_new_assignment_deadline(
         conn, assignment_id, deadline_at=deadline_at, display_timezone=display_timezone)
+    if principal.user_id is not None:
+        assignment_quota.record(conn, principal.user_id, assignment_id, transaction.now_text)
     return assignment_id
 
 

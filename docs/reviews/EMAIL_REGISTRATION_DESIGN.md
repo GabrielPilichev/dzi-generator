@@ -71,7 +71,7 @@ still starts only when Gabriel says so.
 | D2 | Grades 8–12, stored with the date set, editable on „Профил“; no automatic advancement. | PR 1 |
 | D3 | A teacher selects 1–3 of the application's subjects, plus „Друг предмет“ with a short text. | PR 1 |
 | D4 | School: free text, 3–120 characters, with a town hint („Име и населено място“). | PR 1 |
-| D5 | A self-registered teacher receives role `teacher` after verified activation, **only after quotas exist**; the teacher gate stays off until then. **Quota values are not yet selected.** | PR 7 |
+| D5 | A self-registered teacher receives role `teacher` after verified activation, **only after quotas exist**; the teacher gate stays off until then. **Quota values (approved with PR 7):** per teacher account, at most **20 assignment creations in a rolling 24 hours** and at most **10 open assignments**; closing frees an open slot and does not refund creation allowance; enforced atomically across creation paths. The gate stays off in production. | PR 7 |
 | D6 | Six-digit code valid 10 minutes, five guesses per generation; three resends at least 60 seconds apart; pending registration lifetime 30 minutes; 5 sends per address per hour, 8 per 24 h 15 min, and the reviewed global cap of 300 per hour. Accounting is non-refundable; the browser binding stays; the lockout and security trade-offs of 3.3 and 3.6 stand as documented. | PR 3 |
 | D7 | Verification does not sign the user in. After the **one-time** registration verification the person is redirected to `/login`. Later sign-in is email and password only; no code is sent or asked at login. Admin TOTP is unchanged. Password recovery is a separate flow, not a repeated registration verification. | PR 4 |
 | D8 | An address that already has an account gets the generic registration response and a notice email; nothing is overwritten or linked. | PR 3 |
@@ -91,8 +91,10 @@ still starts only when Gabriel says so.
 minors, purpose and retention of the profile fields) is an activation
 prerequisite; no legal conclusion is recorded. The configuration and
 delivery validation of D17 are activation prerequisites. The quota values of
-D5 and the sub-decision of 5.2 (recovery for never-verified addresses) are
-open.
+D5 are approved (20 creations per rolling 24 hours, 10 open assignments) and built by PR 7, whose
+interpretations are in `EMAIL_REGISTRATION_PR7_SCOPE.md`: admin accounts recorded and exempt, the window, held and deadline behaviour, refusal precedence
+and statuses, the timestamp policies and ledger retention (subject to D16, which stays open) are approved there; the wording of the refusal messages is not. The sub-decision of 5.2 (recovery for never-verified
+addresses) is open.
 
 **Email and sign-in semantics, exactly.**
 
@@ -126,7 +128,7 @@ every gate off.
 | Timing of the two messages | Measured durations of a code and of a notice through the chosen provider (3.7). |
 | Cleanup and restore | The timer installed and observed on a quiet server; the full restore script with its gate, including an interrupted run and a run while a cleanup is executing, against a staging copy on Linux; the snapshot step of D18 followed by a test restore (6.5, 3.9). |
 | Privacy | D16: privacy page, lawful basis, minors, retention, the provider named as a recipient. |
-| Teacher form only | Quotas implemented with values Gabriel approves (not yet selected), PR 7. Not needed for the student form. |
+| Teacher form only | Quotas implemented with the approved values (20 creations per rolling 24 hours, 10 open assignments per teacher account), PR 7: implemented; the content of `e39fa9f` was independently reviewed (APPROVE WITH NON-BLOCKING NOTES); not activated. Not needed for the student form. |
 | Recovery | PR 8 (D10) delivered before public opening. |
 | Google | Its own prerequisites, unchanged and separate. |
 
@@ -194,6 +196,8 @@ Sections 0.4–0.6 are history. Where they mention an option that D1–D20 did n
 | PR 3 contract points approved by Gabriel | After the first review of #337, recorded here and implemented in the draft. A later independent review of the revision implementing them returned **APPROVE WITH NON-BLOCKING NOTES** (all three earlier blockers resolved; no activation or deployment approval): **(1)** one send per generation is caller sequencing: `dispatch` invokes the mailer once per call, not per generation, PR 4 prevents a duplicate `dispatch` in its handler paths, and there is no automatic retry, durable send-claim state or exactly-once claim about SMTP; **(2)** a stored random issuance identifier, `registration_sends.issuance_id` (migration 022; 32 lower-case hexadecimal characters, new for every issuance and resend), so a result of a rolled-back transaction matches no later generation even when SQLite reuses numeric ids and the code digits coincide; **(3)** verification-code input is trimmed of leading and trailing whitespace only, inner whitespace is rejected and the rest must be six ASCII digits; **(4)** settlement requires the same issuance identity, callers never settle after `NotSendable`, and a stale result cannot settle an unrelated generation that reused its number. Ledger rows from before migration 022 have no identity and are neither sent nor settled | 3.1, 4.3, 6.1, 6.3, 6.4 |
 | Cancellation during a hold (approved by Gabriel with PR 4) | **A registration hold does not block the cancellation of pending data.** `cancel` voids and scrubs this browser's pending row while a `restore` hold is set; the hold and the high-water mark are left exactly as they were, so a cancellation never reopens registration. A clock behind the mark still refuses a cancellation under the existing service contract (nothing is voided, 3.8). This confirms the reading PR 3 implemented (its deviation 7) | 3.8, 6.3, 6.4 |
 | PR 4 implementation | Recorded with draft PR 4 (#338). **Independently reviewed: APPROVE WITH NON-BLOCKING NOTES at exact SHA `6d370aca7f3d8e914dd5dcfa25bbb2f85ba30f42`, with production registration OFF.** Deployment and activation are **not** approved. Changes after that SHA (the not-sent message precedence, the extended accessibility test, the G5 wording qualification and this record) are subsequent cleanup and were not part of the reviewed content. The student blueprint, templates and `reg` slot, the two build gates (`registration.PRODUCTION_ACTIVATION`, `registration.TEACHER_ACTIVATION`, both off), production and development wiring of the mail settings, the `learnpilot.registration` handler, the Nginx zone and the operator commands `registrations-cleanup [--check]`, `registrations-clock-accept` and `clear-registration-limit`. Its deviations and open points are in `EMAIL_REGISTRATION_PR4_STATUS.md`: among them, the profile gate is left to PR 6 (approved by Gabriel; D14 lists three gates, section 9 puts the profile gate with PR 6), and the fixed URL-selected `/login` activation notice is kept (approved; a hand-built URL can show it without a flow, an accepted display limitation), and `_USER_COLUMNS` is still not widened because no account reader needs `email_verified_at` (`list` reads it with its own query and tolerates its absence) | 6.2, 6.4, 6.6, 7.3, 7.5 |
+| PR 5, PR 6 merged | PR 5 was merged as #339 (squash `3d2e0d56ef2b57d66d65d640fb289c9c9041e6ce`, tree equal to the reviewed `65bee1e`). PR 6 was merged as #340 (squash `ede0c0b36ee3d163e317a93da744ff146b2c7c1e`, tree `4ff1a515d2498c598b35e91e3c8f778a9443ab95`, equal to the tree of `c1d3b8f6a6b7d2651c4b4c3db152acd2c49655aa`), whose independent review gave **APPROVE WITH NON-BLOCKING NOTES** at that exact SHA (`EMAIL_REGISTRATION_PR6_STATUS.md`). A merge is not an activation. | 9 |
+| PR 7 implementation | Chronology and provenance. (1) Approved by Gabriel before implementation: per teacher at most 20 assignment creations in a rolling 24 hours and 10 open assignments; closing frees an open slot and refunds no creation; atomic across creation paths; role `teacher` for a verified teacher registration only when the teacher gate permits; every production gate off. (2) Implemented and committed as `b15d02b067459ceded9dc4d096f7e2082ce7c81d` (PR #341): `assignment_quota` service and migration 024 (`assignment_creations`), the decision inside `quiz_create_assignment`, the teacher form, subjects, activation and gate checks. (3) Independent review of exactly that SHA: **REQUEST CHANGES** (rollback creating unaccounted history; the migration's epoch fallback refunding recent legacy creations; teacher restart links opening the student form). (4) After that review Gabriel approved: admin creations recorded and exempt from refusal; no development switch for the teacher gate. (5) Fixes committed as `3537f4f3ad9a28ee9aa147a6d93af4e6863da1ac`. (6) Independent review of exactly that SHA: **REQUEST CHANGES** (fractional timestamps discarded their fraction and could refund an allowance early; the failure, unavailable and gate-off pages dropped the validated return target). (7) Fixes committed as `e39fa9fe6224528a2bda202654f0e18ce17c85be`; independent Claude review of exactly that SHA: **APPROVE WITH NON-BLOCKING NOTES**. (8) After that review Gabriel approved: the window `(now − 24 h, now]` with conservative counting of tolerated future rows; date-only timestamps as 23:59:59 UTC; rejection before 2000-01-01; a one-day future tolerance; nonzero fractions rounded upward with the possible sub-second window difference accepted; held assignments count as open and a passed deadline frees a slot; the daily refusal before the open-limit refusal; statuses 429 (daily), 409 (open) and 503 (unreliable accounting); the ledger history kept for the account's lifetime, subject to the unresolved privacy/retention prerequisite (D16, no legal conclusion); and, after known lost history, creation stays closed until a separately reviewed recovery procedure exists (an operational requirement, not an automatic mechanism, and no procedure is written). The exact wording of the three Bulgarian refusal messages is **not** approved by this. (9) The cleanup after that review was committed as `5f834aed6fbbaa64e1f161baa923dde03667f25a`: the legacy-timestamp parser accepts ASCII digits only, and the documents record the policies above; independent Claude review of exactly that SHA: **APPROVE WITH NON-BLOCKING NOTES**. (10) Subsequent provenance-only edits to the documents, unstaged and uncommitted when written, are outside that reviewed commit. Not separately approved by Gabriel: I4, I5, I7, I8, I9 and the remaining parts of I10 and I12 (`EMAIL_REGISTRATION_PR7_SCOPE.md`); the review of `5f834ae` classified them as routine implementation details, which is the reviewer's classification and not an approval by Gabriel. Results in `EMAIL_REGISTRATION_PR7_STATUS.md`. Nothing is activated. | 6.3, 7.1, 7.3 |
 
 ## 1. Forms and profiles
 
@@ -1430,7 +1434,7 @@ commits after a returned outcome and rolls back after an exception.
 | `web/services/registration_forms.py` | `validate_student(form)`, `validate_teacher(form)` → cleaned values or field errors; `public_email(value)` |
 | `web/services/registration.py` | `availability(conn, now, *, sender_busy)` (hold, clock, circuit, total budget, an unreaped sender in this worker); `address_capped(conn, email_hash, now)`; `create_pending(conn, *, cleaned, account_type, password_hash, previous_binding, now)` → token, row id, send generation, code or notice marker; `resend(conn, binding_hash, now)`; `settle_send(conn, send_id, outcome, now)`; `verify(conn, binding_hash, code, now, *, teacher_enabled)` → outcome; `cancel(conn, binding_hash, now)`; `cleanup(conn, now)`; in PR 5 (D20): `restore_gate(conn, now)`, `restore_status(conn)`, `release_hold(conn, now)` |
 | `web/services/profiles.py` | `get_profile(conn, user_id)`, `create_profile(...)`, `update_profile(...)`, `display_name(first_name, last_name)` (PR 1); `needs_profile(conn, user)` arrives with PR 6, because it reads `profile_required_at` and the profile gate (approved after the PR 1 review) |
-| `web/services/accounts.py` (additions) | `hash_new_password(password, email)`; `create_verified_user(conn, *, email, display_name, role, password_hash, verified_at)` with `role` limited to `student`; PR 7 extends it to `teacher` (D5) |
+| `web/services/accounts.py` (additions) | `hash_new_password(password, email)`; `create_verified_user(conn, *, email, display_name, role, password_hash, verified_at)` with `role` limited to `student` and, since PR 7, `teacher` (D5); never `admin` |
 | `web/services/mail.py`, `web/services/mail_sender.py` | section 4 |
 
 **As implemented by PR 3** the signatures above differ in their parameters
@@ -1467,9 +1471,10 @@ the registration tables unchanged. The mark is raised only by a run whose
    can reach this step only after the operator has accepted the clock.
 5. The row is a teacher registration and the teacher gate is off → set
    `void`, scrub → `UNAVAILABLE` (7.3). No code is needed and no attempt is
-   counted. Before PR 7 this is every teacher registration in every
-   environment: D5 gives a verified teacher the role `teacher` only once quotas
-   exist (7.1), so until PR 7 the registration is refused.
+   counted. Until PR 7 this was every teacher registration in every
+   environment (D5: the role `teacher` only once quotas exist, 7.1). Since PR 7 it
+   is a teacher registration while the teacher gate is off, which is every
+   production start.
 6. No live code, or past `code_expires_at` → `CODE_EXPIRED`, no attempt
    counted.
 7. `code_attempts` at the limit → `TOO_MANY`.
@@ -1479,7 +1484,7 @@ the registration tables unchanged. The mark is raised only by a run whose
 10. Clear the code. If the row is a shadow, or a `users` row with the address
     exists → set `void`, scrub → `EMAIL_TAKEN`.
 11. `create_verified_user` with the role literal for the row's
-    `account_type` (`student`; for a teacher registration, from PR 7, `teacher`), then the profile and subjects; set `activated`, scrub →
+    `account_type` (`student`, or `teacher` since PR 7 and only with the gate on), then the profile and, for a teacher, its one to three subject rows, all in the same transaction; set `activated`, scrub →
     `ACTIVATED`.
 
 Failures in steps 10 and 11:
@@ -1635,23 +1640,42 @@ their results and CSV with students' names, QR sharing and practical review
 of its own assignments. It does not grant `/teacher`, `/dzi...` or anything
 unowned.
 
-**No per-teacher quota exists.** `web/blueprints/teacher.py` has no creation
-limit, `docs/ACCOUNTS_DESIGN.md` §20 lists "teacher creation quotas" as
-deferred, and the only limit is the Nginx write zone. Each assignment also
-writes a note into the vault. Opening the role to anyone with a mailbox
+**Before PR 7 no per-teacher quota existed.** `web/blueprints/teacher.py` had no creation
+limit, `docs/ACCOUNTS_DESIGN.md` §20 listed "teacher creation quotas" as
+deferred, and the only limit was the Nginx write zone. Each assignment also
+writes a note into the vault. (PR 7 added the quotas: "As implemented by PR 7" below.) Opening the role to anyone with a mailbox
 (plus-addresses included) without limits would be a new privilege granted by
 assumption, so this design does not grant it:
 
 - the teacher gate is its own constant, off (D14), and covers activation as
   well as the form (7.3);
-- turning it on requires the quota PR (section 9, PR 7): at least a
-  number of assignments created per day and a number of open assignments per
-  teacher, with values Gabriel approves and has **not yet selected**. D5 is
-  approved: a verified teacher registration then receives role `teacher`;
+- turning it on requires the quota PR (section 9, PR 7): a number of
+  assignments created per day and a number of open assignments per teacher,
+  with values Gabriel approved for PR 7 (20 and 10). D5 is approved: a
+  verified teacher registration then receives role `teacher`;
 - `user_profiles` has no "verified teacher" field. Teacher verification, when
   designed, adds its own.
 
 The student role grants what it grants today: its own attempts and `/account`.
+
+**As implemented by PR 7** (`EMAIL_REGISTRATION_PR7_SCOPE.md` and `EMAIL_REGISTRATION_PR7_STATUS.md`; reviewed at `e39fa9f`,
+not activated). *Quotas.* `quiz_create_assignment` is the one place an assignment is inserted, and since PR 7 it
+is also the one place the limits are decided: inside the lifecycle writer transaction, with `now` taken from that
+transaction after the lock is held, before the insert; the ledger row (`assignment_creations`, migration 024) is written in the
+same transaction. Every creation path (new test, new mixed test, copy of a test) therefore passes through it. The
+limits are per account, not per person. A refusal writes nothing at all and shows a Bulgarian message
+(status 429 for the daily limit, 409 for the open limit). Admin accounts are recorded and not refused (approved by Gabriel);
+an assignment with no owner is counted for nobody; none is closed or hidden. **The ledger is verified at every admission**
+(review of #341, finding 1): the migration writes no row, and the creating account's unrecorded assignments are recorded under the
+writer lock from the age their `created_at` shows (rules in `assignment_quota.normalize_legacy_timestamp`), all or nothing; an
+unplaceable value or an inconsistent row refuses that account's creation (status 503) until corrected. A rollback or recovery build
+must keep this admission. *Teacher registration.* `/register/teacher`, its chooser entry, its
+resend, its verification and its activation are behind `registration.TEACHER_ACTIVATION`, read at each request, which stays
+`False`. A correct code creates the `users` row (role `teacher`, the route's literal), the teacher profile and its subject rows in
+one transaction; a pending teacher row met with the gate off is voided and never becomes a student; an address that already has
+an account, of any role, is never changed. No development switch for the teacher gate was added (approved by Gabriel; the profile gate has one, approved separately).
+Every restart of a registration (cancel, expiry, missing or ended binding, unavailable, failure) goes to the validated chooser, never to a
+form the person did not begin.
 
 ### 7.2 Privacy and minors (activation prerequisites, not designed here)
 
@@ -1683,9 +1707,10 @@ says.
 | `registration.TEACHER_ACTIVATION` | the teacher form **and the activation of a teacher registration** | `/register/teacher` is 404; the chooser has no teacher option; `resend` and `verify` for a teacher row void and scrub it and answer „Регистрацията временно не е достъпна…“. | Voided at their next request or scrubbed at expiry. A teacher registration is never activated, and is never turned into a student. |
 | `profiles.PRODUCTION_ACTIVATION` | `/account/profile`, its link on `/account`, the redirect after Google onboarding, the new-attempt check, the writing of `profile_required_at` | `/account/profile` is 404; Google onboarding redirects exactly as today; starting an attempt is exactly as today; no account is marked. | Not applicable. Marks already written stay and are ignored while the gate is off. |
 
-The teacher gate has nothing to turn on before PR 7: until then a teacher
-registration is refused at verification in every environment (6.3), because
-quotas do not exist (D5).
+Before PR 7 the teacher gate had nothing to turn on: a teacher registration was refused at
+verification in every environment (6.3), because quotas did not exist (D5). Since PR 7 the
+gate controls a working teacher registration and is still `False`; turning it on is an
+activation, not part of the PR.
 
 With all three off, production behaves as before this milestone for every
 existing route, which is what "production behaviour unchanged" means in
@@ -1776,7 +1801,7 @@ link Google with the existing flow. An admin never links (2.6). Google stays
 off in production; nothing here changes `google_oidc.PRODUCTION_ACTIVATION`
 or its prerequisites.
 
-**As implemented by PR 6** (`EMAIL_REGISTRATION_PR6_STATUS.md`, which awaits review). The
+**As implemented by PR 6** (`EMAIL_REGISTRATION_PR6_STATUS.md`; reviewed at `c1d3b8f`, merged as #340). The
 signatures and the gate differ from the sketches above in these ways, each recorded there as a
 point for the reviewer: `profiles.needs_profile(conn, user, *, enabled)` takes the gate as a
 required argument (the service has no Flask) and reads the account's current role and mark from
@@ -1822,9 +1847,9 @@ gate from being turned on and blocks no PR (0.3).
 | # | Item | Kind |
 | --- | --- | --- |
 | 1 | **No open decision blocks PR 1–6.** D1–D15 and D18–D20 are approved (0.2). Approval does not authorize an implementation; each PR starts when Gabriel says so. | Neither |
-| 1a | **Quota values for PR 7** are not selected, and PR 7 needs its own short scope. **PR 8** needs its own addendum, including the recovery eligibility of never-verified addresses (5.2). | Implementation blocker for PR 7 and PR 8 only |
+| 1a | ~~Quota values for PR 7~~ are approved (20 creations per rolling 24 hours, 10 open assignments) and PR 7 has its scope (`EMAIL_REGISTRATION_PR7_SCOPE.md`). **PR 8** needs its own addendum, including the recovery eligibility of never-verified addresses (5.2). | Implementation blocker for PR 8 only |
 | 2 | **D16** (privacy and minors) and the **configuration of D17** (sender address and domain, credentials, provider or relay, set with the VPS). | Activation prerequisite |
-| 3 | **Teacher quotas do not exist** (7.1). | Implementation blocker for PR 7 only; activation prerequisite for the teacher gate. Not for the student form. |
+| 3 | **Teacher quotas** exist since PR 7 (7.1), implemented; independently reviewed at `e39fa9f` (APPROVE WITH NON-BLOCKING NOTES). | Activation prerequisite for the teacher gate (met by the code, not an activation; D16 and the other prerequisites stay open). Not for the student form. |
 | 4 | **No privacy page, no retention period, no settled position on minors' consent, no stated purpose for the profile fields** (7.2). | Activation prerequisite |
 | 5 | **No delivery provider or sender domain.** Deliverability to the mailboxes students actually use (abv.bg, Gmail, school `edu.mon.bg` accounts) is untested, and whether school mailboxes accept outside mail at all is unknown. | Activation prerequisite |
 | 6 | **Capacity of one synchronous worker** (3.5). Unmeasured. The criterion is stated; whether a remote relay meets it is not known; a local relay was not selected (D19), so a failed measurement needs its own decision. | Activation prerequisite |
@@ -1900,7 +1925,7 @@ as a rule; it would be justified only for a concrete open problem.
 | 4 | `registration` blueprint for students, templates, the `reg` session slot, the registration and teacher gates, the cleanup and limit CLI commands, Nginx zone, contract and deployment documents. The teacher route and its gate exist and answer 404 in every environment until PR 7. | None open (D7, D9, D14 decided) | 3 | Opus High | yes (security) |
 | 5 | Operations: cleanup timer unit; the restore gate, status and release functions and commands (hold after every restore, D20); the restore script's gate, cleanup-job handling and final validation; the logical snapshot scrub (D18 (b)); health checks. | None open (D18, D20 decided) | 4 | Opus High | yes (operations; Linux evidence required) |
 | 6 | `/account/profile`, profile on `/account`, the profile gate; the migration adding `users.profile_required_at`, the mark at Google onboarding, `profiles.needs_profile` and the new-attempt check. | None open (D2, D11 decided) | 5 | Sonnet High | yes |
-| 7 | Teacher quotas (needs its own short scope), then role `teacher` for a verified teacher registration (D5), the teacher form and subjects behind `TEACHER_ACTIVATION`. | Quota values (not selected) | 6 | Sonnet High | yes (security) |
+| 7 | Teacher quotas (own short scope: `EMAIL_REGISTRATION_PR7_SCOPE.md`), then role `teacher` for a verified teacher registration (D5), the teacher form and subjects behind `TEACHER_ACTIVATION`. Migration 024. | Quota values: approved (20 per rolling 24 h; 10 open). Open: admin accounts (scope, I6) | 6 | Sonnet High | yes (security) |
 | 8 | Password recovery, from its own addendum (5.2), before public opening (D10). | The addendum | 7 | Opus High | yes (security) |
 | — | Activation: separate, explicitly authorised, after the prerequisites of 0.3. Student registration does not wait for PR 7. | D16; configuration of D17 | — | — | — |
 

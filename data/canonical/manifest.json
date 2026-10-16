@@ -2,7 +2,7 @@
   "format": "learnpilot-canonical-content",
   "format_version": 1,
   "schema": {
-    "migration_level": "023_profile_required.sql",
+    "migration_level": "024_assignment_creations.sql",
     "migrations": [
       "000_baseline.sql",
       "001_quiz_tables.sql",
@@ -27,7 +27,8 @@
       "020_oidc_consumed_transactions.sql",
       "021_registration_schema.sql",
       "022_registration_issuance_identity.sql",
-      "023_profile_required.sql"
+      "023_profile_required.sql",
+      "024_assignment_creations.sql"
     ]
   },
   "classification": {
@@ -61,6 +62,7 @@
       "topic_section_assignments"
     ],
     "runtime": [
+      "assignment_creations",
       "lifecycle_clock",
       "pending_registrations",
       "practical_submission_files",
@@ -119,6 +121,7 @@
     "practical_tasks"
   ],
   "runtime_exclusions": [
+    "assignment_creations",
     "lifecycle_clock",
     "pending_registrations",
     "practical_submission_files",

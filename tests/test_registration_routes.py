@@ -391,14 +391,14 @@ class BindingTest(RegistrationRouteTestCase):
         self.submit(next="/account/attempts")
         cancelled = self.cancel()
         self.assertEqual((cancelled.status_code, cancelled.headers["Location"]),
-                         (303, "/register/student?next=/account/attempts"))
+                         (303, "/register?next=/account/attempts"))   # the chooser: never a form the person did not start
         self.assertIsNone(self.slot())
         row = self.pending()[0]
         self.assertEqual(row["state"], "void")
         for column in SENSITIVE:
             self.assertIsNone(row[column])
         # Nothing is left to cancel or to verify.
-        self.assertEqual(self.cancel().headers["Location"], "/register/student")
+        self.assertEqual(self.cancel().headers["Location"], "/register")
         self.assertEqual(self.client.get("/register/verify").headers["Location"], "/register")
 
     def test_signed_in_accounts_start_nothing_on_register_routes_only(self):
@@ -494,12 +494,12 @@ class DisabledAndGetTest(RegistrationRouteTestCase):
         self.assertNotIn("<b>", page)
         self.assertIn("Вече има профил с този имейл.", self.body(self.client.get("/login?registration=email_taken")))
 
-    def test_teacher_route_is_404_even_with_its_gate_patched_on(self):
-        for gate in (False, True):
-            with self.subTest(gate=gate), patch.object(registration_service, "TEACHER_ACTIVATION", gate):
-                self.assertEqual(self.client.get("/register/teacher").status_code, 404)
-                self.assertEqual(self.client.post("/register/teacher", headers=SAME_ORIGIN).status_code, 404)
-                self.assertNotIn("/register/teacher", self.body(self.client.get("/register")))
+    def test_teacher_route_is_404_while_its_gate_is_off(self):
+        # With the gate on the route exists: tests.test_teacher_registration.
+        self.assertIs(registration_service.TEACHER_ACTIVATION, False)
+        self.assertEqual(self.client.get("/register/teacher").status_code, 404)
+        self.assertEqual(self.client.post("/register/teacher", headers=SAME_ORIGIN).status_code, 404)
+        self.assertNotIn("/register/teacher", self.body(self.client.get("/register")))
 
     def test_no_get_writes_or_sets_a_cookie_with_or_without_a_registration(self):
         def sweep(client):
@@ -651,7 +651,8 @@ class CodeTest(RegistrationRouteTestCase):
         self.assertIn("Регистрацията е изтекла", body)
         self.assertIn("Започни регистрацията отначало", body)
         if next_target:
-            self.assertIn(html.escape(f"/register/student?next={next_target}", quote=True), body)
+            self.assertIn(html.escape(f"/register?next={next_target}", quote=True), body)
+        self.assertNotIn("/register/student", body.split("Започни регистрацията отначало")[0].rsplit("<a ", 1)[-1])
         self.assertIsNone(self.slot())
         self.assertNoAccountSession()
         self.assertEqual(self.users_with(EMAIL), [])

@@ -892,10 +892,12 @@ class GateIndependenceTest(ProfileRouteTestCase):
                 with patch.dict(self.app.config, {REGISTRATION_KEY: settings, profiles.CONFIG_KEY: profile}), \
                         patch.object(registration_service, "TEACHER_ACTIVATION", teacher):
                     anonymous = self.app.test_client()
-                    # Registration: by its own gate alone; the teacher form is the 404 it always is before PR 7.
+                    # Registration: by its own gate alone. The teacher form needs registration *and* the
+                    # teacher gate (PR 7); the teacher gate alone opens nothing, and the profile gate never matters.
                     self.assertEqual(anonymous.get("/register").status_code, 200 if registration else 404)
                     self.assertEqual(anonymous.get("/register/student").status_code, 200 if registration else 404)
-                    self.assertEqual(anonymous.get("/register/teacher").status_code, 404)
+                    self.assertEqual(anonymous.get("/register/teacher").status_code,
+                                     200 if registration and teacher else 404)
                     # The profile page, its link and the new-attempt check: by the profile gate alone.
                     self.assertEqual(client.get("/account/profile").status_code, 200 if profile else 404)
                     self.assertEqual("/account/profile" in client.get("/account").get_data(as_text=True), profile)
