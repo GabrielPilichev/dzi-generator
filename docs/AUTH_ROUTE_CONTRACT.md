@@ -158,6 +158,16 @@ submitted `owner_user_id` is ignored, as is any closure, hold or token field.
 A duplicate belongs to the acting account, never to the source's owner. Student/public quiz loading
 (`quiz_fetch_assignment`) is not owner-scoped.
 
+Creation limits (registration PR 7; `docs/reviews/EMAIL_REGISTRATION_PR7_SCOPE.md`). Creating an assignment, by either
+form of `POST /teacher/new` or by `POST /teacher/assignment/<id>/duplicate`, is limited **per account**: at most 20
+creations in a rolling 24 hours and at most 10 open assignments. The decision is made inside
+`quiz_create_assignment`, in the lifecycle writer transaction, after authorization (a foreign or unowned source is still 404)
+and after input validation; it never changes who may do what. A refusal answers the form again, with the typed values, a
+Bulgarian message and status **429** (daily limit) or **409** (open limit), and writes nothing: no assignment, public token,
+ledger row, clock mark or vault note. Closing frees an open slot and never a creation; an admin account's creations are
+recorded and not refused. The owner management pages (detail, edit, close, results, CSV, QR, practical review) are
+unaffected at any count.
+
 Assignment lifecycle (`docs/ASSIGNMENT_LIFECYCLE_DESIGN.md`). `POST
 /teacher/assignment/<id>/close` closes a test for good: same policy
 (`assignment_owner`, same-origin) and the same 404 as edit and duplicate; a
@@ -515,10 +525,15 @@ cross-origin POST is still 403) and no page links to it.
 | `/register/resend` | `registration.resend` | POST | `public` | `same_origin` |
 | `/register/cancel` | `registration.cancel` | POST | `public` | `same_origin` |
 
-- **`/register/teacher` is the generic 404 in every environment** until teacher
-  quotas exist (decision D5, registration PR 7), whatever
-  `registration.TEACHER_ACTIVATION` says. A teacher registration is never
-  activated.
+- **`/register/teacher` is behind `registration.TEACHER_ACTIVATION`** (decision D5,
+  registration PR 7; the build gate is `False` and nothing overrides it), read at each request. While it
+  is off the route is the generic 404 after the same-origin check, the chooser has no teacher entry and no page
+  links to it; a teacher registration that is pending is **voided and scrubbed** at its next resend or
+  verification, answers the „временно не е достъпна“ page, drops the binding, and never becomes a student.
+  With it on (not in production), the form takes first and last name, email, the exact password and its
+  confirmation, school name, one to three subjects of the registry and „Друг предмет“ with its name; its
+  hidden `next` follows the student form's rules. The account type is this route's literal: no submitted field
+  (`role`, `account_type`, `is_admin`, `grade`, `email_verified_at`) is read.
 - **The browser binding is the session slot `reg`**: `{"v": 1, "t": <token>,
   "next": <validated path or "">}`. No address, name, code or password is in
   the cookie. It is not an account key: `load_current_user` never reads it,
@@ -532,7 +547,8 @@ cross-origin POST is still 403) and no page links to it.
 - **A signed-in account** is sent to its role's home by every `/register...`
   route, and a POST of it starts nothing. No other route is affected.
 - **Verification does not sign in (decision D7).** A correct code creates the
-  `student` account (`email_verified_at` set) and redirects to
+  `student` account, or, behind the teacher gate, the `teacher` account with its profile and subjects in one
+  transaction (`email_verified_at` set) and redirects to
   `/login?next=<validated>&registration=activated`; sign-in is email and
   password, as for every account, and never asks for a code. Admin TOTP and
   Google sign-in are unchanged. `/login` shows the outcome only for a known

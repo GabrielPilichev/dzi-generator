@@ -270,7 +270,7 @@ class ProfileRequiredClassificationTest(unittest.TestCase):
             path = build_test_database(Path(tmp) / "fresh.db")
             with closing(sqlite3.connect(path)) as conn:
                 applied = [r[0] for r in conn.execute("SELECT filename FROM schema_migrations ORDER BY filename")]
-                self.assertEqual(applied[-1], MIGRATION)
+                self.assertIn(MIGRATION, applied)  # later migrations (024) may follow it
                 self.assertEqual(tuple(r[1] for r in conn.execute("PRAGMA table_info(users)"))[-2:],
                                  ("email_verified_at", COLUMN))
                 self.assertEqual(conn.execute("SELECT COUNT(*) FROM users").fetchone()[0], 0)

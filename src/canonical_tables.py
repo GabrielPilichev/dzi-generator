@@ -76,6 +76,7 @@ TABLE_CLASSIFICATION: dict[str, tuple[str, str]] = {
     "pending_registrations": (RUNTIME, "unverified registrations: personal data and a credential hash, never canonical content"),
     "registration_sends": (RUNTIME, "send ledger of registration mail: keyed address hashes, never canonical content"),
     "registration_control": (RUNTIME, "registration clock mark and restore hold: one row at most, never canonical content"),
+    "assignment_creations": (RUNTIME, "ledger of assignment creations per account, kept after closure or deletion: ids and times only, never canonical content"),
     "generated_exams": (OPERATIONAL, "generated exam log"),
     "login_throttle": (OPERATIONAL, "per-identifier login throttle counters (keyed hashes, no emails)"),
     "oidc_consumed_transactions": (OPERATIONAL, "single-use records of OIDC transactions (keyed hashes only)"),

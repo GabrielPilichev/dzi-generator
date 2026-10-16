@@ -91,9 +91,9 @@ logger = logging.getLogger("learnpilot.registration")
 # Activation gates of the build (design 7.3, decision D14). While PRODUCTION_ACTIVATION is
 # False a production start keeps every ``/register...`` route at the generic 404 whatever
 # the mail settings hold. TEACHER_ACTIVATION covers the teacher form and the activation of
-# a teacher registration; until teacher quotas exist (D5, PR 7) a teacher registration is
-# refused at verification whatever it says. No setting and no environment variable
-# overrides either constant: a deploy changes them.
+# a teacher registration (D5; the assignment quotas it needs exist since PR 7, and the gate
+# is still off). No setting and no environment variable overrides either constant: a deploy
+# changes them.
 PRODUCTION_ACTIVATION = False
 TEACHER_ACTIVATION = False
 
@@ -121,9 +121,10 @@ CODE_SUBJECT = "Код за потвърждение в LearnPilot"
 NOTICE_SUBJECT = "Опит за регистрация в LearnPilot"
 
 # Account types whose registration can be activated at all, and the role literal of
-# each. A teacher registration is refused at verification whatever ``teacher_enabled``
-# says until teacher quotas exist (D5, design 6.3 step 5; PR 7 adds the entry).
-_ROLE_OF_ACCOUNT_TYPE = {forms.STUDENT: "student"}
+# each. Never a submitted value. A teacher registration is activated only while
+# ``teacher_enabled`` is true (D5, design 6.3 step 5); otherwise it is voided, and it is
+# never turned into a student.
+_ROLE_OF_ACCOUNT_TYPE = {forms.STUDENT: "student", forms.TEACHER: "teacher"}
 
 _SETTLED_OUTCOMES = tuple(outcome.value for outcome in SendOutcome)
 _CIRCUIT_HISTORY = (SendOutcome.ACCEPTED.value, SendOutcome.NOT_SENT.value, SendOutcome.UNKNOWN.value)
@@ -531,7 +532,7 @@ def _checked_fields(cleaned: Mapping[str, Any], account_type: str) -> dict[str, 
         school, subjects = cleaned.get("school_name"), cleaned.get("subjects")
         if school is None or forms.clean_school(school) != school:
             raise ValueError("Невалидно училище.")
-        # Shape only. The registry check is the profile service's, at activation (PR 7).
+        # Shape only. The registry check is the profile service's, at activation.
         if (not isinstance(subjects, list) or not forms.MIN_SUBJECTS <= len(subjects) <= forms.MAX_SUBJECTS
                 or any(not isinstance(item, dict) or set(item) != {"subject_id", "label"}
                        or not isinstance(item["label"], str)
@@ -689,6 +690,11 @@ def resend(
                   issuance_id=issuance_id, message=message)
 
 
+def _quota_ledger_exists(conn: sqlite3.Connection) -> bool:
+    return conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'assignment_creations'").fetchone() is not None
+
+
 def _email_taken(conn: sqlite3.Connection, row: Mapping, now: datetime) -> Result:
     _close(conn, row["id"], "void", now)
     logger.info("email_taken_decided pending=%d", row["id"])
@@ -745,9 +751,10 @@ def verify(
     missing code counts as one of the five attempts of the live code; a code that is
     not live (expired, retired, issued more than the skew ahead of the clock, or without
     consistent ledger evidence of its issuance) counts nothing. A correct code clears
-    itself before anything else is decided, then creates the ``users`` row (role ``student``,
-    ``email_verified_at`` set), the profile, and marks the row ``activated`` and
-    scrubbed, all in the caller's one transaction. No session is issued and nobody is
+    itself before anything else is decided, then creates the ``users`` row (the role literal of the row's account
+    type, ``student`` or ``teacher``; ``email_verified_at`` set), the profile with a teacher's
+    subjects, and marks the row ``activated`` and scrubbed, all in the caller's one
+    transaction. No session is issued and nobody is
     signed in. ``ACTIVATED`` is a decision: the account exists once the caller's commit
     has returned, and not if it fails.
 
@@ -757,8 +764,10 @@ def verify(
     insert), not by reading an error message. Every exception propagates, an integrity
     error raised by a trigger, a check, a foreign key or another uniqueness included;
     the caller rolls back, which leaves the registration pending with its code and
-    attempt count as before. A teacher registration is voided and answered
-    ``UNAVAILABLE`` (D5): it is never activated here and never turned into a student.
+    attempt count as before. A teacher registration is activated only with
+    ``teacher_enabled``; otherwise it is voided and answered ``UNAVAILABLE`` (D5), and it
+    is never turned into a student. An address that already has an account, of any
+    role, is ``EMAIL_TAKEN`` and that account is not changed.
     """
     now = _writer_now(conn, clock)
     row, refusal = _usable_row(conn, binding, now, teacher_enabled)
@@ -785,6 +794,11 @@ def verify(
     )
     if row["is_shadow"]:
         return _email_taken(conn, row, now)
+    if row["account_type"] == forms.TEACHER and not _quota_ledger_exists(conn):
+        # A teacher role is never granted by a database that cannot count its assignments
+        # (migration 024). Not reachable from a production start, which refuses pending
+        # migrations; it makes the rule a property of this function and not of the deploy.
+        raise RuntimeError("teacher activation needs the assignment creation ledger (migration 024)")
     user_id = accounts.create_verified_user(
         conn,
         email=row["email"],
@@ -795,9 +809,14 @@ def verify(
     )
     if user_id is None:  # the address already has an account; nothing was inserted
         return _email_taken(conn, row, now)
+    # The account, its profile and its subject rows are one unit of this caller's
+    # transaction: an exception anywhere in them, a single subject row included, leaves
+    # nothing of the three, and the registration pending with its code and attempt count
+    # as before. The profile service checks the subjects against the registry again.
     profiles.create_profile(
         conn, user_id, account_type=row["account_type"], first_name=row["first_name"],
-        last_name=row["last_name"], grade=row["grade"], now=now,
+        last_name=row["last_name"], grade=row["grade"], school_name=row["school_name"],
+        subjects=None if row["subjects_json"] is None else json.loads(row["subjects_json"]), now=now,
     )
     _close(conn, pending_id, "activated", now)
     logger.info("activation_decided pending=%d user=%d", pending_id, user_id)

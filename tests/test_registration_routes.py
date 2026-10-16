@@ -494,12 +494,12 @@ class DisabledAndGetTest(RegistrationRouteTestCase):
         self.assertNotIn("<b>", page)
         self.assertIn("Вече има профил с този имейл.", self.body(self.client.get("/login?registration=email_taken")))
 
-    def test_teacher_route_is_404_even_with_its_gate_patched_on(self):
-        for gate in (False, True):
-            with self.subTest(gate=gate), patch.object(registration_service, "TEACHER_ACTIVATION", gate):
-                self.assertEqual(self.client.get("/register/teacher").status_code, 404)
-                self.assertEqual(self.client.post("/register/teacher", headers=SAME_ORIGIN).status_code, 404)
-                self.assertNotIn("/register/teacher", self.body(self.client.get("/register")))
+    def test_teacher_route_is_404_while_its_gate_is_off(self):
+        # With the gate on the route exists: tests.test_teacher_registration.
+        self.assertIs(registration_service.TEACHER_ACTIVATION, False)
+        self.assertEqual(self.client.get("/register/teacher").status_code, 404)
+        self.assertEqual(self.client.post("/register/teacher", headers=SAME_ORIGIN).status_code, 404)
+        self.assertNotIn("/register/teacher", self.body(self.client.get("/register")))
 
     def test_no_get_writes_or_sets_a_cookie_with_or_without_a_registration(self):
         def sweep(client):

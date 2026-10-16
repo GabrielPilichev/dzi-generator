@@ -108,7 +108,7 @@ class ClassificationTest(CanonicalTestCase):
             "practical_submissions", "practical_submission_files", "users",
             "totp_credentials", "totp_recovery_codes", "lifecycle_clock", "user_identities",
             "user_profiles", "teacher_subjects", "pending_registrations", "registration_sends",
-            "registration_control"]))
+            "registration_control", "assignment_creations"]))
         self.assertEqual(ct.tables_of(ct.OPERATIONAL), sorted([
             "obsidian_notes", "note_question_links", "generated_exams", "scrape_log",
             "schema_migrations", "sqlite_sequence", "login_throttle", "oidc_consumed_transactions"]))

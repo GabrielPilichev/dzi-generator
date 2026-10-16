@@ -19,6 +19,9 @@
 
 <div class="card form-card login-card">
     <a class="button" href="{{ url_for('registration.student', next=next_url or None) }}">Ученик съм</a>
+    {% if teacher_enabled %}
+    <a class="button" href="{{ url_for('registration.teacher', next=next_url or None) }}">Учител съм</a>
+    {% endif %}
     <p class="help">Вече имаш профил? <a href="{{ url_for('account.login', next=next_url or None) }}">Вход</a></p>
 </div>
 {% endblock %}

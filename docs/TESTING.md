@@ -298,6 +298,49 @@ no mail is sent and no socket is opened.
 **Tunnels.** `DZI_PROFILES_ENABLED` turns the flow on in a development run only. Do not set
 it when sharing a localhost tunnel unless that is the point of the test.
 
+## Assignment quota and teacher registration tests
+
+Registration PR 7 (`docs/reviews/EMAIL_REGISTRATION_PR7_STATUS.md`). Every database is a temporary
+clone or build from migrations and canonical data and every vault is a temporary directory; none is
+`data/questions.db` or the repository's `vault/`. Mail is `InMemoryMailer`: nothing is sent and no socket is opened.
+
+- `tests/test_assignment_creations_migration_sql.py` upgrades a temporary database from migration 023, with owned,
+  unowned, closed and badly dated assignments in it, to 024: the copy into the ledger, nothing else changed, the table's
+  constraints, a deletion of an assignment leaving the ledger alone, and parity with a fresh build.
+- `tests/test_assignment_quota.py` runs on a frozen lifecycle clock (`tests.support.lifecycle_time`). The service tests call
+  `quiz_create_assignment` as the routes do and cover the exact window and open-count boundaries, closing versus the
+  daily allowance, deadlines, holds, roles and role changes, existing assignments, unowned rows, and atomicity (a
+  refusal changes no table, the clock row included; a failure injected with a real trigger after the insert consumes no
+  allowance). The concurrency tests use threads with one connection each: the last daily slot and the last open slot go to
+  exactly one of four simultaneous requests, and a request that waits for the lock is judged at the time it gets it
+  (a second connection holds `BEGIN IMMEDIATE`, the test clock moves, nothing sleeps for a limit; one 0.4 s pause lets the
+  waiting thread reach the lock). The route tests go through the application: both kinds of `/teacher/new`, the copy form,
+  status, message, kept values, no vault note in the temporary vault, authorization before the quota, and a 500 for an
+  injected storage failure. The static pins keep the one insert, the one decision before it, and the one writer of the ledger.
+- `tests/test_teacher_registration.py` has a service layer (activation of a teacher: account, profile and subject rows together; a
+  trigger-injected failure at every subject write, at the account, the profile and the final state; no role from submitted
+  data; existing addresses of every role; gate off; a database without the ledger) and a route layer on the registration route
+  fixture (`tests.test_registration_routes.RegistrationRouteTestCase`) with the teacher gate patched on
+  (`registration_service.TEACHER_ACTIVATION`; no setting exists): the form, validation, journey, sign-in, access matrix,
+  gate-off pending rows, activation failures and dispatch and settlement (one dispatch per issuance, the same send number and
+  issuance identity settled, nothing settled after `NotSendable`, no retry).
+- Existing tests that pinned "a teacher registration is never activated" or "`/register/teacher` is always 404" now pin the
+  gate-off half and point at the new module; the migration level, the runtime-table lists and the manifest moved to 024.
+
+```sh
+python -B -m unittest tests.test_assignment_creations_migration_sql tests.test_assignment_quota \
+  tests.test_teacher_registration
+python -B -m unittest discover -s tests
+```
+
+Mutation checks used while writing them (each applied, run and reverted by a script; not part of the suite): `>=` to `>` in either limit,
+the window's exclusive bound made inclusive, the exemption removed, the two limits reported in the other order, the ledger write
+or the decision removed, the open predicate weakened, a pre-lock time used, the refusal mapped to a deadline error, the teacher role
+entry removed, the subjects or school not passed to the profile, the ledger check removed, the gate always true or ignored at
+verification, the chooser entry always shown, and `admin` added to the registration roles: all fail at least one test.
+
+**Tunnels.** The teacher gate has no development setting. Nothing in a localhost tunnel can turn the teacher form on.
+
 ## Previous isolation problems
 
 - `web.app` used to run `quiz_apply_migration()` at import time, before unittest

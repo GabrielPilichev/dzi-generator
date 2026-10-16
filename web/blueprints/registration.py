@@ -1,10 +1,16 @@
-"""Student registration by email and password (docs/reviews/EMAIL_REGISTRATION_DESIGN.md,
-sections 1, 2.3, 3.10, 4.3 and 6.2 to 6.4; PR 4).
+"""Student and teacher registration by email and password
+(docs/reviews/EMAIL_REGISTRATION_DESIGN.md, sections 1, 2.3, 3.10, 4.3, 6.2 to 6.4 and 7.1;
+PR 4 and PR 7).
 
-``/register`` (chooser), ``/register/student`` (form and submission),
-``/register/verify``, ``POST /register/resend`` and ``POST /register/cancel``.
-``/register/teacher`` exists and is the generic 404 in every environment until teacher
-quotas exist (D5, PR 7).
+``/register`` (chooser), ``/register/student`` and ``/register/teacher`` (form and
+submission), ``/register/verify``, ``POST /register/resend`` and ``POST /register/cancel``.
+``/register/teacher`` and everything that belongs to a teacher registration (its chooser
+entry, its resend, its verification and its activation) are behind
+``registration.TEACHER_ACTIVATION`` (D5, D14), read at each request: while it is off the
+address is the generic 404, nothing links to it, and a teacher registration that is
+pending is voided at its next resend or verification and never becomes a student. Both
+forms share one submit, one verify and one settlement path; the account type is the
+route's literal and no submitted field decides it or the role.
 
 * **Disabled** (no :class:`~web.registration_settings.RegistrationSettings` in the
   configuration, which in production needs the build's gate): every address here is
@@ -44,6 +50,7 @@ from datetime import datetime, timezone
 
 from flask import Blueprint, abort, current_app, redirect, render_template, request, session, url_for
 
+from src import subject_registry
 from web.access import PUBLIC, access_policy, current_principal
 from web.account_session import role_home
 from web.registration_settings import CONFIG_KEY, RegistrationSettings
@@ -102,6 +109,19 @@ def _enabled_settings() -> RegistrationSettings:
     """The settings of an enabled registration; the generic 404 otherwise."""
     settings = _settings()
     if settings is None:
+        abort(404)
+    return settings
+
+
+def _teacher_enabled() -> bool:
+    """The teacher gate, read at the request (design 7.3): true only for the value ``True``."""
+    return registration_service.TEACHER_ACTIVATION is True
+
+
+def _enabled_teacher_settings() -> RegistrationSettings:
+    """The settings of an enabled registration whose teacher gate is on; else the generic 404."""
+    settings = _enabled_settings()
+    if not _teacher_enabled():
         abort(404)
     return settings
 
@@ -249,6 +269,18 @@ def _student_form(echo: dict, *, errors: dict | None = None, notice: str | None 
     return page, status
 
 
+def _subject_choices() -> list[dict]:
+    """The registry's subjects a teacher can name, in registry order (as the profile page lists them)."""
+    return [{"id": subject.id, "title": subject.title} for subject in subject_registry.all_subjects()]
+
+
+def _teacher_form(echo: dict, *, errors: dict | None = None, notice: str | None = None, status: int = 200):
+    page = render_template(
+        "register_teacher.html", echo=echo, errors=errors or {}, notice=notice,
+        subjects=_subject_choices(), school_hint=forms.SCHOOL_HINT)
+    return page, status
+
+
 def _message(text: str, kind: str, status: int, *, next_target: str = ""):
     page = render_template("register_message.html", message=text, kind=kind, next_url=next_target)
     return page, status
@@ -303,7 +335,7 @@ def choose():
     signed_in = _signed_in_redirect()
     if signed_in is not None:
         return signed_in
-    return render_template("register_choose.html", next_url=_query_next())
+    return render_template("register_choose.html", next_url=_query_next(), teacher_enabled=_teacher_enabled())
 
 
 @registration_bp.route("/register/student", methods=["GET", "POST"])
@@ -319,12 +351,16 @@ def student():
     validated = forms.validate_student(request.form)
     if not validated.ok:
         return _student_form(validated.echo, errors=validated.errors)
-    return _submit(settings, validated)
+    return _submit(settings, validated, account_type=forms.STUDENT, render_form=_student_form)
 
 
-def _submit(settings: RegistrationSettings, validated):
+def _submit(settings: RegistrationSettings, validated, *, account_type: str, render_form):
     """Design 6.4, "Submit": the reads, the hash, one write transaction, the slot, the
-    send, the settlement."""
+    send, the settlement.
+
+    ``account_type`` is the literal of the calling route and ``render_form`` its form; the
+    validated values of the other form are never read here.
+    """
     conn = get_request_db()
     secret_key = current_app.config["SECRET_KEY"]
     email = validated.values["email"]
@@ -336,7 +372,7 @@ def _submit(settings: RegistrationSettings, validated):
     if available is not registration_service.Availability.AVAILABLE:
         return _unavailable()
     if registration_service.address_capped(conn, registration_service.email_hash(secret_key, email), now):
-        return _student_form(validated.echo, notice=ADDRESS_CAPPED_MESSAGE, status=429)
+        return render_form(validated.echo, notice=ADDRESS_CAPPED_MESSAGE, status=429)
 
     password_hash = accounts_service.hash_new_password(validated.password, email)
     previous = _slot()
@@ -344,14 +380,14 @@ def _submit(settings: RegistrationSettings, validated):
         issued = _write(
             conn, registration_service.create_pending,
             cleaned=validated.values,
-            account_type=forms.STUDENT,  # the route's literal; no submitted field is read
+            account_type=account_type,  # the route's literal; no submitted field is read
             password_hash=password_hash,
             previous_binding=_binding(previous) if previous is not None else None,
             secret_key=secret_key,
             clock=_utcnow,
             sender_busy=mail.sender_busy(),
             total_cap=settings.total_cap,
-            teacher_enabled=registration_service.TEACHER_ACTIVATION,
+            teacher_enabled=_teacher_enabled(),
         )
     except Exception as exc:
         logger.warning("submit_failed error=%s", type(exc).__name__)
@@ -360,7 +396,7 @@ def _submit(settings: RegistrationSettings, validated):
     if issued.outcome is Outcome.UNAVAILABLE:
         return _unavailable()
     if issued.outcome is Outcome.ADDRESS_CAPPED:
-        return _student_form(validated.echo, notice=ADDRESS_CAPPED_MESSAGE, status=429)
+        return render_form(validated.echo, notice=ADDRESS_CAPPED_MESSAGE, status=429)
     if issued.outcome is not Outcome.ISSUED:
         logger.warning("submit_unexpected outcome=%s", issued.outcome.value)
         return _failure()
@@ -375,9 +411,19 @@ def _submit(settings: RegistrationSettings, validated):
 @access_policy(PUBLIC)
 @integrity_policy(SAME_ORIGIN)
 def teacher():
-    # The teacher form arrives with teacher quotas (decision D5, PR 7). Until then this
-    # address is the generic 404 in every environment, whatever TEACHER_ACTIVATION says.
-    abort(404)
+    # Behind the teacher gate (D5, D14): the generic 404, after the same-origin check, while
+    # the gate is off, and no page links here then. The account type below is this route's
+    # literal; a submitted field named role or account_type is never read.
+    settings = _enabled_teacher_settings()
+    signed_in = _signed_in_redirect()
+    if signed_in is not None:
+        return signed_in
+    if request.method == "GET":
+        return _teacher_form({"next": _query_next()})
+    validated = forms.validate_teacher(request.form)
+    if not validated.ok:
+        return _teacher_form(validated.echo, errors=validated.errors)
+    return _submit(settings, validated, account_type=forms.TEACHER, render_form=_teacher_form)
 
 
 @registration_bp.route("/register/verify", methods=["GET", "POST"])
@@ -402,7 +448,7 @@ def verify():
         result = _write(
             conn, registration_service.verify, _binding(slot), request.form.get("code", ""),
             secret_key=current_app.config["SECRET_KEY"], clock=_utcnow,
-            teacher_enabled=registration_service.TEACHER_ACTIVATION,
+            teacher_enabled=_teacher_enabled(),
         )
     except Exception as exc:
         # Rolled back: no account, the registration pending with its code and attempts
@@ -465,7 +511,7 @@ def resend():
         issued = _write(
             conn, registration_service.resend, _binding(slot),
             secret_key=current_app.config["SECRET_KEY"], clock=_utcnow, sender_busy=mail.sender_busy(),
-            total_cap=settings.total_cap, teacher_enabled=registration_service.TEACHER_ACTIVATION,
+            total_cap=settings.total_cap, teacher_enabled=_teacher_enabled(),
         )
     except Exception as exc:
         logger.warning("resend_failed error=%s", type(exc).__name__)

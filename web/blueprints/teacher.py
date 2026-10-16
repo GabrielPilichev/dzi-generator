@@ -54,7 +54,7 @@ from web.access import (
 )
 from web.public_url import trusted_public_base_url
 from web.request_integrity import SAME_ORIGIN, integrity_policy
-from web.services import lifecycle, practical
+from web.services import assignment_quota, lifecycle, practical
 from web.services.qr import qr_svg
 from web.services.quiz import (
     QUIZ_DURATION_FALLBACK_BG,
@@ -334,27 +334,47 @@ def _submitted_deadline_form(form) -> dict:
     }
 
 
+def _creation_error_message(code: str | None) -> str | None:
+    """The Bulgarian message of a refused creation: a deadline error or a creation limit."""
+    return lifecycle.DEADLINE_ERROR_MESSAGES_BG.get(code) or assignment_quota.MESSAGES_BG.get(code)
+
+
+def _creation_error_status(code: str | None) -> int:
+    """400 for a refused input, 429 or 409 for a creation limit (never a change to the input)."""
+    return assignment_quota.STATUS_CODES.get(code, 400)
+
+
+def _log_creation_refused(principal, exc: assignment_quota.QuotaExceeded) -> None:
+    """Diagnosis only, like the lifecycle lines: the account id and the reason, nothing else."""
+    lifecycle.logger.info("lifecycle event=create_refused actor_user_id=%s reason=%s", principal.user_id, exc.reason)
+
+
 def _create_assignment_with_deadline(conn, deadline_request, **fields) -> tuple[int | None, str | None]:
     """Create an assignment in one lifecycle writer transaction.
 
-    ``(assignment_id, None)``, or ``(None, error_code)`` when the deadline is
-    refused; nothing is stored then. The deadline is validated against the ``now``
-    sampled after the writer lock was taken: later than ``now`` and at most 180
-    local calendar days ahead. The server never invents a deadline: the request
-    states one, or states "no deadline".
+    ``(assignment_id, None)``, or ``(None, error_code)`` when the deadline or a
+    creation limit refuses it; nothing is stored then. The deadline is validated
+    against the ``now`` sampled after the writer lock was taken: later than ``now``
+    and at most 180 local calendar days ahead. The server never invents a deadline:
+    the request states one, or states "no deadline". The creation limits are decided
+    by ``quiz_create_assignment`` in this same transaction (``assignment_quota``).
     """
     principal = current_principal()
-    with lifecycle.write_transaction(conn) as transaction:
-        transaction.admit()
-        try:
-            deadline_at = lifecycle.resolve_deadline(deadline_request, transaction.now)
-        except lifecycle.DeadlineError as exc:
-            transaction.discard()
-            return None, exc.code
-        assignment_id = quiz_create_assignment(
-            conn, principal=principal, deadline_at=deadline_at,
-            display_timezone=deadline_request.timezone, **fields)
-        created_at = transaction.now_text
+    try:
+        with lifecycle.write_transaction(conn) as transaction:
+            transaction.admit()
+            try:
+                deadline_at = lifecycle.resolve_deadline(deadline_request, transaction.now)
+            except lifecycle.DeadlineError as exc:
+                transaction.discard()
+                return None, exc.code
+            assignment_id = quiz_create_assignment(
+                conn, principal=principal, deadline_at=deadline_at,
+                display_timezone=deadline_request.timezone, transaction=transaction, **fields)
+            created_at = transaction.now_text
+    except assignment_quota.QuotaExceeded as exc:
+        _log_creation_refused(principal, exc)
+        return None, exc.reason  # rolled back by the transaction: nothing of this creation exists
     # After the commit, for diagnosis only: no tool reads an assignment's state from the log.
     lifecycle.logger.info(
         "lifecycle event=create assignment_id=%s at=%r deadline_at=%r display_timezone=%r actor_user_id=%s",
@@ -365,8 +385,8 @@ def _create_assignment_with_deadline(conn, deadline_request, **fields) -> tuple[
 def _duplicate_assignment_with_deadline(conn, assignment_id: int, deadline_request) -> tuple[int | None, str | None]:
     """Create a copy of an assignment in one lifecycle writer transaction.
 
-    ``(new_assignment_id, None)``, or ``(None, error_code)`` when the deadline is
-    refused. Everything the copy is made from is decided under the writer lock,
+    ``(new_assignment_id, None)``, or ``(None, error_code)`` when the deadline or a
+    creation limit refuses it. Everything the copy is made from is decided under the writer lock,
     on the source row re-read inside the transaction, in the fixed order:
     authorization (404), the source's hold (503), its factual lifecycle
     timestamps against the clock, its plan, and only then the fields that are
@@ -377,36 +397,42 @@ def _duplicate_assignment_with_deadline(conn, assignment_id: int, deadline_reque
     zone this request states, and a new owner and public token.
     """
     principal = current_principal()
-    with lifecycle.write_transaction(conn) as transaction:
-        source = quiz_fetch_assignment(conn, assignment_id)
-        if source is None or not can_manage_assignment(principal, source["owner_user_id"]):
-            abort(404)
-        transaction.examine(source)  # hold, factual timestamps, admission
+    try:
+        with lifecycle.write_transaction(conn) as transaction:
+            source = quiz_fetch_assignment(conn, assignment_id)
+            if source is None or not can_manage_assignment(principal, source["owner_user_id"]):
+                abort(404)
+            transaction.examine(source)  # hold, factual timestamps, admission
 
-        if source["question_plan_json"]:
-            plan = quiz_parse_assignment_question_plan(source["question_plan_json"])
+            if source["question_plan_json"]:
+                plan = quiz_parse_assignment_question_plan(source["question_plan_json"])
+                try:
+                    if plan is None:
+                        raise ValueError("Invalid mixed plan")
+                    AssessmentScope(conn, source["section_id"]).validate_plan(
+                        plan["question_ids"], plan["open_question_ids"]
+                    )
+                except ValueError:
+                    abort(400)
+
             try:
-                if plan is None:
-                    raise ValueError("Invalid mixed plan")
-                AssessmentScope(conn, source["section_id"]).validate_plan(
-                    plan["question_ids"], plan["open_question_ids"]
-                )
-            except ValueError:
-                abort(400)
-
-        try:
-            deadline_at = lifecycle.resolve_deadline(deadline_request, transaction.now)
-        except lifecycle.DeadlineError as exc:
-            return None, exc.code
-        # The copy belongs to the acting account, never to the source's owner.
-        new_assignment_id = quiz_create_assignment(
-            conn, principal=principal, section_id=source["section_id"],
-            title_bg=quiz_duplicate_title(source["title_bg"]),
-            question_count=source["question_count"],
-            time_limit_minutes=source["time_limit_minutes"],
-            question_plan_json=source["question_plan_json"],
-            deadline_at=deadline_at, display_timezone=deadline_request.timezone)
-        created_at = transaction.now_text
+                deadline_at = lifecycle.resolve_deadline(deadline_request, transaction.now)
+            except lifecycle.DeadlineError as exc:
+                return None, exc.code
+            # The copy belongs to the acting account, never to the source's owner. It is a
+            # creation like any other and counts against the acting account's limits.
+            new_assignment_id = quiz_create_assignment(
+                conn, principal=principal, section_id=source["section_id"],
+                title_bg=quiz_duplicate_title(source["title_bg"]),
+                question_count=source["question_count"],
+                time_limit_minutes=source["time_limit_minutes"],
+                question_plan_json=source["question_plan_json"],
+                deadline_at=deadline_at, display_timezone=deadline_request.timezone,
+                transaction=transaction)
+            created_at = transaction.now_text
+    except assignment_quota.QuotaExceeded as exc:
+        _log_creation_refused(principal, exc)
+        return None, exc.reason  # rolled back by the transaction: no copy, no ledger row
     # After the commit, for diagnosis only: no tool reads an assignment's state from the log.
     lifecycle.logger.info(
         "lifecycle event=create assignment_id=%s at=%r deadline_at=%r display_timezone=%r actor_user_id=%s",
@@ -777,9 +803,9 @@ def teacher_new():
             else selected_section["open"]["count"] if selected_section else 0,
         practical_source_options=practical_source_options,
         deadline_form=deadline_form,
-        deadline_error_message=lifecycle.DEADLINE_ERROR_MESSAGES_BG.get(teacher_new_error),
+        deadline_error_message=_creation_error_message(teacher_new_error),
         timezone_names=lifecycle.timezone_names(),
-    ), 400 if teacher_new_error else 200
+    ), _creation_error_status(teacher_new_error) if teacher_new_error else 200
 
 
 def _render_assignment_detail(conn, assignment, *, status_code: int = 200, edit_error: str | None = None,
@@ -840,7 +866,7 @@ def _render_assignment_detail(conn, assignment, *, status_code: int = 200, edit_
         edit_form_values=edit_form_values,
         edit_deadline_form=(edit_form_values or {}).get("deadline") or edit_deadline_form,
         duplicate_error=duplicate_error,
-        duplicate_error_message=lifecycle.DEADLINE_ERROR_MESSAGES_BG.get(duplicate_error),
+        duplicate_error_message=_creation_error_message(duplicate_error),
         duplicate_deadline_form=duplicate_form_values or default_form,
         can_manage=can_manage,
         lifecycle=presentation,
@@ -1008,7 +1034,8 @@ def teacher_assignment_duplicate(assignment_id):
 
         if new_assignment_id is None:
             return _render_assignment_detail(
-                conn, source, status_code=400, duplicate_error=duplicate_error,
+                conn, source, status_code=_creation_error_status(duplicate_error),
+                duplicate_error=duplicate_error,
                 duplicate_form_values=_submitted_deadline_form(request.form))
 
     quiz_write_assignment_note(new_assignment_id, request.host_url)

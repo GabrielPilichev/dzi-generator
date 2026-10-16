@@ -1074,6 +1074,17 @@ def _check_clock(conn: sqlite3.Connection) -> LifecycleWrite:
     return LifecycleWrite(conn, now, wall, new_anchor)
 
 
+def begin_write(conn: sqlite3.Connection) -> LifecycleWrite:
+    """``BEGIN IMMEDIATE`` and the clock-health check, leaving the transaction open.
+
+    For the one caller that must keep the commit with *its* caller
+    (``quiz_create_assignment`` without a ``transaction``): the writer lock is held and
+    ``now`` was sampled after it, and whoever called must commit or roll back. Everything
+    else uses :func:`write_transaction`, which ends the transaction itself.
+    """
+    return _begin_write(conn)
+
+
 @contextmanager
 def write_transaction(conn: sqlite3.Connection):
     """``BEGIN IMMEDIATE``, the clock-health check, then the caller's guarded writes.
@@ -1102,13 +1113,18 @@ def write_transaction(conn: sqlite3.Connection):
 
 # OPEN(:now), written once (11.1). ``lifecycle_hold IS NULL`` travels with it so
 # that no write can land on a held assignment.
-OPEN_PREDICATE_SQL = (
-    "lifecycle_hold IS NULL"
-    " AND closed_at IS NULL"
+#
+# The part of it that says "not closed, not expired", without the hold, is written here too
+# and only here: the creation quota counts a held assignment that is otherwise open as open
+# (docs/reviews/EMAIL_REGISTRATION_PR7_SCOPE.md, I2). OPEN_PREDICATE_SQL is that text with
+# the hold test in front, unchanged.
+UNCLOSED_STATE_SQL = (
+    "closed_at IS NULL"
     " AND expiry_observed_at IS NULL"
     " AND submissions_closed_at IS NULL"
     " AND (deadline_at IS NULL OR deadline_at > :now)"
 )
+OPEN_PREDICATE_SQL = "lifecycle_hold IS NULL AND " + UNCLOSED_STATE_SQL
 
 _LIFECYCLE_ROW_SQL = "SELECT id, " + ", ".join(LIFECYCLE_COLUMNS) + " FROM quiz_assignments WHERE id = ?"
 
@@ -1120,6 +1136,19 @@ def fetch_lifecycle_row(conn: sqlite3.Connection, assignment_id: int) -> dict | 
     if row is None:
         return None
     return dict(zip(("id", *LIFECYCLE_COLUMNS), tuple(row)))
+
+
+def count_unclosed_owned(conn: sqlite3.Connection, owner_user_id: int, now_text: str) -> int:
+    """How many assignments of one account are not closed and not expired at ``now_text``.
+
+    A held assignment that is otherwise open is counted (``UNCLOSED_STATE_SQL`` has no hold
+    test). Rows with no owner belong to no account and are never counted. Reads only; the
+    caller holds the writer lock when the answer decides a write.
+    """
+    row = conn.execute(
+        "SELECT COUNT(*) FROM quiz_assignments WHERE owner_user_id = :owner AND " + UNCLOSED_STATE_SQL,
+        {"owner": owner_user_id, "now": now_text}).fetchone()
+    return int(row[0])
 
 
 def set_new_assignment_deadline(conn: sqlite3.Connection, assignment_id: int, *,

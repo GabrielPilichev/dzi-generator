@@ -111,14 +111,14 @@ Proposed files: `test_registration_migration_sql.py`,
 | --- | --- |
 | D1 | `create_pending` stores a scrypt hash and a keyed code hash; neither the password nor the code appears in any column of any table. |
 | D2 | The code is six digits including leading zeros; a thousand generated codes are not constant (generator is wired to `secrets`). |
-| D3 | Correct code activates a student registration: one `users` row with the normalised email, role `student`, `email_verified_at` set, `display_name` of the two names and a profile. `authenticate` then accepts the password. A teacher registration is never activated before PR 7 (K5); its role and subjects are tested there, as decision D5 decides. |
+| D3 | Correct code activates a student registration: one `users` row with the normalised email, role `student`, `email_verified_at` set, `display_name` of the two names and a profile. `authenticate` then accepts the password. A teacher registration is activated only with the teacher gate on (PR 7, K5): the account (role `teacher`), the profile and the subject rows are created together and are tested in `tests.test_teacher_registration` (every subject write, the account, the profile and the final state are failure-injected). |
 | D4 | **Final states are kept.** After activation the row is `activated` and scrubbed; verifying again with the same binding returns `NOT_PENDING`, writes nothing (database hash unchanged) and the row is still `activated`. The same for a `void` row (cancelled, replaced, address taken) and an `expired` row: each keeps its own state. Only a `pending` row past its time becomes `expired`. |
 | D5 | Wrong code counts; five wrong codes, then the correct one is refused; a resend makes a correct new code work. |
 | D6 | Malformed and empty codes count as attempts. |
 | D7 | A code past ten minutes is refused without counting; a registration past thirty minutes is `expired` and scrubbed, whatever its code. |
 | D8 | A resend invalidates the previous code, is refused inside sixty seconds and after three, and never sets a code expiry past the registration's. |
 | D9 | The code of one registration does not verify another registration of the same address. |
-| D10 | `create_verified_user` refuses role `admin`, role `teacher` (until PR 7), a missing email, and a hash that is not of the current method. |
+| D10 | `create_verified_user` refuses role `admin` (and any role but `student` and, since PR 7, `teacher`), a missing email, and a hash that is not of the current method. |
 | D11 | With a different `SECRET_KEY` no existing code or binding matches, and the address hash of the ledger differs. **This is an exception to the guessing bound, pinned as such:** an address at its daily cap is admitted eight more attempts after the key changes, and the codes issued before the change no longer verify. |
 
 ### D-L. Send ledger and caps (PR 3)
@@ -234,7 +234,7 @@ The restore gate is D20's: every restore holds; no ledger carry-over exists.
 | F13 | `next`: an external URL, `//host`, a backslash and an over-long value are dropped at render and at use; the return target after activation is always a GET that starts no attempt. |
 | F14 | `/register/verify`, `/resend`, `/cancel` responses carry `no-store` and `no-referrer`; the address is in no URL, cookie or log line. |
 | F15 | Cancel voids and scrubs the row and removes the slot. |
-| F16 | The teacher route is 404 while its gate is off, with the student gate on. Before PR 7 it is 404 in every environment and no test configuration turns it on (see also K5). |
+| F16 | The teacher route is 404 while its gate is off, with the student gate on, and the chooser does not link to it. With the gate on (a test patches the constant; no setting exists) the route renders and submits (PR 7, `tests.test_teacher_registration`). Before PR 7 it was 404 in every environment (see also K5). |
 | F17 | A storage failure during verify (DA1 at route level) renders the generic failure with status 500, keeps `reg`, shows neither "address taken" nor the confirmation, and a retry with the same code then activates. |
 
 ## G. Enumeration (PR 4)
@@ -271,12 +271,12 @@ not assert equal delivery or equal duration.
 | ID | Test |
 | --- | --- |
 | I1 | No request to any registration or profile route, with any body, produces a `users` row with role `admin`. |
-| I2 | The student route always yields `student`; a tampered hidden field or a `/register/student` body with teacher fields does not change it. From PR 7 the teacher route always yields what decision D5 decides and nothing a field can change. |
-| I3 | (PR 7, under decision D5 (A)) A registered teacher gets exactly the existing teacher access matrix: 403 on `/teacher`, `/dzi`, `/teacher/dzi-training`; 404 on another teacher's and on unowned assignments. |
+| I2 | The student route always yields `student`; a tampered hidden field or a `/register/student` body with teacher fields does not change it. From PR 7 the teacher route always yields what decision D5 decides and nothing a field can change (forged `role`, `account_type`, `is_admin`, `grade`, `email_verified_at` are ignored; tested at route and service level). |
+| I3 | (PR 7, under decision D5 (A)) A registered teacher gets exactly the existing teacher access matrix: 403 on `/teacher`, `/dzi`, `/teacher/dzi-training`; 404 on another teacher's and on unowned assignments. Tested in `tests.test_teacher_registration.TeacherJourneyRouteTest`. |
 | I4 | A registered student gets exactly the existing student matrix. |
 | I5 | `/account/profile` cannot change `role`, `email`, `email_verified_at`, `is_active`, `profile_required_at` or another account's profile. **Which fields it accepts follows the stored profile type, not the current role:** an account with a student-type profile cannot store school or subjects, and one with a teacher-type profile cannot store a class, each tested with the current role equal to the profile type and, after `set-role`, different from it (a student-type profile on a role-`teacher` account; a teacher-type profile on a role-`student` account). An account with no profile is offered the student form only while its current role is `student`; with role `teacher` or `admin` a POST creates nothing. |
 | I6 | Profile data plays no part in any access decision: an account with a teacher profile and role `student` is a student everywhere, and the reverse. |
-| I7 | Quotas (PR 7): the approved limits refuse creation past them, per teacher, without affecting another teacher or an admin. |
+| I7 | Quotas (PR 7): the approved limits (20 creations in a rolling 24 hours, 10 open assignments) refuse creation past them, per teacher account, without affecting another teacher; admin accounts are recorded and not refused (an interpretation awaiting Gabriel). Boundaries: the 20th and 10th creation succeed, the 21st and 11th are refused; a creation exactly 24 h old no longer counts; closing frees an open slot and never a creation; a deadline that passes frees a slot; a held, otherwise open assignment counts as open; the last slot goes to exactly one of several concurrent requests; a refusal writes nothing (no assignment, token, ledger row, clock mark or vault note) for `/teacher/new` (both kinds) and the copy form; a failure after the insert consumes no allowance; time is read after the lock; existing assignments count toward the open limit and nothing is closed; deleting an assignment leaves the ledger. `tests.test_assignment_quota`, `tests.test_assignment_creations_migration_sql`. |
 
 ## J. Existing accounts, Google and profiles (PRs 4 and 6)
 
@@ -313,7 +313,7 @@ lists. See `EMAIL_REGISTRATION_PR6_STATUS.md` for what is and is not covered.*
 | K2 | With it on (patched in the test), malformed mail settings are startup errors that name the variable and echo no secret. |
 | K3 | No environment variable turns on registration, the teacher form or profiles in production while a constant is off. |
 | K4 | The Nginx template has the `lp_register` zone on the submit and resend addresses and `lp_login` on verify (static test, like the existing template tests). |
-| K5 | **Teacher gate through activation** (PR 7 for the gate-on half; before it, every teacher registration is refused). A teacher registration is created with the gate on; the gate is then off. `verify` with the correct code creates no account, voids and scrubs the row and answers "unavailable"; so does `resend`, which sends nothing. No student account results either. A student registration pending at the same moment still activates. |
+| K5 | **Teacher gate through activation** (PR 7 for the gate-on half; before it, every teacher registration was refused). A teacher registration is created with the gate on; the gate is then off. `verify` with the correct code creates no account, voids and scrubs the row and answers "unavailable"; so does `resend`, which sends nothing. No student account results either. A student registration pending at the same moment still activates. |
 | K6 | **Registration gate turned off with rows pending.** Every route is 404, a correct code posted to `/register/verify` activates nothing, and the next cleanup run scrubs the rows when they expire. |
 | K7 | A restore hold, an open circuit, a used total budget and a regressed clock each answer "unavailable" (not 404) on submit and resend, write nothing, and do not depend on the address. |
 

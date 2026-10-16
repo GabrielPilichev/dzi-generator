@@ -267,10 +267,11 @@ def password_hash_is_verifiable(stored) -> bool:
     )
 
 
-# Roles a verified registration may be activated with. ``teacher`` joins it only with
-# teacher quotas (docs/reviews/EMAIL_REGISTRATION_DESIGN.md, D5 and section 7.1);
-# ``admin`` never does: the CLI's ``set-role`` stays the only way to an admin.
-VERIFIED_REGISTRATION_ROLES = ("student",)
+# Roles a verified registration may be activated with. ``teacher`` is activated only behind
+# the teacher gate, and only with the assignment quotas of PR 7 in place
+# (docs/reviews/EMAIL_REGISTRATION_DESIGN.md, D5 and section 7.1); ``admin`` never is: the
+# CLI's ``set-role`` stays the only way to an admin.
+VERIFIED_REGISTRATION_ROLES = ("student", "teacher")
 
 
 def hash_new_password(password: str, email: str) -> str:
