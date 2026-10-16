@@ -1191,7 +1191,7 @@ class AccountBlueprintBoundariesTest(unittest.TestCase):
         "/login/totp": ("account.login_totp", {"POST"}, access.PUBLIC),
         "/account": ("account.overview", {"GET"}, access.SIGNED_IN),
         "/account/password": ("account.password", {"GET", "POST"}, access.SIGNED_IN),
-        "/account/profile": ("account.profile", {"GET", "POST"}, access.SIGNED_IN),
+        "/account/profile": ("account.profile", {"GET", "POST"}, access.PUBLIC),
     }
     # The routes of Google sign-in (PR #331), named exactly: nothing else may appear.
     GOOGLE_ROUTES = {

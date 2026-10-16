@@ -1394,7 +1394,7 @@ All but the last in a new blueprint `registration`
 | `/register/verify` | GET, POST | `public` | `same_origin` | |
 | `/register/resend` | POST | `public` | `same_origin` | |
 | `/register/cancel` | POST | `public` | `same_origin` | „Грешен имейл? Започни отново“ |
-| `/account/profile` | GET, POST | `signed_in` | `same_origin` | View and edit (7.4); 404 while the profile gate is off |
+| `/account/profile` | GET, POST | `public` at the hook; the view requires a signed-in account | `same_origin` | View and edit (7.4); 404 for everybody, anonymous included, while the profile gate is off (the gate is checked before the sign-in) |
 
 Rules, each an existing convention applied to the new routes:
 
@@ -1786,8 +1786,8 @@ database below migration 023 is not broken for every page; the gate is `profiles
 in production and `app.config["PROFILES_ENABLED"]`, which a development run sets from
 `DZI_PROFILES_ENABLED` and a production start sets from the constant alone; the accounts service
 gained `set_display_name`, `mark_profile_required` and `profile_requirement`; and while the gate is off
-an anonymous request for `/account/profile` is sent to sign-in like every `signed_in` page, while a
-signed-in account gets the 404.
+`/account/profile` is declared `public` at the access hook and checks the gate first, so every visitor, anonymous
+included, gets the generic 404 (approved by Gabriel; the view then applies the `signed_in` rule itself when the gate is on).
 
 ### 7.5 Configuration and rollout
 

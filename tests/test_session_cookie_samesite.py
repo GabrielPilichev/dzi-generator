@@ -469,11 +469,10 @@ class CrossSiteNavigationTest(VisitorsTestCase):
             "account.login": [("/login", statuses(200, 302, 302, 302)),
                               ("/login?next=/account/attempts", statuses(200, 302, 302, 302))],
             "account.password": [("/account/password", ANY_ACCOUNT)],
-            # The profile gate is off in this configuration: a signed-in account gets the
-            # generic 404, an anonymous visitor the sign-in like every account page.
-            # tests/test_account_profile.py sweeps it with the gate on.
-            "account.profile": [("/account/profile", statuses(302, 404, 404, 404)),
-                                ("/account/profile?next=/account/attempts", statuses(302, 404, 404, 404))],
+            # The profile gate is off in this configuration: everybody, anonymous included,
+            # gets the generic 404. tests/test_account_profile.py sweeps it with the gate on.
+            "account.profile": [("/account/profile", statuses(404, 404, 404, 404)),
+                                ("/account/profile?next=/account/attempts", statuses(404, 404, 404, 404))],
             # The account page reads only, whatever outcome code it is asked to show.
             "account.overview": [("/account", ANY_ACCOUNT), ("/account?google=linked", ANY_ACCOUNT),
                                  ("/account?google=link_cancelled", ANY_ACCOUNT)],

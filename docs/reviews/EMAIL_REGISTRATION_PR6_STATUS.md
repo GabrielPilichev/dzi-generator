@@ -6,11 +6,15 @@ Tests: `docs/reviews/EMAIL_REGISTRATION_TEST_PLAN.md`, A2, I5, I6, J5 to J13, J1
 Earlier PRs: `EMAIL_REGISTRATION_PR1_STATUS.md` to `PR5_STATUS.md` (merged: #335 to #339).
 Routes: `docs/AUTH_ROUTE_CONTRACT.md`, "Account profile". Operator text: `docs/DEPLOYMENT.md`, section 35.
 
-## Review of `429697efea47e18b4e9c8842322639a5e9299305`: REQUEST CHANGES, and the fixes
+## Review history, approvals and later cleanup
 
-An independent review of the pushed head `429697efea47e18b4e9c8842322639a5e9299305` (PR #340) gave the verdict
-**REQUEST CHANGES** with two independent findings. Both are fixed in the working tree, **unstaged and uncommitted**;
-**the fixes are not independently reviewed**.
+* `429697efea47e18b4e9c8842322639a5e9299305`: an independent review (PR #340) gave **REQUEST CHANGES** with two findings.
+* `d3e6d6e0564fd8aba7a04e8de6f365f4ef1f61e4` (committed, "Fix profile name snapshots and rejected return-target handling"): the
+  fixes below. An independent review of exactly this SHA gave **APPROVE WITH NON-BLOCKING NOTES**.
+* **After that SHA, and outside what was reviewed:** the gate-order cleanup in "Gate order and the four approvals" below. It is in the
+  working tree, **unstaged and uncommitted**, and has **not been independently reviewed**.
+
+The two findings and their fixes, as committed in `d3e6d6e`:
 
 1. **The new attempt's `student_name` came from a principal loaded before the writer lock.** A start loads its principal
    before it waits for SQLite; a profile completed or edited meanwhile changed `users.display_name` and the gate saw it, but
@@ -33,13 +37,31 @@ An independent review of the pushed head `429697efea47e18b4e9c8842322639a5e92993
 Tests added: `tests.test_profile_attempt_gate.SnapshotNameUnderLockTest` (4) and `tests.test_account_profile.RefusedNextRoundTripTest` (10);
 what they cover and the mutation evidence are in the report of the fix, not repeated as a claim of review here.
 
-**Still pending Gabriel's decision, and not marked approved by these fixes:** the development-only `DZI_PROFILES_ENABLED`
-(deviation 2); the anonymous gate-off redirect to `/login` instead of the generic 404 (deviation 4); a save without `next`
-returning to `?saved=1` (deviation 7); `display_name` rewritten only when the names change (deviation 9).
+## Gate order and the four approvals
 
-**Status:** implemented on `feature/account-profile-flow` (draft PR), on top of `4197818`
-(`419781831e925b5dcf4a7ca35b92ed688864fcef`, which holds no change). The working tree is **unstaged and
-uncommitted**, **not independently reviewed and not approved**. The profile flow is **not activated**: the
+Gabriel approved four choices of this PR:
+
+1. **Keep the development-only `DZI_PROFILES_ENABLED`**; there is no production override (deviation 2).
+2. **Generic 404 for anonymous and authenticated `/account/profile` requests while the profile gate is off** (deviation 4,
+   superseded by the change below).
+3. **A successful save without `next` returns to `/account/profile?saved=1`** (deviation 7). Already the behaviour; not rewritten.
+4. **`display_name` is rewritten only when the profile names changed**, so an operator-set name survives (deviation 9). Already the
+   behaviour; not rewritten.
+
+Approval 2 needed a change (after `d3e6d6e`, not independently reviewed): the access hook runs before the view, so a `signed_in`
+policy sent an anonymous visitor to `/login` before the gate was looked at. `account.profile` is now declared `public`; the view checks
+the gate first (`abort(404)` for everybody, no redirect, no `Set-Cookie`, no write) and only then applies the `signed_in` rule itself with
+the hook's own function (`access.is_route_allowed`) and the same redirect `/login?next=/account/profile`. Same-origin protection is a
+separate before-request check and still comes first (a cross-origin or origin-less POST is 403 whether the gate is on or off). With
+the gate on, anonymous, disabled-account and signed-in requests behave as before. Files: `web/blueprints/account.py`; the route-policy
+pins in `tests/test_access_policy.py`, `tests/test_account_login.py`, `tests/test_dzi_blueprint.py` and
+`tests/test_session_cookie_samesite.py` now say `public`/404; new tests in `tests/test_account_profile.py`
+(`GateOffTest`: every visitor and method gets the 404 with no redirect, cookie or write to any table, no session issued, same-origin
+first; `GateOrderTest`: the existing login flow with the gate on).
+
+**Status:** implemented on `feature/account-profile-flow` (draft PR #340), committed in `4197818`, `f0afa55`, `429697e` and
+`d3e6d6e0564fd8aba7a04e8de6f365f4ef1f61e4`, on top of `3d2e0d5` (#339). `d3e6d6e` is independently reviewed (APPROVE WITH NON-BLOCKING
+NOTES); the gate-order cleanup after it is not, and is unstaged. Nothing here is a merge or an activation approval. The profile flow is **not activated**: the
 build gate `profiles.PRODUCTION_ACTIVATION` is `False`, so a production start keeps `/account/profile`, its link,
 the redirect after Google onboarding, the mark and the new-attempt check switched off whatever is configured.
 Registration (`registration.PRODUCTION_ACTIVATION`, `TEACHER_ACTIVATION`) and Google sign-in
@@ -139,23 +161,23 @@ a profile-required outcome with `303` to `/account/profile?next=/quiz/s/<token>`
    for not widening it earlier). The CLI's `REQUIRED_USER_COLUMNS` is therefore unchanged too. A test pins `_USER_COLUMNS`.
 2. **The gate is an `app.config` value, and a development-only setting `DZI_PROFILES_ENABLED` exists.** The design names only
    the constant. Registration and Google can be enabled in development by their own settings; without one the profile flow could not
-   be tried locally. The setting is read by `web.app` only and has no effect in production (tested in a fresh interpreter). If you
-   prefer no development setting, delete the `web/app.py` block and set the key in tests only.
+   be tried locally. The setting is read by `web.app` only and has no effect in production (tested in a fresh interpreter).
+   **Approved by Gabriel; kept.**
 3. **`needs_profile` takes the gate as a required keyword (`enabled`)** instead of reading it: the service has no Flask. The design's
    `needs_profile(conn, user)` signature is the shape; the gate argument is the difference.
-4. **An anonymous visitor on `/account/profile` with the gate off is sent to `/login?next=/account/profile`**, not 404, because the
-   route's policy is `signed_in` (the design's table) and the access hook runs before the view. Every signed-in account gets the 404.
-   Making it 404 for everyone would need the policy to be `public` with a sign-in check in the view.
+4. **`/account/profile` is `public` at the access hook, with the sign-in check in the view**, so that the disabled gate is decided first:
+   the generic 404 for everybody, anonymous included. **Approved by Gabriel** (earlier text: an anonymous visitor was sent to the
+   login because the policy was `signed_in`; changed after `d3e6d6e`, see "Gate order and the four approvals").
 5. **A POST by a teacher or an admin without a profile answers 403 with the "no profile" page** (the design says only that nothing is
    created).
 6. **A teacher-type form exists** (school and a subject checklist with „Друг предмет“), because the brief requires an account with a
    teacher-type profile to see and edit its own fields even when its role differs. The design leaves teacher-form UX to PR 7; no
    teacher onboarding or registration is added.
 7. **No-`next` save redirects to `/account/profile?saved=1`** instead of the role's home, which the brief assigns to a refused
-   target. A refused target does go to the role's home.
+   target. A refused target does go to the role's home. **Approved by Gabriel; kept.**
 8. **A role changed between the form being read and the write** is decided under the lock: the save is refused with the generic
    failure (409) and nothing is written.
-9. **`display_name` follows an edit only when the names changed** (above).
+9. **`display_name` follows an edit only when the names changed** (above). **Approved by Gabriel; kept.**
 10. **CSS and a template were added** for the new page (`account_profile.html`, `ui-pass9.css`: a checklist and a definition list,
     colours from the shared tokens only). The page has not been looked at in a browser.
 11. **Existing tests changed** only where PR 6 makes them untrue: the route-policy matrix, the URL-map snapshot
@@ -213,7 +235,7 @@ profile, an attempt, a closure, an unmark and a role change made while the start
 
 ## Not verified / remaining
 
-* Not independently reviewed. Nothing was looked at in a browser: the markup renders through the test client, and the colours come from the
+* The gate-order cleanup after `d3e6d6e` is not independently reviewed. Nothing was looked at in a browser: the markup renders through the test client, and the colours come from the
   shared tokens, but the contrast of the new warning, the checklist and the definition list has not been checked on a screen.
 * Nothing ran on Linux or under the real unit; no real SQLite database, deployment, provider or message was involved.
 * Activation prerequisites unchanged and not done: the privacy policy and D16 (purpose, visibility and retention of the profile fields, minors),

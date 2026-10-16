@@ -119,7 +119,7 @@ a coverage test walks `app.url_map` and fails on any undeclared endpoint.
 | `public` | any session, signed in or not | `/`, `/grade/<n>`, `/section/<slug>`, `/subjects/...`, `/physics...`, `/healthz`, `/favicon.ico`, sign-in (`/login`, `POST /login/totp`, `POST /auth/google/start`, `GET /auth/google/callback`), `POST /logout`, `/quiz/s/<public_token>`, registration (`/register`, `/register/student`, `/register/teacher`, `/register/verify`, `POST /register/resend`, `POST /register/cancel`; see "Student registration") |
 | `teacher` | teacher or admin account | `/teacher/new`, `/teacher/assignment/<id>` |
 | `admin` | admin account only (after the second factor) | `/admin/open-question-candidates`, `/dzi...`, every other `/teacher...` route |
-| `signed_in` | any active account (student, teacher or admin) | `/account`, `/account/password`, `/account/profile` (the generic 404 while the profile gate is off; see "Account profile"), `POST /auth/google/link`, `/auth/google/link/confirm`, `POST /auth/google/link/cancel` (the link routes admit the session; an admin is then refused by `POST /auth/google/link` and `POST /auth/google/link/confirm` with 403, while `GET .../confirm` redirects to the expired outcome and `POST .../cancel` answers `link_not_pending`; see "An admin session on the link routes") |
+| `signed_in` | any active account (student, teacher or admin) | `/account`, `/account/password`, `POST /auth/google/link`, `/auth/google/link/confirm`, `POST /auth/google/link/cancel` (the link routes admit the session; an admin is then refused by `POST /auth/google/link` and `POST /auth/google/link/confirm` with 403, while `GET .../confirm` redirects to the expired outcome and `POST .../cancel` answers `link_not_pending`; see "An admin session on the link routes") |
 | `quiz_taker` | any account that may take quizzes: student, teacher or admin (`can_take_quizzes`) | `/account/attempts` |
 | `assignment_owner` | admin account or teacher account; the view checks the loaded assignment and answers 404 | `/teacher/assignments`, `/teacher/assignment/<id>/edit`, `/duplicate`, `/close` (POST only), `/results` (GET and the open-answer review POST), `/results.csv`, `/qr.svg`, `/teacher/practical-submissions`, `/teacher/practical/submission-file/<file_id>/download` |
 | `attempt_owner` | route is reachable; the view checks attempt ownership and answers 404 | `/quiz/attempt/<id>`, `/quiz/attempt/<id>/result`, `/quiz/attempt/<id>/practical/...` |
@@ -568,11 +568,19 @@ start never reads that setting.
 
 | Route | Endpoint | Methods | Access | Integrity |
 | --- | --- | --- | --- | --- |
-| `/account/profile` | `account.profile` | GET, POST | `signed_in` | `same_origin` |
+| `/account/profile` | `account.profile` | GET, POST | `public` at the hook; the view requires a signed-in account (below) | `same_origin` |
 
+- **Order.** The policy is `public` on purpose: the access hook runs before the
+  view, so `signed_in` would redirect an anonymous visitor to the login before
+  the gate was looked at. The view checks, in this order: the same-origin
+  integrity check (a separate before-request step: a cross-origin POST is 403
+  whatever the gate says), the gate (off: the generic 404), then the `signed_in`
+  rule with `access.is_route_allowed` and the same redirect to
+  `/login?next=/account/profile` (anonymous, pending second factor, disabled or
+  stale session).
 - **Gate off (the build's default).** `/account/profile` is the generic 404 for
-  every signed-in account (an anonymous visitor is sent to `/login?next=...`
-  first, like for every `signed_in` page; a cross-origin POST is still 403).
+  everybody, anonymous visitors included: no redirect to the login, no cookie, no
+  session, no write (approved by Gabriel).
   `/account` shows no profile section and no link to it. Google onboarding
   redirects exactly as before and writes no mark. Starting an attempt is exactly
   as before. A `users.profile_required_at` that exists stays stored and is

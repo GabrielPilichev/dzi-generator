@@ -144,9 +144,61 @@ class GateOffTest(ProfileRouteTestCase):
                 self.assertEqual(self.snapshot(), before)
                 self.assertEqual(client.get("/account").status_code, 200)   # and nobody is signed out
 
-    def test_an_anonymous_visitor_is_sent_to_sign_in_like_for_every_account_page(self):
-        response = self.app.test_client().get("/account/profile")
-        self.assertEqual((response.status_code, response.headers["Location"]), (302, "/login?next=/account/profile"))
+    def database_dump(self):
+        """Every row of every table: a disabled gate must write nothing anywhere."""
+        with closing(sqlite3.connect(self.db_path)) as conn:
+            tables = [row[0] for row in conn.execute(
+                "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name")]
+            return {table: conn.execute(f'SELECT * FROM "{table}"').fetchall() for table in tables}
+
+    def same_page(self, client, response, path):
+        """The body is the one an unknown URL gets for the same visitor (only the echoed path differs)."""
+        unknown = "/definitely/not/a/page"
+        reference = self.body(self.get(client, unknown)).replace(unknown, "/account/profile")
+        return self.body(response).replace(path.split("?")[0], "/account/profile") == reference
+
+    def test_every_visitor_gets_the_generic_404_and_never_a_login_redirect(self):
+        """The disabled gate is decided before authentication (approved by Gabriel)."""
+        anonymous = self.app.test_client()
+        signed = {role: self.signed_in(role)[1] for role in ("student", "teacher", "admin")}
+        before = self.database_dump()
+        for who, client in {"anonymous": anonymous, **signed}.items():
+            for path in ("/account/profile", "/account/profile?next=/account/attempts", "/account/profile?saved=1"):
+                with self.subTest(visitor=who, method="GET", path=path):
+                    response = self.get(client, path)
+                    self.assertEqual(response.status_code, 404)
+                    self.assertNotIn("Location", response.headers)
+                    self.assertEqual(response.headers.getlist("Set-Cookie"), [])
+                    self.assertEqual(self.same_page(client, response, path), True)
+            with self.subTest(visitor=who, method="POST"):
+                response = self.post(client, {**STUDENT_FORM, "next": START})
+                self.assertEqual(response.status_code, 404)
+                self.assertNotIn("Location", response.headers)
+                self.assertEqual(response.headers.getlist("Set-Cookie"), [])
+                self.assertEqual(self.same_page(client, response, "/account/profile"), True)
+        self.assertEqual(self.database_dump(), before)     # no profile, account, session-key or throttle write
+
+    def test_an_anonymous_visitor_issues_no_session_while_the_gate_is_off(self):
+        anonymous = self.app.test_client()
+        self.get(anonymous, "/account/profile")
+        self.post(anonymous, STUDENT_FORM)
+        with anonymous.session_transaction() as session:
+            self.assertEqual(dict(session), {})
+
+    def test_same_origin_protection_still_comes_first_while_the_gate_is_off(self):
+        anonymous = self.app.test_client()
+        _, signed = self.signed_in("student")
+        before = self.database_dump()
+        for client in (anonymous, signed):
+            for headers in (CROSS_ORIGIN, {"Origin": "null"}, {"Referer": "http://evil.example/form"}):
+                with self.subTest(headers=headers):
+                    response = self.post(client, STUDENT_FORM, headers=headers)
+                    self.assertEqual(response.status_code, 403)
+                    self.assertEqual(response.headers.getlist("Set-Cookie"), [])
+        with patch.dict(self.app.config, {"TESTING": False}):
+            self.assertEqual(anonymous.post("/account/profile", data=STUDENT_FORM).status_code, 403)
+        self.assertEqual(self.database_dump(), before)
+
 
     def test_the_account_page_has_no_profile_section_and_no_link(self):
         for role, kind in (("student", None), ("student", "student"), ("teacher", "teacher"), ("admin", None)):
@@ -170,6 +222,33 @@ class GateOffTest(ProfileRouteTestCase):
         with patch.dict(self.app.config, {profiles.CONFIG_KEY: True}):
             self.assertTrue(profiles.enabled_in(self.app.config))
         self.assertFalse(profiles.enabled_in({}))
+
+
+class GateOrderTest(ProfileRouteTestCase):
+    """With the gate on, an anonymous visitor keeps the existing sign-in flow."""
+
+    def test_anonymous_get_and_post_are_sent_to_the_login_with_the_path(self):
+        anonymous = self.app.test_client()
+        before = self.snapshot()
+        for response in (self.get(anonymous), self.post(anonymous, STUDENT_FORM)):
+            self.assertEqual((response.status_code, response.headers["Location"]), (302, "/login?next=/account/profile"))
+            self.assertEqual(response.headers.getlist("Set-Cookie"), [])
+        self.assertEqual(self.snapshot(), before)
+
+    def test_the_login_it_points_to_signs_the_account_in_and_returns_to_the_profile(self):
+        account = self.make("student", email="gate-order@example.bg")
+        client = self.app.test_client()
+        response = client.post("/login?next=/account/profile", headers=SAME_ORIGIN,
+                               data={"email": "gate-order@example.bg", "password": PASSWORD})
+        self.assertEqual((response.status_code, response.headers["Location"]), (302, "/account/profile"))
+        self.assertEqual(self.get(client).status_code, 200)
+
+    def test_a_disabled_account_and_a_cross_origin_post_keep_their_answers(self):
+        account, client = self.signed_in("student")
+        self.assertEqual(self.post(client, STUDENT_FORM, headers=CROSS_ORIGIN).status_code, 403)
+        self.execute("UPDATE users SET is_active = 0 WHERE id = ?", (account["id"],))
+        response = self.get(client)
+        self.assertEqual((response.status_code, response.headers["Location"]), (302, "/login?next=/account/profile"))
 
 
 # --------------------------------------------------------------------------- the page, GET

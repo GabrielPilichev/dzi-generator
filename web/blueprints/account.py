@@ -36,7 +36,7 @@ from flask import Blueprint, abort, current_app, redirect, render_template, requ
 
 from src import subject_registry
 from web import oauth_state
-from web.access import PUBLIC, SIGNED_IN, access_policy, current_principal
+from web.access import PUBLIC, SIGNED_IN, access_policy, current_principal, is_route_allowed
 from web.account_session import (
     account_throttle_key,
     end_session,
@@ -464,13 +464,23 @@ def _profile_return_target(accepted_next: str, refused: bool, role) -> str:
 
 
 @account_bp.route("/account/profile", methods=["GET", "POST"])
-@access_policy(SIGNED_IN)
+@access_policy(PUBLIC)
 @integrity_policy(SAME_ORIGIN)
 def profile():
-    """View and edit the account's profile (design 7.4); the generic 404 while the gate is off."""
+    """View and edit the account's profile (design 7.4).
+
+    The policy is ``public`` on purpose: the access hook runs before the view, so a
+    ``signed_in`` policy would send an anonymous visitor to the login before the gate was
+    looked at. While the gate is off the answer is the generic 404 for everybody; the
+    sign-in requirement of ``signed_in`` is then applied here, with the hook's own rule
+    (``is_route_allowed``) and the same redirect. Same-origin protection is a separate
+    check that runs before both.
+    """
     if not _profiles_enabled():
         abort(404)
     principal = current_principal()
+    if not is_route_allowed(SIGNED_IN, principal):
+        return redirect(url_for("account.login", next=request.path))
     conn = get_request_db()
     if request.method == "GET":
         return _profile_page(conn, principal)
