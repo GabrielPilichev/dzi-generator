@@ -9,10 +9,12 @@ Branch `feature/teacher-registration-quotas`, started from `fd44c8f` (on top of 
 1. `b15d02b067459ceded9dc4d096f7e2082ce7c81d`: the implementation. An independent review of exactly that SHA returned **REQUEST CHANGES** (three findings).
 2. `3537f4f3ad9a28ee9aa147a6d93af4e6863da1ac`: the fixes for those three. An independent review of exactly that SHA returned **REQUEST CHANGES** (two P2 findings).
 3. `e39fa9fe6224528a2bda202654f0e18ce17c85be` ("Preserve fractional quota history and registration return targets"): the fixes for those two. The independent Claude review of exactly that SHA
+   returned **APPROVE WITH NON-BLOCKING NOTES**.
+4. `5f834aed6fbbaa64e1f161baa923dde03667f25a` ("Restrict quota timestamps to ASCII and record approved policies"): the cleanup after `e39fa9f`, **committed**. The legacy-timestamp parser is restricted to ASCII digits
+   (`_LEGACY_TIMESTAMP`: `[0-9]` and `re.ASCII`), with its tests, and the policies Gabriel approved after the review of `e39fa9f` are recorded in the documents (below). No behaviour of the earlier
+   reviewed content changes except that a `created_at` written with another script's digits is now unplaceable instead of being given an age. The independent Claude review of exactly that SHA
    returned **APPROVE WITH NON-BLOCKING NOTES**. That is the reviewed content.
-4. **Subsequent cleanup, not part of the reviewed content, uncommitted in the working tree and not reviewed:** the legacy-timestamp parser is restricted to ASCII digits
-   (`_LEGACY_TIMESTAMP`: `[0-9]` and `re.ASCII`), with its tests, and the policies Gabriel approved after that review are recorded in the documents (below). No behaviour of the review's
-   subject changes except that a `created_at` written with another script's digits is now unplaceable instead of being given an age.
+5. **Subsequent provenance-only edits** to the documents (this correction of the commit and review state), unstaged and uncommitted when written, are **outside the reviewed commit** and have not been reviewed.
 
 The review verdict is not an activation and does not approve any gate; production registration, teacher, profile and Google gates stay off.
 
@@ -38,7 +40,7 @@ Chronology of approvals by Gabriel:
    enforced atomically across creation paths; a verified teacher registration receives role `teacher` only when the teacher gate permits activation; production registration, teacher,
    profile and Google gates stay **off**.
 2. **After the review of `b15d02b`:** admin creations are recorded and exempt from refusal (proposed as I6); no development switch for the teacher gate (proposed as I11).
-3. **After the review of `e39fa9f`** (recorded here with the ASCII-parser cleanup). Each of these was an interpretation (I1, I2, I3, I10, I13, retention, lost history) and is now approved:
+3. **After the review of `e39fa9f`** (recorded in the commit `5f834ae` with the ASCII-parser cleanup). Each of these was an interpretation (I1, I2, I3, I10, I13, retention, lost history) and is now approved:
    * **Window (I1):** the existing rolling window `(now − 24 hours, now]`, with **conservative counting of tolerated future rows** (a legacy value up to a day ahead keeps counting until it is a day old).
    * **Date-only timestamps** map to **23:59:59 UTC** of that day (I13).
    * **Timestamps before 2000-01-01 are rejected** (I13).
@@ -52,10 +54,13 @@ Chronology of approvals by Gabriel:
    * **After known lost history, creation stays closed until a separately reviewed recovery procedure exists.** This is an **operational requirement**, not a claim that an automatic hold or
      recovery mechanism exists: the code neither detects such a loss nor holds creation, and no recovery procedure is written.
 
-**Not approved as such, and still implemented as interpretations:** I4 (whose creations count), I5 (current-role changes), I7 (the limits apply to every teacher account), I8 (existing assignments, no retroactive
+**Not separately approved by Gabriel, and implemented as interpretations:** I4 (whose creations count), I5 (current-role changes), I7 (the limits apply to every teacher account), I8 (existing assignments, no retroactive
 denial; reconciliation at the first admission), I9 (unowned rows), the remaining parts of I10 (the form is shown again with the typed values, no `Retry-After`), the reconciliation mechanism and fail-closed
 design of I12 (its 503 status is approved), the bounds not listed above (14-hour offset limit, offset or no-offset reading as UTC), and **the exact wording of the three Bulgarian refusal messages below**: approving a
 status or a behaviour does not approve its wording.
+
+**The independent review of `5f834ae` classified these remaining interpretations as routine implementation details.** That is the reviewer's classification: it is not an approval by Gabriel, no additional product approval is recorded here, and the interpretations stay documented as built.
+**The exact Bulgarian copy of the three refusal messages remains Gabriel's decision.**
 
 **The three refusal messages, exactly** (`assignment_quota.MESSAGES_BG`):
 
@@ -141,7 +146,7 @@ the others are still interpretations and each is written down so that it can be 
   second (`…:00.999999999Z` is `…:01`) and a zero fraction is the second itself; rounding up can only keep an allowance spent longer, never refund it early. Both bounds are
   checked on the instant before any rounding: the lower bound (`1999-12-31T23:59:59.9` is refused although it rounds to 2000-01-01) and the future bound (exactly `now`
   plus a day is accepted, any positive excess, however small, is refused).
-  **ASCII only (cleanup after `e39fa9f`, not reviewed).** Every digit of the value must be an ASCII digit `0`–`9` (`[0-9]` with `re.ASCII`). Python's `\d` also matches the decimal digits of other scripts
+  **ASCII only (cleanup after `e39fa9f`, committed as `5f834ae`, which was independently reviewed: APPROVE WITH NON-BLOCKING NOTES).** Every digit of the value must be an ASCII digit `0`–`9` (`[0-9]` with `re.ASCII`). Python's `\d` also matches the decimal digits of other scripts
   (Arabic-Indic, fullwidth, Devanagari, Bengali) and `int()` reads them, so such a value would have been given an age that no `CURRENT_TIMESTAMP` could have written; it is now unplaceable like any other
   unusable value (the account is refused until an operator corrects it). The supported ASCII forms, the exact fractions, the conversion and the bounds are unchanged.
 

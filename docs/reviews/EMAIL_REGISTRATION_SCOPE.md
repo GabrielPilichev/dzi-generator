@@ -46,9 +46,9 @@ create a new attempt) is merged (#340, squash `ede0c0b36ee3d163e317a93da744ff146
 `c1d3b8f6a6b7d2651c4b4c3db152acd2c49655aa`, independently reviewed there: APPROVE WITH NON-BLOCKING NOTES) and
 **not activated**: `docs/reviews/EMAIL_REGISTRATION_PR6_STATUS.md`. **PR 7** (per-account assignment
 quotas, migration `024_assignment_creations.sql`, and gated teacher registration, with the teacher gate kept off) is
-implemented on `feature/teacher-registration-quotas` (PR #341; committed as `b15d02b`, `3537f4f` and `e39fa9f`; the first two were each independently reviewed at their
-exact SHA and returned **REQUEST CHANGES**, and `e39fa9f` returned **APPROVE WITH NON-BLOCKING NOTES**; a later ASCII-digit cleanup of the timestamp parser and the recording of Gabriel's
-policies are uncommitted and unreviewed), **not
+implemented on `feature/teacher-registration-quotas` (PR #341; committed as `b15d02b`, `3537f4f`, `e39fa9f` and `5f834ae`; the first two were each independently reviewed at their
+exact SHA and returned **REQUEST CHANGES**, and `e39fa9f` and `5f834ae` each returned **APPROVE WITH NON-BLOCKING NOTES**; `5f834ae` holds the ASCII-digit cleanup of the timestamp parser and the recording of Gabriel's
+policies; later provenance-only edits to the documents are outside that reviewed commit), **not
 activated**: `docs/reviews/EMAIL_REGISTRATION_PR7_SCOPE.md` and `EMAIL_REGISTRATION_PR7_STATUS.md`. Approval of its
 implementation will not be activation. PR 8 (recovery) is not started, and no deployment, provider or real
 database was touched.

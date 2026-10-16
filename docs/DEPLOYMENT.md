@@ -3431,7 +3431,7 @@ NULL, empty or padded text, a number, another layout, an impossible date or offs
 after the server's writer clock. A value up to a day ahead is kept as it is and counts until it is a day old (conservative, and bounded by that day).
 
 **ASCII digits only.** Every digit must be `0`–`9`; digits of other scripts (Arabic-Indic, fullwidth, Devanagari and the like, which Python's `\d` and `int()` would otherwise read) are unplaceable like any
-other unusable value. This cleanup follows the reviewed content and is not itself reviewed.
+other unusable value. This cleanup was committed as `5f834ae`, which was independently reviewed (APPROVE WITH NON-BLOCKING NOTES).
 
 **Precision.** The ledger counts whole seconds, but the instant in `created_at` is judged exactly, to the last digit given: a fraction is never truncated and never
 limited to six digits. A **nonzero** fraction is rounded **up** to the next whole second (`…09:00:00.999999999Z` is recorded as `…09:00:01`, so it stays in the window
