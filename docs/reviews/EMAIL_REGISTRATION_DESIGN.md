@@ -1278,8 +1278,10 @@ Requirements the addendum must meet:
 
 **The addendum** is `docs/reviews/PASSWORD_RECOVERY_DESIGN.md`, with
 `PASSWORD_RECOVERY_SCOPE.md` and `PASSWORD_RECOVERY_TEST_PLAN.md`: a proposal
-in its second revision (the first returned REQUEST CHANGES from its
-independent review), not approved. Its open decisions RD1–RD18 (its section
+in its third revision, not approved. Revision 1 returned REQUEST CHANGES from
+its independent review; revision 2 returned a narrow REQUEST CHANGES from a
+second independent review of the cumulative proposal (these six documents);
+neither review approved anything. Its open decisions RD1–RD18 (its section
 0.3) include the never-verified question (RD1, recommended: not eligible) and
 what a non-eligible address receives (RD2). Three would **amend** requirements
 of this design and are marked so there: RD4 (eight-digit recovery codes, D6),
@@ -1289,7 +1291,10 @@ kept out of `login_throttle`, 3.4). RD17 proposes an interpretation of
 digest, without writing the other rows), for Gabriel to confirm. Where it says
 recovery shares a mechanism of this design (the send ledger, the caps, the
 circuit, the high-water mark, the restore hold, the cleanup command), it
-proposes extending that mechanism, not a parallel one.
+proposes extending that mechanism, not a parallel one. RD18 also puts to
+Gabriel whether users may reach a restored state before its credential
+repair, since the restore script starts the service before it returns (3.9
+here: a restored password is the old one).
 
 ### 5.3 Deferred, with limits and support handling (D15)
 
@@ -1869,7 +1874,7 @@ gate from being turned on and blocks no PR (0.3).
 | # | Item | Kind |
 | --- | --- | --- |
 | 1 | **No open decision blocks PR 1–6.** D1–D15 and D18–D20 are approved (0.2). Approval does not authorize an implementation; each PR starts when Gabriel says so. | Neither |
-| 1a | ~~Quota values for PR 7~~ are approved (20 creations per rolling 24 hours, 10 open assignments) and PR 7 has its scope (`EMAIL_REGISTRATION_PR7_SCOPE.md`). **PR 8** needs its own addendum, including the recovery eligibility of never-verified addresses (5.2). The addendum is drafted (`PASSWORD_RECOVERY_DESIGN.md`, a proposal in revision 2 after an independent REQUEST CHANGES); its review and Gabriel's decisions on its RD1–RD18, including three proposed amendments of this design (RD4, RD7, RD10), remain. | Implementation blocker for PR 8 only |
+| 1a | ~~Quota values for PR 7~~ are approved (20 creations per rolling 24 hours, 10 open assignments) and PR 7 has its scope (`EMAIL_REGISTRATION_PR7_SCOPE.md`). **PR 8** needs its own addendum, including the recovery eligibility of never-verified addresses (5.2). The addendum is drafted (`PASSWORD_RECOVERY_DESIGN.md`, a proposal in revision 3, after REQUEST CHANGES from its first review and a narrow REQUEST CHANGES from a second review of the cumulative proposal; neither is an approval); its review and Gabriel's decisions on its RD1–RD18, including three proposed amendments of this design (RD4, RD7, RD10), remain. | Implementation blocker for PR 8 only |
 | 2 | **D16** (privacy and minors) and the **configuration of D17** (sender address and domain, credentials, provider or relay, set with the VPS). | Activation prerequisite |
 | 3 | **Teacher quotas** exist since PR 7 (7.1), implemented; independently reviewed at `e39fa9f` (APPROVE WITH NON-BLOCKING NOTES). | Activation prerequisite for the teacher gate (met by the code, not an activation; D16 and the other prerequisites stay open). Not for the student form. |
 | 4 | **No privacy page, no retention period, no settled position on minors' consent, no stated purpose for the profile fields** (7.2). | Activation prerequisite |

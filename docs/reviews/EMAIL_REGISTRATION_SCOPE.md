@@ -51,7 +51,7 @@ exact SHA and returned **REQUEST CHANGES**, and `e39fa9f` and `5f834ae` each ret
 policies; later provenance-only edits to the documents are outside that reviewed commit), **not
 activated**: `docs/reviews/EMAIL_REGISTRATION_PR7_SCOPE.md` and `EMAIL_REGISTRATION_PR7_STATUS.md`. Approval of its
 implementation will not be activation. PR 8 (recovery) is not started: its design addendum is drafted as a proposal,
-in revision 2 after an independent REQUEST CHANGES, not approved (`docs/reviews/PASSWORD_RECOVERY_DESIGN.md`,
+in revision 3 after two independent reviews that each returned REQUEST CHANGES (the second, of the cumulative proposal, narrowly), not approved (`docs/reviews/PASSWORD_RECOVERY_DESIGN.md`,
 `PASSWORD_RECOVERY_SCOPE.md`, `PASSWORD_RECOVERY_TEST_PLAN.md`); three of its open decisions would amend approved
 requirements of the registration design (RD4, RD7, RD10), and no deployment, provider or real database was touched.
 

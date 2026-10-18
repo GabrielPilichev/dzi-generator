@@ -7,11 +7,15 @@ section 5.2; `docs/reviews/EMAIL_REGISTRATION_SCOPE.md`.
 
 ## Status
 
-**Documentation only: a proposal, revision 2, not approved.** Revision 1 was
+**Documentation only: a proposal, revision 3, not approved.** Revision 1 was
 written on branch `docs/password-recovery-design` at `513b36c` (whose code
 equals `3d4306a`, PR #341 merged) and committed as `745a952`; its independent
 review returned **REQUEST CHANGES** (findings F1–F11, mapped in design 0.4).
-Revision 2 answers them and is not yet reviewed. No application code,
+Revision 2 (`727bd4d`) answered them and received a **second** independent
+review, of the cumulative six-document proposal rather than of its changes
+alone, which returned a narrow **REQUEST CHANGES** (N1–N5 and notes, mapped in
+design 0.5). That review approved nothing. Revision 3 answers it, is
+uncommitted, and is not yet reviewed. No application code,
 migration, route or configuration exists for recovery, and no migration
 number is reserved. Implementation, deployment and activation are not
 authorized. Every production gate stays off (student registration, teacher
@@ -22,7 +26,9 @@ the approved documents): D6, D7, D10 and D20 of the registration design, the
 requirements of its section 5.2, its section 3.4 on `login_throttle`, and the
 addendum's brief (A1–A16). Everything else in the three documents is a
 proposal. The eighteen open decisions RD1–RD18 (design 0.3) each carry a
-recommendation; none is selected. Three of them would **amend** approved
+recommendation; none is selected (RD18 has two parts: how credentials are
+compared and repaired, and whether users may reach the restored state before
+the repair, which is Gabriel's decision). Three of them would **amend** approved
 requirements and are marked so: RD4 (eight-digit recovery codes, against
 D6's six digits), RD7 (no `not_sent` retirement, against the settlement of
 registration design 4.3), RD10 (recovery guesses kept out of
@@ -71,6 +77,9 @@ code is "voided" by making it unable to reset, not by writing its row).
   alternative to RD1, not designed).
 - A mail queue, a worker pool, bounce processing, a new provider decision.
 - Any change to `deploy/learnpilot-restore.sh` or its ownership protocol.
+- A maintenance configuration in the repository's Nginx template: RD18 (e)
+  is an operator step on the host, documented in the runbook; the template
+  gains only the `/recover` locations of 8.3.
 - Privacy decisions (D16), which must be amended for recovery before
   activation.
 
@@ -95,8 +104,11 @@ code is "voided" by making it unable to reset, not by writing its row).
   rows are not written, so another browser's reads, wrong codes, resends and
   cancellation reveal nothing before a correct code (RD17).
 - **Throttle**: a reset does not clear `login_throttle` (RD8 (a), changed in
-  revision 2), because clearing it is observable at `/login`; recovery codes
-  are not counted in it (RD10).
+  revision 2): clearing it would be an immediate, reset-specific signal at
+  `/login`; not clearing postpones that signal to the owner's next successful
+  sign-in, which clears it as any sign-in does, so account-dependent sign-in
+  observations remain either way, as does denial by sustained relocking.
+  Recovery codes are not counted in it (RD10).
 - **Limits**: registration's D6 values, with an **8-digit** code proposed for
   recovery (RD4, an amendment). At most eight guessable codes of an address
   in a day under the stated assumptions, at most eight of them recovery codes.
@@ -107,24 +119,29 @@ code is "voided" by making it unable to reset, not by writing its row).
 - **Settlement** records the ledger outcome only; a `not_sent` recovery send
   changes nothing the browser can see (RD7, an amendment).
 - **Operations** through the existing `registrations-*` commands and the
-  backup module; the restore script is not edited. After a restore, a
-  read-only comparison of the snapshot with the kept replaced database and a
-  reviewed password replacement or disable (not a sign-out alone) precede
-  reopening (RD18).
+  backup module; the restore script is not edited. The script starts the
+  service before it returns, so restored old passwords are usable from that
+  start unless public access was blocked beforehand. After a restore, a
+  read-only comparison of two offline inputs (the original published
+  snapshot and a rollback-mode copy of the replaced database) and a reviewed
+  password replacement or disable (not a sign-out alone) follow; users are
+  kept away until then only by an external Nginx maintenance block set before
+  the restore, under conditions the host must meet (RD18 (e)), otherwise
+  they can reach the restored state in an accepted window (RD18 (d)).
 - **Gate** `recovery.PRODUCTION_ACTIVATION = False`.
 
 ## Integration points (all proposals)
 
 | Where | Change | Scope |
 | --- | --- | --- |
-| New migration (next free number) | `password_recoveries`; `registration_sends.recovery_id` with the at-most-one-purpose CHECK; one index | 8.1 |
+| New migration (next free number) | `password_recoveries`; `registration_sends.recovery_id` with the at-most-one-purpose CHECK; two indexes (one per table) | 8.1 |
 | `src/canonical_tables.py` | `password_recoveries`: runtime | 8.1 |
 | `web/services/recovery_scrub.py` (new, standard library) | scrubbed and known columns (the allow-list of RD13), schema check, `void_pending`, `cleanup`, snapshot scrub | 8.1 |
-| `src/manage_accounts.py` | `registrations-cleanup`, `-restore-gate`, `-restore-status`, `-release-hold`, `clear-registration-limit` cover recovery; `require_registration_tables`; `restore-credential-diff` (new, read-only) only under RD18 (a) | 8.1 |
+| `src/manage_accounts.py` | `registrations-cleanup`, `-restore-gate`, `-restore-status`, `-release-hold`, `clear-registration-limit` cover recovery; `require_registration_tables`; `restore-credential-diff --snapshot --replaced` (new, read-only, offline inputs) only under RD18 (a) | 8.1 |
 | `src/backup_sqlite.py` | `scrub_pending_recoveries` before `quick_check` | 8.1 |
 | `web/services/registration.py` | `settle_send` refuses recovery rows | 8.1 |
 | `deploy/learnpilot-restore.sh` | **Not edited**; static tests pin the existing calls | 8.1 |
-| `docs/DEPLOYMENT.md` | Recovery operations; the restore credential runbook (RD18) | 8.1 |
+| `docs/DEPLOYMENT.md` | Recovery operations; the restore credential runbook (RD18), including the preparation of the offline inputs and the selected exposure option | 8.1 |
 | `web/services/registration.py` | public `control_blocked`, `raise_mark`, `writer_now` | 8.2 |
 | `web/services/accounts.py` | `recovery_candidate(...)` (read under the caller's lock); `set_password` unchanged | 8.2 |
 | `web/services/recovery.py` (new) | request, resend, redeem, cancel, `pending_view`, dispatch, settle; no caller | 8.2 |
@@ -159,7 +176,7 @@ integration.**
 | Implementation of 8.1 | RD3, RD13; RD18 only for the command under (a) |
 | Implementation of 8.2 | RD1 (only if changed from the default), RD2, RD4, RD5, RD6, RD7, RD8, RD10, RD11, RD12, RD17 |
 | Implementation of 8.3 | RD14, RD16 |
-| Activation only | RD15 (wording); the RD18 runbook rehearsed; D16 amended for recovery; the configuration of D17; the evidence of design 9 |
+| Activation only | RD15 (wording); RD18's exposure option, (d) an accepted window or (e) a maintenance block (Gabriel's decision); the RD18 runbook rehearsed with that option; D16 amended for recovery; the configuration of D17; the evidence of design 9 |
 | Nothing unless approved | RD9 (a later scope if yes) |
 
 ## Activation prerequisites (none done)
@@ -167,8 +184,11 @@ integration.**
 Design section 9: the registration design's mail, capacity, Nginx and Linux
 evidence, now for both purposes under one budget; recovery-specific Linux
 evidence for the cleanup timer, restore and snapshot step; the restore
-credential runbook rehearsed on staging, including unavailable replaced
-evidence; under RD2 (a) measured timing of a recovery code and notice, under
+credential runbook rehearsed on staging with the selected exposure option
+(under (d) the window measured; under (e) the block's conditions verified on
+the host and nothing reaching the application before its removal), including
+unavailable replaced evidence and a snapshot from before migration 016;
+under RD2 (a) measured timing of a recovery code and notice, under
 RD2 (b) the recorded acceptance that eligibility is likely distinguishable by
 timing; the real Nginx accepting the recovery locations with one
 `no-referrer` each; the lock time of `set_password` on the server; D16
@@ -177,5 +197,6 @@ independent security review of every scope.
 
 ## Execution
 
-Revisions 1 and 2 written by Claude Opus 5.5, High. Revision 2 needs its own
-independent review before implementation scope 8.1 starts.
+Revisions 1, 2 and 3 written by Claude Opus 5.5, High. Revision 3 needs its
+own independent review before implementation scope 8.1 starts; no review so
+far is an approval.

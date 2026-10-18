@@ -6,9 +6,15 @@ Scope and status: `docs/reviews/PASSWORD_RECOVERY_SCOPE.md`. Tests:
 design", with its section numbers), whose section 5.2 requires this addendum
 and whose decision D10 approved self-service recovery by emailed code as PR 8.
 
-**Proposal, revision 2. Not approved, not authorized.** Revision 1 (`745a952`)
-was independently reviewed and returned with REQUEST CHANGES; section 0.4 maps
-each finding to this revision. Section 0.1 restates the requirements Gabriel
+**Proposal, revision 3. Not approved, not authorized.** Review chronology:
+revision 1 (`745a952`) was independently reviewed and returned REQUEST
+CHANGES (F1–F11, answered in revision 2, section 0.4). Revision 2 (`727bd4d`)
+received a **second** independent review, of the cumulative six-document
+proposal (these three documents and the three registration documents they
+amend), not of the revision-2 changes alone; it returned a narrow REQUEST
+CHANGES (N1–N5 and notes, answered here, section 0.5). Neither review is an
+approval: no decision, behaviour or answer to a finding is approved by having
+passed a review, and revision 3 needs its own review. Section 0.1 restates the requirements Gabriel
 approved before this addendum was written, quoting the approved documents
 where they are the source. Everything else is a proposal: section 0.3 lists
 the open decisions with a recommendation each, marks the three that would
@@ -87,8 +93,13 @@ brief of the addendum, which is not a repository document.
 6. The restore gate, restore status, snapshot scrub and cleanup timer reach the
    new table through the CLI commands and the backup module they already use;
    the restore script is not edited. A restore also brings back old password
-   hashes and session keys; a read-only comparison and a reviewed repair
-   precede reopening (6.6, RD18).
+   hashes and session keys, and the script **starts the service before it
+   returns**, so the restored credentials are usable from that start unless
+   public access was blocked beforehand. A read-only comparison of offline
+   inputs and a reviewed repair follow the restore; whether users can reach
+   the service before the repair (an accepted exposure window) or not (an
+   external Nginx maintenance block set before the restore) is Gabriel's
+   decision (6.6, RD18).
 7. A separate build gate `recovery.PRODUCTION_ACTIVATION`, `False`.
 8. Built in three scopes (10): storage and operations first, with nothing that
    creates a recovery row; then the service, with no caller; then the routes
@@ -114,7 +125,7 @@ amendment of that requirement, and until then the approved text stands), or
 | RD5 | Proposal | Per-address budget shared with registration or separate? | **Shared**: the same ledger rows under the same keyed address hash (5.2). | Separate budgets: doubles the unwanted mail an address can receive, gains nothing (5.2). | 8.2 |
 | RD6 | Proposal | Circuit history shared or separate? | **Shared**: one relay, one history (5.3). | A recovery circuit of its own: doubles the failing attempts admitted. | 8.2 |
 | RD7 | **Amendment** of A10 (the settlement of registration design 4.3) | What does a `not_sent` recovery send change? | **The ledger only.** No visible message, no waived wait, the code kept (4.5). | The approved settlement of 4.3 (message, retired code, waived wait): an eligibility oracle under RD2 (b), and under RD2 (a) a second code path for no gain. | 8.2 |
-| RD8 | Proposal (**recommendation changed in revision 2**) | Clear the address's sign-in throttle on a successful reset? | **(a) No.** A reset neither reads nor writes `login_throttle`. Clearing it is observable without a code by anyone who keeps the address's sign-in locked (4.4), which is the kind of disclosure RD17 removes from recovery's own pages. | **(b) Yes**, in the same transaction, as `/account/password` does today: a person who locked themselves out does not wait up to 15 minutes after the reset; the reset becomes observable at `/login` as described in 4.4. | 8.2 (small) |
+| RD8 | Proposal (**recommendation changed in revision 2**) | Clear the address's sign-in throttle on a successful reset? | **(a) No.** A reset neither reads nor writes `login_throttle`. This **postpones** the reset-specific signal; it does not remove account-dependent sign-in observations: the owner's later successful sign-in clears the throttle, as every successful sign-in does today, and an observer who keeps counting failures at the address can notice that clearing (4.4). (a) merges the observation with that existing behaviour instead of adding one at the moment of the reset. | **(b) Yes**, in the same transaction, as `/account/password` does today: an immediate, reset-specific signal at `/login` to anyone keeping the address locked (4.4); in exchange a person who locked themselves out does not wait up to 15 minutes after the reset. Under either option sustained hostile relocking denies sign-in; clearing mainly helps accidental self-lockout. | 8.2 (small) |
 | RD9 | Proposal | Send a "your password was changed" notice after a reset? | **Not in PR 8** (section 8.2). | Yes: a second send path after the commit with its own accounting. | A later scope only if yes |
 | RD10 | **Amendment** of A16 (registration design 3.4) | Count wrong recovery codes in `login_throttle`? | **No** (5.6). Selecting it amends the approved sentence of registration design 3.4 ("and, later, recovery attempts"); the proposed amendment is appended there, labelled, and the approved sentence stands until Gabriel selects it. | Yes, as 3.4 anticipated: lets anyone lock a victim out of sign-in by typing wrong recovery codes. | 8.2 |
 | RD11 | Proposal | Does a resend decide eligibility again? | **Yes**: every issuance decides it and binds afresh; a row may change between real and shadow (2.3). | Freeze the decision at the first issuance. | 8.2 |
@@ -123,8 +134,9 @@ amendment of that requirement, and until then the approved text stands), or
 | RD14 | Proposal | Routes, Nginx locations, login link | `/recover`, `/recover/verify`, `/recover/resend`, `/recover/cancel`; Nginx locations mirroring registration's (7.5); „Забравена парола?“ on `/login` while enabled (2.6). | Other paths or a zone of its own. | 8.3; zone tuning is activation evidence |
 | RD15 | Proposal | Bulgarian texts (2.7, 2.8) | Proposed wording. | — | Activation only |
 | RD16 | Proposal | The `/login?recovery=done` notice is URL-selected, as registration's activation notice is (approved there, PR 4). | Accept the same display limitation. | A one-shot session flag. | 8.3 (small) |
-| RD17 | **Interpretation** of A8 ("voids **every** other pending recovery code") | How does a successful reset void the other pending codes of the account? | **By the session-key digest, without writing their rows.** The reset rotates the key; every code issued before it is bound to the old digest and can no longer reset anything (a correct code ends `INVALIDATED`). The rows stay `pending` until they expire, so another browser's reads, wrong codes, resends and cancellation behave exactly as before the reset (1.4, 2.4). | Write every other row to `void` in the redemption (revision 1): lets anyone who requested recovery for the address poll `GET /recover/verify` and learn, without a code, that the address has an account and that its owner has just reset the password (1.4). | 8.2 |
-| RD18 | Proposal (restore handling; the restore script and its ownership protocol unchanged) | What happens to old passwords and sessions a restore brings back? | **(a)** After every restore, before the service is reopened to users: a read-only comparison of the restored snapshot with the preserved replaced database (`manage_accounts restore-credential-diff`, new, read-only), then for every affected or uncertain account a reviewed password replacement or a disable, not a sign-out alone; credential repair is separate from the registration hold release (6.6). Where the replaced database is unavailable as evidence, every account with a password is uncertain. | **(b)** The same runbook with hand-run read-only SQL instead of a command (6.6). **(c)** A sign-out note only, as revision 1 had: leaves restored old passwords valid (not recommended). | 8.1 (the command, under (a)); activation (the runbook, rehearsed) |
+| RD17 | **Interpretation** of A8 ("voids **every** other pending recovery code") | How does a successful reset void the other pending codes of the account? | **By the session-key digest, without writing their rows.** The reset rotates the key; every code issued before it is bound to the old digest and can no longer reset anything (a correct code ends `INVALIDATED`). The rows stay `pending` until they expire, so another browser's reads, wrong codes, resends and cancellation behave exactly as before the reset (1.4, 2.4). | Write every other row to `void` in the redemption (revision 1): lets anyone who requested recovery for the address poll `GET /recover/verify` and learn, without a code, that the address has an account and that its owner has just reset the password (1.4). It needs no index of its own, so the migration of 8.1 is the same either way and this decision blocks 8.2 only (3.1). | 8.2 |
+| RD18 (repair) | Proposal (restore handling; the restore script and its ownership protocol unchanged) | What happens to old passwords and sessions a restore brings back? | **(a)** After every restore: a read-only comparison of two **offline** inputs, the original published snapshot and a verified quiescent, rollback-mode copy of the replaced database, never the live restored database (`manage_accounts restore-credential-diff --snapshot --replaced`, new, read-only, 6.6); then for every account in an affected or uncertain class a reviewed password replacement or a disable, not a sign-out alone; credential repair is separate from the registration hold release. Where the replaced database is unavailable as evidence, every account is uncertain. | **(b)** The same runbook with hand-run read-only SQL instead of a command (6.6). **(c)** A sign-out note only, as revision 1 had: leaves restored old passwords valid (not recommended). | 8.1 (the command, under (a)); activation (the runbook, rehearsed) |
+| RD18 (exposure) | Proposal; **Gabriel's decision** (revision 3) | The script starts the service before it returns. May users reach the restored credentials before the repair? | **(e) No: an external Nginx maintenance block**, established and verified before the restore begins and removed only after the repair has been validated (6.6). It closes public exposure **only under the conditions listed there** (Nginx the only ingress, every listener covered, no old worker left, the script's health check on its direct loopback address); local access to the loopback backend remains. Recommended where those conditions are verified on the host. | **(d) Accept an exposure window**: public access resumes when the script starts the service, until the operator stops it; changes made in the window are absent from the comparison and may be overridden by the repair (6.6). | Activation (the runbook and its rehearsal); no code |
 
 Not decided here and not decided by any of these: D16 (privacy, minors,
 retention), which must now also cover recovery data and, under RD2 (a),
@@ -137,7 +149,7 @@ notices to addresses without an account; the configuration of D17.
 | F1 Cross-browser reset polling leak | Another browser's rows are no longer voided by a reset; the digest makes them unusable (RD17, an interpretation of A8 for Gabriel to confirm). Polling model, enumeration claims, lifecycle and tests updated. RD8's recommendation changed because clearing the throttle is the same kind of disclosure at `/login`. | 0.3 RD8, RD17; 1.2; 1.4; 2.1; 2.3; 2.4; 2.5; 3.6; 4.4; 6.1; test plan RPoll |
 | F2 Safe implementation sequencing | Scopes reordered: 8.1 storage and operations (migration with its whole integration, nothing that creates a row), 8.2 service with no caller, 8.3 routes. A no-caller test from 8.1 on, extended in 8.2. No claim that a build is safe because routes are absent. | 7.3; 10; scope; test plan RZ |
 | F3, F4 Amendments of approved contracts | 0.1 quotes registration 5.2, D6, D20 and 3.4. RD4, RD7, RD10 marked as amendments. Registration design 3.4's approved sentence restored; the RD10 change appended there as a labelled proposal. | 0.1; 0.3; 4.5; 5.4; 5.6; registration design 3.4 |
-| F5 Restore revives passwords | New 6.6: what a restore brings back, a read-only comparison runbook, the evidence cases, reviewed replacement or disable before reopening, separate from the hold release (RD18). | 6.2; 6.5; 6.6; 8.2; 9; test plan RR8–RR15 |
+| F5 Restore revives passwords | New 6.6: what a restore brings back, a read-only comparison runbook, the evidence cases, reviewed replacement or disable before reopening, separate from the hold release (RD18). Its account of the exposure (repair before reopening, with the service already started by the script) is corrected in revision 3 (0.5, N1). | 6.2; 6.5; 6.6; 8.2; 9; test plan RR8–RR15 |
 | F6 Timing | RD2 (b)'s difference stated as "with current synchronous dispatch, likely distinguishable; not measured". The 0.11 s figure removed. Responding before the send and a fixed minimum response time assessed and not proposed. No equal timing claimed. | 1.2; 1.4; 8.2; 9 |
 | F7 Logs under RD2 (b) | Send-related events exist for real rows only under (b); stated, and RLog2 split by option. | 8.1; test plan RLog2 |
 | F8 Mixed-purpose bound | At most eight guessable codes of an address, at most eight of them recovery codes; registration codes can still be issued after an account exists. | 5.4; test plan RL6 |
@@ -145,6 +157,21 @@ notices to addresses without an account; the configuration of D17.
 | F10 Verification-address invariant | Email-change work must clear `email_verified_at` or verify the new address; a direct database edit does not keep verified ownership. | 1.3; test plan RE10 |
 | F11 Allow-list scope | The scrub, the allow-list and RD13 are in scope 8.1 together, in every document. | 0.3; 6.4; 10; scope |
 | Other | One read, gate and clock order (3.5); exactly-one ledger purpose assessed (3.1); uncertain wording for a commit whose outcome is unknown (2.4, 2.7); exceptions accumulate (5.4); demoted admins with TOTP rows tested (RE11). | as listed |
+
+### 0.5 What revision 3 changed (second independent review, of the cumulative proposal at `727bd4d`: narrow REQUEST CHANGES)
+
+The behaviour that answered F1–F11 is kept, and so are the explicit
+amendment and interpretation labels (RD4, RD7, RD10; RD2 (a), RD17). No RD is
+selected and no implementation scope grows.
+
+| Finding | Change | Where |
+| --- | --- | --- |
+| N1 Restore exposure | The script starts the service before it returns; a later comparison and repair prevent nothing unless public access was blocked beforehand. Service start and reopening to users are now distinct throughout. The claim that only a script change could close the window is withdrawn. New RD18 (exposure): (d) an accepted window, or (e) an external Nginx maintenance block set before the restore and removed after a validated repair, with every ingress, existing connection, the loopback backend and the health-check route assessed, and the conditions under which (e) closes public exposure. RR15 and the rehearsal updated. | 0.2; 0.3 RD18; 1.2; 6.6; 7.4; 8.2; 9; scope; test plan RR15, manual evidence |
+| N2 Comparison inputs and historical schemas | `--restored` renamed `--snapshot`. Inputs are immutable offline files: the original published snapshot and a verified quiescent, rollback-mode copy of the replaced database, never the live restored database. Before any immutable read the command refuses a non-empty WAL, any rollback journal and a WAL-mode header (and, as `cutover-check`'s existing `require_inspectable_snapshot` does, any other sidecar), and brackets the read with file identity and hash; how stability is established, and what a sidecar check cannot prove, is stated. Required credential columns per historical schema replace the full current column set; TOTP storage absent before migration 016 means no TOTP rows; supported historical absence is separated from unsupported schemas. The false claim that no migration rewrites a compared column is corrected (016 rotates admin keys). | 6.5; 6.6; test plan RR8, RR13, RR16–RR21 |
+| N3 Resend observability | Resend reads the account (eligibility, RD11) and a real row's dispatch reads `users.email`. The claim is now that a reset leaves the resend's decisions, response and row state unchanged, not that no account read occurs. | 1.4; 3.6; test plan RPoll1, RPoll3, RV6 |
+| N4 RD8 trade-off | (a) postpones the reset-specific sign-in signal and merges it with the existing clearing by a later successful sign-in; (b) gives it at once; sustained relocking denies sign-in under either; clearing mainly helps accidental self-lockout. "Uniform" sign-in claims removed. Recommendation unchanged and still proposed. | 0.3 RD8; 1.4; 4.4; 8.2; scope; test plan RPoll8 |
+| N5 Classification precedence | Classes are disjoint and evaluated in a fixed order, uncertain evidence first: equal hashes with different timestamps, and different hashes with equal or unreliable timestamps, are uncertain, and so is a hash NULL on one side whatever the timestamps; clearly supported changes are classed afterwards; an exhaustive scratch model checks that every combination gets exactly one class. State and second-factor differences are reported separately for every account. Every affected or uncertain class maps to the safe repair; no timestamp is taken as proof of an unchanged credential. | 6.6; test plan RR9–RR11, RR22 |
+| Notes | RD17's alternative needs no index (so no migration change if it is selected after 8.1); the index count corrected to two. RA3 separates non-numeric text from numeric text that INTEGER affinity converts. Repaired accounts are no longer said to recover by email: legacy, CLI-created and admin accounts may be ineligible, and every account waits for the hold release. Live changes during an accepted window are absent from the comparison and may be overridden. Review chronology corrected (status above). Also corrected: `manage_accounts list` does not print `password_changed_at` (4.3, and the runbook's validation step, which now reads it from a fresh offline snapshot). | 0.3 RD17; 3.1; 4.3; 7.2; 6.6; 10; test plan RA3, RR15; status of every document |
 
 ## 1. Threat model and eligibility
 
@@ -180,7 +207,7 @@ notices to addresses without an account; the configuration of D17.
 | Admin takeover | Admins are never eligible at issuance and are rechecked at redemption: a code issued before a promotion redeems nothing. | 1.3 |
 | Budget exhaustion | Shared, non-refundable hourly budget and per-address caps; exhausting them closes registration and recovery for up to an hour, or one address for about a day, and nothing else. | 5.5 |
 | Concurrent operator change | Serialized by SQLite's single writer; the recheck at redemption sees whichever committed first. | 3.6 |
-| Resurrection by restore | The restore gate voids pending recovery rows; spent attempts and cancelled codes do not return. Old password hashes and session keys do return with the snapshot; a read-only comparison and a reviewed repair precede reopening (RD18). | 6.2, 6.6 |
+| Resurrection by restore | The restore gate voids pending recovery rows; spent attempts and cancelled codes do not return. Old password hashes and session keys do return with the snapshot, and the script starts the service on them before it returns. A read-only comparison and a reviewed repair follow; users are kept away until then only by an external block set before the restore (RD18 (e)), otherwise they can use the restored credentials in an accepted window (RD18 (d)). | 6.2, 6.6 |
 | Disclosure through snapshots | Logical scrub of the isolated copy before publication, with a fail-closed schema check. | 6.3, 6.4 |
 
 ### 1.3 Eligibility
@@ -295,15 +322,29 @@ any moment before or after the reset, without the code:
 | waits | `rA` expires 30 minutes after its request | — | the same: `rA` expires on its own schedule |
 
 Under RD17 the redemption writes only the redeemed row, the account (and,
-under RD8 (b), the throttle). `pending_view`, steps 1–9 of the redemption,
-`resend` and `cancel` read the recovery row, the ledger and the control row,
-never the account, before a correct code, and the reset changes none of those
-for `rA`. The same holds when `rA` is a shadow (an address with no
-recoverable account never has a reset to reveal) and when A and O are two
+under RD8 (b), the throttle). What each of A's actions reads, and why the
+reset changes none of its answers:
+
+- `pending_view`, steps 1–9 of the redemption and `cancel` read the recovery
+  row, the ledger and the control row, **never the account**, and the reset
+  changes none of those for `rA`.
+- `resend` **does read the account**: it decides eligibility again (RD11),
+  and dispatching a real row reads `users.email` (3.6). What the reset
+  changes in the account (`password_hash`, `password_changed_at`,
+  `session_key`, `updated_at`) is none of eligibility items 1–4 of 1.3 and
+  not `users.email`, so the resend takes the same branch (real stays real), writes the same kind of
+  ledger row, gives the same response and leaves `rA` in the same state
+  (counters, wait, expiry) as a resend before the reset. Only values that are
+  never shown differ: the new code, its hash, the generation and the digest
+  it binds (that of the rotated key), as for any resend.
+
+The claim is therefore about decisions, responses and row state, not about
+which tables are read. The same holds when `rA` is a shadow (an address with
+no recoverable account never has a reset to reveal) and when A and O are two
 browsers of the owner. What remains observable without a code is outside
-recovery's own pages: with RD8 (b), the sign-in throttle (4.4); the owner's
-mailbox (one more message per resend), which informs the owner. Tests:
-test plan RPoll.
+recovery's own pages: the sign-in throttle (4.4: at once under RD8 (b), later
+and merged with ordinary sign-in under RD8 (a)); the owner's mailbox (one
+more message per resend), which informs the owner. Tests: test plan RPoll.
 
 **Under RD2 (a)** both kinds of row send one message and settle one outcome,
 so the application's own steps are the same: one lookup, one row, one
@@ -350,9 +391,13 @@ informs the owner, not the requester.
 
 The only responses that depend on the account by design come after a correct
 code (`REDEEMED`, `INVALIDATED`), which only the mailbox holder can send.
-Sign-in stays uniform and unchanged under RD8 (a), the recommendation; under
-RD8 (b) a reset clears the address's sign-in lockout, which someone who keeps
-that address locked can observe (4.4).
+Sign-in itself is not changed by recovery under RD8 (a), but it is not
+account-independent today either: a successful sign-in clears the address's
+throttle, which someone counting failures at that address can notice. Under RD8
+(a) a reset adds nothing to that; the owner's next successful sign-in clears
+the throttle as any sign-in does, so the reset is observable only later and
+merged with ordinary sign-in. Under RD8 (b) the reset itself clears it, an
+immediate reset-specific signal (4.4).
 
 ## 2. Lifecycle and UX
 
@@ -756,9 +801,17 @@ CREATE INDEX idx_registration_sends_recovery
   counts in every cap and in the circuit, is never a live code for either
   module (each requires its own id to match), is never dispatched by either,
   and only registration's `settle_send` can settle it, as today.
-- **Indexes.** Only the state index is needed. Revision 1's partial indexes on
+- **Indexes.** Two: the state index on `password_recoveries` and the partial
+  index on `registration_sends.recovery_id`. Revision 1's partial indexes on
   `user_id` and `email` served the voiding of other rows at redemption, which
-  RD17 removes; they return only if RD17's alternative is selected.
+  RD17 removes. **RD17's alternative does not require them either**, so the
+  migration of scope 8.1 is the same whichever way RD17 is decided, and
+  selecting the alternative (which blocks only 8.2) never needs a second
+  migration: its one extra statement, `UPDATE ... WHERE state = 'pending' AND
+  (user_id = ? OR email = ?)`, runs once per successful reset over the
+  pending rows, which the state index selects and the total budget bounds (at
+  most 300 at once, 5.1). If measurement ever showed otherwise, an
+  index would be its own reviewed migration, not part of this plan.
 - Classification (`src/canonical_tables.py`): `password_recoveries` is
   **runtime** ("password recovery in progress: an address, an account link and
   a credential hash; never canonical content").
@@ -901,7 +954,7 @@ which is harmless but untested.
 | --- | --- |
 | Two tabs of one browser post the correct code together | The first redeems and commits; the second finds a final row → `NOT_PENDING (redeemed)`, writes nothing, and its password is not applied. First winner. |
 | Two browsers, two rows of one account, both correct | The first redeems and rotates the key; the other row is not written (RD17), so the second, with its correct code, is refused by the digest at step 10 → `INVALIDATED`, its row voided and scrubbed then. Before its correct code, the second browser saw nothing change (1.4). |
-| One browser polls, wrong-codes or resends while another redeems | Serialized. Neither the poll nor the wrong code reads the account; the redemption writes only its own row, the account (and the throttle under RD8 (b)). A resend committed after the redemption binds its new code to the rotated key; one committed before it is bound to the old key and is refused at step 10 if ever presented. |
+| One browser polls, wrong-codes or resends while another redeems | Serialized. Neither the poll nor the wrong code reads the account; the resend does (eligibility, and the real row's dispatch), and takes the same branch with the same response and row state on either side of the reset (1.4). The redemption writes only its own row, the account (and the throttle under RD8 (b)). A resend committed after the redemption binds its new code to the rotated key; one committed before it is bound to the old key and is refused at step 10 if ever presented. |
 | Redemption and CLI `set-password` | CLI first: key rotated → `INVALIDATED`. Redemption first: the CLI then sets its own password; the operator's later action stands. |
 | Redemption and `set-role admin`, `disable`, `sign-out`, `totp-reset`, `/account/password` | Whichever commits first. Afterwards the recheck refuses (role or active state, and the rotated key), or the operator's change follows the reset. |
 | Redemption and a resend of the same row | Serialized; after a resend the old code is gone and the new one counts its own attempts. |
@@ -956,7 +1009,11 @@ Read in `web/services/accounts.py` at `513b36c`:
   email.
 - `password_changed_at` and `updated_at` are SQLite's `CURRENT_TIMESTAMP`, as
   for every password change. No code reads `password_changed_at` for a
-  decision (checked: only `manage_accounts` lists it). Its clock is the same
+  decision (checked in revision 3: it is read into account dictionaries
+  through `_USER_COLUMNS` and required by `manage_accounts`'
+  `REQUIRED_USER_COLUMNS` schema check; nothing compares it, and
+  `manage_accounts list` does not print it; revision 1 said that `list`
+  printed it, which was wrong). Its clock is the same
   system clock as the application's; a regressed clock is recorded as it is
   and decides nothing.
 - The old hash is replaced, not kept.
@@ -972,23 +1029,42 @@ Read in `web/services/accounts.py` at `513b36c`:
   „Грешен имейл или парола.“ (`web/blueprints/account.py`). The throttle is
   keyed by the address whether or not an account exists, so anyone can keep
   an address locked by failing sign-in ten times in fifteen minutes and
-  then watch that answer.
-  - **(a) No (recommended in revision 2).** A reset neither reads nor writes
-    `login_throttle`. The 429 continues until the window ends, exactly as for
-    an address without an account, so the lock-and-watch observer learns
-    nothing. Cost: a person who locked themselves out before recovering waits
+  then watch that answer. What sign-in reveals **today**, independently of
+  recovery: a 429 is answered before the password is checked, so while the
+  block lasts nobody signs in, the owner included. Outside a block, a
+  successful sign-in clears the row (`login_throttle.clear` in `/login`), so
+  an observer part-way through a count of failures can notice that the next
+  429 comes later than ten failures predict, and so that someone signed in
+  successfully. Account-dependent
+  sign-in observations therefore exist already; neither option below
+  removes them.
+  - **(a) No (recommended since revision 2; proposed, not selected).** A
+    reset neither reads nor writes `login_throttle`. The 429 continues until
+    the block ends, as for an address without an account, so nothing changes
+    **at the moment of the reset**. This postpones the reset-specific signal,
+    it does not eliminate it: once the owner signs in successfully with the
+    new password, the throttle is cleared as by any successful sign-in, and
+    the observer learns what any successful sign-in already tells them (the
+    address has an account whose password someone knows), not that a reset
+    happened. Cost: a person who locked themselves out before recovering waits
     up to 15 minutes after the reset; the success notice says so to everyone
     (2.7).
   - **(b) Yes** (revision 1's recommendation). Clear the address's row in
     the redemption transaction, with the key `/login` uses
     (`login_throttle.identifier_hash(SECRET_KEY, users.email)`, which is
-    `throttle_identifier` of a valid address). The observer's next failed
-    sign-in is then answered „Грешен имейл или парола.“ before the window
-    ends, which tells them, without a code, that the address has an account
-    and that a reset (or another successful clearing) has just happened.
-    `/account/password` already clears the throttle the same way today; it
-    is reached only by a signed-in owner, and that existing property is not
-    changed here.
+    `throttle_identifier` of a valid address). This is an **immediate,
+    reset-specific** signal: the observer's next failed sign-in is answered
+    „Грешен имейл или парола.“ before the block would have ended, which tells
+    them, without a code, that the address has an account and that a reset
+    (or another clearing) has just happened. `/account/password` already
+    clears the throttle the same way today; it is reached only by a
+    signed-in owner, and that existing property is not changed here.
+  - **Under either option sustained hostile relocking denies sign-in**: ten
+    failures at Nginx's `lp_login` rate relock the address within seconds of
+    a block ending or a clearing, and recovery does not change that. What
+    (b) adds for the owner is a moment between the reset and the next relock;
+    clearing therefore mainly helps **accidental self-lockout** (a person who
+    mistyped ten times and then recovered), not an owner under attack.
 - **Account-wide invalidation (RD17, an interpretation of A8).** The
   redemption writes no other recovery row. Every other row of the account
   pending at that moment was issued under the old `session_key`; the
@@ -1302,7 +1378,7 @@ read-only command for restores (6.6). Changed help and output:
 | `registrations-clock-accept` | Unchanged; the mark is shared. |
 | `clear-registration-limit --email` | Its note says it also releases the address's recovery budget, and that a recovery code of the address stops working. |
 | `set-password`, `set-role`, `disable`, `enable`, `sign-out`, `clear-throttle`, `totp-*`, `create`, `list`, `cutover-check` | Unchanged (A9). |
-| `restore-credential-diff --restored <file> --replaced <file>` | **New, read-only, only if RD18 (a) is selected** (6.6). |
+| `restore-credential-diff --snapshot <file> --replaced <file> [--snapshot-sha256 <hex>] [--replaced-sha256 <hex>]` | **New, read-only, only if RD18 (a) is selected** (6.6). Reads two prepared offline inputs (the original published snapshot and a rollback-mode copy of the replaced database); refuses a WAL-mode header, any rollback journal, any `-wal` (a non-empty one above all) or `-shm`, the live database and an input that changes during the read. |
 
 `require_registration_tables` gains the recovery table and column once the
 migration is recorded, with the same "apply migrations first" error.
@@ -1326,106 +1402,308 @@ in the snapshot. For credentials that means:
   `totp_recovery_codes`): an admin's reset authenticator or used recovery
   codes return.
 
-Registration design 3.9 already states that "a password changed after the
-snapshot returns to the old one, as with any restore today". Recovery makes
+Registration design 3.9 already states: "A password changed after the
+snapshot returns to the old one, as with any restore today." Recovery makes
 post-snapshot resets common and makes them the response to a compromise, so
 this addendum proposes handling it. It does **not** change the restore
 script or its ownership protocol: the script still ends by starting the
-service, as its last command.
+service, as its last command, and it starts it **before it returns**: the
+health check, the release of its records and the restart of the timers come
+after the start (`deploy/learnpilot-restore.sh`, step 8).
 
-**What the operator compares, read-only.** The script keeps what it
-replaced (`$STATE/replaced-<stamp>/questions.db`, a hard link made after the
-database was written out completely into its main file; the script's
-"keep the database being replaced" step), and the snapshot is a published
-file that is never rewritten. The script already pairs the database being
-replaced (at the live path, before the replacement) with the snapshot for
-assignments (`manage_lifecycle reconcile --pre-restore-db --snapshot-db`);
-the credential comparison is the same pairing, run by the operator after the
-replacement on the kept copy, writing nothing. Comparing those two
-needs neither the live database nor the running service, and nothing is
-written: both are opened with `mode=ro&immutable=1` (a plain `mode=ro` can
-create `-wal`/`-shm` files beside a WAL database) and Python runs with `-B`.
-The comparison is between **the snapshot's `users` and TOTP rows (what the
-restore put back) and the replaced database's (what was live)**. The restore
-migrates its copy, but no migration rewrites the compared columns; the
-command refuses if the two databases' `users` columns differ from the set it
-knows.
+**Service start is not reopening.** Two moments are kept apart below:
 
-For every account id present in either database, the command reports one
-class and never prints a hash, a key or a TOTP value (equal or different
-only):
+- the **service start**: the script's `systemctl start` of the application,
+  followed by its health check against `LEARNPILOT_HEALTH_URL` (by default
+  `http://127.0.0.1:8000/healthz`, Gunicorn's loopback address, not through
+  Nginx), the release of its records and the restart of the timers. From then
+  on the application answers whoever can reach it;
+- **reopening**: users can reach the application again through the public
+  ingress.
 
-| Evidence | Class | Why |
+Unless public access was blocked **before** the restore, the two coincide:
+users can reach the restored credentials from the service start, before the
+script has returned and before the operator can compare or repair anything. A
+comparison and a repair made afterwards do not prevent that exposure; they
+end it.
+
+**Exposure (RD18 (exposure); Gabriel's decision).**
+
+**(d) Accept an exposure window.** The window runs from the service start
+until the operator stops the service (or, without a stop, until the repair is
+complete). In it, anyone who knows a restored old password signs in, a cookie
+the reset had ended is accepted again, and an admin's restored second-factor
+state applies. Registration and recovery are closed by the restore hold
+(they answer "unavailable"); sign-in, `/account/password` and every signed-in
+page work. Stopping the service as soon as the script returns narrows the
+window; it does not close it. Its length is measured in the rehearsal (9),
+not assumed.
+
+**(e) An external Nginx maintenance block.** A runbook step, outside the
+repository's Nginx template and the restore script (neither is edited):
+before the restore begins the operator replaces the public site with a
+maintenance configuration that answers every request for the application's
+server names with 503 in server context, with no `proxy_pass`, and removes it
+only after the repair has been validated. It closes **public** exposure only
+when every condition below holds; each is a fact of the host, verified at
+every restore, not established by the repository:
+
+| Path to the application | What the repository shows | Condition for (e) |
 | --- | --- | --- |
-| Present in both, same email; `password_hash`, `password_changed_at`, `session_key`, `role`, `is_active` and TOTP rows all equal | **unchanged (as far as compared)** | Equality is evidence, not proof: see below. |
-| `password_hash` differs, or `password_changed_at` differs, or exactly one side is NULL | **password reverted** | The restored password is the old one. |
-| `password_hash` differs and `password_changed_at` is equal (both values or both NULL) | **uncertain** | Possibly a hash upgrade at sign-in (`authenticate` rewrites the hash without the timestamp, `web/services/accounts.py`), possibly a password change the timestamp did not record (a stepped clock, a change inside the same second, a direct edit). Not decidable from these columns. |
-| `password_changed_at` equal and hashes equal, but `session_key` differs | **sessions revived** | No password change is visible; a rotation after the snapshot was undone. |
-| `role` or `is_active` differs | **state reverted** | A disable, demotion or role change was undone. |
-| TOTP rows differ (presence, confirmation, recovery codes used) | **second factor reverted** | An admin's authenticator or recovery codes returned. |
-| Only in the replaced database | **created after the snapshot** | Gone; no credential revived. Its address is free again for registration. |
-| Only in the snapshot, or the same id with another email | **uncertain** | The replaced database has no such account under that id and address: an unsupported edit, or a database that is not the one replaced. |
+| Nginx, public listeners | The template's server block listens on port 80, IPv4 and IPv6; a `default_server` drops unknown hosts (444); Certbot later adds the HTTPS listener and the redirect to that server block (template comments). | The block covers every server block and listener that proxies to `127.0.0.1:8000`: 80 and 443, IPv4 and IPv6, every `server_name`, keeping the certificate so that HTTPS clients get the 503 rather than a TLS error. A `return 503` in server context runs before a location is chosen, so no location (`/login`, `/healthz`, `/register…`, `/recover…`, `/auth/google/callback`, `/`) reaches the upstream. `/static/` does not reach the application either way; an ACME challenge location may stay if a renewal must work during the block. |
+| Existing client connections | A reload starts new workers; old workers finish the requests they hold and close their keep-alive connections under the old configuration. The template has no upstream keep-alive pool (`proxy_pass` to an address, no `upstream` block), and the script stops the service early (its step 2), which ends every upstream connection. | After `nginx -t` and the reload, and before the restore begins: no old worker is left (no "worker process is shutting down" in `ps`), and a request from outside to `/login` is answered 503 by Nginx with nothing reaching the application (its access log, or the upstream status in Nginx's). |
+| Direct backend | Gunicorn binds `127.0.0.1:8000` only (`deploy/gunicorn.conf.py`), so other hosts cannot connect to it. | Verified on the host (`ss -ltnp`) that nothing else listens for or forwards to the backend: no second Nginx site, tunnel (for example `cloudflared`), SSH remote forward, firewall DNAT or other proxy. Local users and processes can still reach `127.0.0.1:8000`; (e) does not stop them. They are the trusted operator of 1.1, so the condition is that no untrusted person has shell access to the host. |
+| Health check | The script's check is direct, against Gunicorn's loopback address, so it needs no public access. | `LEARNPILOT_HEALTH_URL` unset or another loopback address. A public URL routed through Nginx would fail under the block; the script would then stop the service again and end as failed (safe, but no restore). Outside monitors of the public `/healthz` see 503 during the block, as expected. |
+| Timers, operator CLI | The script restarts the backup and registration cleanup timers after the start; the operator's commands run on the host. | None: they are local, and the repair itself runs through the CLI against the live database while the service runs. |
 
-**Equality is not proof.** `password_changed_at` is SQLite's
-`CURRENT_TIMESTAMP`, one second of resolution, from a clock that can be
-stepped; equal timestamps do not prove that no password changed, and NULL on
-both sides proves only that neither database recorded a change. Equal hashes
-are stronger evidence (every `set_password` writes a fresh salted hash), but
-a direct edit could write an old hash back. The command says "unchanged as
-far as compared", never "safe".
+Under (e) the service start is not a reopening: the service runs on the
+restored state while users cannot reach it, the operator compares and
+repairs, validates the repair, and only then removes the block (the normal
+site back, `nginx -t`, reload, `/login` answered by the application again).
+The block's text and checks belong in `docs/DEPLOYMENT.md` with the rest of
+the runbook (scope 8.1); nothing in the repository's template or script
+changes.
 
-**When the replaced evidence is unavailable** (the restore ran with
-`--replaced-database-unreadable`; the directory is missing; the file fails
-`quick_check`; its schema is not one the command knows): nothing can be
-compared, so **every account with a password is uncertain**, and every
-session key with it. The command says so and exits non-zero.
+**The comparison inputs.** Both are **offline** files. Neither is the live
+restored database (migrated, gated, possibly served since the start and about
+to be repaired), and neither is the staging copy (it became the live
+database).
 
-**What the operator does before reopening (proposed policy, for Gabriel to
-decide).** The restore script starts the service as its last command, so a
-restored old password is usable from that moment. Proposed runbook,
-without editing the script:
+- `--snapshot`: the published snapshot database the restore used,
+  `<snapshot>/questions.db`, the **original isolated snapshot**.
+  `src.backup_application` writes it through `src.backup_sqlite`, which sets
+  `journal_mode=DELETE` before publishing it by a hard link, so it is a
+  rollback-journal file that is never rewritten. It is at the migration level
+  it was taken at: before the migrations, the gate and the lifecycle steps the
+  restore applied to its copy.
+- `--replaced`: a **prepared copy** of `$STATE/replaced-<stamp>/questions.db`,
+  never that file itself. The kept file is the old live database: its header
+  says WAL mode, and the empty WAL and index the script set aside lie beside
+  it. The operator prepares it:
+  1. *Quiescence.* It is not the live database (another inode than `--db`);
+     no process has it open (`fuser` or `lsof` on the host); beside it
+     `questions.db-wal` is absent or empty and no `questions.db-journal`
+     exists. Its size, modification time, inode and SHA-256 are recorded.
+  2. *Byte copy* of the main file only (`install -m 0400`) into a new
+     directory only the operator can write (`install -d -m 0700`). SQLite
+     never opens the original.
+  3. *Re-check.* Step 1 again: the same size, time, inode and SHA-256, the
+     same sidecars, and the copy's SHA-256 equal to them. Any difference stops
+     the runbook: the file is not quiescent, and it is unavailable evidence
+     until explained.
+  4. *Rollback-mode copy* through the repository's tool:
+     `python3 -B -m src.backup_sqlite --db <copy> --output <operator directory>/replaced.db`.
+     It reads through SQLite, so committed WAL content would be included,
+     never ignored (step 1 found none); it sets `journal_mode=DELETE`, runs
+     `quick_check` and prints the SHA-256. Its registration scrub writes no
+     compared column. The tool opens its source with `mode=rw`, so SQLite may
+     create `-wal` and `-shm` files beside the **byte copy** (it did in a
+     scratch model on macOS with a `0400` copy in a `0700` directory, and the
+     copy's main file kept its SHA-256, 11); they are the operator's, in the
+     operator's directory, and the kept original is still never opened. The
+     output `replaced.db` is the input; the byte copy is discarded afterwards.
 
-1. Optionally before the restore: the same comparison between the snapshot
-   and a fresh `src.backup_sqlite` snapshot of the live database, as a
-   preview, so the list is known in advance. It is not the evidence: changes
-   can happen between that backup and the service stop.
-2. Run the restore script, unchanged.
-3. As soon as it has finished, stop the service (`systemctl stop`; the restore
-   lock is gone by then, so nothing in the script's protocol is affected).
-4. Run `restore-credential-diff` against the snapshot and
-   `$STATE/replaced-<stamp>/questions.db`.
-5. For every account classed **password reverted**, **uncertain** or
-   **second factor reverted**: a **reviewed password replacement** (the
-   operator runs `set-password` with a new password and either hands it to
-   the verified owner out of band or discards it, so the owner recovers by
-   email once recovery is open again) or a **disable**. Not a sign-out alone,
-   which leaves the old password valid. For TOTP, `totp-reset` and a new
-   enrolment as well. For **sessions revived**: `sign-out`. For **state
-   reverted**: reapply the replaced state (`disable`, `set-role`).
-6. Start the service. This is the "safe reopening".
+  A sidecar check is not proof that nothing else writes: it shows what was
+  there at one moment, and a writer could open the file after it. Stability
+  rests on the three steps together: the original is off the live path and
+  verified unopened; the byte copy is bracketed by an unchanged identity and
+  hash; and what the command reads is a file in an operator-only directory
+  that no other process knows of.
 
-Between the script's own start (step 2) and the stop (step 3) the restored
-credentials are live, for as long as the operator takes; the preview of
-step 1 shortens it, and only a change to the script (not proposed) could
-remove it. Accepting that window is part of RD18.
+**What the command checks before it reads**
+(`manage_accounts restore-credential-diff --snapshot <file> --replaced <file>
+[--snapshot-sha256 <hex>] [--replaced-sha256 <hex>]`, RD18 (a)). For each
+input, before any SQLite connection is opened:
+
+1. a regular file, opened without following a symbolic link, and not the
+   file at `--db` (the live database; device and inode compared);
+2. its header: SQLite's 16-byte magic and bytes 18 and 19 both 1 (rollback
+   journal). **A WAL-mode header (2) is refused.** With `immutable=1` SQLite
+   does not read the WAL, so a transaction committed there would be silently
+   ignored (modelled in scratch: a committed change held only in the WAL was
+   invisible to an immutable read and visible to a normal one, 11). The
+   refusal names the preparation above;
+3. **any sidecar file** beside it is refused: a rollback journal
+   (`-journal`, of any size), a `-wal` (non-empty, and also empty) and a
+   `-shm`. This is the rule `manage_accounts cutover-check` already applies
+   before its read-only open (`require_inspectable_snapshot`, which refuses
+   every one of `SQLITE_SIDECAR_SUFFIXES` and a WAL-mode header), and the new
+   command proposes to reuse it rather than a looser copy. The prepared inputs
+   have no sidecar: `src.backup_sqlite` publishes a single rollback-mode file;
+4. its device, inode, size, modification and change times and SHA-256 are
+   recorded, and must equal an expected hash if one was given (the one
+   `backup_sqlite` printed).
+
+Then each is opened as `file:<absolute path>?mode=ro&immutable=1` (Python
+with `-B`; `mode=ro` alone can create `-wal`/`-shm` files beside a WAL
+database), `PRAGMA quick_check` must answer `ok`, the compared rows are read
+into memory in one pass, and the connection is closed. **After** the read,
+checks 2–4 are repeated and must give the same values. Any refusal or
+difference: exit non-zero, nothing classified, and that input counts as
+unavailable evidence. `immutable=1` turns off SQLite's locking and change
+detection, so SQLite would not notice a writer: the identity and hash taken
+before and after detect a change that lasts to the end of the read, and only
+the preparation above excludes one made and undone during it. The equal
+brackets are evidence, not proof.
+
+**Historical account schemas.** The snapshot is usually older than the
+replaced database, and either may be older than the current build. Each is
+read at its own level, and the command requires and compares only the
+credential columns that every supported level has, never the current full
+column list:
+
+| Storage | Since | Required when the table exists | Not compared |
+| --- | --- | --- | --- |
+| `users` | migration 012 | `id`, `email`, `role`, `password_hash`, `is_active`, `session_key`, `password_changed_at` | every other column: `display_name`, `last_login_at`, `created_at`, `updated_at`, `email_verified_at` (021), `profile_required_at` (023) and any later one |
+| `totp_credentials` | migration 016 | `user_id`, `secret_ciphertext`, `confirmed_at` | `last_used_step`, `last_verified_at`, the times |
+| `totp_recovery_codes` | migration 016 | `id`, `user_id`, `code_hash`, `used_at` | `created_at` |
+
+- **Supported historical absence**: a table that is absent while
+  `schema_migrations` exists and does not record the migration that creates
+  it (`012_users.sql`, `016_admin_totp.sql`). Absent TOTP tables mean **no
+  TOTP rows** for every account of that database; an absent `users` table
+  means no accounts.
+- **Unsupported**, so that side's evidence is unavailable: a table absent
+  although its migration is recorded; a credential table absent with no
+  `schema_migrations` table to account for the absence; a present table
+  missing a required column; TOTP tables without `users`; `quick_check` not
+  `ok`. Extra columns are never a reason to refuse.
+- **What the restore's migrations did is not in the original snapshot.** Of
+  the migrations to date only 016 writes a compared column: it rotates every
+  admin's `session_key`. (Revision 2 said that no migration rewrites the
+  compared columns; that was wrong.) For a snapshot taken before 016 the
+  comparison therefore sees admin keys the restored database no longer has
+  and may class such an admin *sessions revived*, with a second-factor
+  difference, although the migration already ended those sessions: a false
+  positive in the safe direction (an unneeded sign-out), never a missed
+  revival. A later migration that writes a compared column must be added to
+  this paragraph in its own PR.
+- When the **replaced** side is unavailable or unsupported, every account of
+  the snapshot is classed *uncertain*. When the **snapshot** side is, nothing
+  is compared: the command exits non-zero, and the operator treats every
+  account of the live database as uncertain.
+
+**Classification: disjoint, in a fixed order.** Every account id present in
+either input gets exactly one class: that of the first row below whose
+condition holds. "Timestamp" is `password_changed_at`. A pair of timestamps
+is **reliable** only when both are non-NULL, both have SQLite's
+`YYYY-MM-DD HH:MM:SS` layout, and the replaced one is strictly later; equal
+timestamps are therefore never reliable. Nothing is printed but ids,
+addresses and class names (never a hash, a key or a TOTP value).
+
+| Order | Condition | Class | Repair |
+| --- | --- | --- | --- |
+| 1 | The replaced side is unavailable or unsupported | **uncertain (no evidence)** | Password replacement or disable; for an account without a password in the snapshot (so in the restored database), `sign-out` or disable; for one with TOTP rows, also `totp-reset` and a new enrolment |
+| 2 | The id only in the snapshot, or in both with another `email` | **uncertain (identity)** | As row 1 |
+| 3 | The id only in the replaced database | **created after the snapshot** | None: the restored database has no such account; its address is free again for registration |
+| 4 | Hashes equal (both NULL included); timestamps differ (NULL on one side only included) | **uncertain (password evidence)** | Password replacement or disable |
+| 5 | Hashes differ, and **either** one hash is NULL (whatever the timestamps) **or** the timestamps are not reliable (equal, NULL on either side, malformed, or the replaced one earlier) | **uncertain (password evidence)** | Password replacement or disable |
+| 6 | Hashes differ, both non-NULL; timestamps reliable | **password reverted** | Password replacement or disable |
+| 7 | Hashes equal and timestamps equal (or both NULL); `session_key` differs | **sessions revived** | `sign-out` |
+| 8 | Everything compared equal | **unchanged (as far as compared)** | None |
+
+The rows cover every combination: an id is in one input or both; with the
+same address, hashes are equal (rows 4, 7, 8, by timestamps and key) or
+different (rows 5, 6, by NULLs and reliability). A pair whose hash is NULL
+on one side and whose timestamps look reliable (a password removed or added
+by a direct edit that also wrote a later time) is row 5. Checked by an
+exhaustive scratch model of these conditions, not by an implementation (11).
+
+Uncertain evidence is decided first (rows 1, 2, 4 and 5), so a clearly
+supported class (row 6 or 7) is never reached on doubtful evidence: a hash
+upgraded at sign-in (`authenticate` rewrites the hash and not the
+timestamp), two changes inside one second, a stepped clock, a direct edit.
+Row 8 needs equal hashes **and** equal timestamps and is still not proof:
+equal timestamps establish nothing by themselves, and a direct edit could
+write an old hash back. The command says "unchanged as far as compared",
+never "safe".
+
+**Reported for every account present in both inputs, whatever its class:**
+*state differs* (`role` or `is_active`), repaired by reapplying the replaced
+state (`disable`, `set-role`; each rotates the key); *second factor differs*
+(TOTP presence, `secret_ciphertext`, `confirmed_at`, the set of recovery
+codes, or a code's `used_at`, absent historical storage counting as no rows),
+repaired by `totp-reset` and a new enrolment. Their repairs are added to the
+class's. The exit status is non-zero whenever any account needs a repair:
+classes 1, 2 and 4–7, or either finding.
+
+So every affected or uncertain class reaches the safe repair: a password
+replacement or a disable, never a sign-out alone, wherever a restored old
+password may be valid (classes 1, 2, 4, 5, 6); a sign-out where only the key
+differs (7). `set-password`, `disable` and `set-role` each rotate the key, so
+they end revived sessions as well.
+
+**What the operator does (proposed runbook; the script unchanged).**
+
+1. Under (e): establish the maintenance block and verify its conditions
+   (above) before anything else.
+2. Optionally, as a preview: the same comparison between the snapshot and a
+   fresh `src.backup_sqlite` snapshot of the live database (an offline
+   rollback-mode file), so that the list is known in advance. It is not the
+   evidence: changes can happen between that backup and the service stop.
+3. Run the restore script, unchanged. It stops the service, replaces the
+   database and **starts the service** before it returns.
+4. Under (d): stop the service at once (`systemctl stop`; the restore lock is
+   gone by then, so nothing in the script's protocol is affected). Users
+   could reach it from the start in step 3 until this stop. Under (e): the
+   service may keep running, unreachable to users.
+5. Prepare the replaced input (above) and run `restore-credential-diff
+   --snapshot <snapshot>/questions.db --replaced <prepared copy>`.
+6. Repair every account by its class and findings. For a password
+   replacement the operator runs `set-password` with a new password and
+   either hands it to the verified owner out of band or discards it.
+   Discarding it leaves the owner a way back by email **only** if the account
+   is eligible for recovery (1.3: an active, verified, password-holding
+   student or teacher, in practice one created by registration) and only after
+   the restore hold has been released (step 9). Legacy and CLI-created
+   accounts (no `email_verified_at`, RD1) and every admin are not eligible:
+   for them the operator hands the password over (for an admin, with a new
+   TOTP enrolment). A disabled account needs the operator in any case.
+7. Validate the repair: every repair command exited 0 and printed its
+   confirmation ("password changed for …; existing sessions invalidated" and
+   the like); `manage_accounts list` shows each repaired account's role and
+   active state (it does not print `password_changed_at`); and, for each
+   replaced password, a fresh `src.backup_sqlite` snapshot of the live
+   database (an offline rollback-mode file, never a direct read of the live
+   WAL database) shows a `password_changed_at` later than the service start,
+   both in UTC (`src.backup_sqlite` is the WAL-safe tool for a live
+   database, running service or not).
+8. Reopen: under (e) remove the block; under (d) start the service.
+9. Release the registration hold when the lost accounting is accepted
+   (below).
+
+**What the comparison cannot see.** Neither input holds anything that
+happened in the live restored database after the service start. Under (d),
+the window's sign-ins, password changes (`/account/password`), sign-outs and
+account data are absent from the comparison, and the repair may override
+them: a password the owner set in the window is replaced by `set-password`,
+and so is one an intruder set after signing in with a restored password; what
+the intruder did with the account stays, and is not credential evidence.
+Under (e), with its conditions met, no user reaches the application in that
+interval: what runs is the operator's own commands and the timers the script
+restarted (the backup, which reads, and the registration cleanup, which
+writes no account), so nothing a user does is missing from the comparison.
 
 **Credential repair is not the hold release.** `registrations-release-hold
 --acknowledge-lost-history` restores registration's and recovery's
 **accounting** (the ledger, the caps, the circuit); it repairs no account, and
-sign-in is open whether the hold is set or not. Credential repair (steps 3–6)
-is about who can sign in. Proposed order: repair, reopen, then release the
-hold when the operator has accepted the lost accounting; the release's
-printed consequence names the difference.
+sign-in is open whether the hold is set or not. Credential repair (steps
+4–7) is about who can sign in. Proposed order: repair, validate, reopen,
+then release the hold when the operator has accepted the lost accounting;
+the release's printed consequence names the difference.
 
-**Options (RD18):** (a) the runbook with the read-only command above,
-recommended; (b) the same runbook with read-only SQL in `docs/DEPLOYMENT.md`
-(`sqlite3 'file:...?mode=ro&immutable=1'` with both databases attached),
-cheaper to build and harder to get right under pressure; (c) a sign-out note
-only, as revision 1 had, which leaves restored old passwords valid and is
-not recommended. Separately for Gabriel: whether "unavailable evidence makes
-every password account uncertain" is accepted, which forces a reset or a
-disable of every such account after such a restore. Tests: test plan
-RR8–RR15.
+**Options (RD18).** Repair: (a) the runbook with the read-only command
+above, recommended; (b) the same runbook with read-only SQL in
+`docs/DEPLOYMENT.md`, run on the same prepared offline inputs with the same
+checks done by hand, cheaper to build and harder to get right under
+pressure; (c) a sign-out note only, as revision 1 had, which leaves restored
+old passwords valid and is not recommended. Exposure, **Gabriel's decision**:
+(d) an accepted window, or (e) the maintenance block, recommended where its
+conditions are verified on the host at that restore, with (d) the fallback
+when they are not. Separately for Gabriel: whether "unavailable evidence
+makes every account uncertain" is accepted, which forces a replacement or a
+disable of every password account after such a restore. Tests: test plan
+RR8–RR22.
 
 ## 7. Rollout and compatibility
 
@@ -1453,8 +1731,8 @@ RR8–RR15.
 
 ### 7.2 Schema compatibility
 
-- The migration is additive: one table, one nullable column with a CHECK, three
-  indexes. Existing rows already satisfy the CHECK (`recovery_id` NULL).
+- The migration is additive: one table, one nullable column with a CHECK, two
+  indexes (3.1). Existing rows already satisfy the CHECK (`recovery_id` NULL).
 - Code from before the migration names its columns and runs unchanged on the
   new schema; registration's caps and circuit then also count recovery rows,
   which is the intended direction (never a second budget).
@@ -1485,7 +1763,8 @@ anyway. A rollback then has no recovery data to carry.
    production.
 2. Confirm the cleanup timer, the restore gate and status and the snapshot
    step cover recovery (the Linux evidence of 9), and rehearse the restore
-   credential runbook of 6.6 on a staging copy.
+   credential runbook of 6.6 on a staging copy, with the exposure option
+   Gabriel selected (RD18 (d) or (e)).
 3. Mail settings and the evidence of registration design 0.3 (shared).
 4. Gabriel's decisions RD1–RD18 (including the amendments RD4, RD7, RD10 and
    the interpretations of RD2 (a) and RD17), D16 amended for recovery, the
@@ -1600,9 +1879,14 @@ Test plan RLog2 asserts the invariant of the selected option, and no more.
 - **Logs under RD2 (b)** distinguish real rows by the presence of send events
   (section 8.1); operator-visible only.
 - **Polling.** Under RD17 recovery's own pages do not reveal another browser's
-  reset before a correct code (1.4). Under RD8 (b) `/login` does, to someone
-  who keeps the address's sign-in locked (4.4). Under RD17's alternative the
-  verify page does, to anyone who requested recovery for the address.
+  reset before a correct code (1.4). Under RD8 (b) `/login` does, at once, to
+  someone who keeps the address's sign-in locked (4.4); under RD8 (a) that
+  observer can still notice the owner's later successful sign-in, as with any
+  sign-in today. Under RD17's alternative the verify page does, to anyone who
+  requested recovery for the address.
+- **Sign-in lockout**: anyone can keep an address's sign-in locked by
+  repeated failures, under either RD8 option; recovery does not lift that
+  for an owner under sustained attack (4.4).
 - **Circuit.** A relay that fails for one kind of message only can be
   observed through the shared circuit (registration design 3.7); under RD2 (b)
   any failing relay makes real rows close the circuit and shadows not.
@@ -1619,10 +1903,14 @@ Test plan RLog2 asserts the invariant of the selected option, and no more.
   password signs in again, and the old session key returns, so the sessions
   the reset ended return. Any restore has this property today; recovery
   makes it more likely to matter. A sign-out alone does not repair it. RD18
-  proposes a read-only comparison and a reviewed replacement or disable
-  before reopening (6.6); the restore script still starts the service itself,
-  so the restored credentials are live until the operator stops it, and the
-  comparison's equalities are evidence, not proof.
+  proposes a read-only comparison of offline inputs and a reviewed
+  replacement or disable (6.6). The restore script starts the service before
+  it returns, so unless an external maintenance block was set before the
+  restore (RD18 (e), under conditions only the host can meet) users can use
+  the restored credentials from that start until the operator stops the
+  service (RD18 (d)), and what they change in that window is outside the
+  comparison and may be overridden by the repair. The comparison's
+  equalities are evidence, not proof.
 - **No change notice** (RD9): an owner whose account was reset by a mailbox
   intruder learns it at their next failed sign-in.
 - **Logical scrub only**; old bytes may remain (registration design 6.5).
@@ -1635,11 +1923,11 @@ Test plan RLog2 asserts the invariant of the selected option, and no more.
 | --- | --- |
 | Shared with registration | Everything of registration design 0.3 that concerns mail, capacity, Nginx and Linux: the deadline and orphan checks, transport security, provider and sender, delivery, capacity (now for registration and recovery together under one budget), the cleanup timer, the restore script with its gate, the snapshot step. |
 | Recovery-specific Linux evidence | The cleanup timer scrubbing an expired recovery on a quiet server; a restore of a staging copy with a pending recovery (voided, status passing, hold set); the snapshot step on a copy with a pending recovery followed by a test restore. |
-| Restore credential runbook (RD18) | A rehearsal on a staging host: a password reset and a sign-out made after a snapshot, the restore script unchanged, the service stopped after it, `restore-credential-diff` (or the SQL of option (b)) classifying both accounts, the repair, the start; and a rehearsal with the replaced evidence unavailable. The window between the script's start and the operator's stop measured, not assumed. |
+| Restore credential runbook (RD18) | A rehearsal on a staging host with the restore script unchanged: a password reset, a sign-out, a TOTP reset and a role change made after a snapshot; the replaced input prepared as in 6.6 (quiescence, byte copy, re-check, rollback-mode copy); `restore-credential-diff` (or the SQL of option (b)) classifying every account; the repair and its validation; then reopening. A rehearsal with the replaced evidence unavailable, and one with a snapshot from before migration 016. **Under (d)**: the window from the script's service start to the operator's stop measured, and a sign-in with a restored password made inside it, to show what the window exposes. **Under (e)**: the maintenance block established before the restore on every listener (80 and 443, IPv4 and IPv6); no old Nginx worker left; `ss -ltnp` showing the backend on loopback only and nothing else forwarding to it; the script's loopback health check passing during the block; requests from outside to `/login`, `/healthz`, `/recover` and `/` answered 503 by Nginx with nothing reaching the application from the service start until the block is removed; the block removed only after validation. |
 | Timing | Under RD2 (a): measured durations of a recovery code and a recovery notice through the chosen provider. Under RD2 (b): the recorded acceptance that, with synchronous dispatch, eligibility is likely distinguishable by timing (not measured), or a measurement. No equal timing is to be claimed from either. |
 | Lock time | The measured duration of `set_password` under the writer lock on the server. |
 | Nginx | The locations of 7.5 accepted by the real `nginx -t` and observed: one `Referrer-Policy: no-referrer` on each `/recover` address, including a 404 and a 429; a class-sized run that mixes registration and recovery from one address. |
-| Decisions | RD1–RD18, with the amendments (RD4, RD7, RD10) and interpretations (RD2 (a), RD17) explicitly accepted or declined; D16 amended for recovery (and for notices to addresses without an account under RD2 (a)); the wording. |
+| Decisions | RD1–RD18, with the amendments (RD4, RD7, RD10) and interpretations (RD2 (a), RD17) explicitly accepted or declined, and RD18's exposure option (an accepted window or a maintenance block) decided by Gabriel; D16 amended for recovery (and for notices to addresses without an account under RD2 (a)); the wording. |
 
 ## 10. Implementation plan
 
@@ -1657,7 +1945,7 @@ the table, and the row-creating service after it.
 
 | Scope | Content | Needs first | Blocks by decisions |
 | --- | --- | --- | --- |
-| **8.1 Storage and operations** | The migration (next free number: table, ledger column with the at-most-one CHECK, index); classification; registration's `settle_send` guard (`AND recovery_id IS NULL`); `web/services/recovery_scrub.py` with the column allow-list, `has_recovery_storage`, `void_pending`, `cleanup` and the snapshot scrub (6.3, 6.4); the CLI changes of 6.5 (cleanup and `--check`, restore gate, restore status, release-hold and clear-limit texts, `require_registration_tables`); `restore-credential-diff` if RD18 (a); the backup scrub; static tests of the restore script (unchanged); `docs/DEPLOYMENT.md` (§34 and a new section, including the 6.6 runbook). **No code that inserts a recovery row or a recovery ledger row**: the tests create rows by SQL fixtures. Tests RA, RN, RR (fixture rows), RQ, RH3, RZ1. Linux evidence listed for activation, not produced. | This addendum reviewed | RD3 (the states and columns), RD13 (the allow-list, in the same scope as the scrub and the checks it governs), RD18 (only for the command, under (a)) |
+| **8.1 Storage and operations** | The migration (next free number: table, ledger column with the at-most-one CHECK, the two indexes of 3.1); classification; registration's `settle_send` guard (`AND recovery_id IS NULL`); `web/services/recovery_scrub.py` with the column allow-list, `has_recovery_storage`, `void_pending`, `cleanup` and the snapshot scrub (6.3, 6.4); the CLI changes of 6.5 (cleanup and `--check`, restore gate, restore status, release-hold and clear-limit texts, `require_registration_tables`); `restore-credential-diff` if RD18 (a); the backup scrub; static tests of the restore script (unchanged); `docs/DEPLOYMENT.md` (§34 and a new section, including the 6.6 runbook). **No code that inserts a recovery row or a recovery ledger row**: the tests create rows by SQL fixtures. Tests RA, RN, RR (fixture rows), RQ, RH3, RZ1. Linux evidence listed for activation, not produced. | This addendum reviewed | RD3 (the states and columns), RD13 (the allow-list, in the same scope as the scrub and the checks it governs), RD18 (only for the command, under (a)) |
 | **8.2 Service, no caller** | `accounts.recovery_candidate`; the public helpers of `registration` (`control_blocked`, `raise_mark`, `writer_now`); `web/services/recovery.py` (request, resend, redeem, cancel, `pending_view`, dispatch, settle); no Flask, no route, no caller. The 8.1 operations re-tested on rows the service creates (RR1–RR3 end to end). Tests RB (service parts), RC, RE, RK, RV, RX, RF, RI, RS, RL, RT, RCl, RH1–RH2, RPoll (service level), RZ2. | 8.1 merged | RD1 (only if changed), RD2, RD4, RD5, RD6, RD7, RD8, RD10, RD11, RD12, RD17 |
 | **8.3 Routes and gate** | `recovery` blueprint, templates, the `rec` slot, `/login` link and notice, the build gate and its production and development wiring, the Nginx locations of 7.5, `AUTH_ROUTE_CONTRACT.md` and `ACCOUNTS_DESIGN.md` §12 updated; enumeration, polling, route, session, header and production tests. RZ2 is replaced by RW3 and RP1 (the routes exist and answer 404 while the gate is off). | 8.2 merged | RD14, RD16; RD15 blocks activation only |
 
@@ -1729,3 +2017,53 @@ table holding a row with `pending_id` NULL (refused) and on one holding only
 rows with it set (accepted); with the at-most-one CHECK the old-style insert
 with `pending_id` NULL was accepted and a row naming both ids refused. Nothing
 was timed. The application suite was not run (documentation only).
+
+**Revision 3** (from `727bd4d`). Read in addition: the whole of
+`deploy/learnpilot-restore.sh` from the service stop to the end (the
+replaced database's checkpoint, empty-WAL and journal checks, the hard link
+and the set-aside sidecars, the final start and the loopback
+`HEALTH_URL`); `deploy/nginx/learnpilot.conf` (listeners, default server,
+locations, proxy settings); `deploy/gunicorn.conf.py` (`bind`);
+`deploy/systemd/learnpilot-backup.service`; `src/backup_sqlite.py`
+(`journal_mode=DELETE` before publishing) and its use in
+`src/backup_application.py`; migrations 012 and 016 and every migration
+statement that writes `users` or a TOTP table (only 016's admin key
+rotation); `schema_migrations` in `src/manage_migrations.py`;
+`accounts.create_user` (`password_changed_at` set only with a password);
+`login_throttle.py` and the `/login` throttle path; in `src/manage_accounts.py`,
+`require_inspectable_snapshot` and `open_database` (the existing read-only
+preflight of `cutover-check`), `REQUIRED_USER_COLUMNS` and the columns `list`
+prints; every reader of `password_changed_at` in `web` and `src`; the
+account writes of `registration.cleanup` (none).
+
+Executed for revision 3, scratch only, **a model and not an
+implementation test** (SQLite 3.51.0, Python with `-I -B`, temporary
+directories outside the repository): a WAL-mode database with a committed
+change held only in its WAL (autocheckpoint off) read the **old** value
+through `mode=ro&immutable=1`, both in place and as a copy of the main file
+and the WAL, and the new value through a normal connection; a checkpointed
+WAL-mode file with no WAL read correctly through `immutable=1`; the header
+bytes 18 and 19 were 2 and 2 after an online backup of a WAL database and 1
+and 1 after `PRAGMA journal_mode=DELETE` on the copy, as `backup_sqlite`
+does; the `recovery_id` CHECK of 3.1 accepted `'5'`, `'5.0'`, `' 7 '`, `'1e2'`
+and `5.0` as the integer they convert to, and refused `'abc'`, `''`,
+`'5.5'`, `'0x10'`, `5.5`, a blob and `'-3'`. An attempt to model an
+immutable read beside a hot rollback journal was inconclusive (no page had
+been spilled to the main file) and supports no claim; the journal is refused
+regardless. Re-run in the session that finished revision 3 (Python 3.9.6,
+SQLite 3.51.0, macOS), with the same results, and in addition: the
+repository's `python3 -B -m src.backup_sqlite --db <copy> --output <file>`
+run on a `0400` byte copy of a checkpointed WAL-mode scratch database in a
+`0700` directory (an empty `-wal` beside the original) exited 0, printed
+`quick_check: ok` and a SHA-256, wrote an output whose header bytes 18 and
+19 were 1 and 1 with no sidecar, created `-wal` and `-shm` beside the byte
+copy, and left the byte copy's SHA-256 equal to the original's; an
+exhaustive model of the classification conditions of 6.6 over NULL, equal
+and different hashes, NULL, equal, later, earlier and malformed timestamps
+and equal or different keys found that the first draft of this revision left
+a hash NULL on one side with reliable timestamps unclassified (row 5 now
+covers it), and that the table as written assigns every combination a
+class, never *sessions revived* or *unchanged* when hashes or timestamps
+differ, and never *password reverted* with a NULL hash or unreliable
+timestamps. These are models; they test neither the proposed command nor
+Linux. No Nginx, Linux host, restore, timing or application test was run.
