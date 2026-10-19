@@ -72,7 +72,7 @@ still starts only when Gabriel says so.
 | D3 | A teacher selects 1–3 of the application's subjects, plus „Друг предмет“ with a short text. | PR 1 |
 | D4 | School: free text, 3–120 characters, with a town hint („Име и населено място“). | PR 1 |
 | D5 | A self-registered teacher receives role `teacher` after verified activation, **only after quotas exist**; the teacher gate stays off until then. **Quota values (approved with PR 7):** per teacher account, at most **20 assignment creations in a rolling 24 hours** and at most **10 open assignments**; closing frees an open slot and does not refund creation allowance; enforced atomically across creation paths. The gate stays off in production. | PR 7 |
-| D6 | Six-digit code valid 10 minutes, five guesses per generation; three resends at least 60 seconds apart; pending registration lifetime 30 minutes; 5 sends per address per hour, 8 per 24 h 15 min, and the reviewed global cap of 300 per hour. Accounting is non-refundable; the browser binding stays; the lockout and security trade-offs of 3.3 and 3.6 stand as documented. | PR 3 |
+| D6 | Six-digit code valid 10 minutes, five guesses per generation; three resends at least 60 seconds apart; pending registration lifetime 30 minutes; 5 sends per address per hour, 8 per 24 h 15 min, and the reviewed global cap of 300 per hour. Accounting is non-refundable; the browser binding stays; the lockout and security trade-offs of 3.3 and 3.6 stand as documented. These are registration's values. For password recovery only, Gabriel approved an eight-digit code with every other value unchanged (RD4 of `PASSWORD_RECOVERY_DESIGN.md`, recorded in 5.2); registration codes stay six digits. | PR 3 |
 | D7 | Verification does not sign the user in. After the **one-time** registration verification the person is redirected to `/login`. Later sign-in is email and password only; no code is sent or asked at login. Admin TOTP is unchanged. Password recovery is a separate flow, not a repeated registration verification. | PR 4 |
 | D8 | An address that already has an account gets the generic registration response and a notice email; nothing is overwritten or linked. | PR 3 |
 | D9 | Per-IP limiting in Nginx; no IP address is stored in SQLite. | PR 4 |
@@ -94,7 +94,8 @@ delivery validation of D17 are activation prerequisites. The quota values of
 D5 are approved (20 creations per rolling 24 hours, 10 open assignments) and built by PR 7, whose
 interpretations are in `EMAIL_REGISTRATION_PR7_SCOPE.md`: admin accounts recorded and exempt, the window, held and deadline behaviour, refusal precedence
 and statuses, the timestamp policies and ledger retention (subject to D16, which stays open) are approved there; the wording of the refusal messages is not. The sub-decision of 5.2 (recovery for never-verified
-addresses) is open.
+addresses) is decided: never-verified accounts are not eligible (RD1 of the
+recovery addendum, 5.2).
 
 **Email and sign-in semantics, exactly.**
 
@@ -594,16 +595,18 @@ belongs to. It holds no address, no name and no code.
 - A ledger row is never updated except to settle its own outcome (4.3), and
   is deleted only by the cleanup, 48 hours after `attempted_at` (6.5).
 
-`login_throttle` is reused where its policy fits (sign-in and, later,
-recovery attempts). It is not used for these caps: its window and its cleanup
-are fixed at fifteen minutes for every row.
+`login_throttle` is reused where its policy fits (sign-in). It is not used
+for these caps: its window and its cleanup are fixed at fifteen minutes for
+every row.
 
-**Proposed amendment (RD10 of `PASSWORD_RECOVERY_DESIGN.md`, 5.6; not
-selected, not approved).** If Gabriel selects RD10 as recommended, the words
-"and, later, recovery attempts" above are withdrawn: wrong recovery codes are
-not counted in `login_throttle`, because it is keyed by the address and would
-let anyone lock a victim out of sign-in by typing wrong recovery codes. Until
-then the approved sentence above stands unchanged.
+**Amended (RD10 of `PASSWORD_RECOVERY_DESIGN.md`, 5.6; approved by Gabriel,
+recorded 2026-10-18).** The sentence as first approved read "`login_throttle`
+is reused where its policy fits (sign-in and, later, recovery attempts)". The
+words "and, later, recovery attempts" are withdrawn: wrong recovery codes do
+not count toward the sign-in throttle, because it is keyed by the address
+and would let anyone lock a victim out of sign-in by typing wrong recovery
+codes. Recovery also does not clear it on a successful reset (RD8 (a)).
+Sign-in's use of the throttle is unchanged.
 
 ### 3.5 Work budget and the mail circuit
 
@@ -1143,7 +1146,11 @@ one):
    code_send_id = ?`. The code that was never sent is retired and the
    60-second wait is waived, so the person can resend at once. Because
    `not_sent` is returned only on positive evidence (4.2), a code that may
-   have left the machine is never retired here.
+   have left the machine is never retired here. **Registration only:** for
+   password recovery Gabriel approved an amendment (RD7 of
+   `PASSWORD_RECOVERY_DESIGN.md`, recorded in 5.2): a `not_sent` recovery send
+   changes only the ledger row (step 1); the recovery code is not retired and
+   the wait is not waived.
 
 Consequences, each a test:
 
@@ -1257,8 +1264,10 @@ Requirements the addendum must meet:
   with the limits of 3.7 on what "same" covers;
 - a code to the account's `users.email`, never to `email_at_link`, with the
   generation, storage, limits, send ledger, settlement, clock policy, restore
-  gate, cleanup and logging of sections 3, 4 and 6. Recovery sends count
-  against the same total budget;
+  gate, cleanup and logging of sections 3, 4 and 6 (for recovery, the code
+  length and the `not_sent` settlement are amended, and the destination
+  rule is interpreted, as recorded below). Recovery sends count against the
+  same total budget;
 - **eligibility is decided again at redemption**, under the write lock, from
   the account as it is then: it exists, is active, has role `student` or
   `teacher`, has a password, and its `users.email` is still the address the
@@ -1270,31 +1279,52 @@ Requirements the addendum must meet:
   one recorded when it was issued (a password change, a disable, a role
   change, an operator sign-out and a TOTP reset each rotate it);
 - success calls `accounts.set_password`, which rotates `session_key`, voids
-  **every** other pending recovery code of that account, and issues no
-  session;
+  **every** other pending recovery code of that account (as interpreted
+  below), and issues no session;
 - whether an address that was never verified is eligible is not covered by
   the approval of D10. Until Gabriel decides it in the addendum such accounts
-  get no code and the same visible answer.
+  get no code and the same visible answer. **Decided (RD1):** never-verified
+  accounts are not eligible; legacy and CLI-created accounts keep operator
+  recovery.
+
+**Amendments and interpretations approved by Gabriel for recovery** (recorded
+2026-10-18; the addendum's 0.1.1). They apply to recovery only; registration
+is unchanged.
+
+- **RD4 (amends D6 for recovery):** a recovery code has eight digits; every
+  other value of D6 applies unchanged. Registration codes stay six digits.
+- **RD7 (amends 4.3 for recovery):** a `not_sent` recovery send changes only
+  the send ledger; the code is not retired and the wait is not waived.
+- **RD10 (amends 3.4):** wrong recovery codes do not count toward the
+  sign-in throttle (3.4 now states the amended sentence).
+- **RD2 (a) (interprets "a code to the account's `users.email`, never to
+  `email_at_link`"):** the destination restriction governs recovery codes;
+  an address that may not recover receives one credential-free neutral
+  notice at the address the person typed.
+- **RD17 (interprets "voids every other pending recovery code"):** the other
+  codes are voided by the session-key digest mismatch after the rotation,
+  without writing their rows, so other browsers' rows are not visibly
+  retired.
 
 **The addendum** is `docs/reviews/PASSWORD_RECOVERY_DESIGN.md`, with
-`PASSWORD_RECOVERY_SCOPE.md` and `PASSWORD_RECOVERY_TEST_PLAN.md`: a proposal
-in its third revision, not approved. Revision 1 returned REQUEST CHANGES from
-its independent review; revision 2 returned a narrow REQUEST CHANGES from a
-second independent review of the cumulative proposal (these six documents);
-neither review approved anything. Its open decisions RD1–RD18 (its section
-0.3) include the never-verified question (RD1, recommended: not eligible) and
-what a non-eligible address receives (RD2). Three would **amend** requirements
-of this design and are marked so there: RD4 (eight-digit recovery codes, D6),
-RD7 (no `not_sent` retirement for recovery, 4.3) and RD10 (recovery guesses
-kept out of `login_throttle`, 3.4). RD17 proposes an interpretation of
-"voids **every** other pending recovery code" above (by the session-key
-digest, without writing the other rows), for Gabriel to confirm. Where it says
+`PASSWORD_RECOVERY_SCOPE.md` and `PASSWORD_RECOVERY_TEST_PLAN.md`, in its
+third revision. Revision 1 returned REQUEST CHANGES from its independent
+review; revision 2 returned a narrow REQUEST CHANGES from a second
+independent review of the cumulative proposal (these six documents);
+revision 3, committed as `48ee5bf`, received APPROVE WITH NON-BLOCKING NOTES
+from an independent review of exactly that SHA. Its later R1–R8 corrections
+and the recording of Gabriel's selections are outside that review, and no
+review approved anything. Gabriel has selected its decisions RD1–RD14 and
+RD16–RD18 (its section 0.3), including the amendments and interpretations
+above; RD15 (the exact Bulgarian wording) remains open. Where it says
 recovery shares a mechanism of this design (the send ledger, the caps, the
 circuit, the high-water mark, the restore hold, the cleanup command), it
-proposes extending that mechanism, not a parallel one. RD18 also puts to
-Gabriel whether users may reach a restored state before its credential
-repair, since the restore script starts the service before it returns (3.9
-here: a restored password is the old one).
+extends that mechanism, not a parallel one. Because the restore script
+starts the service before it returns (3.9 here: a restored password is the
+old one), RD18 requires verified maintenance isolation until the credential
+repair has been validated, with no fallback to an exposed window: a restore
+whose isolation cannot be established is postponed. The selections authorize
+no implementation; PR 8's scopes start only when Gabriel says so.
 
 ### 5.3 Deferred, with limits and support handling (D15)
 
@@ -1874,8 +1904,8 @@ gate from being turned on and blocks no PR (0.3).
 | # | Item | Kind |
 | --- | --- | --- |
 | 1 | **No open decision blocks PR 1–6.** D1–D15 and D18–D20 are approved (0.2). Approval does not authorize an implementation; each PR starts when Gabriel says so. | Neither |
-| 1a | ~~Quota values for PR 7~~ are approved (20 creations per rolling 24 hours, 10 open assignments) and PR 7 has its scope (`EMAIL_REGISTRATION_PR7_SCOPE.md`). **PR 8** needs its own addendum, including the recovery eligibility of never-verified addresses (5.2). The addendum is drafted (`PASSWORD_RECOVERY_DESIGN.md`, a proposal in revision 3, after REQUEST CHANGES from its first review and a narrow REQUEST CHANGES from a second review of the cumulative proposal; neither is an approval); its review and Gabriel's decisions on its RD1–RD18, including three proposed amendments of this design (RD4, RD7, RD10), remain. | Implementation blocker for PR 8 only |
-| 2 | **D16** (privacy and minors) and the **configuration of D17** (sender address and domain, credentials, provider or relay, set with the VPS). | Activation prerequisite |
+| 1a | ~~Quota values for PR 7~~ are approved (20 creations per rolling 24 hours, 10 open assignments) and PR 7 has its scope (`EMAIL_REGISTRATION_PR7_SCOPE.md`). **PR 8** has its addendum (`PASSWORD_RECOVERY_DESIGN.md`, revision 3, after REQUEST CHANGES from its first review and a narrow REQUEST CHANGES from a second review of the cumulative proposal; revision 3, committed as `48ee5bf`, then received APPROVE WITH NON-BLOCKING NOTES from an independent review of exactly that SHA; the later R1–R8 corrections and the decision recording are outside it; no review is an approval). Gabriel has selected RD1–RD14 and RD16–RD18, including the recovery-only amendments of this design (RD4: D6; RD7: 4.3; RD10: 3.4) and the interpretations RD2 (a) and RD17 (5.2); the never-verified question is decided (RD1: not eligible). No decision blocks a PR 8 scope; each starts only when Gabriel authorizes it. RD15 (the exact wording) is open. | Activation prerequisite (RD15); PR 8 implementation awaits Gabriel's authorization |
+| 2 | **D16** (privacy and minors; extended to password recovery, including its recovery data and the neutral notices of the addendum's RD2 (a)) and the **configuration of D17** (sender address and domain, credentials, provider or relay, set with the VPS). | Activation prerequisite |
 | 3 | **Teacher quotas** exist since PR 7 (7.1), implemented; independently reviewed at `e39fa9f` (APPROVE WITH NON-BLOCKING NOTES). | Activation prerequisite for the teacher gate (met by the code, not an activation; D16 and the other prerequisites stay open). Not for the student form. |
 | 4 | **No privacy page, no retention period, no settled position on minors' consent, no stated purpose for the profile fields** (7.2). | Activation prerequisite |
 | 5 | **No delivery provider or sender domain.** Deliverability to the mailboxes students actually use (abv.bg, Gmail, school `edu.mon.bg` accounts) is untested, and whether school mailboxes accept outside mail at all is unknown. | Activation prerequisite |
@@ -1953,7 +1983,7 @@ as a rule; it would be justified only for a concrete open problem.
 | 5 | Operations: cleanup timer unit; the restore gate, status and release functions and commands (hold after every restore, D20); the restore script's gate, cleanup-job handling and final validation; the logical snapshot scrub (D18 (b)); health checks. | None open (D18, D20 decided) | 4 | Opus High | yes (operations; Linux evidence required) |
 | 6 | `/account/profile`, profile on `/account`, the profile gate; the migration adding `users.profile_required_at`, the mark at Google onboarding, `profiles.needs_profile` and the new-attempt check. | None open (D2, D11 decided) | 5 | Sonnet High | yes |
 | 7 | Teacher quotas (own short scope: `EMAIL_REGISTRATION_PR7_SCOPE.md`), then role `teacher` for a verified teacher registration (D5), the teacher form and subjects behind `TEACHER_ACTIVATION`. Migration 024. | Quota values: approved (20 per rolling 24 h; 10 open). Open: admin accounts (scope, I6) | 6 | Sonnet High | yes (security) |
-| 8 | Password recovery, from its own addendum (5.2, `PASSWORD_RECOVERY_DESIGN.md`), before public opening (D10). The addendum proposes three sequential scopes (8.1 storage and operations, with nothing that creates a recovery row; 8.2 the service, with no caller; 8.3 routes and gate; its section 10), so that no build capable of creating a recovery row lacks the cleanup, restore and snapshot integration. | The addendum, reviewed; its decisions | 7 | Opus High | yes (security, a separate Opus High session per scope) |
+| 8 | Password recovery, from its own addendum (5.2, `PASSWORD_RECOVERY_DESIGN.md`), before public opening (D10). The addendum proposes three sequential scopes (8.1 storage and operations, with nothing that creates a recovery row; 8.2 the service, with no caller; 8.3 routes and gate; its section 10), so that no build capable of creating a recovery row lacks the cleanup, restore and snapshot integration. | The addendum, reviewed (`48ee5bf`); its decisions selected (RD15, wording, open for activation); Gabriel's authorization per scope | 7 | Opus High | yes (security, a separate Opus High session per scope) |
 | — | Activation: separate, explicitly authorised, after the prerequisites of 0.3. Student registration does not wait for PR 7. | D16; configuration of D17 | — | — | — |
 
 **Approved after the PR 1 review (not independently reviewed).** (1) The first PR

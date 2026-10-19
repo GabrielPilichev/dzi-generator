@@ -363,7 +363,7 @@ lists. See `EMAIL_REGISTRATION_PR6_STATUS.md` for what is and is not covered.*
 ## M. Password recovery (PR 8, decision D10)
 
 Planned with its addendum; the proposed plan is
-`docs/reviews/PASSWORD_RECOVERY_TEST_PLAN.md` (revision 3, not approved), which maps M1–M6
+`docs/reviews/PASSWORD_RECOVERY_TEST_PLAN.md` (revision 3, with Gabriel's decisions recorded; not written or run), which maps M1–M6
 and the equivalents below to its own test ids. At minimum the equivalents of D1–D11, DL1–DL10,
 DS1–DS8, DC1–DC8, DR1–DR9, E3–E5, F1–F3,
 G1–G6, H1–H7 and N1–N5 for the
@@ -371,10 +371,10 @@ recovery credentials, plus:
 
 | ID | Test |
 | --- | --- |
-| M1 | An admin, a password-less account, a disabled account and (unless Gabriel decides otherwise in the PR 8 addendum) an account whose address was never verified receive no code, with the same visible answer as any other address. |
+| M1 | An admin, a password-less account, a disabled account and an account whose address was never verified (decided in the PR 8 addendum, RD1) receive no code, with the same visible answer as any other address. |
 | M2 | **Eligibility is rechecked at redemption.** A code issued to a teacher who is then promoted to admin redeems nothing; the admin's password and second factor are unchanged. The same for an account disabled, or whose role changed, after the code was issued. |
 | M3 | A code issued before a password change, an operator sign-out or a TOTP reset (each rotates `session_key`) redeems nothing. |
-| M4 | A successful redemption voids every other pending recovery code of that account, including one issued in another browser; rotates `session_key`; issues no session; the old password stops working and other devices are signed out. |
+| M4 | A successful redemption voids every other pending recovery code of that account, including one issued in another browser (by the session-key digest mismatch, without writing the other rows: RD17, Gabriel's approved interpretation); rotates `session_key`; issues no session; the old password stops working and other devices are signed out. |
 | M5 | A code is sent only to `users.email`. An account whose address appears only as `email_at_link` receives nothing, and that address finds no account. |
 | M6 | Recovery sends count against the same total budget as registration sends. |
 
