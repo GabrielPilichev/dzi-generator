@@ -50,14 +50,15 @@ implemented on `feature/teacher-registration-quotas` (PR #341; committed as `b15
 exact SHA and returned **REQUEST CHANGES**, and `e39fa9f` and `5f834ae` each returned **APPROVE WITH NON-BLOCKING NOTES**; `5f834ae` holds the ASCII-digit cleanup of the timestamp parser and the recording of Gabriel's
 policies; later provenance-only edits to the documents are outside that reviewed commit), **not
 activated**: `docs/reviews/EMAIL_REGISTRATION_PR7_SCOPE.md` and `EMAIL_REGISTRATION_PR7_STATUS.md`. Approval of its
-implementation will not be activation. PR 8 (recovery) is not started: its design addendum is in revision 3, after two
+implementation will not be activation. PR 8 (recovery) scope 8.1 is authorized and implemented for review
+(`PASSWORD_RECOVERY_8_1_STATUS.md`); 8.2/8.3 remain unauthorized. Its design addendum is in revision 3, after two
 independent reviews that each returned REQUEST CHANGES (the second, of the cumulative proposal, narrowly); revision 3
 (`48ee5bf`) received APPROVE WITH NON-BLOCKING NOTES from an independent review of exactly that SHA, and the later R1–R8
 corrections and the recording of Gabriel's selections are outside that review (`docs/reviews/PASSWORD_RECOVERY_DESIGN.md`,
 `PASSWORD_RECOVERY_SCOPE.md`, `PASSWORD_RECOVERY_TEST_PLAN.md`). Gabriel has selected RD1–RD14 and RD16–RD18; three of
 them amend approved requirements of the registration design for recovery only (RD4: D6, eight-digit recovery codes;
 RD7: 4.3, `not_sent` changes only the ledger; RD10: 3.4, recovery codes kept out of the sign-in throttle), recorded in
-design 3.4, 4.3 and 5.2. RD15 (the exact wording) remains open. Implementation is not authorized, and no deployment,
+design 3.4, 4.3 and 5.2. RD15 (the exact wording) remains open. Only scope 8.1 implementation is authorized; no deployment,
 provider or real database was touched.
 
 Revisions 1, 2 and 3 were each independently reviewed and returned with

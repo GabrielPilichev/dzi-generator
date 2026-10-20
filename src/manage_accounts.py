@@ -44,14 +44,14 @@ import getpass
 import os
 import sqlite3
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 try:
-    from web.services import accounts, identities, login_throttle, profiles, registration, totp
+    from web.services import accounts, identities, login_throttle, profiles, registration, recovery_scrub, totp
 except ModuleNotFoundError:  # run as `python3 src/manage_accounts.py`
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-    from web.services import accounts, identities, login_throttle, profiles, registration, totp
+    from web.services import accounts, identities, login_throttle, profiles, registration, recovery_scrub, totp
 
 ADMIN_MIN_PASSWORD_LENGTH = accounts.ADMIN_MIN_PASSWORD_LENGTH
 MAX_STDIN_BYTES = 4096
@@ -174,15 +174,25 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub.add_parser("list", help="List accounts (no secrets).")
 
+    diff = sub.add_parser(
+        "restore-credential-diff",
+        help="Compare prepared offline credential snapshots read-only; --db is stat'ed only. "
+             "Needs no secret. See DEPLOYMENT section 37 for preparation and mandatory isolation.")
+    diff.add_argument("--snapshot", required=True, type=Path)
+    diff.add_argument("--replaced", required=True, type=Path,
+                      help="Prepared replaced evidence; an unavailable path makes all accounts uncertain.")
+    diff.add_argument("--snapshot-sha256")
+    diff.add_argument("--replaced-sha256")
+
     # Registration operations (docs/reviews/EMAIL_REGISTRATION_DESIGN.md, 3.8, 6.5, 6.6).
     cleanup = sub.add_parser(
         "registrations-cleanup",
-        help="Expire and scrub overdue pending registrations and delete old final and ledger rows. "
+        help="Expire and scrub overdue registrations and recoveries; delete old final and ledger rows. "
              "Needs no secret; refuses while a restore of the database is in progress.",
     )
     cleanup.add_argument(
         "--check", action="store_true",
-        help="Change nothing; exit non-zero when a pending registration is older than an hour.")
+        help="Change nothing; fail when a pending registration or recovery is older than an hour.")
     sub.add_parser(
         "registrations-clock-accept",
         help="After checking the server's time, set the registration high-water mark to the present "
@@ -191,13 +201,13 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser(
         "registrations-restore-gate",
         help="Used by deploy/learnpilot-restore.sh on the STAGED copy of a snapshot: void and scrub every "
-             "pending registration and hold registration (a hold the copy already has is kept). "
+             "pending registration and recovery; hold both (an existing hold is kept). "
              "One transaction; repeatable.",
     )
     status = sub.add_parser(
         "registrations-restore-status",
         help="Read-only: show the registration hold and pending count; with --expect, exit non-zero unless "
-             "no registration is pending, the control row exists and the hold is in the expected state.",
+             "no registration or recovery is pending, the control row exists and the hold is expected.",
     )
     status.add_argument("--expect", choices=("held", "open"), help="the hold state the database must be in")
     sub.add_parser(
@@ -698,6 +708,14 @@ def require_registration_tables(conn: sqlite3.Connection) -> None:
             "database has no registration storage (migrations 021 and 022 required); "
             "apply migrations with src.manage_migrations first"
         )
+    try:
+        has_recovery = recovery_scrub.has_recovery_storage(conn)
+        if has_recovery and "recovery_id" not in sends:
+            raise recovery_scrub.UnsupportedRecoverySchema("registration_sends lacks recovery_id")
+        if not has_recovery and "recovery_id" in sends:
+            raise recovery_scrub.UnsupportedRecoverySchema("password_recoveries missing beside recovery ledger")
+    except recovery_scrub.UnsupportedRecoverySchema as exc:
+        raise OperatorError(f"{exc}; apply migrations with src.manage_migrations first") from exc
 
 
 def cmd_registrations_cleanup(conn, args) -> str:
@@ -717,13 +735,16 @@ def cmd_registrations_cleanup(conn, args) -> str:
             f"({lifecycle.restore_lock_path(args.database_path)} exists); nothing was changed"
         )
     if args.check:
-        stale = registration.stale_pending_count(conn, _utcnow())
-        if stale:
+        now = _utcnow()
+        stale = registration.stale_pending_count(conn, now)
+        recoveries = recovery_scrub.pending_count(conn, older_than=now - timedelta(hours=1))
+        if stale or recoveries:
             raise CheckFailed(
                 "registrations-cleanup --check: FAIL\n"
                 f"  - {stale} pending registration(s) older than an hour: the cleanup has not run or cannot"
+                f"\n  - {recoveries} pending recovery(s) older than an hour"
             )
-        return "registrations-cleanup --check: OK (no pending registration is older than an hour)"
+        return "registrations-cleanup --check: OK (no pending registration or recovery is older than an hour)"
     conn.execute("BEGIN IMMEDIATE")
     # Looked for again with the write lock held: a restore that took its lock while this
     # run waited for the database must not find a cleanup writing after it. A lock made
@@ -734,15 +755,19 @@ def cmd_registrations_cleanup(conn, args) -> str:
             "a restore of this database began while the cleanup waited for the database "
             f"({lifecycle.restore_lock_path(args.database_path)} exists); nothing was changed"
         )
-    result = registration.cleanup(conn, clock=_utcnow)
+    now = _utcnow()  # BEGIN IMMEDIATE already acquired the writer lock
+    result = registration.cleanup(conn, clock=lambda: now)
     if result.clock_behind:
         raise OperatorError(
             "the clock is behind the registration high-water mark by more than 300 seconds; nothing was "
             "changed. Check the server's time; registrations-clock-accept ends the refusal"
         )
+    recoveries = recovery_scrub.cleanup(conn, now)
     return (
         f"registrations-cleanup: {result.scrubbed} pending registration(s) expired and scrubbed, "
         f"{result.deleted} final row(s) and {result.deleted_sends} send record(s) deleted"
+        f"; {recoveries.scrubbed} pending recovery(s) expired and scrubbed, "
+        f"{recoveries.deleted} final recovery row(s) deleted"
     )
 
 
@@ -764,11 +789,14 @@ def cmd_registrations_restore_gate(conn, args) -> str:
     caller commits after this returns and rolls back after any exception."""
     require_registration_tables(conn)
     conn.execute("BEGIN IMMEDIATE")
-    result = registration.restore_gate(conn, clock=_utcnow)
+    now = _utcnow()
+    result = registration.restore_gate(conn, clock=lambda: now)
+    recoveries = recovery_scrub.void_pending(conn, now)
     kept = " (the copy already carried a hold, kept as it was)" if result.already_held else ""
     return (
         f"registrations-restore-gate: {result.voided} pending registration(s) voided and scrubbed; "
         f"registration held since {result.hold_set_at} UTC{kept}"
+        f"; {recoveries} pending recovery(s) voided and scrubbed"
     )
 
 
@@ -777,15 +805,19 @@ def cmd_registrations_restore_status(conn, args) -> str:
     require_registration_tables(conn)
     conn.execute("PRAGMA query_only = ON")
     state = registration.restore_status(conn)
+    recoveries = recovery_scrub.pending_count(conn)
     held = "held" if state.held else "open"
     summary = (
         f"registrations-restore-status: {state.pending} pending registration(s); "
         f"control row {'present' if state.control_present else 'MISSING'}; registration {held}"
         + (f" since {state.hold_set_at} UTC" if state.held else "")
+        + f"; {recoveries} pending recovery(s)"
     )
     if args.expect is None:
         return summary
     problems = []
+    if recoveries:
+        problems.append(f"{recoveries} pending recovery(s) exist")
     if state.pending:
         problems.append(f"{state.pending} pending registration(s) exist")
     if not state.control_present:
@@ -801,10 +833,12 @@ def cmd_registrations_restore_status(conn, args) -> str:
 RELEASE_CONSEQUENCE = (
     "Releasing the registration hold accepts that the send accounting from before the restore is lost:\n"
     "  - the ledger starts from the snapshot's state, so an address that already received 8 codes in a day\n"
-    "    may receive up to 8 further codes in that same day (80 guesses against its codes, once);\n"
+    "    may receive up to 8 further codes in that same day, registration or recovery "
+    "(80 guesses against its codes, once);\n"
     "  - the total hourly budget and the circuit start from the snapshot's state too;\n"
     "  - nothing else changes: the clock high-water mark is NOT lowered (use registrations-clock-accept,\n"
-    "    after checking the time, if the clock is behind it), and no limit is cleared."
+    "    after checking the time, if the clock is behind it), and no limit is cleared.\n"
+    "  - this repairs no account: restored passwords and session keys need the separate credential repair."
 )
 
 
@@ -865,7 +899,8 @@ def cmd_clear_registration_limit(conn, args) -> str:
     print(
         "note: this releases a further daily budget for this address: it may receive up to 8 more codes "
         "within the same day, which weakens the guessing bound for it (16 codes in one day). "
-        "A code that address has now stops working; a new one can be requested."
+        "A code that address has now stops working; a new one can be requested. "
+        "This also releases its recovery budget and stops its current recovery code."
     )
     conn.execute("BEGIN IMMEDIATE")
     deleted = registration.clear_address_limit(conn, registration.email_hash(secret_key, email))
@@ -899,6 +934,10 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
         args.database_path = resolve_db_path(args.db)
+        if args.command == "restore-credential-diff":
+            from src.restore_credential_diff import run
+
+            return run(args, require_inspectable_snapshot, OperatorError)
         conn = open_database(args.database_path, read_only=args.command in READ_ONLY_COMMANDS)
     except OperatorError as exc:
         print(f"error: {exc}", file=sys.stderr)
@@ -911,7 +950,8 @@ def main(argv: list[str] | None = None) -> int:
             conn.rollback()
             print(exc)
             return 1
-        except (OperatorError, LookupError, ValueError, sqlite3.Error) as exc:
+        except (OperatorError, LookupError, ValueError, sqlite3.Error,
+                recovery_scrub.UnsupportedRecoverySchema) as exc:
             conn.rollback()
             print(f"error: {exc}", file=sys.stderr)
             return 1

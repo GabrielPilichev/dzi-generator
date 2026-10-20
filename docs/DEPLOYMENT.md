@@ -3006,6 +3006,11 @@ every build that serves the database keeps shipping those migrations
 
 ## 34. Registration operations (registration PR 5): cleanup timer, restore hold, snapshot scrub
 
+Scope 8.1 extends these existing commands to password-recovery storage in
+migration 025. See section 37 for counts, fail-closed schema checks, backup
+scrub and the mandatory restore isolation/credential-repair procedure. The
+script and its ownership/lifetime-lock protocol remain unchanged.
+
 This release adds the operational pieces registration needs before it is ever
 enabled (`docs/reviews/EMAIL_REGISTRATION_DESIGN.md`, sections 3.9, 6.5, 6.6; PR 5
 of section 9; decisions D18 (b) and D20 (a); contract and open evidence in
@@ -3512,6 +3517,269 @@ pins that nothing but the quota module writes it.
   `POST /teacher/assignment/*/duplicate`) and lift the block only when this build is back.
 - A snapshot restore is not a route to a build from before 024. Do not use `--replaced-database-unreadable` to get past that refusal.
 - To lift the limits without a revert there is no switch. This is a code change and a deploy.
+
+## 37. Password recovery storage and restore credentials
+
+Scope **8.1 only**, authorized by Gabriel. Migration `025_password_recoveries.sql`
+and its operations are implemented for review; no deployment or activation is
+authorized. There is no production recovery-row creator, recovery service,
+route, template or sender. Scopes 8.2/8.3 require separate authorization and
+review. All production gates remain OFF. Operator password recovery remains
+`manage_accounts set-password`; no account/TOTP API changes in this scope.
+
+025 is additive: an empty runtime table, nullable `registration_sends.recovery_id`
+with an at-most-one-purpose CHECK, and two indexes. Legacy ledger inserts with
+both purpose ids NULL remain supported. Existing rows and canonical JSONL are
+unchanged. A rollback/recovery build serving a 025 database must keep the
+migration, cleanup/gate/status integration, fail-closed scrub and settlement
+guard. A build without that migration refuses the migrated database.
+
+### Existing registration operations now include recovery
+
+Section 34's commands and cleanup timer are unchanged entry points:
+
+- `registrations-cleanup` expires and logically scrubs recovery rows at their
+  30-minute expiry (also implausibly future-created rows); deletes final rows
+  24 hours after creation; registration's existing ledger deletion covers both
+  purposes at 48 hours. The timer's 15-minute interval gives an approximately
+  45-minute logical target on a quiet site. It needs no secret. Both scrubs run
+  in one writer transaction with the same clock, after restore-lock checks;
+  a clock behind the shared mark changes nothing. Holds do not block cleanup.
+- `registrations-cleanup --check` also fails for a recovery pending more than
+  one hour. `registrations-restore-gate` voids/scrubs all pending recoveries
+  alongside registration, atomically; an existing hold and high-water mark
+  stay intact. `registrations-restore-status --expect held` also requires zero
+  pending recoveries. The restore script and its ownership/lifetime locks are
+  unchanged; its existing calls perform these checks.
+- `registrations-release-hold --acknowledge-lost-history` releases the shared
+  accounting hold only. It repairs no account. The address may receive eight
+  further registration or recovery codes; repeated exceptions accumulate.
+  `clear-registration-limit --email` (still requires `DZI_SECRET_KEY`) deletes
+  both purposes' address history and stops codes whose issuance it removed.
+  `registrations-clock-accept` remains the only way to lower the shared mark.
+- `src.backup_sqlite` scrubs the isolated copy before final `quick_check`,
+  fsync, publication and hashing, reporting `recoveries_scrubbed`. It never
+  scrubs the live source. Historical absence is accepted only when 025 is not
+  recorded; missing recorded storage, missing columns and unknown columns
+  fail closed. Nothing is published on a scrub failure. A future migration
+  adding recovery columns must update the allow-list and scrub together.
+
+These are **logical-only** retention and scrub guarantees. Free pages, unused
+page space, WAL, earlier snapshots and copies below the application can retain
+old bytes. Published snapshots are never rewritten. No physical-remnant bound
+or erasure claim is made. Before promoting a formerly recovered/demoted account
+back to admin, consider a TOTP reset and new enrolment: a teacher's password
+sign-in never rechecks leftover TOTP state.
+
+### Mandatory restore isolation (RD18)
+
+The unchanged restore script **starts the service before it returns**.
+Service start is distinct from reopening to users. Old password hashes,
+session keys, role/active state and TOTP state return with a snapshot. The
+registration hold does not block sign-in and a sign-out does not replace an
+old password.
+
+**Verified maintenance isolation is mandatory**, from before the restore
+until credential repair and validation finish. **No fallback** to an exposed
+window exists. If any condition cannot be established, the restore is
+**postponed**: do not run the restore script. If isolation fails after service
+start, keep the block and postpone public reopening, as described below.
+These are instructions for a separately authorized operator rehearsal/restore;
+this scope operates no host service, tunnel, forwarder, firewall or Nginx.
+
+Use an external replacement maintenance site, **server-level** `return 503;`,
+with no `proxy_pass` anywhere. Do not add a return location to the normal site:
+its exact/regex locations would still proxy. Cover all application server names
+and all public listeners: HTTP/HTTPS, ports 80/443, IPv4/IPv6; retain the TLS
+certificate. This form also blocks ACME challenges, including locations added
+by Certbot. Check `certbot certificates` first: if a certificate is inside its
+renewal window, renew before establishing the block. Renewal is unavailable
+during the block. Return a fixed 503 body without links or subresources.
+
+Define `log_format lp_no_args` in the maintenance file's HTTP context, and use
+`access_log /var/log/nginx/access.log lp_no_args;` in every maintenance server.
+Use the argument-free fields of the normal template, including `$uri`, status
+and upstream address/status; never log `$request`, `$request_uri`, `$args` or
+`$query_string`. The server-level setting must cover the OAuth callback too;
+the normal site's callback location no longer exists in this replacement.
+
+After the operator's `nginx -t` and reload, verify all of these before restore,
+again after service start, and immediately before reopening:
+
+| Evidence (read-only inspection) | Required condition |
+| --- | --- |
+| Every effective Nginx server/listener; `ps` workers | Every ingress returns 503; no old worker remains, including "worker process is shutting down". Existing requests/keep-alives under the previous configuration have drained. |
+| Outside requests to `/`, `/login`, `/healthz`, `/recover`, `/auth/google/callback?code=x&state=y` | 503 from Nginx, argument-free log with `up=-`; nothing reaches the application. |
+| `ss -ltnp`, `ss -lunp` | Backend only on `127.0.0.1:8000`; no second public proxy/forwarder. Listener inspection is necessary, **not sufficient**: outbound tunnels and NAT need no listener. |
+| `ss -tnp state established '( dport = :8000 or sport = :8000 )'` | Every established peer accounted for: only the transient direct health check/operator requests. Also inspect after the script stops the old service. |
+| `ps -eo pid,user,args`; `systemctl list-units --type=service --state=running` | No reachable tunnel or forwarder: cloudflared, ngrok, socat, autossh, Tailscale serve/funnel, or another proxy. |
+| SSH clients with `-R`, `-L`, `-D`; backend peers; `sshd -T` | No SSH forwarding path. Reverse SSH listens on the remote host; inbound forwarding can appear as an `sshd` backend connection. Account for outbound SSH, not just local listeners. |
+| `nft list ruleset`; `iptables-save -t nat`; `ip6tables-save -t nat`; `sysctl net.ipv4.conf.all.route_localnet` | No DNAT/REDIRECT/forward to loopback or port 8000; `route_localnet=0`. |
+| Host shell access | Local users/processes can still reach loopback; every such user must be trusted. |
+| `LEARNPILOT_HEALTH_URL` | Unset (default `http://127.0.0.1:8000/healthz`) or another direct loopback URL. Keep the script's direct health check; a public URL receives 503 and makes the restore fail. |
+
+These inspections do not authorize stopping/reconfiguring discovered services,
+tunnels or firewalls. A failed condition postpones the restore until the host's
+operator resolves it and verifies every condition again.
+
+Before reopening, read `journalctl -u learnpilot --since "<start>" --no-pager`,
+where `<start>` comes from `systemctl show learnpilot -p ActiveEnterTimestamp`.
+Gunicorn's argument-free access log must contain only the script's health check
+and accounted-for operator requests. An unexpected forwarded address means
+Nginx proxied a request; an unexpected `-` client means a direct loopback
+client. The log detects access after it happened and prevents nothing. An
+**absence of lines is not proof** of isolation (timeouts, dropped/rate-limited
+logs, and forged forwarded headers). Isolation rests on the verified conditions.
+
+**Isolation failure:** keep the maintenance block; reopening is postponed.
+Have the operator resolve the cause, verify all conditions again, stop account
+activity, take a new pre-repair snapshot/reference time and repeat repair and
+validation for every potentially reached account, or all accounts if the reach
+cannot be bounded. Changes made after service start are absent from the two
+comparison inputs; repair may override them. This is never an accepted window.
+
+### Prepare stable offline evidence and compare
+
+Use the original published `<snapshot>/questions.db`, not the staged/migrated
+copy and not the live restored database. Prepare the replaced input from
+`$STATE/replaced-<stamp>/questions.db` without opening that original in SQLite:
+
+1. Establish **quiescence**: its device/inode differs from live `--db`; `fuser`
+   or `lsof` shows no process with it open; no rollback journal; WAL absent or
+   empty. Record device, inode, size, mtime, ctime and SHA-256, plus sidecars.
+2. In a new operator-only directory (`install -d -m 0700`), byte-copy only the
+   main file with `install -m 0400`. Do not copy a nonempty WAL away from its
+   database or ignore it. Unexplained WAL activity makes evidence unavailable.
+3. Recheck quiescence, identity, metadata, hash and sidecars on the original;
+   the byte copy's hash must equal the original's. Any difference stops this
+   preparation. Same before/after hashes alone are not proof of stable input:
+   the original must be unopened and the operator directory must exclude writers.
+4. Convert the isolated byte copy via the online backup API:
+   `python3 -B -m src.backup_sqlite --db <byte-copy> --output <operator-dir>/replaced.db`.
+   This includes committed WAL pages through SQLite, sets DELETE journal mode,
+   validates and prints SHA-256. SQLite may create sidecars beside the byte copy;
+   it never opens the kept original. Use the published `replaced.db`, not the
+   byte copy, for comparison. Scrubs write no compared account/TOTP column.
+
+Run (no secret needed):
+
+```sh
+python3 -B -m src.manage_accounts --db "$DZI_DB" restore-credential-diff \
+  --snapshot <original-snapshot>/questions.db --replaced <operator-dir>/replaced.db \
+  --snapshot-sha256 <published-hash> --replaced-sha256 <prepared-hash>
+```
+
+Expected hashes are optional, recommended. Live `--db`/`DZI_DB` is required and
+examined only by stat, never opened. Inputs must be regular files, not symlinks
+or hard links to live, with the complete 100-byte SQLite header, read/write
+versions 1/1, no `-journal`, `-wal` (even empty) or `-shm`. WAL headers without
+sidecars are also refused. The command brackets immutable read-only SQLite
+reads with identity, size, mtime, ctime, header, sidecar and hash checks; any
+lasting change refuses evidence. A change made and undone between checks is
+not excluded by these checks: preparation and isolation remain obligations.
+
+Historical schemas are read at their own levels (users since 012, TOTP since
+016); extra columns are ignored. Absence is accepted only when migration
+bookkeeping exists and does not record that table's migration. Missing recorded
+storage, missing required credential columns or bad quick_check is unavailable
+evidence. Migration 016 rotates admin session keys in the restored copy, so a
+pre-016 snapshot can conservatively report sessions revived for an admin even
+though the migration already ended them. Later migrations that write compared
+columns must document their effect here.
+
+If replaced evidence is unavailable (including a missing path supplied to
+`--replaced`), every snapshot account is **uncertain (no evidence)**; no actual
+comparison is reported. If snapshot evidence is unavailable, no accounts are
+classified: treat every live account as uncertain, using the pre-repair snapshot
+to determine whether it has a password. Any repair finding or unavailable
+evidence exits nonzero. Zero means only "unchanged as far as compared" or
+accounts created after the snapshot, never proof that credentials are safe.
+
+### Repair categories and validation, before reopening
+
+Keep isolation verified. An optional pre-restore comparison to a fresh live
+backup is only a preview; it misses changes before service stop. Run the restore
+script unchanged under the block, prepare/compare the final evidence above,
+then stop account activity and inspect connections/logs again. Cleanup/backup
+timers do not write accounts. Take the pre-repair snapshot with the WAL-safe tool:
+
+```sh
+python3 -B -m src.backup_sqlite --db "$DZI_DB" --output "$DIR/pre-repair.db"
+T_REF=$(date -u '+%Y-%m-%d %H:%M:%S')
+```
+
+`DIR` is the operator-only directory. Capture `T_REF` **after activity stopped**
+and immediately before the first repair, never at service start. Review all
+accounts/categories/findings. Commands below are subcommands of
+`python3 -B -m src.manage_accounts --db "$DZI_DB"`. Passwords are prompted,
+never put in argv, environment, files or logs. The comparison performs no repairs.
+
+| Ordered class | Category and repair |
+| --- | --- |
+| Unavailable replaced evidence; snapshot-only id; id with changed email | Uncertain: P if snapshot has a password, otherwise N. Also reset any snapshot TOTP state. |
+| Equal hashes with unequal timestamps; unequal hashes with NULL hash or unreliable timestamps | Uncertain password evidence: P/N by snapshot password. Reliable means both exact SQLite UTC timestamps and replaced strictly later. Equal, malformed, NULL or regressed timestamps are not reliable. |
+| Unequal non-NULL hashes with reliable timestamps | Password reverted: P. |
+| Equal hashes/timestamps, different session key | Sessions revived: K. |
+| Id only in replaced; equal compared credentials | Created after snapshot (absent after restore); unchanged as far as compared. No class repair. Findings below still apply to accounts in both. |
+
+| Category/finding | Feasible commands |
+| --- | --- |
+| P: restored password | `set-password --email <snapshot-address>` with a new reviewed password, **or** `disable --id <id>`. Never sign-out alone. If replaced had no password, disable is closest: there is no CLI password-removal command. |
+| N: no restored password | `sign-out --id <id>` or `disable --id <id>`. Never `set-password`: it would grant a password the restored account does not have. |
+| K: key only | `sign-out --id <id>`. |
+| State differs (every account in both, irrespective of class) | Reapply replaced state with `disable --id`, `enable --id`, `set-role --id <id> --role <role>`. A passwordless restored account cannot become admin: disable instead. These commands rotate the key. |
+| Second factor differs (presence, ciphertext, confirmation, recovery-code set or used_at); uncertain identity/no evidence with snapshot TOTP | `totp-reset --email <snapshot-address>` and new enrolment before next admin sign-in. Enrol/confirm require admin; demoted accounts first clear leftover state, then enrol only if later promoted. No secret is printed by the comparison. |
+
+Hand a replacement password to the verified owner out of band, or discard it.
+Scope 8.1 has **no email recovery**, so do not promise it. Even after future
+activation, legacy/CLI accounts, never-verified accounts and admins are ineligible;
+email recovery would also wait for hold release. Admins need new TOTP enrolment.
+
+Every repair command must exit 0 with its confirmation. Then take a post-repair
+snapshot, never query the live WAL database directly:
+
+```sh
+python3 -B -m src.backup_sqlite --db "$DZI_DB" --output "$DIR/post-repair.db"
+sqlite3 -readonly "file:$DIR/post-repair.db?immutable=1" "
+  ATTACH 'file:$DIR/pre-repair.db?immutable=1' AS pre;
+  SELECT u.id, u.email, u.role, u.is_active,
+         u.password_hash IS NOT NULL AS has_password,
+         u.password_changed_at,
+         u.password_changed_at >= '$T_REF' AS stamped_since_ref,
+         u.password_hash IS NOT pre_u.password_hash AS hash_changed,
+         u.session_key IS NOT pre_u.session_key AS key_rotated
+    FROM users u JOIN pre.users pre_u ON pre_u.id=u.id ORDER BY u.id;"
+```
+
+Use only prepared rollback-mode snapshots without sidecars; keep DIR/T_REF
+operator-controlled, without SQL quote characters. The query prints flags, not
+hashes or keys. `manage_accounts list` does not expose these validation fields.
+
+- P replacement: has_password, stamped_since_ref, hash_changed, key_rotated all
+  1. `>=` permits same-second repairs: timestamps have whole-second precision.
+  A timestamp is not proof the intended password landed; salted hash changes
+  show a new write, not a different password. Confirm the command and absence
+  of other writers; use the **recipient's first sign-in** after reopening to
+  verify a handed-over password, repeating set-password if it fails. A discarded
+  replacement needs the old credential invalidated, not that sign-in proof.
+- Disable: active 0, key rotated. Sign-out: key rotated, hash unchanged.
+  State repair: reviewed role/active match replaced (or the documented disable
+  fallback), key rotated. TOTP reset: no rows for that id in either TOTP table
+  of the post-repair snapshot, key rotated; enrol again before admin sign-in.
+- Every unrepaired account: hash/key unchanged, role/active as before. Check
+  account membership as well; no account creation/deletion is part of repair.
+
+Only after validation for every account, rechecking every isolation condition
+and reading the service-start access log again, may the operator restore the
+normal Nginx site, test/reload it and verify `/login` is served normally. If a
+condition fails, use the isolation-failure procedure and postpone reopening.
+Finally release the shared registration hold when lost accounting is accepted.
+Credential repair is separate from `registrations-release-hold`; that command
+does not repair old passwords, sessions or TOTP.
+
+Host rehearsal, real Nginx acceptance, Linux timer behavior, provider delivery,
+capacity, privacy/wording decisions and independent security review remain
+outstanding. Portable tests do not establish host isolation or authorize rollout.
 
 ## 2 GB VPS sizing
 

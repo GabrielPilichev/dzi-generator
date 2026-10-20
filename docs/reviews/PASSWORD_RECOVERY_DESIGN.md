@@ -7,8 +7,10 @@ design", with its section numbers), whose section 5.2 requires this addendum
 and whose decision D10 approved self-service recovery by emailed code as PR 8.
 
 **Revision 3 with post-review corrections and Gabriel's decisions recorded.
-Decisions selected; implementation, deployment and activation not
-authorized.** Review chronology: revision 1 (`745a952`) was independently
+Decisions selected; Gabriel has authorized implementation of scope 8.1 only.
+Scopes 8.2/8.3, deployment and activation remain unauthorized.**
+Current implementation/evidence: `PASSWORD_RECOVERY_8_1_STATUS.md`.
+Review chronology: revision 1 (`745a952`) was independently
 reviewed and returned REQUEST CHANGES (F1–F11, answered in revision 2,
 section 0.4). Revision 2 (`727bd4d`) received a **second** independent
 review, of the cumulative six-document proposal (these three documents and
@@ -35,7 +37,7 @@ the selected behaviour of every decision; alternatives that were not selected
 are named there and elsewhere only as labelled history and are neither
 designed further nor tested. Still open: RD15 (the exact Bulgarian wording),
 D16 (privacy, extended to recovery), the configuration of D17 and every
-activation prerequisite (9). No migration number is reserved. Selecting the
+activation prerequisite (9). Scope 8.1 uses migration 025, selected after repository inspection. Selecting the
 decisions does not authorize an implementation, a deployment or an
 activation; each scope of section 10 starts only when Gabriel says so, and
 every production gate stays off.
@@ -790,9 +792,9 @@ extended to recovery, must cover before activation.
 
 ## 3. Storage and transaction boundaries
 
-### 3.1 Schema (sketch; additive; no migration created or numbered)
+### 3.1 Schema (additive; implemented as 025 in scope 8.1)
 
-The migration is the next free number at implementation time.
+The migration is `025_password_recoveries.sql`, the next free number at implementation time.
 
 ```sql
 CREATE TABLE password_recoveries (
@@ -1398,7 +1400,7 @@ rewritten.
 ### 6.4 Schema checks that do not skip sensitive storage (RD13)
 
 Built in scope 8.1, together with the migration and the scrub that depend on
-it, and blocked there by RD13 (10). No scope ships the table, or a scrub of
+it, following the selected RD13 (10). No scope ships the table, or a scrub of
 it, without this check.
 
 `web/services/recovery_scrub.py` (standard library only):
@@ -2204,10 +2206,11 @@ Test plan RLog2 asserts this invariant, and no more.
 ## 10. Implementation plan
 
 **One scope at a time, in this order**, each green on the full suite, every
-gate off, documents updated with what each makes untrue. **Not authorized:**
-recording the selections defines each scope's content; it does not start
-one. Each scope starts only when Gabriel authorizes it. Executor for each:
-**Claude Opus, High**. Independent security review of each in a **separate
+gate off, documents updated with what each makes untrue. **Scope 8.1 authorized
+by Gabriel's implementation request; 8.2/8.3 remain unauthorized.** Recording
+the selections alone did not authorize implementation. Gabriel's current request
+assigns 8.1 to Codex, superseding the older proposed executor for this scope.
+Independent security review of each in a **separate
 Opus, High session**, at the exact SHA, before the next scope starts.
 
 **The rule the order serves:** no build capable of creating a recovery row may

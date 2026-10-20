@@ -108,7 +108,7 @@ class ClassificationTest(CanonicalTestCase):
             "practical_submissions", "practical_submission_files", "users",
             "totp_credentials", "totp_recovery_codes", "lifecycle_clock", "user_identities",
             "user_profiles", "teacher_subjects", "pending_registrations", "registration_sends",
-            "registration_control", "assignment_creations"]))
+            "registration_control", "assignment_creations", "password_recoveries"]))
         self.assertEqual(ct.tables_of(ct.OPERATIONAL), sorted([
             "obsidian_notes", "note_question_links", "generated_exams", "scrape_log",
             "schema_migrations", "sqlite_sequence", "login_throttle", "oidc_consumed_transactions"]))
@@ -132,6 +132,10 @@ class ExclusionTest(CanonicalTestCase):
 
     def test_no_personal_or_machine_data(self):
         text = "".join(path.read_text(encoding="utf-8") for path in CANONICAL.iterdir())
+        # Schema/exclusion metadata names the runtime recovery table and migration;
+        # neither is credential content. Keep the content/other metadata scan.
+        text = text.replace('"025_password_recoveries.sql"', '"recovery_migration"')
+        text = text.replace('"password_recoveries"', '"recovery_table"')
         self.assertNotIn("student_name", text)
         for marker in ("/Users/", "/home/", "/root/", "/tmp/", "C:\\\\", "password", "trycloudflare"):
             self.assertNotIn(marker, text)

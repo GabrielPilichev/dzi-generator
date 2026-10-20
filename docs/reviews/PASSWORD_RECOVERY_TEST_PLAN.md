@@ -11,8 +11,9 @@ review of exactly that SHA: APPROVE WITH NON-BLOCKING NOTES (R1–R8), with
 RD1–RD18 left proposed; the corrections for R1–R8 (design 0.6) came after
 that SHA and are outside that review, and so is the recording of Gabriel's
 selections (design 0.3, 0.7), after which the tests of unselected variants
-were removed. No review approved a decision. **No test in this document has
-been written or run.** Every test pins the selected behaviour: RD2 (a), RD4
+were removed. No review approved a decision. **Scope 8.1 is now authorized;
+its implemented tests and evidence are mapped in `PASSWORD_RECOVERY_8_1_STATUS.md`.
+8.2/8.3 tests remain deferred.** Every test pins the selected behaviour: RD2 (a), RD4
 (eight digits), RD7 and RD10 as amended for recovery (design 0.1.1), RD8 (a),
 RD17 and RD18 (a), with required maintenance isolation. The approved
 recovery-specific amendments are tested as the requirement; registration's

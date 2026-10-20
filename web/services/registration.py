@@ -1022,7 +1022,7 @@ def settle_send(conn: sqlite3.Connection, send_id: int, issuance_id: str, outcom
         raise ValueError("Невалидно изпращане.")
     now = _writer_now(conn, clock)
     found = conn.execute(
-        "SELECT issuance_id, outcome FROM registration_sends WHERE id = ?", (send_id,)
+        "SELECT issuance_id, outcome FROM registration_sends WHERE id = ? AND recovery_id IS NULL", (send_id,)
     ).fetchone()
     if found is None or found[0] is None or not hmac.compare_digest(found[0], issuance_id):
         logger.warning("settlement_refused send=%d", send_id)
@@ -1031,7 +1031,7 @@ def settle_send(conn: sqlite3.Connection, send_id: int, issuance_id: str, outcom
         return Settlement.ALREADY_SETTLED
     settled = conn.execute(
         "UPDATE registration_sends SET outcome = ?, settled_at = ? "
-        "WHERE id = ? AND issuance_id = ? AND outcome = 'started'",
+        "WHERE id = ? AND issuance_id = ? AND outcome = 'started' AND recovery_id IS NULL",
         (value, _stamp(now), send_id, issuance_id),
     ).rowcount
     if settled != 1:
@@ -1195,8 +1195,8 @@ def restore_gate(conn: sqlite3.Connection, *, clock: Callable[[], datetime]) -> 
 
     1. Every ``pending`` registration becomes ``void`` and is scrubbed (a restored snapshot
        could otherwise bring back a cancelled registration's code, or the attempts a code
-       had used). The recovery credentials of PR 8 do not exist yet; when they do, they are
-       voided here too.
+       had used). The CLI voids recovery credentials alongside this call in
+       the same transaction (scope 8.1).
     2. The hold ``restore`` is set (D20 (a)). A copy that already carries a hold keeps it as
        it is, original time included: **this function never clears a hold.** An absent
        control row is created with :data:`NO_MARK`; an existing row keeps its high-water

@@ -7,8 +7,10 @@ section 5.2; `docs/reviews/EMAIL_REGISTRATION_SCOPE.md`.
 
 ## Status
 
-**Documentation only: revision 3 with post-review corrections and Gabriel's
-decisions recorded. Decisions selected; implementation not authorized.**
+**Scope 8.1 implementation authorized by Gabriel; changes prepared for independent
+review. 8.2/8.3, deployment and activation remain unauthorized.**
+Evidence and limitations: `PASSWORD_RECOVERY_8_1_STATUS.md`. Design revision 3
+with post-review corrections and Gabriel's decisions recorded.
 Revision 1 was
 written on branch `docs/password-recovery-design` at `513b36c` (whose code
 equals `3d4306a`, PR #341 merged) and committed as `745a952`; its independent
@@ -24,10 +26,10 @@ were made after that SHA and are **outside the review of `48ee5bf`**.
 Gabriel's selections of RD1–RD14 and RD16–RD18 were then recorded on
 2026-10-18 (design 0.3, 0.7); that recording and the alignment edits it made
 are outside that review too. No review approved a decision: each is
-approved because Gabriel selected it. No application code,
-migration, route or configuration exists for recovery, and no migration
-number is reserved. Implementation, deployment and activation are not
-authorized. Every production gate stays off (student registration, teacher
+approved because Gabriel selected it. Scope 8.1 adds migration 025, storage and
+operations; no recovery-row creation, route, issuance/redemption or mail sending
+exists. Scopes 8.2/8.3, deployment and activation are not authorized.
+Every production gate stays off (student registration, teacher
 registration, profiles, Google, and the designed recovery gate, which is not built).
 
 Approved before this addendum, and restated by it (design 0.1, quoting the
@@ -162,11 +164,11 @@ configuration of D17 and every activation prerequisite.
   stopped.
 - **Gate** `recovery.PRODUCTION_ACTIVATION = False`.
 
-## Integration points (selected design; none implemented)
+## Integration points (8.1 implemented for review; later scopes deferred)
 
 | Where | Change | Scope |
 | --- | --- | --- |
-| New migration (next free number) | `password_recoveries`; `registration_sends.recovery_id` with the at-most-one-purpose CHECK; two indexes (one per table) | 8.1 |
+| Migration `025_password_recoveries.sql` | `password_recoveries`; `registration_sends.recovery_id` with the at-most-one-purpose CHECK; two indexes (one per table) | 8.1 |
 | `src/canonical_tables.py` | `password_recoveries`: runtime | 8.1 |
 | `web/services/recovery_scrub.py` (new, standard library) | scrubbed and known columns (the allow-list of RD13), schema check, `void_pending`, `cleanup`, snapshot scrub | 8.1 |
 | `src/manage_accounts.py` | `registrations-cleanup`, `-restore-gate`, `-restore-status`, `-release-hold`, `clear-registration-limit` cover recovery; `require_registration_tables`; `restore-credential-diff --snapshot --replaced` (new, read-only, offline inputs, RD18 (a)), dispatched before and apart from `open_database`, the live `--db` only `stat`ed | 8.1 |
@@ -185,7 +187,8 @@ configuration of D17 and every activation prerequisite.
 
 ## Implementation scopes (design 10)
 
-Sequential, never in parallel; each implemented by **Claude Opus, High** and
+Sequential, never in parallel; scope 8.1 assigned to Codex by Gabriel's current
+request (superseding its older proposed executor), and
 reviewed independently by a **separate Claude Opus, High session** at its exact
 SHA before the next begins. The order serves one rule: **no build capable of
 creating a recovery row may lack the cleanup, restore and snapshot
@@ -205,9 +208,8 @@ integration.**
 
 Gabriel's selections no longer block the definition of any scope: each
 scope's content is defined by design 10 with the selected behaviour.
-**Implementation is still not authorized**: each scope starts only when
-Gabriel authorizes it, after the previous one is merged and independently
-reviewed.
+**8.1 implementation is authorized.** Each later scope starts only when Gabriel
+authorizes it, after the previous one is merged and independently reviewed.
 
 | Scope | Selected decisions it implements |
 | --- | --- |
@@ -248,5 +250,6 @@ Gabriel's selections (design 0.7) written by Claude Opus 5.5, High. The
 independent review of `48ee5bf` (APPROVE WITH NON-BLOCKING NOTES) covers
 revision 3 only; the R1–R8 corrections and the decision recording came
 after that SHA and are outside it. No review is an approval of a decision;
-the decisions are approved by Gabriel's selection. Implementation scope 8.1
-needs Gabriel's authorization and nothing else from the decisions.
+the decisions are approved by Gabriel's selection. Gabriel has now authorized
+implementation scope 8.1 only; implementation is not self-approved and still
+requires independent review. See `PASSWORD_RECOVERY_8_1_STATUS.md`.

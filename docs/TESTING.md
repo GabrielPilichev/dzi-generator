@@ -14,6 +14,41 @@ python3 -B -m unittest tests.test_favicon tests.test_auth_guard
 
 ## Application fixtures
 
+### Password recovery scope 8.1
+
+Focused operations suites (SQL fixture rows only, no issuance API):
+
+```sh
+python3 -B -m unittest tests.test_recovery_migration_sql tests.test_recovery_scrub \
+  tests.test_recovery_operations tests.test_recovery_restore_credentials tests.test_recovery_no_caller
+```
+
+The approved-case mapping, versions, final counts and evidence gaps are in
+`docs/reviews/PASSWORD_RECOVERY_8_1_STATUS.md`. The tests use real dependencies
+and temporary databases. Static checks pin the unchanged restore script/Nginx
+template, no production recovery inserts, schema allow-list, settlement purpose
+guard and runbook requirements. The comparison tests include 5,760 combinations
+of identity, password/timestamp, key, state and second-factor differences.
+
+For RZ1 whole-suite instrumentation, a **dedicated scratch interpreter** may
+load `tests.recovery_audit.install(<temporary-jsonl-report>)` through a `.pth`
+import line after adding this repository to its import path. This also reaches
+Python subprocesses that sanitize their environment. Never install that hook in
+an application/deployment interpreter. It denies nonfixture recovery INSERTs
+and checks zero recovery rows in nonfixture databases at connection close or
+collection; summaries contain counts only. Aggregate all process summaries and
+require zero violations. Missing historical storage and intentionally unreadable
+SQLite rejection fixtures are separately counted, not represented as empty.
+The audit temporarily disables the caller's trace callback for its own two
+inspection queries, then restores it; application SQL still reaches the callback
+unchanged, so query-budget and transaction-order assertions remain meaningful.
+Static scans cover every `web`/`src` module; fresh-interpreter import tests cover
+the application, WSGI, every blueprint and the operational command entry points.
+This does not establish Linux isolation, real Nginx behavior, physical erasure,
+provider delivery or later 8.2/8.3 recovery service behavior.
+
+### Shared application fixtures
+
 Application/request tests inherit `tests.support.IsolatedAppTestCase`. A class
 overriding `setUpClass` must call `super().setUpClass()` before accessing the app
 or creating its fixtures.
