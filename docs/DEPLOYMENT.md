@@ -3640,6 +3640,14 @@ comparison inputs; repair may override them. This is never an accepted window.
 
 ### Prepare stable offline evidence and compare
 
+Order (design 6.6, steps 3–7): run the restore script unchanged under the
+verified block; then **stop account activity and recheck isolation** (every
+condition in the table above, the backend's established peers above all, and
+the Gunicorn access log since the service start). Anything unaccounted for is
+an isolation failure: keep the block and follow that procedure. Only then
+prepare and compare the evidence below, take the pre-repair snapshot and
+capture `T_REF`, and repair.
+
 Use the original published `<snapshot>/questions.db`, not the staged/migrated
 copy and not the live restored database. Prepare the replaced input from
 `$STATE/replaced-<stamp>/questions.db` without opening that original in SQLite:
@@ -3671,7 +3679,8 @@ python3 -B -m src.manage_accounts --db "$DZI_DB" restore-credential-diff \
 
 Expected hashes are optional, recommended. Live `--db`/`DZI_DB` is required and
 examined only by stat, never opened. Inputs must be regular files, not symlinks
-or hard links to live, with the complete 100-byte SQLite header, read/write
+or hard links to live, and two different files (not one path or hard link given
+twice), with the complete 100-byte SQLite header, read/write
 versions 1/1, no `-journal`, `-wal` (even empty) or `-shm`. WAL headers without
 sidecars are also refused. The command brackets immutable read-only SQLite
 reads with identity, size, mtime, ctime, header, sidecar and hash checks; any
@@ -3687,10 +3696,13 @@ pre-016 snapshot can conservatively report sessions revived for an admin even
 though the migration already ended them. Later migrations that write compared
 columns must document their effect here.
 
-If replaced evidence is unavailable (including a missing path supplied to
-`--replaced`), every snapshot account is **uncertain (no evidence)**; no actual
-comparison is reported. If snapshot evidence is unavailable, no accounts are
-classified: treat every live account as uncertain, using the pre-repair snapshot
+Nothing is classified from a refused input. If replaced evidence is
+unavailable or refused (a missing path supplied to `--replaced`, a refused
+pre-check, a change during the read, an expected-hash mismatch, an unsupported
+schema, or a replaced input that is the same file as the snapshot, hard links
+included), every snapshot account is **uncertain (no evidence)** with its P/N
+repair, and no comparison class is reported. If snapshot evidence is
+unavailable, no accounts are classified: treat every live account as uncertain, using the pre-repair snapshot
 to determine whether it has a password. Any repair finding or unavailable
 evidence exits nonzero. Zero means only "unchanged as far as compared" or
 accounts created after the snapshot, never proof that credentials are safe.
@@ -3699,9 +3711,11 @@ accounts created after the snapshot, never proof that credentials are safe.
 
 Keep isolation verified. An optional pre-restore comparison to a fresh live
 backup is only a preview; it misses changes before service stop. Run the restore
-script unchanged under the block, prepare/compare the final evidence above,
-then stop account activity and inspect connections/logs again. Cleanup/backup
-timers do not write accounts. Take the pre-repair snapshot with the WAL-safe tool:
+script unchanged under the block, stop account activity and recheck isolation
+(connections and the access log since the service start), and only then
+prepare/compare the final evidence above. Cleanup/backup timers do not write
+accounts. With activity still stopped, take the pre-repair snapshot with the
+WAL-safe tool:
 
 ```sh
 python3 -B -m src.backup_sqlite --db "$DZI_DB" --output "$DIR/pre-repair.db"

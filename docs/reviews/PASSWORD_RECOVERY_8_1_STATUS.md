@@ -1,20 +1,25 @@
 # Password recovery 8.1 — implementation and evidence
 
-Gabriel authorized **scope 8.1 only**. Prepared by Codex for Gabriel and independent
-security review; this is an implementation report, **not approval**. Scopes 8.2/8.3,
-deployment, activation and provider/host operations remain unauthorized. Existing
-production gates remain OFF. The recovery service/gate itself belongs to later
-scopes and is absent. The older proposed executor wording is superseded for this
-scope by Gabriel's current request; no review requirement is waived.
+Gabriel authorized **scope 8.1 only** and chose Codex for its initial
+implementation (confirmed session history); later work on it, including the
+post-review cleanup below, uses Claude Opus / High. This is an implementation
+report, **not approval**. Scopes 8.2/8.3, deployment, activation and
+provider/host operations remain unauthorized. Existing production gates remain
+OFF. The recovery service/gate itself belongs to later scopes and is absent. No
+review requirement is waived.
 
 ## Provenance and boundaries
 
 - Worktree: `/Users/gabrielpilichev/dzi-generator-recovery-operations`.
 - Branch: `feature/recovery-storage-operations`.
-- Starting and retained HEAD: `755058fa1a4fbd42a14acecaf750a48b676b99c8`.
-- Starting status: clean, including untracked files.
+- Implementation started from `755058fa1a4fbd42a14acecaf750a48b676b99c8` (an
+  empty preparation commit on `cf5da98`) with a clean status, and was committed
+  as `ba4b9cd7e293ec2427904451cd0221d3f1a5ccc8` (PR #343). The implementation
+  evidence below was produced on the working tree **before** that commit.
 - Migration: `025_password_recoveries.sql`, next available after 024.
-- Changes are unstaged/uncommitted. No GitHub posts, commits, pushes or merges.
+- Independent review of exactly `ba4b9cd`: **APPROVE WITH NON-BLOCKING NOTES**
+  (see *Independent review and post-review cleanup*). The cleanup after it is
+  uncommitted, for Gabriel; no GitHub posts, pushes or merges were made.
 - No real runtime database, credentials, vault content, provider, running service,
   tunnel, firewall, Nginx, deployment or activation was used/changed. All database
   work was on temporary migration/canonical builds or synthetic historical fixtures.
@@ -96,7 +101,7 @@ operator treatment of every live account as uncertain.
 | RN1–3, RCl1–3, RH3, RQ2–3 | recovery_operations: quiet expiry, final/ledger retention, stale checks, clock refusal/acceptance, future rows, holds, restore-lock checks and reporting. Existing tests pin the registration side and CLI secrets. |
 | RN4–6 | recovery_scrub: source preservation, every scrubbed column NULL, ordering before final check/fsync/link, published hash, unsupported schema and partial-file cleanup; original backup suite. |
 | RR1–7 | recovery_operations fixture histories, per-write rollback injection, status/gate idempotency, historical schema; no_caller pins unchanged script/Nginx and call order; existing restore-script harness. These are SQL fixture/code-path evidence, not a real recovery redemption or Linux restore. |
-| RR8, RR13, RR16–18, RR21 | recovery_restore_credentials: independent dispatch, no live open, read-only files/directories, env fallback, missing db, headers, sidecars, WAL-only commit hazard and prepared backup, symlink/hardlink/live identity, expected hashes, changing files, unsupported columns/storage and unavailable evidence. |
+| RR8, RR13, RR16–18, RR21 | recovery_restore_credentials: independent dispatch, no live open, read-only files/directories, env fallback, missing db, headers, sidecars, WAL-only commit hazard and prepared backup, symlink/hardlink/live identity, same-file inputs, replaced-side refusals as unavailable evidence, expected hashes, changing files, unsupported columns/storage and unavailable evidence. |
 | RR9–12, RR14, RR19–20, RR22 | Real account/TOTP changes, feasible CLI repairs, passwordless accounts, used recovery codes, sign-in hash upgrade, historical levels 011/012/015/016/021/023, pre-016 admin rotation; exhaustive 5,760 ordered classification/category/finding combinations; secret-output assertions. |
 | RR15 | no_caller runbook assertions plus DEPLOYMENT §37: required isolation, all ingress/connection/tunnel/SSH/NAT checks, argument-free logs, preparation, repair, validation and postponement. Static only. |
 | RQ1 | Existing manage_accounts/account/TOTP/cutover suites; set-password and TOTP APIs unchanged. Pending-code invalidation is 8.2 evidence. |
@@ -104,13 +109,15 @@ operator treatment of every live account as uncertain.
 
 ## Deviations and evidence limits
 
-1. Approved tests RR16–18 sometimes say a rejected replaced input prints no
-   classification, while design §6.6 and RR13 require every snapshot account to
-   be uncertain when replaced evidence is rejected. Implementation follows the
-   design and RR13: no comparison classes from invalid evidence, only
-   `uncertain (no evidence)` and P/N repair guidance. A rejected snapshot prints
-   no classes. This inconsistency is reported, not silently treated as a new
-   recovery decision.
+1. *Resolved by clarification after the review.* RR16–RR18 said a refused input
+   "classifies nothing" / "prints no class", and design §6.6 itself said "nothing
+   classified", while the same §6.6 (row 1) and RR13 class every snapshot account
+   uncertain when replaced evidence is unavailable. The documents now state the
+   selected policy in one form: nothing is classified from the refused input; a
+   refused snapshot classifies nothing; a refused replaced input is unavailable
+   evidence, RR13 / row 1 applies, every snapshot account is uncertain (no
+   evidence), and no comparison class is emitted. The implementation already
+   behaved this way; no class or repair changed.
 2. CLI rejects partial recovery storage (table without ledger column or ledger
    column without table) in addition to the table allow-list. Snapshot scrub
    validates its own sensitive table. Unknown schema identifiers and SQLite
@@ -141,6 +148,12 @@ operator treatment of every live account as uncertain.
   packages at the same versions were copied from a second scratch installation
   into the dedicated venv. Imports, pip check and requirements were reverified;
   no dependency stubs or fake crypto were used.
+Every count in this section is **pre-commit worktree verification** by the
+implementer, reported from its local logs. Nothing binds these runs
+cryptographically to `ba4b9cd`: the commit was made about four minutes after the
+final full run, from the state that run reported. Runs overlap (the focused
+runs are subsets of the full suite) and their counts must not be added together.
+
 - Initial focused run: **344 tests passed**, including **38 recovery tests** and
   the 5,760-combination subtest matrix. Earlier runs caught missing manifest
   exclusion metadata, outdated static sweeps and test-fixture errors; corrected
@@ -167,7 +180,8 @@ operator treatment of every live account as uncertain.
   The process ran outside the sandbox for the existing temporary process-signal
   and restore-lock harnesses; these use test shims, not host services. Tool
   session yields were tracked until process exit and the audit flush completed.
-- Final RZ1 audit: **7,397 process reports**, **38,914 successful connections**,
+- Final RZ1 audit (during the 4,396-test full run above, not a separate run):
+  **7,397 process reports**, **38,914 successful connections**,
   **35,438 empty recovery-storage checks**, **zero violations**. Separately:
   195 fixture-storage observations, 3,262 absent-storage observations and 22
   unreadable/already-closed observations. These are connection/inspection
@@ -175,21 +189,66 @@ operator treatment of every live account as uncertain.
   partially constructed connection that never returned successfully. Fixture
   and uninspectable storage are not claimed to be empty. The main process is
   included in these totals; every supported nonfixture recovery-storage check
-  was empty, with no production insertion observed.
+  was empty, with no production insertion observed. **Limits:** the counts are
+  checks at connection close/collection, not distinct databases, and the audit
+  is evidence, not complete proof. It sees only connections made through
+  `sqlite3.connect` in interpreters that load its hook: Python started with
+  `-S` and the `sqlite3` shell are not instrumented (rows they leave are seen
+  only when a hooked connection later closes on that database). A connection
+  opened while a recovery test is anywhere on the stack is exempt from the
+  emptiness check (its inserts are still judged by their immediate caller).
+  The static scan does not match schema-qualified writes such as
+  `INSERT INTO main.password_recoveries`. Denied inserts are caught when the
+  statement is prepared, so a rolled-back insert is still a violation.
 - Local evidence logs (temporary, not committed):
   `/private/tmp/recovery-final-focused.log` (344),
   `/private/tmp/recovery-8-1-corrections-focused.log` (540),
   `/private/tmp/recovery-8-1-initial-full-suite.log` (earlier failed full run),
   `/private/tmp/recovery-8-1-full-suite.log` (passing final full run),
   `/private/tmp/recovery-8-1-final-full-audit.jsonl` (final audit).
-- Final Git checks: `git diff --check` passes; staged diff is empty; branch and
-  HEAD remain as recorded above. `git status --short --untracked-files=all`,
-  `git --no-pager diff --stat` and a separate untracked inventory were inspected.
-  There are **20 tracked modifications and 11 untracked files**. The tracked
-  diff stat is **475 insertions, 64 deletions** and excludes the new files.
-  Canonical JSONL, the restore script and the Nginx template have no diff.
+- Pre-commit Git checks: `git diff --check` passed; the staged diff was empty.
+  The implementation then held **20 tracked modifications and 11 new files**
+  (tracked diff stat **475 insertions, 64 deletions**, excluding the new files),
+  all committed in `ba4b9cd`. Canonical JSONL, the restore script and the Nginx
+  template have no diff.
 
-## Changed-file inventory
+## Independent review and post-review cleanup
+
+Independent review (Claude Opus / High) of exactly `ba4b9cd`: **APPROVE WITH
+NON-BLOCKING NOTES**. Its own evidence, separate from the implementer's and not
+to be added to it: the 38 recovery tests passed; 802 tests in 27 adjacent
+modules passed (a set that includes those 38); an audit-instrumented run of 480
+tests in 17 modules found 0 violations (642 empty checks, a subset run with the
+hook loaded through `PYTHONPATH`, so sanitized-environment subprocesses were
+not instrumented); 29/29 temporary-database storage/backup/cleanup probes
+passed; an independent model of the design 6.6 table agreed with `classify` in
+58,320 cases. Python 3.12.15, SQLite 3.53.4, real dependencies.
+
+Notes acted on in the uncommitted cleanup after `ba4b9cd`:
+
+- **Same-file guard.** A replaced input with the snapshot's device and inode
+  (the same path or a hard link) was compared with itself and reported every
+  account unchanged, exit 0. It is now unavailable replaced evidence: every
+  snapshot account uncertain (no evidence), exit 1. Regressions cover the same
+  path and a hard link; they fail against `ba4b9cd`'s module. The live `--db`
+  alias is still refused first.
+- **Unavailable-evidence wording** aligned in design §6.6, RR16–RR18, this report
+  and DEPLOYMENT §37 (deviation 1). New replaced-side tests: live alias, live
+  path, symbolic link, change during the read and expected-hash mismatch, each
+  asserting exit 1, the uncertainty guidance, no comparison class, no secret in
+  the output and unmodified inputs.
+- **Runbook order.** DEPLOYMENT §37 now stops account activity and rechecks
+  isolation before preparing/comparing evidence and repairing (design 6.6 steps
+  5–7).
+- **Provenance** above corrected.
+
+Deferred observations (tampered databases only; no change in 8.1): the scrub's
+schema check is a column allow-list and does not refuse a trigger on
+`password_recoveries` (one could copy scrubbed values elsewhere during a scrub);
+with 025 unrecorded, a case-variant table name such as `PASSWORD_RECOVERIES` is
+treated as absent. The registration scrub has the same pattern.
+
+## Changed-file inventory (committed in `ba4b9cd`)
 
 Tracked modifications:
 
@@ -204,7 +263,7 @@ Tracked modifications:
 - docs/reviews/PASSWORD_RECOVERY_DESIGN.md, docs/reviews/PASSWORD_RECOVERY_SCOPE.md,
   docs/reviews/PASSWORD_RECOVERY_TEST_PLAN.md
 
-New/untracked files (separate from git diff --stat):
+New files:
 
 - web/migrations/025_password_recoveries.sql
 - web/services/recovery_scrub.py

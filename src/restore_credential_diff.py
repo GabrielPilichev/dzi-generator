@@ -38,6 +38,7 @@ class Unavailable(Exception):
 class Evidence:
     users: dict = field(default_factory=dict)
     factors: dict = field(default_factory=dict)
+    source: tuple = ()  # (st_dev, st_ino) of the bracketed input file
 
 
 def _identity(info):
@@ -133,6 +134,7 @@ def read_input(path, live_identity, inspect, inspection_error, expected=None):
     after = _bracket(path, live_identity, inspect, inspection_error, expected)
     if before != after:
         raise Unavailable("input changed during the read; evidence unavailable")
+    evidence.source = after[:2]
     return evidence
 
 
@@ -239,6 +241,10 @@ def run(args, inspect, inspection_error):
         return 1
     try:
         replaced = read_input(args.replaced, live_identity, inspect, inspection_error, args.replaced_sha256)
+        # A file compared with itself would report every account unchanged.
+        if replaced.source == snapshot.source:
+            raise Unavailable("replaced is the same file as the snapshot (same device and inode, "
+                              "including hard links)")
     except Unavailable as exc:
         print(f"replaced {args.replaced}: evidence unavailable: {exc}")
         print("No comparison made; every snapshot account is uncertain.")

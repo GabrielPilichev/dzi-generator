@@ -1720,8 +1720,16 @@ with `-B`; `mode=ro` alone can create `-wal`/`-shm` files beside a WAL
 database), `PRAGMA quick_check` must answer `ok`, the compared rows are read
 into memory in one pass, and the connection is closed. **After** the read,
 checks 2–4 are repeated and must give the same values. Any refusal or
-difference: exit non-zero, nothing classified, and that input counts as
-unavailable evidence. `immutable=1` turns off SQLite's locking and change
+difference: exit non-zero, and that input counts as unavailable evidence.
+**Nothing is classified from the refused input. A refused snapshot
+classifies nothing. A refused replaced input is unavailable evidence: RR13 /
+row 1 applies, every snapshot account is uncertain (no evidence), and no
+comparison class is emitted.** (Clarification of the selected
+unavailable-evidence policy after the independent review of scope 8.1 at
+`ba4b9cd`; it changes no class or repair.) A replaced input that is the
+same file as the snapshot (the same device and inode, a hard link
+included) is refused in the same way: a file compared with itself would
+report every account unchanged. `immutable=1` turns off SQLite's locking and change
 detection, so SQLite would not notice a writer: the identity and hash taken
 before and after detect a change that lasts to the end of the read, and only
 the preparation above excludes one made and undone during it. The equal

@@ -128,6 +128,73 @@ class RestoreCredentialsTest(RecoveryTestCase):
             self.assertEqual(self.run_diff(None, None, "--snapshot-sha256", "0"*64)[0], 1)
         self.assertEqual(self.run_diff(snapshot=self.live)[0], 1)
 
+    COMPARISON_CLASSES = ("unchanged", "password reverted", "sessions revived", "created after",
+                          "uncertain (identity)", "uncertain (password evidence)")
+
+    def assert_replaced_unavailable(self, code, output, reason):
+        # RR13 / design 6.6 row 1: nothing is classified from the refused replaced input;
+        # every snapshot account is uncertain (no evidence), with its repair, non-zero.
+        self.assertEqual(code, 1, output)
+        self.assertIn("evidence unavailable", output)
+        self.assertIn(reason, output)
+        self.assertIn("account %d ('owner@example.bg'): uncertain (no evidence); category P" % self.uid, output)
+        self.assertIn("set-password --email owner@example.bg", output)
+        for label in self.COMPARISON_CLASSES:
+            self.assertNotIn(label, output)
+        for value in self.conn.execute("SELECT password_hash, session_key FROM users").fetchone():
+            self.assertNotIn(value, output)
+
+    def test_same_file_or_hard_link_as_both_inputs_is_unavailable_replaced_evidence(self):
+        link = self.root / "snapshot-hard-link.db"
+        os.link(self.path, link)
+        before = {p: p.read_bytes() for p in (self.path, self.live)}
+        for replaced in (self.path, link):
+            with self.subTest(replaced=replaced.name):
+                code, output = self.run_diff(replaced=replaced)
+                self.assert_replaced_unavailable(code, output, "same file as the snapshot")
+        for path, data in before.items():
+            self.assertEqual(path.read_bytes(), data)
+            for suffix in commands.SQLITE_SIDECAR_SUFFIXES:
+                self.assertFalse(os.path.lexists(str(path)+suffix))
+        # The live --db alias is still refused first, on either side.
+        live_link = self.root / "live-hard-link.db"
+        os.link(self.live, live_link)
+        self.assertIn("live --db", self.run_diff(replaced=live_link)[1])
+        self.assertIn("live --db", self.run_diff(snapshot=live_link)[1])
+
+    def test_replaced_side_refusals_are_unavailable_evidence(self):
+        live_link = self.root / "live-alias.db"
+        os.link(self.live, live_link)
+        symbolic = self.root / "replaced-symlink.db"
+        symbolic.symlink_to(self.replaced)
+        unchanged = (self.path, self.replaced, self.live)
+        before = {p: p.read_bytes() for p in unchanged}
+        for name, replaced, extra, reason in (
+                ("live alias", live_link, (), "live --db"),
+                ("live path", self.live, (), "live --db"),
+                ("symbolic link", symbolic, (), "symbolic-link"),
+                ("hash mismatch", None, ("--replaced-sha256", "0"*64), "expected SHA-256 does not match")):
+            with self.subTest(name):
+                code, output = self.run_diff(None, replaced, *extra)
+                self.assert_replaced_unavailable(code, output, reason)
+        for path, data in before.items():
+            self.assertEqual(path.read_bytes(), data)
+        # Changing during the replaced read only (the snapshot's read is the first call).
+        changing = self.root / "changing.db"
+        shutil.copyfile(self.replaced, changing)
+        original, calls = diff._read_rows, []
+        def read(conn):
+            data = original(conn)
+            calls.append(1)
+            if len(calls) == 2:
+                with changing.open("ab") as f:
+                    f.write(b"x")
+            return data
+        with patch.object(diff, "_read_rows", side_effect=read):
+            code, output = self.run_diff(replaced=changing)
+        self.assert_replaced_unavailable(code, output, "changed during the read")
+        self.assertEqual(self.path.read_bytes(), before[self.path])
+
     def test_changing_inputs_no_stable_comparison(self):
         # Equal brackets do not detect a change made and undone. Operator-only,
         # quiescent preparation is required and this test claims no such proof.
