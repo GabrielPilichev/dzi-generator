@@ -10,6 +10,12 @@ review requirement is waived.
 
 ## Provenance and boundaries
 
+*Later provenance (recorded with scope 8.2, outside this report's evidence):* the
+post-review cleanup below was merged with scope 8.1 as `09fdb68` (PR #343). That
+same-file hardening followed the independent review of `ba4b9cd` and passed
+focused tests; no repeat whole-suite audit was run for it. Scope 8.2 is now
+authorized; see `PASSWORD_RECOVERY_8_2_STATUS.md`.
+
 - Worktree: `/Users/gabrielpilichev/dzi-generator-recovery-operations`.
 - Branch: `feature/recovery-storage-operations`.
 - Implementation started from `755058fa1a4fbd42a14acecaf750a48b676b99c8` (an

@@ -3520,11 +3520,14 @@ pins that nothing but the quota module writes it.
 
 ## 37. Password recovery storage and restore credentials
 
-Scope **8.1 only**, authorized by Gabriel. Migration `025_password_recoveries.sql`
-and its operations are implemented for review; no deployment or activation is
-authorized. There is no production recovery-row creator, recovery service,
-route, template or sender. Scopes 8.2/8.3 require separate authorization and
-review. All production gates remain OFF. Operator password recovery remains
+Scope 8.1 (merged): migration `025_password_recoveries.sql` and its operations.
+Scope 8.2 (authorized, implemented for review) adds `web/services/recovery.py`,
+which can create recovery rows but has **no production caller**: no route,
+template, setting, startup hook, CLI subcommand or deploy entry point reaches it,
+and no mail is sent for recovery. Rows it creates are handled by the operations
+below exactly as fixture rows are. No deployment or activation is authorized;
+scope 8.3 requires separate authorization and review. All production gates
+remain OFF. Operator password recovery remains
 `manage_accounts set-password`; no account/TOTP API changes in this scope.
 
 025 is additive: an empty runtime table, nullable `registration_sends.recovery_id`

@@ -2,9 +2,14 @@
 
 Install with ``install(log_path)`` from that interpreter's sitecustomize. Never
 imported by application code. SQL INSERTs into recovery storage are forbidden
-unless the immediate caller is a recovery test/fixture. On close/collection,
-every supported nonfixture database must have zero recovery rows. Reports only
-counts and source labels, never paths, SQL values or credentials.
+unless the immediate caller is a recovery test/fixture, or (scope 8.2) the
+recovery service ``web.services.recovery`` while a recovery test or fixture is on
+the same thread's stack: the service has no production caller, so a service
+insert reached from anything else (an application, CLI or other test path) is
+still a violation. On close/collection, every supported nonfixture database must
+have zero recovery rows and zero recovery-purpose ledger rows
+(``registration_sends.recovery_id`` set). Reports only counts and source labels,
+never paths, SQL values or credentials.
 """
 import atexit
 import inspect
@@ -16,9 +21,20 @@ import weakref
 _installed = False
 
 
+_SERVICE_MODULE = "web.services.recovery"
+
+
 def _fixture_module(name):
     return (name.startswith("tests.test_recovery_") or name.startswith("test_recovery_")
-            or name == "tests.recovery_support")
+            or name in ("tests.recovery_support", "tests.recovery_service_support"))
+
+
+def _recovery_test_on_stack(frame):
+    while frame is not None:
+        if _fixture_module(frame.f_globals.get("__name__", "")):
+            return True
+        frame = frame.f_back
+    return False
 
 
 def install(log_path):
@@ -50,7 +66,10 @@ def install(log_path):
                     frame = inspect.currentframe().f_back
                     while frame and frame.f_globals.get("__name__") == __name__:
                         frame = frame.f_back
-                    if not frame or not _fixture_module(frame.f_globals.get("__name__", "")):
+                    caller = frame.f_globals.get("__name__", "") if frame else ""
+                    allowed = _fixture_module(caller) or (
+                        caller == _SERVICE_MODULE and _recovery_test_on_stack(frame))
+                    if not allowed:
                         violation()
                         return sqlite3.SQLITE_DENY
                     self._recovery_fixture = True
@@ -74,6 +93,12 @@ def install(log_path):
                     counts["fixture_storage"] += 1
                 else:
                     rows = sqlite3.Connection.execute(self, "SELECT COUNT(*) FROM password_recoveries").fetchone()[0]
+                    sends = {row[1] for row in sqlite3.Connection.execute(
+                        self, "PRAGMA table_info(registration_sends)")}
+                    if "recovery_id" in sends:
+                        rows += sqlite3.Connection.execute(
+                            self, "SELECT COUNT(*) FROM registration_sends WHERE recovery_id IS NOT NULL"
+                        ).fetchone()[0]
                     if rows:
                         violation()
                         raise AssertionError("RZ1: nonfixture recovery storage is not empty")

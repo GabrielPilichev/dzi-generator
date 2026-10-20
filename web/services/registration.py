@@ -356,6 +356,40 @@ def _blocked(conn: sqlite3.Connection, now: datetime, *, hold: bool = True) -> A
     return None
 
 
+def control_blocked(conn: sqlite3.Connection, now: datetime, *, hold: bool = True) -> Availability | None:
+    """The shared restore hold (unless ``hold`` is false), then the clock against the shared
+    high-water mark: ``HOLD``, ``CLOCK_BEHIND`` or ``None``. Reads only.
+
+    The public form of the check every registration writer makes, for the password
+    recovery service (docs/reviews/PASSWORD_RECOVERY_DESIGN.md 3.5, 5.7), so that both
+    purposes obey one hold and one mark. It logs ``restore_hold`` and ``clock_regressed``
+    as the registration writers do.
+    """
+    return _blocked(conn, _checked_now(now), hold=hold)
+
+
+def writer_now(conn: sqlite3.Connection, clock: Callable[[], datetime]) -> datetime:
+    """Take the write lock inside the caller's open transaction, then read ``clock`` once.
+
+    The public form of the first step of every registration writer, for the password
+    recovery service (recovery design 3.5): :class:`TransactionRequired` with no
+    transaction open, before anything is read or written.
+    """
+    return _writer_now(conn, clock)
+
+
+def raise_mark(conn: sqlite3.Connection, now: datetime) -> None:
+    """Raise the shared high-water mark to ``now``; never lower it, never create a hold.
+
+    The public form of what every registration issuance and cleanup does, for the password
+    recovery service (recovery design 3.3, 5.7). Needs the caller's open transaction
+    (:class:`TransactionRequired`); never commits.
+    """
+    if not conn.in_transaction:
+        raise TransactionRequired("registration writers need the caller's open transaction")
+    _raise_mark(conn, _checked_now(now))
+
+
 def _count_since(conn: sqlite3.Connection, now: datetime, window: timedelta, address: str | None = None) -> int:
     # No upper bound: a row dated later than ``now`` counts inside every window.
     lower = _stamp(now - window)

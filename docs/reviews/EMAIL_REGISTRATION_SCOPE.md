@@ -50,8 +50,9 @@ implemented on `feature/teacher-registration-quotas` (PR #341; committed as `b15
 exact SHA and returned **REQUEST CHANGES**, and `e39fa9f` and `5f834ae` each returned **APPROVE WITH NON-BLOCKING NOTES**; `5f834ae` holds the ASCII-digit cleanup of the timestamp parser and the recording of Gabriel's
 policies; later provenance-only edits to the documents are outside that reviewed commit), **not
 activated**: `docs/reviews/EMAIL_REGISTRATION_PR7_SCOPE.md` and `EMAIL_REGISTRATION_PR7_STATUS.md`. Approval of its
-implementation will not be activation. PR 8 (recovery) scope 8.1 is authorized and implemented for review
-(`PASSWORD_RECOVERY_8_1_STATUS.md`); 8.2/8.3 remain unauthorized. Its design addendum is in revision 3, after two
+implementation will not be activation. PR 8 (recovery) scope 8.1 is merged (`09fdb68`,
+`PASSWORD_RECOVERY_8_1_STATUS.md`); scope 8.2 (the service, with no caller) is authorized and implemented for review
+(`PASSWORD_RECOVERY_8_2_STATUS.md`); 8.3 remains unauthorized. Its design addendum is in revision 3, after two
 independent reviews that each returned REQUEST CHANGES (the second, of the cumulative proposal, narrowly); revision 3
 (`48ee5bf`) received APPROVE WITH NON-BLOCKING NOTES from an independent review of exactly that SHA, and the later R1–R8
 corrections and the recording of Gabriel's selections are outside that review (`docs/reviews/PASSWORD_RECOVERY_DESIGN.md`,
