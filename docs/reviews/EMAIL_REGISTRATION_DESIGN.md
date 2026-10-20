@@ -3,8 +3,10 @@
 Scope and status: `docs/reviews/EMAIL_REGISTRATION_SCOPE.md`. Tests:
 `docs/reviews/EMAIL_REGISTRATION_TEST_PLAN.md`.
 
-**Design with recorded decisions; implementation and activation not
-authorized.** Section 0.2 records the decisions Gabriel approved (D1–D15 and
+**Design with recorded decisions.** Registration scopes implemented so far are
+recorded in `EMAIL_REGISTRATION_SCOPE.md`; Gabriel has now authorized recovery
+scope 8.1 only. Recovery 8.2/8.3, deployment and activation remain unauthorized.
+Section 0.2 records the decisions Gabriel approved (D1–D15 and
 D18–D20, and the behaviour of D17); D16 and the configuration of D17 stay
 activation prerequisites. Values not covered there remain proposals.
 Existing behaviour is
@@ -1324,7 +1326,9 @@ starts the service before it returns (3.9 here: a restored password is the
 old one), RD18 requires verified maintenance isolation until the credential
 repair has been validated, with no fallback to an exposed window: a restore
 whose isolation cannot be established is postponed. The selections authorize
-no implementation; PR 8's scopes start only when Gabriel says so.
+no implementation by themselves; Gabriel has subsequently authorized scope 8.1 only
+(storage and operations, `PASSWORD_RECOVERY_8_1_STATUS.md`). 8.2/8.3,
+deployment and activation remain unauthorized.
 
 ### 5.3 Deferred, with limits and support handling (D15)
 
@@ -1904,7 +1908,7 @@ gate from being turned on and blocks no PR (0.3).
 | # | Item | Kind |
 | --- | --- | --- |
 | 1 | **No open decision blocks PR 1–6.** D1–D15 and D18–D20 are approved (0.2). Approval does not authorize an implementation; each PR starts when Gabriel says so. | Neither |
-| 1a | ~~Quota values for PR 7~~ are approved (20 creations per rolling 24 hours, 10 open assignments) and PR 7 has its scope (`EMAIL_REGISTRATION_PR7_SCOPE.md`). **PR 8** has its addendum (`PASSWORD_RECOVERY_DESIGN.md`, revision 3, after REQUEST CHANGES from its first review and a narrow REQUEST CHANGES from a second review of the cumulative proposal; revision 3, committed as `48ee5bf`, then received APPROVE WITH NON-BLOCKING NOTES from an independent review of exactly that SHA; the later R1–R8 corrections and the decision recording are outside it; no review is an approval). Gabriel has selected RD1–RD14 and RD16–RD18, including the recovery-only amendments of this design (RD4: D6; RD7: 4.3; RD10: 3.4) and the interpretations RD2 (a) and RD17 (5.2); the never-verified question is decided (RD1: not eligible). No decision blocks a PR 8 scope; each starts only when Gabriel authorizes it. RD15 (the exact wording) is open. | Activation prerequisite (RD15); PR 8 implementation awaits Gabriel's authorization |
+| 1a | ~~Quota values for PR 7~~ are approved (20 creations per rolling 24 hours, 10 open assignments) and PR 7 has its scope (`EMAIL_REGISTRATION_PR7_SCOPE.md`). **PR 8** has its addendum (`PASSWORD_RECOVERY_DESIGN.md`, revision 3, after REQUEST CHANGES from its first review and a narrow REQUEST CHANGES from a second review of the cumulative proposal; revision 3, committed as `48ee5bf`, then received APPROVE WITH NON-BLOCKING NOTES from an independent review of exactly that SHA; the later R1–R8 corrections and the decision recording are outside it; no review is an approval). Gabriel has selected RD1–RD14 and RD16–RD18, including the recovery-only amendments of this design (RD4: D6; RD7: 4.3; RD10: 3.4) and the interpretations RD2 (a) and RD17 (5.2); the never-verified question is decided (RD1: not eligible). No decision blocks a PR 8 scope; each starts only when Gabriel authorizes it. RD15 (the exact wording) is open. | Activation prerequisite (RD15); 8.1 authorized and implemented for review; 8.2/8.3 require separate authorization |
 | 2 | **D16** (privacy and minors; extended to password recovery, including its recovery data and the neutral notices of the addendum's RD2 (a)) and the **configuration of D17** (sender address and domain, credentials, provider or relay, set with the VPS). | Activation prerequisite |
 | 3 | **Teacher quotas** exist since PR 7 (7.1), implemented; independently reviewed at `e39fa9f` (APPROVE WITH NON-BLOCKING NOTES). | Activation prerequisite for the teacher gate (met by the code, not an activation; D16 and the other prerequisites stay open). Not for the student form. |
 | 4 | **No privacy page, no retention period, no settled position on minors' consent, no stated purpose for the profile fields** (7.2). | Activation prerequisite |

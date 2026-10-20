@@ -97,6 +97,13 @@ has started with account-owned quiz attempts (migration 015, §24).
 - **Not implemented:** Microsoft sign-in, unlinking and identity recovery
   (required before Google sign-in is activated), a local password or a second
   identity for an account created through Google.
+- Password recovery **scope 8.1 only**, authorized and implemented for review:
+  migration `025_password_recoveries.sql`, logical scrub/cleanup/restore operations,
+  shared-ledger purpose isolation and offline `restore-credential-diff`.
+  No issuance/redemption, account recovery-candidate API, route or mail sender;
+  operator `set-password` and TOTP APIs are unchanged. Every production gate
+  remains OFF. See `docs/reviews/PASSWORD_RECOVERY_8_1_STATUS.md` and
+  `docs/DEPLOYMENT.md` §37 for mandatory restore isolation and credential repair.
 - **Next:** the remaining phase-2 items of §17.
 - The DZI visibility gate depends on account identity (a signed-in principal),
   not on OIDC specifically; OIDC is one way to obtain student accounts.
@@ -1217,6 +1224,13 @@ account forms.**
 | `020_oidc_consumed_transactions.sql` (phase 2) | New table, no index | None; the table starts empty | Restart only | Google sign-in (§13) is the only caller of the storage, at three call sites, and is not activated; while it is off nothing is written, and the records already written stay and are not deleted for a rollback. As for 019: a build without 020 refuses to start on the migrated database, a recovery build keeps the migration, and a snapshot restore does not lead to a build from before it (`docs/DEPLOYMENT.md`, sections 21 and 28). |
 | `021_registration_schema.sql` (registration PR 1) | One nullable column on `users` (`email_verified_at`) and five new tables with their indexes | None; every account has the column NULL and the tables start empty | Restart only | Nothing reads or writes the column or the tables except the profile service, which has no caller, and no gate exists to turn on. Code from before the migration names its `users` columns and runs unchanged. As for 019 and 020: a build without 021 refuses to start on the migrated database, a recovery build keeps the migration, and a snapshot restore does not lead to a build from before it (`docs/DEPLOYMENT.md`, section 30). |
 | `023_profile_required.sql` (registration PR 6) | One nullable column on `users` (`profile_required_at`) | None; every account has the column NULL, so no account is marked or asked | Restart only | Nothing reads the column while the profile gate is off, and the only writer is Google onboarding with the gate on. Code from before the migration names its `users` columns and runs unchanged. As for 019 to 021: a build without 023 refuses to start on the migrated database, a recovery build keeps the migration, and a snapshot restore does not lead to a build from before it (`docs/DEPLOYMENT.md`, section 35). |
+
+Scope 8.1 adds `025_password_recoveries.sql`: one runtime table, nullable
+ledger-purpose column with an at-most-one CHECK, and two indexes. It writes no
+existing row and rebuilds no table. Legacy explicit-column ledger inserts remain
+valid. A build serving this schema must keep the migration and its complete
+scrub/cleanup/restore integration; rollback does not remove storage. See deployment
+section 37. No new account or TOTP API belongs to 8.1.
 
 **Runner constraint (applies to 015 only; runner support is in place)**
 

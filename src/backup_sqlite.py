@@ -27,10 +27,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 try:
-    from web.services import registration_scrub
+    from web.services import registration_scrub, recovery_scrub
 except ModuleNotFoundError:  # run as `python3 src/backup_sqlite.py`
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-    from web.services import registration_scrub
+    from web.services import registration_scrub, recovery_scrub
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 SIDECAR_SUFFIXES = ("-journal", "-wal", "-shm")
@@ -100,6 +100,23 @@ def scrub_pending_registrations(copy: sqlite3.Connection) -> int:
     return scrubbed
 
 
+def scrub_pending_recoveries(copy: sqlite3.Connection) -> int:
+    """Logical scrub on the isolated copy; unsupported storage publishes nothing."""
+    try:
+        if not recovery_scrub.has_recovery_storage(copy):
+            return 0
+        copy.execute("BEGIN IMMEDIATE")
+        try:
+            scrubbed = recovery_scrub.void_pending(copy, datetime.now(timezone.utc))
+            copy.commit()
+        except BaseException:
+            copy.rollback()
+            raise
+        return scrubbed
+    except recovery_scrub.UnsupportedRecoverySchema as exc:
+        raise BackupError(f"unsupported recovery schema in the snapshot copy: {exc}") from exc
+
+
 def backup_database(source: Path, destination: Path) -> dict:
     source = Path(source).expanduser()
     destination = Path(destination).expanduser()
@@ -129,6 +146,7 @@ def backup_database(source: Path, destination: Path) -> dict:
                 # After the copy and before every check, the fsync, the link and the hash: what
                 # is verified, published and hashed is the scrubbed file.
                 registrations_scrubbed = scrub_pending_registrations(dst)
+                recoveries_scrubbed = scrub_pending_recoveries(dst)
                 result = [row[0] for row in dst.execute("PRAGMA quick_check")]
                 if result != ["ok"]:
                     raise BackupError(f"quick_check failed: {result[:5]}")
@@ -156,6 +174,7 @@ def backup_database(source: Path, destination: Path) -> dict:
         "sha256": _sha256(destination),
         "quick_check": "ok",
         "registrations_scrubbed": registrations_scrubbed,
+        "recoveries_scrubbed": recoveries_scrubbed,
     }
 
 

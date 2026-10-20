@@ -196,6 +196,11 @@ class IssuanceUpgradeTest(UpgradedDatabaseTestCase):
 
     def test_old_rows_fail_closed_for_settlement_and_dispatch(self):
         self.migrate()
+        # The current service requires the current schema. Preserve the 021
+        # ledger fixtures through all later additive migrations before invoking
+        # it; the separate migration tests above still isolate 022 itself.
+        self.assertEqual(apply(self.path)[0], 0)
+        self.reopen()
         before = self.contents()
         with self.assertLogs("learnpilot.registration", level=logging.WARNING) as logs:
             for send_id in (1, 2, 3, 4, 5):
@@ -368,7 +373,7 @@ class IssuanceClassificationTest(unittest.TestCase):
                 applied = [r[0] for r in conn.execute("SELECT filename FROM schema_migrations ORDER BY filename")]
                 self.assertIn(MIGRATION, applied)
                 self.assertEqual(tuple(r[1] for r in conn.execute(f"PRAGMA table_info({TABLE})")),
-                                 (*OLD_COLUMNS, "issuance_id"))
+                                 (*OLD_COLUMNS, "issuance_id", "recovery_id"))
                 self.assertEqual(conn.execute(f"SELECT COUNT(*) FROM {TABLE}").fetchone()[0], 0)
                 self.assertIsNone(ct.stored_sequence(conn, TABLE))
                 self.assertEqual(conn.execute("SELECT COUNT(*) FROM users").fetchone()[0], 0)

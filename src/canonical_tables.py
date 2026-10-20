@@ -74,6 +74,7 @@ TABLE_CLASSIFICATION: dict[str, tuple[str, str]] = {
     "user_profiles": (RUNTIME, "declared names, grade and school of accounts: personal data, never canonical content"),
     "teacher_subjects": (RUNTIME, "subjects a teacher declared at registration, never canonical content"),
     "pending_registrations": (RUNTIME, "unverified registrations: personal data and a credential hash, never canonical content"),
+    "password_recoveries": (RUNTIME, "password recovery in progress: an address, an account link and a credential hash; never canonical content"),
     "registration_sends": (RUNTIME, "send ledger of registration mail: keyed address hashes, never canonical content"),
     "registration_control": (RUNTIME, "registration clock mark and restore hold: one row at most, never canonical content"),
     "assignment_creations": (RUNTIME, "ledger of assignment creations per account, kept after closure or deletion: ids and times only, never canonical content"),

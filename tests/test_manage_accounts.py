@@ -574,7 +574,9 @@ class ClearThrottleTest(CliTestCase):
 
     def test_throttle_sql_and_hashing_are_not_duplicated_in_the_cli(self):
         source = (ROOT / "src" / "manage_accounts.py").read_text(encoding="utf-8")
-        for forbidden in ("hmac", "sha256", "DELETE FROM login_throttle", "identifier_hash ="):
+        # Restore comparison accepts --*-sha256 arguments; no hashing is
+        # implemented in this dispatcher (and throttle hashing stays in its service).
+        for forbidden in ("hmac", "sha256(", "DELETE FROM login_throttle", "identifier_hash ="):
             self.assertNotIn(forbidden, source)
         self.assertIn("login_throttle.clear(", source)
         self.assertIn("login_throttle.identifier_hash(", source)
