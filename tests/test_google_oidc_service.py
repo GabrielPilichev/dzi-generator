@@ -13,6 +13,7 @@ fraction of a second.
 import ast
 import gc
 import hashlib
+import hmac
 import inspect
 import io
 import json
@@ -34,7 +35,6 @@ import requests
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding
 from joserfc import jws
-from joserfc.jwk import OctKey
 from requests.adapters import HTTPAdapter
 
 from tests.google_oidc_support import (
@@ -301,11 +301,11 @@ class IdTokenTest(ServiceTestCase):
         header, body, signature = good.split(".")
         other_key_same_kid = signing_key("impostor-of-key-1", kid="test-key-1")
         unpublished = signing_key("unpublished-key")
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")  # joserfc warns that a public key is not an HMAC key
-            hs256 = jws.serialize_compact(
-                {"alg": "HS256", "kid": "test-key-1"}, payload,
-                OctKey.import_key(self.google.keys[0].as_pem(private=False)))
+        # The classic algorithm confusion: joserfc refuses to build this token (it rejects a
+        # public key as an HMAC secret), so it is assembled by hand, MAC'd with the public PEM.
+        hs256_input = f"{b64url(json.dumps({'alg': 'HS256', 'kid': 'test-key-1'}).encode())}.{b64url(payload)}".encode("ascii")
+        hs256_mac = hmac.new(self.google.keys[0].as_pem(private=False), hs256_input, hashlib.sha256).digest()
+        hs256 = f"{hs256_input.decode('ascii')}.{b64url(hs256_mac)}"
         altered = b64url(json.dumps({**claims, "sub": "someone-else"}).encode())
         cases = {
             "alg none": b64url(json.dumps({"alg": "none", "kid": "test-key-1"}).encode()) + "." + body + ".",
