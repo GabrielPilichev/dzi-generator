@@ -45,7 +45,42 @@ unchanged, so query-budget and transaction-order assertions remain meaningful.
 Static scans cover every `web`/`src` module; fresh-interpreter import tests cover
 the application, WSGI, every blueprint and the operational command entry points.
 This does not establish Linux isolation, real Nginx behavior, physical erasure,
-provider delivery or later 8.2/8.3 recovery service behavior.
+provider delivery or scope 8.3 route behavior.
+
+Since scope 8.2 the audit also allows an INSERT into `password_recoveries` made by
+the service `web.services.recovery`, **only** when the first caller outside the
+audit and the contiguous service frames is a recovery test or fixture module. A
+recovery test elsewhere on the stack is not enough: the same service call from
+anything else (an application, CLI, another test, or a production-named
+intermediary between a recovery test and the service) is denied and counted as a
+violation (`tests.test_recovery_no_caller` proves the allowed and denied cases in
+deterministic subprocesses). The check runs in SQLite's authorizer, which sees a
+statement when it is prepared: an allowed INSERT prepared on a fixture connection
+can be reused from Python's per-connection statement cache by another caller
+without another check, and that fixture connection also skips the emptiness check
+below. Denial is therefore guaranteed only for statements prepared on behalf of the
+denied caller; scope 8.3's audit adaptation must add a regression for the reuse and
+assess `cached_statements=0`. The
+close/collection check now also requires zero recovery-purpose ledger rows
+(`registration_sends.recovery_id` set) in every nonfixture database.
+
+### Password recovery scope 8.2
+
+Service suites (temporary databases, in-memory mail, injected clocks; no route,
+template or provider):
+
+```sh
+python3 -B -m unittest tests.test_recovery_service tests.test_recovery_eligibility \
+  tests.test_recovery_redeem tests.test_recovery_ledger tests.test_recovery_concurrency \
+  tests.test_recovery_polling tests.test_recovery_service_operations tests.test_recovery_no_caller
+```
+
+`tests/recovery_service_support.py` builds accounts through the real account
+functions (verified accounts as registration activates them) and drives every
+writer inside `BEGIN IMMEDIATE`, committing or rolling back as the 8.3 caller
+must. The mapping to the test plan, deviations and remaining gaps are in
+`docs/reviews/PASSWORD_RECOVERY_8_2_STATUS.md`. RZ2 (no production caller) is
+static and import-level; it is not the reason the build is safe (design 7.3).
 
 ### Shared application fixtures
 

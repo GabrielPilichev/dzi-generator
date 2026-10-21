@@ -7,9 +7,19 @@ section 5.2; `docs/reviews/EMAIL_REGISTRATION_SCOPE.md`.
 
 ## Status
 
-**Scope 8.1 implementation authorized by Gabriel; changes prepared for independent
-review. 8.2/8.3, deployment and activation remain unauthorized.**
-Evidence and limitations: `PASSWORD_RECOVERY_8_1_STATUS.md`. Design revision 3
+**Scope 8.1 is merged (`09fdb68`, PR #343). Scope 8.2 was authorized by Gabriel
+and implemented as `19815bb` (PR #344); an
+independent review of exactly that SHA returned APPROVE WITH NON-BLOCKING NOTES,
+and classified its 13 deviations as needing no substantive product approval. That
+review covers `19815bb` only (`PASSWORD_RECOVERY_8_2_STATUS.md`, which also records
+the obligations carried into 8.3 and the later changes). The stricter audit caller
+rule was committed as `421993b` and independently reviewed at exactly that SHA
+(APPROVE WITH NON-BLOCKING NOTES). 8.3, deployment and
+activation remain unauthorized.** Scope 8.1 was independently reviewed at `ba4b9cd` (APPROVE WITH
+NON-BLOCKING NOTES); the same-file hardening that followed that review passed
+focused tests and was merged without a repeated whole-suite audit.
+Evidence and limitations: `PASSWORD_RECOVERY_8_1_STATUS.md`,
+`PASSWORD_RECOVERY_8_2_STATUS.md`. Design revision 3
 with post-review corrections and Gabriel's decisions recorded.
 Revision 1 was
 written on branch `docs/password-recovery-design` at `513b36c` (whose code
@@ -26,9 +36,11 @@ were made after that SHA and are **outside the review of `48ee5bf`**.
 Gabriel's selections of RD1–RD14 and RD16–RD18 were then recorded on
 2026-10-18 (design 0.3, 0.7); that recording and the alignment edits it made
 are outside that review too. No review approved a decision: each is
-approved because Gabriel selected it. Scope 8.1 adds migration 025, storage and
-operations; no recovery-row creation, route, issuance/redemption or mail sending
-exists. Scopes 8.2/8.3, deployment and activation are not authorized.
+approved because Gabriel selected it. Scope 8.1 added migration 025, storage and
+operations. Scope 8.2 adds the service (`web/services/recovery.py`), which creates
+recovery rows, issues, redeems, dispatches and settles, with **no production
+caller** (test RZ2): no route, template, setting, CLI subcommand or mail
+configuration reaches it. Scope 8.3, deployment and activation are not authorized.
 Every production gate stays off (student registration, teacher
 registration, profiles, Google, and the designed recovery gate, which is not built).
 
@@ -164,7 +176,7 @@ configuration of D17 and every activation prerequisite.
   stopped.
 - **Gate** `recovery.PRODUCTION_ACTIVATION = False`.
 
-## Integration points (8.1 implemented for review; later scopes deferred)
+## Integration points (8.1 merged; 8.2 implemented for review; 8.3 deferred)
 
 | Where | Change | Scope |
 | --- | --- | --- |
@@ -208,8 +220,8 @@ integration.**
 
 Gabriel's selections no longer block the definition of any scope: each
 scope's content is defined by design 10 with the selected behaviour.
-**8.1 implementation is authorized.** Each later scope starts only when Gabriel
-authorizes it, after the previous one is merged and independently reviewed.
+**8.1 is merged; 8.2 implementation is authorized.** 8.3 starts only when Gabriel
+authorizes it, after 8.2 is merged and independently reviewed.
 
 | Scope | Selected decisions it implements |
 | --- | --- |
@@ -250,6 +262,16 @@ Gabriel's selections (design 0.7) written by Claude Opus 5.5, High. The
 independent review of `48ee5bf` (APPROVE WITH NON-BLOCKING NOTES) covers
 revision 3 only; the R1–R8 corrections and the decision recording came
 after that SHA and are outside it. No review is an approval of a decision;
-the decisions are approved by Gabriel's selection. Gabriel has now authorized
-implementation scope 8.1 only; implementation is not self-approved and still
-requires independent review. See `PASSWORD_RECOVERY_8_1_STATUS.md`.
+the decisions are approved by Gabriel's selection. Gabriel authorized scope 8.1
+(merged at `09fdb68`) and authorized scope 8.2, implemented by Claude Opus 5.5 and
+committed as `19815bb`. The independent review of exactly that SHA (APPROVE WITH
+NON-BLOCKING NOTES) is not an approval of a decision, and the reviewer's
+classification of the 13 deviations as needing no substantive product approval is
+not an approval by Gabriel. Later changes (the merge of PR #345's test-fixture
+fix, the stricter audit caller rule and the provenance edits) are outside that
+review; the audit caller rule and its provenance edits, committed as `421993b`,
+were independently reviewed at exactly that SHA (APPROVE WITH NON-BLOCKING NOTES),
+and the documentation corrections after `421993b` are outside both reviews. See `PASSWORD_RECOVERY_8_1_STATUS.md` and `PASSWORD_RECOVERY_8_2_STATUS.md`
+(obligations carried into the 8.3 checklist: route validation order, real route
+tests for the service-only seams, deliberate adaptation of the audit policy,
+including its prepared-statement cache limitation).

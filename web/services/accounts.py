@@ -442,6 +442,44 @@ def profile_requirement(conn: sqlite3.Connection, user_id) -> dict | None:
     return {"role": row[0], "profile_required_at": row[1]}
 
 
+_RECOVERY_CANDIDATE_COLUMNS = (
+    "id, email, role, is_active, password_hash IS NOT NULL AS has_password, email_verified_at, session_key"
+)
+
+
+def recovery_candidate(conn: sqlite3.Connection, *, email=None, user_id=None) -> dict | None:
+    """The columns password-recovery eligibility is decided on, read from the ``users`` row
+    as it is now, or ``None`` when no row matches.
+
+    Exactly one selector: ``email`` (the stored, normalised form, compared exactly) or
+    ``user_id``. Returns ``id``, ``email``, ``role``, ``is_active``, ``has_password``,
+    ``email_verified_at`` and ``session_key``; never the password hash. They are not part
+    of the loaded account (``_USER_COLUMNS``) on purpose, as for :func:`profile_requirement`:
+    the decision belongs to the caller's transaction, which must already hold the write
+    lock (docs/reviews/PASSWORD_RECOVERY_DESIGN.md 1.3, 4.2). This function takes no lock,
+    reads nothing else and writes nothing; it raises ``RuntimeError`` when no transaction is
+    open. A database without ``email_verified_at`` (below migration 021) raises the
+    ``sqlite3`` error of the missing column, so recovery is unavailable there.
+    """
+    if (email is None) == (user_id is None):
+        raise ValueError("recovery_candidate needs exactly one of email and user_id")
+    if not conn.in_transaction:
+        raise RuntimeError("recovery_candidate needs the caller's open, locked transaction")
+    if email is not None:
+        if not isinstance(email, str):
+            return None
+        where, value = "email", email
+    else:
+        if not isinstance(user_id, int) or isinstance(user_id, bool) or not 0 < user_id < 2**63:
+            return None
+        where, value = "id", user_id
+    cursor = conn.execute(f"SELECT {_RECOVERY_CANDIDATE_COLUMNS} FROM users WHERE {where} = ?", (value,))
+    row = cursor.fetchone()
+    if row is None:
+        return None
+    return dict(zip([col[0] for col in cursor.description], tuple(row)))
+
+
 def _update_user(conn: sqlite3.Connection, user_id: int, assignments: str, params: tuple) -> str:
     """Apply ``assignments`` (may be empty) plus a fresh session key; return that key."""
     session_key = _new_session_key()

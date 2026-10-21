@@ -97,13 +97,15 @@ has started with account-owned quiz attempts (migration 015, §24).
 - **Not implemented:** Microsoft sign-in, unlinking and identity recovery
   (required before Google sign-in is activated), a local password or a second
   identity for an account created through Google.
-- Password recovery **scope 8.1 only**, authorized and implemented for review:
-  migration `025_password_recoveries.sql`, logical scrub/cleanup/restore operations,
-  shared-ledger purpose isolation and offline `restore-credential-diff`.
-  No issuance/redemption, account recovery-candidate API, route or mail sender;
-  operator `set-password` and TOTP APIs are unchanged. Every production gate
-  remains OFF. See `docs/reviews/PASSWORD_RECOVERY_8_1_STATUS.md` and
-  `docs/DEPLOYMENT.md` §37 for mandatory restore isolation and credential repair.
+- Password recovery **scope 8.1** (merged): migration `025_password_recoveries.sql`,
+  logical scrub/cleanup/restore operations, shared-ledger purpose isolation and
+  offline `restore-credential-diff`. **Scope 8.2** (authorized, implemented for
+  review): `accounts.recovery_candidate`, three public helpers of `registration`
+  and the service `web/services/recovery.py`, with **no production caller**; no
+  route or mail sender. `set_password`, operator `set-password` and the TOTP APIs
+  are unchanged. Every production gate remains OFF. See
+  `docs/reviews/PASSWORD_RECOVERY_8_1_STATUS.md`, `PASSWORD_RECOVERY_8_2_STATUS.md`
+  and `docs/DEPLOYMENT.md` §37 for mandatory restore isolation and credential repair.
 - **Next:** the remaining phase-2 items of §17.
 - The DZI visibility gate depends on account identity (a signed-in principal),
   not on OIDC specifically; OIDC is one way to obtain student accounts.

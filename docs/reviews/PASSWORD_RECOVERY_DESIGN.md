@@ -7,9 +7,11 @@ design", with its section numbers), whose section 5.2 requires this addendum
 and whose decision D10 approved self-service recovery by emailed code as PR 8.
 
 **Revision 3 with post-review corrections and Gabriel's decisions recorded.
-Decisions selected; Gabriel has authorized implementation of scope 8.1 only.
-Scopes 8.2/8.3, deployment and activation remain unauthorized.**
-Current implementation/evidence: `PASSWORD_RECOVERY_8_1_STATUS.md`.
+Decisions selected. Scope 8.1 is merged (`09fdb68`); Gabriel has authorized
+implementation of scope 8.2, prepared for independent review. Scope 8.3,
+deployment and activation remain unauthorized.**
+Current implementation/evidence: `PASSWORD_RECOVERY_8_1_STATUS.md`,
+`PASSWORD_RECOVERY_8_2_STATUS.md`.
 Review chronology: revision 1 (`745a952`) was independently
 reviewed and returned REQUEST CHANGES (F1–F11, answered in revision 2,
 section 0.4). Revision 2 (`727bd4d`) received a **second** independent
@@ -2215,7 +2217,8 @@ Test plan RLog2 asserts this invariant, and no more.
 
 **One scope at a time, in this order**, each green on the full suite, every
 gate off, documents updated with what each makes untrue. **Scope 8.1 authorized
-by Gabriel's implementation request; 8.2/8.3 remain unauthorized.** Recording
+and merged (`09fdb68`); scope 8.2 authorized by Gabriel's later request and
+implemented for review; 8.3 remains unauthorized.** Recording
 the selections alone did not authorize implementation. Gabriel's current request
 assigns 8.1 to Codex, superseding the older proposed executor for this scope.
 Independent security review of each in a **separate
