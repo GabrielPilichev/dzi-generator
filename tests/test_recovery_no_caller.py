@@ -40,8 +40,8 @@ PRODUCTION = ROOT/"web/production.py"
 SERVICE_WRITERS = ("request", "resend", "redeem", "cancel", "dispatch", "settle_send")
 # The only modules that may name the service (scope 8.3), and what each may use of it: the
 # blueprint the public API, ``web.production`` the gate constant and nothing else.
-SERVICE_API = frozenset({"request", "resend", "redeem", "cancel", "pending_view", "dispatch", "settle_send",
-                         "binding_hash", "NotSendable", "Outcome", "Settlement"})
+SERVICE_API = frozenset({"request", "resend", "redeem", "cancel", "pending_view", "was_redeemed", "dispatch",
+                         "settle_send", "binding_hash", "NotSendable", "Outcome", "Settlement"})
 SERVICE_USERS = {BLUEPRINT: SERVICE_API, PRODUCTION: frozenset({"PRODUCTION_ACTIVATION"})}
 # Any way of naming the service module (not recovery_scrub) in source code.
 SERVICE_REFERENCE = re.compile(

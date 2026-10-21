@@ -587,13 +587,17 @@ cross-origin POST is still 403) and no page links to it.
 
 Specification: `docs/reviews/PASSWORD_RECOVERY_DESIGN.md` (sections 2.2 to 2.8, 3.5, 3.6, 7.1, 7.5
 and 8.1); implementation and its contract: `docs/reviews/PASSWORD_RECOVERY_8_3_STATUS.md`
-(scope 8.3, not yet independently reviewed). **It is not activated.** It is enabled only with usable
+(scope 8.3; the review of `dd39615` requested changes, and the correction has had no independent follow-up). **It is not activated.** It is enabled only with usable
 mail settings, and a production start of this build keeps it disabled whatever is configured: the
 build gate `recovery.PRODUCTION_ACTIVATION` (`web/services/recovery.py`) is `False`, no setting or
 environment variable overrides it, and it is independent of the registration, teacher and profile
 gates (`docs/DEPLOYMENT.md`, section 38). Disabled, every route below answers the generic 404 page
 after the same-origin check, for every visitor (a cross-origin POST is still 403), and `/login` has no
-link and no notice.
+link and no notice. **Known unresolved discrepancy**: with the gate off `OPTIONS` answers 200 with an
+`Allow` header and a wrong method on a route (`PUT`, `PATCH`, `DELETE`, or `GET`/`HEAD` on the POST-only
+`/recover/resend` and `/recover/cancel`) answers 405, so these addresses can still be told apart from an
+unknown path (404); registration behaves the same way. No decision has been recorded and neither
+blueprint's method policy was changed (`PASSWORD_RECOVERY_8_3_STATUS.md`).
 
 | Route | Endpoint | Methods | Access | Integrity |
 | --- | --- | --- | --- | --- |
@@ -648,12 +652,17 @@ link and no notice.
   slot is read, and `safe_redirect_target` at `/login`; success goes to `/login`, never to `next` directly, and
   a refused value is dropped and never echoed. The unavailable (503), failure (500), ended and invalidated pages
   link back to `/recover` and `/login` with the same validated target.
-- **A repeated or late redemption.** The row is read first (design 2.4, step 2): a row that is final, absent or
-  past its time by the read is the same „Заявката за нова парола е изтекла…“ page for every state, with the slot
-  dropped on a POST and nothing written. The service's `NOT_PENDING (redeemed)` redirect to `/login` is therefore
-  reached only when the row becomes final between that read and the transaction (two tabs posting together).
-  After a commit whose outcome was not established, a retry with the same code shows the ended page, not the
-  redirect (reported as a design ambiguity in the 8.3 status document).
+- **A repeated or late redemption.** The row is read first (`pending_view`, design 2.4). When it finds nothing
+  usable, the route asks one more read-only question of the same browser-bound row
+  (`recovery.was_redeemed(conn, binding)`; a malformed or absent binding answers false). If this browser's
+  own row is `redeemed` (a double click, a lost response, or a retry after a commit whose outcome was not
+  established), the slot is dropped and the answer is `303` to `/login?next=<validated next>`, **without**
+  `recovery=done` (it is a repeat, not a new success), with nothing written, sent, hashed or signed in, and
+  before the password, confirmation or code are judged. Any other state (expired, cancelled or invalidated
+  (`void`), absent, a pending row past its time) and every missing, malformed or foreign slot stays the
+  „Заявката за нова парола е изтекла…“ page with the slot dropped on a POST. The service's own
+  `NOT_PENDING (redeemed)` redirect is the same answer for a row that becomes final between the read and
+  the transaction (two tabs posting together).
 
 ## Account profile
 

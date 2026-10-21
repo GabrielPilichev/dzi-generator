@@ -17,8 +17,9 @@ rule was committed as `421993b` and independently reviewed at exactly that SHA
 (APPROVE WITH NON-BLOCKING NOTES). Scope 8.2 is merged as PR #344 at `4f88f7c`
 (its tree equals the branch head `dd61938`, whose documentation corrections after
 `421993b` are outside both reviews). Scope 8.3 is now authorized by Gabriel and
-implemented, **uncommitted, for independent review**
-(`PASSWORD_RECOVERY_8_3_STATUS.md`); it has not been reviewed. Deployment and
+implemented and committed as `dd39615` (PR #346); an independent review of exactly that SHA returned
+**REQUEST CHANGES** (a repeated redemption, `PASSWORD_RECOVERY_8_3_STATUS.md`). A cleanup that answers it
+is **uncommitted** and awaits an independent follow-up. Deployment and
 activation remain unauthorized.** Scope 8.1 was independently reviewed at `ba4b9cd` (APPROVE WITH
 NON-BLOCKING NOTES); the same-file hardening that followed that review passed
 focused tests and was merged without a repeated whole-suite audit.
@@ -195,7 +196,7 @@ configuration of D17 and every activation prerequisite.
 | `docs/DEPLOYMENT.md` | Recovery operations; the restore credential runbook (RD18), including the preparation of the offline inputs, the repair categories, the validation, and the **required** maintenance isolation with its postponement rule and no exposed-window option (test RR15) | 8.1 |
 | `web/services/registration.py` | public `control_blocked`, `raise_mark`, `writer_now` | 8.2 |
 | `web/services/accounts.py` | `recovery_candidate(...)` (read under the caller's lock); `set_password` unchanged | 8.2 |
-| `web/services/recovery.py` (new) | request, resend, redeem, cancel, `pending_view`, dispatch, settle; no caller | 8.2 |
+| `web/services/recovery.py` (new) | request, resend, redeem, cancel, `pending_view`, dispatch, settle; no caller at 8.2. `was_redeemed` (read-only) was added after the 8.3 review | 8.2 |
 | `web/blueprints/recovery.py` (new), templates | Routes of design 2.6; the only production caller of the service | 8.3 (implemented) |
 | `web/blueprints/account.py`, `login.html` | „Забравена парола?“ link and the `recovery=done` notice, while enabled (`account.py` itself is unchanged: the template reads the blueprint's context) | 8.3 (implemented) |
 | `web/app.py`, `web/production.py`, `web/recovery_settings.py` (new) | Settings under their own key; production behind the gate | 8.3 (implemented) |
@@ -273,8 +274,8 @@ committed as `19815bb`. The independent review of exactly that SHA (APPROVE WITH
 NON-BLOCKING NOTES) is not an approval of a decision, and the reviewer's
 classification of the 13 deviations as needing no substantive product approval is
 not an approval by Gabriel. Scope 8.3 was authorized by Gabriel after the merge of PR #344 and implemented by Claude
-Sonnet 5.5 (`PASSWORD_RECOVERY_8_3_STATUS.md`); the implementation is uncommitted and has no
-independent review yet. Later changes (the merge of PR #345's test-fixture
+Sonnet 5.5 (`PASSWORD_RECOVERY_8_3_STATUS.md`); the implementation was committed as `dd39615`, whose
+independent review requested changes; the uncommitted cleanup has no independent follow-up yet. Later changes (the merge of PR #345's test-fixture
 fix, the stricter audit caller rule and the provenance edits) are outside that
 review; the audit caller rule and its provenance edits, committed as `421993b`,
 were independently reviewed at exactly that SHA (APPROVE WITH NON-BLOCKING NOTES),

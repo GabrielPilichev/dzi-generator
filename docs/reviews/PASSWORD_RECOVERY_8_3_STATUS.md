@@ -2,18 +2,33 @@
 
 Gabriel authorized **scope 8.3 only** (the routes, templates, session slot, gate, settings,
 Nginx locations, the audit adaptation and the contract documents). This is an implementation
-report by its implementer (Claude Sonnet 5.5, High); it is **not an approval** and nothing in it
-has been independently reviewed. Deployment, activation and every provider or host operation
-remain unauthorized. **Every production gate remains OFF.** The implementation is **uncommitted and
-unstaged**, left for Gabriel.
+report by its implementer (Claude Sonnet 5.5, High); it is **not an approval**. Deployment,
+activation and every provider or host operation remain unauthorized. **Every production gate
+remains OFF.**
+
+**Status, in order of authority:**
+
+1. The implementation was committed as `dd39615019ae6726717b8479eb08848543732c21` ("Add password
+   recovery routes behind disabled gate", parent `1eac2ac`), PR #346. An independent review (Claude
+   Opus) of exactly that SHA returned **REQUEST CHANGES**: one blocking finding (F1, a repeated
+   redemption), four lower findings and one separate, pre-existing registration finding. See
+   "Independent review of `dd39615`".
+2. A cleanup that corrects F1 and the documents is in the working tree **on top of `dd39615`. It is
+   uncommitted and unstaged, and awaits an independent follow-up review.** Nothing in it has been
+   reviewed. See "Cleanup after the review (uncommitted)".
+3. The evidence sections below that describe the original implementation (mutation campaign, full
+   run, adjacent runs) are the **author's** evidence about the tree before `dd39615` and were not
+   repeated for the cleanup.
 
 ## Provenance and boundaries
 
 - Worktree: `/Users/gabrielpilichev/dzi-generator-recovery-flow`. Branch:
   `feature/password-recovery-flow`.
-- Starting point: HEAD `1eac2acb40b6319ada9dc73e783b5bed5eb36ee4` ("Start gated password recovery
-  flow", an empty preparation commit) on `4f88f7c`, with a clean status. Nothing was staged,
-  committed, pushed, merged or posted.
+- Starting point of the original implementation: HEAD `1eac2acb40b6319ada9dc73e783b5bed5eb36ee4`
+  ("Start gated password recovery flow", an empty preparation commit) on `4f88f7c`, with a clean
+  status. The implementation was left uncommitted by its author and was **later committed as
+  `dd39615`** (the SHA that was reviewed). The cleanup of this task starts from `dd39615` with a clean
+  status; nothing was staged, committed, pushed, merged or posted by it.
 - **Reviewed SHAs are kept apart from later changes.** Scope 8.1 merged as `09fdb68` (PR #343); its
   review covered `ba4b9cd` only. Scope 8.2 merged as PR #344, squash commit `4f88f7c`; the independent
   reviews covered `19815bb` (the service) and `421993b` (the stricter audit caller rule), each exactly. The
@@ -144,7 +159,8 @@ New files (all temporary databases, `InMemoryMailer`, injected clock):
 
 | Cases | Where |
 | --- | --- |
-| RB3, RB4, RB5 (route level), RV5, RT1/RT2 (route level) | `test_recovery_routes` (`RedeemTest`, `NextPreservationTest`, `SlotShapeTest`) |
+| RB3, RB4, RB5 (route level), RT1/RT2 (route level) | `test_recovery_routes` (`RedeemTest`, `NextPreservationTest`, `SlotShapeTest`) |
+| RV5 (route level) | `test_recovery_routes.RepeatedRedemptionTest` (all seven tests) and `RedeemTest.test_a_repeat_after_a_success_whose_response_was_lost_goes_to_login_and_writes_nothing`; the cookie-copy test in `SlotShapeTest`. **Corrected in the cleanup**: at `dd39615` this row named `RedeemTest`, whose repeat test asserted the opposite of RV5 (the ended page, 200). |
 | RW1 | `test_recovery_routes.MethodAndIntegrityTest`; the sweeps of `test_access_policy`, `test_session_cookie_samesite`, `test_dzi_blueprint`, `test_account_principal_bridge`, `test_account_login` (each lists the four endpoints) |
 | RW2, RW7, accessibility | `test_recovery_routes` (`HeadersTest`, `VerifyPageTest`, `AccessibilityTest`) |
 | RW3, RP4 | `test_recovery_routes` (`DisabledTest`, `GateTurnedOffTest`) |
@@ -158,7 +174,7 @@ New files (all temporary databases, `InMemoryMailer`, injected clock):
 | RE1 to RE8, RE11 (a), RK1, RK2, "correct code first" | `test_recovery_enumeration.CorrectCodeFirstTest` |
 | RLog1, RLog2, RLog4 | `test_recovery_enumeration.LoggingTest` |
 | RV4, RT4 (the throttle, through `/login`) | `test_recovery_enumeration.PollingTest` |
-| RF1 to RF4, validation order, caller obligations 1 to 5 | `test_recovery_transactions` (`ValidationOrderTest`, `FailureTest`, `DispatchTest`) |
+| RF1 to RF4, validation order, caller obligations 1 to 5 | `test_recovery_transactions` (`ValidationOrderTest`, `FailureTest`, `DispatchTest`). RF2 (ii) (a commit that took effect and then raised, then a retry to `/login` writing nothing) is `FailureTest.test_a_commit_that_took_effect_and_then_raised_is_told_as_unknown_and_its_retry_goes_to_login`, **corrected in the cleanup**; at `dd39615` it asserted the ended page. |
 | RX at the routes, repeated and concurrent POSTs | `test_recovery_transactions.ConcurrencyTest` |
 | RH1 to RH3, RCl1, RL1 to RL4, RL7 (released hold, key rotation, clearing; accumulating), RL9 | `test_recovery_limits` |
 | RP1 to RP3, RP5, RP6 and the development start | `test_recovery_production` |
@@ -179,16 +195,15 @@ list of registered blueprints and its count), `test_recovery_no_caller` (RZ2 rep
 
 Points where a choice was made or the documents do not fully agree. None is presented as approved.
 
-1. **A retry after an unknown commit shows the ended page, not the redirect (design ambiguity).** Design 2.4 says the
-   failure text for an unknown outcome is safe to retry because the retry is `NOT_PENDING (redeemed)` and redirects to `/login`
-   (also test plan RF2 (ii)); but the same section's pre-check (step 2) says a row that is final, absent or past its time is
-   "the same 'no usable recovery' page", and the brief fixes the order slot → `pending_view` → password rules → confirmation →
-   service. `pending_view` returns `None` for a `redeemed` row, so a retry after a commit that took effect reaches the ended page
-   („Заявката за нова парола е изтекла…“) and the service's `NOT_PENDING (redeemed)` redirect is reached only when the row
-   becomes final between the pre-check and the transaction (two tabs; tested). Nothing is written, no success is claimed and
-   the password stays the new one; the failure text itself tells the person to try to sign in. **A choice is needed** if the
-   redirect is wanted: let a final row through to `redeem` (the service answers without writing), or add a read of the final
-   state. I implemented the literal order and pinned the observed behaviour (`FailureTest`, `test_a_repeat_after_a_success…`).
+1. **A retry after an unknown commit (and any repeat of a redemption) showed the ended page, not the
+   redirect. Reported by the author as a design ambiguity; the review found it a defect (F1); corrected in
+   the cleanup below, uncommitted.** Design 2.4's step 2 reads "None, final, or past its time by the read →
+   the same 'no usable recovery' page", while its failure paragraph, its outcome table (`NOT_PENDING` with
+   `redeemed` → `303` to `/login?next=<next>`), test-plan RV5 and RF2 (ii) and the 8.2 caller obligation 3
+   all expect the redirect. The author followed step 2 literally and pinned the opposite; that was a wrong
+   reading. The design is **not amended**: the correction follows the explicit outcome table, failure paragraph
+   and test plan, and step 2's wording is left as written (it is the sentence the author misread; whether to
+   reword it is Gabriel's call).
 2. **`HEAD` is a read here, and not in registration (observation, not changed).** The handlers branch on `POST`, so a `HEAD`
    carrying a body submits nothing. `registration`'s routes branch on `GET`: a `HEAD` with a form body **does** submit a
    registration and send a message (reproduced in a scratch probe: one pending row, one message). Browsers cannot send that
@@ -224,7 +239,7 @@ Points where a choice was made or the documents do not fully agree. None is pres
 12. **Test layout.** The plan proposed `test_recovery_routes`, `_enumeration` and `_production`; I added `_transactions` and
     `_limits` (the fault, dispatch and concurrency cases, and the budget/hold/clock cases) and `recovery_route_support`.
 
-## Execution evidence
+## Execution evidence (the author's, on the tree before `dd39615`; not repeated for the cleanup)
 
 Python 3.12.15, SQLite 3.53.4, a fresh scratch venv from `requirements-dev.txt` (PyPI): Flask 3.1.3, Werkzeug 3.1.9, Gunicorn
 23.0.0, PyOTP 2.10.0, cryptography 50.0.2, segno 1.6.6, Authlib 1.9.1, **joserfc 1.7.7**, requests 2.34.2, urllib3 2.8.0,
@@ -260,6 +275,201 @@ python-docx 1.2.0, lxml 6.1.3; `pip check`: no broken requirements. No dependenc
 - Limits: one machine, threads and temporary databases; no browser, Linux, provider, Gunicorn-worker or real-Nginx evidence; documentation
   edits after the final run (this section only) were not followed by a rerun.
 
+## Independent review of `dd39615` (REQUEST CHANGES)
+
+Independent technical review by Claude Opus of exactly `dd39615019ae6726717b8479eb08848543732c21`
+(the branch head; `4f88f7c` and `1eac2ac` are ancestors, and only `1eac2ac` and `dd39615` sit on top of
+`main`). Verdict: **REQUEST CHANGES**, for one reason: approved cases RV5 and RF2 (ii) were not met and the
+PR's own tests and contract text described the opposite behaviour as correct. It approves neither
+deployment nor activation. The report is the reviewer's final message of its session; it is not stored in
+the repository, and this section is a summary of it, not a quotation. The findings, with what this cleanup
+did about each:
+
+| Finding | Severity | Reviewer's statement | Handled in the cleanup |
+| --- | --- | --- | --- |
+| F1 | Medium, **blocking** | A repeated redemption after a reset that worked showed the "expired" page (200) instead of redirecting to `/login`. `pending_view` returns `None` for a `redeemed` row; the redirect branch was reached only in a race. Pinned by `test_recovery_transactions` (RF2 (ii)), `test_recovery_routes` (the repeat test and the cookie-copy test) and written as contract text; the status table named a test asserting the opposite for RV5. | Corrected (below). Not independently re-reviewed. |
+| F2 | Low | With the gate off, `OPTIONS` answers 200 with `Allow`, `PUT`/`PATCH`/`DELETE` and `GET`/`HEAD` on the POST-only routes answer 405, an unknown path under `/recover/` answers 404; also in a real production start. Registration behaves the same. Design 2.6 and the contract say the generic 404. Deviation 3 covered the 405s, not the `OPTIONS` 200. | **Not changed. Unresolved** (below). |
+| F3 | Low | Stale provenance: "uncommitted" in this report and in `PASSWORD_RECOVERY_SCOPE.md`, but the work is `dd39615`. | Corrected in both. |
+| F4 | Low, routine (deviation 9) | A POST for an expired but still `pending` row shows the ended page and drops the slot but does not mark the row expired; the typed address and code hash stay until the next cleanup. Design 2.4 step 2 and 2.5 disagree slightly. | Not changed; recorded (below). |
+| F5 | Info | The verify page's sentence „Не получи код? … след минута.“ is another route-chosen text not listed in deviation 5; the verify form has `autocomplete="off"` with field-level hints, so whether browsers offer the one-time code and new-password suggestions needs a browser check. | Not changed; recorded (below). |
+| Registration `HEAD` | Medium, latent, **pre-existing, not this PR** | See "Prerequisite before registration or recovery activation". | Not changed here; recorded. |
+
+**What the reviewer verified without finding a defect** (its words, summarized): the transactions and
+delivery boundaries (the route's own `BEGIN IMMEDIATE` … `COMMIT`, certain rollback and uncertain outcome told
+apart, dispatch only after commit, identity-matched settlement, a stale issuance refused with
+`NotSendable`); credentials (no hash for wrong codes, exactly one for the correct one, the password stored
+exactly, no sign-in, `login_throttle` unchanged, the account's other browser signed out, a password change
+through `/account/password` before redemption making the code `INVALIDATED`); enumeration (eligible
+student and teacher, absent, admin, unverified and disabled identical in status, `Location`, page with the
+address masked, header names, cookie attributes, session shape and every log line; only the email subject
+differs, by design); the full method sweep, `next` round trips, cancel, expiry, hold, clock refusal and
+cross-browser polling; production wiring (a production start with SMTP and six override-looking variables
+kept the settings `None` and every route 404); the audit adaptation (four callers denied and counted, the
+recovery-test-driven blueprint allowed, the cached INSERT reuse visible with the cache and closed without
+it); the Nginx template by reading it only; and the templates' labels and escaping.
+
+**The reviewer's evidence, kept apart from the author's:** Python 3.12.15, SQLite 3.53.4, Flask 3.1.3,
+joserfc 1.7.7, a fresh scratch environment, temporary databases, the Flask test client and threads only.
+The 15 new or changed modules without the audit: 541 tests OK (55.8 s). 48 adjacent modules with the audit
+installed: 1516 tests OK (592.3 s), 4354 process reports, 11,897 connections, 9344 empty-storage checks,
+0 violations. Per-module counts matched the author's (72 / 27 / 32 / 8 / 31 / 16). Nine probe modules of
+its own, and a trial fix on a separate copy that passed its probe and needed only the three pinned tests
+and the RZ2 service-function list changed. **The reviewer did not reproduce** the author's 4724-test full
+run or the 26 killed mutants. Limits: no browser, Linux, Gunicorn, real Nginx, provider or SMTP-timing
+evidence; the request-timing comparison (about 1.4 ms in both cases, in-memory mailer) was indicative only.
+The author's claims in the sections above (full run, mutants) therefore rest on the author's own runs.
+
+## Cleanup after the review (uncommitted, awaiting independent follow-up)
+
+**Status: in the working tree on top of `dd39615`, unstaged and uncommitted. It has had no independent
+review. All production gates remain OFF.** Scope: F1 and the documents only.
+
+**Code**
+
+- `web/services/recovery.py`: one new read-only function, `was_redeemed(conn, binding) -> bool`, added to
+  `__all__`. It reads the one row of the keyed binding hash through the existing `_row` (a malformed,
+  non-text or non-hash binding is `False` without a query), never `users`, writes nothing and logs
+  nothing. It answers `True` only for state `redeemed`; `pending`, `expired`, `void` and an absent row are
+  all `False`, so no other state of an ended row is told. It does add one read to the reviewed 8.2 service.
+- `web/blueprints/recovery.py` (`_redeem`): the order is unchanged (gate, signed-in redirect, slot,
+  `pending_view`, password rules, confirmation, transaction). When `pending_view` returns `None`, the slot
+  is dropped as before, and then, if `was_redeemed(conn, binding)` (the binding is the one derived from the
+  validated slot, never a raw token or request target), the answer is `303` to
+  `/login?next=<validated next>` **without** `recovery=done`. It happens before the password, the
+  confirmation or the code are judged: no write, no mail, no hash, no session, no `login_throttle`
+  statement, no transaction. Every other `None` is the ended page as before. The race branch
+  (`NOT_PENDING` with `final_state == "redeemed"` from the service) and every transaction and dispatch
+  boundary are untouched.
+
+**Tests** (79 in `test_recovery_routes`, was 72; 32 in `test_recovery_transactions`, unchanged count)
+
+- Corrected (they asserted the opposite of RV5 and RF2 (ii)):
+  `RedeemTest.test_a_repeat_after_a_success_whose_response_was_lost_goes_to_login_and_writes_nothing`, the
+  last assertion of the cookie-copy test in `SlotShapeTest`, and
+  `FailureTest.test_a_commit_that_took_effect_and_then_raised_is_told_as_unknown_and_its_retry_goes_to_login`.
+  `FailureTest.test_a_commit_that_raised_without_effect…` now also asserts the retry's `Location`.
+  `ValidationOrderTest` records `was_redeemed`; a missing row's call sequence is now
+  `pending_view, was_redeemed`.
+- New `RepeatedRedemptionTest` (7): a double click using a **copy of the original browser's cookie** (the
+  copy redeems; the original's repeat is `303 /login?next=…`, no `recovery=done`, slot dropped, an unchanged
+  digest of the recovery tables, the ledger, the accounts and `login_throttle`, no new message, no
+  `generate_password_hash`, `redeem`, `dispatch` or `request` call, no session; the login page shows no
+  success notice and keeps `next`); a repeat carrying a wrong code, a weak password or a mismatched
+  confirmation is still the redirect and judges none of them; the extra read happens only after
+  `pending_view` found nothing (a usable row and a correct redemption never reach it); a browser with no
+  slot or a well-formed slot of no row gets the ended page; **expired, cancelled, invalidated and missing
+  rows keep the ended page** with the slot dropped and nothing written; a malformed, extended, other-version,
+  truncated or `next`-tampered slot never acquires the redirect; and `was_redeemed` itself (true only for
+  `redeemed`, false for `pending`/`void`/`expired` and for seven malformed bindings, `total_changes`
+  unchanged).
+- A redeemed row is deleted 24 hours after creation (design 6.1): from then on the same repeat is the ended
+  page. The redirect is therefore a short-term courtesy to a double click or lost response, not a permanent
+  record of the reset.
+- Commit semantics: a commit that **took effect and then raised** gives the uncertain text (500, slot kept,
+  password really changed), and the retry is `303 /login?next=…` with the digest, the message count and the
+  hash and `redeem` spies unchanged; a commit that **failed without effect** gives the uncertain text with
+  the database unchanged, and the retry completes the reset (`303 /login?recovery=done`, the new password
+  works).
+- `test_recovery_no_caller`: the narrow allow-list of service functions the blueprint may name gained
+  `was_redeemed` and nothing else.
+
+**Regression evidence.** The new and corrected tests were run (51 tests: `RepeatedRedemptionTest`,
+`RedeemTest`, all of `test_recovery_transactions`) against a scratch copy with the previous
+`web/blueprints/recovery.py` and `web/services/recovery.py` from `dd39615`. Unmodified, 28 error out
+because the recorder patches the missing `was_redeemed`; that is noise. With a stub
+`was_redeemed(...) -> False` appended to the old service (so only behaviour differs), **10 fail (4
+failures, 6 errors)**: the double-click test, the three "judges nothing" subtests, the corrected `RedeemTest`
+repeat test, the corrected RF2 (ii) test, the read-order test, the browser-without-slot read count, the
+`was_redeemed` unit test and the missing-row call sequence. The negative tests (other ended states,
+malformed slots) pass on the old code, as intended: they pin that the redirect did not widen. A mutant
+that makes `was_redeemed` true for every final state fails three tests (the cancelled and invalidated
+subtests and the unit test). One mutant, one machine; the author's earlier 26-mutant campaign was not
+repeated.
+
+**Documents.** `docs/AUTH_ROUTE_CONTRACT.md`: the repeat-redemption paragraph, which said the ended page was
+correct, is replaced by the behaviour above, and a sentence records the unresolved gate-off discrepancy and
+the review status. `PASSWORD_RECOVERY_SCOPE.md`: the "uncommitted" provenance, and the service row. This
+report: the status block, provenance, deviation 1 (now a corrected defect), the RV5 and RF2 mapping,
+this section and the next. **The design and the test plan are not edited.**
+
+**Verification of the cleanup** (Python 3.12.15, SQLite 3.53.4, Flask 3.1.3, Werkzeug 3.1.9, segno 1.6.6,
+joserfc 1.7.7 from `requirements-dev.txt` in a fresh scratch venv, `pip check` clean; temporary databases,
+`InMemoryMailer`, no socket; `python -B`, `PYTHONDONTWRITEBYTECODE`, a pycache prefix outside the worktree):
+
+- All 17 `test_recovery_*` modules, no audit, run in the worktree: **373 tests, all OK** (concurrency 9,
+  eligibility 18, enumeration 27, ledger 28, limits 8, migration_sql 4, no_caller 16, operations 9,
+  polling 12, production 31, redeem 28, restore_credentials 18, routes 79, scrub 4, service 40,
+  service_operations 10, transactions 32).
+- Those 17 plus 11 adjacent modules (`test_access_policy`, `test_auth_blueprint`,
+  `test_session_cookie_samesite`, `test_account_login`, `test_account_principal_bridge`, `test_dzi_blueprint`,
+  `test_production_deployment`, `test_registration_production`, `test_google_oidc_production`,
+  `test_registration_routes`, `test_auth_guard`) with the opt-in audit installed in a scratch copy of the
+  working tree: **834 tests OK**, 82.2 s. Audit: 71 process reports, 4667 connections, 2395 empty-storage
+  checks, 2168 fixture-storage, 103 absent-storage and 2 unreadable observations, **0 violations**
+  (counters, not distinct databases). The adjacent modules were chosen because they enumerate routes,
+  blueprints, gate constants and the login page; this change adds none of those, so this is a
+  consistency check, not a claim about every module. A first attempt failed one `test_recovery_no_caller`
+  test only because the scratch copy lacked a `.git` for its `git show`; it passed in the worktree and in
+  the rerun.
+- The full suite and the mutation campaign were **not** repeated (no concrete failure warranted it).
+- Compilation of the five changed Python files and `git diff --check`: clean. (A `py_compile` call run
+  inside the worktree wrote four ignored `__pycache__` directories; they were deleted, and
+  `git status --ignored` shows nothing but the modified files.)
+- Limits: Flask test client, threads and temporary databases; no browser, Linux, Gunicorn, real Nginx,
+  provider or SMTP evidence. The audit is test instrumentation, not proof that production cannot reach the
+  code.
+
+## Open discrepancies and decisions (none resolved by this cleanup)
+
+1. **Gate-off method behaviour (review F2) — unresolved.** With the gate off, `OPTIONS` answers **200**
+   (with `Allow`) and a wrong method on a route answers **405** (`PUT`, `PATCH`, `DELETE`, and `GET`/`HEAD`
+   on `/recover/resend` and `/recover/cancel`), while an unknown path answers 404; design 2.6 and the contract
+   say every `/recover…` address is the generic 404. Deviation 3 above documents only the 405s. Registration
+   behaves the same. **No decision by Gabriel is recorded and none is claimed.** Neither blueprint's method
+   policy was changed. The choice the reviewer named: accept it as the registration precedent and document it,
+   or change both blueprints in a separate PR.
+2. **Lazy expiry (review F4, deviation 9).** A POST for a row that is still `pending` but past its time shows
+   the ended page and drops the slot but does not mark the row expired (a GET and `pending_view` write nothing,
+   by design); the row's typed address and code hash remain until the next cleanup expires and scrubs it
+   (about 45 minutes after the request; design 6.1, logical retention). Design 2.4 step 2 and 2.5 read
+   slightly differently on whether a POST should close it. Not changed; no product approval is claimed.
+3. **Additional proposed wording (review F5).** The verify page's „Не получи код? Провери папката за нежелана
+   поща. Можеш да поискаш нов код след минута.“ is a text chosen by the route and copied from the registration
+   page; it was missing from deviation 5's list and its wording is open under RD15 like the others. The verify
+   form carries `autocomplete="off"` with field-level `one-time-code` / `new-password` hints (as registration
+   does); whether browsers and password managers still offer a one-time code and a new password needs a
+   browser check that was not done.
+4. **Design 2.4 step 2's wording** ("None, final, or past its time … the same page") is still in the design and
+   still reads against its own outcome table; it is the sentence deviation 1 misread. Left for Gabriel.
+
+## Prerequisite before registration or recovery activation: registration `HEAD` with a body
+
+Found by the review of `dd39615`; **pre-existing, in registration, not in this PR, and not changed by this
+cleanup** (neither registration nor Nginx was touched). Registration is gated off in production, so it
+cannot happen there today. It must be fixed (a separate, narrow PR) **before registration or recovery is
+activated**.
+
+- **Cause.** The registration handlers branch on `request.method == "GET"` (`web/blueprints/registration.py`
+  lines 349, 422 and 439), so a `HEAD` is treated as a submission when it carries a form body. `HEAD` is not
+  in `UNSAFE_METHODS` (`web/request_integrity.py:18`: POST, PUT, PATCH, DELETE), so it skips the same-origin
+  check; and the Nginx rate-limit map counts only `POST` (`deploy/nginx/learnpilot.conf`, the
+  `$learnpilot_post_client` map at the top), so a `HEAD` is outside the `lp_*` limits.
+- **Reproduction (reviewer's, temporary database, in-memory sender, Flask test client).** A cross-origin
+  `HEAD /register/student` with a form body gave `303`, one pending row, one ledger row, one message, one
+  scrypt hash and a `Set-Cookie`; the same body as a `POST` gave `403`. `HEAD /register/verify` counted a
+  code attempt, and with the correct code activated an account.
+- **Not verified.** Whether a real Nginx and Gunicorn forward a `HEAD` request body to the application at
+  all. The author's earlier scratch probe (deviation 2 above) reproduced one pending row and one message
+  the same way.
+- **Impact.** Not CSRF (a browser cannot send this cross-site). It lets a script bypass the POST-only Nginx
+  limits on registration and code checks: unthrottled scrypt work and mail, up to the application's own
+  caps. The hourly mail budget and the circuit are shared with recovery (RD5/RD6), so once both are active
+  this could deny recovery.
+- **Recovery is not affected.** Its handlers branch on `POST`; a `HEAD` with a body changed nothing on
+  `/recover` or `/recover/verify` (the reviewer's probe, and `MethodAndIntegrityTest`).
+- **Suggested shape of the separate PR** (the reviewer's, not done): `request.method != "POST"` in the three
+  registration handlers, as recovery already does, plus tests; optionally `HEAD` in the Nginx map.
+
 ## Remaining gaps and activation evidence (none produced)
 
 - **No `nginx` binary** was available, so `deploy/nginx/learnpilot.conf` was not run through `nginx -t`; the Nginx evidence is
@@ -276,9 +486,26 @@ python-docx 1.2.0, lxml 6.1.3; `pip check`: no broken requirements. No dependenc
 - RD15 (the exact Bulgarian wording), D16 (privacy, extended to recovery and the neutral notices), the configuration of D17 and an
   independent security review of this scope are open. `AGENTS.md`'s route list was not edited.
 - The audit's limits (above). The static scans do not match schema-qualified writes.
-- The independent review of this scope, and Gabriel's decisions on points 1 to 4 above, are outstanding. This report approves nothing.
+- The review of `dd39615` requested changes (above); the cleanup that answers its blocking finding has had **no independent
+  follow-up**. Gabriel's decisions on points 2 to 4 above and on the open discrepancies above are outstanding. This report
+  approves nothing.
 
 ## Changed-file inventory
+
+**At `dd39615`** (the reviewed commit): 37 files, 5230 insertions(+), 133 deletions(-) (the 25 tracked-modified
+and 12 new files of the original inventory below; the 747/133 figure in that inventory counts the tracked files
+only). Not touched: migrations, canonical JSONL,
+`deploy/learnpilot-restore.sh`, `src/`, `AGENTS.md`, `data/`, `vault/`.
+
+**The uncommitted cleanup on top of `dd39615`** (8 modified files, no new file; see the final `git diff --stat` in
+the task report): `web/services/recovery.py`,
+`web/blueprints/recovery.py`, `tests/test_recovery_no_caller.py`, `tests/test_recovery_routes.py`,
+`tests/test_recovery_transactions.py`, `docs/AUTH_ROUTE_CONTRACT.md`,
+`docs/reviews/PASSWORD_RECOVERY_SCOPE.md`, `docs/reviews/PASSWORD_RECOVERY_8_3_STATUS.md`. Not touched:
+registration, Nginx, either blueprint's method policy, the design, the test plan, migrations, `src/`,
+`deploy/`, `data/`, `vault/`.
+
+### Original inventory (at `dd39615`)
 
 Tracked, modified (25):
 

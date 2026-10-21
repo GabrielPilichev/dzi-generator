@@ -114,7 +114,7 @@ _CODE_LEAD = "Кодът ти за нова парола е: "
 __all__ = [
     "PRODUCTION_ACTIVATION", "Availability", "Settlement", "TransactionRequired", "NotSendable", "Outcome", "Result",
     "PendingView", "binding_hash", "session_key_digest", "request", "resend", "redeem", "cancel",
-    "pending_view", "dispatch", "settle_send",
+    "pending_view", "was_redeemed", "dispatch", "settle_send",
 ]
 
 _ROW_COLUMNS = (
@@ -638,6 +638,19 @@ def pending_view(conn: sqlite3.Connection, binding, now: datetime) -> PendingVie
     if not _clock_behind(conn, now) and _is_expired(row, now):
         return None
     return PendingView(recovery_id=row["id"], email=row["email"])
+
+
+def was_redeemed(conn: sqlite3.Connection, binding) -> bool:
+    """Whether the row of this browser's binding is ``redeemed``: the one final state a verify
+    POST answers with a redirect to ``/login`` instead of the ended page (design 2.4: a repeat of
+    a reset that succeeded, a double click or a lost response).
+
+    **Reads only**, one row by the keyed binding hash and never ``users``. A malformed binding,
+    no row, ``pending``, ``expired`` and ``void`` are all ``False``: nothing else about an ended
+    row is told. Nothing is logged and nothing is written.
+    """
+    row = _row(conn, binding)
+    return row is not None and row["state"] == "redeemed"
 
 
 # ------------------------------------------------------------------------- delivery

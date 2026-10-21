@@ -36,6 +36,7 @@ class Recorder:
         self.calls = []
         for module, name, label in ((recovery_service, "pending_view", "pending_view"),
                                     (accounts, "password_problem", "password_problem"),
+                                    (recovery_service, "was_redeemed", "was_redeemed"),
                                     (recovery_service, "redeem", "redeem"),
                                     (recovery_service, "request", "request"),
                                     (recovery_service, "resend", "resend"),
@@ -132,7 +133,7 @@ class ValidationOrderTest(RecoveryRouteTestCase):
         self.execute("DELETE FROM password_recoveries")
         self.recorder.clear()
         self.assertIn(NO_RECOVERY, self.body(self.redeem(WRONG, "short")))
-        self.assertEqual(self.recorder.names(), ["pending_view"])
+        self.assertEqual(self.recorder.names(), ["pending_view", "was_redeemed"])
 
     def test_the_password_is_judged_against_the_address_of_the_row_before_the_confirmation_and_the_service(self):
         self.verified()
@@ -223,13 +224,18 @@ class FailureTest(RecoveryRouteTestCase):
         self.assertEqual(self.digest(), before)
         self.assertIsNotNone(self.slot())
         self.lift_fault()
-        self.assertEqual(self.redeem(code).status_code, 303)          # a retry redeems
+        retry = self.redeem(code)                                     # a retry redeems, as the first would have
+        self.assertEqual((retry.status_code, retry.headers["Location"]), (303, "/login?recovery=done"))
         self.assertTrue(self.authenticates(EMAIL, NEW_PASSWORD))
 
-    def test_a_commit_that_took_effect_and_then_raised_is_told_as_unknown_never_as_a_reset(self):
-        """RF2 (ii): the commit reached the database and reported an error. The page does not say the
-        password was not changed and does not claim it was; the retry writes nothing."""
-        account, code = self.reset()
+    def test_a_commit_that_took_effect_and_then_raised_is_told_as_unknown_and_its_retry_goes_to_login(self):
+        """RF2 (ii): the commit reached the database and reported an error. The first page does not say
+        the password was not changed and does not claim it was; the slot is kept. The retry finds its
+        own row redeemed: a ``303`` to ``/login`` (the validated ``next`` kept, no ``recovery=done``),
+        and it writes, sends, hashes and signs in nothing."""
+        account = self.verified()
+        self.recover(next="/account/attempts")
+        code = self.last_code()
         self.flaky(commits_then_raise=[1])
         response = self.redeem(code)
         self.assertEqual(response.status_code, 500)
@@ -240,12 +246,19 @@ class FailureTest(RecoveryRouteTestCase):
         self.assertTrue(self.authenticates(EMAIL, NEW_PASSWORD))         # it did take effect
         self.assertEqual(self.recoveries()[0]["state"], "redeemed")
         self.lift_fault()
-        before = self.digest()
+        before, sent = self.digest(), len(self.mailer.messages)
+        hashed = self.spy(accounts, "generate_password_hash")
+        redeems = self.spy(recovery_service, "redeem")
         retry = self.redeem(code)
-        self.assertEqual(retry.status_code, 200)
-        self.assertIn(NO_RECOVERY, self.body(retry))      # design ambiguity, reported: see the status document
+        self.assertEqual((retry.status_code, retry.headers["Location"]), (303, "/login?next=/account/attempts"))
+        self.assertNotIn("recovery", retry.headers["Location"])
+        self.assertNotIn(NO_RECOVERY, self.body(retry))
         self.assertEqual(self.digest(), before)
-        self.assertNeverASuccess(retry)
+        self.assertEqual(len(self.mailer.messages), sent)
+        self.assertEqual((hashed, redeems), ([], []))
+        self.assertIsNone(self.slot())
+        self.assertNoAccountSession()
+        self.assertTrue(self.authenticates(EMAIL, NEW_PASSWORD))
         self.assertEqual(self.account(account["id"])["email"], EMAIL)
 
     def test_a_rollback_that_raised_is_told_as_unknown_too(self):

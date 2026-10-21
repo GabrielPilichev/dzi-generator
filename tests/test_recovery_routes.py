@@ -9,7 +9,9 @@ Bulgarian texts) is open, and these tests change with it.
 """
 
 import re
+import sqlite3
 import unittest
+from contextlib import closing
 from datetime import timedelta
 from unittest.mock import patch
 
@@ -29,6 +31,7 @@ from web.services import accounts, recovery as recovery_service
 
 
 WRONG = "00000000"
+WRONG_CODE_MESSAGE = "Грешен или изтекъл код."
 NO_RECOVERY = "Заявката за нова парола е изтекла или е започната от друг браузър. Започни отново."
 
 
@@ -639,22 +642,17 @@ class RedeemTest(RecoveryRouteTestCase):
         self.assertTrue(self.authenticates(EMAIL, OLD_PASSWORD))
         self.assertEqual(self.session(other), {})
 
-    def test_a_repeat_after_a_success_whose_response_was_lost_writes_nothing(self):
-        """RV5 at the routes: the row is redeemed and the browser still holds its slot. Design 2.4 reads
-        the row first, and a final row is the 'no usable recovery' page there (step 2), so the
-        ``NOT_PENDING (redeemed)`` redirect of the service is not reached by this order; nothing is
-        written, nothing claims a second reset, and the password stays the new one (the design
-        ambiguity is reported in PASSWORD_RECOVERY_8_3_STATUS.md)."""
+    def test_a_repeat_after_a_success_whose_response_was_lost_goes_to_login_and_writes_nothing(self):
+        """RV5 at the routes: the row is redeemed and the browser still holds its slot; the repeat is a
+        ``303`` to ``/login`` (not the notice of a new success), with the slot dropped and nothing written."""
         _, code = self.reset()
         slot = self.slot()
         first = self.redeem(code)
-        self.assertEqual(first.status_code, 303)
+        self.assertEqual((first.status_code, first.headers["Location"]), (303, "/login?recovery=done"))
         self.set_slot(slot)
         before = self.digest()
         repeat = self.redeem(code)
-        self.assertEqual(repeat.status_code, 200)
-        self.assertIn("Заявката за нова парола е изтекла или е започната от друг браузър. Започни отново.",
-                      self.body(repeat))
+        self.assertEqual((repeat.status_code, repeat.headers["Location"]), (303, "/login"))
         self.assertIsNone(self.slot())
         self.assertEqual(self.digest(), before)
         self.assertTrue(self.authenticates(EMAIL, NEW_PASSWORD))
@@ -672,6 +670,171 @@ class RedeemTest(RecoveryRouteTestCase):
             self.execute("UPDATE users SET password_hash = ? WHERE email = ?",
                          (accounts.hash_new_password(OLD_PASSWORD, EMAIL), EMAIL))
             self.advance(2)
+
+
+class RepeatedRedemptionTest(RecoveryRouteTestCase):
+    """RV5, RF2 (ii): a verify POST whose own bound row is already ``redeemed`` is a ``303`` to ``/login``
+    with the validated ``next`` and without ``recovery=done``. It writes nothing, sends nothing, hashes
+    nothing and issues no session. Every other ended or unusable binding keeps the ended page."""
+
+    NEXT = "/account/attempts"
+
+    def reset(self, **extra):
+        account = self.verified()
+        self.recover(**extra)
+        return account, self.last_code()
+
+    def watch(self):
+        """Spies on everything a repeat must not reach."""
+        return {"hash": self.spy(accounts, "generate_password_hash"),
+                "redeem": self.spy(recovery_service, "redeem"),
+                "dispatch": self.spy(recovery_service, "dispatch"),
+                "request": self.spy(recovery_service, "request")}
+
+    def assertNothingHappened(self, spies, before, sent):
+        self.assertEqual(self.digest(), before)         # the recovery rows, the ledger, the accounts, the throttle
+        self.assertEqual(len(self.mailer.messages), sent)
+        self.assertEqual(spies, {"hash": [], "redeem": [], "dispatch": [], "request": []})
+        self.assertNoAccountSession()
+        self.assertIsNone(self.slot())
+
+    def test_a_double_click_with_a_copy_of_the_cookie_redirects_to_login_and_keeps_next(self):
+        _, code = self.reset(next=self.NEXT)
+        copy = self.app.test_client()
+        self.set_slot(self.slot(), copy)
+        first = self.redeem(code, client=copy)
+        self.assertEqual(first.headers["Location"], f"/login?next={self.NEXT}&recovery=done")
+        before, sent = self.digest(), len(self.mailer.messages)
+        spies = self.watch()
+        repeat = self.redeem(code)                              # the original browser's duplicate submission
+        self.assertEqual((repeat.status_code, repeat.headers["Location"]), (303, f"/login?next={self.NEXT}"))
+        self.assertNotIn("recovery", repeat.headers["Location"])
+        self.assertNothingHappened(spies, before, sent)
+        self.assertEqual(self.session(), {})
+        self.assertTrue(self.authenticates(EMAIL, NEW_PASSWORD))
+        page = self.body(self.client.get(repeat.headers["Location"]))
+        self.assertNotIn("Паролата е сменена. Влез с новата парола.", page)
+        self.assertIn(f'name="next" value="{self.NEXT}"', page)
+
+    def test_the_repeat_judges_nothing_it_was_sent(self):
+        """The row is read first and nothing after it: a wrong code, a weak password and a mismatch are
+        not counted, hashed or shown on the way to the redirect."""
+        self.reset()
+        slot = self.slot()
+        self.assertEqual(self.redeem(self.last_code()).status_code, 303)
+        for label, args in (("wrong code", (WRONG,)), ("weak password", (self.last_code(), "short")),
+                            ("mismatch", (self.last_code(), NEW_PASSWORD, "something else"))):
+            self.set_slot(slot)
+            before, sent = self.digest(), len(self.mailer.messages)
+            spies = self.watch()
+            with self.subTest(label):
+                repeat = self.redeem(*args)
+                self.assertEqual((repeat.status_code, repeat.headers["Location"]), (303, "/login"))
+                self.assertNothingHappened(spies, before, sent)
+
+    def test_the_repeat_reads_only_after_pending_view_found_nothing(self):
+        """A usable row never reaches the extra read; a repeat reads the row once more and nothing else."""
+        self.reset()
+        slot = self.slot()
+        reads = self.spy(recovery_service, "was_redeemed")
+        self.assertIn(WRONG_CODE_MESSAGE, self.body(self.redeem(WRONG)))
+        self.assertEqual(reads, [])
+        self.assertEqual(self.redeem(self.last_code()).status_code, 303)
+        self.assertEqual(reads, [])
+        self.set_slot(slot)
+        self.assertEqual(self.redeem(self.last_code()).status_code, 303)
+        self.assertEqual(len(reads), 1)
+
+    def test_a_browser_without_the_slot_or_with_another_one_gets_the_ended_page(self):
+        """No row is read by code or address, so a copy of nothing cannot learn that a row was redeemed."""
+        _, code = self.reset()
+        self.assertEqual(self.redeem(code).status_code, 303)
+        reads = self.spy(recovery_service, "was_redeemed")
+        other = self.app.test_client()
+        stranger = self.app.test_client()
+        self.set_slot({"v": 1, "t": "Z" * 43, "next": ""}, stranger)
+        for client in (other, stranger):
+            response = self.redeem(code, client=client)
+            self.assertEqual(response.status_code, 200)
+            self.assertIn(NO_RECOVERY, self.body(response))
+        self.assertEqual(len(reads), 1)          # only the well-formed slot read a row, and it found none
+
+    def test_every_other_ended_state_keeps_the_ended_page(self):
+        self.verified()
+
+        def pending():
+            self.client = self.app.test_client()
+            self.advance(61)
+            self.recover()
+            return self.slot()
+
+        def expired():
+            slot = pending()
+            self.advance(3600)
+            return slot
+
+        def cancelled():
+            slot = pending()
+            self.assertEqual(self.cancel().status_code, 303)
+            return slot
+
+        def invalidated():
+            slot = pending()
+            self.execute("UPDATE users SET session_key = ? WHERE email = ?", ("k" * 43, EMAIL))
+            self.assertIn("Не успяхме да зададем нова парола.", self.body(self.redeem(self.last_code())))
+            return slot
+
+        def missing():
+            slot = pending()
+            self.execute("DELETE FROM password_recoveries")
+            return slot
+
+        for name, make in (("expired", expired), ("cancelled", cancelled), ("invalidated", invalidated),
+                           ("missing", missing)):
+            with self.subTest(name):
+                slot = make()
+                self.set_slot(slot)
+                before, sent = self.digest(), len(self.mailer.messages)
+                response = self.redeem(self.last_code())
+                self.assertEqual(response.status_code, 200)
+                self.assertIn(NO_RECOVERY, self.body(response))
+                self.assertNotIn("Location", response.headers)
+                self.assertIsNone(self.slot())
+                self.assertEqual(self.digest(), before)
+                self.assertEqual(len(self.mailer.messages), sent)
+
+    def test_a_malformed_or_tampered_slot_never_acquires_the_redirect(self):
+        _, code = self.reset(next=self.NEXT)
+        slot = self.slot()
+        self.assertEqual(self.redeem(code).status_code, 303)
+        for label, value in (("next the rule refuses", {**slot, "next": "//evil.example"}),
+                             ("extra key", {**slot, "x": 1}),
+                             ("short token", {**slot, "t": slot["t"][:-1]}),
+                             ("other version", {**slot, "v": 2}),
+                             ("not a mapping", "redeemed")):
+            self.set_slot(value)
+            with self.subTest(label):
+                response = self.redeem(code)
+                self.assertEqual(response.status_code, 200)
+                self.assertIn(NO_RECOVERY, self.body(response))
+
+    def test_was_redeemed_is_true_only_for_a_redeemed_row_and_changes_nothing(self):
+        _, code = self.reset()
+        binding = recovery_service.binding_hash(self.app.config["SECRET_KEY"], self.slot()["t"])
+        states = {}
+        with closing(sqlite3.connect(self.db_path)) as conn:
+            conn.row_factory = sqlite3.Row
+            changes = conn.total_changes
+            states["pending"] = recovery_service.was_redeemed(conn, binding)
+            for bad in (None, "", 5, b"x", "x" * 64, binding.upper(), [binding]):
+                self.assertIs(recovery_service.was_redeemed(conn, bad), False, bad)
+            self.assertEqual(conn.total_changes, changes)
+        self.assertEqual(self.redeem(code).status_code, 303)
+        for final in ("redeemed", "void", "expired"):
+            self.execute("UPDATE password_recoveries SET state = ?", (final,))
+            with closing(sqlite3.connect(self.db_path)) as conn:
+                states[final] = recovery_service.was_redeemed(conn, binding)
+        self.assertEqual(states, {"pending": False, "redeemed": True, "void": False, "expired": False})
 
 
 class ResendAndCancelTest(RecoveryRouteTestCase):
@@ -845,8 +1008,9 @@ class SlotShapeTest(RecoveryRouteTestCase):
         self.assertIn("Грешен или изтекъл код.", self.body(self.redeem(wrong, client=copy)))
         self.assertTrue(self.authenticates(EMAIL, OLD_PASSWORD))
         self.assertEqual(self.redeem(self.last_code(), client=copy).status_code, 303)
-        # Single use: the original browser's slot now points at a redeemed row.
-        self.assertIn("Заявката за нова парола е изтекла", self.body(self.redeem(self.last_code())))
+        # Single use: the original browser's slot now points at a redeemed row, which is a repeat, not an end.
+        repeat = self.redeem(self.last_code())
+        self.assertEqual((repeat.status_code, repeat.headers["Location"]), (303, "/login"))
 
     def test_after_a_secret_key_rotation_every_recovery_in_progress_ends(self):
         """Design 2.5: bindings, code hashes, digests and address hashes all stop matching (and so does the

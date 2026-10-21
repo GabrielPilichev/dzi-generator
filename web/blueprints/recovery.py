@@ -11,6 +11,9 @@ confirmation in one POST), ``POST /recover/resend`` and ``POST /recover/cancel``
   for every unsafe method), the gate, the signed-in redirect, the session slot; a redemption then
   reads this browser's row (``pending_view``), checks the password against the address that row
   holds, checks the confirmation exactly, and only then calls the service in one transaction.
+  When that read finds nothing usable and this browser's own row was ``redeemed`` (a repeat: a
+  double click, a lost response), the answer is a ``303`` to ``/login`` before anything else is
+  judged or written.
   A signed-in visitor starts nothing and is sent to the home of the role; recovery is for a
   signed-out browser.
 * **The browser binding** (design 2.2) is the session slot ``rec``:
@@ -455,6 +458,11 @@ def _redeem(slot: dict):
     if view is None:
         # None, final or past its time by the read: the binding has nothing left to complete.
         _drop_slot()
+        if recovery_service.was_redeemed(conn, binding):
+            # A repeat of a reset that succeeded (design 2.4, RV5, RF2 (ii)): this browser's own row
+            # was redeemed. Nothing is written or sent and no password is hashed; it is not a new
+            # success, so the notice of the URL is not added.
+            return redirect(_login_url(next_target, done=False), code=303)
         return _no_recovery(next_target)
 
     password = request.form.get("password")
