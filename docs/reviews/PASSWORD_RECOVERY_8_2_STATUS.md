@@ -1,11 +1,51 @@
 # Password recovery 8.2 — implementation and evidence
 
 Gabriel authorized **scope 8.2 only** (the recovery service, with no caller). This
-is an implementation report by its implementer (Claude Opus 5.5), **not approval**:
-the implementation is not self-approved and requires the independent review of
-design 10 at its exact SHA. Scope 8.3 (routes, templates, session slot, gate,
-settings, Nginx), deployment, activation and every provider or host operation
-remain unauthorized. Every production gate remains OFF.
+is an implementation report by its implementer (Claude Opus 5.5); the sections
+below were written before the independent review and are not an approval. The
+independent review of exact SHA `19815bb257124fcf3f2ea97f490db1d463637ea7` is
+recorded under "Independent review and later changes". Scope 8.3 (routes,
+templates, session slot, gate, settings, Nginx), deployment, activation and every
+provider or host operation remain unauthorized. Every production gate remains OFF.
+
+## Independent review and later changes
+
+- **Reviewed commit.** The implementation was committed as
+  `19815bb257124fcf3f2ea97f490db1d463637ea7` ("Add password recovery service
+  without production callers", PR #344). An independent Claude review of exactly
+  that SHA returned **APPROVE WITH NON-BLOCKING NOTES**. The review covers
+  `19815bb` only; everything after it (the merge below and the cleanup at the end
+  of this section) is outside it.
+- **The 13 deviations** below were classified by the reviewer as requiring **no
+  substantive product approval**. That is the reviewer's classification, not a
+  separate approval by Gabriel, and the deviations are not restated as decisions.
+- **The earlier full-suite error is not a green run.** The audit-instrumented full
+  run before the commit (4546 tests, `FAILED (errors=1)`, see "Execution
+  evidence") ended in an error, attributed to the `joserfc` 1.7.7 behaviour of one
+  Google test fixture. No green final full run was claimed for `19815bb`.
+- **PR #345 corrected that fixture.** `0a6835f` ("Fix Google algorithm-confusion test
+  fixture", PR #345) builds the deliberately forged HS256/public-PEM token with
+  standard-library HMAC instead of `OctKey.import_key` of a public key. It is a
+  test-only change (no dependency pin, no skip, no production change). Per the PR's
+  description, an independent Opus review approved its exact SHA `ac35e5e`, and
+  the 85-test service suite passed on `joserfc` 1.6.1, 1.7.5, 1.7.6 and 1.7.7; it
+  made no full-suite repeat. `origin/main` contains `0a6835f`; this branch merged it
+  as `43cd1d0`. The error described above is therefore expected to be gone, but it
+  is established only by the "Current verification" recorded below, not by PR #345.
+- **Audit cleanup after the review (unstaged and uncommitted, for Gabriel).**
+  `tests/recovery_audit.py` allowed a service insert whenever any recovery
+  test/fixture frame was anywhere up the stack, so a recovery test calling a
+  production-named intermediary that called `recovery.request` was allowed. It now
+  walks past the audit's own frames and the contiguous `web.services.recovery`
+  frames and requires the first external caller to be a recovery test/fixture
+  module; the intermediary is denied. `tests/test_recovery_no_caller.py` gained
+  deterministic subprocess regressions for direct allowed calls (service and
+  fixture inserts), non-recovery-test denial and production-intermediary denial,
+  and keeps the AST/no-production-caller checks and the counters-only audit output.
+  No service behaviour changed.
+- **Current verification** is recorded in "Current verification (after the
+  review)" at the end of the execution evidence; it does not reuse the earlier
+  runs.
 
 ## Provenance and boundaries
 
@@ -18,8 +58,11 @@ remain unauthorized. Every production gate remains OFF.
   `ba4b9cd` (APPROVE WITH NON-BLOCKING NOTES); the same-file hardening that
   followed that review passed focused tests and was merged **without** a repeated
   whole-suite audit (`PASSWORD_RECOVERY_8_1_STATUS.md`).
-- Everything below is **uncommitted and unstaged**, left for Gabriel. No commit,
-  push, merge or GitHub post was made.
+- The implementation was **uncommitted and unstaged** while its evidence below was
+  produced, then committed as `19815bb`. Every count below is therefore
+  pre-commit verification by the implementer; nothing binds it to `19815bb`
+  cryptographically. The audit cleanup above is uncommitted and unstaged. No commit,
+  push, merge or GitHub post was made by the cleanup.
 - No real `data/questions.db`, credentials, vault content, provider, running
   service, tunnel, server, deployment or activation was used or changed. Every
   database was a temporary migration/canonical build; mail was `InMemoryMailer`.
@@ -110,9 +153,10 @@ Public: `request`, `resend`, `redeem`, `cancel`, `pending_view`, `dispatch`,
 4. After a committed `ISSUED`: `dispatch` exactly once with no transaction open,
    then `settle_send` in a transaction of its own. Never settle after `NotSendable`;
    never retry a dispatch.
-5. Before `redeem`: `pending_view`, `accounts.password_problem(password, view.email)`
-   and the exact confirmation (the service only refuses a password that fails
-   `password_problem` without the address, before reading anything).
+5. Before `redeem`, validate in this order: the session slot, then `pending_view`,
+   then `accounts.password_problem(password, view.email)`, then the exact
+   confirmation (the service only refuses a password that fails `password_problem`
+   without the address, before reading anything). See the 8.3 checklist below.
 6. `email` passed to `request` must already be `registration_forms.public_email`'s
    output; `sender_busy` comes from `mail.sender_busy()`; `total_cap` from the
    settings; the unlocked `availability`/`address_capped` pre-reads of design 2.3
@@ -120,6 +164,32 @@ Public: `request`, `resend`, `redeem`, `cancel`, `pending_view`, `dispatch`,
 7. Log the durable events of design 8.1 after the commit; never log the address,
    code, token, password, any hash, key or digest, identity, message or the
    shadow state.
+
+## Obligations carried into the 8.3 checklist
+
+Recorded with the review of `19815bb`; none is built or authorized by this report.
+Scope 8.3 starts only when Gabriel authorizes it.
+
+1. **Route validation order.** The redeem route validates, in this order: the
+   session slot → `recovery.pending_view` → `accounts.password_problem(password,
+   view.email)` → the exact confirmation, and only then calls `redeem` inside
+   `BEGIN IMMEDIATE` (caller obligation 5). A test pins the order, including that a
+   refusal at an earlier step answers before a later step reads anything.
+2. **Real route tests for the service-only seams of deviation 11.** The 8.2 tests
+   drive the calls a route would make; 8.3 replaces each with a request through the
+   real route: `/account/password` (RK1), TOTP enrolment/confirmation, and
+   `/login`'s throttle (RV4, RT4, RPoll8). RL7's released hold remains
+   restore-script evidence of design 9, not a route test.
+3. **Audit policy is adapted deliberately when routes become legitimate callers.**
+   The audit denies a service insert unless the first caller outside the audit and
+   the service is a recovery test/fixture module, so a route-driven insert (whose
+   first external caller is the blueprint) will be denied by design. 8.3 must change
+   `tests/recovery_audit.py` and `tests/test_recovery_no_caller.py` on purpose
+   (RZ2 is replaced by RW3 and RP1, design 10): name the one blueprint module as an
+   allowed caller, keep every other production-named intermediary denied with
+   regression tests, keep the zero-rows check of nonfixture databases and the
+   counters-only output, and have the change reviewed. The audit is not disabled,
+   and "any caller allowed" is not an acceptable adaptation.
 
 ## Approved-case mapping (test plan → 8.2 evidence)
 
@@ -189,10 +259,13 @@ route-level halves of RPoll, RF1/RF2 (texts, status codes, slot).
    recovery, and the populated production database still has zero recovery rows
    and zero recovery-purpose ledger rows. Legacy `src` scripts with optional
    dependencies are scanned statically, not imported.
-10. **Audit adapted, not disabled.** `tests/recovery_audit.py` now allows a service
-    insert only when a recovery test or fixture module is on the same thread's
-    stack; any other path is denied and counted, which a subprocess test proves.
-    Its emptiness check now also counts recovery-purpose ledger rows.
+10. **Audit adapted, not disabled.** `tests/recovery_audit.py` allows a service
+    insert only when the first caller outside the audit and the contiguous service
+    frames is a recovery test or fixture module; any other path is denied and
+    counted, which subprocess tests prove. Its emptiness check now also counts
+    recovery-purpose ledger rows. (`19815bb` allowed it whenever such a module was
+    anywhere on the thread's stack; the stricter rule is the post-review cleanup
+    above, outside the reviewed commit.)
 11. **Test seams instead of routes**, where the plan names route behaviour:
     `/account/password` (RK1) is exercised through the service calls the route makes;
     TOTP enrolment/confirmation through `totp.enroll`/`confirm` (the CLI requires an
@@ -209,6 +282,11 @@ route-level halves of RPoll, RF1/RF2 (texts, status codes, slot).
     `code_evidence_invalid`; design 8.1's durable names are the 8.3 caller's.
 
 ## Execution evidence
+
+The runs up to "Current verification" are the implementer's **pre-commit**
+verification of the tree that became `19815bb`. They were not repeated for the
+commit, the PR #345 merge or the audit cleanup, and none of them is green as a
+whole suite.
 
 Python 3.12.15, SQLite 3.53.4, fresh scratch venv from `requirements-dev.txt` (PyPI).
 
@@ -231,12 +309,14 @@ Python 3.12.15, SQLite 3.53.4, fresh scratch venv from `requirements-dev.txt` (P
   absent-storage and 22 unreadable observations, **0 violations** (counters, not
   distinct databases; limits as in 8.1).
 - The one error, `test_google_oidc_service` ... `test_a_token_whose_signature_does_not_verify_is_refused`,
-  is **pre-existing and environmental**: the fresh venv installed `joserfc` 1.7.7
-  (allowed by `requirements.txt`, `>=1.6.1,<2`), which refuses `OctKey.import_key`
-  of a PEM public key; 8.1's evidence used 1.7.5. The same test errors identically
-  on an export of the untouched base `4d9d9d8` with the same venv, and all 85
-  `test_google_oidc_service` tests pass on this tree with `joserfc` 1.7.5. Not
-  fixed here (outside scope 8.2); it needs a test or pin decision.
+  was **pre-existing and environmental** at the time: the fresh venv installed
+  `joserfc` 1.7.7 (allowed by `requirements.txt`, `>=1.6.1,<2`), which refuses
+  `OctKey.import_key` of a PEM public key; 8.1's evidence used 1.7.5. The same test
+  errored identically on an export of the untouched base `4d9d9d8` with the same
+  venv, and all 85 `test_google_oidc_service` tests passed on this tree with
+  `joserfc` 1.7.5. It was left unfixed in 8.2 (outside its scope). **PR #345
+  (`0a6835f`) has since corrected the fixture** (see "Independent review and later
+  changes"); this run is not re-labelled green.
 - Versions: Flask 3.1.3, Werkzeug 3.1.9, Gunicorn 23.0.0, PyOTP 2.10.0, cryptography
   50.0.2, segno 1.6.6, Authlib 1.9.1, joserfc 1.7.7 (`pip freeze` kept with the
   local logs).
@@ -244,6 +324,40 @@ Python 3.12.15, SQLite 3.53.4, fresh scratch venv from `requirements-dev.txt` (P
   `full-suite.log`, `full-suite-2.log`, `full-audit.jsonl`, `full-audit-2.jsonl`,
   `pip-freeze.txt`. The suite ran in place; the only stray file (bytecode written by
   a `pip freeze` run while the audit hook was installed) was removed.
+
+### Current verification (after the review)
+
+On the working tree at `43cd1d0` (which contains `19815bb` and PR #345's `0a6835f`)
+plus the unstaged audit cleanup and documentation changes of this section. These
+runs are new; they do not reuse any run above.
+
+- Python 3.12.15, SQLite 3.53.4, a new scratch venv from `requirements-dev.txt`
+  (PyPI): Flask 3.1.3, Werkzeug 3.1.9, Gunicorn 23.0.0, PyOTP 2.10.0,
+  cryptography 50.0.2, segno 1.6.6, Authlib 1.9.1, **joserfc 1.7.7**, requests
+  2.34.2, urllib3 2.8.0, python-docx 1.2.0, lxml 6.1.3. `pip install -r` met
+  `requirements.txt` and `pip check` reported no broken requirements. No dependency
+  was pinned and no production Google code changed.
+- Audit setup as documented in `TESTING.md`: a `.pth` line in the scratch venv
+  installs `tests.recovery_audit` (report file outside the repository).
+- **Focused run** (all 12 `tests/test_recovery_*.py` modules, audit installed): **190
+  tests OK**; the audit reported 0 violations.
+- **Regression check.** The new production-intermediary regression was run against
+  `19815bb`'s `tests/recovery_audit.py` in a scratch copy: it **failed** (three
+  chains, each wrongly allowed and storing one row); it passes with the stricter
+  rule. The direct-allowed and non-recovery-test cases pass under both rules.
+- **Final full run, once**, on the final code and documentation state
+  (`PYTHONDONTWRITEBYTECODE=1 python -B -m unittest discover -s tests`, audit
+  installed): **4548 tests, OK**, 957.97 s, exit status 0, no skips reported.
+  Audit: 7397 process reports, 39234 connections, 35439 empty recovery-storage
+  checks, 515 fixture-storage, 3262 absent-storage and 21 unreadable observations,
+  **0 violations** (counters, not distinct databases; limits as in 8.1). This
+  result was written afterwards; the documentation-only edit was not followed by a
+  rerun.
+- Compilation of the changed Python files and `git diff --check` passed.
+- Limits: the audit sees only connections made through `sqlite3.connect` in
+  interpreters that load its hook, and a connection opened while a recovery test is
+  on the stack is exempt from the emptiness check (8.1); the run is one machine,
+  threads and temporary databases, no Linux, provider or real-database evidence.
 
 ## Remaining gaps and activation evidence (none produced)
 
@@ -255,8 +369,10 @@ Python 3.12.15, SQLite 3.53.4, fresh scratch venv from `requirements-dev.txt` (P
   rehearsed with required maintenance isolation, measured timing of a recovery code
   and a notice through the chosen provider (no equal timing is claimed), the
   measured lock time of `set_password` on the server, real `nginx -t`, D16 extended
-  to recovery and its neutral notices, D17 configured, RD15 decided, and an
-  independent security review of this scope at its exact SHA.
+  to recovery and its neutral notices, D17 configured and RD15 decided. The
+  independent review of `19815bb` is recorded above; it does not cover later
+  changes, and design 9's independent security review of every scope before
+  activation is not claimed by it.
 - The deployed SQLite version was not examined; tests ran on SQLite 3.53.4.
 - Concurrency tests use threads with one connection each on one machine; they are
   not evidence of behaviour under Gunicorn workers.
@@ -265,7 +381,9 @@ Python 3.12.15, SQLite 3.53.4, fresh scratch venv from `requirements-dev.txt` (P
   schema-qualified writes (`INSERT INTO main.password_recoveries`); both limits are
   as in 8.1.
 
-## Changed-file inventory (uncommitted)
+## Changed-file inventory
+
+### Committed as `19815bb` (the reviewed implementation)
 
 Tracked modifications:
 
@@ -276,7 +394,7 @@ Tracked modifications:
 - `docs/reviews/PASSWORD_RECOVERY_8_1_STATUS.md`, `docs/reviews/PASSWORD_RECOVERY_DESIGN.md`,
   `docs/reviews/PASSWORD_RECOVERY_SCOPE.md`, `docs/reviews/PASSWORD_RECOVERY_TEST_PLAN.md`
 
-New (untracked) files:
+New files:
 
 - `web/services/recovery.py`
 - `tests/recovery_service_support.py`
@@ -285,3 +403,13 @@ New (untracked) files:
   `tests/test_recovery_concurrency.py`, `tests/test_recovery_polling.py`,
   `tests/test_recovery_service_operations.py`
 - `docs/reviews/PASSWORD_RECOVERY_8_2_STATUS.md`
+
+### Uncommitted and unstaged since the review (for Gabriel)
+
+- `tests/recovery_audit.py`: first-external-caller validation of service inserts.
+- `tests/test_recovery_no_caller.py`: subprocess regressions for direct allowed
+  calls, production-intermediary denial and non-recovery-test denial.
+- `docs/TESTING.md`: the audit rule as it now is.
+- `docs/reviews/PASSWORD_RECOVERY_8_2_STATUS.md` (this file) and
+  `docs/reviews/PASSWORD_RECOVERY_SCOPE.md`: provenance, review record, 8.3
+  obligations and verification record.

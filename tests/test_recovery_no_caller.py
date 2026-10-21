@@ -11,6 +11,7 @@ import ast
 import hashlib
 import importlib
 import inspect
+import json
 import re
 import subprocess
 import sys
@@ -34,6 +35,54 @@ SERVICE_WRITERS = ("request", "resend", "redeem", "cancel", "dispatch", "settle_
 SERVICE_REFERENCE = re.compile(
     r"web\.services\.recovery(?!_scrub)\b|from\s+web\.services\s+import\s+[^\n]*\brecovery\b(?!_scrub)"
     r"|services/recovery\.py|['\"]recovery['\"]")
+
+
+# The instrumented interpreter of ``NoCallerTest.run_audited``. It takes its parameters as one JSON
+# argument, builds the stub modules named by ``chain`` (outermost first) and reports
+# {"denied": <exception class or None>, "rows": <recovery rows seen before the rollback or None>}.
+AUDITED_PROBE = r'''
+import json, sys
+params = json.loads(sys.argv[1])
+sys.path[:0] = params["paths"]
+import sqlite3
+from datetime import datetime, timezone
+from tests.recovery_audit import install
+install(params["log"])
+from web.services import recovery
+
+SERVICE = "def call(conn):\n    return recovery.request(conn, email='audit@example.bg', previous_binding=None, secret_key='k', clock=clock, sender_busy=False)\n"
+INSERT = ("def call(conn):\n    return conn.execute(\"INSERT INTO password_recoveries (binding_hash, state, is_shadow, email, "
+          "created_at, expires_at) VALUES (?, 'pending', 1, ?, ?, ?)\", ('a' * 64, 'fixture@example.bg', "
+          "'2026-10-20 00:00:00', '2026-10-20 00:30:00'))\n")
+CALLER = "def call(conn):\n    return inner(conn)\n"
+
+def load(name, source, **names):
+    namespace = dict(names, __name__=name)
+    exec(compile(source, name, "exec"), namespace)
+    return namespace["call"]
+
+clock = lambda: datetime(2026, 10, 20, tzinfo=timezone.utc)
+chain = params["chain"]
+if chain:
+    call = load(chain[-1], SERVICE if params["via_service"] else INSERT, recovery=recovery, clock=clock)
+    for name in reversed(chain[:-1]):
+        call = load(name, CALLER, inner=call)
+else:
+    # Straight from this top level, whose module name is ``__main__``.
+    call = lambda conn: (recovery.request(conn, email="audit@example.bg", previous_binding=None, secret_key="k",
+                                          clock=clock, sender_busy=False))
+conn = sqlite3.connect(params["db"])
+conn.execute("BEGIN IMMEDIATE")
+outcome = dict(denied=None, rows=None)
+try:
+    call(conn)
+    outcome["rows"] = conn.execute("SELECT COUNT(*) FROM password_recoveries").fetchone()[0]
+except sqlite3.DatabaseError as exc:
+    outcome["denied"] = type(exc).__name__
+conn.rollback()
+conn.close()
+print(json.dumps(outcome))
+'''
 
 
 class NoCallerTest(RecoveryTestCase):
@@ -157,39 +206,81 @@ print('entrypoints: no issuer; recovery service not imported; recovery storage e
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("recovery storage empty", result.stdout)
 
+    # ------------------------------------------------------------------ RZ1 audit callers
+
+    def run_audited(self, chain, *, via_service=True):
+        """Run one INSERT in an instrumented interpreter and return (outcome, audit reports).
+
+        ``chain`` names the modules between the interpreter's top level and the INSERT,
+        outermost first; each is a stub compiled under that ``__name__``, so the frame the
+        audit sees carries it. The innermost one calls ``recovery.request`` (``via_service``)
+        or inserts a recovery row itself. Everything runs inside ``BEGIN IMMEDIATE`` and is
+        rolled back: the outcome is read before that. ``-S``: no site processing, so an
+        interpreter whose site already installs the audit (an instrumented whole-suite run)
+        does not report these deliberate violations there."""
+        log = self.root / f"audit-{len(list(self.root.glob('audit-*.jsonl')))}.jsonl"
+        packages = [path for key, path in sysconfig.get_paths().items() if key in ("purelib", "platlib")]
+        params = dict(paths=[str(ROOT), *packages], log=str(log), db=str(self.path), chain=chain,
+                      via_service=via_service)
+        result = subprocess.run([sys.executable, "-B", "-S", "-c", AUDITED_PROBE, json.dumps(params)],
+                                cwd=ROOT, capture_output=True, text=True, timeout=120,
+                                env={"PATH": "", "PYTHONDONTWRITEBYTECODE": "1"})
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stderr, "")
+        reports = [json.loads(line) for line in log.read_text().splitlines()]
+        self.assertTrue(reports)
+        # Secret-safe output: counters and a process id only, no path, address or key.
+        for report in reports:
+            self.assertEqual(set(report), {"pid", "connections", "checked_empty", "fixture_storage",
+                                           "absent_storage", "unreadable_or_closed", "violations"})
+            self.assertTrue(all(type(value) is int for value in report.values()), report)
+        text = log.read_text() + result.stdout + result.stderr
+        for secret in (str(self.root), "audit@example.bg", "fixture@example.bg"):
+            self.assertNotIn(secret, text)
+        self.assertEqual(self.conn.execute("SELECT COUNT(*) FROM password_recoveries").fetchone()[0], 0)
+        return json.loads(result.stdout.strip().splitlines()[-1]), reports
+
+    def assert_denied(self, chain, *, via_service=True):
+        outcome, reports = self.run_audited(chain, via_service=via_service)
+        self.assertEqual(outcome, dict(denied="DatabaseError", rows=None), chain)
+        self.assertEqual(sum(report["violations"] for report in reports), 1, chain)
+
+    def assert_allowed(self, chain, *, via_service=True):
+        outcome, reports = self.run_audited(chain, via_service=via_service)
+        self.assertEqual(outcome, dict(denied=None, rows=1), chain)
+        self.assertEqual(sum(report["violations"] for report in reports), 0, chain)
+
+    def test_audit_allows_the_service_and_inserts_called_directly_from_a_recovery_test(self):
+        """The service entered straight from a recovery test or fixture module stores its row and
+        is no violation; so is a fixture's own INSERT (the 8.1 allowance, unchanged)."""
+        for name in ("tests.test_recovery_probe", "test_recovery_probe", "tests.recovery_support",
+                     "tests.recovery_service_support"):
+            with self.subTest(service=name):
+                self.assert_allowed([name])
+        for name in ("tests.test_recovery_probe", "tests.recovery_support"):
+            with self.subTest(insert=name):
+                self.assert_allowed([name], via_service=False)
+
     def test_audit_denies_a_service_insert_reached_outside_the_recovery_tests(self):
         """The RZ1 audit as adapted for 8.2: in an instrumented interpreter, the service called
-        from a non-test module (here ``__main__``) is denied at the INSERT and counted as a
-        violation; nothing is stored. Service inserts pass only under a recovery test."""
-        log = self.root / "audit.jsonl"
-        # ``-S``: no site processing, so an interpreter whose site already installs the audit
-        # (an instrumented whole-suite run) does not report this deliberate violation there.
-        packages = [path for key, path in sysconfig.get_paths().items() if key in ("purelib", "platlib")]
-        script = f'''
-import sys
-sys.path[:0] = {[str(ROOT), *packages]!r}
-import json, sqlite3
-from datetime import datetime, timezone
-from tests.recovery_audit import install
-install({str(log)!r})
-from web.services import recovery
-conn = sqlite3.connect({str(self.path)!r})
-conn.execute("BEGIN IMMEDIATE")
-try:
-    recovery.request(conn, email="audit@example.bg", previous_binding=None, secret_key="k",
-                     clock=lambda: datetime(2026, 10, 20, tzinfo=timezone.utc), sender_busy=False)
-except sqlite3.DatabaseError as exc:
-    print("denied:", type(exc).__name__)
-conn.rollback()
-conn.close()
-'''
-        result = subprocess.run([sys.executable, "-B", "-S", "-c", script], cwd=ROOT, capture_output=True, text=True,
-                                timeout=120, env={"PATH": "", "PYTHONDONTWRITEBYTECODE": "1"})
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("denied: DatabaseError", result.stdout)
-        reports = [__import__("json").loads(line) for line in log.read_text().splitlines()]
-        self.assertEqual(sum(report["violations"] for report in reports), 1)
-        self.assertEqual(self.conn.execute("SELECT COUNT(*) FROM password_recoveries").fetchone()[0], 0)
+        from a module that is not a recovery test (here ``__main__``, then another test module)
+        is denied at the INSERT and counted as one violation; nothing is stored."""
+        self.assert_denied([])
+        self.assert_denied(["tests.test_registration_probe"])
+        self.assert_denied(["tests.test_recoveryish_probe"])  # prefix is ``test_recovery_``, not a substring
+
+    def test_audit_denies_a_production_intermediary_between_a_recovery_test_and_the_service(self):
+        """A recovery test on the stack is not enough: the first caller outside the audit and the
+        service must itself be a recovery test or fixture. A production-named module that the
+        test calls, and that calls ``recovery.request``, is denied, however many of them there are
+        and whatever recovery fixture frames sit above them."""
+        for chain in (["tests.test_recovery_probe", "web.blueprints.recovery_view"],
+                      ["tests.recovery_service_support", "tests.test_recovery_probe", "web.app"],
+                      ["tests.test_recovery_probe", "src.manage_accounts", "web.services.accounts"]):
+            with self.subTest(chain=chain):
+                self.assert_denied(chain)
+        # A production module inserting directly is no service call and no fixture either.
+        self.assert_denied(["tests.test_recovery_probe", "web.services.accounts"], via_service=False)
 
     def test_restore_and_nginx_unchanged_existing_call_order(self):
         base = "755058fa1a4fbd42a14acecaf750a48b676b99c8"

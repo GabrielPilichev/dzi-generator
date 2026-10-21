@@ -2,14 +2,16 @@
 
 Install with ``install(log_path)`` from that interpreter's sitecustomize. Never
 imported by application code. SQL INSERTs into recovery storage are forbidden
-unless the immediate caller is a recovery test/fixture, or (scope 8.2) the
-recovery service ``web.services.recovery`` while a recovery test or fixture is on
-the same thread's stack: the service has no production caller, so a service
-insert reached from anything else (an application, CLI or other test path) is
-still a violation. On close/collection, every supported nonfixture database must
-have zero recovery rows and zero recovery-purpose ledger rows
-(``registration_sends.recovery_id`` set). Reports only counts and source labels,
-never paths, SQL values or credentials.
+unless the first caller outside this module is a recovery test/fixture, or
+(scope 8.2) the recovery service ``web.services.recovery`` was entered directly
+from one: the audit walks past its own frames and the contiguous service frames,
+and the next frame's module must be a recovery test/fixture. The service has no
+production caller, so a service insert reached through any other module (an
+application, CLI, other test path or a production-named intermediary between a
+recovery test and the service) is a violation. On close/collection, every
+supported nonfixture database must have zero recovery rows and zero
+recovery-purpose ledger rows (``registration_sends.recovery_id`` set). Reports
+only counts and source labels, never paths, SQL values or credentials.
 """
 import atexit
 import inspect
@@ -29,12 +31,11 @@ def _fixture_module(name):
             or name in ("tests.recovery_support", "tests.recovery_service_support"))
 
 
-def _recovery_test_on_stack(frame):
-    while frame is not None:
-        if _fixture_module(frame.f_globals.get("__name__", "")):
-            return True
+def _insert_caller(frame):
+    """Module name of the first frame outside the audit and the service's own frames."""
+    while frame is not None and frame.f_globals.get("__name__") in (__name__, _SERVICE_MODULE):
         frame = frame.f_back
-    return False
+    return frame.f_globals.get("__name__", "") if frame else ""
 
 
 def install(log_path):
@@ -63,13 +64,7 @@ def install(log_path):
         def set_authorizer(self, callback):
             def authorize(action, table, column, db, trigger):
                 if action == sqlite3.SQLITE_INSERT and table == "password_recoveries":
-                    frame = inspect.currentframe().f_back
-                    while frame and frame.f_globals.get("__name__") == __name__:
-                        frame = frame.f_back
-                    caller = frame.f_globals.get("__name__", "") if frame else ""
-                    allowed = _fixture_module(caller) or (
-                        caller == _SERVICE_MODULE and _recovery_test_on_stack(frame))
-                    if not allowed:
+                    if not _fixture_module(_insert_caller(inspect.currentframe().f_back)):
                         violation()
                         return sqlite3.SQLITE_DENY
                     self._recovery_fixture = True

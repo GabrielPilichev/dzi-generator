@@ -7,10 +7,13 @@ section 5.2; `docs/reviews/EMAIL_REGISTRATION_SCOPE.md`.
 
 ## Status
 
-**Scope 8.1 is merged (`09fdb68`, PR #343). Scope 8.2 implementation is now
-authorized by Gabriel and prepared, uncommitted, for independent review
-(`PASSWORD_RECOVERY_8_2_STATUS.md`). 8.3, deployment and activation remain
-unauthorized.** Scope 8.1 was independently reviewed at `ba4b9cd` (APPROVE WITH
+**Scope 8.1 is merged (`09fdb68`, PR #343). Scope 8.2 was authorized by Gabriel
+and implemented as `19815bb` (PR #344); an
+independent review of exactly that SHA returned APPROVE WITH NON-BLOCKING NOTES,
+and classified its 13 deviations as needing no substantive product approval. That
+review covers `19815bb` only (`PASSWORD_RECOVERY_8_2_STATUS.md`, which also records
+the obligations carried into 8.3 and the later changes). 8.3, deployment and
+activation remain unauthorized.** Scope 8.1 was independently reviewed at `ba4b9cd` (APPROVE WITH
 NON-BLOCKING NOTES); the same-file hardening that followed that review passed
 focused tests and was merged without a repeated whole-suite audit.
 Evidence and limitations: `PASSWORD_RECOVERY_8_1_STATUS.md`,
@@ -258,7 +261,12 @@ independent review of `48ee5bf` (APPROVE WITH NON-BLOCKING NOTES) covers
 revision 3 only; the R1–R8 corrections and the decision recording came
 after that SHA and are outside it. No review is an approval of a decision;
 the decisions are approved by Gabriel's selection. Gabriel authorized scope 8.1
-(merged at `09fdb68`) and has now authorized scope 8.2, implemented by Claude
-Opus 5.5 and left uncommitted; implementation is not self-approved and still
-requires independent review. See `PASSWORD_RECOVERY_8_1_STATUS.md` and
-`PASSWORD_RECOVERY_8_2_STATUS.md`.
+(merged at `09fdb68`) and authorized scope 8.2, implemented by Claude Opus 5.5 and
+committed as `19815bb`. The independent review of exactly that SHA (APPROVE WITH
+NON-BLOCKING NOTES) is not an approval of a decision, and the reviewer's
+classification of the 13 deviations as needing no substantive product approval is
+not an approval by Gabriel. Later changes (the merge of PR #345's test-fixture
+fix, the stricter audit caller rule and the provenance edits) are outside that
+review. See `PASSWORD_RECOVERY_8_1_STATUS.md` and `PASSWORD_RECOVERY_8_2_STATUS.md`
+(obligations carried into the 8.3 checklist: route validation order, real route
+tests for the service-only seams, deliberate adaptation of the audit policy).
