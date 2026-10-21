@@ -12,7 +12,9 @@ and implemented as `19815bb` (PR #344); an
 independent review of exactly that SHA returned APPROVE WITH NON-BLOCKING NOTES,
 and classified its 13 deviations as needing no substantive product approval. That
 review covers `19815bb` only (`PASSWORD_RECOVERY_8_2_STATUS.md`, which also records
-the obligations carried into 8.3 and the later changes). 8.3, deployment and
+the obligations carried into 8.3 and the later changes). The stricter audit caller
+rule was committed as `421993b` and independently reviewed at exactly that SHA
+(APPROVE WITH NON-BLOCKING NOTES). 8.3, deployment and
 activation remain unauthorized.** Scope 8.1 was independently reviewed at `ba4b9cd` (APPROVE WITH
 NON-BLOCKING NOTES); the same-file hardening that followed that review passed
 focused tests and was merged without a repeated whole-suite audit.
@@ -267,6 +269,9 @@ NON-BLOCKING NOTES) is not an approval of a decision, and the reviewer's
 classification of the 13 deviations as needing no substantive product approval is
 not an approval by Gabriel. Later changes (the merge of PR #345's test-fixture
 fix, the stricter audit caller rule and the provenance edits) are outside that
-review. See `PASSWORD_RECOVERY_8_1_STATUS.md` and `PASSWORD_RECOVERY_8_2_STATUS.md`
+review; the audit caller rule and its provenance edits, committed as `421993b`,
+were independently reviewed at exactly that SHA (APPROVE WITH NON-BLOCKING NOTES),
+and the documentation corrections after `421993b` are outside both reviews. See `PASSWORD_RECOVERY_8_1_STATUS.md` and `PASSWORD_RECOVERY_8_2_STATUS.md`
 (obligations carried into the 8.3 checklist: route validation order, real route
-tests for the service-only seams, deliberate adaptation of the audit policy).
+tests for the service-only seams, deliberate adaptation of the audit policy,
+including its prepared-statement cache limitation).

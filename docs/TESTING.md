@@ -54,7 +54,13 @@ recovery test elsewhere on the stack is not enough: the same service call from
 anything else (an application, CLI, another test, or a production-named
 intermediary between a recovery test and the service) is denied and counted as a
 violation (`tests.test_recovery_no_caller` proves the allowed and denied cases in
-deterministic subprocesses). The
+deterministic subprocesses). The check runs in SQLite's authorizer, which sees a
+statement when it is prepared: an allowed INSERT prepared on a fixture connection
+can be reused from Python's per-connection statement cache by another caller
+without another check, and that fixture connection also skips the emptiness check
+below. Denial is therefore guaranteed only for statements prepared on behalf of the
+denied caller; scope 8.3's audit adaptation must add a regression for the reuse and
+assess `cached_statements=0`. The
 close/collection check now also requires zero recovery-purpose ledger rows
 (`registration_sends.recovery_id` set) in every nonfixture database.
 

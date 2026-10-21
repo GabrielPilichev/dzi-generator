@@ -3,10 +3,11 @@
 Gabriel authorized **scope 8.2 only** (the recovery service, with no caller). This
 is an implementation report by its implementer (Claude Opus 5.5); the sections
 below were written before the independent review and are not an approval. The
-independent review of exact SHA `19815bb257124fcf3f2ea97f490db1d463637ea7` is
-recorded under "Independent review and later changes". Scope 8.3 (routes,
-templates, session slot, gate, settings, Nginx), deployment, activation and every
-provider or host operation remain unauthorized. Every production gate remains OFF.
+independent reviews of exact SHAs `19815bb257124fcf3f2ea97f490db1d463637ea7`
+(the service) and `421993b0dc3dfdd5656ba36869593febf25cee8a` (the audit
+cleanup) are recorded under "Independent review and later changes". Scope 8.3
+(routes, templates, session slot, gate, settings, Nginx), deployment, activation
+and every provider or host operation remain unauthorized. Every production gate remains OFF.
 
 ## Independent review and later changes
 
@@ -26,13 +27,16 @@ provider or host operation remain unauthorized. Every production gate remains OF
 - **PR #345 corrected that fixture.** `0a6835f` ("Fix Google algorithm-confusion test
   fixture", PR #345) builds the deliberately forged HS256/public-PEM token with
   standard-library HMAC instead of `OctKey.import_key` of a public key. It is a
-  test-only change (no dependency pin, no skip, no production change). Per the PR's
-  description, an independent Opus review approved its exact SHA `ac35e5e`, and
-  the 85-test service suite passed on `joserfc` 1.6.1, 1.7.5, 1.7.6 and 1.7.7; it
-  made no full-suite repeat. `origin/main` contains `0a6835f`; this branch merged it
+  test-only change (no dependency pin, no skip, no production change). Per the
+  message of squash commit `0a6835f` (not the PR description), an independent
+  Claude Opus review approved its exact SHA `ac35e5e`, and the 85-test service
+  suite passed on `joserfc` 1.6.1, 1.7.5, 1.7.6 and 1.7.7; it made no full-suite
+  repeat. `origin/main` contains `0a6835f`; this branch merged it
   as `43cd1d0`. The error described above is therefore expected to be gone, but it
   is established only by the "Current verification" recorded below, not by PR #345.
-- **Audit cleanup after the review (unstaged and uncommitted, for Gabriel).**
+- **Audit cleanup after the review, committed as
+  `421993b0dc3dfdd5656ba36869593febf25cee8a`** ("Tighten recovery audit callers
+  and record green final verification").
   `tests/recovery_audit.py` allowed a service insert whenever any recovery
   test/fixture frame was anywhere up the stack, so a recovery test calling a
   production-named intermediary that called `recovery.request` was allowed. It now
@@ -43,6 +47,25 @@ provider or host operation remain unauthorized. Every production gate remains OF
   fixture inserts), non-recovery-test denial and production-intermediary denial,
   and keeps the AST/no-production-caller checks and the counters-only audit output.
   No service behaviour changed.
+- **Independent review of the cleanup.** An independent Claude review of exactly
+  `421993b0dc3dfdd5656ba36869593febf25cee8a` returned **APPROVE WITH NON-BLOCKING
+  NOTES**; the review's own test run was the 190 focused recovery tests. The
+  author's 190-test focused run and 4548-test full run ("Current verification"
+  below) were
+  made earlier, on the uncommitted working tree that became `421993b`; they are
+  the author's pre-commit evidence, and nothing binds those logs to `421993b`
+  cryptographically. The review covers `421993b` only; the documentation
+  corrections after it (this note, the cache limitation and the 8.3 route order)
+  are outside it.
+- **Prepared-statement cache limitation (documented, not fixed; carried into
+  8.3).** The audit's authorizer runs when SQLite *prepares* a statement, not when it executes one.
+  Python's `sqlite3` keeps a per-connection prepared-statement cache, so an INSERT
+  into `password_recoveries` prepared and allowed for a recovery test/fixture
+  caller can be reused on that connection by a later caller with the same SQL text
+  without another authorizer check. That connection is also marked as fixture
+  storage, so its emptiness check at close is skipped. "Denied" in this document
+  therefore means: denied for a statement prepared on behalf of that caller. The
+  audit code is unchanged; see 8.3 obligation 3.
 - **Current verification** is recorded in "Current verification (after the
   review)" at the end of the execution evidence; it does not reuse the earlier
   runs.
@@ -61,8 +84,9 @@ provider or host operation remain unauthorized. Every production gate remains OF
 - The implementation was **uncommitted and unstaged** while its evidence below was
   produced, then committed as `19815bb`. Every count below is therefore
   pre-commit verification by the implementer; nothing binds it to `19815bb`
-  cryptographically. The audit cleanup above is uncommitted and unstaged. No commit,
-  push, merge or GitHub post was made by the cleanup.
+  cryptographically. The audit cleanup above was likewise verified uncommitted and
+  then committed as `421993b0dc3dfdd5656ba36869593febf25cee8a`; the same holds
+  for its evidence.
 - No real `data/questions.db`, credentials, vault content, provider, running
   service, tunnel, server, deployment or activation was used or changed. Every
   database was a temporary migration/canonical build; mail was `InMemoryMailer`.
@@ -153,7 +177,8 @@ Public: `request`, `resend`, `redeem`, `cancel`, `pending_view`, `dispatch`,
 4. After a committed `ISSUED`: `dispatch` exactly once with no transaction open,
    then `settle_send` in a transaction of its own. Never settle after `NotSendable`;
    never retry a dispatch.
-5. Before `redeem`, validate in this order: the session slot, then `pending_view`,
+5. Before `redeem`, validate in this order: the gate, the signed-in redirect, the
+   session slot, then `pending_view`,
    then `accounts.password_problem(password, view.email)`, then the exact
    confirmation (the service only refuses a password that fails `password_problem`
    without the address, before reading anything). See the 8.3 checklist below.
@@ -171,8 +196,9 @@ Recorded with the review of `19815bb`; none is built or authorized by this repor
 Scope 8.3 starts only when Gabriel authorizes it.
 
 1. **Route validation order.** The redeem route validates, in this order: the
-   session slot → `recovery.pending_view` → `accounts.password_problem(password,
-   view.email)` → the exact confirmation, and only then calls `redeem` inside
+   recovery gate → the signed-in redirect → the session slot →
+   `recovery.pending_view` → `accounts.password_problem(password, view.email)` →
+   the exact confirmation, and only then calls `redeem` inside
    `BEGIN IMMEDIATE` (caller obligation 5). A test pins the order, including that a
    refusal at an earlier step answers before a later step reads anything.
 2. **Real route tests for the service-only seams of deviation 11.** The 8.2 tests
@@ -189,7 +215,13 @@ Scope 8.3 starts only when Gabriel authorizes it.
    allowed caller, keep every other production-named intermediary denied with
    regression tests, keep the zero-rows check of nonfixture databases and the
    counters-only output, and have the change reviewed. The audit is not disabled,
-   and "any caller allowed" is not an acceptable adaptation.
+   and "any caller allowed" is not an acceptable adaptation. The same change must
+   address the prepared-statement cache limitation recorded with the review of
+   `421993b`: add a regression in which an INSERT prepared for an allowed caller is
+   re-executed on the same connection by a denied caller (it must be counted as a
+   violation, or the limitation stays documented), and assess whether the audit
+   should open connections with `cached_statements=0` (or otherwise force a fresh
+   prepare per execution), including its effect on query budgets and run time.
 
 ## Approved-case mapping (test plan → 8.2 evidence)
 
@@ -261,8 +293,11 @@ route-level halves of RPoll, RF1/RF2 (texts, status codes, slot).
    dependencies are scanned statically, not imported.
 10. **Audit adapted, not disabled.** `tests/recovery_audit.py` allows a service
     insert only when the first caller outside the audit and the contiguous service
-    frames is a recovery test or fixture module; any other path is denied and
-    counted, which subprocess tests prove. Its emptiness check now also counts
+    frames is a recovery test or fixture module; any other caller is denied and
+    counted for a statement prepared on its behalf, which subprocess tests prove.
+    A statement already prepared and allowed on a fixture connection can be reused
+    from SQLite's statement cache without another check (see the cache limitation
+    above), so this is not a guarantee for every path. Its emptiness check now also counts
     recovery-purpose ledger rows. (`19815bb` allowed it whenever such a module was
     anywhere on the thread's stack; the stricter rule is the post-review cleanup
     above, outside the reviewed commit.)
@@ -328,8 +363,11 @@ Python 3.12.15, SQLite 3.53.4, fresh scratch venv from `requirements-dev.txt` (P
 ### Current verification (after the review)
 
 On the working tree at `43cd1d0` (which contains `19815bb` and PR #345's `0a6835f`)
-plus the unstaged audit cleanup and documentation changes of this section. These
-runs are new; they do not reuse any run above.
+plus the then-uncommitted audit cleanup and documentation changes of this
+section, later committed as `421993b0dc3dfdd5656ba36869593febf25cee8a`. These
+are the author's pre-commit runs; they are new and do not reuse any run above, and nothing binds them to
+`421993b` cryptographically. The independent review's own 190-test run of
+`421993b` is recorded under "Independent review and later changes".
 
 - Python 3.12.15, SQLite 3.53.4, a new scratch venv from `requirements-dev.txt`
   (PyPI): Flask 3.1.3, Werkzeug 3.1.9, Gunicorn 23.0.0, PyOTP 2.10.0,
@@ -356,7 +394,9 @@ runs are new; they do not reuse any run above.
 - Compilation of the changed Python files and `git diff --check` passed.
 - Limits: the audit sees only connections made through `sqlite3.connect` in
   interpreters that load its hook, and a connection opened while a recovery test is
-  on the stack is exempt from the emptiness check (8.1); the run is one machine,
+  on the stack is exempt from the emptiness check (8.1); an allowed INSERT cached on
+  a fixture connection is not re-authorized when reused (see "Independent review
+  and later changes"); the run is one machine,
   threads and temporary databases, no Linux, provider or real-database evidence.
 
 ## Remaining gaps and activation evidence (none produced)
@@ -379,7 +419,9 @@ runs are new; they do not reuse any run above.
 - The audit observes only connections opened through `sqlite3.connect` in
   interpreters that load its hook, and the static scans do not match
   schema-qualified writes (`INSERT INTO main.password_recoveries`); both limits are
-  as in 8.1.
+  as in 8.1. The audit authorizes a statement when it is prepared, so an allowed
+  INSERT reused from a connection's statement cache is not checked again (8.3
+  obligation 3).
 
 ## Changed-file inventory
 
@@ -404,7 +446,7 @@ New files:
   `tests/test_recovery_service_operations.py`
 - `docs/reviews/PASSWORD_RECOVERY_8_2_STATUS.md`
 
-### Uncommitted and unstaged since the review (for Gabriel)
+### Committed after the review as `421993b0dc3dfdd5656ba36869593febf25cee8a`
 
 - `tests/recovery_audit.py`: first-external-caller validation of service inserts.
 - `tests/test_recovery_no_caller.py`: subprocess regressions for direct allowed
