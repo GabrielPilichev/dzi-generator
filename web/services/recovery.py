@@ -1,10 +1,11 @@
 """Password recovery by emailed code: the service (docs/reviews/PASSWORD_RECOVERY_DESIGN.md,
 sections 1.3, 2.1 to 2.5, 3.2 to 3.6, 4, 5; scope 8.2).
 
-Independent of Flask, ``web.app`` and the blueprints. **Scope 8.2 has no caller**: no
-production module imports this one (test RZ2). Routes, the session slot, settings and the
-build gate belong to scope 8.3. This module opens no database, reads no environment and
-builds no mailer.
+Independent of Flask, ``web.app`` and the blueprints. Scope 8.2 added it with no caller;
+since scope 8.3 exactly one production module calls it, the blueprint
+``web.blueprints.recovery`` (the routes, the session slot, the settings and the build gate
+``PRODUCTION_ACTIVATION`` below), and nothing else may (``tests/test_recovery_no_caller.py``).
+This module opens no database, reads no environment and builds no mailer.
 
 **Transactions belong to the caller**, exactly as for ``web.services.registration``:
 
@@ -83,6 +84,13 @@ from web.services.registration_scrub import stamp as _stamp
 
 logger = logging.getLogger("learnpilot.recovery")
 
+# Activation gate of the build (design 7.1, scope 8.3), a constant like the three of
+# registration design 7.3. While it is False a production start keeps every ``/recover...``
+# route at the generic 404 whatever the mail settings hold, builds no recovery settings and
+# shows no link on ``/login``. No setting and no environment variable overrides it: a deploy
+# changes it, and only when Gabriel authorizes the activation.
+PRODUCTION_ACTIVATION = False
+
 # Limits (design 5.4, amendment AM1): registration's D6 values, with eight-digit codes.
 CODE_DIGITS = 8
 RECOVERY_LIFETIME = registration.PENDING_LIFETIME  # 30 minutes
@@ -104,7 +112,7 @@ NOTICE_SUBJECT = "Заявка за нова парола в LearnPilot"
 _CODE_LEAD = "Кодът ти за нова парола е: "
 
 __all__ = [
-    "Availability", "Settlement", "TransactionRequired", "NotSendable", "Outcome", "Result",
+    "PRODUCTION_ACTIVATION", "Availability", "Settlement", "TransactionRequired", "NotSendable", "Outcome", "Result",
     "PendingView", "binding_hash", "session_key_digest", "request", "resend", "redeem", "cancel",
     "pending_view", "dispatch", "settle_send",
 ]

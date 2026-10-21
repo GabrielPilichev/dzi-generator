@@ -98,6 +98,12 @@ EXPECTED_ACCESS_MATRIX = {
     "registration.verify": access.PUBLIC,
     "registration.resend": access.PUBLIC,
     "registration.cancel": access.PUBLIC,
+    # Password recovery (scope 8.3): public, as sign-in is. A signed-in account is sent to its
+    # home by the view; every address is the generic 404 while recovery is disabled.
+    "recovery.start": access.PUBLIC,
+    "recovery.verify": access.PUBLIC,
+    "recovery.resend": access.PUBLIC,
+    "recovery.cancel": access.PUBLIC,
 }
 
 # Who makes the request. The first three have no account: "historical_*" are

@@ -116,10 +116,10 @@ class ActivationGateTest(unittest.TestCase):
             for path in (ROOT / directory).rglob("*.py"):
                 text = path.read_text(encoding="utf-8")
                 assignments += [str(path.relative_to(ROOT)) for _ in re.findall(r"PRODUCTION_ACTIVATION\s*=[^=]", text)]
-        # The registration gate of PR 4 and the profile gate of PR 6 are their own constants,
-        # each in its own module.
+        # The registration gate of PR 4, the profile gate of PR 6 and the recovery gate of scope 8.3
+        # are their own constants, each in its own module.
         self.assertEqual(sorted(assignments), ["web/services/google_oidc.py", "web/services/profiles.py",
-                                               "web/services/registration.py"])
+                                               "web/services/recovery.py", "web/services/registration.py"])
         # No environment variable reads into it: the module reads none at all.
         source = (ROOT / "web/services/google_oidc.py").read_text(encoding="utf-8")
         self.assertIn("\nPRODUCTION_ACTIVATION = False\n", source)

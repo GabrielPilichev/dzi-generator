@@ -7,11 +7,11 @@ design", with its section numbers), whose section 5.2 requires this addendum
 and whose decision D10 approved self-service recovery by emailed code as PR 8.
 
 **Revision 3 with post-review corrections and Gabriel's decisions recorded.
-Decisions selected. Scope 8.1 is merged (`09fdb68`); Gabriel has authorized
-implementation of scope 8.2, prepared for independent review. Scope 8.3,
-deployment and activation remain unauthorized.**
+Decisions selected. Scope 8.1 is merged (`09fdb68`, PR #343) and scope 8.2 is merged (PR #344, at
+`4f88f7c`). Gabriel has authorized scope 8.3, implemented for independent review (not yet
+reviewed). Deployment and activation remain unauthorized.**
 Current implementation/evidence: `PASSWORD_RECOVERY_8_1_STATUS.md`,
-`PASSWORD_RECOVERY_8_2_STATUS.md`.
+`PASSWORD_RECOVERY_8_2_STATUS.md`, `PASSWORD_RECOVERY_8_3_STATUS.md`.
 Review chronology: revision 1 (`745a952`) was independently
 reviewed and returned REQUEST CHANGES (F1–F11, answered in revision 2,
 section 0.4). Revision 2 (`727bd4d`) received a **second** independent
@@ -2040,7 +2040,7 @@ plan RR8–RR22.
 
 While the recovery gate stays off in production, no recovery row and no
 recovery ledger row is expected there: the gate (scope 8.3) and the no-caller
-tests (scopes 8.1, 8.2) say so, and the integration of scope 8.1 handles one if it exists
+tests (scopes 8.1, 8.2, and the caller policy of 8.3) say so, and the integration of scope 8.1 handles one if it exists
 anyway. A rollback then has no recovery data to carry.
 
 ### 7.4 Deployment order (for a later, separately authorized rollout)
@@ -2218,7 +2218,8 @@ Test plan RLog2 asserts this invariant, and no more.
 **One scope at a time, in this order**, each green on the full suite, every
 gate off, documents updated with what each makes untrue. **Scope 8.1 authorized
 and merged (`09fdb68`); scope 8.2 authorized by Gabriel's later request and
-implemented for review; 8.3 remains unauthorized.** Recording
+merged (`4f88f7c`); scope 8.3 authorized by Gabriel's later request and implemented for
+independent review.** Recording
 the selections alone did not authorize implementation. Gabriel's current request
 assigns 8.1 to Codex, superseding the older proposed executor for this scope.
 Independent security review of each in a **separate

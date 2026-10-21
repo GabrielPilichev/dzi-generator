@@ -123,7 +123,7 @@ class AuthRemovalTest(unittest.TestCase):
     def test_every_blueprint_is_registered_exactly_once(self):
         self.assertEqual(
             sorted(web_app.app.blueprints),
-            ["account", "browsing", "dzi", "oidc", "practical", "quiz", "registration", "teacher"],
+            ["account", "browsing", "dzi", "oidc", "practical", "quiz", "recovery", "registration", "teacher"],
         )
         # Google sign-in is the blueprint "oidc". It is not the removed "auth", and
         # none of its paths says "login" or "logout" (pinned above).
@@ -189,7 +189,7 @@ class AuthDependencyDirectionTest(unittest.TestCase):
             result = subprocess.run(
                 [sys.executable, "-B", "-c", code], cwd=ROOT, capture_output=True, text=True, env=env)
             self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertTrue(result.stdout.strip().startswith("8 "), result.stdout)
+            self.assertTrue(result.stdout.strip().startswith("9 "), result.stdout)
             outputs.append(result.stdout)
         self.assertEqual(outputs[0], outputs[1])
 

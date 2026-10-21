@@ -241,8 +241,9 @@ Accounts are created by `python3 -m src.manage_accounts`, and, once Google
 sign-in is activated, a first Google sign-in creates a `student` (see "Google
 sign-in"). Once student registration is activated, a verified registration
 creates a `student` too (see "Student registration"; **not activated**). There
-is no password reset, and no teacher registration. A teacher or an admin
-account comes from the operator only. A profile (names and class, or school
+is no password reset reachable in production (self-service recovery by an emailed code exists in the
+build, see "Password recovery"; **not activated**, and the operator's `set-password` stays the recovery
+path), and no teacher registration. A teacher or an admin account comes from the operator only. A profile (names and class, or school
 and subjects) is a declaration and never an authority; see "Account profile".
 
 **Session contents.** A successful `POST /login` (for an admin, the completed
@@ -582,6 +583,78 @@ cross-origin POST is still 403) and no page links to it.
   any Unicode C or Z character; it is checked when the form is rendered, when
   the slot is read and again by `/login`.
 
+## Password recovery
+
+Specification: `docs/reviews/PASSWORD_RECOVERY_DESIGN.md` (sections 2.2 to 2.8, 3.5, 3.6, 7.1, 7.5
+and 8.1); implementation and its contract: `docs/reviews/PASSWORD_RECOVERY_8_3_STATUS.md`
+(scope 8.3, not yet independently reviewed). **It is not activated.** It is enabled only with usable
+mail settings, and a production start of this build keeps it disabled whatever is configured: the
+build gate `recovery.PRODUCTION_ACTIVATION` (`web/services/recovery.py`) is `False`, no setting or
+environment variable overrides it, and it is independent of the registration, teacher and profile
+gates (`docs/DEPLOYMENT.md`, section 38). Disabled, every route below answers the generic 404 page
+after the same-origin check, for every visitor (a cross-origin POST is still 403), and `/login` has no
+link and no notice.
+
+| Route | Endpoint | Methods | Access | Integrity |
+| --- | --- | --- | --- | --- |
+| `/recover` | `recovery.start` | GET, POST | `public` | `same_origin` |
+| `/recover/verify` | `recovery.verify` | GET, POST | `public` | `same_origin` |
+| `/recover/resend` | `recovery.resend` | POST | `public` | `same_origin` |
+| `/recover/cancel` | `recovery.cancel` | POST | `public` | `same_origin` |
+
+- **Order, on every route**: the application's same-origin check (every unsafe method, before the
+  access hook), then the gate (the generic 404), then the signed-in redirect, then the session slot.
+  A redemption then reads this browser's row (`pending_view`), judges the password against the address
+  that row holds (`accounts.password_problem(password, view.email)`), compares the confirmation exactly,
+  and only then calls the service inside `BEGIN IMMEDIATE`. A refusal at an earlier step answers before
+  a later step reads anything, and no step before the transaction writes or counts an attempt.
+- **A signed-in account** is sent to its role's home by every `/recover...` route (`303`), and a POST of
+  it starts nothing; the session is unchanged. A `HEAD` is a read and never submits, whatever it carries.
+- **The browser binding is the session slot `rec`**: `{"v": 1, "t": <token>, "next": <validated path or
+  "">}`. No address, code or password is in the cookie, a URL or a redirect. It is not an account key:
+  `load_current_user` never reads it, and `issue_account_session`, `issue_pending_second_factor` and
+  `end_session` drop it with everything else (the first two carry over only the `quiz_attempt_owner:*`
+  markers). It is independent of the registration slot `reg`; a browser may hold both. A slot of any
+  other shape (other keys, version, token shape, a `next` the rule refuses) is ignored; another browser
+  has no recovery, and a copy of the cookie is the same browser and still needs the code.
+- **No GET writes to the database**, and a GET with no usable recovery sets no cookie. The verify page
+  reads only the caller's own row and never the account (`pending_view`); expiry is written by the POSTs
+  and by the cleanup. The application's own stale-session cleanup in `load_current_user` is separate and
+  unchanged: a request whose cookie carries an account identity that no longer resolves may still have those
+  keys removed (a `Set-Cookie`), so no claim is made that no cookie is ever sent.
+- **Transactions**: each service writer runs inside `BEGIN IMMEDIATE` begun by the route; nothing
+  (the slot, the response, a durable log line, mail) acts on its outcome before `COMMIT` has returned. An
+  exception **before** the commit followed by a rollback that returned means nothing took effect, and the
+  page says the password was not changed; a commit that raised, or a rollback that raised, leaves an outcome
+  the route cannot establish, and the page says so (`Не успяхме да потвърдим…`). No failed commit is ever
+  presented as a reset. The code or notice of an issuance is handed to the mailer once, by the request that
+  committed it, with that request's own result and no transaction open, and settled afterwards in its own
+  transaction by generation number **and** issuance identity; never after `NotSendable`, and never retried.
+- **A correct code does not sign in (decision D7).** It sets the password (one step: code, new password and
+  confirmation in one POST), drops the slot and redirects to `/login?next=<validated>&recovery=done`. Sign-in
+  is email and password, as for every account, and never asks for a code. The sign-in throttle is neither read
+  nor written by any recovery route (RD8 (a), RD10): a reset clears nothing, and wrong codes count nowhere
+  but in the row.
+- **`/login?recovery=done`** shows a fixed notice selected by the URL, by lookup, never by echo, and only
+  while recovery is enabled. It changes no state and **proves no reset**: a hand-built URL shows it too.
+  `/login` links „Забравена парола?“ to `/recover?next=<validated>` only while recovery is enabled.
+- **Responses** of every address under `/recover` (the four routes, an unknown path, a refused method, a 403
+  and the disabled 404 included) carry `Cache-Control: no-store` and `Referrer-Policy: no-referrer` from the
+  application; in production the Nginx template hides that copy and sends exactly one `no-referrer` itself
+  (`docs/DEPLOYMENT.md`, section 38). The code input is `autocomplete="one-time-code"` with
+  `inputmode="numeric"`, the password inputs `autocomplete="new-password"`; every control has a label, and a
+  field with an error is `aria-invalid` and described by its error.
+- **`next`** passes `forms.accepted_next` when the form is rendered, when it is stored in the slot and when the
+  slot is read, and `safe_redirect_target` at `/login`; success goes to `/login`, never to `next` directly, and
+  a refused value is dropped and never echoed. The unavailable (503), failure (500), ended and invalidated pages
+  link back to `/recover` and `/login` with the same validated target.
+- **A repeated or late redemption.** The row is read first (design 2.4, step 2): a row that is final, absent or
+  past its time by the read is the same „Заявката за нова парола е изтекла…“ page for every state, with the slot
+  dropped on a POST and nothing written. The service's `NOT_PENDING (redeemed)` redirect to `/login` is therefore
+  reached only when the row becomes final between that read and the transaction (two tabs posting together).
+  After a commit whose outcome was not established, a retry with the same code shows the ended page, not the
+  redirect (reported as a design ambiguity in the 8.3 status document).
+
 ## Account profile
 
 Specification: `docs/reviews/EMAIL_REGISTRATION_DESIGN.md` (sections 7.3 and
@@ -777,6 +850,6 @@ accepts no unsafe method.
 ## Endpoint names
 
 Every endpoint is blueprint-qualified: `account.*`, `browsing.*`, `dzi.*`,
-`oidc.*`, `practical.*`, `quiz.*`, `registration.*`, `teacher.*`. The unprefixed quiz endpoints
+`oidc.*`, `practical.*`, `quiz.*`, `recovery.*`, `registration.*`, `teacher.*`. The unprefixed quiz endpoints
 (`quiz_start`, `quiz_attempt`, `quiz_result`) and the `auth.*` endpoints no
 longer exist.

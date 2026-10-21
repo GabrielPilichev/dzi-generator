@@ -3520,15 +3520,14 @@ pins that nothing but the quota module writes it.
 
 ## 37. Password recovery storage and restore credentials
 
-Scope 8.1 (merged): migration `025_password_recoveries.sql` and its operations.
-Scope 8.2 (authorized, implemented for review) adds `web/services/recovery.py`,
-which can create recovery rows but has **no production caller**: no route,
-template, setting, startup hook, CLI subcommand or deploy entry point reaches it,
-and no mail is sent for recovery. Rows it creates are handled by the operations
-below exactly as fixture rows are. No deployment or activation is authorized;
-scope 8.3 requires separate authorization and review. All production gates
-remain OFF. Operator password recovery remains
-`manage_accounts set-password`; no account/TOTP API changes in this scope.
+Scope 8.1 (merged, PR #343): migration `025_password_recoveries.sql` and its operations.
+Scope 8.2 (merged, PR #344, at `4f88f7c`) added `web/services/recovery.py`, which can
+create recovery rows. Scope 8.3 (authorized, implemented for independent review; section 38)
+adds the routes that are its one production caller, behind the build gate
+`recovery.PRODUCTION_ACTIVATION`, which is off. Rows the service creates are handled by the
+operations below exactly as fixture rows are. No deployment or activation is authorized. All
+production gates remain OFF. Operator password recovery remains
+`manage_accounts set-password`; no account/TOTP API changes in these scopes.
 
 025 is additive: an empty runtime table, nullable `registration_sends.recovery_id`
 with an at-most-one-purpose CHECK, and two indexes. Legacy ledger inserts with
@@ -3797,6 +3796,109 @@ does not repair old passwords, sessions or TOTP.
 Host rehearsal, real Nginx acceptance, Linux timer behavior, provider delivery,
 capacity, privacy/wording decisions and independent security review remain
 outstanding. Portable tests do not establish host isolation or authorize rollout.
+
+## 38. Password recovery routes (scope 8.3): shipped disabled
+
+This release adds the recovery routes (`/recover`, `/recover/verify`, `/recover/resend`,
+`/recover/cancel`), their three pages, the „Забравена парола?“ link and the `recovery=done`
+notice on `/login`, the settings module `web/recovery_settings.py`, the `learnpilot.recovery` log
+handler and the Nginx `/recover` locations (`docs/reviews/PASSWORD_RECOVERY_DESIGN.md`, sections 2,
+7.1, 7.5 and 8.1; contract in `docs/reviews/PASSWORD_RECOVERY_8_3_STATUS.md`; routes in
+`docs/AUTH_ROUTE_CONTRACT.md`, "Password recovery").
+
+**Recovery is not activated, and this build cannot activate it in production.** Nothing in this
+section has been carried out on any server: no provider, sender address or credential exists, no
+message was sent, no Nginx accepted the template, and none of the checks below was run. Section 37
+(storage, cleanup, the restore gate, the credential runbook and the mandatory maintenance isolation)
+applies unchanged and must be rehearsed before any activation.
+
+### What the build does
+
+- **No migration.** It needs migration 025 (section 37), which a database must have before this
+  build serves it.
+- **The activation gate.** `PRODUCTION_ACTIVATION` in `web/services/recovery.py` is `False`. It is
+  independent of `registration.PRODUCTION_ACTIVATION`, `TEACHER_ACTIVATION` and
+  `profiles.PRODUCTION_ACTIVATION`. While it is off, `web.wsgi`:
+  - starts normally whatever the `DZI_MAIL_*` and `DZI_SMTP_*` settings hold (unset, partial,
+    malformed, or a `console`/`file` backend): mail settings are never a reason to refuse to start;
+  - keeps recovery disabled: every `/recover...` route answers the generic 404 page (a cross-origin POST
+    is still 403), `/login` has no „Забравена парола?“ link and does not show the `recovery=done` notice,
+    no row is created and no message is sent;
+  - logs one warning if any mail setting is set, naming the settings and never their values: `Mail
+    settings are configured (...), but this build does not enable password recovery.` (Registration logs
+    its own, separate warning.)
+
+  No setting and no environment variable overrides the constant, and none is read for it; a configured
+  backend never enables recovery by itself. **A later, separately authorized release** sets it to `True`
+  only after the prerequisites of design 9 and section 37; from then on a configured backend must be usable
+  for production (`smtp` only: `console` and `file` stop the start, as does any malformed setting, named
+  and never echoed) and no backend means disabled. Registration's mail problems and recovery's are the same
+  settings and are reported once while either gate is on.
+- **Settings.** `RecoverySettings` (the mailer and the hourly total budget, `DZI_MAIL_HOURLY_CAP`) under
+  `app.config["RECOVERY"]`, built from the same `mail.load_settings` and `mail.build_mailer` as
+  registration's. A development run (`web.app`) enables recovery as it enables registration (usable
+  development mail settings, `DZI_MAIL_BACKEND=console` shows the code in the terminal), and warns by setting
+  name when they are unusable: `Password recovery is disabled: ...`.
+- **One budget.** A recovery issuance is a row of the same send ledger as a registration one, so the per-address
+  caps (5 an hour, 8 in 24 h 15 min), the total budget (300 an hour, or `DZI_MAIL_HOURLY_CAP`), the circuit, the
+  high-water mark and the restore hold are shared with registration (RD5, RD6). A reset clears nothing of the
+  sign-in throttle (RD8 (a)) and wrong recovery codes do not count in it (RD10).
+- **Logs.** `learnpilot.recovery` gets a handler like the registration one (stderr, so the journal). Lines are
+  an event name with row ids, an outcome or an exception class name; never an address, a password, a code, the
+  binding token, any hash, key or digest, an issuance identity, a message, or whether a row is a shadow.
+  `user=` appears on `redeemed` only. Lines named `*_decided` are written by the service inside a transaction before
+  its commit and are not evidence that anything became durable; `requested`, `resent`, `wrong_code`, `redeemed`,
+  `invalidated`, `expired`, `cancelled`, `unavailable` and `send_settled` are written by the route only after the
+  commit returned, and `request_failed`, `resend_failed`, `cancel_failed`, `redeem_failed`, `dispatch_failed` and
+  `settlement_failed` name an exception class.
+
+### Deploying this build
+
+The standard procedure of section 20, with no migration step. **Do not add mail settings to
+`/etc/learnpilot/learnpilot.env` for this release:** they would only produce the warnings above. Then check
+(these send nothing and write nothing):
+
+```bash
+curl -s https://learnpilot.bg/login | grep -c '/recover'                          # 0: no link
+curl -s -o /dev/null -w '%{http_code}\n' https://learnpilot.bg/recover            # 404
+curl -s -o /dev/null -w '%{http_code}\n' -X POST \
+  -H 'Origin: https://learnpilot.bg' https://learnpilot.bg/recover/verify         # 404
+curl -sI https://learnpilot.bg/recover | grep -ci '^referrer-policy: no-referrer'  # 1
+```
+
+Install the new Nginx template as in section 12 (keep the lines Certbot added to the server block), then
+`sudo nginx -t && sudo systemctl reload nginx`. The template adds four locations, as under `/register` (section 33):
+
+| Location | Limit | Why |
+| --- | --- | --- |
+| `= /recover` | `lp_register`, `burst=90 nodelay` | A POST sends mail; the zone keys on POSTs only, so the form (a GET) is not limited |
+| `= /recover/resend` | `lp_register`, `burst=90 nodelay` | Sends mail |
+| `= /recover/verify` | `lp_login`, `burst=40 nodelay` | A guess at a credential: the sign-in budget |
+| `/recover/` (prefix) | none | `/recover/cancel` (a POST that sends nothing) and any unknown path under it, which the application answers 404 |
+
+Every address under `/recover` is answered with exactly one `Referrer-Policy: no-referrer`: each location repeats the
+server-level `X-Content-Type-Options` and `X-Frame-Options` (`add_header` in a location replaces the inherited ones) and
+hides the application's copy of the policy. `/recovery` and `/recover-x` are not recovery routes and fall to `location /`. The
+values are registration's proposals, to be tuned on a classroom-sized run that mixes both purposes before activation. **The
+template does not contain the maintenance configuration of section 37**: that block is an operator step on the host, built and
+verified for a restore, never part of the repository's template. A template change is not evidence that the server's Nginx
+accepts it: `nginx -t` on the server is, and no `nginx` binary was available when this was written (the checks in
+`tests/test_recovery_production.py` are static).
+
+### Rollback
+
+**There is no behaviour to revert while the gate is off.** Reverting the code removes routes that answer 404, one log handler
+and four Nginx locations. The table of migration 025 stays, and every build that serves the database keeps shipping the
+migration and its cleanup, restore and snapshot integration (section 37). If recovery was ever activated, pending rows that
+a rollback leaves behind are unreachable and are scrubbed by the next cleanup after they expire; nothing redeems them.
+
+### Still outstanding before any activation
+
+The Linux, systemd and Nginx evidence of design 9 (including the real `nginx -t` and one `Referrer-Policy` observed on each
+`/recover` address, a 404 and a 429 included), the restore credential runbook rehearsed with the required maintenance isolation,
+provider delivery and the timing of a recovery code and a notice (no equal timing is claimed), the capacity of `set_password`
+under the writer lock, RD15 (the exact Bulgarian wording, still proposed), D16 extended to recovery (including the neutral
+notices to typed addresses), the configuration of D17 and an independent security review of every scope.
 
 ## 2 GB VPS sizing
 

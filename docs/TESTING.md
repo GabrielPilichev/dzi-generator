@@ -47,22 +47,27 @@ the application, WSGI, every blueprint and the operational command entry points.
 This does not establish Linux isolation, real Nginx behavior, physical erasure,
 provider delivery or scope 8.3 route behavior.
 
-Since scope 8.2 the audit also allows an INSERT into `password_recoveries` made by
-the service `web.services.recovery`, **only** when the first caller outside the
-audit and the contiguous service frames is a recovery test or fixture module. A
-recovery test elsewhere on the stack is not enough: the same service call from
-anything else (an application, CLI, another test, or a production-named
-intermediary between a recovery test and the service) is denied and counted as a
-violation (`tests.test_recovery_no_caller` proves the allowed and denied cases in
-deterministic subprocesses). The check runs in SQLite's authorizer, which sees a
-statement when it is prepared: an allowed INSERT prepared on a fixture connection
-can be reused from Python's per-connection statement cache by another caller
-without another check, and that fixture connection also skips the emptiness check
-below. Denial is therefore guaranteed only for statements prepared on behalf of the
-denied caller; scope 8.3's audit adaptation must add a regression for the reuse and
-assess `cached_statements=0`. The
-close/collection check now also requires zero recovery-purpose ledger rows
-(`registration_sends.recovery_id` set) in every nonfixture database.
+The audit's **caller rule** (scope 8.2, adapted deliberately in 8.3): an INSERT into
+`password_recoveries` made by the service `web.services.recovery` is allowed only when the first
+caller outside the audit and the contiguous service frames is (a) a recovery test or fixture module
+(`tests.test_recovery_*`, `tests.recovery_support`, `tests.recovery_service_support`,
+`tests.recovery_route_support`), or (b) exactly the blueprint `web.blueprints.recovery` **and** a
+recovery test or fixture module is also up the same stack, i.e. a recovery test drives the route. A
+route reached from any other test (a sweep, a smoke test), a lookalike module name, and any
+production-named intermediary between a recovery test or the blueprint and the service are denied and
+counted as a violation (`tests.test_recovery_no_caller` proves the allowed and denied cases in
+deterministic subprocesses). The audit is not disabled and "any caller" is not the policy.
+
+The check runs in SQLite's authorizer, which sees a statement when it is **prepared**, and Python
+keeps a per-connection cache of prepared statements: an INSERT prepared and allowed for a fixture caller
+could be reused by another caller with the same SQL text without another check. Since scope 8.3 the
+audit therefore opens every connection with `cached_statements=0` (`install(..., fresh_prepare=True)`,
+the default), so each execution prepares afresh and is authorized for its own caller. Two tests pin this:
+the same-connection regression is **denied** with the audit as installed, and **unseen** with
+`fresh_prepare=False` (the limitation, kept visible). **Assessment of `cached_statements=0`** (one machine, single alternating runs, indicative only): the 123 query-budget tests (browse, subject-ownership, teacher/new and quiz-start batching, account-owned attempts and account UI state, which count statements with `set_trace_callback`) pass 123/123 without the audit, with it and the cache, and with it and `cached_statements=0` (the trace fires per execution, not per preparation); wall time 5.0 s, 5.7 s and 6.3 s. 222 recovery and registration service tests: 12.4 s, 12.4 s and 12.9 s, all passing, 0 violations. The close/collection check also requires
+zero recovery-purpose ledger rows (`registration_sends.recovery_id` set) in every nonfixture database.
+What the audit still does not see: connections not opened through `sqlite3.connect` in an interpreter that
+loads the hook, and writes other than an authorizer-visible `INSERT` (the static scans cover those).
 
 ### Password recovery scope 8.2
 
@@ -79,8 +84,32 @@ python3 -B -m unittest tests.test_recovery_service tests.test_recovery_eligibili
 functions (verified accounts as registration activates them) and drives every
 writer inside `BEGIN IMMEDIATE`, committing or rolling back as the 8.3 caller
 must. The mapping to the test plan, deviations and remaining gaps are in
-`docs/reviews/PASSWORD_RECOVERY_8_2_STATUS.md`. RZ2 (no production caller) is
-static and import-level; it is not the reason the build is safe (design 7.3).
+`docs/reviews/PASSWORD_RECOVERY_8_2_STATUS.md`. RZ2 (no production caller) was static and
+import-level; scope 8.3 replaced it by the caller policy described with the audit under scope 8.1 above. It was never the reason the build is
+safe (design 7.3).
+
+### Password recovery scope 8.3
+
+Route-level suites (temporary databases, `InMemoryMailer`, one injected clock; no socket, provider or running
+server). They need the real dependencies of `requirements-dev.txt` (Flask, Werkzeug, cryptography, segno, Authlib,
+joserfc, requests), exactly as the rest of the suite does.
+
+```sh
+python3 -B -m unittest tests.test_recovery_routes tests.test_recovery_enumeration \
+  tests.test_recovery_transactions tests.test_recovery_limits tests.test_recovery_production \
+  tests.test_recovery_no_caller
+```
+
+`tests/recovery_route_support.py` builds on `AccountAppTestCase`: a fresh database per test, accounts through the real
+account functions (verified accounts as registration activates them, CLI accounts as the operator creates them), the
+operator's `manage_accounts` commands against the test database, a **fault injector** (a wrapper of the request's real
+connection that raises in place of `COMMIT`, after a real `COMMIT`, at a statement that contains a given text, or at
+`ROLLBACK`), and `observe`, which reduces a response to what a browser can see (status, `Location`, the page with the
+typed address taken out, the header names, the cookie shape). Mapping to the test plan, deviations and gaps:
+`docs/reviews/PASSWORD_RECOVERY_8_3_STATUS.md`. The sweeps of `tests/test_access_policy.py`,
+`tests/test_session_cookie_samesite.py`, `tests/test_dzi_blueprint.py` and `tests/test_account_principal_bridge.py`
+list the four recovery endpoints (disabled in those configurations: the generic 404). The Nginx tests resolve locations
+as Nginx does but are **static**: they are not evidence that a real Nginx accepts the template.
 
 ### Shared application fixtures
 

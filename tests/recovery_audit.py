@@ -2,16 +2,34 @@
 
 Install with ``install(log_path)`` from that interpreter's sitecustomize. Never
 imported by application code. SQL INSERTs into recovery storage are forbidden
-unless the first caller outside this module is a recovery test/fixture, or
-(scope 8.2) the recovery service ``web.services.recovery`` was entered directly
-from one: the audit walks past its own frames and the contiguous service frames,
-and the next frame's module must be a recovery test/fixture. The service has no
-production caller, so a service insert reached through any other module (an
-application, CLI, other test path or a production-named intermediary between a
-recovery test and the service) is a violation. On close/collection, every
-supported nonfixture database must have zero recovery rows and zero
-recovery-purpose ledger rows (``registration_sends.recovery_id`` set). Reports
-only counts and source labels, never paths, SQL values or credentials.
+unless the first caller outside this module is a recovery test/fixture, or the
+recovery service ``web.services.recovery`` was entered from an allowed caller: the
+audit walks past its own frames and the contiguous service frames, and the next
+frame's module must be
+
+* a recovery test/fixture module (scope 8.2), or
+* (scope 8.3) **the one production caller, the blueprint** ``web.blueprints.recovery``,
+  and then only while a recovery test/fixture module is also somewhere up the same
+  thread's stack, i.e. a recovery test drives the route. A route reached from any other
+  test (a sweep, a smoke test) is not a recovery test and its insert is a violation.
+
+Any other first caller (an application module, the CLI, another test path or a
+production-named intermediary between a recovery test or the blueprint and the service)
+is a violation: "any caller allowed" is not the policy, and the audit is not disabled.
+On close/collection, every supported nonfixture database must have zero recovery rows and
+zero recovery-purpose ledger rows (``registration_sends.recovery_id`` set). Reports only
+counts and source labels, never paths, SQL values or credentials.
+
+**Prepared-statement cache (scope 8.3).** SQLite calls the authorizer when it *prepares* a
+statement, not when it executes one, and Python's ``sqlite3`` keeps a per-connection cache
+of prepared statements. With the cache, an INSERT prepared and allowed for a fixture caller
+is reused for a later caller with the same SQL text without another check. ``install``
+therefore opens every connection with ``cached_statements=0`` by default
+(``fresh_prepare=True``), so each execution prepares afresh and is authorized for its own
+caller. ``fresh_prepare=False`` restores the cache and its documented blind spot (a test
+pins both). Not covered either way: connections not opened through ``sqlite3.connect`` in an
+interpreter that loads this hook, and writes that do not go through an authorizer-visible
+INSERT of ``password_recoveries`` (the static scans cover those).
 """
 import atexit
 import inspect
@@ -26,9 +44,13 @@ _installed = False
 _SERVICE_MODULE = "web.services.recovery"
 
 
+_BLUEPRINT_MODULE = "web.blueprints.recovery"
+
+
 def _fixture_module(name):
     return (name.startswith("tests.test_recovery_") or name.startswith("test_recovery_")
-            or name in ("tests.recovery_support", "tests.recovery_service_support"))
+            or name in ("tests.recovery_support", "tests.recovery_service_support",
+                        "tests.recovery_route_support"))
 
 
 def _insert_caller(frame):
@@ -38,7 +60,25 @@ def _insert_caller(frame):
     return frame.f_globals.get("__name__", "") if frame else ""
 
 
-def install(log_path):
+def _recovery_test_above(frame):
+    """Whether a recovery test/fixture module is anywhere up this thread's stack."""
+    while frame is not None:
+        if _fixture_module(frame.f_globals.get("__name__", "")):
+            return True
+        frame = frame.f_back
+    return False
+
+
+def _insert_allowed(frame):
+    """Whether an INSERT into recovery storage prepared from ``frame`` may proceed."""
+    caller = _insert_caller(frame)
+    if _fixture_module(caller):
+        return True
+    # The blueprint is the one production caller; a route is allowed only while a recovery test drives it.
+    return caller == _BLUEPRINT_MODULE and _recovery_test_above(frame)
+
+
+def install(log_path, *, fresh_prepare=True):
     global _installed
     if _installed:
         return
@@ -64,7 +104,7 @@ def install(log_path):
         def set_authorizer(self, callback):
             def authorize(action, table, column, db, trigger):
                 if action == sqlite3.SQLITE_INSERT and table == "password_recoveries":
-                    if not _fixture_module(_insert_caller(inspect.currentframe().f_back)):
+                    if not _insert_allowed(inspect.currentframe().f_back):
                         violation()
                         return sqlite3.SQLITE_DENY
                     self._recovery_fixture = True
@@ -125,6 +165,9 @@ def install(log_path):
         if base not in classes:
             classes[base] = type("RecoveryAudited" + base.__name__, (Audited, base), {})
         kwargs["factory"] = classes[base]
+        if fresh_prepare and len(args) < 7:
+            # Prepare afresh at every execution, so the authorizer sees each caller (see above).
+            kwargs["cached_statements"] = 0
         conn = original(*args, **kwargs)
         counts["connections"] += 1
         conn._recovery_fixture = any(_fixture_module(frame.frame.f_globals.get("__name__", ""))

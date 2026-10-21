@@ -821,10 +821,12 @@ class DeploymentTemplateTest(unittest.TestCase):
         self.assertRegex(conf, r"location = /login \{\s+limit_req zone=lp_login burst=40 nodelay;")
         self.assertRegex(conf, r"location = /login/totp \{\s+limit_req zone=lp_login burst=40 nodelay;")
         # The third is the confirmation of a Google link, which carries a password; the
-        # fourth the registration code form (PR 4), a guess at a credential.
+        # fourth the registration code form (PR 4), a guess at a credential; the fifth the
+        # recovery code and password form (scope 8.3), likewise.
         self.assertRegex(conf, r"location = /auth/google/link/confirm \{\s+limit_req zone=lp_login burst=40 nodelay;")
         self.assertRegex(conf, r"location = /register/verify \{\s+limit_req zone=lp_login burst=40 nodelay;")
-        self.assertEqual(len(re.findall(r"limit_req zone=lp_login\b", conf)), 4)
+        self.assertRegex(conf, r"location = /recover/verify \{\s+limit_req zone=lp_login burst=40 nodelay;")
+        self.assertEqual(len(re.findall(r"limit_req zone=lp_login\b", conf)), 5)
         self.assertIn("location ~ ^/quiz/[0-9]+$", conf)
         self.assertIn("location ~ ^/quiz/attempt/[0-9]+$", conf)
         self.assertIn("location ~ ^/quiz/attempt/[0-9]+/practical/[^/]+/task/[0-9]+/upload$", conf)

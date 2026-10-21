@@ -12,9 +12,13 @@ RD1–RD18 left proposed; the corrections for R1–R8 (design 0.6) came after
 that SHA and are outside that review, and so is the recording of Gabriel's
 selections (design 0.3, 0.7), after which the tests of unselected variants
 were removed. No review approved a decision. **Scope 8.1 is merged; its tests
-and evidence are mapped in `PASSWORD_RECOVERY_8_1_STATUS.md`. Scope 8.2 is
-authorized; its service-level tests are mapped in `PASSWORD_RECOVERY_8_2_STATUS.md`
-(with the files actually used). 8.3 tests remain deferred.** Every test pins the selected behaviour: RD2 (a), RD4
+and evidence are mapped in `PASSWORD_RECOVERY_8_1_STATUS.md`. Scope 8.2 is merged; its service-level
+tests are mapped in `PASSWORD_RECOVERY_8_2_STATUS.md` (with the files actually used). Scope 8.3 is
+authorized and implemented for independent review; its route-level tests are mapped in
+`PASSWORD_RECOVERY_8_3_STATUS.md`, with the files actually used (`test_recovery_routes.py`,
+`test_recovery_enumeration.py`, `test_recovery_transactions.py`, `test_recovery_limits.py` and
+`test_recovery_production.py`, with `recovery_route_support.py`), and RZ2 is replaced there by a
+precise caller policy.** Every test pins the selected behaviour: RD2 (a), RD4
 (eight digits), RD7 and RD10 as amended for recovery (design 0.1.1), RD8 (a),
 RD17 and RD18 (a), with required maintenance isolation. The approved
 recovery-specific amendments are tested as the requirement; registration's

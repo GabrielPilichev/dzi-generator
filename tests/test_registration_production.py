@@ -312,8 +312,10 @@ class NginxTemplateTest(unittest.TestCase):
             with self.subTest(uri=uri):
                 _, body = self.resolve(uri)
                 self.assertEqual(re.findall(r"limit_req zone=(.*);", body), [limit] if limit else [])
-        self.assertEqual(len(re.findall(r"limit_req zone=lp_login\b", self.text)), 4)
-        self.assertEqual(len(re.findall(r"limit_req zone=lp_register\b", self.text)), 3)
+        # Scope 8.3 added the /recover locations: one more lp_login limit (verify) and two more
+        # lp_register limits (the form and the resend); tests.test_recovery_production pins them.
+        self.assertEqual(len(re.findall(r"limit_req zone=lp_login\b", self.text)), 5)
+        self.assertEqual(len(re.findall(r"limit_req zone=lp_register\b", self.text)), 5)
         # Everything else keeps the server-level policy.
         for uri in ("/", "/login", "/dzi", "/registered", "/registers/x"):
             with self.subTest(uri=uri):

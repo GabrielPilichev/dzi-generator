@@ -27,6 +27,10 @@
 {% if registration_notice %}
     <div class="{{ registration_notice.kind }} login-message" role="status">{{ registration_notice.text }}</div>
 {% endif %}
+{% set recovery_notice = recovery_login_notice() %}
+{% if recovery_notice %}
+    <div class="{{ recovery_notice.kind }} login-message" role="status">{{ recovery_notice.text }}</div>
+{% endif %}
 
 <form method="post" action="{{ url_for('account.login') }}" class="card form-card login-card">
     <input type="hidden" name="next" value="{{ next_url }}">
@@ -38,6 +42,9 @@
     <input id="password" name="password" type="password" autocomplete="current-password" maxlength="256" required>
 
     <button type="submit">Влез</button>
+    {% if recovery_enabled %}
+    <p class="help"><a href="{{ url_for('recovery.start', next=next_url or None) }}">Забравена парола?</a></p>
+    {% endif %}
     {% if registration_enabled %}
     <p class="help">Нямаш профил? <a href="{{ url_for('registration.choose', next=next_url or None) }}">Регистрирай се</a></p>
     {% endif %}

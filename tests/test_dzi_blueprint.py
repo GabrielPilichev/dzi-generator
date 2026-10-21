@@ -29,6 +29,11 @@ EXPECTED_URL_MAP = (
     ('/auth/google/link/cancel', ('POST',), 'signed_in', 'same_origin'),
     ('/auth/google/link/confirm', ('GET', 'POST'), 'signed_in', 'same_origin'),
     ('/auth/google/start', ('POST',), 'public', 'same_origin'),
+    # Password recovery (scope 8.3); 404 while it is disabled.
+    ('/recover', ('GET', 'POST'), 'public', 'same_origin'),
+    ('/recover/cancel', ('POST',), 'public', 'same_origin'),
+    ('/recover/resend', ('POST',), 'public', 'same_origin'),
+    ('/recover/verify', ('GET', 'POST'), 'public', 'same_origin'),
     # Student registration (registration PR 4); 404 while it is disabled.
     ('/register', ('GET',), 'public', None),
     ('/register/cancel', ('POST',), 'public', 'same_origin'),
