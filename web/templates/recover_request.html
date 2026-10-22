@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}Нова парола{% endblock %}
+
+{% block body_class %}management-page management-login-page{% endblock %}
+
+{% block breadcrumb %}
+    <a href="{{ url_for('browsing.index') }}">Начало</a>
+    <span>›</span>
+    Нова парола
+{% endblock %}
+
+{% block content %}
+<section class="hero login-hero">
+    <p class="eyebrow">Профил</p>
+    <h1>Нова парола</h1>
+    <p class="subtitle">{{ intro }}</p>
+</section>
+
+{% if notice %}
+    <div class="error login-message" role="alert">{{ notice }}</div>
+{% endif %}
+
+<form method="post" action="{{ url_for('recovery.start') }}" class="card form-card login-card" novalidate>
+    <input type="hidden" name="next" value="{{ next_url }}">
+
+    <label for="email">Имейл</label>
+    <input id="email" name="email" type="email" value="{{ email }}" autocomplete="email" maxlength="254" required autofocus{% if error %} aria-invalid="true" aria-describedby="email-error"{% endif %}>
+    {% if error %}
+        <p class="error field-error" id="email-error" role="alert">{{ error }}</p>
+    {% endif %}
+
+    <button type="submit">Изпрати код</button>
+    <p class="help">Спомни си паролата? <a href="{{ url_for('account.login', next=next_url or None) }}">Вход</a></p>
+</form>
+{% endblock %}

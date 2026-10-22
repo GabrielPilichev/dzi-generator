@@ -8,13 +8,20 @@ section 5.2; `docs/reviews/EMAIL_REGISTRATION_SCOPE.md`.
 ## Status
 
 **Scope 8.1 is merged (`09fdb68`, PR #343). Scope 8.2 was authorized by Gabriel
-and implemented as `19815bb` (PR #344); an
+and implemented as `19815bb`; an
 independent review of exactly that SHA returned APPROVE WITH NON-BLOCKING NOTES,
 and classified its 13 deviations as needing no substantive product approval. That
 review covers `19815bb` only (`PASSWORD_RECOVERY_8_2_STATUS.md`, which also records
 the obligations carried into 8.3 and the later changes). The stricter audit caller
 rule was committed as `421993b` and independently reviewed at exactly that SHA
-(APPROVE WITH NON-BLOCKING NOTES). 8.3, deployment and
+(APPROVE WITH NON-BLOCKING NOTES). Scope 8.2 is merged as PR #344 at `4f88f7c`
+(its tree equals the branch head `dd61938`, whose documentation corrections after
+`421993b` are outside both reviews). Scope 8.3 is now authorized by Gabriel and
+implemented and committed as `dd39615` (PR #346); an independent review of exactly that SHA returned
+**REQUEST CHANGES** (a repeated redemption, `PASSWORD_RECOVERY_8_3_STATUS.md`). The cleanup that answers it
+was committed as `2c2a579` and an independent follow-up review of exactly that SHA returned
+**APPROVE WITH NON-BLOCKING NOTES** (the blocker is resolved; no activation, wording or prerequisite is
+approved). Documentation edits made after `2c2a579` are outside both reviews. Deployment and
 activation remain unauthorized.** Scope 8.1 was independently reviewed at `ba4b9cd` (APPROVE WITH
 NON-BLOCKING NOTES); the same-file hardening that followed that review passed
 focused tests and was merged without a repeated whole-suite audit.
@@ -37,12 +44,13 @@ Gabriel's selections of RD1–RD14 and RD16–RD18 were then recorded on
 2026-10-18 (design 0.3, 0.7); that recording and the alignment edits it made
 are outside that review too. No review approved a decision: each is
 approved because Gabriel selected it. Scope 8.1 added migration 025, storage and
-operations. Scope 8.2 adds the service (`web/services/recovery.py`), which creates
-recovery rows, issues, redeems, dispatches and settles, with **no production
-caller** (test RZ2): no route, template, setting, CLI subcommand or mail
-configuration reaches it. Scope 8.3, deployment and activation are not authorized.
-Every production gate stays off (student registration, teacher
-registration, profiles, Google, and the designed recovery gate, which is not built).
+operations. Scope 8.2 added the service (`web/services/recovery.py`), which creates
+recovery rows, issues, redeems, dispatches and settles, with no production
+caller (test RZ2, replaced in 8.3). Scope 8.3 adds the routes, templates, the `rec`
+slot, the settings, the gate `recovery.PRODUCTION_ACTIVATION = False` and the Nginx
+locations: the blueprint is the one production caller of the service. Deployment and
+activation are not authorized. Every production gate stays off (student registration,
+teacher registration, profiles, Google, and the recovery gate, which is built and off).
 
 Approved before this addendum, and restated by it (design 0.1, quoting the
 approved documents): D6, D7, D10 and D20 of the registration design, the
@@ -176,7 +184,7 @@ configuration of D17 and every activation prerequisite.
   stopped.
 - **Gate** `recovery.PRODUCTION_ACTIVATION = False`.
 
-## Integration points (8.1 merged; 8.2 implemented for review; 8.3 deferred)
+## Integration points (8.1 and 8.2 merged; 8.3 implemented for independent review)
 
 | Where | Change | Scope |
 | --- | --- | --- |
@@ -190,12 +198,12 @@ configuration of D17 and every activation prerequisite.
 | `docs/DEPLOYMENT.md` | Recovery operations; the restore credential runbook (RD18), including the preparation of the offline inputs, the repair categories, the validation, and the **required** maintenance isolation with its postponement rule and no exposed-window option (test RR15) | 8.1 |
 | `web/services/registration.py` | public `control_blocked`, `raise_mark`, `writer_now` | 8.2 |
 | `web/services/accounts.py` | `recovery_candidate(...)` (read under the caller's lock); `set_password` unchanged | 8.2 |
-| `web/services/recovery.py` (new) | request, resend, redeem, cancel, `pending_view`, dispatch, settle; no caller | 8.2 |
-| `web/blueprints/recovery.py` (new), templates | Routes of design 2.6 | 8.3 |
-| `web/blueprints/account.py`, `login.html` | „Забравена парола?“ link and the `recovery=done` notice, while enabled | 8.3 |
-| `web/app.py`, `web/production.py` | Settings under their own key; production behind the gate | 8.3 |
-| `deploy/nginx/learnpilot.conf` | Design 7.5: `location = /recover` and `= /recover/resend` in `lp_register`, `= /recover/verify` in `lp_login`, a `/recover/` prefix with no limit; each with the repeated security headers, one `no-referrer` and `proxy_hide_header Referrer-Policy` | 8.3 |
-| Documents | `AUTH_ROUTE_CONTRACT.md`, `ACCOUNTS_DESIGN.md` §12, `TESTING.md` with the implementation | 8.3 |
+| `web/services/recovery.py` (new) | request, resend, redeem, cancel, `pending_view`, dispatch, settle; no caller at 8.2. `was_redeemed` (read-only) was added after the 8.3 review | 8.2 |
+| `web/blueprints/recovery.py` (new), templates | Routes of design 2.6; the only production caller of the service | 8.3 (implemented) |
+| `web/blueprints/account.py`, `login.html` | „Забравена парола?“ link and the `recovery=done` notice, while enabled (`account.py` itself is unchanged: the template reads the blueprint's context) | 8.3 (implemented) |
+| `web/app.py`, `web/production.py`, `web/recovery_settings.py` (new) | Settings under their own key; production behind the gate | 8.3 (implemented) |
+| `deploy/nginx/learnpilot.conf` | Design 7.5: `location = /recover` and `= /recover/resend` in `lp_register`, `= /recover/verify` in `lp_login`, a `/recover/` prefix with no limit; each with the repeated security headers, one `no-referrer` and `proxy_hide_header Referrer-Policy` | 8.3 (implemented; static checks only, no `nginx` binary) |
+| Documents | `AUTH_ROUTE_CONTRACT.md`, `ACCOUNTS_DESIGN.md` §12, `TESTING.md`, `DEPLOYMENT.md` §38 with the implementation | 8.3 (implemented) |
 
 ## Implementation scopes (design 10)
 
@@ -220,8 +228,8 @@ integration.**
 
 Gabriel's selections no longer block the definition of any scope: each
 scope's content is defined by design 10 with the selected behaviour.
-**8.1 is merged; 8.2 implementation is authorized.** 8.3 starts only when Gabriel
-authorizes it, after 8.2 is merged and independently reviewed.
+**8.1 and 8.2 are merged (PR #343, PR #344 at `4f88f7c`); 8.3 is authorized and implemented
+for independent review.** Deployment and activation start only when Gabriel authorizes them.
 
 | Scope | Selected decisions it implements |
 | --- | --- |
@@ -267,7 +275,10 @@ the decisions are approved by Gabriel's selection. Gabriel authorized scope 8.1
 committed as `19815bb`. The independent review of exactly that SHA (APPROVE WITH
 NON-BLOCKING NOTES) is not an approval of a decision, and the reviewer's
 classification of the 13 deviations as needing no substantive product approval is
-not an approval by Gabriel. Later changes (the merge of PR #345's test-fixture
+not an approval by Gabriel. Scope 8.3 was authorized by Gabriel after the merge of PR #344 and implemented by Claude
+Sonnet 5.5 (`PASSWORD_RECOVERY_8_3_STATUS.md`); the implementation was committed as `dd39615`, whose
+independent review requested changes; the cleanup committed as `2c2a579` was independently reviewed at exactly that SHA
+(APPROVE WITH NON-BLOCKING NOTES), and the documentation edits after it are outside both reviews. Later changes (the merge of PR #345's test-fixture
 fix, the stricter audit caller rule and the provenance edits) are outside that
 review; the audit caller rule and its provenance edits, committed as `421993b`,
 were independently reviewed at exactly that SHA (APPROVE WITH NON-BLOCKING NOTES),

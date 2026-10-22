@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}Нова парола{% endblock %}
+
+{% block body_class %}management-page management-login-page{% endblock %}
+
+{% block breadcrumb %}
+    <a href="{{ url_for('browsing.index') }}">Начало</a>
+    <span>›</span>
+    Нова парола
+{% endblock %}
+
+{% macro field_error(name) %}
+    {% if errors.get(name) %}
+        <p class="error field-error" id="{{ name }}-error" role="alert">{{ errors[name] }}</p>
+    {% endif %}
+{% endmacro %}
+
+{% block content %}
+<section class="hero login-hero">
+    <p class="eyebrow">Профил</p>
+    <h1>Нова парола</h1>
+    <p class="subtitle">{{ intro }}</p>
+</section>
+
+{% if error %}
+    <div class="error login-message" role="alert">{{ error }}</div>
+{% endif %}
+{% if notice %}
+    <div class="success login-message" role="status">{{ notice }}</div>
+{% endif %}
+
+<form method="post" action="{{ url_for('recovery.verify') }}" class="card form-card login-card" autocomplete="off" novalidate>
+    <label for="code">Код</label>
+    <input id="code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="32" required autofocus{% if errors.get('code') %} aria-invalid="true" aria-describedby="code-error"{% endif %}>
+    {{ field_error('code') }}
+
+    <label for="password">Нова парола</label>
+    <input id="password" name="password" type="password" autocomplete="new-password" maxlength="256" required{% if errors.get('password') %} aria-invalid="true" aria-describedby="password-error"{% endif %}>
+    {{ field_error('password') }}
+
+    <label for="confirm_password">Повтори новата парола</label>
+    <input id="confirm_password" name="confirm_password" type="password" autocomplete="new-password" maxlength="256" required{% if errors.get('confirm_password') %} aria-invalid="true" aria-describedby="confirm_password-error"{% endif %}>
+    {{ field_error('confirm_password') }}
+
+    <button type="submit">Запази новата парола</button>
+</form>
+
+<form method="post" action="{{ url_for('recovery.resend') }}" class="card form-card login-card">
+    <p class="help">Не получи код? Провери папката за нежелана поща. Можеш да поискаш нов код след минута.</p>
+    <button type="submit" class="secondary">Изпрати нов код</button>
+</form>
+
+<form method="post" action="{{ url_for('recovery.cancel') }}" class="card form-card login-card">
+    <button type="submit" class="secondary">Грешен имейл? Започни отново</button>
+</form>
+{% endblock %}

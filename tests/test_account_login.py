@@ -1231,7 +1231,10 @@ class AccountBlueprintBoundariesTest(unittest.TestCase):
         # Elsewhere still no registration, no password reset and no email verification.
         registration = {url for url in rules if url == "/register" or url.startswith("/register/")}
         self.assertEqual({rules[url].endpoint.split(".")[0] for url in registration}, {"registration"})
-        paths = " ".join(url for url in rules if url not in registration)
+        # Password recovery (scope 8.3) is its own blueprint, under /recover only, and signs no one in.
+        recovery = {url for url in rules if url == "/recover" or url.startswith("/recover/")}
+        self.assertEqual({rules[url].endpoint.split(".")[0] for url in recovery}, {"recovery"})
+        paths = " ".join(url for url in rules if url not in registration | recovery)
         for fragment in ("register", "signup", "sign-up", "reset", "forgot", "verify", "unlink", "microsoft", "apple"):
             self.assertNotIn(fragment, paths)
         # The admin second factor has exactly one route, and no web enrolment exists.

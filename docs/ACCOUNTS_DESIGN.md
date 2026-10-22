@@ -97,15 +97,20 @@ has started with account-owned quiz attempts (migration 015, §24).
 - **Not implemented:** Microsoft sign-in, unlinking and identity recovery
   (required before Google sign-in is activated), a local password or a second
   identity for an account created through Google.
-- Password recovery **scope 8.1** (merged): migration `025_password_recoveries.sql`,
+- Password recovery **scope 8.1** (merged, PR #343): migration `025_password_recoveries.sql`,
   logical scrub/cleanup/restore operations, shared-ledger purpose isolation and
-  offline `restore-credential-diff`. **Scope 8.2** (authorized, implemented for
-  review): `accounts.recovery_candidate`, three public helpers of `registration`
-  and the service `web/services/recovery.py`, with **no production caller**; no
-  route or mail sender. `set_password`, operator `set-password` and the TOTP APIs
-  are unchanged. Every production gate remains OFF. See
-  `docs/reviews/PASSWORD_RECOVERY_8_1_STATUS.md`, `PASSWORD_RECOVERY_8_2_STATUS.md`
-  and `docs/DEPLOYMENT.md` §37 for mandatory restore isolation and credential repair.
+  offline `restore-credential-diff`. **Scope 8.2** (merged, PR #344, at `4f88f7c`):
+  `accounts.recovery_candidate`, three public helpers of `registration` and the service
+  `web/services/recovery.py`, with no production caller. **Scope 8.3** (authorized by
+  Gabriel; implemented for independent review, **not activated**): the blueprint
+  `web/blueprints/recovery.py` (`/recover`, `/recover/verify`, `/recover/resend`,
+  `/recover/cancel`), its templates, the session slot `rec`, the „Забравена парола?“ link
+  and the `recovery=done` notice on `/login`, `web/recovery_settings.py`, the build gate
+  `recovery.PRODUCTION_ACTIVATION = False` and the Nginx locations. `set_password`,
+  operator `set-password` and the TOTP APIs are unchanged. Every production gate remains OFF.
+  See `docs/reviews/PASSWORD_RECOVERY_8_1_STATUS.md`, `PASSWORD_RECOVERY_8_2_STATUS.md`,
+  `PASSWORD_RECOVERY_8_3_STATUS.md`, `docs/AUTH_ROUTE_CONTRACT.md` ("Password recovery") and
+  `docs/DEPLOYMENT.md` §37 and §38 (mandatory restore isolation, credential repair, routes and Nginx).
 - **Next:** the remaining phase-2 items of §17.
 - The DZI visibility gate depends on account identity (a signed-in principal),
   not on OIDC specifically; OIDC is one way to obtain student accounts.
@@ -870,6 +875,15 @@ reachable registration route.
 
 ## 12. Password reset and email
 
+- **Status (scope 8.3, not activated):** self-service recovery by an emailed code now exists in the
+  build, behind its own gate `recovery.PRODUCTION_ACTIVATION` (`False`, no setting overrides it), and
+  works only for an active `student` or `teacher` account with a password and a **verified** `users.email`
+  (decision RD1); an admin, a disabled, password-less or never-verified account gets the same visible
+  answer and a neutral notice instead of a code. It is one step (code and new password in one POST), issues
+  no session, rotates `session_key` through the unchanged `accounts.set_password` and neither reads nor writes
+  the sign-in throttle. The text below is the v1 position and the operator path, both unchanged; the
+  specification is `docs/reviews/PASSWORD_RECOVERY_DESIGN.md` and the route contract is
+  `docs/AUTH_ROUTE_CONTRACT.md`, "Password recovery".
 - **v1:** no reset flow and no email verification. (Migration 021 later added
   the nullable column `users.email_verified_at` for registration; it is NULL for
   every account except one created by a verified registration, which is not

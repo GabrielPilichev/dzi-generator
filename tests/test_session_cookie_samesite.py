@@ -492,6 +492,10 @@ class CrossSiteNavigationTest(VisitorsTestCase):
             "registration.student": [("/register/student", DISABLED)],
             "registration.teacher": [("/register/teacher", DISABLED)],
             "registration.verify": [("/register/verify", DISABLED)],
+            # Password recovery (scope 8.3) is disabled in this configuration too: the generic 404 for
+            # every visitor. tests/test_recovery_routes.py sweeps it with recovery enabled.
+            "recovery.start": [("/recover", DISABLED), ("/recover?next=/account/attempts", DISABLED)],
+            "recovery.verify": [("/recover/verify", DISABLED)],
             "quiz.quiz_start_public": [(cls.entry, EVERYONE)],
             "quiz.my_attempts": [("/account/attempts", ANY_ACCOUNT)],
             "quiz.quiz_attempt": [(attempt, THE_STUDENTS_OWN)],
@@ -665,6 +669,11 @@ class CrossOriginUnsafeRequestTest(VisitorsTestCase):
             "registration.verify": ("/register/verify", {"code": "123456"}),
             "registration.resend": ("/register/resend", {}),
             "registration.cancel": ("/register/cancel", {}),
+            "recovery.start": ("/recover", {"email": "ana.forged@example.bg"}),
+            "recovery.verify": ("/recover/verify", {
+                "code": "12345678", "password": NEW_PASSWORD, "confirm_password": NEW_PASSWORD}),
+            "recovery.resend": ("/recover/resend", {}),
+            "recovery.cancel": ("/recover/cancel", {}),
             "quiz.quiz_start_public": (cls.entry, {}),
             "quiz.quiz_attempt": (attempt, cls.one_answer(cls.open_attempt)),
             "practical.quiz_practical_upload": (f"{attempt}/practical/{DZI_SOURCE}/task/1/upload", {}),

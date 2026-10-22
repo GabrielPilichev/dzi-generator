@@ -11,8 +11,10 @@ And it refuses a database whose restore is in progress or was left unfinished
 Sign-in is by account. Google sign-in is the one optional addition, and this build
 keeps it disabled in production whatever is configured (``google_sign_in_provider``).
 Student registration likewise stays disabled while its build gate is off, whatever mail
-settings are configured (``registration_production_settings``), and the account-profile
-flow stays disabled while ``profiles.PRODUCTION_ACTIVATION`` is off (``profiles_production_enabled``).
+settings are configured (``registration_production_settings``), password recovery stays
+disabled while ``recovery.PRODUCTION_ACTIVATION`` is off (``recovery_production_settings``),
+and the account-profile flow stays disabled while ``profiles.PRODUCTION_ACTIVATION`` is off
+(``profiles_production_enabled``).
 Error messages name settings, never their values.
 """
 
@@ -32,6 +34,8 @@ from web.public_url import (
     normalize_public_host,
     public_base_url_for_host,
 )
+from web.recovery_settings import CONFIG_KEY as RECOVERY_CONFIG_KEY
+from web.recovery_settings import from_environment as recovery_from_environment
 from web.registration_settings import CONFIG_KEY as REGISTRATION_CONFIG_KEY
 from web.registration_settings import configured_names as configured_mail_settings
 from web.registration_settings import from_environment as registration_from_environment
@@ -39,6 +43,7 @@ from web.services import (
     google_oidc,
     mail as mail_service,
     profiles as profiles_service,
+    recovery as recovery_service,
     registration as registration_service,
 )
 from web.services.totp import TOTP_KEY_ENV
@@ -212,6 +217,38 @@ def registration_production_settings(environ: Mapping[str, str]):
     return registration_from_environment(environ, production=True)
 
 
+def recovery_errors(environ: Mapping[str, str]) -> list[str]:
+    """Why the mail settings forbid a start. Empty while the build's recovery gate is off.
+
+    The same rule as :func:`registration_errors` for the recovery gate
+    (``recovery.PRODUCTION_ACTIVATION``): off, mail settings are never a reason to refuse to
+    start; on, a configured backend must be usable for production and every malformed value is
+    named, never echoed.
+    """
+    if not recovery_service.PRODUCTION_ACTIVATION:
+        return []
+    return mail_service.settings_problems(environ, production=True)
+
+
+def recovery_production_settings(environ: Mapping[str, str]):
+    """The password recovery a production start enables, or ``None``: the activation gate.
+
+    Recovery is not activated before its prerequisites (design 9). The build holds that line
+    with ``recovery.PRODUCTION_ACTIVATION``, which no setting or environment variable overrides,
+    and which is independent of registration's. While it is off recovery is disabled and mail
+    settings that are present are reported once, by the names of the settings and never by their
+    values: configured credentials never enable it by themselves.
+    """
+    if not recovery_service.PRODUCTION_ACTIVATION:
+        configured = configured_mail_settings(environ)
+        if configured:
+            logging.getLogger(__name__).warning(
+                "Mail settings are configured (%s), but this build does not enable password recovery.",
+                ", ".join(configured))
+        return None
+    return recovery_from_environment(environ, production=True)
+
+
 def profiles_production_enabled(environ: Mapping[str, str]) -> bool:
     """Whether a production start enables the profile flow: the activation gate.
 
@@ -263,7 +300,9 @@ def production_config_errors(environ: Mapping[str, str]) -> list[str]:
             f"(the public URL is https://{PUBLIC_HOST_ENV})"
         )
 
-    return (errors + google_sign_in_errors(environ) + registration_errors(environ)
+    # One mail configuration serves both purposes: its problems are reported once, while either gate is on.
+    mail_errors = registration_errors(environ) or recovery_errors(environ)
+    return (errors + google_sign_in_errors(environ) + mail_errors
             + _state_path_errors(environ) + _reference_root_errors(environ))
 
 
@@ -406,6 +445,7 @@ def configure_oidc_logging() -> None:
 
 
 REGISTRATION_LOGGER = "learnpilot.registration"
+RECOVERY_LOGGER = "learnpilot.recovery"
 
 
 def configure_registration_logging() -> None:
@@ -422,6 +462,25 @@ def configure_registration_logging() -> None:
         handler = logging.StreamHandler()
         handler.setFormatter(logging.Formatter("%(name)s %(levelname)s %(message)s"))
         handler.learnpilot_registration = True
+        logger.addHandler(handler)
+    logger.setLevel(logging.INFO)
+    logger.propagate = False
+
+
+def configure_recovery_logging() -> None:
+    """Send password-recovery events (requests, sends and their outcomes, resets, refusals) to stderr.
+
+    The vocabulary is fixed: an event name, a recovery row's id, a send generation's number, an
+    outcome or an exception's class name; ``user=`` appears on ``redeemed`` only, after a correct
+    code. Never an address, a password, a code, a binding token, any hash, key or digest, an
+    issuance identity, a message, or whether a row is a shadow. Without a handler only warnings
+    would reach the journal.
+    """
+    logger = logging.getLogger(RECOVERY_LOGGER)
+    if not any(getattr(handler, "learnpilot_recovery", False) for handler in logger.handlers):
+        handler = logging.StreamHandler()
+        handler.setFormatter(logging.Formatter("%(name)s %(levelname)s %(message)s"))
+        handler.learnpilot_recovery = True
         logger.addHandler(handler)
     logger.setLevel(logging.INFO)
     logger.propagate = False
@@ -534,6 +593,7 @@ def create_production_app(environ: Mapping[str, str] | None = None):
     configure_lifecycle_logging()
     configure_oidc_logging()
     configure_registration_logging()
+    configure_recovery_logging()
     accounting_warning = assignment_accounting_warning(web_app.DB_PATH, web_app.open_existing_database_read_only)
     if accounting_warning:
         lifecycle.logger.warning("%s", accounting_warning)
@@ -555,6 +615,8 @@ def create_production_app(environ: Mapping[str, str] | None = None):
         environ, flask_app.config[PUBLIC_BASE_URL_CONFIG])
     # Registration: nothing unless the build's gate is on (registration_production_settings).
     flask_app.config[REGISTRATION_CONFIG_KEY] = registration_production_settings(environ)
+    # Password recovery: nothing unless its own build gate is on (recovery_production_settings).
+    flask_app.config[RECOVERY_CONFIG_KEY] = recovery_production_settings(environ)
     # Profiles: nothing unless the build's gate is on (profiles_production_enabled).
     flask_app.config[profiles_service.CONFIG_KEY] = profiles_production_enabled(environ)
     if not isinstance(flask_app.wsgi_app, ProxyFix):

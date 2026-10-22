@@ -7,11 +7,12 @@ design", with its section numbers), whose section 5.2 requires this addendum
 and whose decision D10 approved self-service recovery by emailed code as PR 8.
 
 **Revision 3 with post-review corrections and Gabriel's decisions recorded.
-Decisions selected. Scope 8.1 is merged (`09fdb68`); Gabriel has authorized
-implementation of scope 8.2, prepared for independent review. Scope 8.3,
-deployment and activation remain unauthorized.**
+Decisions selected. Scope 8.1 is merged (`09fdb68`, PR #343) and scope 8.2 is merged (PR #344, at
+`4f88f7c`). Gabriel has authorized scope 8.3, implemented as `dd39615` (independent review:
+REQUEST CHANGES) and corrected as `2c2a579` (independent follow-up review: APPROVE WITH NON-BLOCKING
+NOTES; see `PASSWORD_RECOVERY_8_3_STATUS.md`). Deployment and activation remain unauthorized.**
 Current implementation/evidence: `PASSWORD_RECOVERY_8_1_STATUS.md`,
-`PASSWORD_RECOVERY_8_2_STATUS.md`.
+`PASSWORD_RECOVERY_8_2_STATUS.md`, `PASSWORD_RECOVERY_8_3_STATUS.md`.
 Review chronology: revision 1 (`745a952`) was independently
 reviewed and returned REQUEST CHANGES (F1–F11, answered in revision 2,
 section 0.4). Revision 2 (`727bd4d`) received a **second** independent
@@ -588,8 +589,26 @@ is not echoed either.
 
 1. Gate, signed-in redirect, slot. No usable slot → „Заявката за нова парола
    е изтекла…“ without reading any row by code or address.
-2. Read the row of the binding (`recovery.pending_view`, reads only). None,
-   final, or past its time by the read → the same "no usable recovery" page.
+2. Read the row of the binding (`recovery.pending_view`, reads only). When
+   it returns `None`, one more read-only question of the same validated
+   binding (`recovery.was_redeemed`) tells a repeat from every other case:
+   - the binding's row is already `redeemed` (a repeat of a reset that
+     succeeded: a double click, a lost response, a retry after an unknown
+     commit) → `303` to `/login?next=<next>`, without `recovery=done`, the
+     slot dropped, nothing written, before the password, the confirmation or
+     the code is looked at. This is the outcome table's `NOT_PENDING` with
+     `redeemed`, reached without a transaction;
+   - any other final row (`void`, `expired`), no row (including a row that
+     cleanup has already deleted), or a pending row past its time by the
+     read → the same "no usable recovery" page.
+
+   *Alignment note (documentation only).* This step used to read "None,
+   final, or past its time by the read → the same page", which contradicted
+   the failure paragraph of this section, its outcome table (`NOT_PENDING`
+   with `redeemed` → `303` to `/login`), test plan RV5 and RF2 (ii) and the
+   8.2 caller obligation 3. The wording is aligned to that existing,
+   approved requirement; it is not a new decision and no new product approval
+   is claimed.
 3. `accounts.password_problem(password, view.email)` on the exact submitted
    value, and the exact comparison with `confirm_password`. A problem
    re-renders the page with the field error; the code is not looked at.
@@ -2040,7 +2059,7 @@ plan RR8–RR22.
 
 While the recovery gate stays off in production, no recovery row and no
 recovery ledger row is expected there: the gate (scope 8.3) and the no-caller
-tests (scopes 8.1, 8.2) say so, and the integration of scope 8.1 handles one if it exists
+tests (scopes 8.1, 8.2, and the caller policy of 8.3) say so, and the integration of scope 8.1 handles one if it exists
 anyway. A rollback then has no recovery data to carry.
 
 ### 7.4 Deployment order (for a later, separately authorized rollout)
@@ -2218,7 +2237,8 @@ Test plan RLog2 asserts this invariant, and no more.
 **One scope at a time, in this order**, each green on the full suite, every
 gate off, documents updated with what each makes untrue. **Scope 8.1 authorized
 and merged (`09fdb68`); scope 8.2 authorized by Gabriel's later request and
-implemented for review; 8.3 remains unauthorized.** Recording
+merged (`4f88f7c`); scope 8.3 authorized by Gabriel's later request and implemented for
+independent review.** Recording
 the selections alone did not authorize implementation. Gabriel's current request
 assigns 8.1 to Codex, superseding the older proposed executor for this scope.
 Independent security review of each in a **separate

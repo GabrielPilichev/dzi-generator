@@ -521,6 +521,10 @@ class BridgeBoundariesTest(unittest.TestCase):
                           if rule.rule.startswith("/register")},
                          {"registration.choose", "registration.student", "registration.teacher",
                           "registration.verify", "registration.resend", "registration.cancel"})
+        # Password recovery (scope 8.3) is its own blueprint too; none of its routes signs anyone in.
+        self.assertEqual({rule.endpoint for rule in web_app.app.url_map.iter_rules()
+                          if rule.rule.startswith("/recover")},
+                         {"recovery.start", "recovery.verify", "recovery.resend", "recovery.cancel"})
 
 
 if __name__ == "__main__":

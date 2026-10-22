@@ -14,7 +14,11 @@ review requirement is waived.
 post-review cleanup below was merged with scope 8.1 as `09fdb68` (PR #343). That
 same-file hardening followed the independent review of `ba4b9cd` and passed
 focused tests; no repeat whole-suite audit was run for it. Scope 8.2 is now
-authorized; see `PASSWORD_RECOVERY_8_2_STATUS.md`.
+merged (PR #344); see `PASSWORD_RECOVERY_8_2_STATUS.md`. Scope 8.3
+(`PASSWORD_RECOVERY_8_3_STATUS.md`) later adds the `/recover` locations to the Nginx
+template, so "byte-identical" below describes the 8.1 starting point only; the restore
+script is still unchanged and the test that pinned both now pins the script and the
+template with exactly that one block removed.
 
 - Worktree: `/Users/gabrielpilichev/dzi-generator-recovery-operations`.
 - Branch: `feature/recovery-storage-operations`.

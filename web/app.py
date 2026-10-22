@@ -44,6 +44,7 @@ from web.attempt_access import quiz_attempt_owner_session_key
 from web.blueprints.account import account_bp
 from web.blueprints.oidc import oidc_bp
 from web.blueprints.quiz import quiz_bp
+from web.blueprints.recovery import recovery_bp
 from web.blueprints.registration import registration_bp
 from web.blueprints.teacher import teacher_bp
 from web.blueprints.browsing import browsing_bp, open_existing_database_read_only
@@ -55,6 +56,7 @@ from web.access import (
     policy_for_endpoint,
 )
 from web import oauth_state
+from web import recovery_settings
 from web import registration_settings
 from web.request_db import get_request_db
 from web.production import production_startup_in_progress, warn_if_schema_migrations_pending
@@ -231,6 +233,20 @@ if not production_startup_in_progress():
     if _mail_problems:
         warnings.warn(
             "Registration is disabled: " + "; ".join(_mail_problems) + ".",
+            RuntimeWarning,
+            stacklevel=2,
+        )
+# Password recovery (docs/reviews/PASSWORD_RECOVERY_DESIGN.md, 7.1): its own settings under its own
+# key, built from the same mail settings and enabled the same way in development. web.wsgi decides
+# for production (web.production), behind the build's gate ``recovery.PRODUCTION_ACTIVATION``,
+# which no setting overrides.
+app.config[recovery_settings.CONFIG_KEY] = None
+if not production_startup_in_progress():
+    app.config[recovery_settings.CONFIG_KEY] = recovery_settings.from_environment(
+        os.environ, production=False)
+    if _mail_problems:
+        warnings.warn(
+            "Password recovery is disabled: " + "; ".join(_mail_problems) + ".",
             RuntimeWarning,
             stacklevel=2,
         )
@@ -659,6 +675,7 @@ warn_if_schema_migrations_pending(DB_PATH, open_existing_database_read_only)
 app.register_blueprint(account_bp)
 app.register_blueprint(oidc_bp)
 app.register_blueprint(registration_bp)
+app.register_blueprint(recovery_bp)
 app.register_blueprint(browsing_bp)
 app.register_blueprint(dzi_bp)
 app.register_blueprint(practical_bp)

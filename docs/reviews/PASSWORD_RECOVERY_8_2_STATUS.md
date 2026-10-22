@@ -57,6 +57,13 @@ and every provider or host operation remain unauthorized. Every production gate 
   cryptographically. The review covers `421993b` only; the documentation
   corrections after it (this note, the cache limitation and the 8.3 route order)
   are outside it.
+- **Merge (recorded after the reviews).** The branch was merged as PR #344, squash commit
+  `4f88f7c` ("Add password recovery service without callers (#344)"). Its tree is identical
+  to the branch head `dd61938`; against the reviewed `421993b` it differs in
+  `docs/TESTING.md`, this file and `PASSWORD_RECOVERY_SCOPE.md` only (documentation
+  corrections after both reviews, outside both). The reviewed SHAs and what they cover are
+  unchanged by the merge. Scope 8.3 (`PASSWORD_RECOVERY_8_3_STATUS.md`) later discharged the
+  obligations below; this file is otherwise left as written.
 - **Prepared-statement cache limitation (documented, not fixed; carried into
   8.3).** The audit's authorizer runs when SQLite *prepares* a statement, not when it executes one.
   Python's `sqlite3` keeps a per-connection prepared-statement cache, so an INSERT
