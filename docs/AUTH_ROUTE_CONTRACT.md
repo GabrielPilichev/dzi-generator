@@ -546,8 +546,11 @@ cross-origin POST is still 403) and no page links to it.
   `quiz_attempt_owner:*` markers). A slot of any other shape is ignored.
   Verify, resend and cancel find the registration by the keyed hash of the
   slot's token and by nothing else; another browser has no registration.
-- **No GET writes, and no GET sets a cookie.** The verify page reads only the
-  caller's own row; expiry is written by the POSTs and by the cleanup.
+- **No GET or HEAD writes a registration row or issues a registration slot.** The verify page reads only the
+  caller's own row; expiry is written by the POSTs and by the cleanup. `student`, `teacher` and `verify` take the
+  read path for every method but `POST`: a `HEAD` is a read and never submits or tries a code, whatever it carries
+  (correction recorded in `docs/reviews/EMAIL_REGISTRATION_PR4_STATUS.md`; independent follow-up and host evidence
+  pending). The cleanup of a stale account session is unrelated to this slot.
 - **Every restart goes to the chooser.** Cancel, and every page that ends a registration (expired, cancelled elsewhere, replaced, no binding,
   teacher gate off, service unavailable, failure) link „Започни регистрацията отначало“ to `/register` with the stored `next` when it passed
   `accepted_next`, never to `/register/student` or `/register/teacher`: the binding does not say which form began the flow, and neither is offered

@@ -346,7 +346,7 @@ def student():
     signed_in = _signed_in_redirect()
     if signed_in is not None:
         return signed_in
-    if request.method == "GET":
+    if request.method != "POST":    # a HEAD is a read, whatever it carries
         return _student_form({"next": _query_next()})
     validated = forms.validate_student(request.form)
     if not validated.ok:
@@ -419,7 +419,7 @@ def teacher():
     signed_in = _signed_in_redirect()
     if signed_in is not None:
         return signed_in
-    if request.method == "GET":
+    if request.method != "POST":    # a HEAD is a read, whatever it carries
         return _teacher_form({"next": _query_next()})
     validated = forms.validate_teacher(request.form)
     if not validated.ok:
@@ -436,7 +436,7 @@ def verify():
     if signed_in is not None:
         return signed_in
     slot = _slot()
-    if request.method == "GET":
+    if request.method != "POST":    # a HEAD is a read: it never tries a code
         if slot is None:
             return redirect(url_for("registration.choose"))
         return _verify_page(slot, notice=RESENT_MESSAGE if request.args.get("resent") == "1" else None)
