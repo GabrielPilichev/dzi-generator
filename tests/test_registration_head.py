@@ -55,13 +55,14 @@ class HeadSafetyCase(TeacherRouteTestCase):
     def head(self, path, data=None, *, client=None, headers=SAME_ORIGIN):
         return (client or self.client).open(path, method="HEAD", data=data, headers=headers)
 
-    def assertInert(self, calls, before, sent=0, client=None):
+    def assertInert(self, calls, before, sent=0):
         for name, recorded in calls.items():
             self.assertEqual(recorded, [], name)
         self.assertEqual(self.full_digest(), before)
         self.assertEqual(len(self.mailer.messages), sent)
 
     def assertNoIssuedSlot(self, client=None):
+        """For a browser that held no slot: it still holds none."""
         self.assertNotIn(registration_blueprint.SLOT, self.session(client))
 
 
@@ -104,7 +105,8 @@ class SubmissionHeadTest(HeadSafetyCase):
                 self.assertEqual(self.head(path, body()).status_code, 200)
                 self.assertInert(calls, before)
                 self.assertNoIssuedSlot()
-        # Registration disabled: the generic 404, after the same-origin check, as for any method.
+        # Registration disabled: the generic 404, as for the GET. The same-origin check applies to unsafe
+        # methods only, so a HEAD never meets it; a cross-origin POST is still refused with 403 first.
         self.app.config.pop(CONFIG_KEY)
         for path, body in HEAD_CASES:
             with self.subTest(state="disabled", path=path):
@@ -215,7 +217,9 @@ class VerifyHeadTest(HeadSafetyCase):
                 self.assertEqual((response.status_code, response.headers["Location"]), (302, "/register"))
                 self.assertInert(calls, before, sent=1)
                 if value is None:
-                    self.assertNoIssuedSlot(client)
+                    self.assertNoIssuedSlot(client)     # absent before and after
+                else:
+                    self.assertEqual(self.slot(client), value)    # unchanged, neither replaced nor dropped
         self.assertEqual(self.verify(code).status_code, 303)
 
     def test_a_cross_origin_head_to_verify_is_a_read_and_a_cross_origin_post_is_refused(self):

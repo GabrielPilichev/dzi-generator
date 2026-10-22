@@ -225,7 +225,7 @@ def inject_account():
 @integrity_policy(SAME_ORIGIN)
 def login():
     next_url = _submitted_next()
-    if request.method == "GET":
+    if request.method != "POST":    # a HEAD is a read, whatever it carries
         # Already signed in (a bookmarked or shared sign-in link, or the „Вход“ link
         # of a page that was rendered before this browser signed in): go on instead
         # of asking again. Only a fully validated account counts; a pending second
@@ -440,7 +440,7 @@ def _profile_page(conn, principal, *, echo=None, errors=None, status: int = 200,
         errors=errors or {},
         failure=failure,
         required=required,
-        saved=request.method == "GET" and request.args.get("saved") == "1",
+        saved=request.method != "POST" and request.args.get("saved") == "1",
         grades=forms.GRADES,
         subjects=_subject_choices(),
         has_profile=profile is not None,
@@ -482,7 +482,7 @@ def profile():
     if not is_route_allowed(SIGNED_IN, principal):
         return redirect(url_for("account.login", next=request.path))
     conn = get_request_db()
-    if request.method == "GET":
+    if request.method != "POST":    # a HEAD is a read, whatever it carries
         return _profile_page(conn, principal)
 
     form_type = _profile_form_type(profiles_service.get_profile(conn, principal.user_id), principal.role)
@@ -540,7 +540,7 @@ def password():
     # for one would count a throttle failure against it for an answer it cannot give.
     if not loaded_account()["has_password"]:
         return render_template("account_password.html", error=None, success=None, has_password=False)
-    if request.method == "GET":
+    if request.method != "POST":    # a HEAD is a read: it never checks the current password
         return render_template("account_password.html", error=None, success=None, has_password=True)
 
     principal = current_principal()

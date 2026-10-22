@@ -274,8 +274,18 @@ follows from that is part of this contract:
 - No GET (or HEAD) changes state on the visitor's behalf: nothing is signed
   out, created, edited, closed, submitted or reviewed by one, and `GET /logout`
   does not exist (405). A new state change is POST-only and declares
-  `@integrity_policy(SAME_ORIGIN)`. There are two exceptions, each with its own
-  reason:
+  `@integrity_policy(SAME_ORIGIN)`. Flask routes `HEAD` to the GET view, and
+  `HEAD` is not an unsafe method, so no same-origin check or `POST` rate key
+  meets it: every GET/POST form view (`/login`, `/account/password`,
+  `/account/profile`, `/auth/google/link/confirm`, registration and recovery)
+  takes its read path for every method that reaches it except `POST`, which is
+  `GET` and `HEAD` (`OPTIONS` gets Flask's automatic answer after the
+  before-request hooks and never runs the view; any other method reaches no
+  view: 405, or 403 first when cross-origin; neither policy is changed here). A
+  `HEAD` answers what the `GET` of the same request answers, with an empty body,
+  and never reaches the form action, whatever body or origin it carries
+  (`tests/test_account_head.py`, `tests/test_registration_head.py`). There are
+  two exceptions, each with its own reason:
   - the lifecycle observation stamp with its clock bookkeeping
     (`docs/ASSIGNMENT_LIFECYCLE_DESIGN.md` §3.6, §6.3): the server's clock, no
     request input, written once, and caused by an anonymous request just the
@@ -313,7 +323,11 @@ answered with one message; a success clears the throttle, replaces the session,
 records `last_login_at` and redirects. Unknown email, wrong password, disabled
 account, account without a password and a malformed identifier are
 indistinguishable: same page, status 200, „Грешен имейл или парола.“
-`GET /login` always renders the form.
+`GET /login` renders the form, or sends an already signed-in account on (a pending
+second factor still gets the form). A `HEAD` takes that same read path: it never
+checks the throttle, verifies a password, records or clears a failure, records a
+login, or issues an account session or a pending second factor, whatever it carries
+and from whatever origin.
 
 **Throttle.** Ten failures in fifteen minutes block the identifier for fifteen
 minutes, whether or not an account exists: 429 with „Твърде много опити. Опитай
@@ -360,7 +374,9 @@ password that meets the account policy (10 characters, 14 for an admin, at most
 against the same throttle as the login form, and a blocked identifier gets 429.
 Success sets the hash, rotates `session_key` in one transaction, and re-issues
 this browser's session with the new key and the original `iat`; every other
-session of the account stops working on its next request.
+session of the account stops working on its next request. Only a `POST` does any of
+this: a `HEAD` renders what the `GET` renders and verifies, hashes, counts, clears,
+re-keys and re-issues nothing.
 
 An account without a password (one created through Google) gets a notice
 instead of the form, for a GET and a POST alike: it has no password to change,
@@ -420,7 +436,7 @@ signed-in session. The first three rows below are pinned by
 | --- | --- |
 | `POST /auth/google/link` | `403`, no `Location`, nothing stored |
 | `POST /auth/google/link/confirm` | `403`, before any pending link is read; a pending link in the cookie is left alone |
-| `GET /auth/google/link/confirm` | `302` to `/account?google=expired`: the pending link of an admin is never shown |
+| `GET` or `HEAD /auth/google/link/confirm` | `302` to `/account?google=expired`: the pending link of an admin is never shown, and it is left in the cookie |
 | `POST /auth/google/link/cancel` | `302` to `/account?google=link_not_pending` for an admin with nothing held and no Google identity. The route has no role check; it answers like any account (`account_linked` if the account has a Google identity) |
 
 The blueprint is `oidc`. No path says "login" or "logout", and no route
@@ -481,7 +497,12 @@ password, under the account's throttle counter (429 when blocked), and checks
 the account, its role and active state, its session key, the bound session's
 lifetime, the expiry and the link decision again inside the write transaction.
 After a rollback the pending link stays, and the answer claims nothing about
-what reached the disk.
+what reached the disk. A `GET` or `HEAD` of the confirmation only reads: it shows
+the page for a live pending link bound to this session, and otherwise redirects to
+`expired` and leaves whatever slot the cookie holds (missing, malformed, of
+another instance, expired, or an admin's) as it was; only the `POST` drops it. It
+checks no password, writes no throttle row, records no consumption and stores no
+identity.
 
 **Cancelling** (`POST /auth/google/link/cancel`) removes both linking objects
 from this browser's session, tries to record that they have ended, reads once
@@ -548,9 +569,10 @@ cross-origin POST is still 403) and no page links to it.
   slot's token and by nothing else; another browser has no registration.
 - **No GET or HEAD writes a registration row or issues a registration slot.** The verify page reads only the
   caller's own row; expiry is written by the POSTs and by the cleanup. `student`, `teacher` and `verify` take the
-  read path for every method but `POST`: a `HEAD` is a read and never submits or tries a code, whatever it carries
-  (correction recorded in `docs/reviews/EMAIL_REGISTRATION_PR4_STATUS.md`; independent follow-up and host evidence
-  pending). The cleanup of a stale account session is unrelated to this slot.
+  read path for `GET` and `HEAD`, the methods other than `POST` that reach them: a `HEAD` is a read and never
+  submits or tries a code, whatever it carries, and a slot the browser already holds is left unchanged (correction
+  recorded in `docs/reviews/EMAIL_REGISTRATION_PR4_STATUS.md`, merged in #347; host evidence pending). The cleanup
+  of a stale account session is unrelated to this slot.
 - **Every restart goes to the chooser.** Cancel, and every page that ends a registration (expired, cancelled elsewhere, replaced, no binding,
   teacher gate off, service unavailable, failure) link „Започни регистрацията отначало“ to `/register` with the stored `next` when it passed
   `accepted_next`, never to `/register/student` or `/register/teacher`: the binding does not say which form began the flow, and neither is offered
@@ -749,6 +771,11 @@ start never reads that setting.
 - **A role change** (`set-role`) never writes, deletes or reinterprets a profile
   or the mark. A marked student promoted to teacher or admin is no longer asked;
   demoted again, is asked again. A profile keeps the type it was declared with.
+- **Only a `POST` saves.** A `HEAD` takes the `GET`'s path after the same gate and
+  access checks (the 404 with the gate off, the login redirect, then the page): it
+  validates nothing, writes no profile, no `display_name` and no change to the
+  requirement, whatever body it carries, for every role and profile state; the
+  `saved` notice is read for it as for the `GET`.
 - **Responses** to a signed-in account carry `Cache-Control: no-store` like every
   account page.
 
