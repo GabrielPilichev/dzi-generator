@@ -64,8 +64,10 @@ Not changed: every migration, `data/canonical`, `web/services/mail.py`,
 In this order, on every route: same-origin check (the existing hook) → access
 policy (public) → **disabled: the generic 404** → **signed in: 303 to the role's
 home, nothing started** → the route. Every response of the blueprint carries
-`Cache-Control: no-store` and `Referrer-Policy: no-referrer`. No GET writes a
-row or sets a cookie; the verify page reads only the caller's own row through
+`Cache-Control: no-store` and `Referrer-Policy: no-referrer`. No GET or HEAD writes a
+registration row or issues a registration slot (see "Correction: HEAD is a read"; the
+unrelated cleanup of a stale account session in `load_current_user` is not registration
+state and is not claimed away); the verify page reads only the caller's own row through
 `registration.pending_view` (expiry evaluated, not written).
 
 Status codes: a form with errors 200; the address cap 429 (form re-rendered,
@@ -372,6 +374,39 @@ registration (`web.app`), so a public tunnel can expose working `/register`
 routes. Use a fake or development backend (`DZI_MAIL_BACKEND=console`, or
 `file` into a scratch directory), never real SMTP, when the app is reachable
 through Cloudflare or any other tunnel.
+
+## Correction: HEAD is a read
+
+**Defect.** `student`, `teacher` and `verify` in `web/blueprints/registration.py` took the read
+path only for `request.method == "GET"`. Flask also routes `HEAD` to these handlers, so a `HEAD`
+carrying a form body reached submission and code verification. The independent recovery review
+reproduced a `HEAD` student submission creating pending and send rows, hashing the password and
+sending mail, and a `HEAD` verification consuming code attempts and activating an account, while a
+cross-origin `POST` to the same address was refused (same-origin protection covers unsafe methods
+only) and the Nginx rate-limit keys count `POST` only, so none of it was limited.
+
+**Correction.** The three handlers now take the read path for every supported method that is not
+`POST` (`request.method != "POST"`), as `web/blueprints/recovery.py` does. Everything before that
+line (generic 404 when disabled or gated, signed-in redirect, the verify slot read) and everything
+after it (form validation, same-origin enforcement, browser binding, return targets, transactions,
+dispatch and settlement) is unchanged. `HEAD` was not added to the unsafe methods or to the Nginx
+rate maps (it performs no registration action), and the `OPTIONS` and 405 policy, recovery code,
+schemas and gates are untouched. A `HEAD` to `/register/verify` with no slot redirects to
+`/register`, exactly as the `GET` does.
+
+**Tests** (`tests/test_registration_head.py`, 16 tests, temporary databases, in-memory mailer, no
+SMTP): `HEAD` with valid submission bodies to both forms, with and without a valid slot; with an
+invalid body; held, registration-disabled, teacher-gate-off and signed-in states; cross-origin `HEAD`
+(a read; the cross-origin `POST` is still 403); `HEAD` verification with wrong and correct codes,
+no slot and a slot of another shape, with the code left usable by the following legitimate `POST`;
+and the unchanged `POST` journeys. Each `HEAD` asserts the contents of every table unchanged, no
+password hashed, no `create_pending`/`verify`/`dispatch`/`settle_send` call, no message, and no
+registration slot (`reg`) in the session. Only the registration slot is claimed: a stale account
+session is cleaned up by `load_current_user` on any request, which is unrelated and is not asserted
+either way. Against the previous handlers 10 of the 16 tests fail (20 subtest failures and 2 subtest errors).
+
+**Not done.** Independent review of this correction and evidence from the host (Nginx, deployed
+build) are pending. This does not approve activation; every gate stays off.
 
 ## Not verified
 
