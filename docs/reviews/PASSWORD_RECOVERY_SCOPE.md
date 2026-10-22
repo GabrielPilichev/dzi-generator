@@ -18,8 +18,10 @@ rule was committed as `421993b` and independently reviewed at exactly that SHA
 (its tree equals the branch head `dd61938`, whose documentation corrections after
 `421993b` are outside both reviews). Scope 8.3 is now authorized by Gabriel and
 implemented and committed as `dd39615` (PR #346); an independent review of exactly that SHA returned
-**REQUEST CHANGES** (a repeated redemption, `PASSWORD_RECOVERY_8_3_STATUS.md`). A cleanup that answers it
-is **uncommitted** and awaits an independent follow-up. Deployment and
+**REQUEST CHANGES** (a repeated redemption, `PASSWORD_RECOVERY_8_3_STATUS.md`). The cleanup that answers it
+was committed as `2c2a579` and an independent follow-up review of exactly that SHA returned
+**APPROVE WITH NON-BLOCKING NOTES** (the blocker is resolved; no activation, wording or prerequisite is
+approved). Documentation edits made after `2c2a579` are outside both reviews. Deployment and
 activation remain unauthorized.** Scope 8.1 was independently reviewed at `ba4b9cd` (APPROVE WITH
 NON-BLOCKING NOTES); the same-file hardening that followed that review passed
 focused tests and was merged without a repeated whole-suite audit.
@@ -275,7 +277,8 @@ NON-BLOCKING NOTES) is not an approval of a decision, and the reviewer's
 classification of the 13 deviations as needing no substantive product approval is
 not an approval by Gabriel. Scope 8.3 was authorized by Gabriel after the merge of PR #344 and implemented by Claude
 Sonnet 5.5 (`PASSWORD_RECOVERY_8_3_STATUS.md`); the implementation was committed as `dd39615`, whose
-independent review requested changes; the uncommitted cleanup has no independent follow-up yet. Later changes (the merge of PR #345's test-fixture
+independent review requested changes; the cleanup committed as `2c2a579` was independently reviewed at exactly that SHA
+(APPROVE WITH NON-BLOCKING NOTES), and the documentation edits after it are outside both reviews. Later changes (the merge of PR #345's test-fixture
 fix, the stricter audit caller rule and the provenance edits) are outside that
 review; the audit caller rule and its provenance edits, committed as `421993b`,
 were independently reviewed at exactly that SHA (APPROVE WITH NON-BLOCKING NOTES),

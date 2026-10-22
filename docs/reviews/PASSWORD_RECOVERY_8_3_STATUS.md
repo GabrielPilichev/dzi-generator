@@ -13,12 +13,20 @@ remains OFF.**
    Opus) of exactly that SHA returned **REQUEST CHANGES**: one blocking finding (F1, a repeated
    redemption), four lower findings and one separate, pre-existing registration finding. See
    "Independent review of `dd39615`".
-2. A cleanup that corrects F1 and the documents is in the working tree **on top of `dd39615`. It is
-   uncommitted and unstaged, and awaits an independent follow-up review.** Nothing in it has been
-   reviewed. See "Cleanup after the review (uncommitted)".
-3. The evidence sections below that describe the original implementation (mutation campaign, full
-   run, adjacent runs) are the **author's** evidence about the tree before `dd39615` and were not
-   repeated for the cleanup.
+2. The cleanup that corrects F1 and the documents was committed as
+   `2c2a579daef2a8aa1ee36e7e0c82018502dc5307` ("Redirect repeated recovery redemption to login"; its single
+   parent is `dd39615`). An independent follow-up review of exactly that SHA returned **APPROVE WITH
+   NON-BLOCKING NOTES**; **the original repeat-redemption blocker (F1) is resolved.** That verdict approves
+   neither deployment nor activation, nor the RD15 wording, nor any activation prerequisite. See
+   "Follow-up review of `2c2a579`".
+3. Documentation edits made **after** `2c2a579` (this status block and the sections that record the
+   follow-up, the alignment of design 2.4 step 2, the retention wording, the provenance lines of this report,
+   the scope document and the route contract) are **not part of the reviewed SHA and are outside both
+   reviews.** This sentence does not say whether they are committed; the git history does.
+4. **Evidence is kept apart.** The sections below headed "Execution evidence" are the **author's** and
+   describe the tree before `dd39615`; the author's 4724-test full run and 26-mutant campaign **predate the
+   correction** and were not repeated. The follow-up reviewer's own runs are in "Follow-up review of
+   `2c2a579`"; the reviewer did not repeat the full suite or the mutation campaign either.
 
 ## Provenance and boundaries
 
@@ -27,8 +35,9 @@ remains OFF.**
 - Starting point of the original implementation: HEAD `1eac2acb40b6319ada9dc73e783b5bed5eb36ee4`
   ("Start gated password recovery flow", an empty preparation commit) on `4f88f7c`, with a clean
   status. The implementation was left uncommitted by its author and was **later committed as
-  `dd39615`** (the SHA that was reviewed). The cleanup of this task starts from `dd39615` with a clean
-  status; nothing was staged, committed, pushed, merged or posted by it.
+  `dd39615`** (the SHA that was reviewed first). The cleanup of the review's finding started from `dd39615`
+  with a clean status and was **later committed as `2c2a579`** (the SHA reviewed second); its author staged,
+  committed, pushed, merged and posted nothing.
 - **Reviewed SHAs are kept apart from later changes.** Scope 8.1 merged as `09fdb68` (PR #343); its
   review covered `ba4b9cd` only. Scope 8.2 merged as PR #344, squash commit `4f88f7c`; the independent
   reviews covered `19815bb` (the service) and `421993b` (the stricter audit caller rule), each exactly. The
@@ -197,13 +206,14 @@ Points where a choice was made or the documents do not fully agree. None is pres
 
 1. **A retry after an unknown commit (and any repeat of a redemption) showed the ended page, not the
    redirect. Reported by the author as a design ambiguity; the review found it a defect (F1); corrected in
-   the cleanup below, uncommitted.** Design 2.4's step 2 reads "None, final, or past its time by the read →
+   the cleanup committed as `2c2a579`.** Design 2.4's step 2 reads "None, final, or past its time by the read →
    the same 'no usable recovery' page", while its failure paragraph, its outcome table (`NOT_PENDING` with
    `redeemed` → `303` to `/login?next=<next>`), test-plan RV5 and RF2 (ii) and the 8.2 caller obligation 3
    all expect the redirect. The author followed step 2 literally and pinned the opposite; that was a wrong
-   reading. The design is **not amended**: the correction follows the explicit outcome table, failure paragraph
-   and test plan, and step 2's wording is left as written (it is the sentence the author misread; whether to
-   reword it is Gabriel's call).
+   reading. The correction follows the explicit outcome table, failure paragraph and test plan. Step 2's
+   wording, the sentence the author misread, was not touched by `2c2a579`; it was **aligned afterwards, in a
+   documentation-only edit outside the reviewed SHA**, to resolve the contradictory wording in favour of the
+   requirement that already existed. No new product approval is claimed.
 2. **`HEAD` is a read here, and not in registration (observation, not changed).** The handlers branch on `POST`, so a `HEAD`
    carrying a body submits nothing. `registration`'s routes branch on `GET`: a `HEAD` with a form body **does** submit a
    registration and send a message (reproduced in a scratch probe: one pending row, one message). Browsers cannot send that
@@ -287,9 +297,9 @@ did about each:
 
 | Finding | Severity | Reviewer's statement | Handled in the cleanup |
 | --- | --- | --- | --- |
-| F1 | Medium, **blocking** | A repeated redemption after a reset that worked showed the "expired" page (200) instead of redirecting to `/login`. `pending_view` returns `None` for a `redeemed` row; the redirect branch was reached only in a race. Pinned by `test_recovery_transactions` (RF2 (ii)), `test_recovery_routes` (the repeat test and the cookie-copy test) and written as contract text; the status table named a test asserting the opposite for RV5. | Corrected (below). Not independently re-reviewed. |
+| F1 | Medium, **blocking** | A repeated redemption after a reset that worked showed the "expired" page (200) instead of redirecting to `/login`. `pending_view` returns `None` for a `redeemed` row; the redirect branch was reached only in a race. Pinned by `test_recovery_transactions` (RF2 (ii)), `test_recovery_routes` (the repeat test and the cookie-copy test) and written as contract text; the status table named a test asserting the opposite for RV5. | Corrected in `2c2a579`; the follow-up review confirms it resolved (below). |
 | F2 | Low | With the gate off, `OPTIONS` answers 200 with `Allow`, `PUT`/`PATCH`/`DELETE` and `GET`/`HEAD` on the POST-only routes answer 405, an unknown path under `/recover/` answers 404; also in a real production start. Registration behaves the same. Design 2.6 and the contract say the generic 404. Deviation 3 covered the 405s, not the `OPTIONS` 200. | **Not changed. Unresolved** (below). |
-| F3 | Low | Stale provenance: "uncommitted" in this report and in `PASSWORD_RECOVERY_SCOPE.md`, but the work is `dd39615`. | Corrected in both. |
+| F3 | Low | Stale provenance: "uncommitted" in this report and in `PASSWORD_RECOVERY_SCOPE.md`, but the work is `dd39615`. | Corrected in both in `2c2a579`. The follow-up review found the same defect again in the lines that cleanup added ("uncommitted" at a SHA where it was committed); corrected by the later documentation edit. |
 | F4 | Low, routine (deviation 9) | A POST for an expired but still `pending` row shows the ended page and drops the slot but does not mark the row expired; the typed address and code hash stay until the next cleanup. Design 2.4 step 2 and 2.5 disagree slightly. | Not changed; recorded (below). |
 | F5 | Info | The verify page's sentence „Не получи код? … след минута.“ is another route-chosen text not listed in deviation 5; the verify form has `autocomplete="off"` with field-level hints, so whether browsers offer the one-time code and new-password suggestions needs a browser check. | Not changed; recorded (below). |
 | Registration `HEAD` | Medium, latent, **pre-existing, not this PR** | See "Prerequisite before registration or recovery activation". | Not changed here; recorded. |
@@ -319,10 +329,12 @@ run or the 26 killed mutants. Limits: no browser, Linux, Gunicorn, real Nginx, p
 evidence; the request-timing comparison (about 1.4 ms in both cases, in-memory mailer) was indicative only.
 The author's claims in the sections above (full run, mutants) therefore rest on the author's own runs.
 
-## Cleanup after the review (uncommitted, awaiting independent follow-up)
+## Cleanup after the review (committed as `2c2a579`)
 
-**Status: in the working tree on top of `dd39615`, unstaged and uncommitted. It has had no independent
-review. All production gates remain OFF.** Scope: F1 and the documents only.
+**Status: committed as `2c2a579daef2a8aa1ee36e7e0c82018502dc5307` on top of `dd39615`, and independently
+reviewed at exactly that SHA (APPROVE WITH NON-BLOCKING NOTES, below). The description in this section is
+the author's account of the cleanup as it was written; the evidence under "Verification of the cleanup" is the
+author's. All production gates remain OFF.** Scope: F1 and the documents only.
 
 **Code**
 
@@ -362,9 +374,12 @@ review. All production gates remain OFF.** Scope: F1 and the documents only.
   truncated or `next`-tampered slot never acquires the redirect; and `was_redeemed` itself (true only for
   `redeemed`, false for `pending`/`void`/`expired` and for seven malformed bindings, `total_changes`
   unchanged).
-- A redeemed row is deleted 24 hours after creation (design 6.1): from then on the same repeat is the ended
-  page. The redirect is therefore a short-term courtesy to a double click or lost response, not a permanent
-  record of the reset.
+- **How long the redirect lasts.** The repeat redirect is available **while the redeemed row exists**. Cleanup
+  deletes final rows older than 24 hours since creation (design 6.1; `recovery_scrub.cleanup`), but elapsed
+  time alone removes nothing: a redeemed row that cleanup has not yet run over still gives the redirect, past
+  24 hours as well. After the row has actually been deleted the same request is the ended page. The redirect is
+  a courtesy to a double click or a lost response, not a record of the reset. Retention policy and cleanup
+  code are unchanged.
 - Commit semantics: a commit that **took effect and then raised** gives the uncertain text (500, slot kept,
   password really changed), and the retry is `303 /login?next=…` with the digest, the message count and the
   hash and `redeem` spies unchanged; a commit that **failed without effect** gives the uncertain text with
@@ -390,9 +405,10 @@ repeated.
 correct, is replaced by the behaviour above, and a sentence records the unresolved gate-off discrepancy and
 the review status. `PASSWORD_RECOVERY_SCOPE.md`: the "uncommitted" provenance, and the service row. This
 report: the status block, provenance, deviation 1 (now a corrected defect), the RV5 and RF2 mapping,
-this section and the next. **The design and the test plan are not edited.**
+this section and the next. **At `2c2a579` the design and the test plan were not edited**; design 2.4 step 2 was
+aligned afterwards (below).
 
-**Verification of the cleanup** (Python 3.12.15, SQLite 3.53.4, Flask 3.1.3, Werkzeug 3.1.9, segno 1.6.6,
+**Verification of the cleanup (the author's, run on the working tree before it was committed as `2c2a579`)** (Python 3.12.15, SQLite 3.53.4, Flask 3.1.3, Werkzeug 3.1.9, segno 1.6.6,
 joserfc 1.7.7 from `requirements-dev.txt` in a fresh scratch venv, `pip check` clean; temporary databases,
 `InMemoryMailer`, no socket; `python -B`, `PYTHONDONTWRITEBYTECODE`, a pycache prefix outside the worktree):
 
@@ -419,7 +435,92 @@ joserfc 1.7.7 from `requirements-dev.txt` in a fresh scratch venv, `pip check` c
   provider or SMTP evidence. The audit is test instrumentation, not proof that production cannot reach the
   code.
 
-## Open discrepancies and decisions (none resolved by this cleanup)
+## Follow-up review of `2c2a579` (APPROVE WITH NON-BLOCKING NOTES)
+
+Independent follow-up review of exactly `2c2a579daef2a8aa1ee36e7e0c82018502dc5307`. Verdict: **APPROVE WITH
+NON-BLOCKING NOTES. The original repeat-redemption blocker (F1: RV5 and RF2 (ii)) is resolved.** The verdict
+does not approve deployment or activation, the RD15 wording, or any activation prerequisite. As for the first
+review, the report is the reviewer's final message of its session and is not stored in the repository; this is
+a summary, not a quotation. The reviewer, in turn, could read only this report's summary of the first review,
+not the original, and so could not check that summary against it.
+
+**Provenance it established.** The worktree head and `origin/feature/password-recovery-flow` were both
+`2c2a579`; its single parent is `dd39615`; the worktree was clean, ignored files included. The diff touches the
+8 files of the cleanup and nothing in registration, Nginx, migrations, the design or the test plan. The review
+ran in two scratch clones (head, and `dd39615`) with a fresh venv from `requirements-dev.txt` (Python 3.12.15,
+SQLite 3.53.4, Flask 3.1.3, Werkzeug 3.1.9, joserfc 1.7.7), temporary databases and the in-memory mailer, and
+made no edits, commits, pushes or posts and started no service.
+
+**What it confirmed**, by its own probes:
+
+- Only the browser's own binding can trigger the redirect: it runs after `_slot()` accepted the slot and the
+  binding is derived from the slot's token; nothing is looked up by code or address. A tampered cookie,
+  another browser's pending row on the same account, a rotated secret key and seven malformed slot shapes
+  did not get it.
+- The repeat is `303` to `/login` keeping the validated `next` (encoded as on success), never
+  `recovery=done`; unsafe targets given at `/recover` were already dropped there.
+- It precedes every other judgement (wrong code, weak password, mismatch, empty form, list-valued fields all
+  redirect) and has no side effects: a statement trace of the repeat shows exactly two `SELECT … FROM
+  password_recoveries WHERE binding_hash = …` (on the unique index), no write, no `BEGIN`, no `users` or
+  `login_throttle` statement; the digest, the mail count and the hash/set-password/redeem/request/resend/
+  dispatch/settle spies were unchanged and no session was created.
+- Expired, lazily expired, cancelled, invalidated and missing rows, and a redeemed row forced to `void` or
+  `expired`, keep the ended page (200, slot dropped, nothing written).
+- The existing order is intact (cross-origin 403, gate, signed-in redirect, then the new branch); a hold or a
+  clock behind the mark still gives the redirect, as the service's own order does; the race branch and the
+  transaction and dispatch code are untouched.
+- Scenarios: a double submission using a copy of the raw cookie bytes; a commit that took effect then raised
+  (500 with the uncertain text, slot kept, then a retry with the same code, a wrong code, a weak password or a
+  mismatch each gives `303 /login?next=…` without side effects); a commit that failed without effect (database
+  unchanged, the retry completes); a rollback that raised; deletion of the row by `recovery_scrub.cleanup`
+  (the repeat then gets the ended page, keeping `next`); and three simulated races between the two reads, none
+  able to produce a false success notice.
+- No account-state disclosure beyond the design: the redirect is visible only to the holder of the binding, only
+  a correct mailed code makes a row `redeemed`, a shadow row can never be redeemed, `was_redeemed` never reads
+  `users`, and no production module but the blueprint calls it. The allow-list is narrow: two mutants (the
+  blueprint calling `recovery_service._row`; `web/blueprints/account.py` naming `was_redeemed`) each failed
+  tests and were reverted.
+
+**The reviewer's evidence, kept apart from the author's:**
+
+| Run (reviewer's) | Result |
+| --- | --- |
+| The 3 changed test modules | 127 OK (79 + 32 + 16) |
+| All 17 `test_recovery_*` modules, no audit | **373 OK**, the author's count |
+| The author's 28-module selection (overlapping, so not independent of the author's choice) plus the reviewer's own 34-test probe, audit installed | **868 OK** (834 + 34); 72 process reports, 4880 connections, 2395 empty-storage checks, 2381 fixture-storage, 103 absent-storage, 2 unreadable, **0 violations** |
+| Head's tests against the `dd39615` code with only a `was_redeemed → False` stub (56 tests in `RepeatedRedemptionTest`, `RedeemTest`, `SlotShapeTest`, `test_recovery_transactions`) | 11 fail (7 errors, each a `Location` lookup on a 200 page, and 4 failures: read counts, call order, the unit test); the negative tests pass, as they should. The author's run had 10: the extra one is the cookie-copy test in `SlotShapeTest`. |
+| The reviewer's probe on the unmodified `dd39615` | 11 behavioural failures, each "200 instead of 303"; all 34 pass at head |
+| Compilation of the 5 changed Python files; `git diff --check dd39615 2c2a579` | clean |
+
+The empty-storage, absent-storage and unreadable counts equal the author's; the extra connections and
+fixture-storage come from the probe. The audit hook had to be installed through a `.pth` (Homebrew's stdlib
+`sitecustomize` shadowed a first attempt), and an environment-gated hook missed seven subprocesses that run
+with a cleared environment, so the counted run used an unconditional hook. The host was heavily loaded during
+the run; the test results were not affected. **The reviewer did not repeat the full suite or the mutation
+campaign.** The author's earlier 4724-test full run and 26 killed mutants predate the correction, and no
+run of either exists for `2c2a579`. Limits: one macOS machine, the Flask test client, threads and temporary
+databases; no browser, Linux, Gunicorn, real Nginx, provider or SMTP evidence.
+
+**The reviewer's non-blocking notes and what this report does with them:**
+
+1. *The cleanup's own status lines were stale at `2c2a579` ("uncommitted and unstaged", the "task report"
+   reference in the inventory; also in `PASSWORD_RECOVERY_SCOPE.md`).* Corrected by the later documentation
+   edit; the inventory below is now self-contained.
+2. *Design 2.4 step 2 still contradicted its outcome table.* The reviewer thought a design-owner-approved
+   amendment would be appropriate and approved no wording. Step 2 was aligned afterwards, in a documentation
+   edit outside the reviewed SHA, to resolve the contradiction in favour of the existing requirement (outcome
+   table, failure paragraph, RV5, RF2 (ii), caller obligation 3). It is described there as an alignment, not a
+   new decision, and this report claims no new product approval.
+3. *No route test covers a row whose state is `expired`* (the author's "expired" route case is a lazily
+   expired pending row; only the unit test covers the `expired` state). The reviewer's own route-level probe of
+   it passes. **No test was added**; recorded as a coverage note.
+4. *The redirect lasts until cleanup actually deletes the row, not until 24 hours by the clock* (a redeemed row
+   left uncleaned after 48 hours still redirects). The retention wording in this report and in the route
+   contract is corrected to say so; the retention policy and the cleanup code are unchanged.
+5. *Observation, outside RV5 and unchanged by the diff:* a resend on a redeemed binding answers the 200 ended
+   page, and a `GET /recover/verify` with that slot answers 200.
+
+## Open discrepancies and decisions (still unresolved, except item 4's wording)
 
 1. **Gate-off method behaviour (review F2) — unresolved.** With the gate off, `OPTIONS` answers **200**
    (with `Allow`) and a wrong method on a route answers **405** (`PUT`, `PATCH`, `DELETE`, and `GET`/`HEAD`
@@ -439,8 +540,11 @@ joserfc 1.7.7 from `requirements-dev.txt` in a fresh scratch venv, `pip check` c
    form carries `autocomplete="off"` with field-level `one-time-code` / `new-password` hints (as registration
    does); whether browsers and password managers still offer a one-time code and a new password needs a
    browser check that was not done.
-4. **Design 2.4 step 2's wording** ("None, final, or past its time … the same page") is still in the design and
-   still reads against its own outcome table; it is the sentence deviation 1 misread. Left for Gabriel.
+4. **Design 2.4 step 2's wording** ("None, final, or past its time … the same page") contradicted the design's own
+   outcome table; it is the sentence deviation 1 misread. It has been **aligned** in a documentation edit after
+   `2c2a579` (outside the reviewed SHA), to match the existing requirement; no new product approval is claimed
+   and the follow-up reviewer approved no wording. The sentence in design 6.1 about the deletion of final rows
+   is unchanged.
 
 ## Prerequisite before registration or recovery activation: registration `HEAD` with a body
 
@@ -486,24 +590,32 @@ activated**.
 - RD15 (the exact Bulgarian wording), D16 (privacy, extended to recovery and the neutral notices), the configuration of D17 and an
   independent security review of this scope are open. `AGENTS.md`'s route list was not edited.
 - The audit's limits (above). The static scans do not match schema-qualified writes.
-- The review of `dd39615` requested changes (above); the cleanup that answers its blocking finding has had **no independent
-  follow-up**. Gabriel's decisions on points 2 to 4 above and on the open discrepancies above are outstanding. This report
-  approves nothing.
+- The review of `dd39615` requested changes; the cleanup `2c2a579` that answers its blocking finding was approved with
+  non-blocking notes by an independent follow-up (both above). Neither review approves deployment, activation, the RD15
+  wording or an activation prerequisite. Gabriel's decisions on points 2 to 4 above and on the open discrepancies above,
+  the registration `HEAD` prerequisite and every item of "activation evidence" in this section remain outstanding. This
+  report approves nothing.
 
 ## Changed-file inventory
 
-**At `dd39615`** (the reviewed commit): 37 files, 5230 insertions(+), 133 deletions(-) (the 25 tracked-modified
-and 12 new files of the original inventory below; the 747/133 figure in that inventory counts the tracked files
-only). Not touched: migrations, canonical JSONL,
-`deploy/learnpilot-restore.sh`, `src/`, `AGENTS.md`, `data/`, `vault/`.
+Self-contained record, by commit; the counts are `git show --stat` / `git diff --stat` figures.
 
-**The uncommitted cleanup on top of `dd39615`** (8 modified files, no new file; see the final `git diff --stat` in
-the task report): `web/services/recovery.py`,
-`web/blueprints/recovery.py`, `tests/test_recovery_no_caller.py`, `tests/test_recovery_routes.py`,
-`tests/test_recovery_transactions.py`, `docs/AUTH_ROUTE_CONTRACT.md`,
-`docs/reviews/PASSWORD_RECOVERY_SCOPE.md`, `docs/reviews/PASSWORD_RECOVERY_8_3_STATUS.md`. Not touched:
-registration, Nginx, either blueprint's method policy, the design, the test plan, migrations, `src/`,
-`deploy/`, `data/`, `vault/`.
+1. **`dd39615`** (the first reviewed SHA): 37 files, 5230 insertions(+), 133 deletions(-): the 25
+   tracked-modified and 12 new files of the original inventory below (the 747/133 figure there counts the
+   tracked files only). Not touched: migrations, canonical JSONL, `deploy/learnpilot-restore.sh`, `src/`,
+   `AGENTS.md`, `data/`, `vault/`.
+2. **`2c2a579`** (the second reviewed SHA, on `dd39615`): 8 modified files, no new file, 494 insertions(+),
+   59 deletions(-): `web/services/recovery.py`, `web/blueprints/recovery.py`,
+   `tests/test_recovery_no_caller.py`, `tests/test_recovery_routes.py`, `tests/test_recovery_transactions.py`,
+   `docs/AUTH_ROUTE_CONTRACT.md`, `docs/reviews/PASSWORD_RECOVERY_SCOPE.md`,
+   `docs/reviews/PASSWORD_RECOVERY_8_3_STATUS.md`. Not touched: registration, Nginx, either blueprint's method
+   policy, the design, the test plan, migrations, `src/`, `deploy/`, `data/`, `vault/`.
+3. **After `2c2a579`** (documentation only, outside both reviews; `git diff 2c2a579` shows exactly what
+   changed): `docs/reviews/PASSWORD_RECOVERY_8_3_STATUS.md` (provenance and status, the follow-up review, the
+   retention wording, this inventory), `docs/reviews/PASSWORD_RECOVERY_SCOPE.md` (provenance),
+   `docs/reviews/PASSWORD_RECOVERY_DESIGN.md` (design 2.4 step 2 and the status line of its header),
+   `docs/AUTH_ROUTE_CONTRACT.md` (review status and the retention sentence). No executable, test,
+   configuration, migration or gate change.
 
 ### Original inventory (at `dd39615`)
 

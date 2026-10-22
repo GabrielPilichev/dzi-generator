@@ -8,8 +8,9 @@ and whose decision D10 approved self-service recovery by emailed code as PR 8.
 
 **Revision 3 with post-review corrections and Gabriel's decisions recorded.
 Decisions selected. Scope 8.1 is merged (`09fdb68`, PR #343) and scope 8.2 is merged (PR #344, at
-`4f88f7c`). Gabriel has authorized scope 8.3, implemented for independent review (not yet
-reviewed). Deployment and activation remain unauthorized.**
+`4f88f7c`). Gabriel has authorized scope 8.3, implemented as `dd39615` (independent review:
+REQUEST CHANGES) and corrected as `2c2a579` (independent follow-up review: APPROVE WITH NON-BLOCKING
+NOTES; see `PASSWORD_RECOVERY_8_3_STATUS.md`). Deployment and activation remain unauthorized.**
 Current implementation/evidence: `PASSWORD_RECOVERY_8_1_STATUS.md`,
 `PASSWORD_RECOVERY_8_2_STATUS.md`, `PASSWORD_RECOVERY_8_3_STATUS.md`.
 Review chronology: revision 1 (`745a952`) was independently
@@ -588,8 +589,26 @@ is not echoed either.
 
 1. Gate, signed-in redirect, slot. No usable slot → „Заявката за нова парола
    е изтекла…“ without reading any row by code or address.
-2. Read the row of the binding (`recovery.pending_view`, reads only). None,
-   final, or past its time by the read → the same "no usable recovery" page.
+2. Read the row of the binding (`recovery.pending_view`, reads only). When
+   it returns `None`, one more read-only question of the same validated
+   binding (`recovery.was_redeemed`) tells a repeat from every other case:
+   - the binding's row is already `redeemed` (a repeat of a reset that
+     succeeded: a double click, a lost response, a retry after an unknown
+     commit) → `303` to `/login?next=<next>`, without `recovery=done`, the
+     slot dropped, nothing written, before the password, the confirmation or
+     the code is looked at. This is the outcome table's `NOT_PENDING` with
+     `redeemed`, reached without a transaction;
+   - any other final row (`void`, `expired`), no row (including a row that
+     cleanup has already deleted), or a pending row past its time by the
+     read → the same "no usable recovery" page.
+
+   *Alignment note (documentation only).* This step used to read "None,
+   final, or past its time by the read → the same page", which contradicted
+   the failure paragraph of this section, its outcome table (`NOT_PENDING`
+   with `redeemed` → `303` to `/login`), test plan RV5 and RF2 (ii) and the
+   8.2 caller obligation 3. The wording is aligned to that existing,
+   approved requirement; it is not a new decision and no new product approval
+   is claimed.
 3. `accounts.password_problem(password, view.email)` on the exact submitted
    value, and the exact comparison with `confirm_password`. A problem
    re-renders the page with the field error; the code is not looked at.

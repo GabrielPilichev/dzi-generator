@@ -587,7 +587,7 @@ cross-origin POST is still 403) and no page links to it.
 
 Specification: `docs/reviews/PASSWORD_RECOVERY_DESIGN.md` (sections 2.2 to 2.8, 3.5, 3.6, 7.1, 7.5
 and 8.1); implementation and its contract: `docs/reviews/PASSWORD_RECOVERY_8_3_STATUS.md`
-(scope 8.3; the review of `dd39615` requested changes, and the correction has had no independent follow-up). **It is not activated.** It is enabled only with usable
+(scope 8.3; `dd39615` was reviewed with REQUEST CHANGES, and the correction `2c2a579` with APPROVE WITH NON-BLOCKING NOTES; neither review approves activation). **It is not activated.** It is enabled only with usable
 mail settings, and a production start of this build keeps it disabled whatever is configured: the
 build gate `recovery.PRODUCTION_ACTIVATION` (`web/services/recovery.py`) is `False`, no setting or
 environment variable overrides it, and it is independent of the registration, teacher and profile
@@ -662,7 +662,9 @@ blueprint's method policy was changed (`PASSWORD_RECOVERY_8_3_STATUS.md`).
   (`void`), absent, a pending row past its time) and every missing, malformed or foreign slot stays the
   „Заявката за нова парола е изтекла…“ page with the slot dropped on a POST. The service's own
   `NOT_PENDING (redeemed)` redirect is the same answer for a row that becomes final between the read and
-  the transaction (two tabs posting together).
+  the transaction (two tabs posting together). The redirect is available **while the redeemed row exists**:
+  cleanup makes a final row eligible for deletion once it is older than 24 hours (the elapsed time alone
+  deletes nothing), and after the row has actually been deleted the same request is the ended page.
 
 ## Account profile
 
