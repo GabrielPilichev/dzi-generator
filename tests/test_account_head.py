@@ -497,32 +497,40 @@ class LinkConfirmHeadTest(HeadAssertions, RoutesTestCase):
         self.assertNotIn(oauth_state.LINK_SLOT, self.session())     # absent before and after
         self.assertAsGet(response, self.PATH, {"current_password": PASSWORD})
 
-    def test_a_malformed_or_expired_binding_is_left_exactly_as_it_was(self):
+    def test_a_malformed_foreign_or_expired_binding_is_left_exactly_as_it_was(self):
         # The GET leaves an unusable slot alone and only the POST drops it; the HEAD must not drop it.
         account = self.pending()
-        live = self.session()[oauth_state.LINK_SLOT]
-        cases = {
-            "malformed": lambda: {**live, "extra": 1},
-            "other instance": lambda: {**live, "inst": "another-instance"},
-            "expired": lambda: live,
-        }
-        for label, value in cases.items():
+        live, start = self.session()[oauth_state.LINK_SLOT], self.clock
+        # Another run's link: well-formed, bound to this session and unexpired, so its
+        # instance is the only reason it is refused.
+        foreign = {**live, "inst": ("1" if live["inst"][0] == "0" else "0") + live["inst"][1:]}
+        self.assertRegex(foreign["inst"], r"^[0-9a-f]{32}\Z")
+        self.assertNotEqual(foreign["inst"], oauth_state.INSTANCE)
+        self.assertEqual({**foreign, "inst": oauth_state.INSTANCE}, live)
+        self.assertTrue(oauth_state.is_pending_link(foreign))
+        self.assertLess(start, foreign["exp"])
+        cases = (
+            ("malformed", {**live, "extra": 1}, start),
+            ("other instance", foreign, start),
+            ("expired", live, live["exp"]),
+        )
+        for label, slot, clock in cases:
             with self.subTest(binding=label):
                 with self.client.session_transaction() as sess:
-                    sess[oauth_state.LINK_SLOT] = value()
-                if label == "expired":
-                    self.clock = live["exp"]
-                slot = self.session()[oauth_state.LINK_SLOT]
+                    sess[oauth_state.LINK_SLOT] = slot
+                self.clock = clock
                 calls, before = self.guard(), self.state()
                 response = self.head(self.PATH, {"current_password": PASSWORD})
                 self.assert_redirect(response, "/account?google=expired")
                 self.assertInert(response, calls, before)
                 self.assertEqual(self.session()[oauth_state.LINK_SLOT], slot)    # unchanged, not dropped
                 self.assertAsGet(response, self.PATH, {"current_password": PASSWORD})
+                self.assertEqual(self.session()[oauth_state.LINK_SLOT], slot)    # nor by the GET
+                # The POST is what drops an unusable slot.
+                self.assert_redirect(self.confirm(), "/account?google=expired")
+                self.assertNotIn(oauth_state.LINK_SLOT, self.session())
+            self.clock = start
         self.assertEqual((self.identity_rows(), self.throttle_rows()), ([], []))
-        # The POST is what drops an unusable slot.
-        self.assert_redirect(self.confirm(), "/account?google=expired")
-        self.assertNotIn(oauth_state.LINK_SLOT, self.session())
         self.assertEqual(self.failures(account["email"]), 0)
 
     def test_role_and_provider_states_answer_as_the_get_and_keep_the_link(self):
