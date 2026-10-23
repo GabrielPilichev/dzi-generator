@@ -1,19 +1,27 @@
 # Account forms: HEAD is a read (#348) — implementation and evidence
 
 This is an implementation report by its implementer (Claude Opus 5.5); it is **not an approval**.
-Independent review of this change is pending. Deployment, activation and every provider or host
-operation remain unauthorized. **Every production gate remains OFF.**
+It was written for #348, which was then independently reviewed and merged (see Provenance). The
+corrections of the follow-up (#349, last section) are **not** covered by that review; independent
+review of them is pending. Deployment, activation and every provider or host operation remain
+unauthorized. **Every production gate remains OFF.**
 
 ## Provenance
 
 - Worktree `~/dzi-generator-account-head`, branch `fix/account-head-read-only`, draft PR #348.
 - Starting HEAD `fd20ffd4cc3715332130bedf37756101202f78cf` (empty preparation commit) on
-  `27c291e4aab5fc060ed198d8ca2e47eac5a107fb` (#347), with a clean status. The change is left
-  unstaged and uncommitted for review; nothing was staged, committed, pushed or merged.
+  `27c291e4aab5fc060ed198d8ca2e47eac5a107fb` (#347), with a clean status. When this report was
+  first written the change was unstaged and uncommitted for review; the implementer staged,
+  committed, pushed and merged nothing.
 - #347 (registration) was approved by an independent review at `a22ce214eeb580bde20a1832f456eec1128d8143`
   and squash-merged as `27c291e` with the same tree (`git diff a22ce214 27c291e` is empty). That
   approval covers the registration handlers only, **not** this change
   (`docs/reviews/EMAIL_REGISTRATION_PR4_STATUS.md`, "Correction: HEAD is a read").
+- #348 was afterwards committed as `bb6da8ef20bd883ea495dbd89f11c005702728fb` (parent `fd20ffd`),
+  independently reviewed and approved at that commit, and squash-merged as
+  `55a4a64ba5881e5527bf97518dc387fa9f6dd040` on `27c291e` with the same tree (both `6803db47…`;
+  `git diff bb6da8e 55a4a64` is empty). That approval covers #348 as merged, **not** the
+  follow-up edits below.
 
 ## Defect
 
@@ -59,10 +67,28 @@ Deliberately not changed:
 ## Tests
 
 `tests/test_account_head.py`, 23 tests. Every database is temporary (migrations plus canonical;
-one per test), Google is the in-process fake, no network. Each `HEAD` carries a real form body and
-asserts: status as the GET of the same request; `Location`, `Content-Type`, `Content-Length`,
-`Cache-Control`, `Referrer-Policy` and `Set-Cookie` equal to the GET's; an empty body; a digest of
-every table unchanged; the session unchanged; no `Set-Cookie`; and pass-through spies uncalled.
+one per test), Google is the in-process fake, no network. Each `HEAD` carries a form body (an empty
+one where that is the case under test). Two helpers carry the comparisons:
+
+- `assertInert`: every pass-through spy of the family uncalled; a digest of every table and the
+  session equal to before the request (for the link confirmation also the raw session cookie); no
+  `Set-Cookie`.
+- `assertAsGet`: sends the GET of the same request and requires an empty HEAD body, the GET's
+  status, and the GET's `Location`, `Content-Type`, `Content-Length`, `Cache-Control`,
+  `Referrer-Policy` and `Set-Cookie`.
+
+Most HEADs are checked with both helpers and an explicit status (or redirect target). The
+exceptions assert a subset:
+
+- `assertInert` without the GET comparison: the fresh browser's HEAD in the login second-factor case
+  (session also asserted empty; no status asserted); the password throttle case and the link
+  blocked-counter case (status 200); the HEAD before the POST in the profile-requirement case (no
+  status asserted); the anonymous HEAD of the link role/provider case (redirect target).
+- `assertAsGet` without an explicit status: the profile `saved` notice (the status is compared with
+  the GET's).
+- Neither helper: the login stale-identity case and the profile disabled-account HEAD (below).
+
+Per family:
 
 - **Login**: valid and invalid credentials for student, teacher and admin, same-origin, cross-origin
   `Origin` and cross-origin `Referer`; existing throttle state (3 failures, and blocked at 10) neither
@@ -85,23 +111,35 @@ every table unchanged; the session unchanged; no `Set-Cookie`; and pass-through 
   incorrect and an over-long password, same- and cross-origin, with an existing throttle failure:
   page shown, link slot and cookie unchanged, failure count kept, no identity or consumption row;
   the legitimate POST then links and clears the counter. A blocked counter. A missing binding (stays
-  absent); a malformed, other-instance and expired binding (each left exactly as it was; only the
-  POST drops it). A teacher promoted to admin while pending, the provider disabled (404), anonymous.
+  absent). A malformed binding, a well-formed binding of another instance and an expired binding:
+  each HEAD redirects as the GET does and is inert, the slot is exactly as it was after the HEAD
+  and after the GET, and only the POST that follows drops it. The other-instance slot is the live
+  one with only `inst` changed to a different 32-character lowercase hexadecimal value, asserted
+  well-formed (`is_pending_link`), unexpired, different from `oauth_state.INSTANCE` and otherwise
+  equal to the live slot, so the instance is the only reason it is refused. Each case writes its own
+  slot and sets its own clock; the clock is reset to the test's start after each. A teacher promoted
+  to admin while pending, the provider disabled (404), anonymous.
   Spies: `verify_password`, `check_password_hash`, `is_blocked`, `record_failure`, `clear`,
   `confirm_link`, `begin_write`, `drop_pending_link`.
 - **POST journeys** are asserted unchanged in every family: cross-origin `Origin` and `Referer` POSTs
   are 403 and write nothing, and same-origin POSTs sign in, change the password, save the profile and
   link.
 - **Session cleanup is not a form action.** A cookie with an identity that no longer resolves is
-  dropped by `load_current_user` on any request; the test compares the HEAD with the GET (both drop
-  it, neither writes or issues anything) instead of claiming the cookie unchanged. Likewise a disabled
-  account's identity is dropped by the loader, not by the profile view.
+  dropped by `load_current_user` on any request. The login stale-identity case therefore sends the
+  HEAD and the GET with the same stale cookie and requires the same of each: status 200, spies
+  uncalled, every table unchanged and the session left empty (no account session issued). It does
+  not compare their headers and does not claim the cookie unchanged. Likewise a disabled account's
+  identity is dropped by the loader, not by the profile view: that HEAD asserts the login redirect,
+  every table unchanged and the session left empty, without spies or a GET comparison.
 
 `tests/test_registration_head.py` (#347) cleanup: the unused `client` parameter of `assertInert`
 removed; the comment that put a HEAD "after the same-origin check" corrected; the slot of another
 shape is now asserted unchanged (absent stays absent; held stays the same).
 
-## Evidence
+## Evidence for #348 (historical)
+
+Recorded for #348 before it was committed, against its working tree as then reviewed. These runs
+predate the follow-up below and were not repeated for it.
 
 Environment: macOS (Darwin 25.5.0, arm64), CPython 3.12.15, SQLite 3.53.4, Flask 3.1.3,
 Werkzeug 3.1.9, in a fresh scratch virtual environment built with `uv` from `requirements-dev.txt`
@@ -111,7 +149,7 @@ Werkzeug 3.1.9, in a fresh scratch virtual environment built with `uv` from `req
 | --- | --- |
 | `tests.test_account_head` | 23 tests, OK |
 | `tests.test_account_head tests.test_registration_head` | 39 tests, OK |
-| Original handlers (export of `fd20ffd` plus the final test files) | 39 tests: **FAILED (failures=37, errors=2)**; 13 of the 23 new tests fail, the 16 #347 tests pass |
+| Original handlers (export of `fd20ffd` plus #348's test files) | 39 tests: **FAILED (failures=37, errors=2)**; 13 of the 23 new tests fail, the 16 #347 tests pass |
 | Adjacent selection (below) | 902 tests, OK, 132.6 s |
 | `tests.test_auth_guard tests.test_quiz_attempt_render` (AGENTS.md) | 125 tests, OK |
 
@@ -147,8 +185,60 @@ Also checked: `python -m py_compile` of the changed modules, `git diff --check` 
   validated by `safe_redirect_target` and only echoed into the form or used as a redirect for a
   signed-in account; no change made.
 
+## Follow-up (#349): review-note corrections
+
+Two non-blocking notes from the #348 review, corrected in worktree `~/dzi-generator-account-head-notes`,
+branch `test/account-head-review-notes`, draft PR #349, starting HEAD
+`37ce0cc34d3871ae6cfa1641d0c969a7d6b212c6` (empty preparation commit) on `55a4a64`, with a clean
+status. Only `tests/test_account_head.py` and this record changed; no runtime code. The edits are
+left unstaged and uncommitted for review.
+
+1. **Foreign-instance fixture.** The "other instance" case set `inst` to `"another-instance"`, which
+   is not 32 hexadecimal characters: it tested a malformed slot, and the test still passed with the
+   instance comparison removed. It now uses the well-formed foreign slot described under Tests; the
+   test is renamed `test_a_malformed_foreign_or_expired_binding_is_left_exactly_as_it_was`. The
+   malformed and expired cases are kept, each case now ends with the POST that drops its slot, and
+   the clock no longer carries over from one case to the next.
+2. **Evidence wording.** The Tests section said every HEAD performs every listed comparison; it now
+   describes what the helpers and the individual cases assert. This record also notes the review
+   and merge of #348 and marks its evidence as historical.
+
+Verification of the follow-up. Environment: macOS 26.5.2 (Darwin 25.5.0, arm64), CPython 3.12.15,
+SQLite 3.53.4, Flask 3.1.3, Werkzeug 3.1.9, Authlib 1.9.1, segno 1.6.6, in a fresh scratch virtual
+environment (`python3.12 -m venv`, `pip install -r requirements-dev.txt`) outside the checkout,
+with `PYTHONDONTWRITEBYTECODE=1`.
+
+| Run | Result |
+| --- | --- |
+| `python -B -m unittest -v tests.test_account_head tests.test_registration_head` | 39 tests, OK |
+| Instance mutation, corrected test (below) | 23 tests: **FAILED (failures=1)** |
+| Instance mutation, #348's test (below) | 23 tests, OK: the gap the note described |
+| Unmutated export of `37ce0cc` plus the corrected test | 23 tests, OK |
+| `python -B -m unittest tests.test_auth_guard tests.test_quiz_attempt_render` (AGENTS.md) | 125 tests, OK |
+| `python -m py_compile tests/test_account_head.py` (cache outside the checkout) | OK |
+
+**Instance mutation.** In scratch exports of `37ce0cc` (`git archive`), never in the working tree,
+`oauth_state.live_pending_link` was changed from
+`if not is_pending_link(pending) or pending["inst"] != INSTANCE:` to
+`if not is_pending_link(pending):`, the only place a pending link's instance is compared before the
+confirmation page. With the corrected test, `tests.test_account_head` fails once, in subtest
+`binding='other instance'`, at the HEAD's redirect assertion: `(200, None) != (302,
+'/account?google=expired')`. The well-formed foreign link was accepted and its confirmation page
+served. The malformed and expired subtests still pass. With #348's test the same mutant passes all
+23 tests.
+
+AGENTS.md database checks: no `data/questions.db` exists in this worktree and none was created.
+A temporary database was built in the scratch directory (`python -m src.build_database --output
+<scratch>/questions.db`); `pragma_foreign_key_check` on it returned no rows.
+`src/audit_dzi_state.py --db <scratch>/questions.db --source-slug may_2025_v2` exited 1:
+`may_2025_v2` is `PART1_IMPORTED` with 28 tasks, 100 points, 15 + 10 + 3 tasks, 25 Part 1 question
+links and 0 foreign-key rows, and its one missing asset file is the official PDF
+`data/reference/dzi/official_pdfs/may_2025_v2_exam.pdf`, which is not in the checkout. No asset was
+imported. The full suite and the adjacent selection were not rerun: only a test fixture and this
+record changed.
+
 ## Remaining prerequisites
 
-Independent review of this change; evidence on the host (Nginx forwarding of `HEAD`, deployed
-response headers, rate-limit behaviour) on a deployed build; no Linux run was made. Nothing here
-approves deployment or activation; every gate stays off.
+Independent review of the follow-up corrections; evidence on the host (Nginx forwarding of `HEAD`,
+deployed response headers, rate-limit behaviour) on a deployed build; no Linux run was made.
+Nothing here approves deployment or activation; every gate stays off.
