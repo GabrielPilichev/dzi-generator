@@ -385,8 +385,10 @@ sending mail, and a `HEAD` verification consuming code attempts and activating a
 cross-origin `POST` to the same address was refused (same-origin protection covers unsafe methods
 only) and the Nginx rate-limit keys count `POST` only, so none of it was limited.
 
-**Correction.** The three handlers now take the read path for every supported method that is not
-`POST` (`request.method != "POST"`), as `web/blueprints/recovery.py` does. Everything before that
+**Correction.** The three handlers now take the read path for every method other than `POST` that
+reaches them (`request.method != "POST"`), that is `GET` and `HEAD`: `OPTIONS` gets Flask's automatic
+answer without running the view, and any other method is answered before it (405, or 403 when
+cross-origin). `web/blueprints/recovery.py` does the same. Everything before that
 line (generic 404 when disabled or gated, signed-in redirect, the verify slot read) and everything
 after it (form validation, same-origin enforcement, browser binding, return targets, transactions,
 dispatch and settlement) is unchanged. `HEAD` was not added to the unsafe methods or to the Nginx
@@ -400,13 +402,24 @@ invalid body; held, registration-disabled, teacher-gate-off and signed-in states
 (a read; the cross-origin `POST` is still 403); `HEAD` verification with wrong and correct codes,
 no slot and a slot of another shape, with the code left usable by the following legitimate `POST`;
 and the unchanged `POST` journeys. Each `HEAD` asserts the contents of every table unchanged, no
-password hashed, no `create_pending`/`verify`/`dispatch`/`settle_send` call, no message, and no
-registration slot (`reg`) in the session. Only the registration slot is claimed: a stale account
+password hashed, no `create_pending`/`verify`/`dispatch`/`settle_send` call and no message; a
+browser that held no registration slot (`reg`) still holds none, and one that held a slot, valid or
+of another shape, holds the same slot afterwards. Only the registration slot is claimed: a stale account
 session is cleaned up by `load_current_user` on any request, which is unrelated and is not asserted
 either way. Against the previous handlers 10 of the 16 tests fail (20 subtest failures and 2 subtest errors).
 
-**Not done.** Independent review of this correction and evidence from the host (Nginx, deployed
-build) are pending. This does not approve activation; every gate stays off.
+**Review and merge.** An independent Claude review approved `a22ce214eeb580bde20a1832f456eec1128d8143`
+with non-blocking notes and no merge blockers; the reviewer passed the 16 focused tests and a 527-test
+adjacent selection in a separate environment, and did not run or reproduce the full suite. It was
+squash-merged as #347 (`27c291e4aab5fc060ed198d8ca2e47eac5a107fb`, the same tree). That approval covers
+the registration handlers only. The follow-up for `/login`, `/account/password`, `/account/profile`
+and `/auth/google/link/confirm`, with small precision fixes to these tests and to this section (an
+unused `assertInert` parameter, a misleading same-origin comment, the slot that is absent versus
+unchanged, the method wording), is `docs/reviews/ACCOUNT_HEAD_READ_ONLY_STATUS.md` (#348) and is
+reviewed separately.
+
+**Not done.** Evidence from the host (Nginx, deployed build) is pending. This does not approve
+activation; every gate stays off.
 
 ## Not verified
 

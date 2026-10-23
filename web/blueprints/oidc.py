@@ -353,7 +353,7 @@ def google_link_confirm():
         if request.method == "POST":
             oauth_state.drop_pending_link()
         return redirect(_account_page(EXPIRED))
-    if request.method == "GET":
+    if request.method != "POST":    # a HEAD is a read: it never checks a password or links
         return _confirmation_page(pending, None)
 
     conn = get_request_db()
