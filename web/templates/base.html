@@ -157,24 +157,11 @@
                     </nav>
                 {% endif %}
 
-                <div class="profile-switch" aria-label="{{ 'Профил' if current_account else 'Вход' }}">
-                    {% if current_account %}
-                        <span class="profile-label">{{ current_account.display_name }}</span>
-                        <span class="profile-link active">{{ current_account_role_label }}</span>
-                        <a class="profile-link" href="{{ url_for('account.overview') }}">Профил</a>
-                        <a class="profile-link" href="{{ url_for('account.password') }}">Парола</a>
-                        <form class="profile-logout-form" method="post" action="{{ url_for('account.logout') }}">
-                            <button class="profile-link profile-logout-button" type="submit">Изход</button>
-                        </form>
-                    {% else %}
-                        <a class="profile-link" href="{{ url_for('account.login', next=request.path) }}">Вход</a>
-                    {% endif %}
-                </div>
-
                 {% if current_account %}
                     <details class="mobile-profile-menu">
                         <summary>Профил</summary>
                         <div class="mobile-profile-panel">
+                            <span class="profile-label">{{ current_account.display_name }}</span>
                             <span class="profile-link active">{{ current_account_role_label }}</span>
                             <a class="profile-link" href="{{ url_for('account.overview') }}">Профил</a>
                             <a class="profile-link" href="{{ url_for('account.password') }}">Парола</a>
@@ -184,7 +171,11 @@
                         </div>
                     </details>
                 {% else %}
-                    <details class="mobile-profile-menu">
+                    <div class="profile-switch" aria-label="Вход">
+                        <a class="profile-link" href="{{ url_for('account.login', next=request.path) }}">Вход</a>
+                    </div>
+
+                    <details class="mobile-profile-menu mobile-profile-menu--signed-out">
                         <summary>Вход</summary>
                         <div class="mobile-profile-panel">
                             <a class="profile-link" href="{{ url_for('account.login', next=request.path) }}">Вход</a>
@@ -213,6 +204,14 @@
         (function () {
             const menus = Array.from(document.querySelectorAll(".nav-menu"));
             if (menus.length === 0) return;
+            // The native account menu closes like the content menus: one menu open at a time.
+            const profileMenus = Array.from(document.querySelectorAll(".mobile-profile-menu"));
+
+            function closeProfileMenus() {
+                profileMenus.forEach(function (menu) {
+                    menu.open = false;
+                });
+            }
 
             function setMenuOpen(menu, isOpen, keyboardOpen) {
                 const trigger = menu.querySelector(".nav-menu-trigger");
@@ -248,6 +247,7 @@
                 trigger.addEventListener("click", function (event) {
                     const shouldOpen = !menu.classList.contains("is-open");
                     closeMenus(menu);
+                    closeProfileMenus();
                     setMenuOpen(menu, shouldOpen, event.detail === 0);
                 });
             });
@@ -256,15 +256,23 @@
                 if (!menus.some(function (menu) { return menu.contains(event.target); })) {
                     closeMenus();
                 }
+                if (!profileMenus.some(function (menu) { return menu.contains(event.target); })) {
+                    closeProfileMenus();
+                }
             });
 
             document.addEventListener("keydown", function (event) {
                 if (event.key === "Escape") {
                     const activeMenu = document.activeElement ? document.activeElement.closest(".nav-menu") : null;
+                    const activeProfile = document.activeElement ? document.activeElement.closest(".mobile-profile-menu[open]") : null;
                     closeMenus();
+                    closeProfileMenus();
                     if (activeMenu) {
                         const trigger = activeMenu.querySelector(".nav-menu-trigger");
                         if (trigger) trigger.focus();
+                    }
+                    if (activeProfile) {
+                        activeProfile.querySelector("summary").focus();
                     }
                 }
             });

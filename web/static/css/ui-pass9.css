@@ -59,13 +59,14 @@ h2 {
   margin-bottom: var(--space-3);
 }
 
+/* minmax(0, 1fr): the links track never grows past the space between brand and account. */
 .top-nav-row {
   min-height: var(--header-height);
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--space-4);
-  padding: 0 var(--space-3);
+  padding: var(--space-2) var(--space-3);
 }
 
 .brand {
@@ -100,10 +101,9 @@ h2 {
   gap: var(--space-2);
 }
 
-.nav-links { overflow-x: auto; scrollbar-width: none; }
-.nav-links::-webkit-scrollbar { display: none; }
-.nav-links:focus-within { overflow: visible; }
-.nav-links:has(.nav-menu.is-open) { overflow: visible; }
+/* Desktop links wrap instead of scrolling: an open dropdown never has to switch the row's
+   overflow, which used to widen the grid track. Narrow screens scroll it (fixed panels). */
+.nav-links { flex-wrap: wrap; }
 .profile-switch { justify-content: flex-end; white-space: nowrap; }
 
 .nav-link,
@@ -253,7 +253,11 @@ h2 {
   font-weight: 800;
 }
 
-.mobile-profile-menu { display: none; }
+/* A signed-in account uses this compact menu at every width: its name, role and three
+   account links never fit in one row beside the content links. Signed out, it replaces
+   the "Вход" link only on narrow screens. */
+.mobile-profile-menu { position: relative; }
+.mobile-profile-menu--signed-out { display: none; }
 
 .mobile-profile-menu summary {
   display: inline-flex;
@@ -279,12 +283,19 @@ h2 {
   z-index: 80;
   display: grid;
   gap: var(--space-2);
+  width: max-content;
   min-width: 180px;
+  max-width: calc(100vw - 2 * var(--space-3));
   padding: var(--space-2);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   background: var(--color-bg);
   box-shadow: var(--shadow-lg);
+}
+/* The account name (up to 80 characters) wraps instead of widening the panel. */
+.mobile-profile-panel .profile-label {
+  max-width: 16rem;
+  padding: var(--space-1) var(--space-3) 0;
 }
 
 /* Existing brown surfaces gain translucency only where the browser can blur. */
@@ -3732,7 +3743,6 @@ code {
   .app-shell { padding: var(--space-3); }
   .top-nav { border-radius: var(--radius-lg); }
   .top-nav-row {
-    grid-template-columns: auto 1fr auto;
     gap: var(--space-2);
   }
   .brand {
@@ -3744,10 +3754,17 @@ code {
   .brand-logo-icon {
     display: block;
   }
+  /* The row stays a scroll container while a menu is open or focused; the padding keeps
+     focus outlines inside the scrollport and the negative margin keeps the layout. */
   .nav-links {
+    overflow-x: auto;
+    scrollbar-width: none;
     min-width: 0;
     justify-content: flex-start;
+    padding: 6px;
+    margin: -6px;
   }
+  .nav-links::-webkit-scrollbar { display: none; }
   .nav-menu-panel {
     position: fixed;
     top: calc(var(--space-3) + var(--header-height) + var(--space-2));
@@ -3759,9 +3776,8 @@ code {
   .profile-switch {
     display: none;
   }
-  .mobile-profile-menu {
+  .mobile-profile-menu--signed-out {
     display: block;
-    position: relative;
   }
   .pinned-grid { grid-template-columns: 1fr; }
   .mode-grid {
