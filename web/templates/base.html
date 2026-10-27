@@ -21,11 +21,21 @@
             .nojs-nav-menu > summary { list-style: none; }
             .nojs-nav-menu > summary::-webkit-details-marker { display: none; }
             .nojs-nav-menu[open] > .nav-menu-panel { display: grid; }
-            @media (max-width: 768px) { .nav-links { overflow-x: auto; } }
             /* Unmeasured, a wrapped header would cover these tools, which need scripts anyway,
-               and anchor targets: where its links can wrap, the header stays at the top. */
+               and anchor targets: its links wrap at every width, so it stays at the top. */
             .section-toolbar, .quiz-progress { position: static; }
-            @media (min-width: 769px) { .top-nav { position: relative; } }
+            .top-nav { position: relative; }
+            /* The page scrolls a focused link or menu item into view: keep its ring in too. */
+            html { scroll-padding-bottom: var(--space-3); }
+            /* Narrow screens: no script scrolls a focused link fully into a scrolling row, so
+               the links wrap on a full-width row of their own under the brand and the account
+               menu, and a menu opens below the header instead of over it. */
+            @media (max-width: 768px) {
+                .nav-links { grid-column: 1 / -1; grid-row: 2; flex-wrap: wrap; }
+                .top-nav-row > .mobile-profile-menu { grid-column: 3; grid-row: 1; }
+                .nojs-nav-menu { position: static; }
+                .nojs-nav-menu > .nav-menu-panel { position: absolute; top: calc(100% + var(--space-2)); left: 0; right: 0; }
+            }
         </style>
     </noscript>
     <script>

@@ -16,8 +16,13 @@ and no cached build exists is ``chromium_path()`` ``None`` and the browser tests
 A configured or found browser that does not start, crashes or stops answering raises
 ``BrowserError`` (with its exit status and last stderr lines): a failure, never a skip.
 
-Each protocol call waits at most ``timeout`` seconds (20 by default). ``close()`` asks
-the browser to quit, kills it after 5 seconds, and removes its temporary profile. If
+Each protocol call has one deadline, ``timeout`` seconds (20 by default) from its start,
+for writing the request, reading the answer and serving the requests that arrive
+meanwhile. Writes are non-blocking, so a browser that stops reading a large response
+cannot hold the test past it, and partial progress never extends it. A missed deadline
+or a closed pipe raises ``PipeError``, after which the pipe is not used again: a message
+may be half written. ``close()`` asks a working browser to quit, kills it after 5 seconds
+(at once after a ``PipeError``), and removes its temporary profile. If
 the test process is killed instead, the browser sees the pipe close and exits by itself;
 only its ``learnpilot-chromium-*`` profile is then left in the temporary directory.
 Browser zoom is emulated, not driven through the browser's zoom control: 200% of a
@@ -73,6 +78,10 @@ class BrowserError(RuntimeError):
     pass
 
 
+class PipeError(BrowserError):
+    """The DevTools pipe timed out or closed; the browser is not usable any more."""
+
+
 class Browser:
     """One headless Chromium with one page; ``client`` answers its requests and may be
     replaced between pages (another account, the same browser)."""
@@ -85,6 +94,7 @@ class Browser:
         self._buffer = b""
         self._next_id = 0
         self._session = None
+        self._broken = False
         self._profile = tempfile.mkdtemp(prefix="learnpilot-chromium-")
         self._stderr = open(os.path.join(self._profile, "stderr.log"), "wb")
         to_browser_read, self._to_browser = os.pipe()
@@ -110,6 +120,7 @@ class Browser:
         finally:
             os.close(to_browser_read)
             os.close(from_browser_write)
+        os.set_blocking(self._to_browser, False)
         try:
             target = self._call("Target.createTarget", {"url": "about:blank"})["targetId"]
             self._session = self._call("Target.attachToTarget", {"targetId": target, "flatten": True})["sessionId"]
@@ -122,29 +133,48 @@ class Browser:
 
     # -- protocol ---------------------------------------------------------------------
 
+    def _failed(self, message: str) -> PipeError:
+        self._broken = True
+        return PipeError(message)
+
     def _read(self, deadline: float) -> dict:
         while b"\0" not in self._buffer:
             remaining = deadline - time.monotonic()
             if remaining <= 0 or not select.select([self._from_browser], [], [], remaining)[0]:
-                raise BrowserError(f"no answer within {self.timeout}s")
+                raise self._failed(f"no answer within {self.timeout}s")
             chunk = os.read(self._from_browser, 1 << 16)
             if not chunk:
-                raise BrowserError("the browser closed the DevTools pipe" + self._diagnostics())
+                raise self._failed("the browser closed the DevTools pipe" + self._diagnostics())
             self._buffer += chunk
         raw, self._buffer = self._buffer.split(b"\0", 1)
         return json.loads(raw)
 
-    def _write(self, message: dict) -> None:
-        os.write(self._to_browser, json.dumps(message).encode() + b"\0")
+    def _write(self, message: dict, deadline: float) -> None:
+        """All of ``message`` before ``deadline``, as fast as the browser reads it."""
+        if self._broken:
+            raise PipeError("the DevTools pipe failed earlier and is not used again")
+        data = memoryview(json.dumps(message).encode() + b"\0")
+        size = len(data)
+        while data:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0 or not select.select([], [self._to_browser], [], remaining)[1]:
+                raise self._failed(f"the browser stopped reading: {len(data)} of {size} bytes "
+                                   f"unsent within {self.timeout}s")
+            try:
+                data = data[os.write(self._to_browser, data):]
+            except (BlockingIOError, InterruptedError):   # full again, or a signal: wait again
+                pass
+            except BrokenPipeError:
+                raise self._failed("the browser closed the DevTools pipe" + self._diagnostics()) from None
 
     def _call(self, method: str, params: dict | None = None, session: str | None = None) -> dict:
+        deadline = time.monotonic() + self.timeout   # before writing: a write can wait too
         self._next_id += 1
         message_id = self._next_id
         message = {"id": message_id, "method": method, "params": params or {}}
         if session:
             message["sessionId"] = session
-        self._write(message)
-        deadline = time.monotonic() + self.timeout
+        self._write(message, deadline)
         while True:
             message = self._read(deadline)
             if message.get("id") == message_id:
@@ -152,7 +182,7 @@ class Browser:
                     raise BrowserError(f"{method}: {message['error']}")
                 return message.get("result", {})
             if message.get("method") == "Fetch.requestPaused":
-                self._answer(message["params"])
+                self._answer(message["params"], deadline)
 
     def send(self, method: str, params: dict | None = None) -> dict:
         return self._call(method, params, self._session)
@@ -167,14 +197,15 @@ class Browser:
             tail = ""
         return f" (exit status {status}; stderr: {tail or 'empty'})"
 
-    def _answer(self, paused: dict) -> None:
+    def _answer(self, paused: dict, deadline: float) -> None:
         """Serve one paused request from the Flask test client (its cookies, not the browser's)."""
         request = paused["request"]
         url = urlsplit(request["url"])
         if f"{url.scheme}://{url.netloc}" != ORIGIN:
             self.blocked.append(request["url"])
             self._write({"id": 0, "sessionId": self._session, "method": "Fetch.failRequest",
-                         "params": {"requestId": paused["requestId"], "errorReason": "BlockedByClient"}})
+                         "params": {"requestId": paused["requestId"], "errorReason": "BlockedByClient"}},
+                        deadline)
             return
         path = url.path + (f"?{url.query}" if url.query else "")
         self.requests.append((request["method"], path))
@@ -189,7 +220,8 @@ class Browser:
         # Sent without waiting: its acknowledgement is skipped like any unrelated message.
         self._write({"id": 0, "sessionId": self._session, "method": "Fetch.fulfillRequest", "params": {
             "requestId": paused["requestId"], "responseCode": response.status_code,
-            "responseHeaders": reply, "body": base64.b64encode(response.get_data()).decode()}})
+            "responseHeaders": reply, "body": base64.b64encode(response.get_data()).decode()}},
+            deadline)
         response.close()
 
     # -- page -------------------------------------------------------------------------
@@ -221,6 +253,8 @@ class Browser:
         while time.monotonic() < deadline:
             try:
                 state = self.eval("[document.readyState, location.href, performance.timeOrigin]")
+            except PipeError:
+                raise
             except BrowserError:   # the previous document is going away
                 state = None
             if state and state[0] == "complete" and (state[1] == url if url else state[2] != after):
@@ -276,15 +310,15 @@ class Browser:
     def close(self) -> None:
         try:
             if self._process is not None and self._process.poll() is None:
-                try:
-                    self._call("Browser.close")
-                except (BrowserError, OSError):
-                    pass
-                try:
-                    self._process.wait(5)
-                except subprocess.TimeoutExpired:
+                if not self._broken:
+                    try:
+                        self._call("Browser.close")
+                        self._process.wait(5)
+                    except (BrowserError, OSError, subprocess.TimeoutExpired):
+                        pass
+                if self._process.poll() is None:
                     self._process.kill()
-                    self._process.wait(5)
+                self._process.wait(5)
         finally:
             for descriptor in (self._to_browser, self._from_browser):
                 try:

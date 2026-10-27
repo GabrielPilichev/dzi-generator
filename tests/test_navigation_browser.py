@@ -23,6 +23,16 @@ SECTION = "/section/grade12-dzi-preparation"
 NARROW = [(320, 640, 1), (390, 844, 1), (600, 800, 1), (768, 800, 1),
           (640, 400, 2), (384, 400, 2)]           # the last two: 1280px and 768px at 200%
 SHORT = [(320, 200, 4), (390, 300, 1), (768, 300, 1), (1280, 360, 1)]   # the first: 1280x800 at 400%
+DESKTOP = [(1024, 768, 1), (1440, 900, 1)]
+
+# Every header control, in Tab order: the same with and without JavaScript.
+HEADER_CONTROLS = {
+    "student": ["LearnPilot начало", "Начало", "Класове", "Предмети", "ДЗИ", "Моите опити", "Профил"],
+    "teacher": ["LearnPilot начало", "Начало", "Класове", "Предмети", "ДЗИ", "Моите тестове", "Моите опити",
+                "Профил"],
+    "admin": ["LearnPilot начало", "Начало", "Класове", "Предмети", "ДЗИ", "Създадени тестове", "Моите опити",
+              "Профил"],
+}
 
 # The focused control, and its focus ring (outline + offset), against the viewport and
 # every box that clips it: those in its containing-block chain (a fixed panel escapes the
@@ -49,7 +59,8 @@ FOCUSED = r"""(() => {
             t: Math.max(clip.t, t), b: Math.min(clip.b, t + e.clientHeight)};
   }
   const y = b.top + b.height / 2;
-  return {text: a.textContent.trim().replace(/\s+/g, " "), ring,
+  return {text: a.getAttribute("aria-label") || a.textContent.trim().replace(/\s+/g, " "), ring,
+          pageFits: document.documentElement.scrollWidth <= document.documentElement.clientWidth,
           hidden: Math.max(clip.l - (b.left - ring), b.right + ring - clip.r,
                            clip.t - (b.top - ring), b.bottom + ring - clip.b, 0),
           covered: [0.1, 0.5, 0.9].filter((f) => {
@@ -175,19 +186,31 @@ class NavigationBrowserTest(IsolatedAppTestCase):
 
     # -- B2 -------------------------------------------------------------------------------
 
-    def test_tab_and_shift_tab_reveal_every_header_control_and_its_focus_ring(self):
+    def assert_every_header_control_revealed(self):
+        """Tab and Shift+Tab stop at exactly the role's controls, in order, each fully visible
+        with its focus ring and the page never wider than the viewport."""
         for role, user in self.users.items():
-            for width, height, scale in NARROW:
+            for width, height, scale in NARROW + DESKTOP:
                 self.open(user, "/", width, height, scale)
                 for shift in (False, True):
                     stops = self.walk_header_focus(shift)
-                    # Brand, Начало, Класове, Предмети, ДЗИ, (tests), Моите опити, Профил.
-                    self.assertGreaterEqual(len(stops), 7, (role, width, shift))
+                    expected = HEADER_CONTROLS[role][::-1] if shift else HEADER_CONTROLS[role]
+                    self.assertEqual([stop["text"] for stop in stops], expected, (role, width, scale, shift))
                     for stop in stops:
                         with self.subTest(role=role, width=width, scale=scale, shift=shift, control=stop["text"]):
                             self.assertGreater(stop["ring"], 0)
                             self.assertLessEqual(stop["hidden"], 0.5)
                             self.assertEqual(stop["covered"], 0)
+                            self.assertTrue(stop["pageFits"])
+
+    def test_tab_and_shift_tab_reveal_every_header_control_and_its_focus_ring(self):
+        self.assert_every_header_control_revealed()
+
+    def test_without_javascript_tab_and_shift_tab_reveal_every_header_control(self):
+        # No script scrolls a focused link into the narrow links row: the row wraps instead.
+        self.browser.scripts(False)
+        self.assert_every_header_control_revealed()
+        self.browser.scripts(True)
 
     def test_focus_is_revealed_with_reduced_motion(self):
         self.browser.media(prefers_reduced_motion="reduce")
@@ -283,9 +306,9 @@ class NavigationBrowserTest(IsolatedAppTestCase):
         self.browser.scripts(True)
 
     def test_without_javascript_anchor_targets_are_not_covered(self):
-        # Unmeasured, a header that wraps (desktop) is not sticky; on phones its row scrolls.
+        # Unmeasured, the header wraps at any width, so it is not sticky.
         self.browser.scripts(False)
-        for width in (769, 860, 960, 1440, 390):
+        for width in (769, 860, 960, 1440, 768, 390, 320):
             with self.subTest(width=width):
                 self.open(self.users["admin"], f"/teacher/assignment/{self.assignment_id}#duplicate", width)
                 found = self.below_header("#duplicate")
@@ -297,6 +320,11 @@ class NavigationBrowserTest(IsolatedAppTestCase):
         """Open a menu with a real click, then Tab to each of its links and buttons: every
         one fully visible with its ring, the panel and page never scrolling sideways."""
         self.browser.click_selector(opener, index)
+        self.assertTrue(self.browser.eval(f"""(() => {{
+            const trigger = document.querySelectorAll({json.dumps(opener)})[{index}];
+            const box = trigger.getBoundingClientRect();
+            const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+            return !!hit && trigger.contains(hit); }})()"""), "the open menu covers its trigger")
         items = f"{panel}.querySelectorAll('a, button')"
         count = self.browser.eval(f"{items}.length")
         self.assertGreater(count, 0)
@@ -326,13 +354,13 @@ class NavigationBrowserTest(IsolatedAppTestCase):
                         self.open(user, "/", width, height, scale)
                         self.assert_menu_items_reachable(opener, 0, panel)
 
-    def test_without_javascript_every_menu_item_is_reachable_at_short_heights(self):
+    def test_without_javascript_every_menu_item_is_reachable(self):
         self.browser.scripts(False)
         nojs_panel = "document.querySelectorAll('details.nojs-nav-menu')[{}].querySelector('.nav-menu-panel')"
         menus = (("Профил", ".mobile-profile-menu > summary", 0, "document.querySelector('.mobile-profile-panel')"),
                  ("Класове", "details.nojs-nav-menu > summary", 0, nojs_panel.format(0)),
                  ("Предмети", "details.nojs-nav-menu > summary", 1, nojs_panel.format(1)))
-        for width, height, scale in SHORT:
+        for width, height, scale in SHORT + NARROW[:4] + DESKTOP:
             for menu, opener, index, panel in menus:
                 with self.subTest(width=width, height=height, menu=menu):
                     self.open(self.users["admin"], "/", width, height, scale)

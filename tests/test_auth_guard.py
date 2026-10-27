@@ -409,10 +409,11 @@ class AuthGuardTest(IsolatedAppTestCase):
         self.assertIn("new ResizeObserver(", body)
         self.assertIn('"--top-nav-height", header.getBoundingClientRect().height + "px"', body)
         # Unmeasured (no JavaScript), the script-only sticky tools stay in the flow, and so
-        # does the header wherever its links can wrap.
+        # does the header, whose links wrap at every width then.
         noscript = re.search(r"<noscript>\s*<style>(.*?)</style>", body, re.S).group(1)
         self.assertRegex(noscript, r"\.section-toolbar,\s*\.quiz-progress\s*\{\s*position:\s*static;\s*\}")
-        self.assertRegex(noscript, r"@media \(min-width: 769px\) \{ \.top-nav \{ position: relative; \} \}")
+        self.assertRegex(noscript, r"(?m)^\s*\.top-nav \{ position: relative; \}")
+        self.assertRegex(noscript, r"\.nav-links \{ grid-column: 1 / -1; grid-row: 2; flex-wrap: wrap; \}")
         # Menus inside the sticky header end above the viewport's bottom edge and scroll.
         panels = re.search(r"\.nav-menu-panel,\s*\.mobile-profile-panel\s*\{([^}]*max-height[^}]*)\}",
                            re.sub(r"/\*.*?\*/", "", css, flags=re.S)).group(1)
