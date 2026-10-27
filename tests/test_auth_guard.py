@@ -395,6 +395,30 @@ class AuthGuardTest(IsolatedAppTestCase):
         self.assertRegex(mobile, r"\.nav-links\s*\{\s*overflow-x:\s*auto")
         self.assertRegex(mobile, r"\.nav-menu-panel\s*\{\s*position:\s*fixed")
 
+    def test_offsets_below_the_header_use_its_measured_height(self):
+        # Source text only; tests.test_navigation_browser measures the layout itself. The
+        # header wraps onto more rows at some widths, so nothing positions itself below it
+        # with the fixed one-row token.
+        css = (_ROOT / "web" / "static" / "css" / "ui-pass9.css").read_text(encoding="utf-8")
+        self.assertRegex(css, r":root\s*\{\s*--top-nav-height:\s*var\(--header-height\);\s*\}")
+        offsets = re.findall(r"(?:top|scroll-padding-top):\s*calc\([^;]*--(?:header|top-nav)-height[^;]*\);", css)
+        self.assertEqual(len(offsets), 4)
+        for offset in offsets:
+            self.assertIn("var(--top-nav-height)", offset)
+        body = self.app.test_client().get("/").get_data(as_text=True)
+        self.assertIn("new ResizeObserver(", body)
+        self.assertIn('"--top-nav-height", header.getBoundingClientRect().height + "px"', body)
+        # Unmeasured (no JavaScript), the script-only sticky tools stay in the flow, and so
+        # does the header wherever its links can wrap.
+        noscript = re.search(r"<noscript>\s*<style>(.*?)</style>", body, re.S).group(1)
+        self.assertRegex(noscript, r"\.section-toolbar,\s*\.quiz-progress\s*\{\s*position:\s*static;\s*\}")
+        self.assertRegex(noscript, r"@media \(min-width: 769px\) \{ \.top-nav \{ position: relative; \} \}")
+        # Menus inside the sticky header end above the viewport's bottom edge and scroll.
+        panels = re.search(r"\.nav-menu-panel,\s*\.mobile-profile-panel\s*\{([^}]*max-height[^}]*)\}",
+                           re.sub(r"/\*.*?\*/", "", css, flags=re.S)).group(1)
+        self.assertIn("max-height: calc(100dvh - var(--top-nav-height)", panels)
+        self.assertIn("overflow-y: auto", panels)
+
     def test_signed_in_account_controls_are_one_compact_menu(self):
         name = "Александра Константинова-Димитрова Петрова"
         client = self.app.test_client()

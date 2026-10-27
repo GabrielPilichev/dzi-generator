@@ -9,7 +9,11 @@
   --glass-border: color-mix(in srgb, var(--color-border-strong) 62%, var(--color-border));
 }
 
-html { scroll-padding-top: calc(var(--header-height) + var(--space-5)); }
+/* The sticky header's real height. Desktop links wrap onto more rows, so base.html measures
+   it; without JavaScript it stays the one-row height and the sticky tools are static. */
+:root { --top-nav-height: var(--header-height); }
+
+html { scroll-padding-top: calc(var(--top-nav-height) + var(--space-5)); }
 
 body {
   margin: 0;
@@ -292,10 +296,23 @@ h2 {
   background: var(--color-bg);
   box-shadow: var(--shadow-lg);
 }
-/* The account name (up to 80 characters) wraps instead of widening the panel. */
+/* The account name (up to 80 characters) wraps instead of widening the panel. A name is
+   user-entered and may have no space at all, so it alone may break between any letters. */
 .mobile-profile-panel .profile-label {
   max-width: 16rem;
   padding: var(--space-1) var(--space-3) 0;
+  overflow-wrap: anywhere;
+}
+/* Short viewports and high zoom: a menu scrolls instead of running past the bottom edge,
+   where the sticky header would keep its last items out of reach. A panel's top is at
+   most the header's bottom edge, which is at most the page's top padding down. */
+.nav-menu-panel,
+.mobile-profile-panel {
+  max-height: calc(100vh - var(--top-nav-height) - var(--space-5) - var(--space-3));
+  max-height: calc(100dvh - var(--top-nav-height) - var(--space-5) - var(--space-3));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-padding-block: var(--space-2);   /* a focused item's ring stays inside */
 }
 
 /* Existing brown surfaces gain translucency only where the browser can blur. */
@@ -2193,7 +2210,7 @@ button:disabled:hover,
 
 .section-toolbar {
   position: sticky;
-  top: calc(var(--header-height) + var(--space-2));
+  top: calc(var(--top-nav-height) + var(--space-2));
   z-index: 40;
   margin-bottom: var(--space-6);
   padding: var(--space-3);
@@ -3755,7 +3772,8 @@ code {
     display: block;
   }
   /* The row stays a scroll container while a menu is open or focused; the padding keeps
-     focus outlines inside the scrollport and the negative margin keeps the layout. */
+     focus outlines inside the scrollport and the negative margin keeps the layout.
+     base.html scrolls a keyboard-focused control fully into the row. */
   .nav-links {
     overflow-x: auto;
     scrollbar-width: none;
@@ -3765,13 +3783,29 @@ code {
     margin: -6px;
   }
   .nav-links::-webkit-scrollbar { display: none; }
+  /* A link wider than the visible row (320px, zoom) wraps its words, so focus can show all
+     of it; links never shrink to fit, the row scrolls instead. */
+  .nav-links > .nav-link,
+  .nav-links > .nav-current {
+    flex-shrink: 0;
+    max-width: 100%;
+    white-space: normal;
+    text-align: center;
+  }
   .nav-menu-panel {
     position: fixed;
-    top: calc(var(--space-3) + var(--header-height) + var(--space-2));
+    top: calc(var(--space-3) + var(--top-nav-height) + var(--space-2));
     left: var(--space-3);
     right: var(--space-3);
     width: auto;
     min-width: 0;
+  }
+  /* The panel is as wide as the screen allows; a long subject and its status wrap rather
+     than overflow. */
+  .nav-menu-link {
+    flex-wrap: wrap;
+    row-gap: 0;
+    white-space: normal;
   }
   .profile-switch {
     display: none;
@@ -4452,7 +4486,7 @@ code {
   flex-direction: column;
   gap: var(--space-2);
   position: sticky;
-  top: calc(var(--header-height) + var(--space-4));
+  top: calc(var(--top-nav-height) + var(--space-4));
   z-index: 20;
   padding: var(--space-3) var(--space-4);
   margin-bottom: var(--space-4);

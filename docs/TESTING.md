@@ -12,6 +12,17 @@ Individual modules also work, including when imported before any other tests:
 python3 -B -m unittest tests.test_favicon tests.test_auth_guard
 ```
 
+## Browser checks
+
+`tests.test_navigation_browser` drives headless Chromium (header layout, keyboard focus,
+sticky offsets, menus, no JavaScript) through `tests/browser_support.py`: the DevTools
+protocol over a pipe, requests answered by the Flask test client, no package, server or
+port. It uses `LEARNPILOT_CHROMIUM` or a Playwright `chromium_headless_shell` cache and
+**skips** when neither exists, so a green run without Chromium has not checked layout. A
+configured or found browser that does not start or answer fails the tests instead
+(`tests.test_browser_support`). Zoom is emulated (a narrower CSS viewport at a higher
+device scale).
+
 ## Application fixtures
 
 ### Password recovery scope 8.1

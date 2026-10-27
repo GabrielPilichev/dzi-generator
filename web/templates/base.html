@@ -22,6 +22,10 @@
             .nojs-nav-menu > summary::-webkit-details-marker { display: none; }
             .nojs-nav-menu[open] > .nav-menu-panel { display: grid; }
             @media (max-width: 768px) { .nav-links { overflow-x: auto; } }
+            /* Unmeasured, a wrapped header would cover these tools, which need scripts anyway,
+               and anchor targets: where its links can wrap, the header stays at the top. */
+            .section-toolbar, .quiz-progress { position: static; }
+            @media (min-width: 769px) { .top-nav { position: relative; } }
         </style>
     </noscript>
     <script>
@@ -184,6 +188,18 @@
                 {% endif %}
             </div>
         </header>
+        <script>
+            // Sticky tools and anchor offsets follow the header's real height: its links wrap
+            // onto more rows at some widths, and fonts, zoom and resizing change it.
+            (function () {
+                const header = document.querySelector(".top-nav");
+                if (!header || !window.ResizeObserver) return;
+                new ResizeObserver(function () {
+                    document.documentElement.style.setProperty(
+                        "--top-nav-height", header.getBoundingClientRect().height + "px");
+                }).observe(header);
+            })();
+        </script>
 
         <nav class="breadcrumb" aria-label="Път в сайта">
             {% block breadcrumb %}
@@ -274,6 +290,25 @@
                     if (activeProfile) {
                         activeProfile.querySelector("summary").focus();
                     }
+                }
+            });
+
+            // Narrow screens scroll the links row. Chromium leaves a partly visible control
+            // where it is on focus, so keyboard focus scrolls the whole control and its focus
+            // ring (outline and offset, inside the row's 6px padding) into the row.
+            const row = document.querySelector(".nav-links");
+            if (!row) return;
+            row.addEventListener("focusin", function (event) {
+                const control = event.target;
+                if (row.scrollWidth <= row.clientWidth || control.closest(".nav-menu-panel") ||
+                        !control.matches(":focus-visible")) return;
+                const ring = 6;
+                const box = control.getBoundingClientRect();
+                const start = row.getBoundingClientRect().left + row.clientLeft;
+                if (box.left - ring < start) {
+                    row.scrollLeft -= start - (box.left - ring);
+                } else if (box.right + ring > start + row.clientWidth) {
+                    row.scrollLeft += box.right + ring - (start + row.clientWidth);
                 }
             });
         })();
