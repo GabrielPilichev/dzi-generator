@@ -487,9 +487,16 @@ class GradeOverviewPagesTest(IsolatedAppTestCase):
         rules = re.findall(r"([^{}]+)\{([^{}]*)\}", css)
         aggressive = [selector.strip() for selector, body in rules
                       if re.search(r"overflow-wrap:\s*(?:anywhere|break-word)|word-break:\s*(?:break-all|break-word)", body)]
-        self.assertEqual(aggressive, [".machine-text,\n.practical-task-source"])
+        # Words of content never break. Besides machine text, only the account name in the
+        # profile menu may: it is user-entered, up to 80 characters, possibly without a space.
+        self.assertEqual(aggressive, [".mobile-profile-panel .profile-label", ".machine-text,\n.practical-task-source"])
         for name in ("grade.html", "subject.html", "subject_grade.html", "_subject_states.html", "_section_toolbar.html"):
             self.assertNotIn("machine-text", (ROOT / "web" / "templates" / name).read_text(encoding="utf-8"))
+        # That label holds the name and nothing else, in the header only.
+        templates = {path.name: path.read_text(encoding="utf-8") for path in (ROOT / "web" / "templates").glob("*.html")}
+        self.assertEqual([name for name, text in templates.items() if "profile-label" in text], ["base.html"])
+        self.assertEqual(re.findall(r'<span class="profile-label">(.*?)</span>', templates["base.html"]),
+                         ["{{ current_account.display_name }}"])
 
     def test_only_platform_grades_have_an_overview(self):
         for grade in (0, 7, 13):

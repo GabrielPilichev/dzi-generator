@@ -9,7 +9,11 @@
   --glass-border: color-mix(in srgb, var(--color-border-strong) 62%, var(--color-border));
 }
 
-html { scroll-padding-top: calc(var(--header-height) + var(--space-5)); }
+/* The sticky header's real height. Desktop links wrap onto more rows, so base.html measures
+   it; without JavaScript it stays the one-row height and the sticky tools are static. */
+:root { --top-nav-height: var(--header-height); }
+
+html { scroll-padding-top: calc(var(--top-nav-height) + var(--space-5)); }
 
 body {
   margin: 0;
@@ -59,13 +63,14 @@ h2 {
   margin-bottom: var(--space-3);
 }
 
+/* minmax(0, 1fr): the links track never grows past the space between brand and account. */
 .top-nav-row {
   min-height: var(--header-height);
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--space-4);
-  padding: 0 var(--space-3);
+  padding: var(--space-2) var(--space-3);
 }
 
 .brand {
@@ -100,10 +105,9 @@ h2 {
   gap: var(--space-2);
 }
 
-.nav-links { overflow-x: auto; scrollbar-width: none; }
-.nav-links::-webkit-scrollbar { display: none; }
-.nav-links:focus-within { overflow: visible; }
-.nav-links:has(.nav-menu.is-open) { overflow: visible; }
+/* Desktop links wrap instead of scrolling: an open dropdown never has to switch the row's
+   overflow, which used to widen the grid track. Narrow screens scroll it (fixed panels). */
+.nav-links { flex-wrap: wrap; }
 .profile-switch { justify-content: flex-end; white-space: nowrap; }
 
 .nav-link,
@@ -253,7 +257,11 @@ h2 {
   font-weight: 800;
 }
 
-.mobile-profile-menu { display: none; }
+/* A signed-in account uses this compact menu at every width: its name, role and three
+   account links never fit in one row beside the content links. Signed out, it replaces
+   the "Вход" link only on narrow screens. */
+.mobile-profile-menu { position: relative; }
+.mobile-profile-menu--signed-out { display: none; }
 
 .mobile-profile-menu summary {
   display: inline-flex;
@@ -279,12 +287,32 @@ h2 {
   z-index: 80;
   display: grid;
   gap: var(--space-2);
+  width: max-content;
   min-width: 180px;
+  max-width: calc(100vw - 2 * var(--space-3));
   padding: var(--space-2);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   background: var(--color-bg);
   box-shadow: var(--shadow-lg);
+}
+/* The account name (up to 80 characters) wraps instead of widening the panel. A name is
+   user-entered and may have no space at all, so it alone may break between any letters. */
+.mobile-profile-panel .profile-label {
+  max-width: 16rem;
+  padding: var(--space-1) var(--space-3) 0;
+  overflow-wrap: anywhere;
+}
+/* Short viewports and high zoom: a menu scrolls instead of running past the bottom edge,
+   where the sticky header would keep its last items out of reach. A panel's top is at
+   most the header's bottom edge, which is at most the page's top padding down. */
+.nav-menu-panel,
+.mobile-profile-panel {
+  max-height: calc(100vh - var(--top-nav-height) - var(--space-5) - var(--space-3));
+  max-height: calc(100dvh - var(--top-nav-height) - var(--space-5) - var(--space-3));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-padding-block: var(--space-2);   /* a focused item's ring stays inside */
 }
 
 /* Existing brown surfaces gain translucency only where the browser can blur. */
@@ -2182,7 +2210,7 @@ button:disabled:hover,
 
 .section-toolbar {
   position: sticky;
-  top: calc(var(--header-height) + var(--space-2));
+  top: calc(var(--top-nav-height) + var(--space-2));
   z-index: 40;
   margin-bottom: var(--space-6);
   padding: var(--space-3);
@@ -3732,7 +3760,6 @@ code {
   .app-shell { padding: var(--space-3); }
   .top-nav { border-radius: var(--radius-lg); }
   .top-nav-row {
-    grid-template-columns: auto 1fr auto;
     gap: var(--space-2);
   }
   .brand {
@@ -3744,24 +3771,47 @@ code {
   .brand-logo-icon {
     display: block;
   }
+  /* The row stays a scroll container while a menu is open or focused; the padding keeps
+     focus outlines inside the scrollport and the negative margin keeps the layout.
+     base.html scrolls a keyboard-focused control fully into the row. */
   .nav-links {
+    overflow-x: auto;
+    scrollbar-width: none;
     min-width: 0;
     justify-content: flex-start;
+    padding: 6px;
+    margin: -6px;
+  }
+  .nav-links::-webkit-scrollbar { display: none; }
+  /* A link wider than the visible row (320px, zoom) wraps its words, so focus can show all
+     of it; links never shrink to fit, the row scrolls instead. */
+  .nav-links > .nav-link,
+  .nav-links > .nav-current {
+    flex-shrink: 0;
+    max-width: 100%;
+    white-space: normal;
+    text-align: center;
   }
   .nav-menu-panel {
     position: fixed;
-    top: calc(var(--space-3) + var(--header-height) + var(--space-2));
+    top: calc(var(--space-3) + var(--top-nav-height) + var(--space-2));
     left: var(--space-3);
     right: var(--space-3);
     width: auto;
     min-width: 0;
   }
+  /* The panel is as wide as the screen allows; a long subject and its status wrap rather
+     than overflow. */
+  .nav-menu-link {
+    flex-wrap: wrap;
+    row-gap: 0;
+    white-space: normal;
+  }
   .profile-switch {
     display: none;
   }
-  .mobile-profile-menu {
+  .mobile-profile-menu--signed-out {
     display: block;
-    position: relative;
   }
   .pinned-grid { grid-template-columns: 1fr; }
   .mode-grid {
@@ -4436,7 +4486,7 @@ code {
   flex-direction: column;
   gap: var(--space-2);
   position: sticky;
-  top: calc(var(--header-height) + var(--space-4));
+  top: calc(var(--top-nav-height) + var(--space-4));
   z-index: 20;
   padding: var(--space-3) var(--space-4);
   margin-bottom: var(--space-4);

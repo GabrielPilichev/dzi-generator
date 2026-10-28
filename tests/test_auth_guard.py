@@ -367,10 +367,79 @@ class AuthGuardTest(IsolatedAppTestCase):
         self.assertIn("panel.hidden = !isOpen", body)
         self.assertIn('document.addEventListener("click"', body)
         self.assertIn('event.key === "Escape"', body)
-        self.assertIn(".nav-links:has(.nav-menu.is-open)", css)
         self.assertNotIn(".nav-menu[open]", css)
         self.assertRegex(css, r"\.nav-menu-panel\s*\{[^}]*display:\s*none")
         self.assertRegex(css, r"\.nav-menu\.is-open \.nav-menu-panel:not\(\[hidden\]\)\s*\{[^}]*display:\s*grid")
+
+    def test_opening_or_focusing_a_menu_cannot_widen_the_header(self):
+        # Regression (PR #350): an open or focused menu switched .nav-links to
+        # overflow: visible. The grid item then stopped being a scroll container, its
+        # min-content width (every link) became the minimum of the 1fr track, and the
+        # account controls were pushed past the header's right edge.
+        css = (_ROOT / "web" / "static" / "css" / "ui-pass9.css").read_text(encoding="utf-8")
+        columns = re.findall(r"\.top-nav-row\s*\{[^}]*?grid-template-columns:\s*([^;]+);", css)
+        self.assertTrue(columns)
+        for value in columns:
+            self.assertIn("minmax(0, 1fr)", value)
+        # No menu state changes the links row's overflow, and with it the row's width.
+        self.assertNotRegex(css, r"\.nav-links:(?:focus-within|has\()")
+
+        start = css.index("@media (max-width: 768px) {")
+        depth = 0
+        for end in range(css.index("{", start), len(css)):
+            depth += {"{": 1, "}": -1}.get(css[end], 0)
+            if depth == 0:
+                break
+        mobile = css[start:end]
+        # Narrow screens keep scrolling the row; its panels are fixed, so it never clips them.
+        self.assertRegex(mobile, r"\.nav-links\s*\{\s*overflow-x:\s*auto")
+        self.assertRegex(mobile, r"\.nav-menu-panel\s*\{\s*position:\s*fixed")
+
+    def test_offsets_below_the_header_use_its_measured_height(self):
+        # Source text only; tests.test_navigation_browser measures the layout itself. The
+        # header wraps onto more rows at some widths, so nothing positions itself below it
+        # with the fixed one-row token.
+        css = (_ROOT / "web" / "static" / "css" / "ui-pass9.css").read_text(encoding="utf-8")
+        self.assertRegex(css, r":root\s*\{\s*--top-nav-height:\s*var\(--header-height\);\s*\}")
+        offsets = re.findall(r"(?:top|scroll-padding-top):\s*calc\([^;]*--(?:header|top-nav)-height[^;]*\);", css)
+        self.assertEqual(len(offsets), 4)
+        for offset in offsets:
+            self.assertIn("var(--top-nav-height)", offset)
+        body = self.app.test_client().get("/").get_data(as_text=True)
+        self.assertIn("new ResizeObserver(", body)
+        self.assertIn('"--top-nav-height", header.getBoundingClientRect().height + "px"', body)
+        # Unmeasured (no JavaScript), the script-only sticky tools stay in the flow, and so
+        # does the header, whose links wrap at every width then.
+        noscript = re.search(r"<noscript>\s*<style>(.*?)</style>", body, re.S).group(1)
+        self.assertRegex(noscript, r"\.section-toolbar,\s*\.quiz-progress\s*\{\s*position:\s*static;\s*\}")
+        self.assertRegex(noscript, r"(?m)^\s*\.top-nav \{ position: relative; \}")
+        self.assertRegex(noscript, r"\.nav-links \{ grid-column: 1 / -1; grid-row: 2; flex-wrap: wrap; \}")
+        # Menus inside the sticky header end above the viewport's bottom edge and scroll.
+        panels = re.search(r"\.nav-menu-panel,\s*\.mobile-profile-panel\s*\{([^}]*max-height[^}]*)\}",
+                           re.sub(r"/\*.*?\*/", "", css, flags=re.S)).group(1)
+        self.assertIn("max-height: calc(100dvh - var(--top-nav-height)", panels)
+        self.assertIn("overflow-y: auto", panels)
+
+    def test_signed_in_account_controls_are_one_compact_menu(self):
+        name = "Александра Константинова-Димитрова Петрова"
+        client = self.app.test_client()
+        sign_in_admin(client, self.db_path, display_name=name)
+        body = client.get("/").data.decode("utf-8")
+        menu = self._mobile_profile_menu(body)
+
+        # The inline row of name, role and three links no longer competes with the links.
+        self.assertNotIn('class="profile-switch"', body)
+        self.assertNotIn("mobile-profile-menu--signed-out", body)
+        self.assertIn(f'<span class="profile-label">{name}</span>', menu)
+        self.assertIn('<span class="profile-link active">Админ</span>', menu)
+        self.assertIn('<a class="profile-link" href="/account">Профил</a>', menu)
+        self.assertIn('href="/account/password"', menu)
+        self.assertIn('<form class="profile-logout-form" method="post" action="/logout">', menu)
+
+        anonymous = self.app.test_client().get("/").data.decode("utf-8")
+        self.assertRegex(anonymous, r'<div class="profile-switch"[^>]*>\s*'
+                                    r'<a class="profile-link" href="/login\?next=/">Вход</a>')
+        self.assertIn('<details class="mobile-profile-menu mobile-profile-menu--signed-out">', anonymous)
 
     def test_current_dzi_nav_item_is_link_with_aria_current(self):
         self._login_teacher()

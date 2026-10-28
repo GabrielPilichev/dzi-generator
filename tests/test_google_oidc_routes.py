@@ -1812,7 +1812,7 @@ class PagesTest(RoutesTestCase):
     def test_the_navigation_links_to_the_account_page(self):
         self.signed_in("teacher")
         page = self.html(self.client.get("/"))
-        self.assertEqual(page.count('<a class="profile-link" href="/account">Профил</a>'), 2)   # desktop and mobile
+        self.assertEqual(page.count('<a class="profile-link" href="/account">Профил</a>'), 1)   # one account menu, every width
         self.assertNotIn('href="/account"', self.html(self.app.test_client().get("/")))
 
 
