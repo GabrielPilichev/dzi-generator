@@ -17,7 +17,7 @@
         <style>
             .nav-menu { display: none; }
             .nav-links { overflow: visible; }
-            .nojs-nav-menu { position: relative; flex: 0 0 auto; }
+            .nojs-nav-menu { position: static; flex: 0 0 auto; }
             .nojs-nav-menu > summary { list-style: none; }
             .nojs-nav-menu > summary::-webkit-details-marker { display: none; }
             .nojs-nav-menu[open] > .nav-menu-panel { display: grid; }
@@ -27,14 +27,23 @@
             .top-nav { position: relative; }
             /* The page scrolls a focused link or menu item into view: keep its ring in too. */
             html { scroll-padding-bottom: var(--space-3); }
+            /* Nothing closes a menu while focus moves on, and several may be open: none may
+               cover the header's links. The account menu opens inside the header, in its own
+               column, making the header taller; the content menus open below the header. */
+            .top-nav-row:has(> .mobile-profile-menu[open]) { align-items: start; }
+            .top-nav-row > .mobile-profile-menu { text-align: end; }
+            .mobile-profile-menu > .mobile-profile-panel {
+                position: static; width: auto; max-width: none; max-height: none;
+                margin-top: var(--space-2); text-align: start;
+            }
+            .nojs-nav-menu > .nav-menu-panel { top: calc(100% + var(--space-2)); left: auto; }   /* under its button */
             /* Narrow screens: no script scrolls a focused link fully into a scrolling row, so
                the links wrap on a full-width row of their own under the brand and the account
-               menu, and a menu opens below the header instead of over it. */
+               menu, and a content menu is as wide as the header. */
             @media (max-width: 768px) {
                 .nav-links { grid-column: 1 / -1; grid-row: 2; flex-wrap: wrap; }
                 .top-nav-row > .mobile-profile-menu { grid-column: 3; grid-row: 1; }
-                .nojs-nav-menu { position: static; }
-                .nojs-nav-menu > .nav-menu-panel { position: absolute; top: calc(100% + var(--space-2)); left: 0; right: 0; }
+                .nojs-nav-menu > .nav-menu-panel { position: absolute; left: 0; right: 0; }
             }
         </style>
     </noscript>
@@ -285,6 +294,19 @@
                 if (!profileMenus.some(function (menu) { return menu.contains(event.target); })) {
                     closeProfileMenus();
                 }
+            });
+
+            // A content menu closes once focus has left it (Tab past its last link, Shift+Tab
+            // before its button, on to another menu): left open, it covers the links focus
+            // moves on to where the header wraps. Decided where focus lands, not on focusout,
+            // whose relatedTarget is null when focus goes nowhere or to another window; a
+            // click on nothing focusable is the outside click above.
+            document.addEventListener("focusin", function (event) {
+                menus.forEach(function (menu) {
+                    if (menu.classList.contains("is-open") && !menu.contains(event.target)) {
+                        setMenuOpen(menu, false);
+                    }
+                });
             });
 
             document.addEventListener("keydown", function (event) {

@@ -14,7 +14,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from flask import Flask
+from flask import Flask, make_response
 
 from tests import browser_support
 from tests.browser_support import ORIGIN, Browser, BrowserError, PipeError, chromium_path
@@ -136,8 +136,15 @@ class BrowserSupportTest(unittest.TestCase):
         script.write_text(FAKE_BROWSER, encoding="utf-8")
         os.environ.update(FAKE_BROWSER_MODE=mode, FAKE_BROWSER_LOG=str(self.home / "received"),
                           LEARNPILOT_CHROMIUM=self.executable("fake", f'exec "{sys.executable}" "{script}"'))
+        self.closed = []   # responses whose close callbacks ran (a view's teardown)
+
+        def large():
+            response = make_response(b"x" * LARGE)
+            response.call_on_close(lambda: self.closed.append("/large"))
+            return response
+
         app = Flask("large")
-        app.add_url_rule("/large", "large", lambda: b"x" * LARGE)
+        app.add_url_rule("/large", "large", large)
         browser = Browser(app.test_client(), timeout=1)
         self.addCleanup(browser.close)
         return browser
@@ -148,6 +155,7 @@ class BrowserSupportTest(unittest.TestCase):
             browser.send("Page.navigate", {"url": ORIGIN + "/large"})
         self.assertLess(time.monotonic() - started, 3)   # 1s deadline; the fake lives 10s
         self.assertEqual(browser.requests, [("GET", "/large")])
+        self.assertEqual(self.closed, ["/large"])        # closed although it was never delivered
         process, profile = browser._process, browser._profile
         started = time.monotonic()
         browser.close()
@@ -158,6 +166,7 @@ class BrowserSupportTest(unittest.TestCase):
     def test_a_large_response_is_written_in_full_to_a_reading_browser(self):
         browser = self.fake_browser("read")
         self.assertEqual(browser.send("Page.navigate", {"url": ORIGIN + "/large"}), {"bytes": LARGE, "xs": LARGE})
+        self.assertEqual(self.closed, ["/large"])
 
     def test_a_browser_that_stops_reading_a_large_response_times_out(self):
         browser = self.fake_browser("stall")

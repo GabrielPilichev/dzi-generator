@@ -215,14 +215,16 @@ class Browser:
                        for entry in request.get("postDataEntries", ()))
         response = self.client.open(path, method=request["method"], headers=headers,
                                     data=body.encode("utf-8") if body else None, base_url=ORIGIN)
-        reply = [{"name": name, "value": value} for name, value in response.headers.items()
-                 if name.lower() != "content-length"]
-        # Sent without waiting: its acknowledgement is skipped like any unrelated message.
-        self._write({"id": 0, "sessionId": self._session, "method": "Fetch.fulfillRequest", "params": {
-            "requestId": paused["requestId"], "responseCode": response.status_code,
-            "responseHeaders": reply, "body": base64.b64encode(response.get_data()).decode()}},
-            deadline)
-        response.close()
+        try:   # closed (its teardown callbacks run) even when the browser cannot take it
+            reply = [{"name": name, "value": value} for name, value in response.headers.items()
+                     if name.lower() != "content-length"]
+            # Sent without waiting: its acknowledgement is skipped like any unrelated message.
+            self._write({"id": 0, "sessionId": self._session, "method": "Fetch.fulfillRequest", "params": {
+                "requestId": paused["requestId"], "responseCode": response.status_code,
+                "responseHeaders": reply, "body": base64.b64encode(response.get_data()).decode()}},
+                deadline)
+        finally:
+            response.close()
 
     # -- page -------------------------------------------------------------------------
 

@@ -58,14 +58,18 @@ FOCUSED = r"""(() => {
     clip = {l: Math.max(clip.l, l), r: Math.min(clip.r, l + e.clientWidth),
             t: Math.max(clip.t, t), b: Math.min(clip.b, t + e.clientHeight)};
   }
-  const y = b.top + b.height / 2;
+  // Nine points over the control, inside the viewport: anything else there covers it. (Not
+  // over its ring: the transparent padding of the scrolling links row overlaps that.)
+  const covered = [0.02, 0.5, 0.98].flatMap((fx) => [0.05, 0.5, 0.95].map((fy) => [
+    b.left + b.width * fx, b.top + b.height * fy]))
+    .filter(([x, y]) => x >= 0 && y >= 0 && x < innerWidth && y < innerHeight)
+    .filter(([x, y]) => { const hit = document.elementFromPoint(x, y);
+                          return !hit || !(hit === a || a.contains(hit) || hit.contains(a)); }).length;
   return {text: a.getAttribute("aria-label") || a.textContent.trim().replace(/\s+/g, " "), ring,
           pageFits: document.documentElement.scrollWidth <= document.documentElement.clientWidth,
           hidden: Math.max(clip.l - (b.left - ring), b.right + ring - clip.r,
                            clip.t - (b.top - ring), b.bottom + ring - clip.b, 0),
-          covered: [0.1, 0.5, 0.9].filter((f) => {
-            const hit = document.elementFromPoint(b.left + b.width * f, y);
-            return !hit || !(hit === a || a.contains(hit)); }).length};
+          covered, profileOpen: !!document.querySelector(".mobile-profile-menu[open]")};
 })()"""
 
 PROFILE_PANEL = r"""(() => {
@@ -147,12 +151,13 @@ class NavigationBrowserTest(IsolatedAppTestCase):
     def below_header(self, selector):
         return self.browser.eval(f"({BELOW_HEADER})({json.dumps(selector)})")
 
-    def walk_header_focus(self, shift):
-        """Every header control reached by Tab (or Shift+Tab), as it is when focused."""
-        start = "document.querySelector('.breadcrumb a').focus()" if shift else "document.activeElement.blur()"
-        self.browser.eval(start)
+    def walk_header_focus(self, shift, *, start=True, limit=14):
+        """Every header control reached by Tab (or Shift+Tab), as it is when focused: from
+        the start of the page (the breadcrumb backwards), or else from the focused control."""
+        if start:
+            self.browser.eval("document.querySelector('.breadcrumb a').focus()" if shift else "document.activeElement.blur()")
         stops = []
-        for _ in range(14):
+        for _ in range(limit):
             self.browser.key("Tab", shift=shift)
             stop = self.browser.eval(FOCUSED)
             if stop is None and stops:
@@ -314,6 +319,63 @@ class NavigationBrowserTest(IsolatedAppTestCase):
                 found = self.below_header("#duplicate")
                 self.assertGreaterEqual(found["top"], found["headerBottom"] - 0.5, found)
 
+    def assert_revealed(self, stops, expected, context):
+        self.assertEqual([stop["text"] for stop in stops], expected, context)
+        for stop in stops:
+            with self.subTest(**context, control=stop["text"]):
+                self.assertLessEqual(stop["hidden"], 0.5)
+                self.assertEqual(stop["covered"], 0)
+                self.assertTrue(stop["pageFits"])
+                self.assertTrue(stop["profileOpen"])
+
+    def test_without_javascript_an_open_profile_menu_covers_no_header_control(self):
+        # Nothing closes the native account menu while focus moves on (PR #350 re-review:
+        # admin, 320x640, Tab to Профил, Enter, Shift+Tab three times covered ДЗИ).
+        self.browser.scripts(False)
+        account = ["Профил", "Парола", "Изход"]
+        for role in ("admin", "teacher", "student"):   # the reported case first
+            user, controls = self.users[role], HEADER_CONTROLS[role]
+            for width, height, scale in [(320, 640, 1), (390, 844, 1), (768, 800, 1), (860, 800, 1),
+                                         (1440, 900, 1)] + SHORT:
+                context = {"role": role, "width": width, "height": height}
+                self.open(user, "/", width, height, scale)
+                self.browser.eval("document.activeElement.blur()")
+                for _ in controls:
+                    self.browser.key("Tab")
+                self.assertEqual(self.browser.eval(FOCUSED)["text"], "Профил", context)
+                self.browser.key("Enter")
+                # Back across the menu's boundary to the brand, then forward through the menu.
+                self.assert_revealed(self.walk_header_focus(True, start=False), controls[-2::-1], context)
+                self.assert_revealed(self.walk_header_focus(False, start=False), controls + account, context)
+                # A content menu opened natively while the account menu stays open.
+                for index, after in ((0, controls[3:]), (1, controls[4:])):
+                    self.browser.click_selector("details.nojs-nav-menu > summary", index)
+                    items = self.browser.eval(f"""Array.from(document.querySelectorAll('details.nojs-nav-menu')[{index}]
+                        .querySelectorAll('.nav-menu-panel a'), (a) => a.textContent.trim().replace(/\\s+/g, ' '))""")
+                    self.assert_revealed(self.walk_header_focus(False, start=False, limit=30),
+                                         items + after + account, {**context, "menu": index})
+                    self.browser.click_selector("details.nojs-nav-menu > summary", index)
+        self.browser.scripts(True)
+
+    def test_without_javascript_logout_is_a_post_by_keyboard(self):
+        self.browser.scripts(False)
+        user = create_account(web_app.app.config["DB_PATH"], "admin", display_name=NORMAL_NAME)
+        self.open(user, "/", 320, 640)
+        self.browser.eval("document.activeElement.blur()")
+        for _ in HEADER_CONTROLS["admin"]:
+            self.browser.key("Tab")
+        self.browser.key("Enter")
+        for _ in range(3):
+            self.browser.key("Tab")
+        self.assertEqual(self.browser.eval(FOCUSED)["text"], "Изход")
+        self.browser.requests.clear()
+        document = self.browser.document_id()
+        self.browser.key("Enter")
+        self.browser.wait_for_load(after=document)
+        self.assertIn(("POST", "/logout"), self.browser.requests)
+        self.assertTrue(self.browser.eval("!!document.querySelector('.mobile-profile-menu--signed-out')"))
+        self.browser.scripts(True)
+
     # -- short viewports and high zoom ----------------------------------------------------
 
     def assert_menu_items_reachable(self, opener, index, panel):
@@ -393,6 +455,117 @@ class NavigationBrowserTest(IsolatedAppTestCase):
                 self.browser.click(3, height - 5)
                 self.assertFalse(self.menu_state()["profile"])
                 self.browser.click_selector("[aria-controls=nav-menu-classes]")
+                self.browser.click(3, height - 5)
+                self.assertEqual(self.menu_state()["classes"], "false")
+
+    def focus_stop(self):
+        """The focused control as FOCUSED reports it, with the menus' open states."""
+        stop = self.browser.eval(FOCUSED)
+        return stop and {**stop, **self.menu_state()}
+
+    def assert_open_menu_traversal(self, stops, expected, menu, inside, context):
+        """Each stop revealed, its menu open exactly while focus is on its button or links."""
+        self.assertEqual([stop["text"] for stop in stops], expected, context)
+        for position, stop in enumerate(stops):
+            with self.subTest(**context, control=stop["text"], position=position):
+                self.assertLessEqual(stop["hidden"], 0.5)
+                self.assertEqual(stop["covered"], 0)
+                self.assertTrue(stop["pageFits"])
+                self.assertEqual(stop[menu], "true" if position < inside else "false")
+                self.assertEqual(stop[{"classes": "subjects", "subjects": "classes"}[menu]], "false")
+
+    def test_a_menu_opened_by_keyboard_closes_when_focus_leaves_it(self):
+        # PR #350 re-review: where the header wraps (769-960px) a menu left open after Tab
+        # moved past it covered the second row's links.
+        menus = (("classes", "Класове", "nav-menu-classes"), ("subjects", "Предмети", "nav-menu-subjects"))
+        for role in ("admin", "teacher", "student"):
+            controls = HEADER_CONTROLS[role]
+            for width, height in ((769, 800), (860, 800), (960, 800), (1024, 768), (1440, 900),
+                                  (320, 640), (390, 844)):
+                for menu, name, panel in menus:
+                    context = {"role": role, "width": width, "menu": menu}
+                    at = controls.index(name)
+                    items = f"document.getElementById('{panel}').querySelectorAll('a')"
+
+                    def open_by_keyboard():
+                        self.open(self.users[role], "/", width, height)
+                        self.browser.eval("document.activeElement.blur()")
+                        for _ in range(at + 1):
+                            self.browser.key("Tab")
+                        self.assertEqual(self.browser.eval(FOCUSED)["text"], name, context)
+                        self.browser.key("Enter")
+                        self.assertEqual(self.menu_state()[menu], "true", context)
+                        return self.browser.eval(f"Array.from({items}, (a) => a.textContent.trim().replace(/\\s+/g, ' '))")
+
+                    # Tab through its links and on, out of the header past Профил.
+                    links = open_by_keyboard()
+                    stops = []
+                    for _ in range(len(links) + len(controls)):
+                        self.browser.key("Tab")
+                        stop = self.focus_stop()
+                        if stop is None:
+                            break
+                        stops.append(stop)
+                    self.assert_open_menu_traversal(stops, links + controls[at + 1:], menu, len(links),
+                                                    {**context, "shift": False})
+                    # Into its links and back: Shift+Tab out before its button.
+                    open_by_keyboard()
+                    self.browser.key("Tab")
+                    self.browser.key("Tab")
+                    stops = []
+                    for _ in range(len(controls) + 2):
+                        self.browser.key("Tab", shift=True)
+                        stop = self.focus_stop()
+                        if stop is None:
+                            break
+                        stops.append(stop)
+                    self.assert_open_menu_traversal(stops, [links[0], name] + controls[at - 1::-1], menu, 2,
+                                                    {**context, "shift": True})
+
+    def test_menus_close_on_switching_escape_and_outside_clicks_but_not_inside_ones(self):
+        for width, height in ((860, 800), (390, 844), (1440, 900)):
+            with self.subTest(width=width):
+                self.open(self.users["admin"], "/", width, height)
+                trigger = "[aria-controls=nav-menu-classes]"
+                # Focus going nowhere (a click on the panel's own background) keeps it open.
+                self.browser.click_selector(trigger)
+                self.browser.key("Tab")
+                self.assertEqual(self.menu_state()["focus"], "8. клас")
+                box = self.browser.eval("""(() => { const b = document.getElementById('nav-menu-classes')
+                    .getBoundingClientRect(); return [b.left + b.width / 2, b.top + 4]; })()""")
+                self.assertTrue(self.browser.eval(
+                    f"document.elementFromPoint({box[0]}, {box[1]}).id === 'nav-menu-classes'"))
+                self.browser.click(*box)
+                state = self.menu_state()
+                self.assertEqual((state["classes"], state["focus"] == "8. клас"), ("true", False))
+                # Escape from a link: closed, its button focused, and Tab moves on closed.
+                self.browser.key("Tab")
+                self.browser.key("Escape")
+                state = self.menu_state()
+                self.assertEqual((state["classes"], state["focus"]), ("false", "Класове"))
+                self.browser.key("Tab")
+                self.assertEqual(self.menu_state(), {"classes": "false", "subjects": "false",
+                                                     "profile": False, "focus": "Предмети"})
+                # By keyboard from one menu to the next, then to Профил.
+                self.browser.key("Enter")
+                self.browser.key("Tab")
+                self.browser.key("Tab", shift=True)
+                self.browser.key("Tab", shift=True)
+                self.browser.key("Enter")
+                state = self.menu_state()
+                self.assertEqual((state["classes"], state["subjects"], state["focus"]), ("true", "false", "Класове"))
+                for _ in range(self.browser.eval("document.querySelectorAll('#nav-menu-classes a').length") + 5):
+                    self.browser.key("Tab")
+                self.assertEqual(self.menu_state()["focus"], "Профил")
+                self.browser.key("Enter")
+                self.assertEqual(self.menu_state(), {"classes": "false", "subjects": "false",
+                                                     "profile": True, "focus": "Профил"})
+                # With the mouse: a click on another menu's button, then outside.
+                self.browser.key("Escape")
+                self.browser.click_selector("[aria-controls=nav-menu-subjects]")
+                self.browser.click_selector(trigger)
+                state = self.menu_state()
+                self.assertEqual((state["classes"], state["subjects"]), ("true", "false"))
                 self.browser.click(3, height - 5)
                 self.assertEqual(self.menu_state()["classes"], "false")
 
