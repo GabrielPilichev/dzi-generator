@@ -359,7 +359,7 @@
     },
     "questions": {
       "file": "questions.jsonl",
-      "rows": 1678,
+      "rows": 1695,
       "columns": [
         "id",
         "exam_id",
@@ -385,13 +385,13 @@
         "id"
       ],
       "autoincrement": true,
-      "max_id": 1683,
-      "sqlite_sequence": 1683,
+      "max_id": 1700,
+      "sqlite_sequence": 1700,
       "natural_key": [
         "source_exam",
         "source_number"
       ],
-      "sha256": "ba80ddc4c72d37bdf76f9d8865d4e5f78cde67cfdb19becd7b6f321dc195da05"
+      "sha256": "4d91755a98e7d1ff9af0103c8eefdc3f397e53a9c672e6842572db53938b323a"
     },
     "curriculum_sections": {
       "file": "curriculum_sections.jsonl",
@@ -454,7 +454,7 @@
     },
     "multiple_choice_options": {
       "file": "multiple_choice_options.jsonl",
-      "rows": 6275,
+      "rows": 6343,
       "columns": [
         "id",
         "question_id",
@@ -466,13 +466,13 @@
         "id"
       ],
       "autoincrement": true,
-      "max_id": 6671,
-      "sqlite_sequence": 6671,
+      "max_id": 6739,
+      "sqlite_sequence": 6739,
       "natural_key": [
         "question_id",
         "option_letter"
       ],
-      "sha256": "c821b599627b0de8ee3b023a6618de140c8bed5e0ccb36acc3f6133f391252e3"
+      "sha256": "e55bef1e85cc54047389ace45e402fefa7d9679f7a5f9b93d3d18665902f7b87"
     },
     "assessment_events": {
       "file": "assessment_events.jsonl",
@@ -640,7 +640,7 @@
     },
     "question_topic_assignments": {
       "file": "question_topic_assignments.jsonl",
-      "rows": 2032,
+      "rows": 2049,
       "columns": [
         "id",
         "question_id",
@@ -659,10 +659,10 @@
         "id"
       ],
       "autoincrement": true,
-      "max_id": 2032,
-      "sqlite_sequence": 2032,
+      "max_id": 2049,
+      "sqlite_sequence": 2049,
       "natural_key": null,
-      "sha256": "d86dcfc47e0c557de7696f389d24e5f7af8b49851c852ccc24a3d8ed73f746d2"
+      "sha256": "f4afcb3c5af205baa6e9f9380b429a87c85144ecedede8203576315ea7e34177"
     },
     "topic_aliases": {
       "file": "topic_aliases.jsonl",

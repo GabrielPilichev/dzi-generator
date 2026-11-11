@@ -212,7 +212,7 @@ class StableIdentityTest(CanonicalTestCase):
         for table, entry in self.manifest["tables"].items():
             if entry["autoincrement"] and entry["max_id"] is not None:
                 self.assertGreaterEqual(entry["sqlite_sequence"], entry["max_id"], table)
-        self.assertEqual(self.manifest["tables"]["questions"]["sqlite_sequence"], 1683)
+        self.assertEqual(self.manifest["tables"]["questions"]["sqlite_sequence"], 1700)
         self.assertEqual(self.manifest["tables"]["curriculum_topics"]["sqlite_sequence"], 181)
 
     def test_rebuilt_sqlite_sequence_matches_the_manifest(self):
@@ -222,15 +222,15 @@ class StableIdentityTest(CanonicalTestCase):
                 self.assertEqual(ct.stored_sequence(conn, table), entry["sqlite_sequence"], table)
 
     def test_high_level_counts(self):
-        expected = {"curricula": 11, "curriculum_sections": 67, "curriculum_topics": 180, "questions": 1678,
-                    "multiple_choice_options": 6275, "fill_in_subquestions": 162, "exams": 11,
+        expected = {"curricula": 11, "curriculum_sections": 67, "curriculum_topics": 180, "questions": 1695,
+                    "multiple_choice_options": 6343, "fill_in_subquestions": 162, "exams": 11,
                     "exam_tasks": 196, "practical_task_resources": 77}
         self.assertEqual({t: self.manifest["tables"][t]["rows"] for t in expected}, expected)
 
     def test_id_allocation_never_recycles(self):
         entry = self.manifest["tables"]["questions"]
         conn = self.connect_rebuilt()
-        self.assertEqual(ct.next_free_id(entry, conn, "questions"), 1684)
+        self.assertEqual(ct.next_free_id(entry, conn, "questions"), 1701)
         path = self.temp_path("target.db")
         load.rebuild_for_parity(path)
         with closing(sqlite3.connect(path)) as target:
@@ -239,18 +239,18 @@ class StableIdentityTest(CanonicalTestCase):
             target.execute("DELETE FROM questions WHERE id = 1683")  # deleted ids stay used
             self.assertEqual(ct.next_free_id(entry, target, "questions"), 2001)
         low = dict(entry, max_id=10, sqlite_sequence=10)
-        self.assertEqual(ct.next_free_id(low, conn, "questions"), 1684)
+        self.assertEqual(ct.next_free_id(low, conn, "questions"), 1701)
 
 
 class LoaderTest(CanonicalTestCase):
     def test_load_preserves_explicit_ids_and_relationships(self):
         conn = self.connect_rebuilt()
-        self.assertEqual(conn.execute("SELECT MIN(id), MAX(id), COUNT(*) FROM questions").fetchone(), (1, 1683, 1678))
+        self.assertEqual(conn.execute("SELECT MIN(id), MAX(id), COUNT(*) FROM questions").fetchone(), (1, 1700, 1695))
         self.assertEqual(conn.execute("SELECT question_id, option_letter FROM multiple_choice_options "
                                       "WHERE id = 6671").fetchone()[1], "D")
         self.assertEqual(conn.execute("SELECT COUNT(*) FROM questions q JOIN curriculum_topics t ON t.id = q.topic_id "
                                       "JOIN curriculum_sections s ON s.id = t.section_id "
-                                      "JOIN curricula c ON c.id = s.curriculum_id WHERE q.id >= 838").fetchone()[0], 846)
+                                      "JOIN curricula c ON c.id = s.curriculum_id WHERE q.id >= 838").fetchone()[0], 863)
         self.assertEqual(conn.execute("PRAGMA foreign_key_check").fetchall(), [])
 
     def test_loader_writes_only_canonical_tables(self):
@@ -350,7 +350,7 @@ class ParityTest(CanonicalTestCase):
             problems = parity.compare_to_canonical(conn)
         text = "\n".join(problems)
         self.assertIn("questions: normalized hash differs", text)
-        self.assertIn("multiple_choice_options: 6274 rows", text)
+        self.assertIn("multiple_choice_options: 6342 rows", text)
         self.assertIn("exams: sqlite_sequence", text)
         self.assertIn("(838,)", text)
 
