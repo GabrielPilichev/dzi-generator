@@ -1,0 +1,602 @@
+{
+  "format_version": 1,
+  "kind": "question_candidate_provenance",
+  "run": {
+    "id": "biology-g8-respiratory-system-run-1",
+    "started_at": "2026-11-10T15:09:57Z",
+    "finished_at": "2026-11-10T15:16:38Z",
+    "subject": "biology",
+    "grade": 8,
+    "curriculum": {
+      "education_type": "general",
+      "title": "Биология и здравно образование, 8. клас — общообразователна подготовка"
+    },
+    "targets": [
+      {
+        "section": {
+          "slug": "biology-g8-metabolism",
+          "title": "Обмяна на веществата"
+        },
+        "topics": [
+          {
+            "slug": "biology-g8-respiratory-system",
+            "title": "Дихателна система"
+          }
+        ]
+      }
+    ],
+    "limits": {
+      "max_topics": 1,
+      "max_pages": 8,
+      "max_candidates": 20,
+      "max_candidates_per_source": 20,
+      "max_runtime_minutes": 60
+    },
+    "pages_inspected": 6,
+    "stop_reason": "topic_complete",
+    "collector": "claude-sonnet-5-5 / High",
+    "skill_vocabulary": [
+      "recall",
+      "explain",
+      "compare",
+      "sequence",
+      "predict",
+      "apply-health",
+      "interpret-data"
+    ],
+    "notes": "Run 1 of 2 (D1-D3 only). 17 of max 20 raw candidates; stop topic_complete on basis K5 (further D1-D3 reasoning items would be scenario-wrapped recall) and K3 (the remaining ideas belong to run 2, the cardiovascular topic or Grade 9); the K1 reasoning floor was NOT met. Independent review: strict reasoning 2 of 17 = 11.8% (-011, -016), below the 35% SHOULD signal; labels 15 recall / 1 explain / 1 compare; difficulty 15 easy / 2 medium / 0 hard. Gabriel accepted the documented descriptive run-1 exception and keeps all 17; the deficit is carried to R5 as information, not a quota. This is not the whole respiratory bank and not CP1 completion; run 2 (D4-D6) is still pending. No earlier run of this topic exists. Concepts covered: D1 airway order; epiglottis at swallowing; larynx/vocal cords; left vs right lung (heart); pleural fluid friction. D2 inhalation chain; passive quiet expiration; lungs follow chest wall via pleural fluid; diffusion without energy; gas direction from given data; gas exchange location (alveoli vs trachea); O2 use and CO2 waste. D3 trachea cartilage; nasal mucosa warming; cilia and mucus; alveolar wall thinness and capillaries; many alveoli = large surface. Uncovered/deferred: tissue-level (internal) gas exchange and gas transport (cardiovascular topic); control of breathing; image-dependent labelling; all of D4-D6 (run 2). Pages: 6 counted (robots.txt, 4 OpenStax pages, saved MON PDF re-read, no new MON retrieval). All candidates pending; nothing approved. Before handoff the option texts of 11 candidates were revised in place to reduce option-length cueing (prompts, keys, facts, limits and pages unchanged; log in the collector scratch). Integration disclosure (metadata only, added when the approval copy was prepared; not collector text): the collector ledger's own finished_at is 2026-11-10T15:14:59Z, while this manifest's finished_at is 2026-11-10T15:16:38Z; the later manifest time follows the option-length revision disclosed above (file times about 15:16:23Z). Collection timestamps, limits, pages inspected and sources are unchanged. Independent review made two retrievals outside the collected sources: a Bulgarian Wikipedia page on the larynx, used only as terminology-usage evidence, and an NCBI page that was blocked by reCAPTCHA, was not bypassed and supplied no fact. Bulgarian school-textbook wording was not verified. No fresh retrieval is claimed."
+  },
+  "not_stored_in_database": [
+    "candidate id",
+    "source type",
+    "source url",
+    "source title",
+    "source publisher",
+    "source retrieved_at",
+    "transformation",
+    "source_ref",
+    "research",
+    "reuse_exception",
+    "explanation",
+    "difficulty",
+    "review (reviewer, reviewed_at, notes)",
+    "run manifest"
+  ],
+  "batches": [
+    {
+      "file": "biology-g8-respiratory-system-run-1.respiratory-system.json",
+      "source": "reviewed:biology:biology-g8-respiratory-system-run-1.respiratory-system",
+      "topic_slug": "biology-g8-respiratory-system",
+      "questions": [
+        {
+          "number": 1,
+          "candidate_id": "biology-g8-respiratory-system-run-1-001",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-ap2e-22-1",
+            "type": "third_party",
+            "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/22-1-organs-and-structures-of-the-respiratory-system",
+            "title": "22.1 Organs and Structures of the Respiratory System - Anatomy and Physiology 2e | OpenStax",
+            "retrieved_at": "2026-11-10T15:10:22Z",
+            "publisher": "OpenStax, Rice University",
+            "notes": "Research only; questions are newly written."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-g8-respiratory-run-1-opus-5-5-independent-review-and-owner-approval",
+            "reviewed_at": "2026-11-11T09:11:58Z",
+            "notes": "Approved for export by Gabriel (owner) for PR #351, keeping all 17 and accepting the documented run-1 reasoning exception (2 of 17 = 11.8%). Independent review: Claude Opus 5.5 (claude-opus-5-5) High, verdict PASS for candidate content SHA256 e481c0cc99e04498f1aa0b83fe5b489572e70ba3ba2fc23e6f6f99a7e1087dcb (report SHA256 89da0a19d57d1b49140b98e4c366793bc42a42fcc853a173ace07bfa7a1fe572). Review fields were pending in the verified input and were set only at integration."
+          },
+          "flags": [],
+          "source_ref": {
+            "document_title": "Conducting zone (nose to bronchial tree)"
+          },
+          "research": {
+            "concept": "D1 · ред на въздухоносните пътища",
+            "skill": "recall",
+            "notes": "Order of the conducting airways as presented in 22.1; scope per programme 2.2. No numbers. Scope: programme theme 2.2."
+          },
+          "explanation": "Въздухът минава през носната кухина, гълтача, гръкляна и трахеята и стига до бронхите, които влизат в белите дробове.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 2,
+          "candidate_id": "biology-g8-respiratory-system-run-1-002",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-ap2e-22-1",
+            "type": "third_party",
+            "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/22-1-organs-and-structures-of-the-respiratory-system",
+            "title": "22.1 Organs and Structures of the Respiratory System - Anatomy and Physiology 2e | OpenStax",
+            "retrieved_at": "2026-11-10T15:10:22Z",
+            "publisher": "OpenStax, Rice University",
+            "notes": "Research only; questions are newly written."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-g8-respiratory-run-1-opus-5-5-independent-review-and-owner-approval",
+            "reviewed_at": "2026-11-11T09:11:58Z",
+            "notes": "Approved for export by Gabriel (owner) for PR #351, keeping all 17 and accepting the documented run-1 reasoning exception (2 of 17 = 11.8%). Independent review: Claude Opus 5.5 (claude-opus-5-5) High, verdict PASS for candidate content SHA256 e481c0cc99e04498f1aa0b83fe5b489572e70ba3ba2fc23e6f6f99a7e1087dcb (report SHA256 89da0a19d57d1b49140b98e4c366793bc42a42fcc853a173ace07bfa7a1fe572). Review fields were pending in the verified input and were set only at integration."
+          },
+          "flags": [],
+          "source_ref": {
+            "document_title": "Larynx: epiglottis and swallowing"
+          },
+          "research": {
+            "concept": "D1 · надгръклянник – защита на трахеята при преглъщане",
+            "skill": "recall",
+            "notes": "22.1 larynx section confirms that the epiglottis closes the tracheal opening during swallowing. Crossing of air and food paths is stated there; no digestive-topic detail used. Scope: programme theme 2.2."
+          },
+          "explanation": "При преглъщане гръклянът се издига, а надгръклянникът се спуска и покрива входа на гръкляна, който води към трахеята, затова храната попада в хранопровода.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 3,
+          "candidate_id": "biology-g8-respiratory-system-run-1-003",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-ap2e-22-1",
+            "type": "third_party",
+            "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/22-1-organs-and-structures-of-the-respiratory-system",
+            "title": "22.1 Organs and Structures of the Respiratory System - Anatomy and Physiology 2e | OpenStax",
+            "retrieved_at": "2026-11-10T15:10:22Z",
+            "publisher": "OpenStax, Rice University",
+            "notes": "Research only; questions are newly written."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-g8-respiratory-run-1-opus-5-5-independent-review-and-owner-approval",
+            "reviewed_at": "2026-11-11T09:11:58Z",
+            "notes": "Approved for export by Gabriel (owner) for PR #351, keeping all 17 and accepting the documented run-1 reasoning exception (2 of 17 = 11.8%). Independent review: Claude Opus 5.5 (claude-opus-5-5) High, verdict PASS for candidate content SHA256 e481c0cc99e04498f1aa0b83fe5b489572e70ba3ba2fc23e6f6f99a7e1087dcb (report SHA256 89da0a19d57d1b49140b98e4c366793bc42a42fcc853a173ace07bfa7a1fe572). Review fields were pending in the verified input and were set only at integration."
+          },
+          "flags": [],
+          "source_ref": {
+            "document_title": "Larynx: vocal cords"
+          },
+          "research": {
+            "concept": "D1 · гръклян – орган, съдържащ гласните връзки",
+            "skill": "recall",
+            "notes": "22.1 larynx section confirms the vocal cords are part of the larynx. Single organ-function fact. Scope: programme theme 2.2."
+          },
+          "explanation": "Гласните връзки са в гръкляна – орган, който освен че провежда въздух, участва в образуването на звук.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 4,
+          "candidate_id": "biology-g8-respiratory-system-run-1-004",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-ap2e-22-2",
+            "type": "third_party",
+            "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/22-2-the-lungs",
+            "title": "22.2 The Lungs - Anatomy and Physiology 2e | OpenStax",
+            "retrieved_at": "2026-11-10T15:10:29Z",
+            "publisher": "OpenStax, Rice University",
+            "notes": "Research only; questions are newly written."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-g8-respiratory-run-1-opus-5-5-independent-review-and-owner-approval",
+            "reviewed_at": "2026-11-11T09:11:58Z",
+            "notes": "Approved for export by Gabriel (owner) for PR #351, keeping all 17 and accepting the documented run-1 reasoning exception (2 of 17 = 11.8%). Independent review: Claude Opus 5.5 (claude-opus-5-5) High, verdict PASS for candidate content SHA256 e481c0cc99e04498f1aa0b83fe5b489572e70ba3ba2fc23e6f6f99a7e1087dcb (report SHA256 89da0a19d57d1b49140b98e4c366793bc42a42fcc853a173ace07bfa7a1fe572). Review fields were pending in the verified input and were set only at integration."
+          },
+          "flags": [],
+          "source_ref": {
+            "document_title": "Gross anatomy of the lungs (right vs left lung)"
+          },
+          "research": {
+            "concept": "D1 · ляв бял дроб – по-малък поради сърцето",
+            "skill": "recall",
+            "notes": "22.2 confirms the left lung has smaller volume and an indentation making room for the heart (saved 22-2.txt L11: smaller left lung; cardiac notch allows space for the heart). The stem supplies the size difference; the key tests one heart-position fact; the reviewed skill is recall. No counts of lobes asked. Scope: programme theme 2.2."
+          },
+          "explanation": "Сърцето е разположено по-вляво в гръдната кухина, затова левият бял дроб има вдлъбнатина за него и заема по-малък обем.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 5,
+          "candidate_id": "biology-g8-respiratory-system-run-1-005",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-ap2e-22-2",
+            "type": "third_party",
+            "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/22-2-the-lungs",
+            "title": "22.2 The Lungs - Anatomy and Physiology 2e | OpenStax",
+            "retrieved_at": "2026-11-10T15:10:29Z",
+            "publisher": "OpenStax, Rice University",
+            "notes": "Research only; questions are newly written."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-g8-respiratory-run-1-opus-5-5-independent-review-and-owner-approval",
+            "reviewed_at": "2026-11-11T09:11:58Z",
+            "notes": "Approved for export by Gabriel (owner) for PR #351, keeping all 17 and accepting the documented run-1 reasoning exception (2 of 17 = 11.8%). Independent review: Claude Opus 5.5 (claude-opus-5-5) High, verdict PASS for candidate content SHA256 e481c0cc99e04498f1aa0b83fe5b489572e70ba3ba2fc23e6f6f99a7e1087dcb (report SHA256 89da0a19d57d1b49140b98e4c366793bc42a42fcc853a173ace07bfa7a1fe572). Review fields were pending in the verified input and were set only at integration."
+          },
+          "flags": [],
+          "source_ref": {
+            "document_title": "Pleura of the lungs"
+          },
+          "research": {
+            "concept": "D1 · плеврална течност – намалява триенето",
+            "skill": "recall",
+            "notes": "22.2 pleura section: pleural fluid lubricates the two layers and reduces friction during breathing. The adhesion function is a separate candidate (D2). Scope: programme theme 2.2."
+          },
+          "explanation": "Течността действа като смазка между двата листа на плеврата, затова белият дроб не се трие в гръдната стена при движенията на дишането.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 6,
+          "candidate_id": "biology-g8-respiratory-system-run-1-006",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-ap2e-22-1",
+            "type": "third_party",
+            "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/22-1-organs-and-structures-of-the-respiratory-system",
+            "title": "22.1 Organs and Structures of the Respiratory System - Anatomy and Physiology 2e | OpenStax",
+            "retrieved_at": "2026-11-10T15:10:22Z",
+            "publisher": "OpenStax, Rice University",
+            "notes": "Research only; questions are newly written."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-g8-respiratory-run-1-opus-5-5-independent-review-and-owner-approval",
+            "reviewed_at": "2026-11-11T09:11:58Z",
+            "notes": "Approved for export by Gabriel (owner) for PR #351, keeping all 17 and accepting the documented run-1 reasoning exception (2 of 17 = 11.8%). Independent review: Claude Opus 5.5 (claude-opus-5-5) High, verdict PASS for candidate content SHA256 e481c0cc99e04498f1aa0b83fe5b489572e70ba3ba2fc23e6f6f99a7e1087dcb (report SHA256 89da0a19d57d1b49140b98e4c366793bc42a42fcc853a173ace07bfa7a1fe572). Review fields were pending in the verified input and were set only at integration."
+          },
+          "flags": [],
+          "source_ref": {
+            "document_title": "Trachea"
+          },
+          "research": {
+            "concept": "D3 · трахея – хрущялни полупръстени поддържат отворена трахея",
+            "skill": "recall",
+            "notes": "22.1 trachea section: cartilage rings give structural support and prevent collapse. No ring count asked. Scope: programme theme 2.2."
+          },
+          "explanation": "Твърдите хрущялни елементи поддържат формата на трахеята, така че тя да остава отворена и въздухът да преминава свободно.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 7,
+          "candidate_id": "biology-g8-respiratory-system-run-1-007",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-ap2e-22-1",
+            "type": "third_party",
+            "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/22-1-organs-and-structures-of-the-respiratory-system",
+            "title": "22.1 Organs and Structures of the Respiratory System - Anatomy and Physiology 2e | OpenStax",
+            "retrieved_at": "2026-11-10T15:10:22Z",
+            "publisher": "OpenStax, Rice University",
+            "notes": "Research only; questions are newly written."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-g8-respiratory-run-1-opus-5-5-independent-review-and-owner-approval",
+            "reviewed_at": "2026-11-11T09:11:58Z",
+            "notes": "Approved for export by Gabriel (owner) for PR #351, keeping all 17 and accepting the documented run-1 reasoning exception (2 of 17 = 11.8%). Independent review: Claude Opus 5.5 (claude-opus-5-5) High, verdict PASS for candidate content SHA256 e481c0cc99e04498f1aa0b83fe5b489572e70ba3ba2fc23e6f6f99a7e1087dcb (report SHA256 89da0a19d57d1b49140b98e4c366793bc42a42fcc853a173ace07bfa7a1fe572). Review fields were pending in the verified input and were set only at integration."
+          },
+          "flags": [],
+          "source_ref": {
+            "document_title": "Nose and nasal cavity: respiratory epithelium"
+          },
+          "research": {
+            "concept": "D3 · носна лигавица – затопляне на въздуха",
+            "skill": "recall",
+            "notes": "22.1 nasal cavity section: moist epithelium with capillaries beneath warms and humidifies incoming air. Single structure-function fact. Scope: programme theme 2.2."
+          },
+          "explanation": "Кръвта в капилярите под влажната лигавица отдава топлина на вдишвания въздух, затова той се затопля и овлажнява още в носа.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 8,
+          "candidate_id": "biology-g8-respiratory-system-run-1-008",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-ap2e-22-1",
+            "type": "third_party",
+            "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/22-1-organs-and-structures-of-the-respiratory-system",
+            "title": "22.1 Organs and Structures of the Respiratory System - Anatomy and Physiology 2e | OpenStax",
+            "retrieved_at": "2026-11-10T15:10:22Z",
+            "publisher": "OpenStax, Rice University",
+            "notes": "Research only; questions are newly written."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-g8-respiratory-run-1-opus-5-5-independent-review-and-owner-approval",
+            "reviewed_at": "2026-11-11T09:11:58Z",
+            "notes": "Approved for export by Gabriel (owner) for PR #351, keeping all 17 and accepting the documented run-1 reasoning exception (2 of 17 = 11.8%). Independent review: Claude Opus 5.5 (claude-opus-5-5) High, verdict PASS for candidate content SHA256 e481c0cc99e04498f1aa0b83fe5b489572e70ba3ba2fc23e6f6f99a7e1087dcb (report SHA256 89da0a19d57d1b49140b98e4c366793bc42a42fcc853a173ace07bfa7a1fe572). Review fields were pending in the verified input and were set only at integration."
+          },
+          "flags": [],
+          "source_ref": {
+            "document_title": "Trachea / respiratory epithelium (cilia and mucus)"
+          },
+          "research": {
+            "concept": "D3 · ресничест епител и слуз – очистване на въздуха",
+            "skill": "recall",
+            "notes": "22.1: mucus traps debris and cilia move it toward the throat. The hypothetical stem tests the single source-stated mucus/clearance consequence: slowed cilia cause mucus accumulation (saved 22-1.txt L19); cilia move mucus upward (22-1.txt L30). The reviewed skill is recall. Hypothetical, not a disease or smoking claim. Scope: programme theme 2.2."
+          },
+          "explanation": "Ресничките придвижват слузта с полепналите частици към гърлото, откъдето тя се отстранява. Без тяхното движение този механизъм на очистване не работи и слузта се натрупва.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 9,
+          "candidate_id": "biology-g8-respiratory-system-run-1-009",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-ap2e-22-1",
+            "type": "third_party",
+            "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/22-1-organs-and-structures-of-the-respiratory-system",
+            "title": "22.1 Organs and Structures of the Respiratory System - Anatomy and Physiology 2e | OpenStax",
+            "retrieved_at": "2026-11-10T15:10:22Z",
+            "publisher": "OpenStax, Rice University",
+            "notes": "Research only; questions are newly written."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-g8-respiratory-run-1-opus-5-5-independent-review-and-owner-approval",
+            "reviewed_at": "2026-11-11T09:11:58Z",
+            "notes": "Approved for export by Gabriel (owner) for PR #351, keeping all 17 and accepting the documented run-1 reasoning exception (2 of 17 = 11.8%). Independent review: Claude Opus 5.5 (claude-opus-5-5) High, verdict PASS for candidate content SHA256 e481c0cc99e04498f1aa0b83fe5b489572e70ba3ba2fc23e6f6f99a7e1087dcb (report SHA256 89da0a19d57d1b49140b98e4c366793bc42a42fcc853a173ace07bfa7a1fe572). Review fields were pending in the verified input and were set only at integration."
+          },
+          "flags": [],
+          "source_ref": {
+            "document_title": "Respiratory zone: alveoli and respiratory membrane"
+          },
+          "research": {
+            "concept": "D3 · алвеоли – тънка стена и мрежа от капиляри",
+            "skill": "recall",
+            "notes": "22.1 (alveolar wall, respiratory membrane) and 22.4 (anatomy maximises diffusion: thin, permeable) confirm the thin wall next to capillaries. No thickness figures used. Scope: programme theme 2.2."
+          },
+          "explanation": "Газовете преминават през много тънка преграда между алвеолата и капиляра, затова обменът е бърз.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 10,
+          "candidate_id": "biology-g8-respiratory-system-run-1-010",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-ap2e-22-4",
+            "type": "third_party",
+            "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/22-4-gas-exchange",
+            "title": "22.4 Gas Exchange - Anatomy and Physiology 2e | OpenStax",
+            "retrieved_at": "2026-11-10T15:10:33Z",
+            "publisher": "OpenStax, Rice University",
+            "notes": "Research only; questions are newly written."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-g8-respiratory-run-1-opus-5-5-independent-review-and-owner-approval",
+            "reviewed_at": "2026-11-11T09:11:58Z",
+            "notes": "Approved for export by Gabriel (owner) for PR #351, keeping all 17 and accepting the documented run-1 reasoning exception (2 of 17 = 11.8%). Independent review: Claude Opus 5.5 (claude-opus-5-5) High, verdict PASS for candidate content SHA256 e481c0cc99e04498f1aa0b83fe5b489572e70ba3ba2fc23e6f6f99a7e1087dcb (report SHA256 89da0a19d57d1b49140b98e4c366793bc42a42fcc853a173ace07bfa7a1fe572). Review fields were pending in the verified input and were set only at integration."
+          },
+          "flags": [],
+          "source_ref": {
+            "document_title": "Gas Exchange: lung anatomy maximises diffusion (large surface area)"
+          },
+          "research": {
+            "concept": "D3 · голям брой алвеоли – голяма повърхност за обмяна",
+            "skill": "recall",
+            "notes": "22.4 states a large surface area throughout the lungs favours diffusion (saved 22-4.txt L69); 22.1 describes an alveolus as one of many small sacs (22-1.txt L39). One structure-to-function relation, many small sacs giving a large total surface, is a justified inference from these two lines; the reviewed skill is recall. No area figure used. Scope: programme theme 2.2."
+          },
+          "explanation": "Много малки алвеоли имат много по-голяма обща повърхност от една голяма кухина със същия обем, а колкото по-голяма е повърхността, толкова повече газове могат да преминат за единица време.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 11,
+          "candidate_id": "biology-g8-respiratory-system-run-1-011",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-ap2e-22-3",
+            "type": "third_party",
+            "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/22-3-the-process-of-breathing",
+            "title": "22.3 The Process of Breathing - Anatomy and Physiology 2e | OpenStax",
+            "retrieved_at": "2026-11-10T15:10:31Z",
+            "publisher": "OpenStax, Rice University",
+            "notes": "Research only; questions are newly written."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-g8-respiratory-run-1-opus-5-5-independent-review-and-owner-approval",
+            "reviewed_at": "2026-11-11T09:11:58Z",
+            "notes": "Approved for export by Gabriel (owner) for PR #351, keeping all 17 and accepting the documented run-1 reasoning exception (2 of 17 = 11.8%). Independent review: Claude Opus 5.5 (claude-opus-5-5) High, verdict PASS for candidate content SHA256 e481c0cc99e04498f1aa0b83fe5b489572e70ba3ba2fc23e6f6f99a7e1087dcb (report SHA256 89da0a19d57d1b49140b98e4c366793bc42a42fcc853a173ace07bfa7a1fe572). Review fields were pending in the verified input and were set only at integration."
+          },
+          "flags": [],
+          "source_ref": {
+            "document_title": "Pulmonary ventilation; pressure relationships"
+          },
+          "research": {
+            "concept": "D2 · вдишване – мускули, обем, налягане и поток на въздуха",
+            "skill": "explain",
+            "notes": "22.3: diaphragm and external intercostals contract, thoracic volume rises, intra-alveolar pressure falls below atmospheric, air flows in. Four linked statements; chain of facts, not a single definition. No pressure values used. Scope: programme theme 2.2."
+          },
+          "explanation": "Съкращаването на диафрагмата и междуребрените мускули увеличава обема на гръдната кухина, налягането в белите дробове става по-ниско от атмосферното и въздухът тече към по-ниското налягане.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 12,
+          "candidate_id": "biology-g8-respiratory-system-run-1-012",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-ap2e-22-3",
+            "type": "third_party",
+            "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/22-3-the-process-of-breathing",
+            "title": "22.3 The Process of Breathing - Anatomy and Physiology 2e | OpenStax",
+            "retrieved_at": "2026-11-10T15:10:31Z",
+            "publisher": "OpenStax, Rice University",
+            "notes": "Research only; questions are newly written."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-g8-respiratory-run-1-opus-5-5-independent-review-and-owner-approval",
+            "reviewed_at": "2026-11-11T09:11:58Z",
+            "notes": "Approved for export by Gabriel (owner) for PR #351, keeping all 17 and accepting the documented run-1 reasoning exception (2 of 17 = 11.8%). Independent review: Claude Opus 5.5 (claude-opus-5-5) High, verdict PASS for candidate content SHA256 e481c0cc99e04498f1aa0b83fe5b489572e70ba3ba2fc23e6f6f99a7e1087dcb (report SHA256 89da0a19d57d1b49140b98e4c366793bc42a42fcc853a173ace07bfa7a1fe572). Review fields were pending in the verified input and were set only at integration."
+          },
+          "flags": [],
+          "source_ref": {
+            "document_title": "Pulmonary ventilation: expiration"
+          },
+          "research": {
+            "concept": "D2 · издишване при покой – пасивен процес",
+            "skill": "recall",
+            "notes": "22.3: quiet expiration is passive; muscles relax and lung elasticity causes recoil, raising pressure above atmospheric. Forced expiration is not asked. Scope: programme theme 2.2."
+          },
+          "explanation": "При спокойно дишане издишването е пасивно: мускулите се отпускат, гръдната кухина и белите дробове намаляват обема си и налягането в тях надхвърля атмосферното, затова въздухът излиза.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 13,
+          "candidate_id": "biology-g8-respiratory-system-run-1-013",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-ap2e-22-3",
+            "type": "third_party",
+            "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/22-3-the-process-of-breathing",
+            "title": "22.3 The Process of Breathing - Anatomy and Physiology 2e | OpenStax",
+            "retrieved_at": "2026-11-10T15:10:31Z",
+            "publisher": "OpenStax, Rice University",
+            "notes": "Research only; questions are newly written."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-g8-respiratory-run-1-opus-5-5-independent-review-and-owner-approval",
+            "reviewed_at": "2026-11-11T09:11:58Z",
+            "notes": "Approved for export by Gabriel (owner) for PR #351, keeping all 17 and accepting the documented run-1 reasoning exception (2 of 17 = 11.8%). Independent review: Claude Opus 5.5 (claude-opus-5-5) High, verdict PASS for candidate content SHA256 e481c0cc99e04498f1aa0b83fe5b489572e70ba3ba2fc23e6f6f99a7e1087dcb (report SHA256 89da0a19d57d1b49140b98e4c366793bc42a42fcc853a173ace07bfa7a1fe572). Review fields were pending in the verified input and were set only at integration."
+          },
+          "flags": [],
+          "source_ref": {
+            "document_title": "Physical factors affecting ventilation; pleural adhesion"
+          },
+          "research": {
+            "concept": "D2 · белите дробове следват гръдния кош чрез плевралната течност",
+            "skill": "recall",
+            "notes": "22.3 (lungs are passive; pleural fluid adhesion) with 22.2 (pleura). Lungs follow expansion of the chest wall through pleural adhesion. The stem supplies the passive-expansion premise; the reviewed skill is recall. Locators in saved text: 22-3.txt L44; 22-2.txt L21. Scope: programme theme 2.2."
+          },
+          "explanation": "Белите дробове са пасивни. Тънкият слой плеврална течност ги кара да следват гръдната стена, затова когато гръдната кухина се разширява, се разширяват и те.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 14,
+          "candidate_id": "biology-g8-respiratory-system-run-1-014",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-ap2e-22-4",
+            "type": "third_party",
+            "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/22-4-gas-exchange",
+            "title": "22.4 Gas Exchange - Anatomy and Physiology 2e | OpenStax",
+            "retrieved_at": "2026-11-10T15:10:33Z",
+            "publisher": "OpenStax, Rice University",
+            "notes": "Research only; questions are newly written."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-g8-respiratory-run-1-opus-5-5-independent-review-and-owner-approval",
+            "reviewed_at": "2026-11-11T09:11:58Z",
+            "notes": "Approved for export by Gabriel (owner) for PR #351, keeping all 17 and accepting the documented run-1 reasoning exception (2 of 17 = 11.8%). Independent review: Claude Opus 5.5 (claude-opus-5-5) High, verdict PASS for candidate content SHA256 e481c0cc99e04498f1aa0b83fe5b489572e70ba3ba2fc23e6f6f99a7e1087dcb (report SHA256 89da0a19d57d1b49140b98e4c366793bc42a42fcc853a173ace07bfa7a1fe572). Review fields were pending in the verified input and were set only at integration."
+          },
+          "flags": [],
+          "source_ref": {
+            "document_title": "Gas Exchange: external respiration, simple diffusion"
+          },
+          "research": {
+            "concept": "D2 · газообмен – дифузия без разход на енергия",
+            "skill": "recall",
+            "notes": "22.4 (saved 22-4.txt): L69 gas exchange is simple diffusion, no energy, gases follow pressure gradients; L39 gas moves from higher to lower partial pressure. Corrected after review: gradient stated as partial pressure, not gas content/concentration (L41 Henry's law). Scope: programme theme 2.2."
+          },
+          "explanation": "Газовете преминават чрез дифузия – от място с по-високо към място с по-ниско парциално налягане (налягането, което създава самият газ), затова не са нужни нито мускули, нито енергия за пренасянето им през тънката стена.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 15,
+          "candidate_id": "biology-g8-respiratory-system-run-1-015",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-ap2e-22-4",
+            "type": "third_party",
+            "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/22-4-gas-exchange",
+            "title": "22.4 Gas Exchange - Anatomy and Physiology 2e | OpenStax",
+            "retrieved_at": "2026-11-10T15:10:33Z",
+            "publisher": "OpenStax, Rice University",
+            "notes": "Research only; questions are newly written."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-g8-respiratory-run-1-opus-5-5-independent-review-and-owner-approval",
+            "reviewed_at": "2026-11-11T09:11:58Z",
+            "notes": "Approved for export by Gabriel (owner) for PR #351, keeping all 17 and accepting the documented run-1 reasoning exception (2 of 17 = 11.8%). Independent review: Claude Opus 5.5 (claude-opus-5-5) High, verdict PASS for candidate content SHA256 e481c0cc99e04498f1aa0b83fe5b489572e70ba3ba2fc23e6f6f99a7e1087dcb (report SHA256 89da0a19d57d1b49140b98e4c366793bc42a42fcc853a173ace07bfa7a1fe572). Review fields were pending in the verified input and were set only at integration."
+          },
+          "flags": [],
+          "source_ref": {
+            "document_title": "Gas Exchange: external respiration (direction of O2 and CO2)"
+          },
+          "research": {
+            "concept": "D2 · посока на газообмена в белите дробове по дадени данни",
+            "skill": "recall",
+            "notes": "22.4 (saved 22-4.txt): L39 gas moves from higher to lower partial pressure; L72-73 external respiration follows partial-pressure differences between alveoli and pulmonary-capillary blood (O2 into blood, CO2 out). Stem values are invented relative units, only direction is tested. Scope: programme theme 2.2."
+          },
+          "explanation": "Всеки газ дифундира от мястото с по-високо към мястото с по-ниско парциално налягане: кислородът – от алвеолите (10) към кръвта (4), а въглеродният диоксид – от кръвта (6) към алвеолите (4).",
+          "difficulty": "easy"
+        },
+        {
+          "number": 16,
+          "candidate_id": "biology-g8-respiratory-system-run-1-016",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-ap2e-22-1",
+            "type": "third_party",
+            "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/22-1-organs-and-structures-of-the-respiratory-system",
+            "title": "22.1 Organs and Structures of the Respiratory System - Anatomy and Physiology 2e | OpenStax",
+            "retrieved_at": "2026-11-10T15:10:22Z",
+            "publisher": "OpenStax, Rice University",
+            "notes": "Research only; questions are newly written."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-g8-respiratory-run-1-opus-5-5-independent-review-and-owner-approval",
+            "reviewed_at": "2026-11-11T09:11:58Z",
+            "notes": "Approved for export by Gabriel (owner) for PR #351, keeping all 17 and accepting the documented run-1 reasoning exception (2 of 17 = 11.8%). Independent review: Claude Opus 5.5 (claude-opus-5-5) High, verdict PASS for candidate content SHA256 e481c0cc99e04498f1aa0b83fe5b489572e70ba3ba2fc23e6f6f99a7e1087dcb (report SHA256 89da0a19d57d1b49140b98e4c366793bc42a42fcc853a173ace07bfa7a1fe572). Review fields were pending in the verified input and were set only at integration."
+          },
+          "flags": [],
+          "source_ref": {
+            "document_title": "Functional zones: conducting vs respiratory zone"
+          },
+          "research": {
+            "concept": "D2 · мястото на газообмена – алвеолите, не трахеята",
+            "skill": "compare",
+            "notes": "22.1: conducting zone only conducts, cleans, warms and humidifies air; gas exchange occurs in the respiratory zone (alveoli). Compare on the criterion 'role in gas exchange'. Scope: programme theme 2.2."
+          },
+          "explanation": "Трахеята е част от въздухоносните пътища и не обменя газове с кръвта; обменът става в алвеолите, където стената е тънка и е плътно обхваната от капиляри.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 17,
+          "candidate_id": "biology-g8-respiratory-system-run-1-017",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-ap2e-22-1",
+            "type": "third_party",
+            "url": "https://openstax.org/books/anatomy-and-physiology-2e/pages/22-1-organs-and-structures-of-the-respiratory-system",
+            "title": "22.1 Organs and Structures of the Respiratory System - Anatomy and Physiology 2e | OpenStax",
+            "retrieved_at": "2026-11-10T15:10:22Z",
+            "publisher": "OpenStax, Rice University",
+            "notes": "Research only; questions are newly written."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-g8-respiratory-run-1-opus-5-5-independent-review-and-owner-approval",
+            "reviewed_at": "2026-11-11T09:11:58Z",
+            "notes": "Approved for export by Gabriel (owner) for PR #351, keeping all 17 and accepting the documented run-1 reasoning exception (2 of 17 = 11.8%). Independent review: Claude Opus 5.5 (claude-opus-5-5) High, verdict PASS for candidate content SHA256 e481c0cc99e04498f1aa0b83fe5b489572e70ba3ba2fc23e6f6f99a7e1087dcb (report SHA256 89da0a19d57d1b49140b98e4c366793bc42a42fcc853a173ace07bfa7a1fe572). Review fields were pending in the verified input and were set only at integration."
+          },
+          "flags": [],
+          "source_ref": {
+            "document_title": "Intro: purpose of the respiratory system"
+          },
+          "research": {
+            "concept": "D2 · кислородът се използва в клетките, въглеродният диоксид е отпадък",
+            "skill": "recall",
+            "notes": "22.1 and 22.4: oxygen is supplied for cellular respiration; CO2 is its waste product. The wording about energy from nutrients is standard curriculum background, not taken from a fetched sentence; the cell process itself is not tested. Blood transport is not used. Scope: programme theme 2.2. Locators, saved 22-4.txt: L10 (CO2 = waste of cellular respiration); L76 (O2 used continuously for cellular respiration); L81 (cellular respiration -> ATP, 'the energy needed')."
+          },
+          "explanation": "Клетките постоянно използват кислород, за да получават енергия от хранителните вещества, а въглеродният диоксид е отпаден продукт, който трябва да бъде отстранен с издишването.",
+          "difficulty": "easy"
+        }
+      ]
+    }
+  ],
+  "not_exported": []
+}

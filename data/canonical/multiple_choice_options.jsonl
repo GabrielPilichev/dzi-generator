@@ -6273,3 +6273,71 @@
 {"id":6669,"question_id":1683,"option_letter":"B","option_text":"грип; чрез дихателни капчици; покриване на устата при кашляне и миене на ръце","is_correct":0}
 {"id":6670,"question_id":1683,"option_letter":"C","option_text":"хепатит А; чрез замърсена храна и вода; безопасна вода, измита храна, миене на ръце","is_correct":1}
 {"id":6671,"question_id":1683,"option_letter":"D","option_text":"морбили; чрез дихателни капчици; ваксинация и избягване на болните","is_correct":0}
+{"id":6672,"question_id":1684,"option_letter":"A","option_text":"носна кухина → гръклян → гълтач → трахея → бронхи","is_correct":0}
+{"id":6673,"question_id":1684,"option_letter":"B","option_text":"носна кухина → гълтач → трахея → гръклян → бронхи","is_correct":0}
+{"id":6674,"question_id":1684,"option_letter":"C","option_text":"носна кухина → гълтач → гръклян → трахея → бронхи","is_correct":1}
+{"id":6675,"question_id":1684,"option_letter":"D","option_text":"носна кухина → гълтач → гръклян → бронхи → трахея","is_correct":0}
+{"id":6676,"question_id":1685,"option_letter":"A","option_text":"надгръклянникът","is_correct":1}
+{"id":6677,"question_id":1685,"option_letter":"B","option_text":"мекото небце","is_correct":0}
+{"id":6678,"question_id":1685,"option_letter":"C","option_text":"ресничестият епител на трахеята","is_correct":0}
+{"id":6679,"question_id":1685,"option_letter":"D","option_text":"хрущялните полупръстени на трахеята","is_correct":0}
+{"id":6680,"question_id":1686,"option_letter":"A","option_text":"гълтач","is_correct":0}
+{"id":6681,"question_id":1686,"option_letter":"B","option_text":"гръклян","is_correct":1}
+{"id":6682,"question_id":1686,"option_letter":"C","option_text":"трахея","is_correct":0}
+{"id":6683,"question_id":1686,"option_letter":"D","option_text":"бронх","is_correct":0}
+{"id":6684,"question_id":1687,"option_letter":"A","option_text":"Черният дроб е разположен под левия бял дроб и го притиска нагоре.","is_correct":0}
+{"id":6685,"question_id":1687,"option_letter":"B","option_text":"Лявата половина на гръдния кош е с по-малко ребра, отколкото дясната.","is_correct":0}
+{"id":6686,"question_id":1687,"option_letter":"C","option_text":"Левият бял дроб е обвит с по-дебела плевра, която ограничава обема му.","is_correct":0}
+{"id":6687,"question_id":1687,"option_letter":"D","option_text":"Сърцето е изместено наляво в гръдния кош и заема част от мястото.","is_correct":1}
+{"id":6688,"question_id":1688,"option_letter":"A","option_text":"Осигурява кислород на клетките на белия дроб по време на дишането.","is_correct":0}
+{"id":6689,"question_id":1688,"option_letter":"B","option_text":"Намалява триенето между белия дроб и гръдната стена при дишане.","is_correct":1}
+{"id":6690,"question_id":1688,"option_letter":"C","option_text":"Разгражда праховите частици, които са попаднали в дихателните пътища.","is_correct":0}
+{"id":6691,"question_id":1688,"option_letter":"D","option_text":"Затопля въздуха, преди той да премине през бронхите към алвеолите.","is_correct":0}
+{"id":6692,"question_id":1689,"option_letter":"A","option_text":"Отделят слуз, която залепва праха и микробите от въздуха.","is_correct":0}
+{"id":6693,"question_id":1689,"option_letter":"B","option_text":"Затварят входа на трахеята, когато човек преглъща храна.","is_correct":0}
+{"id":6694,"question_id":1689,"option_letter":"C","option_text":"Поддържат трахеята отворена и не ѝ позволяват да се смачка.","is_correct":1}
+{"id":6695,"question_id":1689,"option_letter":"D","option_text":"Увеличават повърхността, през която се обменят газовете.","is_correct":0}
+{"id":6696,"question_id":1690,"option_letter":"A","option_text":"В нея има алвеоли, които задържат топлината на издишвания въздух.","is_correct":0}
+{"id":6697,"question_id":1690,"option_letter":"B","option_text":"Стената ѝ е изградена от хрущялни пръстени, които топлят въздуха.","is_correct":0}
+{"id":6698,"question_id":1690,"option_letter":"C","option_text":"Покрита е с ороговял слой, който пази въздуха от изстиване.","is_correct":0}
+{"id":6699,"question_id":1690,"option_letter":"D","option_text":"Под повърхността ѝ има гъста мрежа от кръвоносни капиляри.","is_correct":1}
+{"id":6700,"question_id":1691,"option_letter":"A","option_text":"Слузта с полепнали частици няма да се придвижва към гърлото и ще се натрупва.","is_correct":1}
+{"id":6701,"question_id":1691,"option_letter":"B","option_text":"Трахеята ще се свие и ще се затвори, защото ресничките я държат отворена.","is_correct":0}
+{"id":6702,"question_id":1691,"option_letter":"C","option_text":"Вдишваният въздух ще се затопля много по-слабо от обикновено.","is_correct":0}
+{"id":6703,"question_id":1691,"option_letter":"D","option_text":"Алвеолите ще се напълнят със слуз и газообменът в тях ще спре.","is_correct":0}
+{"id":6704,"question_id":1692,"option_letter":"A","option_text":"Стената им е дебела и здрава, изградена основно от хрущял.","is_correct":0}
+{"id":6705,"question_id":1692,"option_letter":"B","option_text":"Стената им е много тънка и е обвита от гъста мрежа от капиляри.","is_correct":1}
+{"id":6706,"question_id":1692,"option_letter":"C","option_text":"Стената им съдържа мускули, които изтласкват газовете в кръвта.","is_correct":0}
+{"id":6707,"question_id":1692,"option_letter":"D","option_text":"Покрити са със слой слуз и реснички, които задържат праха.","is_correct":0}
+{"id":6708,"question_id":1693,"option_letter":"A","option_text":"Въздухът се очиства по-добре от прах и микроби.","is_correct":0}
+{"id":6709,"question_id":1693,"option_letter":"B","option_text":"Белите дробове могат да поберат по-голям обем въздух.","is_correct":0}
+{"id":6710,"question_id":1693,"option_letter":"C","option_text":"Общата повърхност за обмяна на газове е много по-голяма.","is_correct":1}
+{"id":6711,"question_id":1693,"option_letter":"D","option_text":"Белите дробове могат активно да се свиват при издишване.","is_correct":0}
+{"id":6712,"question_id":1694,"option_letter":"A","option_text":"мускулите се съкращават → обемът на гръдната кухина расте → налягането в белите дробове става по-високо от атмосферното → въздухът навлиза","is_correct":0}
+{"id":6713,"question_id":1694,"option_letter":"B","option_text":"белите дробове активно се разширяват → налягането в тях спада → въздухът навлиза → обемът на гръдната кухина расте","is_correct":0}
+{"id":6714,"question_id":1694,"option_letter":"C","option_text":"мускулите се отпускат → обемът на гръдната кухина намалява → налягането в белите дробове става по-високо от атмосферното → въздухът навлиза","is_correct":0}
+{"id":6715,"question_id":1694,"option_letter":"D","option_text":"мускулите се съкращават → обемът на гръдната кухина расте → налягането в белите дробове става по-ниско от атмосферното → въздухът навлиза","is_correct":1}
+{"id":6716,"question_id":1695,"option_letter":"A","option_text":"Диафрагмата и междуребрените мускули се отпускат, гръдната кухина намалява и въздухът излиза.","is_correct":1}
+{"id":6717,"question_id":1695,"option_letter":"B","option_text":"Диафрагмата се съкращава и притиска белите дробове отдолу, за да излезе въздухът.","is_correct":0}
+{"id":6718,"question_id":1695,"option_letter":"C","option_text":"Междуребрените мускули се съкращават и избутват въздуха навън от белите дробове.","is_correct":0}
+{"id":6719,"question_id":1695,"option_letter":"D","option_text":"Налягането в белите дробове става по-ниско от атмосферното и въздухът излиза.","is_correct":0}
+{"id":6720,"question_id":1696,"option_letter":"A","option_text":"Кръвта, която тече през белодробните капиляри, ги надува отвътре като балон.","is_correct":0}
+{"id":6721,"question_id":1696,"option_letter":"B","option_text":"Бронхиолите се свиват и с мускулите си изтласкват въздуха в алвеолите.","is_correct":0}
+{"id":6722,"question_id":1696,"option_letter":"C","option_text":"Плевралната течност ги свързва с гръдната стена и те следват нейното разширяване.","is_correct":1}
+{"id":6723,"question_id":1696,"option_letter":"D","option_text":"Ребрата са прикрепени директно към алвеолите и ги дърпат нагоре и встрани.","is_correct":0}
+{"id":6724,"question_id":1697,"option_letter":"A","option_text":"Чрез активно пренасяне от клетките на стената, при което се разходва енергия.","is_correct":0}
+{"id":6725,"question_id":1697,"option_letter":"B","option_text":"Чрез дифузия, без разход на енергия – от по-високо към по-ниско парциално налягане.","is_correct":1}
+{"id":6726,"question_id":1697,"option_letter":"C","option_text":"Чрез изтласкване от мускулите, които обграждат алвеолите и капилярите.","is_correct":0}
+{"id":6727,"question_id":1697,"option_letter":"D","option_text":"Чрез придвижване с помощта на ресничките на клетките на стената.","is_correct":0}
+{"id":6728,"question_id":1698,"option_letter":"A","option_text":"Кислородът – от алвеолите към кръвта; въглеродният диоксид – от кръвта към алвеолите.","is_correct":1}
+{"id":6729,"question_id":1698,"option_letter":"B","option_text":"Кислородът – от кръвта към алвеолите; въглеродният диоксид – от алвеолите към кръвта.","is_correct":0}
+{"id":6730,"question_id":1698,"option_letter":"C","option_text":"И двата газа – от алвеолите към кръвта, но с различна скорост.","is_correct":0}
+{"id":6731,"question_id":1698,"option_letter":"D","option_text":"И двата газа – от кръвта към алвеолите, но с различна скорост.","is_correct":0}
+{"id":6732,"question_id":1699,"option_letter":"A","option_text":"Обмяната на газове става и в трахеята, и в алвеолите, но в алвеолите е по-бавна.","is_correct":0}
+{"id":6733,"question_id":1699,"option_letter":"B","option_text":"Трахеята обменя газове с кръвта, а алвеолите провеждат въздуха до бронхите.","is_correct":0}
+{"id":6734,"question_id":1699,"option_letter":"C","option_text":"И трахеята, и алвеолите провеждат въздуха, а обмяната на газове става в бронхите.","is_correct":0}
+{"id":6735,"question_id":1699,"option_letter":"D","option_text":"Трахеята провежда и очиства въздуха, а обмяната на газове с кръвта става в алвеолите.","is_correct":1}
+{"id":6736,"question_id":1700,"option_letter":"A","option_text":"В белите дробове кислородът се превръща във въглероден диоксид, който издишваме.","is_correct":0}
+{"id":6737,"question_id":1700,"option_letter":"B","option_text":"Използват го клетките на белите дробове, но не и клетките на другите органи.","is_correct":0}
+{"id":6738,"question_id":1700,"option_letter":"C","option_text":"Клетките го използват, за да получават енергия от хранителните вещества.","is_correct":1}
+{"id":6739,"question_id":1700,"option_letter":"D","option_text":"Използва се предимно за затопляне на вдишвания въздух в носната кухина.","is_correct":0}

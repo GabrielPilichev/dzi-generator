@@ -136,8 +136,8 @@ class BuiltDatabaseTest(unittest.TestCase):
     def test_identity_counts_of_the_g1_dataset(self):
         counts = {table: rows for table, (rows, _) in self.result.tables.items()}
         for table, expected in {
-            "curricula": 11, "curriculum_sections": 67, "curriculum_topics": 180, "questions": 1678,
-            "multiple_choice_options": 6275, "fill_in_subquestions": 162, "exams": 11,
+            "curricula": 11, "curriculum_sections": 67, "curriculum_topics": 180, "questions": 1695,
+            "multiple_choice_options": 6343, "fill_in_subquestions": 162, "exams": 11,
             "exam_tasks": 196, "practical_task_resources": 77,
         }.items():
             self.assertEqual(counts[table], expected, table)
@@ -390,7 +390,7 @@ class CommandLineTest(TemporaryDirectoryTestCase):
         self.assertEqual((status, err), (0, ""))
         self.assertTrue(destination.is_file())
         self.assertIn("migration level: 025", out)
-        self.assertIn("questions: 1678", out)
+        self.assertIn("questions: 1695", out)
         self.assertIn("validation", out)
 
     def test_existing_destination_exits_nonzero_without_overwriting(self):
