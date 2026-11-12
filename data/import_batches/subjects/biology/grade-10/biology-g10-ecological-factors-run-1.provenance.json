@@ -1,0 +1,517 @@
+{
+  "format_version": 1,
+  "kind": "question_candidate_provenance",
+  "run": {
+    "id": "biology-g10-ecological-factors-run-1",
+    "started_at": "2026-11-11T18:49:02Z",
+    "finished_at": "2026-11-11T18:58:04Z",
+    "subject": "biology",
+    "grade": 10,
+    "curriculum": {
+      "education_type": "general",
+      "title": "Биология и здравно образование, 10. клас — общообразователна подготовка"
+    },
+    "targets": [
+      {
+        "section": {
+          "slug": "biology-g10-biosphere",
+          "title": "Биосфера"
+        },
+        "topics": [
+          {
+            "slug": "biology-g10-ecological-factors",
+            "title": "Екологични фактори"
+          }
+        ]
+      }
+    ],
+    "limits": {
+      "max_topics": 1,
+      "max_pages": 8,
+      "max_candidates": 26,
+      "max_candidates_per_source": 26,
+      "max_runtime_minutes": 60
+    },
+    "pages_inspected": 8,
+    "stop_reason": "page_limit",
+    "collector": "claude-sonnet-5-5 (Sonnet 5.5) / High",
+    "skill_vocabulary": [
+      "recall",
+      "classify",
+      "explain",
+      "predict",
+      "interpret-data",
+      "compare"
+    ],
+    "notes": "Run 1, само D1–D3; 16 сурови кандидата при таван 26 (таванът не е цел). Събиране: страници 8 от 8 = 1 кеширана програма (МОН, консервативно) + 2 robots.txt + 5 страници (OpenStax 44.1, 45.6, 47.3, 6.5; LibreTexts 1.5); без неуспешни заявки. Спиране: при събирането записано no_more_sources; при независимата рецензия коригирано на page_limit, защото бюджетът от 8 страници беше изчерпан, а фактите не бяха (ефектът на светлина, вода, почва, соленост и pH върху жизнените процеси остана без извлечена опора). started_at, finished_at и pages_inspected не са променени. Независима рецензия (Opus / High) на суров SHA-256 4496d7c5…1230c4: препоръчано отхвърляне на 004 (класификация на пожар без извлечена опора, спорен ключ, повтаря определенията от 001–002) и 011 (обратен въпрос на 008, повтаря ензимния механизъм от 007, твърдението за границата противоречи на 006); коригирани текст и опора в 001, 006, 007, 008; едно-фактовите задачи са с таг recall. Препоръчани за задържане 14: D1=3, D2=6, D3=5. Тагове: recall 12, interpret-data 1, predict 1. Трудност: easy 11, medium 3, hard 0. Ключове: A3 B3 C3 D5. Строго разсъждение: 2 от 14 (008, 009) ≈ 14 %, под сигнала от 40 % и под една трета; не е допълвано – отклонението по B6 и нужното решение са в рецензията. Не е покрито: ефект на светлина, вода, почва, соленост и pH; допълнителни антропогенни примери; вътревидова/междувидова конкуренция и симбиоза като общ термин; D4–D6 и популационната тема. Отклонения при събирането: неутрален user agent (стандартният съдържа лични данни за контакт); интервал между заявки към един хост под 1,5 s поради дефект в скрипта на събирача (две заявки към openstax.org в една и съща секунда; robots.txt и страница на bio.libretexts.org в една и съща секунда при Crawl-delay 5 s); без блокове или 429; max_retries=1. Проверка при рецензията (не е част от събирането и не е в sources): 4 заявки към bio.libretexts.org (robots.txt, Kappus 5.1, VCE Gardener Handbook гл. 5, PCC Microbiology 8.4) на около 4 s една от друга при Crawl-delay 5 s – отклонение, разкрито в рецензията. Бележка: страниците на OpenStax съдържат условие срещу ползване за обучение/внасяне в LLM без разрешение – за решение на собственика преди износ.\n\nОдобрение при интеграцията (PR #352): независима проверка Opus 5.5 / High — PASS за коригиран SHA-256 658b0a8b5bac2f285e96970123f4b9c9e1987f2f22e629d1c4583da830224da3 (RECHECK.md a48ddeca…f409a; REVIEW_HANDOFF.final.md 0c6ea574…4715f), валидна за 14 препоръчани за задържане кандидати (001–003, 005–010, 012–016); 14 одобрени и 2 отхвърлени (004, 011). Решение на координатора за B6 (COORDINATOR_DECISION.md bbc78a06…26f7d): строгото разсъждение 2 от 14 (14,3 %) е прието като отклонение на ниво изпълнение 1; общото 40 % за темата остава за R5, без допълване и без пренасяне на изключението от дихателната система. Собственикът (Gabriel) е одобрил 14-те и е разрешил износа със запазеното разкриване на източниците („Approve 14 and authorize export with the source disclosure“; наблюдавано 2026-11-12T06:32:13Z), включително бележката на OpenStax за ползване за обучение на LLM и близките преразкази в 013, 014 и 015. Това не е твърдение за разрешение от издател или за правно освобождаване. Единствените променени полета спрямо проверения файл са review.status, review.reviewer, review.reviewed_at и review.notes на всички 16 записа и този абзац; текстът, отговорите, ключовете, таговете и източниците не са променени."
+  },
+  "not_stored_in_database": [
+    "candidate id",
+    "source type",
+    "source url",
+    "source title",
+    "source publisher",
+    "source retrieved_at",
+    "transformation",
+    "source_ref",
+    "research",
+    "reuse_exception",
+    "explanation",
+    "difficulty",
+    "review (reviewer, reviewed_at, notes)",
+    "run manifest"
+  ],
+  "batches": [
+    {
+      "file": "biology-g10-ecological-factors-run-1.ecological-factors.json",
+      "source": "reviewed:biology:biology-g10-ecological-factors-run-1.ecological-factors",
+      "topic_slug": "biology-g10-ecological-factors",
+      "questions": [
+        {
+          "number": 1,
+          "candidate_id": "biology-g10-ecological-factors-run-1-001",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-bio2e-44-1",
+            "type": "third_party",
+            "url": "https://openstax.org/books/biology-2e/pages/44-1-the-scope-of-ecology",
+            "title": "44.1 The Scope of Ecology - Biology 2e",
+            "retrieved_at": "2026-11-11T18:49:10Z",
+            "publisher": "OpenStax",
+            "notes": "Само изследване; въпросите са написани наново. Страницата съдържа бележка на OpenStax срещу ползване за обучение/внасяне в LLM без разрешение - собственикът да я прецени преди износ."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-g10-ecological-factors-run-1-opus-5-5-independent-review-and-owner-approval",
+            "reviewed_at": "2026-11-12T06:36:44Z",
+            "notes": "Одобрен за износ от собственика (Gabriel) след независима проверка Opus 5.5 / High с резултат PASS за коригиран SHA-256 658b0a8b5bac2f285e96970123f4b9c9e1987f2f22e629d1c4583da830224da3. Оригиналните бележки за източниците са запазени; няма твърдение за разрешение от издател или правно освобождаване."
+          },
+          "flags": [],
+          "source_ref": {
+            "document_title": "OpenStax Biology 2e 44.1, раздел Ecosystem Ecology"
+          },
+          "research": {
+            "concept": "D1 · абиотичен фактор – неживата среда",
+            "skill": "recall",
+            "notes": "OpenStax 44.1, раздел Ecosystem Ecology, извлечен текст ред 42 (biotic = живи, abiotic = неживи компоненти); LibreTexts 1.5 ред 15 (годишните валежи – абиотичен ограничаващ фактор). Един факт (валежите са част от неживата среда), приложен към пример: припомняне, таг recall. Единствената задача пример→група в D1 (004 е препоръчана за отхвърляне)."
+          },
+          "explanation": "Абиотичните фактори са компоненти и свойства на неживата среда, а валежите са такъв фактор. Пашата и конкуренцията са взаимодействия между живи организми (биотични), а косенето е дейност на човека (антропогенен фактор).",
+          "difficulty": "easy"
+        },
+        {
+          "number": 2,
+          "candidate_id": "biology-g10-ecological-factors-run-1-002",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-bio2e-47-3",
+            "type": "third_party",
+            "url": "https://openstax.org/books/biology-2e/pages/47-3-threats-to-biodiversity",
+            "title": "47.3 Threats to Biodiversity - Biology 2e",
+            "retrieved_at": "2026-11-11T18:49:59Z",
+            "publisher": "OpenStax",
+            "notes": "Примери за антропогенни въздействия (само класифициране, D1). Само изследване."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-g10-ecological-factors-run-1-opus-5-5-independent-review-and-owner-approval",
+            "reviewed_at": "2026-11-12T06:36:44Z",
+            "notes": "Одобрен за износ от собственика (Gabriel) след независима проверка Opus 5.5 / High с резултат PASS за коригиран SHA-256 658b0a8b5bac2f285e96970123f4b9c9e1987f2f22e629d1c4583da830224da3. Оригиналните бележки за източниците са запазени; няма твърдение за разрешение от издател или правно освобождаване."
+          },
+          "flags": [],
+          "source_ref": {
+            "document_title": "OpenStax Biology 2e 47.3, раздели Habitat Loss и Climate Change"
+          },
+          "research": {
+            "concept": "D1 · антропогенни фактори – дейност на човека",
+            "skill": "recall",
+            "notes": "OpenStax 47.3: Habitat Loss, ред 28 (язовирни стени и промяна на реки от човека); ред 53 (anthropogenic = причинено от хора). Един факт (произход от човек): припомняне. Само класифициране (D1), без оценка на въздействие (D5)."
+          },
+          "explanation": "Антропогенните фактори са въздействията на човешката дейност върху средата, като промяна на реки чрез язовирни стени. Температурата е абиотичен фактор, хищничеството е биотично, а антропогенните фактори действат и върху дивите организми.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 3,
+          "candidate_id": "biology-g10-ecological-factors-run-1-003",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-bio2e-44-1",
+            "type": "third_party",
+            "url": "https://openstax.org/books/biology-2e/pages/44-1-the-scope-of-ecology",
+            "title": "44.1 The Scope of Ecology - Biology 2e",
+            "retrieved_at": "2026-11-11T18:49:10Z",
+            "publisher": "OpenStax",
+            "notes": "Само изследване; въпросите са написани наново. Страницата съдържа бележка на OpenStax срещу ползване за обучение/внасяне в LLM без разрешение - собственикът да я прецени преди износ."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-g10-ecological-factors-run-1-opus-5-5-independent-review-and-owner-approval",
+            "reviewed_at": "2026-11-12T06:36:44Z",
+            "notes": "Одобрен за износ от собственика (Gabriel) след независима проверка Opus 5.5 / High с резултат PASS за коригиран SHA-256 658b0a8b5bac2f285e96970123f4b9c9e1987f2f22e629d1c4583da830224da3. Оригиналните бележки за източниците са запазени; няма твърдение за разрешение от издател или правно освобождаване."
+          },
+          "flags": [],
+          "source_ref": {
+            "document_title": "OpenStax Biology 2e 44.1, цели на раздела и Ecosystem Ecology"
+          },
+          "research": {
+            "concept": "D1 · биотични фактори – влияние на живи организми",
+            "skill": "recall",
+            "notes": "OpenStax 44.1 ред 15-16 и 42: биотични компоненти = живите организми, абиотични = неживите; LibreTexts 1.5 ред 17: биотичните ограничаващи фактори са взаимодействия между популации. Един факт: припомняне."
+          },
+          "explanation": "Биотичните фактори са влиянията на живите организми един върху друг. Условията на неживата среда, климатът и релефът са абиотични, а влиянията на човека са антропогенни.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 4,
+          "candidate_id": "biology-g10-ecological-factors-run-1-005",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "libretexts-bio-1-05",
+            "type": "third_party",
+            "url": "https://bio.libretexts.org/Bookshelves/Ecology/AP_Environmental_Science/01:_Chapters/1.05:_The_Biosphere",
+            "title": "1.5: The Biosphere - Biology LibreTexts",
+            "retrieved_at": "2026-11-11T18:49:44Z",
+            "publisher": "LibreTexts (Biology)",
+            "notes": "Източник за поносимост (толерантност): диапазон, граници, оптимум, тесен диапазон. Само изследване."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-g10-ecological-factors-run-1-opus-5-5-independent-review-and-owner-approval",
+            "reviewed_at": "2026-11-12T06:36:44Z",
+            "notes": "Одобрен за износ от собственика (Gabriel) след независима проверка Opus 5.5 / High с резултат PASS за коригиран SHA-256 658b0a8b5bac2f285e96970123f4b9c9e1987f2f22e629d1c4583da830224da3. Оригиналните бележки за източниците са запазени; няма твърдение за разрешение от издател или правно освобождаване."
+          },
+          "flags": [],
+          "source_ref": {
+            "document_title": "LibreTexts Biology 1.5 The Biosphere, раздел Populations and Communities"
+          },
+          "research": {
+            "concept": "D2 · диапазон на поносимост – долна и горна граница",
+            "skill": "recall",
+            "notes": "LibreTexts 1.5, раздел Populations and Communities, извлечен текст ред 16: диапазон на поносимост към абиотичен фактор, минимум и максимум, извън които няма оцеляване. Проверка при рецензията (не източник от събирането): LibreTexts, Kappus 5.1 Tolerance Ranges of Species, ред 9 (оптимум, зони на стрес, зони на непоносимост). Един факт: припомняне. Тема 2.2 не назовава поносимостта; дълбочина по каталога на плана (D2) и лаб. работа 4."
+          },
+          "explanation": "Диапазонът на поносимост е интервалът между долната и горната граница на фактора; под и над тях организмът не може да оцелява. Най-благоприятната стойност е оптимумът, а не целият диапазон.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 5,
+          "candidate_id": "biology-g10-ecological-factors-run-1-006",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "libretexts-bio-1-05",
+            "type": "third_party",
+            "url": "https://bio.libretexts.org/Bookshelves/Ecology/AP_Environmental_Science/01:_Chapters/1.05:_The_Biosphere",
+            "title": "1.5: The Biosphere - Biology LibreTexts",
+            "retrieved_at": "2026-11-11T18:49:44Z",
+            "publisher": "LibreTexts (Biology)",
+            "notes": "Източник за поносимост (толерантност): диапазон, граници, оптимум, тесен диапазон. Само изследване."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-g10-ecological-factors-run-1-opus-5-5-independent-review-and-owner-approval",
+            "reviewed_at": "2026-11-12T06:36:44Z",
+            "notes": "Одобрен за износ от собственика (Gabriel) след независима проверка Opus 5.5 / High с резултат PASS за коригиран SHA-256 658b0a8b5bac2f285e96970123f4b9c9e1987f2f22e629d1c4583da830224da3. Оригиналните бележки за източниците са запазени; няма твърдение за разрешение от издател или правно освобождаване."
+          },
+          "flags": [],
+          "source_ref": {
+            "document_title": "LibreTexts Biology 1.5 The Biosphere, раздел Populations and Communities"
+          },
+          "research": {
+            "concept": "D2 · оптимум – най-благоприятни стойности на фактора",
+            "skill": "recall",
+            "notes": "LibreTexts 1.5 ред 16: граници и оптимален диапазон (там определен чрез най-голяма численост на популацията). Проверка при рецензията (не източник от събирането): LibreTexts, Kappus 5.1 Tolerance Ranges of Species, ред 6 (условия, при които видът най-добре оцелява и се размножава) и ред 9 (оптимален диапазон, извън него – зони на стрес). Това подкрепя „най-благоприятна“; численост не се изпитва. Един факт: припомняне."
+          },
+          "explanation": "Зоната на оптимума е областта от стойности на фактора, при която организмът оцелява, расте и се размножава най-добре. Границите на поносимост са крайните стойности, при които оцеляването е още възможно, а диапазонът на поносимост включва всички стойности между тях.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 6,
+          "candidate_id": "biology-g10-ecological-factors-run-1-007",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-bio2e-6-5",
+            "type": "third_party",
+            "url": "https://openstax.org/books/biology-2e/pages/6-5-enzymes",
+            "title": "6.5 Enzymes - Biology 2e",
+            "retrieved_at": "2026-11-11T18:50:35Z",
+            "publisher": "OpenStax",
+            "notes": "Ефект на температурата върху ензимите (за жизнените процеси при D2). Само изследване."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-g10-ecological-factors-run-1-opus-5-5-independent-review-and-owner-approval",
+            "reviewed_at": "2026-11-12T06:36:44Z",
+            "notes": "Одобрен за износ от собственика (Gabriel) след независима проверка Opus 5.5 / High с резултат PASS за коригиран SHA-256 658b0a8b5bac2f285e96970123f4b9c9e1987f2f22e629d1c4583da830224da3. Оригиналните бележки за източниците са запазени; няма твърдение за разрешение от издател или правно освобождаване."
+          },
+          "flags": [],
+          "source_ref": {
+            "document_title": "OpenStax Biology 2e 6.5, раздел за влиянието на средата върху ензимите"
+          },
+          "research": {
+            "concept": "D2 · над горната граница – нарушаване на ензимите",
+            "skill": "recall",
+            "notes": "OpenStax 6.5 Enzymes ред 22 (високите температури денатурират ензимите). Проверка при рецензията (не източник от събирането): LibreTexts, PCC Microbiology 8.4 (производно на OpenStax Microbiology, CC BY 4.0), ред 9 (максимална температура на растеж) и ред 15–16 (над оптимума белтъците бързо денатурират). Един факт, приложен към организъм: припомняне, таг recall. Ензимите са от 9. клас; химичният състав r2 да се сравнява с тази задача."
+          },
+          "explanation": "Над горната граница на поносимост високата температура денатурира белтъците на бактерията, включително ензимите, и реакциите в клетката вече не протичат нормално. Затова жизнените ѝ процеси се нарушават. Останалите твърдения не отговарят на действителния механизъм.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 7,
+          "candidate_id": "biology-g10-ecological-factors-run-1-008",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "libretexts-bio-1-05",
+            "type": "third_party",
+            "url": "https://bio.libretexts.org/Bookshelves/Ecology/AP_Environmental_Science/01:_Chapters/1.05:_The_Biosphere",
+            "title": "1.5: The Biosphere - Biology LibreTexts",
+            "retrieved_at": "2026-11-11T18:49:44Z",
+            "publisher": "LibreTexts (Biology)",
+            "notes": "Източник за поносимост (толерантност): диапазон, граници, оптимум, тесен диапазон. Само изследване."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-g10-ecological-factors-run-1-opus-5-5-independent-review-and-owner-approval",
+            "reviewed_at": "2026-11-12T06:36:44Z",
+            "notes": "Одобрен за износ от собственика (Gabriel) след независима проверка Opus 5.5 / High с резултат PASS за коригиран SHA-256 658b0a8b5bac2f285e96970123f4b9c9e1987f2f22e629d1c4583da830224da3. Оригиналните бележки за източниците са запазени; няма твърдение за разрешение от издател или правно освобождаване."
+          },
+          "flags": [],
+          "source_ref": {
+            "document_title": "LibreTexts Biology 1.5 The Biosphere, раздел Populations and Communities"
+          },
+          "research": {
+            "concept": "D2 · данни от опит – оптимум и граници на поносимост",
+            "skill": "interpret-data",
+            "notes": "Условни (хипотетични) данни, не измервания. Правила: LibreTexts 1.5 ред 16 (граници, оптимум). Проверка при рецензията (не източник от събирането): LibreTexts, VCE Gardener Handbook гл. 5, ред 318 (растенията имат оптимална температура за добър растеж) и LibreTexts, Kappus 5.1 Tolerance Ranges of Species, ред 9 (извън оптимума – зони на стрес, после непоносимост). Най-бързият растеж показва най-добрата изпитана температура, не точния оптимум. Два факта + данни: разсъждение."
+          },
+          "explanation": "От изпитаните температури най-благоприятна е 22 °C, защото при нея кълновете растат най-бързо. Точният оптимум не може да се определи само от пет изпитани температури. Кълновете още оцеляват при 32 °C, но загиват при 42 °C, значи горната граница на поносимост е между тях. Останалите изводи противоречат на данните.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 8,
+          "candidate_id": "biology-g10-ecological-factors-run-1-009",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "libretexts-bio-1-05",
+            "type": "third_party",
+            "url": "https://bio.libretexts.org/Bookshelves/Ecology/AP_Environmental_Science/01:_Chapters/1.05:_The_Biosphere",
+            "title": "1.5: The Biosphere - Biology LibreTexts",
+            "retrieved_at": "2026-11-11T18:49:44Z",
+            "publisher": "LibreTexts (Biology)",
+            "notes": "Източник за поносимост (толерантност): диапазон, граници, оптимум, тесен диапазон. Само изследване."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-g10-ecological-factors-run-1-opus-5-5-independent-review-and-owner-approval",
+            "reviewed_at": "2026-11-12T06:36:44Z",
+            "notes": "Одобрен за износ от собственика (Gabriel) след независима проверка Opus 5.5 / High с резултат PASS за коригиран SHA-256 658b0a8b5bac2f285e96970123f4b9c9e1987f2f22e629d1c4583da830224da3. Оригиналните бележки за източниците са запазени; няма твърдение за разрешение от издател или правно освобождаване."
+          },
+          "flags": [],
+          "source_ref": {
+            "document_title": "LibreTexts Biology 1.5 The Biosphere, раздел Populations and Communities"
+          },
+          "research": {
+            "concept": "D2 · поносимостта е специфична за фактор – широк и тесен диапазон",
+            "skill": "predict",
+            "notes": "LibreTexts 1.5 ред 16: диапазон за абиотичен фактор; тесен диапазон към един фактор (пример с кислорода). Проверка при рецензията: LibreTexts, Kappus 5.1 Tolerance Ranges of Species, ред 6 (поносимост към отделни фактори – температура, соленост и др.). Два факта: поносимостта е по фактор + тесен диапазон = чувствителност към колебания. Условно описание."
+          },
+          "explanation": "Поносимостта се отнася за всеки фактор поотделно. Тесният диапазон към солеността означава, че силните колебания лесно излизат извън границите на вида, докато малките промени в температурата са в широкия му диапазон.",
+          "difficulty": "medium"
+        },
+        {
+          "number": 9,
+          "candidate_id": "biology-g10-ecological-factors-run-1-010",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "libretexts-bio-1-05",
+            "type": "third_party",
+            "url": "https://bio.libretexts.org/Bookshelves/Ecology/AP_Environmental_Science/01:_Chapters/1.05:_The_Biosphere",
+            "title": "1.5: The Biosphere - Biology LibreTexts",
+            "retrieved_at": "2026-11-11T18:49:44Z",
+            "publisher": "LibreTexts (Biology)",
+            "notes": "Източник за поносимост (толерантност): диапазон, граници, оптимум, тесен диапазон. Само изследване."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-g10-ecological-factors-run-1-opus-5-5-independent-review-and-owner-approval",
+            "reviewed_at": "2026-11-12T06:36:44Z",
+            "notes": "Одобрен за износ от собственика (Gabriel) след независима проверка Opus 5.5 / High с резултат PASS за коригиран SHA-256 658b0a8b5bac2f285e96970123f4b9c9e1987f2f22e629d1c4583da830224da3. Оригиналните бележки за източниците са запазени; няма твърдение за разрешение от издател или правно освобождаване."
+          },
+          "flags": [],
+          "source_ref": {
+            "document_title": "LibreTexts Biology 1.5 The Biosphere, раздел Populations and Communities"
+          },
+          "research": {
+            "concept": "D2 · групиране по зададена поносимост – тесен диапазон",
+            "skill": "recall",
+            "notes": "Условни данни. LibreTexts 1.5 ред 16 (тесен диапазон към един фактор). Групиране по зададена поносимост без обяснение на приспособления (не D4). Един факт + сравняване на дадени интервали: припомняне, таг recall, лесно."
+          },
+          "explanation": "Според дадените условни стойности видове 2 и 4 понасят малък интервал (4 °C и 5 °C), а видове 1 и 3 – широк интервал (32 °C и 28 °C).",
+          "difficulty": "easy"
+        },
+        {
+          "number": 10,
+          "candidate_id": "biology-g10-ecological-factors-run-1-012",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-bio2e-45-6",
+            "type": "third_party",
+            "url": "https://openstax.org/books/biology-2e/pages/45-6-community-ecology",
+            "title": "45.6 Community Ecology - Biology 2e",
+            "retrieved_at": "2026-11-11T18:49:59Z",
+            "publisher": "OpenStax",
+            "notes": "Биотични връзки. Само изследване. Вж. бележката за OpenStax при 44.1."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-g10-ecological-factors-run-1-opus-5-5-independent-review-and-owner-approval",
+            "reviewed_at": "2026-11-12T06:36:44Z",
+            "notes": "Одобрен за износ от собственика (Gabriel) след независима проверка Opus 5.5 / High с резултат PASS за коригиран SHA-256 658b0a8b5bac2f285e96970123f4b9c9e1987f2f22e629d1c4583da830224da3. Оригиналните бележки за източниците са запазени; няма твърдение за разрешение от издател или правно освобождаване."
+          },
+          "flags": [],
+          "source_ref": {
+            "document_title": "OpenStax Biology 2e 45.6, раздел Predation and Herbivory"
+          },
+          "research": {
+            "concept": "D3 · хищничество – убиване и изяждане на плячка",
+            "skill": "recall",
+            "notes": "OpenStax 45.6, раздел Predation and Herbivory, извлечен текст ред 20 (хищничество = консумиране на плячка от хищник). Един факт: припомняне, таг recall. Без численост и цикли (D6/популационна тема)."
+          },
+          "explanation": "При хищничеството един организъм убива и изяжда друг. При паразитизма гостоприемникът обикновено не се убива бързо, при мутуализма и коменсализма няма убиване.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 11,
+          "candidate_id": "biology-g10-ecological-factors-run-1-013",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-bio2e-45-6",
+            "type": "third_party",
+            "url": "https://openstax.org/books/biology-2e/pages/45-6-community-ecology",
+            "title": "45.6 Community Ecology - Biology 2e",
+            "retrieved_at": "2026-11-11T18:49:59Z",
+            "publisher": "OpenStax",
+            "notes": "Биотични връзки. Само изследване. Вж. бележката за OpenStax при 44.1."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-g10-ecological-factors-run-1-opus-5-5-independent-review-and-owner-approval",
+            "reviewed_at": "2026-11-12T06:36:44Z",
+            "notes": "Одобрен за износ от собственика (Gabriel) след независима проверка Opus 5.5 / High с резултат PASS за коригиран SHA-256 658b0a8b5bac2f285e96970123f4b9c9e1987f2f22e629d1c4583da830224da3. Оригиналните бележки за източниците са запазени; няма твърдение за разрешение от издател или правно освобождаване."
+          },
+          "flags": [],
+          "source_ref": {
+            "document_title": "OpenStax Biology 2e 45.6, раздели Predation и Parasitism"
+          },
+          "research": {
+            "concept": "D3 · паразитизъм срещу хищничество – разлика",
+            "skill": "recall",
+            "notes": "OpenStax 45.6 ред 68 (паразит: в/върху гостоприемника, взема хранителни вещества, гостоприемникът е увреден, паразитът рядко го убива, особено бързо) и ред 20 (хищничество, тествано в 012). Дистракторите се отхвърлят само с определението за паразитизъм: един нов факт, припомняне, таг recall. Ключът не е най-дългият вариант (115 при 107–120)."
+          },
+          "explanation": "Паразитът живее в или върху гостоприемника и се храни с него, като обикновено не го убива бързо. Хищникът убива плячката си и я изяжда. При паразитизма само паразитът има полза, а гостоприемникът е увреден.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 12,
+          "candidate_id": "biology-g10-ecological-factors-run-1-014",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-bio2e-45-6",
+            "type": "third_party",
+            "url": "https://openstax.org/books/biology-2e/pages/45-6-community-ecology",
+            "title": "45.6 Community Ecology - Biology 2e",
+            "retrieved_at": "2026-11-11T18:49:59Z",
+            "publisher": "OpenStax",
+            "notes": "Биотични връзки. Само изследване. Вж. бележката за OpenStax при 44.1."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-g10-ecological-factors-run-1-opus-5-5-independent-review-and-owner-approval",
+            "reviewed_at": "2026-11-12T06:36:44Z",
+            "notes": "Одобрен за износ от собственика (Gabriel) след независима проверка Opus 5.5 / High с резултат PASS за коригиран SHA-256 658b0a8b5bac2f285e96970123f4b9c9e1987f2f22e629d1c4583da830224da3. Оригиналните бележки за източниците са запазени; няма твърдение за разрешение от издател или правно освобождаване."
+          },
+          "flags": [],
+          "source_ref": {
+            "document_title": "OpenStax Biology 2e 45.6, раздел Mutualism"
+          },
+          "research": {
+            "concept": "D3 · мутуализъм – полза и за двата вида",
+            "skill": "recall",
+            "notes": "OpenStax 45.6, раздел Mutualism, извлечен текст ред 63 (лишей: гъба + фотосинтезиращо водорасло или бактерия; глюкозата от водораслото храни и двата организма, структурата на лишея защитава водораслото) и надпис на фиг. 45.26, ред 66. Един факт: припомняне, таг recall."
+          },
+          "explanation": "При мутуализма и двата вида получават полза. В лишея гъбата и водораслото се подпомагат взаимно, затова връзката не е паразитизъм, коменсализъм или хищничество.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 13,
+          "candidate_id": "biology-g10-ecological-factors-run-1-015",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-bio2e-45-6",
+            "type": "third_party",
+            "url": "https://openstax.org/books/biology-2e/pages/45-6-community-ecology",
+            "title": "45.6 Community Ecology - Biology 2e",
+            "retrieved_at": "2026-11-11T18:49:59Z",
+            "publisher": "OpenStax",
+            "notes": "Биотични връзки. Само изследване. Вж. бележката за OpenStax при 44.1."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-g10-ecological-factors-run-1-opus-5-5-independent-review-and-owner-approval",
+            "reviewed_at": "2026-11-12T06:36:44Z",
+            "notes": "Одобрен за износ от собственика (Gabriel) след независима проверка Opus 5.5 / High с резултат PASS за коригиран SHA-256 658b0a8b5bac2f285e96970123f4b9c9e1987f2f22e629d1c4583da830224da3. Оригиналните бележки за източниците са запазени; няма твърдение за разрешение от издател или правно освобождаване."
+          },
+          "flags": [],
+          "source_ref": {
+            "document_title": "OpenStax Biology 2e 45.6, раздел Commensalism"
+          },
+          "research": {
+            "concept": "D3 · коменсализъм – полза за единия, без ефект за другия",
+            "skill": "recall",
+            "notes": "OpenStax 45.6, раздел Commensalism, извлечен текст ред 58 (близко, продължително взаимодействие; птица гнезди на дърво, дървото нито печели, нито е засегнато); ред 69 (тения – паразит). Един факт: припомняне, таг recall."
+          },
+          "explanation": "Птицата има полза от гнездото, а дървото не е увредено и няма полза – това е коменсализъм. Тенията е паразит, лишеят е пример за мутуализъм, а рисът е хищник.",
+          "difficulty": "easy"
+        },
+        {
+          "number": 14,
+          "candidate_id": "biology-g10-ecological-factors-run-1-016",
+          "transformation": "original_from_research",
+          "source": {
+            "id": "openstax-bio2e-45-6",
+            "type": "third_party",
+            "url": "https://openstax.org/books/biology-2e/pages/45-6-community-ecology",
+            "title": "45.6 Community Ecology - Biology 2e",
+            "retrieved_at": "2026-11-11T18:49:59Z",
+            "publisher": "OpenStax",
+            "notes": "Биотични връзки. Само изследване. Вж. бележката за OpenStax при 44.1."
+          },
+          "review": {
+            "status": "approved",
+            "reviewer": "biology-g10-ecological-factors-run-1-opus-5-5-independent-review-and-owner-approval",
+            "reviewed_at": "2026-11-12T06:36:44Z",
+            "notes": "Одобрен за износ от собственика (Gabriel) след независима проверка Opus 5.5 / High с резултат PASS за коригиран SHA-256 658b0a8b5bac2f285e96970123f4b9c9e1987f2f22e629d1c4583da830224da3. Оригиналните бележки за източниците са запазени; няма твърдение за разрешение от издател или правно освобождаване."
+          },
+          "flags": [],
+          "source_ref": {
+            "document_title": "OpenStax Biology 2e 45.6, начало на раздела за конкуренцията"
+          },
+          "research": {
+            "concept": "D3 · конкуренция за ограничен ресурс",
+            "skill": "recall",
+            "notes": "OpenStax 45.6, раздел Competitive Exclusion Principle, ред 50 (видове се конкурират за ограничени ресурси); LibreTexts 1.5 ред 17 (конкуренция за храна и местообитание). Без ниша и принципа на изключването (популационна тема). Един факт: припомняне, таг recall."
+          },
+          "explanation": "Когато различни видове използват един и същ ограничен ресурс, те се конкурират за него. Тук нито единият убива другия (хищничество), нито живее върху него (паразитизъм), нито и двамата печелят (мутуализъм).",
+          "difficulty": "easy"
+        }
+      ]
+    }
+  ],
+  "not_exported": [
+    {
+      "candidate_id": "biology-g10-ecological-factors-run-1-004",
+      "reason": "review status rejected"
+    },
+    {
+      "candidate_id": "biology-g10-ecological-factors-run-1-011",
+      "reason": "review status rejected"
+    }
+  ]
+}

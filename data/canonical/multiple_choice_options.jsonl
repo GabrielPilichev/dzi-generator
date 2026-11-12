@@ -6341,3 +6341,59 @@
 {"id":6737,"question_id":1700,"option_letter":"B","option_text":"Използват го клетките на белите дробове, но не и клетките на другите органи.","is_correct":0}
 {"id":6738,"question_id":1700,"option_letter":"C","option_text":"Клетките го използват, за да получават енергия от хранителните вещества.","is_correct":1}
 {"id":6739,"question_id":1700,"option_letter":"D","option_text":"Използва се предимно за затопляне на вдишвания въздух в носната кухина.","is_correct":0}
+{"id":6740,"question_id":1701,"option_letter":"A","option_text":"Паша на тревопасни животни по ливадата","is_correct":0}
+{"id":6741,"question_id":1701,"option_letter":"B","option_text":"Косене на ливадата от земеделци","is_correct":0}
+{"id":6742,"question_id":1701,"option_letter":"C","option_text":"Количество на валежите през вегетационния период","is_correct":1}
+{"id":6743,"question_id":1701,"option_letter":"D","option_text":"Конкуренция за светлина между съседни растения","is_correct":0}
+{"id":6744,"question_id":1702,"option_letter":"A","option_text":"Произтичат от дейността на човека, например изграждането на язовирна стена на река","is_correct":1}
+{"id":6745,"question_id":1702,"option_letter":"B","option_text":"Произтичат от неживата природа, например температурата на въздуха","is_correct":0}
+{"id":6746,"question_id":1702,"option_letter":"C","option_text":"Произтичат от връзките между различните видове, например хищничеството","is_correct":0}
+{"id":6747,"question_id":1702,"option_letter":"D","option_text":"Действат само върху одомашнените растения и животни, например върху селскостопанските култури","is_correct":0}
+{"id":6748,"question_id":1703,"option_letter":"A","option_text":"Те са физичните и химичните условия на неживата среда","is_correct":0}
+{"id":6749,"question_id":1703,"option_letter":"B","option_text":"Те са влиянията на човешката дейност върху природата","is_correct":0}
+{"id":6750,"question_id":1703,"option_letter":"C","option_text":"Те са влиянията на климата и на релефа върху организмите","is_correct":0}
+{"id":6751,"question_id":1703,"option_letter":"D","option_text":"Те са влиянията, които живите организми оказват един на друг","is_correct":1}
+{"id":6752,"question_id":1704,"option_letter":"A","option_text":"Единствената стойност на фактора, при която организмът расте най-бързо","is_correct":0}
+{"id":6753,"question_id":1704,"option_letter":"B","option_text":"Най-високата стойност на фактора, която някога се наблюдава в местообитанието на организма","is_correct":0}
+{"id":6754,"question_id":1704,"option_letter":"C","option_text":"Броят на различните видове, които понасят едно и също въздействие на фактора","is_correct":0}
+{"id":6755,"question_id":1704,"option_letter":"D","option_text":"Интервалът от стойности на фактора между долната и горната граница, в който организмът оцелява","is_correct":1}
+{"id":6756,"question_id":1705,"option_letter":"A","option_text":"Долна граница на поносимост","is_correct":0}
+{"id":6757,"question_id":1705,"option_letter":"B","option_text":"Горна граница на поносимост","is_correct":0}
+{"id":6758,"question_id":1705,"option_letter":"C","option_text":"Зона на оптимума на фактора","is_correct":1}
+{"id":6759,"question_id":1705,"option_letter":"D","option_text":"Целият диапазон на поносимост","is_correct":0}
+{"id":6760,"question_id":1706,"option_letter":"A","option_text":"Бактерията започва да произвежда повече ензими, които ускоряват реакциите в клетката ѝ неограничено","is_correct":0}
+{"id":6761,"question_id":1706,"option_letter":"B","option_text":"Високата температура нарушава структурата на ензимите и реакциите в клетката вече не протичат нормално","is_correct":1}
+{"id":6762,"question_id":1706,"option_letter":"C","option_text":"Топлината повишава количеството на кислорода в клетката и така блокира процеса на нейното дишане","is_correct":0}
+{"id":6763,"question_id":1706,"option_letter":"D","option_text":"Високата температура намалява нуждата на клетката от енергия и затова жизнените процеси спират","is_correct":0}
+{"id":6764,"question_id":1707,"option_letter":"A","option_text":"От изпитаните температури най-благоприятна е 22 °C, а горната граница на поносимост е между 32 °C и 42 °C","is_correct":1}
+{"id":6765,"question_id":1707,"option_letter":"B","option_text":"От изпитаните температури най-благоприятна е 22 °C, а горната граница на поносимост е между 22 °C и 32 °C","is_correct":0}
+{"id":6766,"question_id":1707,"option_letter":"C","option_text":"От изпитаните температури най-благоприятна е 10 °C, а долната граница на поносимост е под 2 °C","is_correct":0}
+{"id":6767,"question_id":1707,"option_letter":"D","option_text":"Диапазонът на поносимост обхваща всички изпитани температури – от 2 °C до 42 °C","is_correct":0}
+{"id":6768,"question_id":1708,"option_letter":"A","option_text":"Колебанията в температурата, защото при широк диапазон всяка промяна е опасна","is_correct":0}
+{"id":6769,"question_id":1708,"option_letter":"B","option_text":"И двата фактора са еднаква заплаха, защото видът има един общ диапазон за всички фактори","is_correct":0}
+{"id":6770,"question_id":1708,"option_letter":"C","option_text":"Нито една от двете, защото всички видове във водата понасят колебания в солеността","is_correct":0}
+{"id":6771,"question_id":1708,"option_letter":"D","option_text":"Колебанията в солеността, защото към този фактор диапазонът на вид А е тесен","is_correct":1}
+{"id":6772,"question_id":1709,"option_letter":"A","option_text":"Вид 1 и вид 3","is_correct":0}
+{"id":6773,"question_id":1709,"option_letter":"B","option_text":"Вид 2 и вид 4","is_correct":1}
+{"id":6774,"question_id":1709,"option_letter":"C","option_text":"Вид 1 и вид 2","is_correct":0}
+{"id":6775,"question_id":1709,"option_letter":"D","option_text":"Вид 3 и вид 4","is_correct":0}
+{"id":6776,"question_id":1710,"option_letter":"A","option_text":"Хищничество","is_correct":1}
+{"id":6777,"question_id":1710,"option_letter":"B","option_text":"Паразитизъм","is_correct":0}
+{"id":6778,"question_id":1710,"option_letter":"C","option_text":"Мутуализъм","is_correct":0}
+{"id":6779,"question_id":1710,"option_letter":"D","option_text":"Коменсализъм","is_correct":0}
+{"id":6780,"question_id":1711,"option_letter":"A","option_text":"Паразитът убива гостоприемника си много по-бързо, отколкото хищникът убива плячката си и затова е по-опасен","is_correct":0}
+{"id":6781,"question_id":1711,"option_letter":"B","option_text":"При паразитизма и двата вида получават полза от съжителството, а при хищничеството полза има само единият от тях","is_correct":0}
+{"id":6782,"question_id":1711,"option_letter":"C","option_text":"При паразитизма двата вида се състезават за един и същ ограничен ресурс, а при хищничеството не се състезават за ресурси","is_correct":0}
+{"id":6783,"question_id":1711,"option_letter":"D","option_text":"Паразитът се храни с организма, в или върху който живее, и обикновено не го убива бързо; хищникът убива плячката си","is_correct":1}
+{"id":6784,"question_id":1712,"option_letter":"A","option_text":"Паразитизъм","is_correct":0}
+{"id":6785,"question_id":1712,"option_letter":"B","option_text":"Мутуализъм","is_correct":1}
+{"id":6786,"question_id":1712,"option_letter":"C","option_text":"Коменсализъм","is_correct":0}
+{"id":6787,"question_id":1712,"option_letter":"D","option_text":"Хищничество","is_correct":0}
+{"id":6788,"question_id":1713,"option_letter":"A","option_text":"Тения, която живее в червата на човек и се храни със съдържанието им","is_correct":0}
+{"id":6789,"question_id":1713,"option_letter":"B","option_text":"Гъба и водорасло, които съжителстват в състава на един лишей","is_correct":0}
+{"id":6790,"question_id":1713,"option_letter":"C","option_text":"Птица, която гради гнездо на клон на дърво, без да го уврежда","is_correct":1}
+{"id":6791,"question_id":1713,"option_letter":"D","option_text":"Рис, който лови и изяжда сърна в гората","is_correct":0}
+{"id":6792,"question_id":1714,"option_letter":"A","option_text":"Мутуализъм","is_correct":0}
+{"id":6793,"question_id":1714,"option_letter":"B","option_text":"Паразитизъм","is_correct":0}
+{"id":6794,"question_id":1714,"option_letter":"C","option_text":"Хищничество","is_correct":0}
+{"id":6795,"question_id":1714,"option_letter":"D","option_text":"Конкуренция","is_correct":1}
