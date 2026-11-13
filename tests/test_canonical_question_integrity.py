@@ -11,7 +11,7 @@ Invariants (nothing else: no placeholder, visual, scoring or grading policy):
 * ``fill_in``: at least one sub-answer, and every stored ``correct_answer`` is
   nonblank after Python whitespace trimming (NULL counts as blank).
 
-The 52 known defects are exact shapes, not blanket id or source exemptions. The
+The 51 known defects are exact shapes, not blanket id or source exemptions. The
 observed and expected maps must match exactly, so an unknown violation, a
 changed shape on a known id and a resolved (stale) entry all fail with the
 question id and rule. Every database here is a temporary clone built from
@@ -43,12 +43,11 @@ def _known(ids, rules, shape, reason):
 # Remove an entry only when its question stops violating (repaired or no longer
 # approved); the guard fails until it is removed. Shapes are written out here and
 # never derived from the database.
+#
+# Question 329 (true/false, options 911/912 both unkeyed) is no longer listed: A2 quarantined
+# it by approval state (quality_score 0.0 with is_ai_generated 1), which is not a repair of
+# its missing key. It stays unresolved; ``test_question_329_is_quarantined_...`` pins that.
 KNOWN_EXCEPTIONS = {
-    **_known(
-        [329], (ONE_CORRECT,), "true_false, 2 options, 0 correct",
-        "True/false question stored without a correct option; unresolved source defect "
-        "(A2 quarantines it by unapproving, which is not a repair of the key).",
-    ),
     **_known(
         [268, 326, 336, 354, 389, 392, 393, 394, 407, 452, 471, 485, 486, 487, 492, 493,
          499, 500, 504, 530],
@@ -228,22 +227,21 @@ class CanonicalApprovedQuestionIntegrityTest(_TemporaryCanonical):
         # 37: no sub-answers becomes one blank sub-answer.
         execute("INSERT INTO fill_in_subquestions (question_id, subquestion_number, correct_answer) "
                 "VALUES (37, 1, '  ')")
-        # 329: a third option while still having no correct one.
-        execute("INSERT INTO multiple_choice_options (question_id, option_letter, option_text, is_correct) "
-                "VALUES (329, 'Z', 'Extra', 0)")
+        # 326: three options become two, still a four-option violation but another shape.
+        execute("DELETE FROM multiple_choice_options WHERE id = (SELECT MIN(id) "
+                "FROM multiple_choice_options WHERE question_id = 326 AND is_correct = 0)")
         lines = self.problem_lines()
-        self.assertEqual(set(lines), {268, 329, 400, 37}, integrity_failure(self.conn))
+        self.assertEqual(set(lines), {268, 326, 400, 37}, integrity_failure(self.conn))
         for question_id in lines:
             self.assertIn("known exception changed", lines[question_id])
         self.assertIn(f"now {ONE_CORRECT}, {FOUR_OPTIONS} (multiple_choice, 3 options, 2 correct)", lines[268])
         self.assertIn("multiple_choice, 3 options, 1 correct", lines[400])
         self.assertIn("1 sub-answers, blank #1", lines[37])
-        self.assertIn("true_false, 3 options, 0 correct", lines[329])
+        self.assertIn(f"now {FOUR_OPTIONS} (multiple_choice, 2 options, 1 correct)", lines[326])
 
     def test_resolved_exception_fails_until_its_entry_is_retired(self):
         execute = self.conn.execute
-        execute("UPDATE multiple_choice_options SET is_correct = 1 WHERE question_id = 329 AND option_letter = "
-                "(SELECT MIN(option_letter) FROM multiple_choice_options WHERE question_id = 329)")  # repaired
+        execute("UPDATE questions SET is_ai_generated = 1, quality_score = 0.99 WHERE id = 326")     # quarantined
         execute("INSERT INTO multiple_choice_options (question_id, option_letter, option_text, is_correct) "
                 "VALUES (268, 'Z', 'Fourth', 0)")                                                    # repaired
         execute("INSERT INTO fill_in_subquestions (question_id, subquestion_number, correct_answer) "
@@ -251,10 +249,36 @@ class CanonicalApprovedQuestionIntegrityTest(_TemporaryCanonical):
         execute("UPDATE questions SET is_ai_generated = 1, quality_score = 0.0 WHERE id = 394")      # unapproved
         execute("DELETE FROM questions WHERE id = 400")                                              # removed
         lines = self.problem_lines()
-        self.assertEqual(set(lines), {329, 268, 37, 394, 400}, integrity_failure(self.conn))
+        self.assertEqual(set(lines), {326, 268, 37, 394, 400}, integrity_failure(self.conn))
         for question_id in lines:
             self.assertIn("no longer applies", lines[question_id])
             self.assertIn("retire its KNOWN_EXCEPTIONS entry", lines[question_id])
+
+    def test_question_329_is_quarantined_and_cannot_be_silently_reapproved(self):
+        # A2: the true/false item with no key stays stored, unresolved and unapproved.
+        execute = self.conn.execute
+        question = execute("SELECT question_type, is_ai_generated, quality_score, topic_id FROM questions "
+                           "WHERE id = 329").fetchone()
+        self.assertEqual(tuple(question), ("true_false", 1, 0.0, 11))
+        options = [tuple(row) for row in execute(
+            "SELECT id, option_letter, is_correct FROM multiple_choice_options WHERE question_id = 329 "
+            "ORDER BY id")]
+        self.assertEqual(options, [(911, "А", 0), (912, "Б", 0)])  # both still unkeyed: no answer was guessed
+        self.assertEqual(execute("SELECT COUNT(*) FROM question_topic_assignments WHERE id = 263 "
+                                 "AND question_id = 329 AND topic_id = 11").fetchone()[0], 1)
+        # Excluded by the real approval predicate, so the scan no longer sees it, and it has no exception.
+        self.assertEqual(execute(f"SELECT COUNT(*) FROM questions q WHERE q.id = 329 AND {QUIZ_APPROVED_FILTER}")
+                         .fetchone()[0], 0)
+        self.assertNotIn(329, KNOWN_EXCEPTIONS)
+        self.assertNotIn(329, scan_approved_questions(self.conn))
+        self.assertIsNone(integrity_failure(self.conn))
+        # Putting only the quality back is a new violation, not an old exception: reapproval needs a key.
+        execute("UPDATE questions SET quality_score = 1.0 WHERE id = 329")
+        self.assert_problems({329: ("new approved-question violation", ONE_CORRECT,
+                                    "true_false, 2 options, 0 correct")})
+        # Giving it a key is what would make it valid again (reviewed content change, not done here).
+        execute("UPDATE multiple_choice_options SET is_correct = 1 WHERE id = 911")
+        self.assertIsNone(integrity_failure(self.conn))
 
     def test_valid_new_approved_questions_pass_without_touching_totals(self):
         self.add_question("multiple_choice", options=[0, 0, 1, 0])
