@@ -36,6 +36,7 @@ import subprocess
 import sys
 import unicodedata
 from pathlib import Path
+from typing import NamedTuple
 
 from flask import Blueprint, Response, abort, current_app, redirect, render_template, request, url_for
 
@@ -507,6 +508,244 @@ def teacher_assignments():
     )
 
 
+class _TeacherNewForm(NamedTuple):
+    """The submitted creation form, parsed.
+
+    ``error`` is the final refusal code, or ``None`` when the form is acceptable
+    (a numeric error replaces an earlier forged-key error).
+    ``form_values`` is what a refused page shows again: the fields as submitted
+    (stripped, with their defaults), never the converted numbers. The numbers,
+    the flags and ``deadline_request`` are only meaningful when ``error`` is
+    ``None``; ``deadline_request`` is not even read after an earlier refusal.
+    """
+
+    error: str | None
+    form_values: dict
+    section_id: int | None
+    requested_count: int | None
+    time_limit: int | None
+    open_count: int | None
+    raw_limit: str
+    include_open_questions: bool
+    include_open_answers_in_final_score: bool
+    source_slug: str
+    deadline_request: object | None
+
+
+_PLAN_REFUSED = "refused"
+_PLAN_EMPTY_POOL = "empty_pool"
+_PLAN_VALID = "valid"
+
+
+class _TeacherNewPlan(NamedTuple):
+    """What the server decided to do with an acceptable form.
+
+    ``outcome`` is ``_PLAN_REFUSED`` (``error`` says why), ``_PLAN_EMPTY_POOL``
+    (nothing to ask: the page is offered again) or ``_PLAN_VALID``. The other
+    fields are what the page shows after a refusal, whether the refusal comes from
+    here or from storing the assignment: ``form_values`` (submitted values until
+    the scope has accepted them, the converted ones after),
+    ``preselected_section_id`` and ``mixed_planning_result``. A valid plan also
+    keeps the section and the server-built ``creation_fields`` for storing it.
+    """
+
+    outcome: str
+    error: str | None = None
+    preselected_section_id: int | None = None
+    form_values: dict | None = None
+    mixed_planning_result: dict | None = None
+    section_id: int | None = None
+    section_title: str | None = None
+    creation_fields: dict | None = None
+
+
+def _parse_teacher_new_form(form, *, is_admin: bool) -> _TeacherNewForm:
+    """Read and validate the creation form. Touches neither the database nor the clock.
+
+    The forged-key screen only records its error: the numbers are still checked and
+    their errors take its place, so the forged-key code survives only with valid
+    numbers. The deadline is parsed only when nothing was refused before it.
+    """
+    error = None
+    if any(key.startswith(("question_ids", "open_question_ids", "question_plan"))
+           for key in form):
+        error = "invalid_question_plan"
+    raw_section_id = (form.get("section_id") or "").strip()
+    raw_question_count = (form.get("question_count") or "").strip()
+    raw_limit = (form.get("time_limit_minutes") or "").strip()
+    include_open_questions = bool(form.get("include_open_questions"))
+    include_open_answers_in_final_score = (
+        bool(form.get("include_open_answers_in_final_score")) and is_admin
+    )
+    raw_open_count = (form.get("open_count") or "").strip()
+    source_slug = (form.get("source_slug") or "").strip()
+    section_id = None
+    requested_count = None
+    time_limit = None
+    open_count = None
+    form_values = {
+        "question_count": raw_question_count or 10,
+        "time_limit_minutes": raw_limit,
+        "include_open_questions": include_open_questions,
+        "open_count": raw_open_count or 0,
+        "source_slug": source_slug,
+    }
+
+    try:
+        section_id = int(raw_section_id)
+        requested_count = int(raw_question_count or 10)
+        open_count = int(raw_open_count or 0)
+        if raw_limit:
+            time_limit = int(raw_limit)
+    except ValueError:
+        error = "invalid_number"
+    else:
+        if section_id <= 0 or requested_count < 1 or open_count < 0:
+            error = "invalid_number"
+        elif time_limit is not None and (
+            time_limit < 1 or time_limit > QUIZ_TIME_LIMIT_MAX_MINUTES
+        ):
+            error = "time_out_of_range"
+        elif open_count > requested_count:
+            error = "open_count_exceeds_total"
+
+    deadline_request = None
+    if error is None:
+        # The deadline choice is explicit: a deadline, or "no deadline", and
+        # always a zone. A request without a valid choice creates nothing.
+        try:
+            deadline_request = lifecycle.parse_deadline_request(form)
+        except lifecycle.DeadlineError as exc:
+            error = exc.code
+
+    return _TeacherNewForm(
+        error=error,
+        form_values=form_values,
+        section_id=section_id,
+        requested_count=requested_count,
+        time_limit=time_limit,
+        open_count=open_count,
+        raw_limit=raw_limit,
+        include_open_questions=include_open_questions,
+        include_open_answers_in_final_score=include_open_answers_in_final_score,
+        source_slug=source_slug,
+        deadline_request=deadline_request,
+    )
+
+
+def _plan_teacher_new_assignment(conn, selected_subject: str, submitted: _TeacherNewForm) -> _TeacherNewPlan:
+    """Check an acceptable form against the server's scopes and build the plan.
+
+    Uses the route's open ``conn``: never opens, closes or commits it, and stores
+    nothing. The question ids come only from the section's own pool, never from the
+    form. A missing section answers 404 here, as it always did.
+    """
+    section_id = submitted.section_id
+    requested_count = submitted.requested_count
+    open_count = submitted.open_count
+    source_slug = submitted.source_slug
+
+    section = conn.execute("""
+                SELECT id, title_bg
+                FROM curriculum_sections
+                WHERE id = ?
+            """, (section_id,)).fetchone()
+    if not section:
+        abort(404)
+    try:
+        scope = AssessmentScope(conn, section_id)
+    except ValueError:
+        return _TeacherNewPlan(_PLAN_REFUSED, "invalid_subject", form_values=submitted.form_values)
+    if scope.subject != selected_subject:
+        return _TeacherNewPlan(_PLAN_REFUSED, "subject_mismatch", form_values=submitted.form_values)
+    if open_count > 0 and not scope.allows_dzi_open_questions:
+        return _TeacherNewPlan(
+            _PLAN_REFUSED, "insufficient_open_questions",
+            preselected_section_id=section_id, form_values=submitted.form_values)
+
+    form_values = {
+        "question_count": requested_count,
+        "time_limit_minutes": submitted.raw_limit,
+        "include_open_questions": submitted.include_open_questions,
+        "open_count": open_count,
+        "source_slug": source_slug,
+    }
+
+    available = len(quiz_section_question_ids_by_section(conn, {section_id: scope})[section_id])
+    if available <= 0:
+        return _TeacherNewPlan(_PLAN_EMPTY_POOL, form_values=form_values)
+
+    question_count = max(1, min(requested_count, available))
+
+    if open_count <= 0:
+        return _TeacherNewPlan(
+            _PLAN_VALID, form_values=form_values, section_id=section_id, section_title=section["title_bg"],
+            creation_fields={
+                "section_id": section_id,
+                "title_bg": section["title_bg"],
+                "question_count": question_count,
+                "time_limit_minutes": submitted.time_limit,
+            })
+
+    closed_count = requested_count - open_count
+    plan = build_mixed_quiz_plan(
+        conn,
+        closed_count=closed_count,
+        open_count=open_count,
+        open_source_slug=source_slug or None,
+        section_id=section_id,
+        scope=scope,
+    )
+    closed_question_ids = [int(question["question_id"]) for question in plan["closed_questions"]]
+    open_question_ids = [int(question["question_id"]) for question in plan["open_questions"]]
+    mixed_planning_result = {
+        "planning_only": True,
+        "source_slug": source_slug or "всички",
+        "closed_count": len(plan["closed_questions"]),
+        "open_count": len(plan["open_questions"]),
+        "requested_closed_count": plan["requested_closed_count"],
+        "requested_open_count": plan["requested_open_count"],
+        "available_closed_count": plan["available_closed_count"],
+        "available_open_count": plan["available_open_count"],
+        "closed_shortfall": max(0, plan["requested_closed_count"] - plan["available_closed_count"]),
+        "open_shortfall": max(0, plan["requested_open_count"] - plan["available_open_count"]),
+    }
+    refused = {
+        "outcome": _PLAN_REFUSED,
+        "preselected_section_id": section_id,
+        "form_values": form_values,
+        "mixed_planning_result": mixed_planning_result,
+    }
+    if mixed_planning_result["open_shortfall"]:
+        return _TeacherNewPlan(error="insufficient_open_questions", **refused)
+    if mixed_planning_result["closed_shortfall"]:
+        return _TeacherNewPlan(error="insufficient_closed_questions", **refused)
+
+    question_plan = {
+        "mixed_open_enabled": True,
+        "question_ids": closed_question_ids + open_question_ids,
+        "open_question_ids": open_question_ids,
+        "include_open_answers_in_final_score": submitted.include_open_answers_in_final_score,
+    }
+    try:
+        scope.validate_plan(
+            question_plan["question_ids"], question_plan["open_question_ids"],
+            open_source_slug=source_slug or None,
+        )
+    except ValueError:
+        return _TeacherNewPlan(error="invalid_question_plan", **refused)
+    return _TeacherNewPlan(
+        _PLAN_VALID, form_values=form_values, mixed_planning_result=mixed_planning_result,
+        section_id=section_id, section_title=section["title_bg"],
+        creation_fields={
+            "section_id": section_id,
+            "title_bg": section["title_bg"],
+            "question_count": len(question_plan["question_ids"]),
+            "time_limit_minutes": submitted.time_limit,
+            "question_plan_json": json.dumps(question_plan, ensure_ascii=False),
+        })
+
+
 @teacher_bp.route("/teacher/new", methods=["GET", "POST"])
 @access_policy(TEACHER)
 @integrity_policy(SAME_ORIGIN)
@@ -524,7 +763,6 @@ def teacher_new():
         preselected_section_id = None
         mixed_planning_result = None
         teacher_new_error = None
-        deadline_request = None
         form_values = {
             "question_count": 10,
             "time_limit_minutes": "",
@@ -534,158 +772,25 @@ def teacher_new():
         }
 
         if request.method == "POST":
-            if any(key.startswith(("question_ids", "open_question_ids", "question_plan"))
-                   for key in request.form):
-                teacher_new_error = "invalid_question_plan"
-            raw_section_id = (request.form.get("section_id") or "").strip()
-            raw_question_count = (request.form.get("question_count") or "").strip()
-            raw_limit = (request.form.get("time_limit_minutes") or "").strip()
-            include_open_questions = bool(request.form.get("include_open_questions"))
-            include_open_answers_in_final_score = (
-                bool(request.form.get("include_open_answers_in_final_score"))
-                and current_principal().is_admin
-            )
-            raw_open_count = (request.form.get("open_count") or "").strip()
-            source_slug = (request.form.get("source_slug") or "").strip()
-            section_id = None
-            requested_count = None
-            time_limit = None
-            open_count = None
-            form_values = {
-                "question_count": raw_question_count or 10,
-                "time_limit_minutes": raw_limit,
-                "include_open_questions": include_open_questions,
-                "open_count": raw_open_count or 0,
-                "source_slug": source_slug,
-            }
-
-            try:
-                section_id = int(raw_section_id)
-                requested_count = int(raw_question_count or 10)
-                open_count = int(raw_open_count or 0)
-                if raw_limit:
-                    time_limit = int(raw_limit)
-            except ValueError:
-                teacher_new_error = "invalid_number"
-            else:
-                if section_id <= 0 or requested_count < 1 or open_count < 0:
-                    teacher_new_error = "invalid_number"
-                elif time_limit is not None and (
-                    time_limit < 1 or time_limit > QUIZ_TIME_LIMIT_MAX_MINUTES
-                ):
-                    teacher_new_error = "time_out_of_range"
-                elif open_count > requested_count:
-                    teacher_new_error = "open_count_exceeds_total"
+            submitted = _parse_teacher_new_form(request.form, is_admin=current_principal().is_admin)
+            teacher_new_error = submitted.error
+            form_values = submitted.form_values
 
             if teacher_new_error is None:
-                # The deadline choice is explicit: a deadline, or "no deadline", and
-                # always a zone. A request without a valid choice creates nothing.
-                try:
-                    deadline_request = lifecycle.parse_deadline_request(request.form)
-                except lifecycle.DeadlineError as exc:
-                    teacher_new_error = exc.code
-
-            if teacher_new_error is None:
-                section = conn.execute("""
-                SELECT id, title_bg
-                FROM curriculum_sections
-                WHERE id = ?
-            """, (section_id,)).fetchone()
-                if not section:
-                    abort(404)
-                try:
-                    scope = AssessmentScope(conn, section_id)
-                except ValueError:
-                    teacher_new_error = "invalid_subject"
-                else:
-                    if scope.subject != selected_subject:
-                        teacher_new_error = "subject_mismatch"
-                    elif open_count > 0 and not scope.allows_dzi_open_questions:
-                        teacher_new_error = "insufficient_open_questions"
-                        preselected_section_id = section_id
-
-            if teacher_new_error is None:
-                form_values = {
-                    "question_count": requested_count,
-                    "time_limit_minutes": raw_limit,
-                    "include_open_questions": include_open_questions,
-                    "open_count": open_count,
-                    "source_slug": source_slug,
-                }
-
-                available = len(quiz_section_question_ids_by_section(conn, {section_id: scope})[section_id])
-                if available <= 0:
+                plan = _plan_teacher_new_assignment(conn, selected_subject, submitted)
+                if plan.outcome == _PLAN_EMPTY_POOL:
                     return redirect(url_for("teacher.teacher_new", subject=selected_subject))
-
-                question_count = max(1, min(requested_count, available))
-
-                if open_count > 0:
-                    closed_count = requested_count - open_count
-                    plan = build_mixed_quiz_plan(
-                        conn,
-                        closed_count=closed_count,
-                        open_count=open_count,
-                        open_source_slug=source_slug or None,
-                        section_id=section_id,
-                        scope=scope,
-                    )
-                    closed_question_ids = [int(question["question_id"]) for question in plan["closed_questions"]]
-                    open_question_ids = [int(question["question_id"]) for question in plan["open_questions"]]
-                    mixed_planning_result = {
-                        "planning_only": True,
-                        "source_slug": source_slug or "всички",
-                        "closed_count": len(plan["closed_questions"]),
-                        "open_count": len(plan["open_questions"]),
-                        "requested_closed_count": plan["requested_closed_count"],
-                        "requested_open_count": plan["requested_open_count"],
-                        "available_closed_count": plan["available_closed_count"],
-                        "available_open_count": plan["available_open_count"],
-                        "closed_shortfall": max(0, plan["requested_closed_count"] - plan["available_closed_count"]),
-                        "open_shortfall": max(0, plan["requested_open_count"] - plan["available_open_count"]),
-                    }
-                    if mixed_planning_result["open_shortfall"]:
-                        teacher_new_error = "insufficient_open_questions"
-                        preselected_section_id = section_id
-                    elif mixed_planning_result["closed_shortfall"]:
-                        teacher_new_error = "insufficient_closed_questions"
-                        preselected_section_id = section_id
-                    else:
-                        question_plan = {
-                            "mixed_open_enabled": True,
-                            "question_ids": closed_question_ids + open_question_ids,
-                            "open_question_ids": open_question_ids,
-                            "include_open_answers_in_final_score": include_open_answers_in_final_score,
-                        }
-                        try:
-                            scope.validate_plan(
-                                question_plan["question_ids"], question_plan["open_question_ids"],
-                                open_source_slug=source_slug or None,
-                            )
-                        except ValueError:
-                            teacher_new_error = "invalid_question_plan"
-                            preselected_section_id = section_id
-                        else:
-                            assignment_id, teacher_new_error = _create_assignment_with_deadline(
-                                conn, deadline_request, section_id=section_id,
-                                title_bg=section["title_bg"],
-                                question_count=len(question_plan["question_ids"]),
-                                time_limit_minutes=time_limit,
-                                question_plan_json=json.dumps(question_plan, ensure_ascii=False),
-                            )
-                            if assignment_id is not None:
-                                created_assignment_id = assignment_id
-                            else:
-                                preselected_section_id = section_id
-                else:
+                teacher_new_error = plan.error
+                preselected_section_id = plan.preselected_section_id
+                form_values = plan.form_values
+                mixed_planning_result = plan.mixed_planning_result
+                if plan.outcome == _PLAN_VALID:
                     assignment_id, teacher_new_error = _create_assignment_with_deadline(
-                        conn, deadline_request, section_id=section_id,
-                        title_bg=section["title_bg"], question_count=question_count,
-                        time_limit_minutes=time_limit,
-                    )
+                        conn, submitted.deadline_request, **plan.creation_fields)
                     if assignment_id is not None:
                         created_assignment_id = assignment_id
                     else:
-                        preselected_section_id = section_id
+                        preselected_section_id = plan.section_id
 
         if created_assignment_id is None:
             section_rows = conn.execute("""
