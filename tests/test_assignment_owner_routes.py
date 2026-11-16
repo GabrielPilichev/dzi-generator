@@ -267,7 +267,7 @@ class AssignmentOwnerRoutesTest(IsolatedAppTestCase):
             conn = web_app.quiz_db()
             statements = []
             conn.set_trace_callback(statements.append)
-            with patch.object(teacher, "quiz_db", return_value=conn):
+            with patch.object(quiz, "quiz_db", return_value=conn):
                 self.list_body(self.client(account))
             return [s for s in statements if s.lstrip().upper().startswith("SELECT")]
 

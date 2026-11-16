@@ -156,9 +156,11 @@ class AssignmentOwnershipTest(IsolatedAppTestCase):
             statements = []
             conn.set_trace_callback(statements.append)
             # View closes its connection, so no further DB access below.
-            with patch.object(teacher, "quiz_db", return_value=conn):
+            with patch.object(quiz, "quiz_db", return_value=conn):
                 response = self.client(self.other).get(f"/teacher/assignment/{assignment_id}")
             self.assertEqual(response.status_code, 404)
+            # The trace must observe the real read, or the next assertion proves nothing.
+            self.assertTrue(any("from quiz_assignments" in s.lower() for s in statements), statements)
             self.assertFalse(any("quiz_attempts" in s.lower() for s in statements))
 
     def test_disabled_owner_cannot_use_historical_admin_keys(self):
