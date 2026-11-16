@@ -887,9 +887,9 @@ class ResultsTest(TeacherRouteTestCase):
             return [" ".join(s.split()).upper() for s in statements]
 
         requests = {
-            "teacher results": (teacher_module, lambda: self.owner.get(f"/teacher/assignment/{assignment_id}/results")),
-            "csv": (teacher_module, lambda: self.owner.get(f"/teacher/assignment/{assignment_id}/results.csv")),
-            "filtered csv": (teacher_module,
+            "teacher results": (quiz_service, lambda: self.owner.get(f"/teacher/assignment/{assignment_id}/results")),
+            "csv": (quiz_service, lambda: self.owner.get(f"/teacher/assignment/{assignment_id}/results.csv")),
+            "filtered csv": (quiz_service,
                              lambda: self.owner.get(f"/teacher/assignment/{assignment_id}/results.csv?filtered=1")),
             "student result": (quiz_service,
                                lambda: self.client(self.student).get(f"/quiz/attempt/{attempt_id}/result")),

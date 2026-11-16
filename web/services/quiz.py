@@ -1790,60 +1790,59 @@ QUIZ_NO_PUBLIC_LINK_NOTE = "няма (тестът още няма защите�
 
 def quiz_write_assignment_note(assignment_id: int, base_url: str) -> None:
     try:
-        conn = quiz_db()
-        a = quiz_fetch_assignment(conn, assignment_id)
-        if not a:
-            conn.close()
-            return
+        with quiz_connection() as conn:
+            a = quiz_fetch_assignment(conn, assignment_id)
+            if not a:
+                return
 
-        attempts = conn.execute("""
+            attempts = conn.execute("""
             SELECT *
             FROM quiz_attempts
             WHERE assignment_id = ?
             ORDER BY started_at
         """, (assignment_id,)).fetchall()
 
-        submitted = [x for x in attempts if x["submitted_at"]]
-        avg = None
-        if submitted:
-            percentages = [
-                (float(x["score_correct"] or 0) / max(1, int(x["score_total"] or 1))) * 100
-                for x in submitted
-            ]
-            avg = round(sum(percentages) / len(percentages), 1)
+            submitted = [x for x in attempts if x["submitted_at"]]
+            avg = None
+            if submitted:
+                percentages = [
+                    (float(x["score_correct"] or 0) / max(1, int(x["score_total"] or 1))) * 100
+                    for x in submitted
+                ]
+                avg = round(sum(percentages) / len(percentages), 1)
 
-        entry_path = quiz_student_entry_path(a)
-        quiz_link = base_url.rstrip("/") + entry_path if entry_path else QUIZ_NO_PUBLIC_LINK_NOTE
-        lifecycle_state = lifecycle.evaluate(a, lifecycle.read_clock(conn).now).state
-        path = quiz_assignment_note_path(assignment_id, a["section_slug"], a["created_at"])
+            entry_path = quiz_student_entry_path(a)
+            quiz_link = base_url.rstrip("/") + entry_path if entry_path else QUIZ_NO_PUBLIC_LINK_NOTE
+            lifecycle_state = lifecycle.evaluate(a, lifecycle.read_clock(conn).now).state
+            path = quiz_assignment_note_path(assignment_id, a["section_slug"], a["created_at"])
 
-        rows = []
-        for x in attempts:
-            attempt_path = quiz_attempt_row_note_path(x)
-            # Use basename without .md so Obsidian wikilink resolution finds the file
-            # regardless of where it sits in the vault. Filesystem-relative paths like
-            # "attempts/foo.md" don't resolve in Obsidian.
-            rel = attempt_path.stem
-            score = f'{x["score_correct"]}/{x["score_total"]}' if x["submitted_at"] else "в процес"
-            rows.append(
-                f'| [[{rel}|{x["student_name"]}]] | {score} | {x["started_at"]} | {x["submitted_at"] or "—"} |'
-            )
+            rows = []
+            for x in attempts:
+                attempt_path = quiz_attempt_row_note_path(x)
+                # Use basename without .md so Obsidian wikilink resolution finds the file
+                # regardless of where it sits in the vault. Filesystem-relative paths like
+                # "attempts/foo.md" don't resolve in Obsidian.
+                rel = attempt_path.stem
+                score = f'{x["score_correct"]}/{x["score_total"]}' if x["submitted_at"] else "в процес"
+                rows.append(
+                    f'| [[{rel}|{x["student_name"]}]] | {score} | {x["started_at"]} | {x["submitted_at"] or "—"} |'
+                )
 
-        fm = quiz_frontmatter({
-            "title": a["title_bg"],
-            "type": "quiz_assignment",
-            "section_slug": a["section_slug"],
-            "class": a["section_class"],
-            "question_count": a["question_count"],
-            "time_limit_minutes": a["time_limit_minutes"],
-            "created_at": a["created_at"],
-            "attempts_count": len(attempts),
-            "average_score": avg,
-            "status": lifecycle_state,
-            "tags": ["quiz", "assignment"],
-        })
+            fm = quiz_frontmatter({
+                "title": a["title_bg"],
+                "type": "quiz_assignment",
+                "section_slug": a["section_slug"],
+                "class": a["section_class"],
+                "question_count": a["question_count"],
+                "time_limit_minutes": a["time_limit_minutes"],
+                "created_at": a["created_at"],
+                "attempts_count": len(attempts),
+                "average_score": avg,
+                "status": lifecycle_state,
+                "tags": ["quiz", "assignment"],
+            })
 
-        body = f"""{fm}
+            body = f"""{fm}
 
 # {a["title_bg"]}
 
@@ -1859,65 +1858,61 @@ def quiz_write_assignment_note(assignment_id: int, base_url: str) -> None:
 {chr(10).join(rows) if rows else "| — | — | — | — |"}
 """
 
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(body, encoding="utf-8")
-        conn.close()
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(body, encoding="utf-8")
     except Exception as e:
         print(f"[quiz vault] assignment note failed: {e}", file=_quiz_sys.stderr)
 
 
 def quiz_write_attempt_note(attempt_id: int) -> None:
     try:
-        conn = quiz_db()
-        attempt = conn.execute("SELECT * FROM quiz_attempts WHERE id = ?", (attempt_id,)).fetchone()
-        if not attempt:
-            conn.close()
-            return
+        with quiz_connection() as conn:
+            attempt = conn.execute("SELECT * FROM quiz_attempts WHERE id = ?", (attempt_id,)).fetchone()
+            if not attempt:
+                return
 
-        assignment = quiz_fetch_assignment(conn, int(attempt["assignment_id"]))
-        if not assignment:
-            conn.close()
-            return
+            assignment = quiz_fetch_assignment(conn, int(attempt["assignment_id"]))
+            if not assignment:
+                return
 
-        seed = attempt["seed"]
-        qids = _quiz_json.loads(attempt["question_ids_json"])
-        qids, _skipped_count = filter_renderable_attempt_question_ids(conn, qids)
-        questions = quiz_load_result_questions(conn, attempt, qids, seed)
+            seed = attempt["seed"]
+            qids = _quiz_json.loads(attempt["question_ids_json"])
+            qids, _skipped_count = filter_renderable_attempt_question_ids(conn, qids)
+            questions = quiz_load_result_questions(conn, attempt, qids, seed)
 
-        path = quiz_attempt_row_note_path(attempt)
-        seconds = quiz_time_taken_seconds(attempt)
-        pct = round((float(attempt["score_correct"] or 0) / max(1, int(attempt["score_total"] or 1))) * 100, 1)
+            path = quiz_attempt_row_note_path(attempt)
+            seconds = quiz_time_taken_seconds(attempt)
+            pct = round((float(attempt["score_correct"] or 0) / max(1, int(attempt["score_total"] or 1))) * 100, 1)
 
-        fm = quiz_frontmatter({
-            "title": f'{attempt["student_name"]} — {assignment["title_bg"]}',
-            "type": "quiz_attempt",
-            "assignment_id": assignment["id"],
-            "student_name": attempt["student_name"],
-            "score_correct": attempt["score_correct"],
-            "score_total": attempt["score_total"],
-            "time_taken_seconds": seconds,
-            "submitted_at": attempt["submitted_at"],
-            "tags": ["quiz", "attempt"],
-        })
+            fm = quiz_frontmatter({
+                "title": f'{attempt["student_name"]} — {assignment["title_bg"]}',
+                "type": "quiz_attempt",
+                "assignment_id": assignment["id"],
+                "student_name": attempt["student_name"],
+                "score_correct": attempt["score_correct"],
+                "score_total": attempt["score_total"],
+                "time_taken_seconds": seconds,
+                "submitted_at": attempt["submitted_at"],
+                "tags": ["quiz", "attempt"],
+            })
 
-        parts = [fm, "", "# Резултат", ""]
-        parts.append(f'**Точен резултат:** {attempt["score_correct"]}/{attempt["score_total"]} ({pct}%)')
-        parts.append(f"**Време:** {quiz_format_duration(seconds)}")
-        parts.append("")
-        parts.append("## Въпроси")
-        parts.append("")
-
-        for i, q in enumerate(questions, 1):
-            parts.append(f"### Q{i}: {quiz_markdown_escape(q['prompt'])}")
+            parts = [fm, "", "# Резултат", ""]
+            parts.append(f'**Точен резултат:** {attempt["score_correct"]}/{attempt["score_total"]} ({pct}%)')
+            parts.append(f"**Време:** {quiz_format_duration(seconds)}")
             parts.append("")
-            parts.append(f"- Отговор на ученика: {quiz_markdown_escape(q['chosen_text'] or 'няма отговор')}")
-            parts.append(f"- Правилен отговор: {quiz_markdown_escape(q['correct_text'])}")
-            parts.append(f"- Резултат: {'✓ вярно' if q['is_correct'] else '✗ грешно'}")
+            parts.append("## Въпроси")
             parts.append("")
 
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text("\n".join(parts), encoding="utf-8")
-        conn.close()
+            for i, q in enumerate(questions, 1):
+                parts.append(f"### Q{i}: {quiz_markdown_escape(q['prompt'])}")
+                parts.append("")
+                parts.append(f"- Отговор на ученика: {quiz_markdown_escape(q['chosen_text'] or 'няма отговор')}")
+                parts.append(f"- Правилен отговор: {quiz_markdown_escape(q['correct_text'])}")
+                parts.append(f"- Резултат: {'✓ вярно' if q['is_correct'] else '✗ грешно'}")
+                parts.append("")
+
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("\n".join(parts), encoding="utf-8")
     except Exception as e:
         print(f"[quiz vault] attempt note failed: {e}", file=_quiz_sys.stderr)
 

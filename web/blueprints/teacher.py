@@ -73,7 +73,6 @@ from web.services.quiz import (
     quiz_combined_score_summary,
     quiz_connection,
     quiz_create_assignment,
-    quiz_db,
     quiz_fetch_assignment,
     quiz_student_entry_path,
     quiz_parse_assignment_question_plan,
@@ -214,9 +213,8 @@ def teacher_dzi_training():
 @teacher_bp.route("/teacher")
 @access_policy(ADMIN)
 def teacher_dashboard():
-    conn = quiz_db()
-
-    stats = conn.execute("""
+    with quiz_connection() as conn:
+        stats = conn.execute("""
         SELECT
             (SELECT COUNT(*) FROM quiz_assignments) AS assignments_count,
             (SELECT COUNT(*) FROM quiz_attempts) AS attempts_count,
@@ -231,7 +229,7 @@ def teacher_dashboard():
             ) AS avg_percent
     """).fetchone()
 
-    recent_assignment_rows = conn.execute("""
+        recent_assignment_rows = conn.execute("""
         SELECT
             qa.id,
             qa.title_bg,
@@ -252,21 +250,21 @@ def teacher_dashboard():
         LIMIT 5
     """).fetchall()
 
-    recent_assignments = []
-    for row in recent_assignment_rows:
-        row_dict = dict(row)
-        row_dict["mixed_status"] = quiz_assignment_mixed_status(row_dict.pop("question_plan_json", None))
-        row_dict["teacher_label"] = "не е посочен"
-        recent_assignments.append(row_dict)
+        recent_assignments = []
+        for row in recent_assignment_rows:
+            row_dict = dict(row)
+            row_dict["mixed_status"] = quiz_assignment_mixed_status(row_dict.pop("question_plan_json", None))
+            row_dict["teacher_label"] = "не е посочен"
+            recent_assignments.append(row_dict)
 
-    recent_assignments_by_class = []
-    for class_value in sorted({int(row["class"]) for row in recent_assignments}):
-        recent_assignments_by_class.append({
-            "class": class_value,
-            "assignments": [row for row in recent_assignments if int(row["class"]) == class_value],
-        })
+        recent_assignments_by_class = []
+        for class_value in sorted({int(row["class"]) for row in recent_assignments}):
+            recent_assignments_by_class.append({
+                "class": class_value,
+                "assignments": [row for row in recent_assignments if int(row["class"]) == class_value],
+            })
 
-    recent_attempts = conn.execute("""
+        recent_attempts = conn.execute("""
         SELECT
             qt.id,
             qt.assignment_id,
@@ -286,8 +284,6 @@ def teacher_dashboard():
         ORDER BY qt.started_at DESC, qt.id DESC
         LIMIT 8
     """).fetchall()
-
-    conn.close()
 
     return render_template(
         "teacher_dashboard.html",
@@ -453,25 +449,24 @@ def _student_quiz_url(assignment) -> str | None:
 @teacher_bp.route("/teacher/assignments")
 @access_policy(ASSIGNMENT_OWNER)
 def teacher_assignments():
-    conn = quiz_db()
+    with quiz_connection() as conn:
+        type_filter = (request.args.get("type") or "all").strip().lower()
+        if type_filter not in {"all", "mc", "mixed"}:
+            type_filter = "all"
 
-    type_filter = (request.args.get("type") or "all").strip().lower()
-    if type_filter not in {"all", "mc", "mixed"}:
-        type_filter = "all"
+        # Ownership is applied in SQL (idx_quiz_assignments_owner); an admin sees all.
+        scope_condition, scope_params = assignment_management_scope(
+            current_principal(), "qa.owner_user_id"
+        )
+        conditions = [scope_condition]
+        if type_filter == "mc":
+            conditions.append("(qa.question_plan_json IS NULL OR TRIM(qa.question_plan_json) = '')")
+        elif type_filter == "mixed":
+            conditions.append("qa.question_plan_json IS NOT NULL AND TRIM(qa.question_plan_json) <> ''")
+        where_clause = "WHERE " + " AND ".join(conditions)
 
-    # Ownership is applied in SQL (idx_quiz_assignments_owner); an admin sees all.
-    scope_condition, scope_params = assignment_management_scope(
-        current_principal(), "qa.owner_user_id"
-    )
-    conditions = [scope_condition]
-    if type_filter == "mc":
-        conditions.append("(qa.question_plan_json IS NULL OR TRIM(qa.question_plan_json) = '')")
-    elif type_filter == "mixed":
-        conditions.append("qa.question_plan_json IS NOT NULL AND TRIM(qa.question_plan_json) <> ''")
-    where_clause = "WHERE " + " AND ".join(conditions)
-
-    # SAFE: where_clause is built from fixed fragments; the owner id is a bound parameter.
-    assignment_rows = conn.execute(f"""
+        # SAFE: where_clause is built from fixed fragments; the owner id is a bound parameter.
+        assignment_rows = conn.execute(f"""
         SELECT
             qa.id,
             qa.section_id,
@@ -496,16 +491,14 @@ def teacher_assignments():
         ORDER BY qa.created_at DESC, qa.id DESC
     """, scope_params).fetchall()
 
-    lifecycle_now = lifecycle.read_clock(conn).now
-    assignments = []
-    for row in assignment_rows:
-        row_dict = dict(row)
-        row_dict["mixed_status"] = quiz_assignment_mixed_status(row_dict.pop("question_plan_json", None))
-        row_dict["teacher_label"] = "не е посочен"
-        row_dict["lifecycle"] = _list_lifecycle(row, lifecycle_now)
-        assignments.append(row_dict)
-
-    conn.close()
+        lifecycle_now = lifecycle.read_clock(conn).now
+        assignments = []
+        for row in assignment_rows:
+            row_dict = dict(row)
+            row_dict["mixed_status"] = quiz_assignment_mixed_status(row_dict.pop("question_plan_json", None))
+            row_dict["teacher_label"] = "не е посочен"
+            row_dict["lifecycle"] = _list_lifecycle(row, lifecycle_now)
+            assignments.append(row_dict)
 
     return render_template(
         "teacher_assignments.html",
@@ -518,163 +511,160 @@ def teacher_assignments():
 @access_policy(TEACHER)
 @integrity_policy(SAME_ORIGIN)
 def teacher_new():
-    conn = quiz_db()
-    raw_subject = (
-        request.form.get("subject") if request.method == "POST"
-        else request.args.get("subject")
-    )
-    selected_subject = canonical_subject(raw_subject) if raw_subject else IT
-    if selected_subject is None:
-        conn.close()
-        abort(400 if request.method == "POST" else 404)
-    selected_definition = get_subject(selected_subject)
-    preselected_section_id = None
-    mixed_planning_result = None
-    teacher_new_error = None
-    deadline_request = None
-    form_values = {
-        "question_count": 10,
-        "time_limit_minutes": "",
-        "include_open_questions": False,
-        "open_count": 0,
-        "source_slug": "",
-    }
-
-    if request.method == "POST":
-        if any(key.startswith(("question_ids", "open_question_ids", "question_plan"))
-               for key in request.form):
-            teacher_new_error = "invalid_question_plan"
-        raw_section_id = (request.form.get("section_id") or "").strip()
-        raw_question_count = (request.form.get("question_count") or "").strip()
-        raw_limit = (request.form.get("time_limit_minutes") or "").strip()
-        include_open_questions = bool(request.form.get("include_open_questions"))
-        include_open_answers_in_final_score = (
-            bool(request.form.get("include_open_answers_in_final_score"))
-            and current_principal().is_admin
+    created_assignment_id = None
+    with quiz_connection() as conn:
+        raw_subject = (
+            request.form.get("subject") if request.method == "POST"
+            else request.args.get("subject")
         )
-        raw_open_count = (request.form.get("open_count") or "").strip()
-        source_slug = (request.form.get("source_slug") or "").strip()
-        section_id = None
-        requested_count = None
-        time_limit = None
-        open_count = None
+        selected_subject = canonical_subject(raw_subject) if raw_subject else IT
+        if selected_subject is None:
+            abort(400 if request.method == "POST" else 404)
+        selected_definition = get_subject(selected_subject)
+        preselected_section_id = None
+        mixed_planning_result = None
+        teacher_new_error = None
+        deadline_request = None
         form_values = {
-            "question_count": raw_question_count or 10,
-            "time_limit_minutes": raw_limit,
-            "include_open_questions": include_open_questions,
-            "open_count": raw_open_count or 0,
-            "source_slug": source_slug,
+            "question_count": 10,
+            "time_limit_minutes": "",
+            "include_open_questions": False,
+            "open_count": 0,
+            "source_slug": "",
         }
 
-        try:
-            section_id = int(raw_section_id)
-            requested_count = int(raw_question_count or 10)
-            open_count = int(raw_open_count or 0)
-            if raw_limit:
-                time_limit = int(raw_limit)
-        except ValueError:
-            teacher_new_error = "invalid_number"
-        else:
-            if section_id <= 0 or requested_count < 1 or open_count < 0:
-                teacher_new_error = "invalid_number"
-            elif time_limit is not None and (
-                time_limit < 1 or time_limit > QUIZ_TIME_LIMIT_MAX_MINUTES
-            ):
-                teacher_new_error = "time_out_of_range"
-            elif open_count > requested_count:
-                teacher_new_error = "open_count_exceeds_total"
+        if request.method == "POST":
+            if any(key.startswith(("question_ids", "open_question_ids", "question_plan"))
+                   for key in request.form):
+                teacher_new_error = "invalid_question_plan"
+            raw_section_id = (request.form.get("section_id") or "").strip()
+            raw_question_count = (request.form.get("question_count") or "").strip()
+            raw_limit = (request.form.get("time_limit_minutes") or "").strip()
+            include_open_questions = bool(request.form.get("include_open_questions"))
+            include_open_answers_in_final_score = (
+                bool(request.form.get("include_open_answers_in_final_score"))
+                and current_principal().is_admin
+            )
+            raw_open_count = (request.form.get("open_count") or "").strip()
+            source_slug = (request.form.get("source_slug") or "").strip()
+            section_id = None
+            requested_count = None
+            time_limit = None
+            open_count = None
+            form_values = {
+                "question_count": raw_question_count or 10,
+                "time_limit_minutes": raw_limit,
+                "include_open_questions": include_open_questions,
+                "open_count": raw_open_count or 0,
+                "source_slug": source_slug,
+            }
 
-        if teacher_new_error is None:
-            # The deadline choice is explicit: a deadline, or "no deadline", and
-            # always a zone. A request without a valid choice creates nothing.
             try:
-                deadline_request = lifecycle.parse_deadline_request(request.form)
-            except lifecycle.DeadlineError as exc:
-                teacher_new_error = exc.code
+                section_id = int(raw_section_id)
+                requested_count = int(raw_question_count or 10)
+                open_count = int(raw_open_count or 0)
+                if raw_limit:
+                    time_limit = int(raw_limit)
+            except ValueError:
+                teacher_new_error = "invalid_number"
+            else:
+                if section_id <= 0 or requested_count < 1 or open_count < 0:
+                    teacher_new_error = "invalid_number"
+                elif time_limit is not None and (
+                    time_limit < 1 or time_limit > QUIZ_TIME_LIMIT_MAX_MINUTES
+                ):
+                    teacher_new_error = "time_out_of_range"
+                elif open_count > requested_count:
+                    teacher_new_error = "open_count_exceeds_total"
 
-        if teacher_new_error is None:
-            section = conn.execute("""
+            if teacher_new_error is None:
+                # The deadline choice is explicit: a deadline, or "no deadline", and
+                # always a zone. A request without a valid choice creates nothing.
+                try:
+                    deadline_request = lifecycle.parse_deadline_request(request.form)
+                except lifecycle.DeadlineError as exc:
+                    teacher_new_error = exc.code
+
+            if teacher_new_error is None:
+                section = conn.execute("""
                 SELECT id, title_bg
                 FROM curriculum_sections
                 WHERE id = ?
             """, (section_id,)).fetchone()
-            if not section:
-                conn.close()
-                abort(404)
-            try:
-                scope = AssessmentScope(conn, section_id)
-            except ValueError:
-                teacher_new_error = "invalid_subject"
-            else:
-                if scope.subject != selected_subject:
-                    teacher_new_error = "subject_mismatch"
-                elif open_count > 0 and not scope.allows_dzi_open_questions:
-                    teacher_new_error = "insufficient_open_questions"
-                    preselected_section_id = section_id
-
-        if teacher_new_error is None:
-            form_values = {
-                "question_count": requested_count,
-                "time_limit_minutes": raw_limit,
-                "include_open_questions": include_open_questions,
-                "open_count": open_count,
-                "source_slug": source_slug,
-            }
-
-            available = len(quiz_section_question_ids_by_section(conn, {section_id: scope})[section_id])
-            if available <= 0:
-                conn.close()
-                return redirect(url_for("teacher.teacher_new", subject=selected_subject))
-
-            question_count = max(1, min(requested_count, available))
-
-            if open_count > 0:
-                closed_count = requested_count - open_count
-                plan = build_mixed_quiz_plan(
-                    conn,
-                    closed_count=closed_count,
-                    open_count=open_count,
-                    open_source_slug=source_slug or None,
-                    section_id=section_id,
-                    scope=scope,
-                )
-                closed_question_ids = [int(question["question_id"]) for question in plan["closed_questions"]]
-                open_question_ids = [int(question["question_id"]) for question in plan["open_questions"]]
-                mixed_planning_result = {
-                    "planning_only": True,
-                    "source_slug": source_slug or "всички",
-                    "closed_count": len(plan["closed_questions"]),
-                    "open_count": len(plan["open_questions"]),
-                    "requested_closed_count": plan["requested_closed_count"],
-                    "requested_open_count": plan["requested_open_count"],
-                    "available_closed_count": plan["available_closed_count"],
-                    "available_open_count": plan["available_open_count"],
-                    "closed_shortfall": max(0, plan["requested_closed_count"] - plan["available_closed_count"]),
-                    "open_shortfall": max(0, plan["requested_open_count"] - plan["available_open_count"]),
-                }
-                if mixed_planning_result["open_shortfall"]:
-                    teacher_new_error = "insufficient_open_questions"
-                    preselected_section_id = section_id
-                elif mixed_planning_result["closed_shortfall"]:
-                    teacher_new_error = "insufficient_closed_questions"
-                    preselected_section_id = section_id
+                if not section:
+                    abort(404)
+                try:
+                    scope = AssessmentScope(conn, section_id)
+                except ValueError:
+                    teacher_new_error = "invalid_subject"
                 else:
-                    question_plan = {
-                        "mixed_open_enabled": True,
-                        "question_ids": closed_question_ids + open_question_ids,
-                        "open_question_ids": open_question_ids,
-                        "include_open_answers_in_final_score": include_open_answers_in_final_score,
+                    if scope.subject != selected_subject:
+                        teacher_new_error = "subject_mismatch"
+                    elif open_count > 0 and not scope.allows_dzi_open_questions:
+                        teacher_new_error = "insufficient_open_questions"
+                        preselected_section_id = section_id
+
+            if teacher_new_error is None:
+                form_values = {
+                    "question_count": requested_count,
+                    "time_limit_minutes": raw_limit,
+                    "include_open_questions": include_open_questions,
+                    "open_count": open_count,
+                    "source_slug": source_slug,
+                }
+
+                available = len(quiz_section_question_ids_by_section(conn, {section_id: scope})[section_id])
+                if available <= 0:
+                    return redirect(url_for("teacher.teacher_new", subject=selected_subject))
+
+                question_count = max(1, min(requested_count, available))
+
+                if open_count > 0:
+                    closed_count = requested_count - open_count
+                    plan = build_mixed_quiz_plan(
+                        conn,
+                        closed_count=closed_count,
+                        open_count=open_count,
+                        open_source_slug=source_slug or None,
+                        section_id=section_id,
+                        scope=scope,
+                    )
+                    closed_question_ids = [int(question["question_id"]) for question in plan["closed_questions"]]
+                    open_question_ids = [int(question["question_id"]) for question in plan["open_questions"]]
+                    mixed_planning_result = {
+                        "planning_only": True,
+                        "source_slug": source_slug or "всички",
+                        "closed_count": len(plan["closed_questions"]),
+                        "open_count": len(plan["open_questions"]),
+                        "requested_closed_count": plan["requested_closed_count"],
+                        "requested_open_count": plan["requested_open_count"],
+                        "available_closed_count": plan["available_closed_count"],
+                        "available_open_count": plan["available_open_count"],
+                        "closed_shortfall": max(0, plan["requested_closed_count"] - plan["available_closed_count"]),
+                        "open_shortfall": max(0, plan["requested_open_count"] - plan["available_open_count"]),
                     }
-                    try:
-                        scope.validate_plan(
-                            question_plan["question_ids"], question_plan["open_question_ids"],
-                            open_source_slug=source_slug or None,
-                        )
-                    except ValueError:
-                        teacher_new_error = "invalid_question_plan"
+                    if mixed_planning_result["open_shortfall"]:
+                        teacher_new_error = "insufficient_open_questions"
+                        preselected_section_id = section_id
+                    elif mixed_planning_result["closed_shortfall"]:
+                        teacher_new_error = "insufficient_closed_questions"
                         preselected_section_id = section_id
                     else:
+                        question_plan = {
+                            "mixed_open_enabled": True,
+                            "question_ids": closed_question_ids + open_question_ids,
+                            "open_question_ids": open_question_ids,
+                            "include_open_answers_in_final_score": include_open_answers_in_final_score,
+                        }
                         try:
+                            scope.validate_plan(
+                                question_plan["question_ids"], question_plan["open_question_ids"],
+                                open_source_slug=source_slug or None,
+                            )
+                        except ValueError:
+                            teacher_new_error = "invalid_question_plan"
+                            preselected_section_id = section_id
+                        else:
                             assignment_id, teacher_new_error = _create_assignment_with_deadline(
                                 conn, deadline_request, section_id=section_id,
                                 title_bg=section["title_bg"],
@@ -682,99 +672,91 @@ def teacher_new():
                                 time_limit_minutes=time_limit,
                                 question_plan_json=json.dumps(question_plan, ensure_ascii=False),
                             )
-                        except lifecycle.LifecycleUnavailable:
-                            conn.close()
-                            raise
-                        if assignment_id is not None:
-                            conn.close()
-
-                            quiz_write_assignment_note(assignment_id, request.host_url)
-                            return redirect(url_for("teacher.teacher_assignment", assignment_id=assignment_id))
-                        preselected_section_id = section_id
-            else:
-                try:
+                            if assignment_id is not None:
+                                created_assignment_id = assignment_id
+                            else:
+                                preselected_section_id = section_id
+                else:
                     assignment_id, teacher_new_error = _create_assignment_with_deadline(
                         conn, deadline_request, section_id=section_id,
                         title_bg=section["title_bg"], question_count=question_count,
                         time_limit_minutes=time_limit,
                     )
-                except lifecycle.LifecycleUnavailable:
-                    conn.close()
-                    raise
-                if assignment_id is not None:
-                    conn.close()
+                    if assignment_id is not None:
+                        created_assignment_id = assignment_id
+                    else:
+                        preselected_section_id = section_id
 
-                    quiz_write_assignment_note(assignment_id, request.host_url)
-                    return redirect(url_for("teacher.teacher_assignment", assignment_id=assignment_id))
-                preselected_section_id = section_id
-
-    section_rows = conn.execute("""
+        if created_assignment_id is None:
+            section_rows = conn.execute("""
         SELECT id, class, title_bg
         FROM curriculum_sections
         ORDER BY class, display_order, title_bg, id
     """).fetchall()
 
-    # Set-based loading: scopes, eligible ids and the DZI open pool are fetched
-    # once for the whole page instead of per section and per question.
-    selected_scopes = {
-        section_id: scope
-        for section_id, scope in AssessmentScope.for_all_sections(conn).items()
-        if scope.subject == selected_subject
-    }
-    eligible_ids = quiz_section_question_ids_by_section(conn, selected_scopes)
+            # Set-based loading: scopes, eligible ids and the DZI open pool are fetched
+            # once for the whole page instead of per section and per question.
+            selected_scopes = {
+                section_id: scope
+                for section_id, scope in AssessmentScope.for_all_sections(conn).items()
+                if scope.subject == selected_subject
+            }
+            eligible_ids = quiz_section_question_ids_by_section(conn, selected_scopes)
 
-    sections = []
-    practical_source_options = None
-    dzi_open_summary = None
-    for row in section_rows:
-        section = dict(row)
-        section_scope = selected_scopes.get(int(section["id"]))
-        if section_scope is None:
-            continue
-        eligible_count = len(eligible_ids[int(section["id"])])
-        if eligible_count <= 0:
-            continue
-        section["question_count"] = eligible_count
-        if section_scope.allows_dzi_open_questions:
-            # The DZI open pool does not depend on which DZI section asks.
-            if dzi_open_summary is None:
-                dzi_open_summary = open_question_scope_summary(
-                    conn, int(section["id"]), section_scope
-                )
-            section["open"] = copy.deepcopy(dzi_open_summary)
-        else:
-            section["open"] = open_question_scope_summary(conn, int(section["id"]), section_scope)
-        section["allows_dzi_open_questions"] = section_scope.allows_dzi_open_questions
-        section["allows_dzi_content"] = section_scope.allows_dzi_content
-        if section_scope.allows_dzi_content and practical_source_options is None:
-            practical_source_options = practical.fetch_practical_assignment_options(conn, scope=section_scope)
-        sections.append(section)
+            sections = []
+            practical_source_options = None
+            dzi_open_summary = None
+            for row in section_rows:
+                section = dict(row)
+                section_scope = selected_scopes.get(int(section["id"]))
+                if section_scope is None:
+                    continue
+                eligible_count = len(eligible_ids[int(section["id"])])
+                if eligible_count <= 0:
+                    continue
+                section["question_count"] = eligible_count
+                if section_scope.allows_dzi_open_questions:
+                    # The DZI open pool does not depend on which DZI section asks.
+                    if dzi_open_summary is None:
+                        dzi_open_summary = open_question_scope_summary(
+                            conn, int(section["id"]), section_scope
+                        )
+                    section["open"] = copy.deepcopy(dzi_open_summary)
+                else:
+                    section["open"] = open_question_scope_summary(conn, int(section["id"]), section_scope)
+                section["allows_dzi_open_questions"] = section_scope.allows_dzi_open_questions
+                section["allows_dzi_content"] = section_scope.allows_dzi_content
+                if section_scope.allows_dzi_content and practical_source_options is None:
+                    practical_source_options = practical.fetch_practical_assignment_options(conn, scope=section_scope)
+                sections.append(section)
 
-    section_slug = (request.args.get("section") or "").strip()
-    if section_slug:
-        preselected = conn.execute("""
+            section_slug = (request.args.get("section") or "").strip()
+            if section_slug:
+                preselected = conn.execute("""
             SELECT id
             FROM curriculum_sections
             WHERE section_slug = ?
         """, (section_slug,)).fetchone()
-        if preselected and any(int(row["id"]) == int(preselected["id"]) for row in sections):
-            preselected_section_id = int(preselected["id"])
+                if preselected and any(int(row["id"]) == int(preselected["id"]) for row in sections):
+                    preselected_section_id = int(preselected["id"])
 
-    # Only a server-loaded DZI-training section authorizes the DZI open pool.
-    selected_section = next(
-        (row for row in sections if int(row["id"]) == preselected_section_id), None
-    )
-    practical_source_options = practical_source_options or []
+            # Only a server-loaded DZI-training section authorizes the DZI open pool.
+            selected_section = next(
+                (row for row in sections if int(row["id"]) == preselected_section_id), None
+            )
+            practical_source_options = practical_source_options or []
 
-    if request.method == "POST":
-        deadline_form = _submitted_deadline_form(request.form)
-    else:
-        # The offer: 23:59 local time, 14 calendar days ahead, in the preselected zone.
-        deadline_form = lifecycle.default_deadline_form(
-            lifecycle.read_clock(conn).now,
-            lifecycle.preselected_timezone(conn, current_principal().user_id))
+            if request.method == "POST":
+                deadline_form = _submitted_deadline_form(request.form)
+            else:
+                # The offer: 23:59 local time, 14 calendar days ahead, in the preselected zone.
+                deadline_form = lifecycle.default_deadline_form(
+                    lifecycle.read_clock(conn).now,
+                    lifecycle.preselected_timezone(conn, current_principal().user_id))
 
-    conn.close()
+    if created_assignment_id is not None:
+        quiz_write_assignment_note(created_assignment_id, request.host_url)
+        return redirect(url_for("teacher.teacher_assignment", assignment_id=created_assignment_id))
 
     teacher_subject_options = [
         subject for subject in subject_catalog()
@@ -909,9 +891,8 @@ def teacher_assignment_qr(assignment_id):
     The code keeps working for a closed assignment: the link it encodes then leads
     to the closed notice.
     """
-    conn = quiz_db()
-    assignment = _fetch_managed_assignment(conn, assignment_id)
-    conn.close()
+    with quiz_connection() as conn:
+        assignment = _fetch_managed_assignment(conn, assignment_id)
     lifecycle.require_served(assignment)
     if quiz_student_entry_path(assignment) is None:
         abort(404)
@@ -1270,24 +1251,20 @@ def teacher_assignment_results(assignment_id):
     if request.method == "POST":
         return _review_open_answer(assignment_id)
 
-    conn = quiz_db()
-    # One read transaction for the whole response: the authorization read and
-    # every result row come from the same snapshot.
-    conn.execute("BEGIN")
-    assignment = _fetch_managed_assignment(conn, assignment_id)
-    try:
+    with quiz_connection() as conn:
+        # One read transaction for the whole response: the authorization read and
+        # every result row come from the same snapshot.
+        conn.execute("BEGIN")
+        assignment = _fetch_managed_assignment(conn, assignment_id)
         lifecycle.require_served(assignment)
-    except lifecycle.LifecycleUnavailable:
-        conn.close()
-        raise
-    lifecycle_view = lifecycle.evaluate(assignment, lifecycle.read_clock(conn).now)
+        lifecycle_view = lifecycle.evaluate(assignment, lifecycle.read_clock(conn).now)
 
-    mixed_status = quiz_assignment_mixed_status(assignment["question_plan_json"])
-    filters = quiz_parse_results_filter_args(
-        request.args, is_mixed=bool(mixed_status["is_mixed"])
-    )
+        mixed_status = quiz_assignment_mixed_status(assignment["question_plan_json"])
+        filters = quiz_parse_results_filter_args(
+            request.args, is_mixed=bool(mixed_status["is_mixed"])
+        )
 
-    all_attempts = conn.execute("""
+        all_attempts = conn.execute("""
         SELECT
             id,
             student_name,
@@ -1310,86 +1287,86 @@ def teacher_assignment_results(assignment_id):
             student_name
     """, (assignment_id,)).fetchall()
 
-    attempt_answers_by_id: dict[int, list[dict]] = {}
-    open_subtotal_by_id: dict[int, dict] = {}
-    combined_score_by_id: dict[int, dict] = {}
-    for attempt in all_attempts:
-        if not attempt["submitted_at"]:
-            continue
-        attempt_id_int = int(attempt["id"])
-        ans = fetch_quiz_text_answers_for_attempt(conn, attempt_id_int)
-        attempt_answers_by_id[attempt_id_int] = ans
-        if ans:
-            sub = quiz_text_answer_informational_subtotal(ans)
-            open_subtotal_by_id[attempt_id_int] = sub
-            attempt_plan = quiz_parse_attempt_question_plan(attempt["question_ids_json"])
-            combined = quiz_combined_score_summary(
-                attempt,
-                sub,
-                enabled=bool(attempt_plan["include_open_answers_in_final_score"]),
-            )
-            if combined:
-                combined_score_by_id[attempt_id_int] = combined
+        attempt_answers_by_id: dict[int, list[dict]] = {}
+        open_subtotal_by_id: dict[int, dict] = {}
+        combined_score_by_id: dict[int, dict] = {}
+        for attempt in all_attempts:
+            if not attempt["submitted_at"]:
+                continue
+            attempt_id_int = int(attempt["id"])
+            ans = fetch_quiz_text_answers_for_attempt(conn, attempt_id_int)
+            attempt_answers_by_id[attempt_id_int] = ans
+            if ans:
+                sub = quiz_text_answer_informational_subtotal(ans)
+                open_subtotal_by_id[attempt_id_int] = sub
+                attempt_plan = quiz_parse_attempt_question_plan(attempt["question_ids_json"])
+                combined = quiz_combined_score_summary(
+                    attempt,
+                    sub,
+                    enabled=bool(attempt_plan["include_open_answers_in_final_score"]),
+                )
+                if combined:
+                    combined_score_by_id[attempt_id_int] = combined
 
-    filtered_attempts = quiz_filter_results_attempts(
-        all_attempts, filters=filters, attempt_answers_by_id=attempt_answers_by_id
-    )
-    attempts = quiz_sort_results_attempts(
-        filtered_attempts,
-        sort=filters["sort"],
-        open_subtotal_by_id=open_subtotal_by_id,
-    )
-    attempts = attach_attempt_question_image_counts(conn, attempts)
+        filtered_attempts = quiz_filter_results_attempts(
+            all_attempts, filters=filters, attempt_answers_by_id=attempt_answers_by_id
+        )
+        attempts = quiz_sort_results_attempts(
+            filtered_attempts,
+            sort=filters["sort"],
+            open_subtotal_by_id=open_subtotal_by_id,
+        )
+        attempts = attach_attempt_question_image_counts(conn, attempts)
 
-    open_text_answers = []
-    open_subtotals_by_attempt: dict[int, dict] = {}
-    combined_scores_by_attempt: dict[int, dict] = {}
-    mc_percentages: list[float] = []
-    submitted_attempt_ids: list[int] = []
-    submitted_attempt_count = 0
-    open_answer_attempt_count = 0
-    open_answer_total = 0
-    open_answer_auto_matched_count = 0
-    open_answer_teacher_override_count = 0
-    open_subtotal_awarded_total = 0.0
-    open_subtotal_possible_total = 0.0
-    for attempt in attempts:
-        if not attempt["submitted_at"]:
-            continue
-        attempt_id_int = int(attempt["id"])
-        submitted_attempt_ids.append(attempt_id_int)
-        submitted_attempt_count += 1
-        if attempt["score_total"] is not None and int(attempt["score_total"]) > 0:
-            mc_percentages.append(
-                100.0 * float(attempt["score_correct"] or 0) / float(attempt["score_total"])
-            )
-        attempt_answers = attempt_answers_by_id.get(attempt_id_int, [])
-        if attempt_answers:
-            open_subtotal = open_subtotal_by_id[attempt_id_int]
-            open_subtotals_by_attempt[attempt_id_int] = open_subtotal
-            if attempt_id_int in combined_score_by_id:
-                combined_scores_by_attempt[attempt_id_int] = combined_score_by_id[attempt_id_int]
-            open_answer_attempt_count += 1
-            open_subtotal_awarded_total += float(open_subtotal.get("awarded") or 0)
-            open_subtotal_possible_total += float(open_subtotal.get("possible") or 0)
-        for answer in attempt_answers:
-            open_answer_total += 1
-            if answer.get("is_correct") == 1:
-                open_answer_auto_matched_count += 1
-            if answer.get("teacher_override") == 1:
-                open_answer_teacher_override_count += 1
-            open_text_answers.append({
-                **answer,
-                "student_name": attempt["student_name"],
-                "attempt_id": attempt_id_int,
-                "attempt_score_correct": attempt["score_correct"],
-                "attempt_score_total": attempt["score_total"],
-                "submitted_at": attempt["submitted_at"],
-            })
+        open_text_answers = []
+        open_subtotals_by_attempt: dict[int, dict] = {}
+        combined_scores_by_attempt: dict[int, dict] = {}
+        mc_percentages: list[float] = []
+        submitted_attempt_ids: list[int] = []
+        submitted_attempt_count = 0
+        open_answer_attempt_count = 0
+        open_answer_total = 0
+        open_answer_auto_matched_count = 0
+        open_answer_teacher_override_count = 0
+        open_subtotal_awarded_total = 0.0
+        open_subtotal_possible_total = 0.0
+        for attempt in attempts:
+            if not attempt["submitted_at"]:
+                continue
+            attempt_id_int = int(attempt["id"])
+            submitted_attempt_ids.append(attempt_id_int)
+            submitted_attempt_count += 1
+            if attempt["score_total"] is not None and int(attempt["score_total"]) > 0:
+                mc_percentages.append(
+                    100.0 * float(attempt["score_correct"] or 0) / float(attempt["score_total"])
+                )
+            attempt_answers = attempt_answers_by_id.get(attempt_id_int, [])
+            if attempt_answers:
+                open_subtotal = open_subtotal_by_id[attempt_id_int]
+                open_subtotals_by_attempt[attempt_id_int] = open_subtotal
+                if attempt_id_int in combined_score_by_id:
+                    combined_scores_by_attempt[attempt_id_int] = combined_score_by_id[attempt_id_int]
+                open_answer_attempt_count += 1
+                open_subtotal_awarded_total += float(open_subtotal.get("awarded") or 0)
+                open_subtotal_possible_total += float(open_subtotal.get("possible") or 0)
+            for answer in attempt_answers:
+                open_answer_total += 1
+                if answer.get("is_correct") == 1:
+                    open_answer_auto_matched_count += 1
+                if answer.get("teacher_override") == 1:
+                    open_answer_teacher_override_count += 1
+                open_text_answers.append({
+                    **answer,
+                    "student_name": attempt["student_name"],
+                    "attempt_id": attempt_id_int,
+                    "attempt_score_correct": attempt["score_correct"],
+                    "attempt_score_total": attempt["score_total"],
+                    "submitted_at": attempt["submitted_at"],
+                })
 
-    attach_question_image_indicators(conn, open_text_answers)
+        attach_question_image_indicators(conn, open_text_answers)
 
-    totals = conn.execute("""
+        totals = conn.execute("""
         SELECT
             COUNT(*) AS attempts_count,
             SUM(CASE WHEN submitted_at IS NOT NULL THEN 1 ELSE 0 END) AS submitted_count,
@@ -1402,11 +1379,10 @@ def teacher_assignment_results(assignment_id):
         FROM quiz_attempts
         WHERE assignment_id = ?
     """, (assignment_id,)).fetchone()
-    difficulty_breakdown = quiz_teacher_difficulty_breakdown(conn, submitted_attempt_ids)
+        difficulty_breakdown = quiz_teacher_difficulty_breakdown(conn, submitted_attempt_ids)
 
-    conn.rollback()  # end of the read transaction; nothing was written
-    lifecycle.observe_if_needed(conn, assignment_id, lifecycle_view)
-    conn.close()
+        conn.rollback()  # end of the read transaction; nothing was written
+        lifecycle.observe_if_needed(conn, assignment_id, lifecycle_view)
 
     summary = {
         "submitted_attempt_count": submitted_attempt_count,
@@ -1519,33 +1495,29 @@ def _quiz_format_points(value) -> str:
 @teacher_bp.route("/teacher/assignment/<int:assignment_id>/results.csv")
 @access_policy(ASSIGNMENT_OWNER)
 def teacher_assignment_results_export(assignment_id):
-    conn = quiz_db()
-    # One read transaction: the file is entirely before or entirely after any
-    # concurrent commit, and is built in memory before the transaction ends.
-    conn.execute("BEGIN")
-    assignment = _fetch_managed_assignment(conn, assignment_id)
-    try:
+    with quiz_connection() as conn:
+        # One read transaction: the file is entirely before or entirely after any
+        # concurrent commit, and is built in memory before the transaction ends.
+        conn.execute("BEGIN")
+        assignment = _fetch_managed_assignment(conn, assignment_id)
         lifecycle.require_served(assignment)
-    except lifecycle.LifecycleUnavailable:
-        conn.close()
-        raise
-    lifecycle_view = lifecycle.evaluate(assignment, lifecycle.read_clock(conn).now)
-    lifecycle_cells = [
-        _quiz_csv_value(assignment["deadline_at"]),
-        _quiz_csv_value(assignment["closed_at"]),
-        lifecycle_view.state,
-    ]
+        lifecycle_view = lifecycle.evaluate(assignment, lifecycle.read_clock(conn).now)
+        lifecycle_cells = [
+            _quiz_csv_value(assignment["deadline_at"]),
+            _quiz_csv_value(assignment["closed_at"]),
+            lifecycle_view.state,
+        ]
 
-    apply_filters = (request.args.get("filtered") or "").strip().lower() in {
-        "1",
-        "true",
-        "yes",
-    }
+        apply_filters = (request.args.get("filtered") or "").strip().lower() in {
+            "1",
+            "true",
+            "yes",
+        }
 
-    attempt_answers_by_id: dict[int, list[dict]] = {}
+        attempt_answers_by_id: dict[int, list[dict]] = {}
 
-    if apply_filters:
-        all_attempts = conn.execute("""
+        if apply_filters:
+            all_attempts = conn.execute("""
             SELECT
                 id,
                 student_name,
@@ -1568,32 +1540,32 @@ def teacher_assignment_results_export(assignment_id):
                 student_name
         """, (assignment_id,)).fetchall()
 
-        open_subtotal_by_id: dict[int, dict] = {}
-        for attempt in all_attempts:
-            if not attempt["submitted_at"]:
-                continue
-            ans = fetch_quiz_text_answers_for_attempt(conn, int(attempt["id"]))
-            attempt_answers_by_id[int(attempt["id"])] = ans
-            if ans:
-                open_subtotal_by_id[int(attempt["id"])] = (
-                    quiz_text_answer_informational_subtotal(ans)
-                )
+            open_subtotal_by_id: dict[int, dict] = {}
+            for attempt in all_attempts:
+                if not attempt["submitted_at"]:
+                    continue
+                ans = fetch_quiz_text_answers_for_attempt(conn, int(attempt["id"]))
+                attempt_answers_by_id[int(attempt["id"])] = ans
+                if ans:
+                    open_subtotal_by_id[int(attempt["id"])] = (
+                        quiz_text_answer_informational_subtotal(ans)
+                    )
 
-        mixed_status = quiz_assignment_mixed_status(assignment["question_plan_json"])
-        filters = quiz_parse_results_filter_args(
-            request.args, is_mixed=bool(mixed_status["is_mixed"])
-        )
-        filtered = quiz_filter_results_attempts(
-            all_attempts, filters=filters, attempt_answers_by_id=attempt_answers_by_id
-        )
-        attempts = quiz_sort_results_attempts(
-            filtered,
-            sort=filters["sort"],
-            open_subtotal_by_id=open_subtotal_by_id,
-        )
-        filename = f"assignment_{assignment_id}_results_filtered.csv"
-    else:
-        attempts = conn.execute("""
+            mixed_status = quiz_assignment_mixed_status(assignment["question_plan_json"])
+            filters = quiz_parse_results_filter_args(
+                request.args, is_mixed=bool(mixed_status["is_mixed"])
+            )
+            filtered = quiz_filter_results_attempts(
+                all_attempts, filters=filters, attempt_answers_by_id=attempt_answers_by_id
+            )
+            attempts = quiz_sort_results_attempts(
+                filtered,
+                sort=filters["sort"],
+                open_subtotal_by_id=open_subtotal_by_id,
+            )
+            filename = f"assignment_{assignment_id}_results_filtered.csv"
+        else:
+            attempts = conn.execute("""
             SELECT
                 id,
                 student_name,
@@ -1607,116 +1579,115 @@ def teacher_assignment_results_export(assignment_id):
               AND submitted_at IS NOT NULL
             ORDER BY submitted_at DESC, started_at DESC, student_name
         """, (assignment_id,)).fetchall()
-        filename = f"assignment_{assignment_id}_results.csv"
+            filename = f"assignment_{assignment_id}_results.csv"
 
-    buf = io.StringIO()
-    writer = csv.writer(buf)
-    writer.writerow(QUIZ_RESULTS_EXPORT_COLUMNS)
+        buf = io.StringIO()
+        writer = csv.writer(buf)
+        writer.writerow(QUIZ_RESULTS_EXPORT_COLUMNS)
 
-    for attempt in attempts:
-        attempt_id_int = int(attempt["id"])
+        for attempt in attempts:
+            attempt_id_int = int(attempt["id"])
 
-        if not attempt["submitted_at"]:
+            if not attempt["submitted_at"]:
+                writer.writerow([
+                    "attempt",
+                    assignment_id,
+                    _quiz_csv_text(assignment["title_bg"]),
+                    attempt_id_int,
+                    _quiz_csv_text(attempt["student_name"]),
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    0,
+                    "",
+                    "",
+                    "",
+                    "",
+                    "", "", "", "", "", "", "", "", "", "", "",
+                    *lifecycle_cells,
+                ])
+                continue
+
+            if attempt_id_int in attempt_answers_by_id:
+                attempt_answers = attempt_answers_by_id[attempt_id_int]
+            else:
+                attempt_answers = fetch_quiz_text_answers_for_attempt(conn, attempt_id_int)
+            attempt_plan = quiz_parse_attempt_question_plan(attempt["question_ids_json"])
+            mixed_open_enabled = bool(attempt_plan["mixed_open_enabled"])
+            combined_enabled = bool(attempt_plan["include_open_answers_in_final_score"])
+
+            open_subtotal = (
+                quiz_text_answer_informational_subtotal(attempt_answers)
+                if attempt_answers
+                else None
+            )
+            combined_score = quiz_combined_score_summary(
+                attempt, open_subtotal, enabled=combined_enabled
+            )
+
+            mc_correct = attempt["score_correct"]
+            mc_total = attempt["score_total"]
+            mc_percent = ""
+            if mc_total is not None and int(mc_total) > 0 and mc_correct is not None:
+                mc_percent = f"{round(100.0 * float(mc_correct) / float(mc_total), 1)}"
+
             writer.writerow([
                 "attempt",
                 assignment_id,
                 _quiz_csv_text(assignment["title_bg"]),
                 attempt_id_int,
                 _quiz_csv_text(attempt["student_name"]),
-                "",
-                "",
-                "",
-                "",
-                "",
-                "",
-                0,
-                "",
-                "",
-                "",
-                "",
+                attempt["submitted_at"],
+                _quiz_csv_value(mc_correct),
+                _quiz_csv_value(mc_total),
+                mc_percent,
+                "1" if mixed_open_enabled else "0",
+                "1" if combined_enabled else "0",
+                len(attempt_answers),
+                _quiz_format_points(open_subtotal["awarded"]) if open_subtotal else "",
+                _quiz_format_points(open_subtotal["possible"]) if open_subtotal else "",
+                _quiz_format_points(combined_score["combined_awarded"]) if combined_score else "",
+                _quiz_format_points(combined_score["combined_possible"]) if combined_score else "",
                 "", "", "", "", "", "", "", "", "", "", "",
                 *lifecycle_cells,
             ])
-            continue
 
-        if attempt_id_int in attempt_answers_by_id:
-            attempt_answers = attempt_answers_by_id[attempt_id_int]
-        else:
-            attempt_answers = fetch_quiz_text_answers_for_attempt(conn, attempt_id_int)
-        attempt_plan = quiz_parse_attempt_question_plan(attempt["question_ids_json"])
-        mixed_open_enabled = bool(attempt_plan["mixed_open_enabled"])
-        combined_enabled = bool(attempt_plan["include_open_answers_in_final_score"])
+            for ans in attempt_answers:
+                writer.writerow([
+                    "open_answer",
+                    assignment_id,
+                    _quiz_csv_text(assignment["title_bg"]),
+                    attempt_id_int,
+                    _quiz_csv_text(attempt["student_name"]),
+                    attempt["submitted_at"],
+                    "",
+                    "",
+                    "",
+                    "1" if mixed_open_enabled else "0",
+                    "1" if combined_enabled else "0",
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
+                    _quiz_csv_value(ans.get("question_id")),
+                    _quiz_csv_value(ans.get("subquestion_number")),
+                    _quiz_csv_text(ans.get("raw_answer")),
+                    _quiz_csv_text(ans.get("normalized_answer")),
+                    _quiz_csv_text(ans.get("matched_answer")),
+                    _quiz_csv_value(ans.get("points_awarded")),
+                    _quiz_csv_value(ans.get("points_possible")),
+                    _quiz_csv_value(ans.get("grading_mode")),
+                    _quiz_csv_value(ans.get("teacher_override")),
+                    _quiz_csv_text(ans.get("teacher_note")),
+                    _quiz_csv_value(ans.get("is_correct")),
+                    *lifecycle_cells,
+                ])
 
-        open_subtotal = (
-            quiz_text_answer_informational_subtotal(attempt_answers)
-            if attempt_answers
-            else None
-        )
-        combined_score = quiz_combined_score_summary(
-            attempt, open_subtotal, enabled=combined_enabled
-        )
-
-        mc_correct = attempt["score_correct"]
-        mc_total = attempt["score_total"]
-        mc_percent = ""
-        if mc_total is not None and int(mc_total) > 0 and mc_correct is not None:
-            mc_percent = f"{round(100.0 * float(mc_correct) / float(mc_total), 1)}"
-
-        writer.writerow([
-            "attempt",
-            assignment_id,
-            _quiz_csv_text(assignment["title_bg"]),
-            attempt_id_int,
-            _quiz_csv_text(attempt["student_name"]),
-            attempt["submitted_at"],
-            _quiz_csv_value(mc_correct),
-            _quiz_csv_value(mc_total),
-            mc_percent,
-            "1" if mixed_open_enabled else "0",
-            "1" if combined_enabled else "0",
-            len(attempt_answers),
-            _quiz_format_points(open_subtotal["awarded"]) if open_subtotal else "",
-            _quiz_format_points(open_subtotal["possible"]) if open_subtotal else "",
-            _quiz_format_points(combined_score["combined_awarded"]) if combined_score else "",
-            _quiz_format_points(combined_score["combined_possible"]) if combined_score else "",
-            "", "", "", "", "", "", "", "", "", "", "",
-            *lifecycle_cells,
-        ])
-
-        for ans in attempt_answers:
-            writer.writerow([
-                "open_answer",
-                assignment_id,
-                _quiz_csv_text(assignment["title_bg"]),
-                attempt_id_int,
-                _quiz_csv_text(attempt["student_name"]),
-                attempt["submitted_at"],
-                "",
-                "",
-                "",
-                "1" if mixed_open_enabled else "0",
-                "1" if combined_enabled else "0",
-                "",
-                "",
-                "",
-                "",
-                "",
-                _quiz_csv_value(ans.get("question_id")),
-                _quiz_csv_value(ans.get("subquestion_number")),
-                _quiz_csv_text(ans.get("raw_answer")),
-                _quiz_csv_text(ans.get("normalized_answer")),
-                _quiz_csv_text(ans.get("matched_answer")),
-                _quiz_csv_value(ans.get("points_awarded")),
-                _quiz_csv_value(ans.get("points_possible")),
-                _quiz_csv_value(ans.get("grading_mode")),
-                _quiz_csv_value(ans.get("teacher_override")),
-                _quiz_csv_text(ans.get("teacher_note")),
-                _quiz_csv_value(ans.get("is_correct")),
-                *lifecycle_cells,
-            ])
-
-    conn.rollback()  # end of the read transaction; nothing was written
-    conn.close()
+        conn.rollback()  # end of the read transaction; nothing was written
 
     return Response(
         buf.getvalue(),
