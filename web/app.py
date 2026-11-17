@@ -1,28 +1,17 @@
 """
-LearnPilot — Web app, Phase 1.
+LearnPilot web application: the Flask composition root.
 
-Браузър за секции и въпроси от curriculum-а. Read-only.
-
-Структура:
-  /                   → начална страница, списък с класове 8-12
-  /grade/<n>          → предметите за избран клас
-  /section/<slug>     → въпроси в избрана секция
-
-Зависимости:
-  pip3 install flask
-
-Употреба:
-  cd ~/dzi-generator
-  python3 web/app.py
-  → отвори http://127.0.0.1:5000
+This module creates the Flask ``app`` and assembles it. It turns the process
+environment into the application configuration, installs the request hooks,
+context processors and error handlers, registers the runtime providers that the
+quiz services read, sets the lifecycle clock environment, warns about pending
+schema migrations and registers the blueprints. Views, route access policies and
+business logic live in ``web.blueprints`` and ``web.services``.
 """
 
 from __future__ import annotations
 
-import copy
 import os
-import json
-import math
 import secrets
 import time
 import warnings
@@ -35,12 +24,10 @@ from urllib.parse import urlparse
 from flask import Flask, abort, g, render_template, url_for, request, redirect, session
 
 from src.subject_browsing import public_slug
-from src.subject_assessment import AssessmentScope, question_belongs_to_subject
-from src.subject_registry import all_subjects, get_subject
 from src.practical_uploads import MAX_FILES_PER_REQUEST, MAX_REQUEST_BYTES, MAX_UPLOAD_BYTES
 from web.blueprints.dzi import dzi_bp
 from web.blueprints.practical import practical_bp
-from web.attempt_access import quiz_attempt_owner_session_key
+from web.attempt_access import quiz_attempt_owner_session_key  # tests read web_app.quiz_attempt_owner_session_key (e.g. test_auth_guard)
 from web.blueprints.account import account_bp
 from web.blueprints.oidc import oidc_bp
 from web.blueprints.quiz import quiz_bp
@@ -69,42 +56,25 @@ from web.services import profiles as profiles_service
 from web.services.subject_catalog import subject_catalog, subject_topic_groups
 from web.services import quiz as quiz_service
 from web.services.dzi_exams import (
-    DZI_FORMAT_VERSION,
-    dzi_json_text_list,
-    dzi_parse_source_slug,
-    dzi_source_slug,
-    dzi_source_title,
+    DZI_FORMAT_VERSION,  # historic alias pinned by test_dzi_blueprint (hasattr); also read by test_auth_guard
+    dzi_json_text_list,  # historic alias pinned by test_dzi_blueprint (hasattr); read by test_section_review_answers
+    dzi_parse_source_slug,  # historic alias pinned by test_dzi_blueprint (hasattr); read by test_section_question_images
+    dzi_source_slug,  # historic alias pinned by test_dzi_blueprint (hasattr); also read by test_auth_guard
 )
-from web.services.question_visuals import fetch_question_visual_assets
 from web.services.quiz import (
-    QUIZ_APPROVED_FILTER,
-    QUIZ_DURATION_FALLBACK_BG,
-    QUIZ_SUCCESS_RATE_FALLBACK_BG,
-    TEACHER_OPEN_ANSWER_STATUSES,
-    attach_attempt_question_image_counts,
-    attach_question_image_indicators,
-    build_mixed_quiz_plan,
-    fetch_open_question_candidates,
-    fetch_quiz_text_answers_for_attempt,
-    is_quiz_question_eligible,
-    open_question_scope_summary,
-    quiz_assignment_mixed_status,
-    quiz_attempt_duration_display,
-    quiz_attempt_success_rate_display,
-    quiz_combined_score_summary,
-    quiz_db,
-    quiz_fetch_assignment,
-    quiz_parse_assignment_question_plan,
-    quiz_parse_attempt_question_plan,
-    quiz_section_question_ids,
-    quiz_section_question_ids_by_section,
-    quiz_teacher_difficulty_breakdown,
-    quiz_text_answer_informational_subtotal,
-    quiz_text_auto_points,
-    quiz_write_assignment_note,
+    build_mixed_quiz_plan,  # tests call web_app.build_mixed_quiz_plan (e.g. test_mixed_quiz_plan_helper)
+    fetch_open_question_candidates,  # tests call web_app.fetch_open_question_candidates (e.g. test_assignment_ownership)
+    fetch_quiz_text_answers_for_attempt,  # test_quiz_text_answer_query reads web_app.fetch_quiz_text_answers_for_attempt
+    is_quiz_question_eligible,  # test_quiz_attempt_render reads web_app.is_quiz_question_eligible
+    open_question_scope_summary,  # test_open_question_scope reads web_app.open_question_scope_summary
+    quiz_assignment_mixed_status,  # test_mixed_assignment_indicators reads web_app.quiz_assignment_mixed_status
+    quiz_db,  # compatibility seam: tests.support and tests.lifecycle_support call web_app.quiz_db (same object as the service's)
+    quiz_parse_assignment_question_plan,  # tests read web_app.quiz_parse_assignment_question_plan (e.g. test_assignment_duplicate)
+    quiz_section_question_ids,  # tests call web_app.quiz_section_question_ids (e.g. test_access_policy)
+    quiz_write_assignment_note,  # test_isolation reads web_app.quiz_write_assignment_note
 )
-from web.db_introspect import sqlite_table_columns, sqlite_table_exists
-from web.text_values import unique_text_values
+from web.db_introspect import sqlite_table_columns  # test_quiz_text_answer_query reads this name from the web_app module
+from web.text_values import unique_text_values  # exact import line pinned by test_dzi_predicate; no runtime caller here
 
 
 # ---------------------------------------------------------------------------
@@ -623,19 +593,8 @@ def lifecycle_unavailable(e):
 
 # === QUIZ PHASE 2 START ===
 
-import csv as _quiz_csv
-import io as _quiz_io
-import json as _quiz_json
 import os as _quiz_os
-import unicodedata as _quiz_unicodedata
 from pathlib import Path as _QuizPath
-
-from flask import Response as _quiz_response
-from flask import abort as _quiz_abort
-from flask import redirect as _quiz_redirect
-from flask import request as _quiz_request
-from flask import url_for as _quiz_url_for
-from flask import render_template as _quiz_render_template
 
 
 QUIZ_DB_PATH = DB_PATH  # Same database as browsing; see configured_db_path().
@@ -689,9 +648,9 @@ if __name__ == "__main__":
     if not DB_PATH.exists():
         print(f"❌ DB не намерен: {DB_PATH}")
         raise SystemExit(1)
-    print(f"📚 LearnPilot — Web app")
+    print("📚 LearnPilot — Web app")
     print(f"   DB:      {DB_PATH}")
-    print(f"   URL:     http://127.0.0.1:5000")
-    print(f"   Stop:    Ctrl+C")
+    print("   URL:     http://127.0.0.1:5000")
+    print("   Stop:    Ctrl+C")
     debug = os.environ.get("FLASK_DEBUG", "0") == "1"
     app.run(host="127.0.0.1", port=5000, debug=debug)
