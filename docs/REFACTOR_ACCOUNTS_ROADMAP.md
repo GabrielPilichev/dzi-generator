@@ -10,7 +10,53 @@ Oct 6, 2026 · @Gabriel Pilichev
 > The current contract is `docs/AUTH_ROUTE_CONTRACT.md`; the implementation
 > history is `docs/ACCOUNTS_DESIGN.md`.
 
-## Current roadmap update — 2026-10-13
+## Current roadmap update — 2026-11-18
+
+Gabriel approved the Opus-selected planning direction. Provenance: proposed
+review `REVIEW_2026-11-11_NEXT_STEPS.md`, SHA-256
+`d3112d4f572f7949a9f3a59a97c23b8490f3de82ff03cace3fee993e9368d0f3` (not
+tracked here). The labels "review D1/D2/D5" name that review's decisions,
+not other D-numbers. On order and release intent this update overrides earlier
+sections, the earlier update's sequence, the PR-sequence table and the timing of
+entitlements and billing. Approved engineering, access and storage contracts
+and the DZI gate's specification and acceptance checks remain authoritative.
+
+- **Modified review D1.** Launch preparation comes first, including the
+  production vault-note setting. While owner inputs wait, the launch checklist,
+  canonical content-update design and tool, practice design note and section
+  practice may advance, one PR at a time. Then practice, then the DZI gate;
+  content alongside that work only when review D6/D7 permit; teacher-builder
+  and operations later. Entitlements and billing wait for real users. Not every
+  blank review decision is adopted.
+- **Pilot, review D2.** Targets, not verified calendar facts or promises: a
+  February 2027 classroom pilot, R1 (student registration, recovery, profiles,
+  existing teacher tests and current content, privacy), then R2 on 2027-03-15
+  (practice, DZI Part 1 simulation, DZI gate, new content subject to review
+  D6/D7).
+  Teacher accounts use the existing operator CLI; teacher self-registration and
+  Google stay off. Readiness checkpoint 2027-01-08; six owner hours weekly is
+  an assumption. Missing prerequisites or failed capacity evidence delay
+  activation regardless of date. Each pilot feature needs its own later,
+  separately authorised activation PR under the existing prerequisites. This
+  entry activates nothing.
+- **Pages.** Future brief defaults: public `/privacy`, a small `legal`
+  blueprint, a separate owner-text include, footer and form links. Final legal
+  assessment may require other notices or terms, even for a free pilot. No
+  legal copy is drafted or approved here.
+- **Vault notes, review D5.** A separately scoped switch stops production
+  quiz-note writing, keeps local development use, deletes no existing notes
+  and changes no backup/restore or other vault content.
+- **Mail.** Brevo SMTP is selected; Amazon SES in an EU region is the
+  fallback. This is a choice, not provisioning or verification; live accounts,
+  DNS, credentials and deployment state are uninspected and unknown, not
+  proven absent.
+- **Still open.** D16 (lawful basis, minors/consent, purpose/visibility,
+  retention), controller and contact facts, approved Bulgarian text including
+  RD15, sender domain and required evidence. No statutory summary, legal
+  basis, consent control or retention period is adopted. Other unresolved
+  review decisions stay open; operational actions need separate authority.
+
+## Earlier roadmap update — 2026-10-13
 
 This update records Gabriel's current product decisions. Historical sections below
 remain useful context; where they conflict with these decisions, this update wins.
