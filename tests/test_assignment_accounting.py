@@ -518,7 +518,7 @@ class RollbackScenarios:
 
     def setUp(self):
         super().setUp()
-        self.base = datetime.utcnow().replace(microsecond=0)
+        self.base = lifecycle.naive_utc_now().replace(microsecond=0)
         self.clock.set(self.base)
         with closing(self.connect()) as conn:
             self.assertEqual(conn.execute(f"PRAGMA journal_mode={self.JOURNAL_MODE}").fetchone()[0].upper(),

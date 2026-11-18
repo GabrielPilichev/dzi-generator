@@ -1764,7 +1764,7 @@ def quiz_teacher_difficulty_breakdown(conn, attempt_ids: list[int]) -> list[dict
 
 
 def quiz_current_timestamp() -> _quiz_datetime:
-    return _quiz_datetime.utcnow()
+    return lifecycle.naive_utc_now()
 
 
 # Lifecycle time is this clock, once the clock-health check has accepted it. Looked
