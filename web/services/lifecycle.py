@@ -739,8 +739,18 @@ class DevelopmentClockEnvironment(SystemClockEnvironment):
         return True
 
 
+def naive_utc_now() -> datetime:
+    """The current UTC time as a naive ``datetime``, microseconds kept.
+
+    The default wall clock, and the unfrozen clock of the application and its tests.
+    The instant is sampled once, with the zone named explicitly, and only then is
+    ``tzinfo`` dropped: the value is UTC, never server-local time.
+    """
+    return datetime.now(timezone.utc).replace(tzinfo=None)
+
+
 _environment: ClockEnvironment = SystemClockEnvironment()
-_wall_clock: Callable[[], datetime] = datetime.utcnow
+_wall_clock: Callable[[], datetime] = naive_utc_now
 
 
 def configure_clock_environment(environment: ClockEnvironment) -> None:

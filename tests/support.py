@@ -71,7 +71,7 @@ class LifecycleTestClock(lifecycle_service.ClockEnvironment):
         self._boottime_ms = self.FROZEN_BOOTTIME_MS
 
     def wall(self) -> datetime:
-        return self.frozen_at if self.frozen_at is not None else datetime.utcnow()
+        return self.frozen_at if self.frozen_at is not None else lifecycle_service.naive_utc_now()
 
     def boot_id(self):
         return self.boot
