@@ -1,9 +1,9 @@
-"""Start, resume or replace an account's section or topic practice session (C2).
+"""Start, resume, replace or submit an account's section or topic practice session (C2).
 
 Governed by docs/STUDENT_PRACTICE_DESIGN.md (sections 2, 4 and 5) over the
-runtime tables of migration 026. This module only decides and writes the *start*
-of a session: there is no submit, scoring, answer row, route, template or
-progress query here.
+runtime tables of migration 026. This module decides and writes the *start* of a
+session and its one *submission*: there is no route, template, timer, progress
+query or change to the existing quiz scoring here.
 
 Contract
 --------
@@ -46,6 +46,50 @@ is not configured or already inside a transaction, and :class:`PracticeStateErro
 (:class:`PracticePlanError` for a plan) for stored state the service refuses to
 interpret. Any other database error propagates unchanged.
 
+Submission
+----------
+:func:`submit_practice` takes the same kind of connection, the trusted principal, a
+positive session id and ``choices``: a mapping of question id to the chosen option
+key (the stored ``option_letter``, whatever it is; display letters play no part).
+The client never supplies ownership, the plan, a timestamp, a verdict or a score.
+It returns a :class:`PracticeSubmission` whose ``outcome`` is exactly one of:
+
+``submitted``
+    The answers, the verdicts and the final score were stored and the session was
+    finalized in one transaction. One ``practice_answers`` row exists per
+    presentable question, ``NULL`` letter and an incorrect verdict for the
+    unanswered ones; ``score_total`` is the presentable count, so a planned question
+    that can no longer be rendered or is no longer in scope is not counted.
+``already_submitted``
+    The caller's own session was submitted earlier. Nothing was written and changed
+    content was not inspected; the stored score and time are returned.
+``abandoned``
+    The caller's own session was abandoned (a replacement may exist). Refused,
+    nothing written: an old tab can never grade, or alter, its replacement.
+``not_found``
+    No session of that id belongs to the caller. Missing and foreign-owned
+    sessions are the same outcome, for a teacher or an admin too.
+``scope_unavailable`` / ``account_unavailable``
+    As for a start. Nothing was written.
+``stale``
+    The open session presents no question any more (see Eligibility). Nothing was
+    written; the next start abandons and replaces it.
+``empty``
+    No presentable question received a usable choice. Nothing was written and the
+    session stays open. A choice is usable only if it is a string equal to a
+    current stored option key of that question; ids outside the plan are ignored.
+
+Everything is decided under ``BEGIN IMMEDIATE`` with the account and the session
+row re-read there, the owner in the same ``WHERE`` as the id. A concurrent
+duplicate submit therefore sees ``already_submitted`` and a start that abandoned
+the session first makes the submit ``abandoned``. The final ``UPDATE`` is guarded by
+owner and open state and its row count is verified, as is every answer insert; an
+open session that already has answer rows, or a presentable question without a
+correct option, is :class:`PracticeStateError`. The plan, seed, start time and scope
+are never rewritten, and nothing outside ``practice_sessions`` and
+``practice_answers`` is written. Exceptions are those of a start, plus ``ValueError``
+for ``choices`` that is not a mapping.
+
 Stored plans
 ------------
 ``question_ids_json`` holds a JSON array of distinct positive integers (each at
@@ -87,14 +131,19 @@ import json
 import random
 import secrets
 import sqlite3
-from typing import NamedTuple
+from collections.abc import Callable, Mapping
+from typing import NamedTuple, TypeVar
 
 from src.subject_assessment import AssessmentScope
 from src.subject_content import sql_chunks, topic_ownership
 from web.access import Principal, account_principal, can_take_quizzes
 from web.services import lifecycle
 from web.services.dzi import dzi_question_sql
-from web.services.quiz import filter_renderable_attempt_question_ids, quiz_section_question_ids
+from web.services.quiz import (
+    filter_renderable_attempt_question_ids,
+    quiz_correct_mc_letters_by_id,
+    quiz_section_question_ids,
+)
 
 # A new session needs at least this many distinct eligible questions...
 MIN_QUESTIONS = 5
@@ -106,6 +155,13 @@ OUTCOME_RESUMED = "resumed"
 OUTCOME_EMPTY_POOL = "empty_pool"
 OUTCOME_SCOPE_UNAVAILABLE = "scope_unavailable"
 OUTCOME_ACCOUNT_UNAVAILABLE = "account_unavailable"
+
+OUTCOME_SUBMITTED = "submitted"
+OUTCOME_ALREADY_SUBMITTED = "already_submitted"
+OUTCOME_ABANDONED = "abandoned"
+OUTCOME_NOT_FOUND = "not_found"
+OUTCOME_STALE = "stale"
+OUTCOME_EMPTY = "empty"
 
 _SQLITE_MAX_INTEGER = 2 ** 63 - 1
 _DZI_TRAINING_SECTION_TYPE = "dzi_training"
@@ -136,6 +192,38 @@ class PracticeStart(NamedTuple):
     @property
     def resumed(self) -> bool:
         return self.outcome == OUTCOME_RESUMED
+
+
+class PracticeAnswer(NamedTuple):
+    """One stored answer: the chosen option key (``None`` when unanswered) and its verdict."""
+
+    question_id: int
+    chosen_letter: str | None
+    is_correct: bool
+
+
+class PracticeSubmission(NamedTuple):
+    """The result of a submission; ``outcome`` is one of the ``OUTCOME_*`` values.
+
+    ``session_id``, ``score_correct``, ``score_total`` and ``submitted_at`` are set for
+    ``submitted`` and ``already_submitted``; ``answers`` (presentation order) for
+    ``submitted`` only.
+    """
+
+    outcome: str
+    session_id: int | None = None
+    score_correct: int | None = None
+    score_total: int | None = None
+    submitted_at: str | None = None
+    answers: tuple[PracticeAnswer, ...] = ()
+
+    @property
+    def submitted(self) -> bool:
+        return self.outcome == OUTCOME_SUBMITTED
+
+    @property
+    def already_submitted(self) -> bool:
+        return self.outcome == OUTCOME_ALREADY_SUBMITTED
 
 
 class PracticeAccessError(PermissionError):
@@ -170,7 +258,7 @@ def _account_id(principal: object) -> int:
 
 def _require_usable_connection(conn: sqlite3.Connection) -> None:
     if conn.in_transaction:
-        raise RuntimeError("a practice start must begin outside a transaction")
+        raise RuntimeError("a practice operation must begin outside a transaction")
     if conn.row_factory is not sqlite3.Row or conn.execute("PRAGMA foreign_keys").fetchone()[0] != 1:
         raise RuntimeError("the connection is not configured (sqlite3.Row rows, foreign keys on)")
 
@@ -274,12 +362,42 @@ def _create(conn: sqlite3.Connection, user_id: int, section_id: int, topic_id: i
     return PracticeStart(OUTCOME_CREATED, int(cursor.lastrowid), tuple(plan), seed)
 
 
+def _account_is_active(conn: sqlite3.Connection, user_id: int) -> bool:
+    """Whether the account row exists, is active and has a role that may practice."""
+    account = conn.execute("SELECT role, is_active FROM users WHERE id = ?", (user_id,)).fetchone()
+    return (account is not None and account["is_active"] == 1
+            and can_take_quizzes(account_principal(user_id, account["role"], "")))
+
+
+def _presentable_question_ids(conn: sqlite3.Connection, stored: list[int], eligible: list[int]) -> tuple[int, ...]:
+    """The stored ids, in stored order, that are renderable now and in the current eligible pool."""
+    renderable, _skipped = filter_renderable_attempt_question_ids(conn, stored)
+    current = set(eligible)
+    return tuple(question_id for question_id in renderable if question_id in current)
+
+
+_Result = TypeVar("_Result")
+
+
+def _in_write_transaction(conn: sqlite3.Connection, decide: Callable[[], tuple[_Result, bool]]) -> _Result:
+    """Run ``decide`` under ``BEGIN IMMEDIATE``; commit if it wrote, roll back if not or on any error."""
+    conn.execute("BEGIN IMMEDIATE")
+    try:
+        result, wrote = decide()
+        # Explicit SQL, not conn.commit()/rollback(): under Python 3.12's autocommit=True those two
+        # are no-ops even after a manual BEGIN, which would leave the writer lock held.
+        conn.execute("COMMIT" if wrote else "ROLLBACK")
+    except BaseException:
+        if conn.in_transaction:
+            conn.execute("ROLLBACK")
+        raise
+    return result
+
+
 def _decide(conn: sqlite3.Connection, user_id: int, section_id: int,
             topic_id: int | None) -> tuple[PracticeStart, bool]:
     """The decision, under the writer lock. Returns the result and whether it wrote."""
-    account = conn.execute("SELECT role, is_active FROM users WHERE id = ?", (user_id,)).fetchone()
-    if (account is None or account["is_active"] != 1
-            or not can_take_quizzes(account_principal(user_id, account["role"], ""))):
+    if not _account_is_active(conn, user_id):
         return PracticeStart(OUTCOME_ACCOUNT_UNAVAILABLE), False
 
     scope = _resolve_scope(conn, section_id, topic_id)
@@ -294,9 +412,7 @@ def _decide(conn: sqlite3.Connection, user_id: int, section_id: int,
     if existing is not None:
         session_id = int(existing["id"])
         stored = _parse_stored_plan(existing["question_ids_json"], session_id)
-        renderable, _skipped = filter_renderable_attempt_question_ids(conn, stored)
-        current = set(eligible)
-        presented = tuple(question_id for question_id in renderable if question_id in current)
+        presented = _presentable_question_ids(conn, stored, eligible)
         if presented:
             return PracticeStart(OUTCOME_RESUMED, session_id, presented, existing["seed"]), False
         now_text = _utc_now_text()
@@ -319,14 +435,101 @@ def start_or_resume_practice(conn: sqlite3.Connection, principal: Principal, sec
         topic_id = _positive_id(topic_id, "topic_id")
     _require_usable_connection(conn)
 
-    conn.execute("BEGIN IMMEDIATE")
-    try:
-        result, wrote = _decide(conn, user_id, section_id, topic_id)
-        # Explicit SQL, not conn.commit()/rollback(): under Python 3.12's autocommit=True those two
-        # are no-ops even after a manual BEGIN, which would leave the writer lock held.
-        conn.execute("COMMIT" if wrote else "ROLLBACK")
-    except BaseException:
-        if conn.in_transaction:
-            conn.execute("ROLLBACK")
-        raise
-    return result
+    return _in_write_transaction(conn, lambda: _decide(conn, user_id, section_id, topic_id))
+
+
+def _option_keys(conn: sqlite3.Connection, question_ids: tuple[int, ...]) -> dict[int, set[str]]:
+    """The current stored option keys of each question (a plan holds at most ``MAX_QUESTIONS`` ids)."""
+    marks = ",".join("?" for _ in question_ids)
+    keys: dict[int, set[str]] = {question_id: set() for question_id in question_ids}
+    # SAFE: placeholders only; the ids are bound parameters.
+    for row in conn.execute(
+            f"SELECT question_id, option_letter FROM multiple_choice_options WHERE question_id IN ({marks})",
+            list(question_ids)):
+        keys[int(row["question_id"])].add(row["option_letter"])
+    return keys
+
+
+def _grade(conn: sqlite3.Connection, presentable: tuple[int, ...],
+           choices: dict[int, object]) -> tuple[list[PracticeAnswer], bool]:
+    """A verdict per presentable question, and whether any choice was usable."""
+    keys = _option_keys(conn, presentable)
+    correct = quiz_correct_mc_letters_by_id(conn, list(presentable))
+    answers, any_usable = [], False
+    for question_id in presentable:
+        choice = choices.get(question_id)
+        chosen = choice if type(choice) is str and choice in keys[question_id] else None
+        any_usable = any_usable or chosen is not None
+        correct_key = correct.get(question_id)
+        if correct_key is None:  # unreachable for an eligible question: exactly one correct option
+            raise PracticeStateError(f"question {question_id} has no correct option")
+        answers.append(PracticeAnswer(question_id, chosen, chosen is not None and chosen == correct_key))
+    return answers, any_usable
+
+
+def _finalize(conn: sqlite3.Connection, session_id: int, user_id: int, answers: list[PracticeAnswer]) -> PracticeSubmission:
+    """Store the answers and finalize the session; the caller holds the writer lock."""
+    for answer in answers:
+        cursor = conn.execute(
+            "INSERT INTO practice_answers (session_id, question_id, chosen_letter, is_correct) VALUES (?, ?, ?, ?)",
+            (session_id, answer.question_id, answer.chosen_letter, int(answer.is_correct)))
+        if cursor.rowcount != 1:
+            raise PracticeStateError(f"an answer of practice session {session_id} was not stored")
+    score = sum(answer.is_correct for answer in answers)
+    now_text = _utc_now_text()
+    cursor = conn.execute(
+        "UPDATE practice_sessions SET submitted_at = ?, score_correct = ?, score_total = ? "
+        f"WHERE id = ? AND user_id = ? AND {_OPEN_SQL}",
+        (now_text, score, len(answers), session_id, user_id))
+    if cursor.rowcount != 1:
+        raise PracticeStateError(f"practice session {session_id} could not be submitted")
+    return PracticeSubmission(OUTCOME_SUBMITTED, session_id, score, len(answers), now_text, tuple(answers))
+
+
+def _decide_submission(conn: sqlite3.Connection, user_id: int, session_id: int,
+                       choices: dict[int, object]) -> tuple[PracticeSubmission, bool]:
+    """The submission decision, under the writer lock. Returns the result and whether it wrote."""
+    if not _account_is_active(conn, user_id):
+        return PracticeSubmission(OUTCOME_ACCOUNT_UNAVAILABLE), False
+    # The owner is part of the lookup: a missing and a foreign session are the same empty result.
+    session = conn.execute(
+        "SELECT section_id, topic_id, question_ids_json, submitted_at, abandoned_at, score_correct, score_total "
+        "FROM practice_sessions WHERE id = ? AND user_id = ?", (session_id, user_id)).fetchone()
+    if session is None:
+        return PracticeSubmission(OUTCOME_NOT_FOUND), False
+    if session["submitted_at"] is not None:
+        if session["abandoned_at"] is not None:
+            raise PracticeStateError(f"practice session {session_id} is both submitted and abandoned")
+        return PracticeSubmission(OUTCOME_ALREADY_SUBMITTED, session_id, int(session["score_correct"]),
+                                  int(session["score_total"]), session["submitted_at"]), False
+    if session["abandoned_at"] is not None:
+        return PracticeSubmission(OUTCOME_ABANDONED), False
+    if conn.execute("SELECT 1 FROM practice_answers WHERE session_id = ? LIMIT 1", (session_id,)).fetchone():
+        raise PracticeStateError(f"open practice session {session_id} already has stored answers")
+
+    topic_id = None if session["topic_id"] is None else int(session["topic_id"])
+    scope = _resolve_scope(conn, int(session["section_id"]), topic_id)
+    if scope is None:
+        return PracticeSubmission(OUTCOME_SCOPE_UNAVAILABLE), False
+    stored = _parse_stored_plan(session["question_ids_json"], session_id)
+    eligible = _eligible_question_ids(conn, scope, topic_id)
+    presentable = _presentable_question_ids(conn, stored, eligible)
+    if not presentable:
+        return PracticeSubmission(OUTCOME_STALE), False
+    answers, any_usable = _grade(conn, presentable, choices)
+    if not any_usable:
+        return PracticeSubmission(OUTCOME_EMPTY), False
+    return _finalize(conn, session_id, user_id, answers), True
+
+
+def submit_practice(conn: sqlite3.Connection, principal: Principal, session_id: int,
+                    choices: Mapping[int, str]) -> PracticeSubmission:
+    """Grade and finalize the principal's own open practice session (module docstring)."""
+    user_id = _account_id(principal)
+    session_id = _positive_id(session_id, "session_id")
+    if not isinstance(choices, Mapping):
+        raise ValueError("choices must be a mapping of question id to chosen option key")
+    # Only genuine integer ids can name a planned question; a bool is not one.
+    chosen = {key: value for key, value in choices.items() if type(key) is int}
+    _require_usable_connection(conn)
+    return _in_write_transaction(conn, lambda: _decide_submission(conn, user_id, session_id, chosen))
