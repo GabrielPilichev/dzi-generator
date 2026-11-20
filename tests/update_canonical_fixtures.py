@@ -170,6 +170,133 @@ class FactoryConnect:
         return REAL_CONNECT(database, *args, factory=factory, **kwargs)
 
 
+class LegacyAuthorizerConnection(sqlite3.Connection):
+    """A connection with the ``set_authorizer(None)`` semantics of CPython 3.9 and 3.10.
+
+    Before 3.11 ``None`` is not "remove the authorizer": it installs a callback that denies every
+    action (the real system 3.9 does exactly that), so ``PRAGMA query_only=OFF`` fails after it."""
+
+    def set_authorizer(self, callback):
+        if callback is None:
+            return super().set_authorizer(lambda *_args: 1)     # SQLITE_DENY for everything
+        return super().set_authorizer(callback)
+
+
+class StuckRollbackConnection(sqlite3.Connection):
+    """A connection whose COMMIT raises and whose single ROLLBACK afterwards fails without ending the
+    transaction, so ``in_transaction`` stays true. ``events`` records ``commit`` and ``rollback``."""
+
+    events: list = []
+
+    def execute(self, sql, *params):
+        text = sql.strip().upper() if isinstance(sql, str) else ""
+        if text == "COMMIT":
+            self.events.append("commit")
+            raise sqlite3.OperationalError("disk I/O error")
+        if text == "ROLLBACK" and "commit" in self.events:
+            self.events.append("rollback")
+            raise sqlite3.OperationalError("cannot rollback")
+        return super().execute(sql, *params)
+
+
+def stuck_rollback_class(events: list):
+    return type("StuckRollback", (StuckRollbackConnection,), {"events": events})
+
+
+# ----------------------------------------------------------------------------- open spy and manifest redirects
+
+class OpenSpy:
+    """Records every path opened while active, through the interpreter's audit ``open`` event.
+
+    That one event covers ``open``, ``io.open``, ``os.open`` and ``Path.read_bytes``/``read_text``/``open``,
+    so no read of a redirected file can bypass it. Audit hooks cannot be removed; the single installed
+    hook records only for spies that are currently active."""
+
+    _active: list = []
+    _installed = False
+
+    def __init__(self):
+        self.paths: list[str] = []
+
+    @classmethod
+    def _hook(cls, event, args):
+        if event == "open" and cls._active:
+            path = args[0]
+            if isinstance(path, (str, bytes)):
+                text = os.fsdecode(path)
+                for spy in cls._active:
+                    spy.paths.append(text)
+
+    def start(self) -> None:
+        if not OpenSpy._installed:
+            import sys
+            sys.addaudithook(OpenSpy._hook)
+            OpenSpy._installed = True
+        if self not in OpenSpy._active:
+            OpenSpy._active.append(self)
+
+    def stop(self) -> None:
+        if self in OpenSpy._active:
+            OpenSpy._active.remove(self)
+
+    def opened_under(self, directory) -> list[str]:
+        root = os.path.realpath(directory)
+        resolved = [(path, os.path.realpath(path)) for path in self.paths]
+        return [path for path, real in resolved if real == root or real.startswith(root + os.sep)]
+
+    def opened_named(self, name: str) -> list[str]:
+        return [path for path in self.paths if os.path.basename(path) == name]
+
+
+def redirect_table_file(directory, table: str, how: str, outside) -> Path | None:
+    """Make ``directory``'s manifest name something other than ``<table>.jsonl``.
+
+    ``absolute``/``relative`` move the table file to a valid JSONL file under ``outside`` and point the
+    manifest at it (``relative`` as ``../../<path from the temporary root>``, which the run's private
+    copy two levels below the temporary root resolves to the same outside file); ``other_table`` names
+    another table's file; ``missing`` deletes the expected file; the rest are malformed entries.
+    Returns the outside file, if one was made."""
+    import tempfile
+    directory, outside = Path(directory), Path(outside)
+    external = None
+    if how in ("absolute", "relative"):
+        outside.mkdir(parents=True, exist_ok=True)
+        external = outside / f"{table}.jsonl"
+        shutil.move(str(table_path(directory, table)), external)
+        if how == "absolute":
+            named = str(external)
+        else:
+            named = "../../" + os.path.relpath(external, tempfile.gettempdir())
+    elif how == "other_table":
+        named = "curricula.jsonl" if table != "curricula" else "questions.jsonl"
+    elif how == "missing":
+        table_path(directory, table).unlink()
+        return None
+    else:
+        named = None
+
+    def change(manifest):
+        if how == "missing":
+            return
+        entries = manifest["tables"]
+        if how == "entry_is_string":
+            entries[table] = "questions.jsonl"
+        elif how == "entry_is_null":
+            entries[table] = None
+        elif how == "file_is_number":
+            entries[table]["file"] = 5
+        elif how == "file_is_list":
+            entries[table]["file"] = [f"{table}.jsonl"]
+        elif how == "file_absent":
+            entries[table].pop("file")
+        elif how == "tables_is_list":
+            manifest["tables"] = list(entries.values())
+        else:
+            entries[table]["file"] = named
+    edit_manifest(directory, change)
+    return external
+
+
 # ----------------------------------------------------------------------------- running the tool
 
 class Result:

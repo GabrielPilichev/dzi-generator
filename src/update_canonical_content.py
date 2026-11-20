@@ -416,11 +416,28 @@ def _load_rows(dataset: Dataset, ref: Reference, problem: str) -> None:
         dataset.rows[table] = rows
 
 
+def _require_own_pinned_files(pinned: Pinned, manifest) -> None:
+    """A manifest may name only each table's own file, and only one that was pinned.
+
+    Every helper that follows ``tables[t].file`` (``canonical_export.check_directory``,
+    ``_load_rows``, ``ct.file_digest``) would otherwise be redirected outside the private copy by an
+    absolute or ``..`` path or by another table's file; this runs before any of them.
+    """
+    tables = manifest.get("tables") if isinstance(manifest, dict) else None
+    if not isinstance(tables, dict):
+        raise ct.CanonicalError("manifest tables are malformed")
+    for table, entry in tables.items():
+        expected = f"{table}.jsonl"
+        if not isinstance(entry, dict) or entry.get("file") != expected or expected not in pinned.files:
+            raise ct.CanonicalError("a manifest names a file other than its own pinned table file")
+
+
 def validate_source(pinned: Pinned, migrations_pinned: Path, ref: Reference) -> Dataset:
     try:
+        manifest = export.load_manifest(pinned.directory)
+        _require_own_pinned_files(pinned, manifest)
         if export.check_directory(pinned.directory, migrations_pinned):
             raise ct.CanonicalError("source validation failed")
-        manifest = export.load_manifest(pinned.directory)
         dataset = Dataset(pinned, manifest)
         if manifest.get("canonical_tables") != ref.load_order:
             raise ct.CanonicalError("source load order differs")
@@ -440,6 +457,7 @@ def validate_source(pinned: Pinned, migrations_pinned: Path, ref: Reference) -> 
 def validate_preimage(pinned: Pinned, migrations_pinned: Path, ref: Reference, source: Dataset) -> Dataset:
     try:
         manifest = export.load_manifest(pinned.directory)
+        _require_own_pinned_files(pinned, manifest)
         if manifest.get("format") != ct.FORMAT_NAME or manifest.get("format_version") != ct.FORMAT_VERSION:
             raise ct.CanonicalError("unsupported preimage format")
         if manifest.get("canonical_tables") != ref.load_order or sorted(manifest.get("tables", {})) != sorted(ref.load_order):
@@ -524,6 +542,15 @@ def _read_authorizer(action, arg1, arg2, _database, _source):
 
 
 _CANONICAL_NAMES = frozenset(ct.tables_of(ct.CANONICAL))
+
+
+def _no_authorizer(*_args):
+    """Allow-all callback that replaces the read guard between the phases.
+
+    ``set_authorizer(None)`` removes the authorizer only from Python 3.11; earlier versions install a
+    deny-all callback, which would refuse ``PRAGMA query_only=OFF``. A plain callback works everywhere.
+    """
+    return _OK
 
 
 def _write_authorizer(action, arg1, arg2, database, source):
@@ -911,7 +938,7 @@ def build_plan(conn, ref: Reference, source: Dataset, preimage: Dataset | None, 
         expected = max(pre or 0, manifest_sequence)
         if expected != (pre or 0):
             plan.sequence_items.append({"table": table, "pre": pre, "expected": expected})
-    plan.digest = _plan_digest(plan, ref, source, preimage, canon, sequences, facts)
+    plan.digest = _plan_digest(plan, ref, source, preimage, canon, sequences, facts, ctx.migrations_identity)
     return plan
 
 
@@ -989,7 +1016,8 @@ def _file_reference_rules(plan: Plan, ref: Reference) -> None:
                                         "availability": "not checked"})
 
 
-def _plan_digest(plan: Plan, ref: Reference, source: Dataset, preimage, canon, sequences, facts) -> str:
+def _plan_digest(plan: Plan, ref: Reference, source: Dataset, preimage, canon, sequences, facts,
+                 migrations_identity: str) -> str:
     actions = [[table, list(key), _sha256(line.encode("utf-8"))]
                for table, rows in plan.candidates.items() for key, line, _row in rows]
     actions += [[item["table"], item["pre"], item["expected"]] for item in plan.sequence_items]
@@ -997,7 +1025,7 @@ def _plan_digest(plan: Plan, ref: Reference, source: Dataset, preimage, canon, s
         "plan_format": PLAN_FORMAT_VERSION,
         "source": source.identity(),
         "preimage": preimage.identity() if preimage else None,
-        "migrations": _combined({name: "" for name in ref.migrations}),
+        "migrations": migrations_identity,   # filename + sha256 of every pinned migration file
         "target_migrations": facts["applied"],
         "target_schema": facts["schema_sha256"],
         "target_canonical": {table: list(ct.hash_lines(line for line in canon[table].lines.values() if line is not None))
@@ -1404,7 +1432,7 @@ def _with_target(ctx: Context, conn, reference: Reference, token, given: str, re
 
 def _apply(ctx: Context, conn, reference: Reference, token: str, given: str, resolved: str, uri: str):
     try:
-        conn.set_authorizer(None)
+        conn.set_authorizer(_no_authorizer)
         conn.execute("PRAGMA query_only=OFF")
         conn.set_authorizer(_write_authorizer)
         try:

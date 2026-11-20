@@ -19,6 +19,7 @@ from contextlib import closing
 from pathlib import Path
 from unittest import mock
 
+from src import canonical_export as export
 from src import canonical_tables as ct
 from src import manage_migrations
 from src import update_canonical_content as tool
@@ -364,6 +365,23 @@ class IdentityIdsAndSequencesTest(fx.UpdaterTestCase):
                                          fx.make_connection_class([], rewrite=rewrite)])
             result = self.apply(target, source, self.preimage, token, connect=connect)
             self.assertEqual(result.exit, 5, result.out)
+
+    def test_12f_a_transaction_still_open_after_the_single_rollback_is_unknown_and_never_probed(self):
+        # implementation map section 9 step 4(b): COMMIT raised, the one ROLLBACK fails and leaves the
+        # transaction open, so the outcome is unknown (exit 5) and no fresh probe connection is opened.
+        target, source, token = self.sequence_only_case()
+        before = fx.db_snapshot(target)
+        events = []
+        connect = fx.FactoryConnect([fx.stuck_rollback_class(events), sqlite3.Connection])
+        result = self.apply(target, source, self.preimage, token, connect=connect, fmt="text")
+        self.assertEqual(events, ["commit", "rollback"])                  # one COMMIT, one failed ROLLBACK
+        self.assertEqual(result.exit, 5, result.out)
+        self.assertIn("status: outcome_unknown", result.out)
+        self.assertIn("run code: commit_outcome_unknown", result.out)
+        self.assertEqual(len(connect.calls), 1)                           # the probe connection never opened
+        self.assertEqual(fx.sequence_map(target)["questions"], 7)         # closing the connection ended the transaction
+        self.assertEqual(fx.db_snapshot(target), before)
+        self.assert_clean(result)
 
     def test_13_composite_and_no_id_tables_use_their_full_key(self):
         def additions(conn):
@@ -733,6 +751,86 @@ class SourcePreimageSchemaTest(fx.UpdaterTestCase):
                 self.assert_refused(result, 3, "pinned_copy_changed", status="not_committed")
                 self.assert_untouched(self.target, self.before)
 
+    REDIRECTS = ("absolute", "relative", "other_table", "missing", "entry_is_string", "entry_is_null",
+                 "file_is_number", "file_is_list", "file_absent", "tables_is_list")
+
+    def redirected_dry_run(self, kind: str, how: str, table: str):
+        """Dry run with a source (or preimage) manifest edited by ``how``; returns what was opened or called."""
+        outside = self.ws.root / f"outside-{kind}-{how}"
+        base = self.good_source if kind == "source" else self.preimage
+        variant = self.variant(base, f"{kind}-{how}", lambda d: None)
+        external = fx.redirect_table_file(variant, table, how, outside)
+        spy = fx.OpenSpy()
+        self.spy.clear()
+        watched = {"source": (export, "check_directory"), "preimage": (ct, "file_digest")}[kind]
+        with mock.patch.object(*watched, wraps=getattr(*watched)) as helper:
+            kwargs = ({"source": variant, "preimage": self.preimage} if kind == "source"
+                      else {"source": self.good_source, "preimage": variant})
+            try:
+                result = self.dry(self.target, kwargs["source"], kwargs["preimage"], hooks={"after_pin": spy.start})
+            finally:
+                spy.stop()
+        if external is not None:
+            self.assertTrue(external.is_file())                              # the outside file stays a valid JSONL file
+        self.assertTrue(any("learnpilot-updater-" in path for path in spy.paths), "the open spy saw no pinned read")
+        self.assertEqual(spy.opened_under(outside), [], f"{how}: an outside file was read after the pin")
+        self.assertEqual([path for path in self.spy.calls if path["path"] == os.path.realpath(self.target)], [],
+                         f"{how}: the target was opened")
+        return result, helper, outside
+
+    def test_23b_a_source_manifest_may_name_only_its_own_pinned_table_file(self):
+        for how in self.REDIRECTS:
+            with self.subTest(how):
+                result, helper, _outside = self.redirected_dry_run("source", how, "questions")
+                self.assert_refused(result, 1, "invalid_source")
+                self.assert_untouched(self.target, self.before)
+                self.assertEqual(helper.call_count, 0, "canonical_export.check_directory ran before the file gate")
+
+    def test_24b_a_preimage_manifest_may_name_only_its_own_pinned_table_file(self):
+        for how in self.REDIRECTS:
+            with self.subTest(how):
+                result, helper, outside = self.redirected_dry_run("preimage", how, "curricula")
+                self.assert_refused(result, 1, "invalid_preimage")
+                self.assert_untouched(self.target, self.before)
+                digested = [os.path.realpath(call.args[0]) for call in helper.call_args_list]
+                self.assertEqual([path for path in digested
+                                  if os.path.basename(os.path.dirname(path)) == "preimage"
+                                  or path.startswith(os.path.realpath(outside) + os.sep)], [],
+                                 "file_digest followed a preimage manifest entry")
+
+    def test_25b_nothing_outside_the_private_copy_is_read_after_the_pin(self):
+        with self.subTest("the open spy is live: it sees all the ways of reading a file"):
+            probe = self.ws.path("spied.txt")
+            probe.write_bytes(b"x")
+            spy = fx.OpenSpy()
+            spy.start()
+            try:
+                probe.read_bytes()
+                with open(probe, "rb"):
+                    pass
+                os.close(os.open(probe, os.O_RDONLY))
+            finally:
+                spy.stop()
+            self.assertEqual(len(spy.opened_named("spied.txt")), 3)
+        with self.subTest("a normally pinned run reads only the private copy; the originals may change freely"):
+            source = self.variant(self.good_source, "spied-source", lambda d: None)
+            preimage = self.variant(self.preimage, "spied-preimage", lambda d: None)
+            reference = self.plan_of(self.target, self.good_source, self.preimage).report["plan_sha256"]
+            spy = fx.OpenSpy()
+
+            def after_pin():
+                fx.table_path(source, "questions").write_bytes(b"garbage\n")
+                fx.table_path(preimage, "curricula").write_bytes(b"garbage\n")
+                spy.start()                                              # only the tool's own later reads count
+            try:
+                result = self.dry(self.target, source, preimage, hooks={"after_pin": after_pin})
+            finally:
+                spy.stop()
+            self.assertEqual((result.exit, result.report["status"]), (0, "planned"), result.out)
+            self.assertEqual(result.report["plan_sha256"], reference)
+            self.assertTrue(any("learnpilot-updater-" in path for path in spy.paths))
+            self.assertEqual(spy.opened_under(source) + spy.opened_under(preimage), [])
+
     def test_26_incompatible_or_unclean_targets_are_refused(self):
         statements_by_case = {
             "pending migration": "DELETE FROM schema_migrations WHERE filename = '025_password_recoveries.sql'",
@@ -829,6 +927,39 @@ class SourcePreimageSchemaTest(fx.UpdaterTestCase):
             self.assertEqual((second.exit, second.report["status"]), (0, "no_change"))
             mixed = self.dry(late_target, source, source)
             self.assertEqual(mixed.exit, 1)                                   # not served from a stale cache
+
+    def test_27a_migration_file_bytes_are_bound_into_the_plan_hash(self):
+        baseline = self.plan_of(self.target, self.good_source, self.preimage).report
+
+        def migrations(name, edit=None):
+            directory = fx.fixture_migrations(self.ws, {}, name=name)
+            if edit is not None:
+                edit(directory)
+            return directory
+        same_names = sorted(path.name for path in ct.MIGRATIONS_DIR.glob("*.sql"))
+        inert = migrations("inert-migrations", lambda d: (d / same_names[4]).write_bytes(
+            (d / same_names[4]).read_bytes() + b"\n-- a shape-inert comment\n"))
+        copy = migrations("unchanged-migrations")
+        with self.subTest("an unchanged copy keeps the plan hash and the identity"):
+            result = self.plan_of(self.target, self.good_source, self.preimage, migrations_dir=copy).report
+            self.assertEqual(result["plan_sha256"], baseline["plan_sha256"])
+            self.assertEqual(result["repository_migrations_sha256"], baseline["repository_migrations_sha256"])
+        with self.subTest("one inert byte change with unchanged filenames changes the plan hash"):
+            self.assertEqual(sorted(path.name for path in inert.glob("*.sql")), same_names)
+            changed = self.plan_of(self.target, self.good_source, self.preimage, migrations_dir=inert).report
+            self.assertNotEqual(changed["repository_migrations_sha256"], baseline["repository_migrations_sha256"])
+            self.assertNotEqual(changed["plan_sha256"], baseline["plan_sha256"])
+            self.assertEqual(changed["tables"], baseline["tables"])           # only the bound identity differs
+        with self.subTest("the old token is stale and nothing is written"):
+            result = self.apply(self.target, self.good_source, self.preimage, baseline["plan_sha256"],
+                                migrations_dir=inert)
+            self.assert_refused(result, 2, "stale_plan")
+            self.assert_untouched(self.target, self.before)
+        with self.subTest("a token of the same pinned bytes applies (both phases bind one identity)"):
+            fresh = self.ws.target("inert-target.db")
+            token = self.plan_of(fresh, self.good_source, self.preimage, migrations_dir=inert).report["plan_sha256"]
+            result = self.apply(fresh, self.good_source, self.preimage, token, migrations_dir=inert)
+            self.assertEqual((result.exit, result.report["status"]), (0, "applied"), result.out)
 
     def test_28_a_missing_or_unsuitable_target_is_refused_before_any_sqlite_call(self):
         directory = self.ws.path("a-directory")
@@ -1083,8 +1214,32 @@ class PreservationTest(fx.UpdaterTestCase):
                  or (isinstance(entry, tuple) and entry[0] == "authorizer")]
         position = marks.index("BEGIN IMMEDIATE")
         self.assertEqual(marks[position - 4:position + 1],
-                         ["ROLLBACK", ("authorizer", None), "PRAGMA query_only=OFF", ("authorizer", "_write_authorizer"),
-                          "BEGIN IMMEDIATE"])
+                         ["ROLLBACK", ("authorizer", "_no_authorizer"), "PRAGMA query_only=OFF",
+                          ("authorizer", "_write_authorizer"), "BEGIN IMMEDIATE"])
+
+    def test_34a_a_python_3_10_style_set_authorizer_none_cannot_break_the_phase_transition(self):
+        # Before CPython 3.11, set_authorizer(None) installs a deny-all callback instead of removing the
+        # authorizer. The emulating connection reaches the tool through the unchanged connect seam.
+        with self.subTest("the emulation is not vacuous: None denies everything, as on 3.9 and 3.10"):
+            path = self.ws.path("legacy-probe.db")
+            with closing(sqlite3.connect(str(path), factory=fx.LegacyAuthorizerConnection,
+                                         isolation_level=None)) as probe:
+                probe.execute("PRAGMA query_only=ON")
+                probe.set_authorizer(None)
+                with self.assertRaises(sqlite3.DatabaseError) as raised:
+                    probe.execute("PRAGMA query_only=OFF")
+                self.assertIn("not authorized", str(raised.exception))
+        target = self.ws.target(runtime=True)
+        source = self.ws.source(lambda conn: fx.add_new_family(conn))
+        token = self.plan_of(target, source, self.preimage).report["plan_sha256"]
+        before = fx.db_snapshot(target)
+        connect = fx.FactoryConnect([fx.LegacyAuthorizerConnection])
+        result = self.apply(target, source, self.preimage, token, connect=connect)
+        self.assertEqual((result.exit, result.report["status"], result.report["run_code"]), (0, "applied", None),
+                         result.out)
+        self.assertEqual(len(connect.calls), 1)                         # the legacy class was the working connection
+        self.assertEqual(fx.scalar(target, "SELECT COUNT(*) FROM questions WHERE id = 100"), 1)
+        self.assertNotEqual(fx.db_snapshot(target), before)
 
 
 class ReportTest(fx.UpdaterTestCase):
@@ -1241,6 +1396,16 @@ class StaticGuardsAndCliTest(fx.UpdaterTestCase):
         self.assertGreaterEqual(len(run_codes), 12)
         self.assertEqual(len(tool.ROW_CODES), 21)
         self.assertEqual(len(tool.RUN_CODES), 18)
+
+    def test_34b_no_code_path_passes_none_to_set_authorizer(self):
+        tree = ast.parse(MODULE_SOURCE)
+        calls = [node for node in ast.walk(tree) if isinstance(node, ast.Call)
+                 and isinstance(node.func, ast.Attribute) and node.func.attr == "set_authorizer"]
+        self.assertGreaterEqual(len(calls), 4)                            # not vacuous: read, probe, transition, write
+        for call in calls:
+            self.assertEqual(len(call.args), 1)
+            self.assertNotIsInstance(call.args[0], ast.Constant, "set_authorizer(None) needs Python 3.11")
+            self.assertIsInstance(call.args[0], ast.Name)
 
     def test_help_and_main_use_the_standard_streams(self):
         out = io.StringIO()
