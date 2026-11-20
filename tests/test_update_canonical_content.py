@@ -1456,5 +1456,115 @@ class StaticGuardsAndCliTest(fx.UpdaterTestCase):
         self.assertIn(rows[0], active)
 
 
+class ExpressionIndexTargetTest(fx.UpdaterTestCase):
+    """PR #366: the target check sees the *expression* of an index key, not just that it has one.
+
+    ``uniq_practice_sessions_open_scope`` is the one runtime index whose key is an expression.
+    Replacing it under the same name with ``topic_id + 0`` or ``NULLIF(topic_id, topic_id)`` used to
+    pass the compatible-target gate (both record the same NULL key name) and left two open
+    section-wide sessions possible. The fix is in the shared ``table_shape``; nothing here is a
+    practice-specific exception.
+    """
+    NAME = "uniq_practice_sessions_open_scope"
+    REAL = (f"CREATE UNIQUE INDEX {NAME} ON practice_sessions(user_id, section_id, COALESCE(topic_id, 0)) "
+            "WHERE submitted_at IS NULL AND abandoned_at IS NULL")
+
+    def setUp(self):
+        super().setUp()
+        self.preimage = self.ws.preimage()
+        self.source = self.ws.source(lambda conn: fx.add_new_family(conn))
+        self.control = self.ws.target("control.db", runtime=True)
+        self.token = self.plan_of(self.control, self.source, self.preimage).report["plan_sha256"]
+
+    def replaced(self, name, sql):
+        return self.ws.target(name, runtime=True, mutate=lambda conn: (conn.execute(f"DROP INDEX {self.NAME}"),
+                                                                        conn.execute(sql)))
+
+    def two_open_null_topic_sessions_possible(self, target):
+        """Whether the index lets one user hold two open section-wide sessions (checked on a copy)."""
+        copy = self.ws.path(f"probe-{target.name}")
+        shutil.copyfile(target, copy)
+        row = "(3, 1, NULL, 's', '[1]', '2026-01-01 00:00:00')"
+        insert = ("INSERT INTO practice_sessions (user_id, section_id, topic_id, seed, question_ids_json, started_at) "
+                  f"VALUES {row}")
+        with closing(fx.REAL_CONNECT(str(copy), isolation_level=None)) as conn:
+            conn.execute("PRAGMA foreign_keys = OFF")
+            conn.execute("DELETE FROM practice_answers")
+            conn.execute("DELETE FROM practice_sessions")
+            conn.execute(insert)
+            try:
+                conn.execute(insert)
+            except sqlite3.IntegrityError:
+                return False
+            return True
+
+    def assert_refused_before_any_write(self, target):
+        before, sequences, digest = fx.db_snapshot(target), fx.sequence_map(target), fx.file_bytes_digest(target)
+        dry = self.dry(target, self.source, self.preimage)
+        self.assert_refused(dry, 1, "incompatible_target")
+        self.assertIsNone(dry.report.get("plan_sha256"))
+        applied = self.apply(target, self.source, self.preimage, self.token)      # a token that is right for the control
+        self.assert_refused(applied, 1, "incompatible_target")
+        self.assertNotEqual(applied.report["status"], "applied")
+        self.assert_untouched(target, before)
+        self.assertEqual(fx.sequence_map(target), sequences)
+        self.assertEqual(fx.file_bytes_digest(target), digest)
+        self.assertEqual(fx.scalar(target, "SELECT COUNT(*) FROM questions WHERE id >= 100"), 0)   # the new family was not written
+
+    def test_the_control_is_open_unique_and_wrong_expressions_really_are_not(self):
+        self.assertFalse(self.two_open_null_topic_sessions_possible(self.control))
+        for label, expression in (("plus zero", "topic_id + 0"), ("nullif", "NULLIF(topic_id, topic_id)")):
+            with self.subTest(label):
+                target = self.replaced(f"behaviour-{label.replace(' ', '-')}.db",
+                                       self.REAL.replace("COALESCE(topic_id, 0)", expression))
+                self.assertTrue(self.two_open_null_topic_sessions_possible(target))
+
+    def test_a_same_named_index_with_another_key_expression_is_an_incompatible_target(self):
+        for label, expression in (("plus zero", "topic_id + 0"), ("nullif", "NULLIF(topic_id, topic_id)"),
+                                  ("other sentinel", "COALESCE(topic_id, -1)"),
+                                  ("lower case function", "coalesce(topic_id, 0)")):    # conservative: spelling counts
+            with self.subTest(label):
+                target = self.replaced(f"wrong-{label.replace(' ', '-')}.db",
+                                       self.REAL.replace("COALESCE(topic_id, 0)", expression))
+                self.assert_refused_before_any_write(target)
+
+    def test_the_other_wrong_indexes_are_still_incompatible_targets(self):
+        cases = {
+            "plain column key": self.REAL.replace("COALESCE(topic_id, 0)", "topic_id"),
+            "predicate only submitted": self.REAL.replace(" AND abandoned_at IS NULL", ""),
+            "not unique": self.REAL.replace("CREATE UNIQUE INDEX", "CREATE INDEX"),
+            "reordered key": self.REAL.replace("user_id, section_id,", "section_id, user_id,"),
+        }
+        for label, sql in cases.items():
+            with self.subTest(label):
+                self.assert_refused_before_any_write(self.replaced(f"other-{label.replace(' ', '-')}.db", sql))
+
+    def test_an_identical_recreated_index_still_plans_and_genuinely_applies(self):
+        relaid = ("CREATE UNIQUE INDEX uniq_practice_sessions_open_scope ON practice_sessions ( user_id ,\n"
+                  "    section_id , COALESCE( topic_id , 0 ) )  -- recreated\n"
+                  "    WHERE submitted_at IS NULL AND abandoned_at IS NULL")
+        decoy = self.REAL.replace(")) WHERE", ")) /* WHERE decoy */ WHERE").replace("ON practice_sessions(", "ON practice_sessions /* x */ (")
+        for label, sql in (("same text", self.REAL), ("different layout", relaid), ("comments with where", decoy)):
+            with self.subTest(label):
+                target = self.replaced(f"recreated-{label.replace(' ', '-')}.db", sql)
+                self.assertFalse(self.two_open_null_topic_sessions_possible(target))
+                before = fx.db_snapshot(target)
+                dry = self.plan_of(target, self.source, self.preimage)
+                self.assertEqual(dry.report["plan_sha256"], self.token)                # same schema, same plan token
+                self.assertEqual(fx.db_snapshot(target), before)
+                result = self.apply(target, self.source, self.preimage, dry.report["plan_sha256"])
+                self.assertEqual((result.exit, result.report["status"], result.report["preservation"]["equal"]),
+                                 (0, "applied", True), result.out)
+                self.assertGreater(fx.scalar(target, "SELECT COUNT(*) FROM questions WHERE id >= 100"), 0)
+                self.assertFalse(self.two_open_null_topic_sessions_possible(target))
+
+    def test_the_reference_records_the_expression_of_the_open_scope_index(self):
+        with closing(fx.REAL_CONNECT(str(self.control))) as conn:
+            shape = tool.table_shape(conn, "practice_sessions")["indexes"][self.NAME]
+        self.assertEqual(shape["columns"][2][0], None)
+        self.assertIn("COALESCE(topic_id,0)", shape["expression_identity"])
+        self.assertIn("WHERE submitted_at IS NULL AND abandoned_at IS NULL", shape["expression_identity"])
+
+
 if __name__ == "__main__":
     unittest.main()
