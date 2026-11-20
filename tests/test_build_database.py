@@ -389,7 +389,7 @@ class CommandLineTest(TemporaryDirectoryTestCase):
         status, out, err = self.run_main("--output", str(destination))
         self.assertEqual((status, err), (0, ""))
         self.assertTrue(destination.is_file())
-        self.assertIn("migration level: 025", out)
+        self.assertIn("migration level: 026", out)
         self.assertIn("questions: 1709", out)
         self.assertIn("validation", out)
 

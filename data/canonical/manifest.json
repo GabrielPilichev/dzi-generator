@@ -2,7 +2,7 @@
   "format": "learnpilot-canonical-content",
   "format_version": 1,
   "schema": {
-    "migration_level": "025_password_recoveries.sql",
+    "migration_level": "026_practice_runtime.sql",
     "migrations": [
       "000_baseline.sql",
       "001_quiz_tables.sql",
@@ -29,7 +29,8 @@
       "022_registration_issuance_identity.sql",
       "023_profile_required.sql",
       "024_assignment_creations.sql",
-      "025_password_recoveries.sql"
+      "025_password_recoveries.sql",
+      "026_practice_runtime.sql"
     ]
   },
   "classification": {
@@ -69,6 +70,8 @@
       "pending_registrations",
       "practical_submission_files",
       "practical_submissions",
+      "practice_answers",
+      "practice_sessions",
       "quiz_answers",
       "quiz_assignments",
       "quiz_attempts",
@@ -129,6 +132,8 @@
     "pending_registrations",
     "practical_submission_files",
     "practical_submissions",
+    "practice_answers",
+    "practice_sessions",
     "quiz_answers",
     "quiz_assignments",
     "quiz_attempts",

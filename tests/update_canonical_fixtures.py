@@ -567,6 +567,14 @@ def populate_runtime(conn, marker: str = "marker") -> None:
     insert(conn, "practical_submissions", id=1, quiz_attempt_id=1, exam_task_id=3, status="submitted")
     insert(conn, "practical_submission_files", id=1, practical_submission_id=1, stored_path="uploads/1/a.xlsx",
            original_filename="a.xlsx")
+    insert(conn, "practice_sessions", id=1, user_id=3, section_id=1, topic_id=None, seed=f"{marker}-p1",
+           question_ids_json="[1, 2]", started_at=FIXED_TS, submitted_at=FIXED_TS, score_correct=1, score_total=2)
+    insert(conn, "practice_sessions", id=2, user_id=3, section_id=1, topic_id=1, seed="p2",
+           question_ids_json=json.dumps([1, 3]), started_at=FIXED_TS)
+    insert(conn, "practice_sessions", id=3, user_id=2, section_id=2, topic_id=2, seed="p3",
+           question_ids_json="[2]", started_at=FIXED_TS, abandoned_at=FIXED_TS)
+    insert(conn, "practice_answers", session_id=1, question_id=1, chosen_letter="A", is_correct=1)
+    insert(conn, "practice_answers", session_id=1, question_id=2, chosen_letter=None, is_correct=0)
     insert(conn, "generated_exams", id=1, exam_name="gen", question_ids="[1, 2, 3]")
     insert(conn, "login_throttle", identifier_hash="4" * 64, failure_count=2)
     insert(conn, "oidc_consumed_transactions", tx_hash="5" * 64, expires_at=123)
