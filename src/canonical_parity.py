@@ -171,6 +171,11 @@ def runtime_reference_problems(conn: sqlite3.Connection, question_ids: set[int])
     if "quiz_attempts" in tables:
         check("quiz_attempts.question_ids_json",
               (i for (text,) in conn.execute("SELECT question_ids_json FROM quiz_attempts") for i in _ids_in(text)))
+    if "practice_sessions" in tables:
+        check("practice_sessions.question_ids_json",
+              (i for (text,) in conn.execute("SELECT question_ids_json FROM practice_sessions") for i in _ids_in(text)))
+    if "practice_answers" in tables:
+        check("practice_answers.question_id", (r[0] for r in conn.execute("SELECT question_id FROM practice_answers")))
     if "quiz_assignments" in tables:
         check("quiz_assignments.question_plan_json",
               (i for (text,) in conn.execute("SELECT question_plan_json FROM quiz_assignments") for i in _ids_in(text)))

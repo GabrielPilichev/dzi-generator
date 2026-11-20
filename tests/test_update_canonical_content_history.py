@@ -283,6 +283,7 @@ class PreexistingReferencesTest(HistoryCase):
         unresolved, malformed, noninteger = ("preexisting_unresolved_reference", "malformed_reference_json",
                                               "noninteger_reference_value")
         attempt = "UPDATE quiz_attempts SET question_ids_json = ? WHERE id = 1"
+        practice = "UPDATE practice_sessions SET question_ids_json = ? WHERE id = 1"
         cases = [
             ("questions.topic_id dangling to a would-be-new id", "UPDATE questions SET topic_id = 100 WHERE id = 3",
              unresolved, "questions.topic_id"),
@@ -319,6 +320,17 @@ class PreexistingReferencesTest(HistoryCase):
             ("empty generated exam ids", ("UPDATE generated_exams SET question_ids = ? WHERE id = 1", ""), malformed,
              "generated_exams.question_ids"),
             ("a top-level integer that does not resolve", (attempt, "5000"), unresolved, "quiz_attempts.question_ids_json"),
+            # The two practice columns (C1 review N5/N7). Storage classes other than text and a non-integer
+            # practice_answers.question_id cannot be written at all (the migration's CHECKs refuse them).
+            ("a practice session plan list", (practice, "[1, 100]"), unresolved, "practice_sessions.question_ids_json"),
+            ("a practice session plan dict", (practice, '{"question_ids": [1, 100]}'), unresolved,
+             "practice_sessions.question_ids_json"),
+            ("a practice plan id matching no new id", (practice, "[1, 5000]"), unresolved,
+             "practice_sessions.question_ids_json"),
+            ("malformed practice plan JSON", (practice, "{bad"), malformed, "practice_sessions.question_ids_json"),
+            ("an empty practice plan", (practice, ""), malformed, "practice_sessions.question_ids_json"),
+            ("a numeric string practice id", (practice, '["100"]'), noninteger, "practice_sessions.question_ids_json"),
+            ("a float practice id", (practice, "[100.0]"), noninteger, "practice_sessions.question_ids_json"),
         ]
         for label, change, code, column in cases:
             with self.subTest(label):
@@ -329,14 +341,36 @@ class PreexistingReferencesTest(HistoryCase):
                         conn.execute(change[0], change[1:])
                 result = self.refuse_target(mutate, code, column)
                 self.assertNotIn("Traceback", result.out)
+        with self.subTest("a practice answer to a question that is not there (foreign keys off on this disposable copy)"):
+            result = self.refuse_target(
+                lambda conn: conn.execute("UPDATE practice_answers SET question_id = 100 WHERE question_id = 1"),
+                unresolved, "practice_answers.question_id", foreign_keys=False)
+            self.assertIn("preexisting_fk_violation", result.report["conflicts"]["by_code"])
+        with self.subTest("a practice answer to a would-be-new id must not be adopted by the update"):
+            # Same corruption, but the update would CREATE question 100: the gate still refuses (the answer was
+            # written before the question existed, so it is not the update's to resolve).
+            source = self.ws.source(lambda conn: fx.add_question(conn, 100, number=50))
+            self.refuse_target(
+                lambda conn: conn.execute("UPDATE practice_answers SET question_id = 100 WHERE question_id = 1"),
+                unresolved, "practice_answers.question_id", foreign_keys=False, source=source)
         with self.subTest("a lowered sequence combined with a runtime reference to a would-be-new id"):
             def both(conn):
                 fx.raise_sequence(conn, "questions", 3)
                 conn.execute(attempt, ("[100]",))
             result = self.refuse_target(both, unresolved, "quiz_attempts.question_ids_json")
             self.assertIn("sequence_below_preimage", result.report["conflicts"]["by_code"])
+        with self.subTest("a practice plan reference is refused beside a valid one and never half-applied"):
+            target = self.ws.target(runtime=True, mutate=lambda conn: conn.execute(practice, ("[1, 100]",)))
+            before = fx.db_snapshot(target)
+            result = self.dry(target, self.ws.source(lambda conn: fx.add_new_family(conn)), self.preimage)
+            self.assertEqual(result.exit, 1)
+            self.assertEqual(fx.db_snapshot(target), before)
         with self.subTest("a boolean element is ignored"):
             target = self.ws.target(runtime=True, mutate=lambda conn: conn.execute(attempt, ("[1, true]",)))
+            result = self.dry(target, self.ws.source(), self.preimage)
+            self.assertEqual((result.exit, result.report["status"]), (0, "no_change"), result.out)
+        with self.subTest("a boolean practice element is ignored"):
+            target = self.ws.target(runtime=True, mutate=lambda conn: conn.execute(practice, ("[1, true]",)))
             result = self.dry(target, self.ws.source(), self.preimage)
             self.assertEqual((result.exit, result.report["status"]), (0, "no_change"), result.out)
 

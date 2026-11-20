@@ -127,7 +127,9 @@ PARENT_COUNTED = frozenset({
     "assessment_event_sections", "official_exam_sources", "dzi_blueprint_slots",
 })
 JSON_ID_COLUMNS = (("quiz_attempts", "question_ids_json"), ("quiz_assignments", "question_plan_json"),
-                   ("generated_exams", "question_ids"))
+                   ("generated_exams", "question_ids"), ("practice_sessions", "question_ids_json"))
+# Integer question-id columns checked one value per row, besides the JSON ones above.
+INTEGER_ID_COLUMNS = (("quiz_answers", "question_id"), ("practice_answers", "question_id"))
 
 
 class Stop(Exception):
@@ -728,12 +730,14 @@ def reference_gate(conn) -> dict[tuple[str, str], int]:
                 continue
             add(label, "noninteger_reference_value", odd)
             add(label, "preexisting_unresolved_reference", sum(1 for i in ids if i not in question_ids))
-    for kind, value in conn.execute("SELECT typeof(question_id), CASE WHEN typeof(question_id) = 'integer' "
-                                    "THEN question_id END FROM quiz_answers"):
-        if kind != "integer":
-            add("quiz_answers.question_id", "noninteger_reference_value")
-        elif value not in question_ids:
-            add("quiz_answers.question_id", "preexisting_unresolved_reference")
+    for table, column in INTEGER_ID_COLUMNS:
+        label = f"{table}.{column}"
+        for kind, value in conn.execute(f"SELECT typeof({_q(column)}), CASE WHEN typeof({_q(column)}) = 'integer' "
+                                        f"THEN {_q(column)} END FROM {_q(table)}"):
+            if kind != "integer":
+                add(label, "noninteger_reference_value")
+            elif value not in question_ids:
+                add(label, "preexisting_unresolved_reference")
     return counts
 
 
