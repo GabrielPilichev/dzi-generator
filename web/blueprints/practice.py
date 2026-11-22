@@ -16,7 +16,16 @@ distinguishable by who owns it.
 Writes go through the practice services only (start and submit); a ``GET`` or ``HEAD`` reads one
 snapshot and writes nothing. A stale, abandoned, unavailable or malformed state is answered
 with a short Bulgarian page that names no stored state; any other inconsistent stored state is
-a server error (the generic 500 page) and is logged by exception class only.
+a server error (the generic 500 page). Both are logged by endpoint and exception class only: never
+an id, a title or any part of a stored plan.
+
+The two start URLs also answer a signed-in ``GET`` or ``HEAD`` with a read-only confirmation of the
+same section or topic scope (``practice_start.html``). It exists because a signed-out ``POST`` is sent
+to ``/login?next=<path>`` and the sign-in returns with a ``GET``: the page validates the scope with the
+service's read-only helpers, writes nothing, never starts, resumes or abandons anything and never
+replays the original request. Its only action is an explicit same-origin ``POST`` to the very same URL,
+which is the unchanged start. Whether a new session can be created (the minimum) or an open one
+resumed is decided by that ``POST`` alone.
 """
 
 from __future__ import annotations
@@ -74,6 +83,18 @@ def _state_error(error: practice_service.PracticeStateError):
     abort(500)
 
 
+def _plan_error(error: practice_service.PracticePlanError):
+    """A malformed stored plan: the safe 409 page. The log names the endpoint and the exception class only.
+
+    The exception's own message carries a session id and a reason; neither is logged, nor is any
+    label or plan content. The row stays open and nothing was written (the service rolled back).
+    """
+    current_app.logger.error(
+        "Practice plan refused: endpoint=%s error=%s", request.endpoint, type(error).__name__
+    )
+    return _unavailable(MESSAGE_UNAVAILABLE, 409)
+
+
 def _choices_from_form(form) -> dict[int, str]:
     """Chosen option keys by question id. A field sent twice is ambiguous and counts as unanswered."""
     choices: dict[int, str] = {}
@@ -100,9 +121,9 @@ def _start(section_id: int, topic_id: int | None):
             start = practice_service.start_or_resume_practice(conn, current_principal(), section_id, topic_id)
     except practice_service.PracticeAccessError:
         return render_template("403.html"), 403
-    except practice_service.PracticePlanError:
+    except practice_service.PracticePlanError as error:
         # A stored plan the service refuses to read: nothing was written, nothing is disclosed.
-        return _unavailable(MESSAGE_UNAVAILABLE, 409)
+        return _plan_error(error)
     except practice_service.PracticeStateError as error:
         _state_error(error)
 
@@ -115,18 +136,44 @@ def _start(section_id: int, topic_id: int | None):
     return _unavailable(MESSAGE_SCOPE_UNAVAILABLE, 404)  # scope_unavailable
 
 
-@practice_bp.route("/practice/section/<int:section_id>/start", methods=["POST"])
+def _confirm(section_id: int, topic_id: int | None):
+    """``GET``/``HEAD`` of a start URL: read-only confirmation of the scope; nothing is persisted.
+
+    No start, resume, abandon or session lookup happens here, so an open, stale or thin state of the
+    account cannot change and is not revealed. The connection refuses writes outright, so a later
+    edit cannot make this read write by accident.
+    """
+    if not _is_id(section_id) or (topic_id is not None and not _is_id(topic_id)):
+        return _unavailable(MESSAGE_SCOPE_UNAVAILABLE, 404)
+    with quiz_service.quiz_connection() as conn:
+        conn.execute("PRAGMA query_only = ON")
+        scope = practice_service.read_practice_scope(conn, section_id, topic_id)
+    if scope is None:
+        return _unavailable(MESSAGE_SCOPE_UNAVAILABLE, 404)
+    # The action is rebuilt from the validated scope, which equals the requested path.
+    return render_template(
+        "practice_start.html", scope=scope, start_url=_start_url(scope.section_id, scope.topic_id)
+    )
+
+
+def _start_or_confirm(section_id: int, topic_id: int | None):
+    if request.method == "POST":
+        return _start(section_id, topic_id)
+    return _confirm(section_id, topic_id)
+
+
+@practice_bp.route("/practice/section/<int:section_id>/start", methods=["GET", "POST"])
 @access_policy(SIGNED_IN)
 @integrity_policy(SAME_ORIGIN)
 def start_section(section_id):
-    return _start(section_id, None)
+    return _start_or_confirm(section_id, None)
 
 
-@practice_bp.route("/practice/section/<int:section_id>/topic/<int:topic_id>/start", methods=["POST"])
+@practice_bp.route("/practice/section/<int:section_id>/topic/<int:topic_id>/start", methods=["GET", "POST"])
 @access_policy(SIGNED_IN)
 @integrity_policy(SAME_ORIGIN)
 def start_topic(section_id, topic_id):
-    return _start(section_id, topic_id)
+    return _start_or_confirm(section_id, topic_id)
 
 
 # ---------------------------------------------------------------------------
@@ -187,8 +234,8 @@ def attempt(session_id):
             return _attempt_response(view, submit_error=error)
     except practice_service.PracticeAccessError:
         return render_template("403.html"), 403
-    except practice_service.PracticePlanError:
-        return _unavailable(MESSAGE_UNAVAILABLE, 409)
+    except practice_service.PracticePlanError as error:
+        return _plan_error(error)
     except practice_service.PracticeStateError as error:
         _state_error(error)
 
@@ -207,8 +254,8 @@ def result(session_id):
             loaded = practice_service.load_practice_result(conn, current_principal(), session_id)
     except practice_service.PracticeAccessError:
         return render_template("403.html"), 403
-    except practice_service.PracticePlanError:
-        return _unavailable(MESSAGE_UNAVAILABLE, 409)
+    except practice_service.PracticePlanError as error:
+        return _plan_error(error)
     except practice_service.PracticeStateError as error:
         _state_error(error)
 

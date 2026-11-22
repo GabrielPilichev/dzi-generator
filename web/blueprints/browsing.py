@@ -4,7 +4,10 @@ health check and the favicon.
 
 Every view is public and declares it (:mod:`web.access`); all routes are GET
 (and the implicit HEAD/OPTIONS), so there is no unsafe-method integrity policy
-to declare. Subject metadata comes from :mod:`web.services.subject_catalog` and
+to declare. The section and topic pages may show a student-practice entry (see
+:func:`practice_entry_url`); only a signed-in account sees it, and only while the
+build's practice gate registers the practice routes. Browsing stays public.
+Subject metadata comes from :mod:`web.services.subject_catalog` and
 the cached browsing reads from :mod:`web.services.browsing`; the ownership and
 short-slug rules stay in ``src.subject_browsing``. The module imports neither
 ``web.app`` nor another controller, and the URLs are unchanged. Sign-in lives
@@ -20,9 +23,11 @@ from flask import Blueprint, abort, current_app, redirect, render_template, send
 from src.subject_browsing import stored_slug_candidates
 from src.subject_content import IT
 from src.subject_registry import PLATFORM_GRADES, subject_supports_grade
-from web.access import PUBLIC, access_policy
+from web.access import PUBLIC, SIGNED_IN, access_policy, current_principal, is_route_allowed
 from web import db as web_db
+from web.request_db import get_request_db
 from web.services import lifecycle
+from web.services import practice as practice_service
 from web.services.browsing import (
     fetch_questions_in_section,
     fetch_section,
@@ -43,6 +48,28 @@ browsing_bp = Blueprint("browsing", __name__)
 
 HEALTH_DB_TIMEOUT_SECONDS = 2.0
 DZI_SECTION_SLUG = "grade12-dzi-preparation"
+
+
+def practice_entry_url(section_id: int, topic_id: int | None = None) -> str | None:
+    """The POST target of "Упражнявай се" for one resolved browse scope, or ``None`` (no entry).
+
+    The ids are the ones the browse view already resolved. The entry exists only while the practice
+    routes are registered in this build, for a signed-in account (the very decision the start routes
+    make) and for a scope the start itself would accept: the service's read-only scope check, which
+    excludes DZI training sections, sections without one known subject and topics that are not
+    consistent members. Nothing here counts questions: the pool, the minimum and an existing attempt
+    stay the start's decision. In the build that does not register the routes the first line returns
+    before any query or URL lookup, so an ordinary page renders exactly as it did.
+    """
+    if not practice_service.routes_armed() or "practice" not in current_app.blueprints:
+        return None
+    if not is_route_allowed(SIGNED_IN, current_principal()):
+        return None
+    if not practice_service.practice_scope_available(get_request_db(), section_id, topic_id):
+        return None
+    if topic_id is None:
+        return url_for("practice.start_section", section_id=section_id)
+    return url_for("practice.start_topic", section_id=section_id, topic_id=topic_id)
 
 
 def open_existing_database_read_only(path, *, timeout: float = 5.0) -> sqlite3.Connection:
@@ -138,6 +165,7 @@ def render_subject_topic_group_page(subject_slug: str, grade: int, topic_group_s
                 section=section,
                 topics=topics,
                 questions=questions,
+                practice_start_url=practice_entry_url(section["section_id"]),
             )
         # Once this class has DB content, the provisional configuration is no
         # longer a parallel source of real group routes.
@@ -189,6 +217,7 @@ def render_subject_topic_page(subject_slug: str, grade: int, section_slug: str, 
         topic=topic,
         questions=[q for q in section_questions if q["topic_id"] == topic["topic_id"]],
         section_question_count=len(section_questions),
+        practice_start_url=practice_entry_url(section["section_id"], topic["topic_id"]),
     )
 
 
@@ -299,4 +328,5 @@ def section_view(slug: str):
         section=section,
         questions=questions,
         section_subject=next(subject for subject in subject_catalog() if subject["id"] == IT),
+        practice_start_url=practice_entry_url(section["section_id"]),
     )

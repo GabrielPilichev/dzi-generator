@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}Упражнение — LearnPilot{% endblock %}
+
+{% block body_class %}student-assessment-page student-assessment-attempt-page{% endblock %}
+
+{% block breadcrumb %}
+    <a href="{{ url_for('browsing.index') }}">Начало</a>
+    <span>›</span>
+    Упражнение
+{% endblock %}
+
+{#- The read-only confirmation a sign-in returns to. Reads only scope (the available scope's titles) and
+    start_url (the start URL of that same scope). It writes nothing and never starts, resumes or replays
+    anything: the button is an explicit POST to the same URL. -#}
+{% block content %}
+<section class="page-header">
+  <div>
+    <p class="eyebrow">Упражнение</p>
+    <h1>Започни упражнение</h1>
+  </div>
+</section>
+
+<section class="card form-message" id="practice-start-confirm">
+  <p>
+    Област: <strong>{{ scope.section_title }}</strong>
+    {% if scope.topic_title %}<br>Тема: <strong>{{ scope.topic_title }}</strong>{% endif %}
+  </p>
+  <p class="muted">
+    Упражнението е от въпроси с избор на отговор. Ако вече имаш започнато упражнение тук, ще продължиш него.
+  </p>
+</section>
+
+<div class="result-actions">
+  <form method="post" action="{{ start_url }}">
+    <button type="submit">Упражнявай се</button>
+  </form>
+  <a class="button secondary" href="{{ url_for('browsing.index') }}">Към началото</a>
+</div>
+{% endblock %}

@@ -33,6 +33,12 @@
     </span>
   </div>
 
+  {% if questions %}
+    <p class="muted" id="practice-current-content-note">
+      Резултатът е запазен при предаването. Прегледът по-долу показва въпросите с тяхното текущо съдържание.
+    </p>
+  {% endif %}
+
   {% if result.skipped_question_count %}
     <div class="quiz-meta quiz-meta--center result-meta">
       <span class="pill" id="practice-skipped-count">Пропуснати въпроси (не могат да бъдат показани): {{ result.skipped_question_count }}</span>
