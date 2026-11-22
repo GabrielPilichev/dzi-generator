@@ -2,9 +2,10 @@
 
 Governed by docs/STUDENT_PRACTICE_DESIGN.md (sections 2, 4 and 5) over the
 runtime tables of migration 026. This module decides and writes the *start* of a
-session, its one *submission* and the read-only *loading* of a submitted session's
-result: there is no route, template, timer, progress query or change to the existing
-quiz scoring here.
+session, its one *submission* and the read-only *loading* of an open session's attempt
+page and of a submitted session's result: there is no route, template, timer, progress
+query or change to the existing quiz scoring here. The routes that use it are
+``web.blueprints.practice``, registered only while :data:`ROUTES_ACTIVATION` is armed.
 
 Contract
 --------
@@ -149,6 +150,38 @@ reused and never ended; otherwise the loader starts one and ends it with an expl
 mode is released too. Nothing is ever written, so a ``query_only`` connection works.
 The connection itself is never closed.
 
+Attempt view
+------------
+:func:`load_practice_attempt` takes a configured connection (it may already be inside a caller
+transaction), the trusted principal and a positive session id, and returns a
+:class:`PracticeAttempt` whose ``outcome`` is exactly one of:
+
+``open``
+    The caller's own open session still presents at least one question that is renderable and in
+    the current eligible pool (the rules of a start and of a submit). ``questions`` are those
+    questions in *stored* order with their options in the order of the *stored* seed, loaded
+    **without** the correct markers: the same set a submit would grade.
+``already_submitted``
+    The caller's own session was submitted; the route sends the caller to its result.
+``abandoned``
+    The caller's own session was abandoned (replaced). It cannot be answered or adopted.
+``stale``
+    The caller's own open session presents no question any more. Nothing was written; a start
+    abandons and replaces it (or finds the pool too thin).
+``scope_unavailable``
+    The scope of the caller's own open session is no longer available (as for a start).
+``not_found``
+    No session of that id belongs to the caller. Missing and foreign-owned sessions are one
+    outcome, nothing else filled in, for a teacher or an admin too.
+``account_unavailable``
+    The account row is missing, inactive or of an unknown role.
+
+``section_id`` and ``topic_id`` are filled in for the caller's *own* sessions only (never for
+``not_found``), so a page can offer a new start. A malformed stored plan raises
+:class:`PracticePlanError`; other inconsistent state raises :class:`PracticeStateError`.
+The whole read is one snapshot (as for a result), nothing is ever written, and a
+``query_only`` connection works.
+
 Stored plans
 ------------
 ``question_ids_json`` holds a JSON array of distinct positive integers (each at
@@ -213,6 +246,13 @@ MIN_QUESTIONS = 5
 # ...and samples at most this many.
 MAX_QUESTIONS = 10
 
+# The build's gate of the practice routes (docs/AUTH_ROUTE_CONTRACT.md, "Student practice").
+# While it is False ``web.app`` registers no ``/practice`` route at all, in development and in
+# production alike, so the URL map and every other behavior stay as they were. No setting and no
+# environment variable overrides it: an approved launch change edits it, and nothing else in
+# the code assigns it. Tests arm it only in a separate interpreter, before importing ``web.app``.
+ROUTES_ACTIVATION = False
+
 OUTCOME_CREATED = "created"
 OUTCOME_RESUMED = "resumed"
 OUTCOME_EMPTY_POOL = "empty_pool"
@@ -227,6 +267,7 @@ OUTCOME_STALE = "stale"
 OUTCOME_EMPTY = "empty"
 
 OUTCOME_LOADED = "loaded"
+OUTCOME_OPEN = "open"  # an attempt view of the caller's own open session
 # A loaded result reuses OUTCOME_NOT_FOUND for the uniform missing/foreign/open/abandoned case
 # and OUTCOME_ACCOUNT_UNAVAILABLE for an account that cannot own a session.
 
@@ -336,6 +377,28 @@ class PracticeResult(NamedTuple):
     def review_context(self) -> dict:
         """The template variables the shared review partial reads (and nothing else)."""
         return {"questions": list(self.questions), "stale_attempt_message": self.stale_attempt_message}
+
+
+class PracticeAttempt(NamedTuple):
+    """The result of an attempt view; ``outcome`` is one of the ``OUTCOME_*`` values.
+
+    ``section_id`` and ``topic_id`` name the scope of the caller's own session (not set for
+    ``not_found`` and ``account_unavailable``); ``session_id``, ``questions`` (stored plan
+    order, options in stored-seed order, no correct markers) and the two counts are set for
+    ``open`` only. ``skipped_question_count`` are planned questions that are not presented.
+    """
+
+    outcome: str
+    session_id: int | None = None
+    section_id: int | None = None
+    topic_id: int | None = None
+    questions: tuple[dict, ...] = ()
+    planned_question_count: int = 0
+    skipped_question_count: int = 0
+
+    @property
+    def is_open(self) -> bool:
+        return self.outcome == OUTCOME_OPEN
 
 
 class PracticeAccessError(PermissionError):
@@ -783,3 +846,48 @@ def load_practice_result(conn: sqlite3.Connection, principal: Principal, session
     session_id = _positive_id(session_id, "session_id")
     _require_configured_connection(conn)
     return _in_read_snapshot(conn, lambda: _load_result(conn, user_id, session_id))
+
+
+def _load_attempt(conn: sqlite3.Connection, user_id: int, session_id: int) -> PracticeAttempt:
+    """The account's own session as an attempt page needs it, inside the read snapshot."""
+    if not _account_is_active(conn, user_id):
+        return PracticeAttempt(OUTCOME_ACCOUNT_UNAVAILABLE)
+    # The owner is part of the lookup: a missing and a foreign session are the same empty result.
+    session = conn.execute(
+        "SELECT section_id, topic_id, seed, question_ids_json, submitted_at, abandoned_at "
+        "FROM practice_sessions WHERE id = ? AND user_id = ?", (session_id, user_id)).fetchone()
+    if session is None:
+        return PracticeAttempt(OUTCOME_NOT_FOUND)
+
+    section_id, topic_id, seed = session["section_id"], session["topic_id"], session["seed"]
+    if type(section_id) is not int or (topic_id is not None and type(topic_id) is not int):
+        raise PracticeStateError(f"practice session {session_id} stores a scope that is not an id")
+    submitted, abandoned = session["submitted_at"] is not None, session["abandoned_at"] is not None
+    if submitted and abandoned:
+        raise PracticeStateError(f"practice session {session_id} is both submitted and abandoned")
+    if submitted:
+        return PracticeAttempt(OUTCOME_ALREADY_SUBMITTED, session_id, section_id, topic_id)
+    if abandoned:
+        return PracticeAttempt(OUTCOME_ABANDONED, session_id, section_id, topic_id)
+    if type(seed) is not str:
+        raise PracticeStateError(f"practice session {session_id} stores a seed that is not text")
+
+    scope = _resolve_scope(conn, section_id, topic_id)
+    if scope is None:
+        return PracticeAttempt(OUTCOME_SCOPE_UNAVAILABLE, None, section_id, topic_id)
+    stored = _parse_stored_plan(session["question_ids_json"], session_id)
+    presentable = _presentable_question_ids(conn, stored, _eligible_question_ids(conn, scope, topic_id))
+    # Never the correct markers: the page may only show what the student chooses between.
+    questions = quiz_load_questions(conn, list(presentable), seed, include_correct=False) if presentable else []
+    if not questions:
+        return PracticeAttempt(OUTCOME_STALE, None, section_id, topic_id)
+    return PracticeAttempt(OUTCOME_OPEN, session_id, section_id, topic_id, tuple(questions),
+                           len(stored), len(stored) - len(questions))
+
+
+def load_practice_attempt(conn: sqlite3.Connection, principal: Principal, session_id: int) -> PracticeAttempt:
+    """Read the principal's own practice session for its attempt page (module docstring, "Attempt view")."""
+    user_id = _account_id(principal)
+    session_id = _positive_id(session_id, "session_id")
+    _require_configured_connection(conn)
+    return _in_read_snapshot(conn, lambda: _load_attempt(conn, user_id, session_id))

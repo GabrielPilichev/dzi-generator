@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% from "_question_visuals.html" import render_question_visuals %}
+
+{% block title %}Упражнение — LearnPilot{% endblock %}
+
+{% block body_class %}student-assessment-page student-assessment-attempt-page{% endblock %}
+
+{% block breadcrumb %}
+    <a href="{{ url_for('browsing.index') }}">Начало</a>
+    <span>›</span>
+    Упражнение
+{% endblock %}
+
+{#- Reads only: session_id, questions (prompt, difficulty, visual_assets, options with the stored
+    option_letter as the value and the seeded display_letter as the label; no correct markers),
+    skipped_question_count and submit_error. No timer, no script beyond the option highlight. -#}
+{% block content %}
+<section class="page-header">
+  <div>
+    <p class="eyebrow">Упражнение</p>
+    <h1>Упражнение</h1>
+    <p class="subtitle">Избери по един отговор на въпрос и предай упражнението. Резултатът се пази в профила ти.</p>
+  </div>
+</section>
+
+{% if skipped_question_count %}
+  <p class="muted" id="practice-skipped-note">
+    Въпроси, които не могат да бъдат показани и няма да се оценяват: {{ skipped_question_count }}.
+  </p>
+{% endif %}
+
+<form method="post" action="{{ url_for('practice.attempt', session_id=session_id) }}" id="practice-form" class="quiz-attempt-form">
+  {% if submit_error %}
+    <section class="warning warning--spaced form-message" id="practice-submit-error" role="alert">
+      {{ submit_error }}
+    </section>
+  {% endif %}
+  {% for q in questions %}
+    <article class="card question-card quiz-card" data-question-id="{{ q.id }}">
+      <div class="quiz-card-header">
+        <h2 class="quiz-question-title question-number">Въпрос {{ loop.index }}</h2>
+        <span class="quiz-question-total">от {{ questions|length }}</span>
+      </div>
+      {% set difficulty_label = question_difficulty_label(q.difficulty) %}
+      {% if difficulty_label %}
+        <p class="muted">Трудност: {{ difficulty_label }}</p>
+      {% endif %}
+      <p>{{ q.prompt }}</p>
+      {{ render_question_visuals(q.visual_assets) }}
+
+      <div class="quiz-options">
+        {% for opt in q.options %}
+          <label class="quiz-option-card">
+            <input type="radio" name="q_{{ q.id }}" value="{{ opt.option_letter }}">
+            <span class="quiz-option-letter">{{ opt.display_letter }})</span>
+            <span class="quiz-option-text">{{ opt.option_text }}</span>
+          </label>
+        {% endfor %}
+      </div>
+    </article>
+  {% endfor %}
+
+  <div class="quiz-submit-bar">
+    <button type="submit">Предай упражнението</button>
+  </div>
+</form>
+
+<script>
+(function () {
+  // Toggle .is-selected on the option card matching the checked radio in each group.
+  const form = document.getElementById("practice-form");
+  if (!form) return;
+
+  function syncGroup(input) {
+    form.querySelectorAll('input[type="radio"]').forEach(function (radio) {
+      if (radio.name !== input.name) return;
+      const card = radio.closest(".quiz-option-card");
+      if (card) card.classList.toggle("is-selected", radio.checked);
+    });
+  }
+
+  form.querySelectorAll('input[type="radio"]:checked').forEach(syncGroup);
+
+  form.addEventListener("change", function (ev) {
+    const input = ev.target;
+    if (!(input instanceof HTMLInputElement) || input.type !== "radio") return;
+    syncGroup(input);
+  });
+})();
+</script>
+{% endblock %}
