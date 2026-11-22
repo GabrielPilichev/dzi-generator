@@ -24,8 +24,9 @@ same section or topic scope (``practice_start.html``). It exists because a signe
 to ``/login?next=<path>`` and the sign-in returns with a ``GET``: the page validates the scope with the
 service's read-only helpers, writes nothing, never starts, resumes or abandons anything and never
 replays the original request. Its only action is an explicit same-origin ``POST`` to the very same URL,
-which is the unchanged start. Whether a new session can be created (the minimum) or an open one
-resumed is decided by that ``POST`` alone.
+which is the unchanged start. Whether an open session is resumed, a stale one replaced, a new one created
+or the start refused (the minimum, a retired scope) is decided by that ``POST`` alone; the confirmation
+text promises nothing more than that explicit action.
 """
 
 from __future__ import annotations
@@ -267,6 +268,8 @@ def result(session_id):
         "practice_result.html",
         result=loaded,
         success_rate=(200 * loaded.score_correct + loaded.score_total) // (2 * loaded.score_total),  # half up
-        new_attempt_url=_start_url(loaded.section_id, loaded.topic_id),
+        # "Нов опит" only for a scope the load itself found available; a retired scope keeps the saved
+        # result and the home link, because its start would only answer the 404 page.
+        new_attempt_url=_start_url(loaded.section_id, loaded.topic_id) if loaded.scope_available else None,
         **loaded.review_context(),
     )

@@ -889,9 +889,14 @@ in production alike. The ordinary application therefore has no `/practice` rule,
 every such URL is the generic 404 and the rest of the URL map, every gate and every policy are exactly
 what they were. Tests arm the constant only in a separate interpreter, before it imports the genuine
 `web.app` (`tests/test_practice_routes.py`). Arming it and a navigation entry are a separate approved
-launch change. The browse entry and the safe sign-in return below ship with the routes and exist only
-while they are registered: in this build the section and topic pages render, query and link exactly as
-before.
+launch change. **Prerequisite before arming:** verify that migration 026 (`practice_sessions` and
+`practice_answers`) is applied to the target database. An armed build on a database without it makes the
+signed-in browse request for an eligible scope (its progress read) and every operation on the session
+tables (the start `POST`, the attempt, the submit and the result) fail with a database error (the generic
+500), and the handlers deliberately do not catch it. The start `GET` and `HEAD` confirmation reads scope
+metadata only and queries neither table. The browse entry and the safe sign-in return below ship with the
+routes and exist only while they are registered: in this build the section and topic pages render, query
+and link exactly as before.
 
 | Route | Endpoint | Methods | Access | Integrity |
 | --- | --- | --- | --- | --- |
@@ -927,23 +932,41 @@ The scheme is independent of `/quiz`. Every `/quiz` path, the retired numeric `/
   the start URL of the scope the page itself resolved (section id, and topic id on a topic page), only
   when *all* of these hold: the practice routes are registered (`practice.routes_armed()`), the current
   principal is signed in (the `signed_in` decision itself), and the scope passes the start's own
-  read-only validation (`practice_scope_available`: an existing section with one known subject that is
-  not a DZI training section, and a topic that is a consistent member of it). Placeholder groups, DZI
-  training sections, a signed-out visitor and every build without the routes get no form, no practice
-  URL lookup and no extra query (`practice_entry_url` returns before any of them). The page never
-  counts questions to guess eligibility: the minimum, the pool and an existing open attempt (which may
-  be resumed with fewer questions) stay the start's decision. Browsing stays public and the existing
-  teacher actions are untouched. The form carries no field; the owner is the principal.
+  read-only scope validation, which `read_practice_progress` performs for the page (an existing section
+  with one known subject that is not a DZI training section, and a topic that is a consistent member of
+  it); `practice_scope_available` and `read_practice_scope` serve the confirmation, not the browse pages. A signed-out visitor, a
+  pending second factor and every build without the routes get no form, no practice URL lookup and no
+  extra query: `practice_entry_context` (`web/blueprints/browsing.py`) returns before any of them. A
+  signed-in request in an armed build to a DZI training section browse surface still performs one
+  read-only scope exclusion check (`BEGIN`, the scope reads, `ROLLBACK`), which reads no
+  `practice_sessions` row, and then shows no form. The page never counts questions to guess eligibility:
+  the minimum, the pool and an existing open attempt (which may be resumed with fewer questions) stay the
+  start's decision.
+  **Progress.** For an available scope that one read, `read_practice_progress`, decides the scope (the
+  very check of a start) and reads the principal's own progress in the same snapshot: the count of that
+  account's *submitted* sessions of exactly that section or topic (a topic is its own scope and never a
+  roll-up into its section; open and abandoned sessions and assignment attempts are not counted) and the
+  stored score of the latest one. Once something was submitted, two short pills show beside the button:
+  "Приключени упражнения: N" and "Последен резултат: c/t". Nothing shows before that, and the score is the
+  stored one, never recomputed from current content. A stored score that is not whole and bounded hides
+  the numbers but keeps the entry, and logs only the endpoint and the exception class. The account id is
+  always the trusted principal's, signed-in pages are never cached, and nothing is written. Browsing
+  stays public and the existing teacher actions are untouched. The form carries no field; the owner is
+  the principal.
 - **Sign-in return.** A signed-out `POST` to a start URL is redirected to `/login?next=<start path>` (the
   existing flow, unchanged: no new redirect target and no replay of the request). The sign-in returns
   with a `GET`, which the two start URLs now answer, for a signed-in account, with a confirmation page
   (`practice_start.html`) for that exact scope: the section (and topic) title, a short Bulgarian text and
-  one `POST` form to the same URL. `GET` and `HEAD` there read the scope through
-  `read_practice_scope` on a connection that refuses writes; they never start, resume, abandon or look
-  up a session, so an open, stale or thin state is neither changed nor revealed. A scope the start would
+  one `POST` form to the same URL. The text promises only that the practice starts when the button is
+  pressed and that an open practice is continued while at least one of its questions is still available
+  (the start's own resume rule), otherwise a new one is started if possible; it says nothing about what the account already has, because the read never
+  looks. `GET` and `HEAD` there read the scope through `read_practice_scope` on a connection that refuses
+  writes; they never start, resume, abandon or look up a session, so an open, stale or thin state is
+  neither changed nor revealed. A scope the start would
   refuse is the same `404` "not available" page, with nothing written. The explicit `POST` is the
   unchanged start, behind the same same-origin check; a signed-out or cross-origin `POST` is still
-  refused as before. `PUT`, `PATCH` and `DELETE` stay `405`.
+  refused as before. The `POST` alone decides whether to resume, replace a stale session, create one or
+  refuse. `PUT`, `PATCH` and `DELETE` stay `405`.
 
 | Situation | Answer |
 | --- | --- |
@@ -958,11 +981,12 @@ The scheme is independent of `/quiz`. Every `/quiz` path, the retired numeric `/
 | Attempt: own abandoned (replaced, old tab) | `409`, Bulgarian page with a POST to start the same scope again; nothing graded or adopted |
 | Attempt: own open session that presents no question any more | `409`, Bulgarian page with a POST to start the same scope again |
 | Attempt `GET` or submit `POST` of an own open session whose scope is no longer available (retired) | `409`, one Bulgarian page that names no stored state; nothing written |
-| Result of an own submitted session whose scope is no longer available (retired) | `200`: the saved score from submission with no review rows and the Bulgarian "only the saved score" message |
+| Result of an own submitted session whose scope is no longer available (retired) | `200`: the saved score from submission with no review rows, the Bulgarian "only the saved score" message and the home link, but no "Нов опит" form (its `POST` could only answer the `404` above). The decision is the scope resolution the result load already made in its own snapshot; it is not inferred from the missing review rows. Such a result's old `POST` to the retired start URL, from a stale tab, keeps its `404` |
+| Result of an own submitted session whose scope is still available but whose questions can all no longer be shown | `200`: the saved score and the "only the saved score" message with "Нов опит" kept; the explicit `POST` and the start's own validation decide |
 | A malformed stored plan (start, attempt, submit, result alike) | `409`, the same Bulgarian page; nothing written, the row stays open and is never read as empty, abandoned or replaced. The log line names the endpoint and the exception class only (`Practice plan refused: endpoint=... error=PracticePlanError`), never an id, label or any plan content |
 | Submit: usable choices | `303` to the result; answers, verdicts and score stored once, server-side |
 | Submit: no usable choice | `400`, the form again with a Bulgarian message; nothing stored, the session stays open |
-| Result: own submitted session | `200`: the saved score, the shared multiple-choice review, the skipped count when there is one, and "Нов опит" as a `POST` to the session's own scope. When review questions are shown, a short Bulgarian note says the saved score is from submission and the review uses the questions' current content; the saved verdicts and score are never recomputed |
+| Result: own submitted session | `200`: the saved score, the shared multiple-choice review, the skipped count when there is one, and, while the scope is available, "Нов опит" as a `POST` to the session's own scope. When review questions are shown, a short Bulgarian note says the saved score is from submission and the review uses the questions' current content; the saved verdicts and score are never recomputed |
 | Any other inconsistent stored state | `500` (`500.html`), logged by exception class only; no detail in the page |
 | Account unavailable at the service | `403` (`403.html`) |
 
@@ -978,8 +1002,9 @@ explanations), so a question edited after submission can read differently from w
 its stored verdict stays. The result page says so; it is a presentation note, not a change of grading.
 
 Known limits of this slice. The browse entry is in the section and topic pages only: there is no
-navigation entry, no timer, no progress indicator and no script beyond the highlight of the chosen option.
-The practice pages other than the confirmation and the attempt name no section or topic.
+navigation entry, no timer, no progress indicator beyond the two pills of the browse entry and no script
+beyond the highlight of the chosen option. Only the confirmation names its section and topic: the attempt
+page currently shows no scope title, and the result and the "not available" pages name none.
 
 ## Refactor Note
 

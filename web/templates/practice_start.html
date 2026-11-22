@@ -12,7 +12,8 @@
 
 {#- The read-only confirmation a sign-in returns to. Reads only scope (the available scope's titles) and
     start_url (the start URL of that same scope). It writes nothing and never starts, resumes or replays
-    anything: the button is an explicit POST to the same URL. -#}
+    anything: the button is an explicit POST to the same URL, and that POST alone decides whether to resume,
+    replace, start or refuse. The text therefore never says what an account already has. -#}
 {% block content %}
 <section class="page-header">
   <div>
@@ -27,7 +28,9 @@
     {% if scope.topic_title %}<br>Тема: <strong>{{ scope.topic_title }}</strong>{% endif %}
   </p>
   <p class="muted">
-    Упражнението е от въпроси с избор на отговор. Ако вече имаш започнато упражнение тук, ще продължиш него.
+    Упражнението е от въпроси с избор на отговор. То започва едва когато натиснеш бутона.
+    Ако тук имаш започнато упражнение, ще го продължиш, докато поне един от въпросите му още е наличен.
+    Иначе ще започне ново упражнение, ако е възможно.
   </p>
 </section>
 

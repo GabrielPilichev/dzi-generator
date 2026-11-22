@@ -12,7 +12,8 @@
 
 {#- Reads only: result (the saved PracticeResult), success_rate, new_attempt_url and the review
     context (questions, stale_attempt_message) of the shared review partial. The score is the
-    stored one, never recomputed. -#}
+    stored one, never recomputed. new_attempt_url is None for a retired scope (the result's own scope
+    decision), whose start could only answer the 404 page; the home link stays. -#}
 {% block content %}
 <section class="quiz-hero result-summary">
   <p class="eyebrow">Резултат</p>
@@ -53,9 +54,11 @@
       </p>
     </div>
     <div class="result-actions">
+      {% if new_attempt_url %}
       <form method="post" action="{{ new_attempt_url }}">
         <button type="submit">Нов опит</button>
       </form>
+      {% endif %}
       <a class="button secondary" href="{{ url_for('browsing.index') }}">Към началото</a>
     </div>
   </div>
