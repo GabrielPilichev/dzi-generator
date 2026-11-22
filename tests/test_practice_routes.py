@@ -63,10 +63,11 @@ ARMED_CLASSES = (
     "ResultRouteTest",
     "FlowAndPriorRoutesTest",
     "BrowseEntryTest",
+    "BrowseProgressTest",
     "ConfirmRouteTest",
     "SignInReturnTest",
 )
-ARMED_TEST_COUNT = 93
+ARMED_TEST_COUNT = 114
 
 IT_SLUG = "information-technologies"
 
@@ -1479,7 +1480,8 @@ class BrowseEntryTest(RouteCase, BrowseUrls):
 
     def test_signed_out_pages_never_reach_the_practice_scope_check(self):
         scope = self.make_scope(8)
-        with patch.object(practice, "practice_scope_available", side_effect=AssertionError("queried")):
+        with patch.object(practice, "practice_scope_available", side_effect=AssertionError("queried")), \
+                patch.object(practice, "read_practice_progress", side_effect=AssertionError("queried")):
             response = self.client().get(self.subject_section_path(scope))
         self.assertEqual(response.status_code, 200)
 
@@ -1512,7 +1514,8 @@ class BrowseEntryTest(RouteCase, BrowseUrls):
         paths = [f"/subjects/{IT_SLUG}/12/grade12-dzi-preparation"]
         # A placeholder group has no stored section: the page is the configured shell, with no section id.
         with patch.object(browsing, "subject_content_browser", return_value=None), \
-                patch.object(practice, "practice_scope_available", side_effect=AssertionError("queried")):
+                patch.object(practice, "practice_scope_available", side_effect=AssertionError("queried")), \
+                patch.object(practice, "read_practice_progress", side_effect=AssertionError("queried")):
             placeholder = client.get("/subjects/physics/9/mechanics")
         self.assertEqual(placeholder.status_code, 200)
         self.assertIn("Тематична група в подготовка", self.page(placeholder))
@@ -1532,20 +1535,23 @@ class BrowseEntryTest(RouteCase, BrowseUrls):
     def test_invalid_scopes_have_no_entry_url(self):
         scope, other = self.make_scope(6), self.make_scope(6)
         dzi = self.make_scope(6, section_type="dzi_training")
+        none = {"practice_start_url": None, "practice_progress": None}
         with web_app.app.test_request_context("/"):
             g.principal = self.student
-            self.assertEqual(browsing.practice_entry_url(scope.section_id),
-                             f"/practice/section/{scope.section_id}/start")
-            self.assertEqual(browsing.practice_entry_url(scope.section_id, scope.topic_ids[0]),
-                             f"/practice/section/{scope.section_id}/topic/{scope.topic_ids[0]}/start")
+            self.assertEqual(browsing.practice_entry_context(scope.section_id), {
+                "practice_start_url": f"/practice/section/{scope.section_id}/start",
+                "practice_progress": practice.PracticeProgress(scope.section_id, None)})
+            self.assertEqual(browsing.practice_entry_context(scope.section_id, scope.topic_ids[0]), {
+                "practice_start_url": f"/practice/section/{scope.section_id}/topic/{scope.topic_ids[0]}/start",
+                "practice_progress": practice.PracticeProgress(scope.section_id, scope.topic_ids[0])})
             for section_id, topic_id in ((987654, None), (0, None), (-1, None), (True, None), ("1", None),
                                          (2 ** 63, None), (dzi.section_id, None), (dzi.section_id, dzi.topic_ids[0]),
                                          (scope.section_id, other.topic_ids[0]), (scope.section_id, 987654),
                                          (scope.section_id, 0), (scope.section_id, True)):
                 with self.subTest(section=section_id, topic=topic_id):
-                    self.assertIsNone(browsing.practice_entry_url(section_id, topic_id))
+                    self.assertEqual(browsing.practice_entry_context(section_id, topic_id), none)
             g.principal = ANONYMOUS
-            self.assertIsNone(browsing.practice_entry_url(scope.section_id))
+            self.assertEqual(browsing.practice_entry_context(scope.section_id), none)
 
     def test_the_entry_does_not_count_questions_so_thin_scopes_still_show_it(self):
         thin = self.make_scope(2, topics=2)
@@ -1595,6 +1601,349 @@ class BrowseEntryTest(RouteCase, BrowseUrls):
                      self.legacy_section_path(scope)):
             self.assertEqual(client.get(path).status_code, 200)
         self.assertEqual(self.table_digests(), before)
+
+
+@armed_only
+class BrowseProgressTest(RouteCase, BrowseUrls):
+    """The account's own saved progress beside the entry, on the real application with signed-in clients."""
+
+    COUNT = re.compile(r'<span class="pill">Приключени упражнения: (\d+)</span>')
+    LAST = re.compile(r'<span class="pill">Последен резултат: (\d+)/(\d+)</span>')
+    PILLS = re.compile(r'\n<span class="pill">(?:Приключени упражнения|Последен резултат): [^<]*</span>')
+
+    def add_session(self, who, scope, topic_index=None, *, submitted=None, abandoned=None, score=None):
+        topic_id = None if topic_index is None else scope.topic_ids[topic_index]
+        correct, total = score if score else (None, None)
+        self.conn.execute(
+            "INSERT INTO practice_sessions (user_id, section_id, topic_id, seed, question_ids_json, started_at, "
+            "submitted_at, abandoned_at, score_correct, score_total) VALUES (?, ?, ?, 's', '[]', ?, ?, ?, ?, ?)",
+            (who.user_id, scope.section_id, topic_id, STAMP, submitted, abandoned, correct, total))
+        self.conn.commit()
+
+    def paths(self, scope, topic_index=None):
+        if topic_index is None:
+            return (self.subject_section_path(scope), self.legacy_section_path(scope))
+        return (self.subject_topic_path(scope, topic_index),)
+
+    def shown(self, html):
+        """``(count, correct, total)`` of the one progress display of a page, ``None`` when it shows none."""
+        counts, lasts = self.COUNT.findall(html), self.LAST.findall(html)
+        self.assertEqual(len(counts), len(lasts))
+        self.assertLessEqual(len(counts), 1)
+        return (int(counts[0]), int(lasts[0][0]), int(lasts[0][1])) if counts else None
+
+    def get(self, who, path):
+        response = self.client(who).get(path)
+        self.assertEqual(response.status_code, 200)
+        return self.page(response)
+
+    def test_nothing_is_shown_while_nothing_was_submitted_and_the_entry_stays(self):
+        scope = self.make_scope(8, topics=2)
+        self.add_session(self.student, scope)                                              # open
+        self.add_session(self.student, scope, 0, abandoned="2026-02-01 10:00:00")         # abandoned
+        for who in (self.student, self.teacher, self.admin):
+            for path in self.paths(scope) + self.paths(scope, 0) + self.paths(scope, 1):
+                with self.subTest(role=who.role, path=path):
+                    html = self.get(who, path)
+                    self.assertIsNone(self.shown(html))
+                    self.assertNotIn("Приключени упражнения", html)
+                    self.assertNotIn("Последен резултат", html)
+                    self.assertEqual(len(self.entry_forms(html)), 1)
+
+    def test_a_submitted_session_shows_its_count_and_saved_score_on_every_page_of_its_scope(self):
+        scope = self.make_scope(8, topics=2)
+        self.add_session(self.student, scope, submitted="2026-01-01 10:00:00", score=(6, 8))
+        for path in self.paths(scope):
+            with self.subTest(path=path):
+                html = self.get(self.student, path)
+                self.assertEqual(self.shown(html), (1, 6, 8))
+                form = self.entry_forms(html)
+                self.assertEqual([action for action, _ in form], [self.start_url(scope)])
+                self.assertIn("Приключени упражнения: 1", html)
+                self.assertIn("Последен резултат: 6/8", html)
+        for path in self.paths(scope, 0) + self.paths(scope, 1):
+            self.assertIsNone(self.shown(self.get(self.student, path)))
+
+    def test_a_real_submission_and_a_repeat_through_the_routes_show_the_count_and_the_latest_saved_score(self):
+        scope = self.make_scope(8)
+        path = self.subject_section_path(scope)
+        first = self.open_via_route(self.student, scope)
+        fields = self.answer_all(first, "A")
+        self.assertEqual(self.post(self.client(self.student), f"/practice/session/{first}", fields).status_code, 303)
+        total = len(self.plan_of(first))
+        self.assertEqual(self.shown(self.get(self.student, path)), (1, total, total))
+        repeat = self.open_via_route(self.student, scope)
+        self.assertNotEqual(repeat, first)
+        self.assertEqual(self.shown(self.get(self.student, path)), (1, total, total))     # open: not counted yet
+        fields = self.answer_all(repeat, "B")
+        self.assertEqual(self.post(self.client(self.student), f"/practice/session/{repeat}", fields).status_code, 303)
+        # Both submissions may fall in the same stored second: the larger id is the latest.
+        self.assertEqual(self.shown(self.get(self.student, path)), (2, 0, total))
+        for scope_path in self.paths(scope):
+            self.assertEqual(self.shown(self.get(self.student, scope_path)), (2, 0, total))
+
+    def test_a_topic_is_its_own_scope_and_there_is_no_roll_up_into_its_section(self):
+        scope = self.make_scope(8, topics=2)
+        self.add_session(self.student, scope, submitted="2026-01-01 10:00:00", score=(1, 5))
+        self.add_session(self.student, scope, 0, submitted="2026-01-02 10:00:00", score=(2, 6))
+        self.add_session(self.student, scope, 0, submitted="2026-01-03 10:00:00", score=(3, 7))
+        self.add_session(self.student, scope, 1, submitted="2026-01-04 10:00:00", score=(4, 8))
+        expected = {None: (1, 1, 5), 0: (2, 3, 7), 1: (1, 4, 8)}
+        for index, numbers in expected.items():
+            for path in self.paths(scope, index):
+                with self.subTest(topic=index, path=path):
+                    self.assertEqual(self.shown(self.get(self.student, path)), numbers)
+        only_topics = self.make_scope(8, topics=2)
+        self.add_session(self.student, only_topics, 0, submitted=STAMP, score=(5, 5))
+        for path in self.paths(only_topics):
+            self.assertIsNone(self.shown(self.get(self.student, path)))
+        self.assertEqual(self.shown(self.get(self.student, self.subject_topic_path(only_topics, 0))), (1, 5, 5))
+
+    def test_the_latest_is_the_stored_utc_time_and_then_the_larger_id(self):
+        scope = self.make_scope(8)
+        self.add_session(self.student, scope, submitted="2026-03-01 12:00:00", score=(3, 4))
+        self.add_session(self.student, scope, submitted="2026-01-01 12:00:00", score=(9, 10))
+        self.add_session(self.student, scope, submitted="2026-03-01 12:00:00", score=(2, 4))   # tie: the larger id
+        self.add_session(self.student, scope, submitted="2025-12-31 23:59:59", score=(1, 10))
+        for path in self.paths(scope):
+            self.assertEqual(self.shown(self.get(self.student, path)), (4, 2, 4))
+
+    def test_each_account_and_role_sees_only_its_own_numbers(self):
+        scope = self.make_scope(8)
+        self.add_session(self.student, scope, submitted="2026-01-01 10:00:00", score=(3, 5))
+        self.add_session(self.student, scope, submitted="2026-01-02 10:00:00", score=(4, 5))
+        self.add_session(self.other_student, scope, submitted="2026-02-01 10:00:00", score=(9, 11))
+        self.add_session(self.teacher, scope, submitted="2026-03-01 10:00:00", score=(1, 3))
+        self.add_session(self.teacher, scope, submitted="2026-03-02 10:00:00", score=(2, 3))
+        self.add_session(self.teacher, scope, submitted="2026-03-03 10:00:00", score=(3, 3))
+        expected = {self.student: (2, 4, 5), self.other_student: (1, 9, 11), self.teacher: (3, 3, 3), self.admin: None}
+        for path in self.paths(scope):
+            for who, numbers in expected.items():
+                with self.subTest(role=who.role, user=who.user_id, path=path):
+                    self.assertEqual(self.shown(self.get(who, path)), numbers)
+
+    def test_a_page_is_byte_identical_whatever_another_account_has_submitted(self):
+        scope = self.make_scope(8, topics=2)
+        self.add_session(self.student, scope, submitted="2026-01-01 10:00:00", score=(3, 5))
+        paths = self.paths(scope) + self.paths(scope, 0)
+        before = {path: self.get(self.student, path) for path in paths}
+        for index in (None, 0, 1):
+            for number in range(6):
+                self.add_session(self.other_student, scope, index, submitted=f"2026-02-0{number + 1} 10:00:00",
+                                 score=(number, 17))
+            self.add_session(self.teacher, scope, index, submitted="2026-04-01 10:00:00", score=(7, 19))
+            self.add_session(self.admin, scope, index, abandoned="2026-04-01 10:00:00")
+            self.add_session(self.other_student, scope, index)                                   # open
+        after = {path: self.get(self.student, path) for path in paths}
+        self.assertEqual(after, before)
+        for html in after.values():
+            self.assertNotIn("/17", html)
+            self.assertNotIn("/19", html)
+
+    def test_the_open_and_abandoned_state_of_the_account_is_not_exposed(self):
+        scope = self.make_scope(8, topics=2)
+        self.add_session(self.student, scope, submitted="2026-01-01 10:00:00", score=(3, 5))
+        paths = self.paths(scope)
+        before = {path: self.get(self.student, path) for path in paths}
+        self.add_session(self.student, scope)                                                      # open
+        self.add_session(self.student, scope, abandoned="2026-05-01 10:00:00")
+        self.add_session(self.student, scope, 0)
+        self.assertEqual({path: self.get(self.student, path) for path in paths}, before)
+
+    def test_a_saved_score_survives_every_content_change_on_the_page(self):
+        scope = self.make_scope(8, topics=2)
+        self.add_session(self.student, scope, submitted="2026-01-01 10:00:00", score=(6, 8))
+        self.add_session(self.student, scope, 1, submitted="2026-01-02 10:00:00", score=(7, 8))
+        paths = (self.subject_section_path(scope), self.subject_topic_path(scope, 1))
+        before = {path: self.get(self.student, path) for path in paths}
+        self.assertEqual([self.shown(html) for html in before.values()], [(1, 6, 8), (1, 7, 8)])
+        for question_id in scope.question_ids[1]:
+            self.break_question(question_id)
+        self.conn.execute("UPDATE questions SET prompt = 'changed' WHERE id = ?", (scope.question_ids[0][0],))
+        self.conn.commit()
+        for path in paths:
+            self.assertEqual(self.shown(self.get(self.student, path)), self.shown(before[path]))
+        self.conn.execute("DELETE FROM multiple_choice_options")
+        self.conn.commit()   # no question is left usable at all: the entry and the saved score both stay
+        for path in paths:
+            html = self.get(self.student, path)
+            self.assertEqual(self.shown(html), self.shown(before[path]))
+            self.assertEqual(len(self.entry_forms(html)), 1)
+
+    def test_a_thin_scope_still_shows_its_saved_progress_and_the_entry(self):
+        scope = self.make_scope(2, topics=2)
+        self.add_session(self.student, scope, 1, submitted=STAMP, score=(2, 2))
+        html = self.get(self.student, self.subject_topic_path(scope, 1))
+        self.assertEqual(self.shown(html), (1, 2, 2))
+        self.assertEqual(len(self.entry_forms(html)), 1)
+
+    def test_unavailable_scopes_show_neither_the_entry_nor_stored_progress(self):
+        dzi = self.make_scope(6, section_type="dzi_training")
+        self.add_session(self.student, dzi, submitted=STAMP, score=(3, 3))
+        html = self.get(self.student, self.legacy_section_path(dzi))
+        self.assertIsNone(self.shown(html))
+        self.assertEqual(self.entry_forms(html), [])
+        self.assertNotIn("Приключени упражнения", html)
+
+    def test_the_form_and_the_page_are_unchanged_apart_from_the_two_pills(self):
+        scope = self.make_scope(8, topics=2)
+        paths = self.paths(scope) + self.paths(scope, 1)
+        before = {path: self.get(self.student, path) for path in paths}
+        self.add_session(self.student, scope, submitted=STAMP, score=(3, 5))
+        self.add_session(self.student, scope, 1, submitted=STAMP, score=(4, 5))
+        for path in paths:
+            with self.subTest(path=path):
+                after = self.get(self.student, path)
+                self.assertEqual(len(self.PILLS.findall(after)), 2)
+                self.assertEqual(self.PILLS.sub("", after), before[path])
+                self.assertEqual(self.entry_forms(after), self.entry_forms(before[path]))
+                self.assertEqual(after.count("Упражнявай се"), 1)
+
+    def test_the_progress_text_is_two_short_bulgarian_pills_beside_the_form(self):
+        scope = self.make_scope(8)
+        self.add_session(self.student, scope, submitted=STAMP, score=(0, 5))
+        html = self.get(self.student, self.subject_section_path(scope))
+        self.assertIn('<span class="pill">Приключени упражнения: 1</span>', html)
+        self.assertIn('<span class="pill">Последен резултат: 0/5</span>', html)
+        block = re.search(r"</form>\s*(<span.*?)</div>", html, re.S).group(1)
+        self.assertEqual(len(re.findall(r"<span", block)), 2)
+        self.assertFalse(re.search(r"[A-Za-z]{4,}", re.sub(r"<[^>]+>", "", block)))   # no English words
+
+    def test_one_service_read_decides_the_scope_and_the_progress_so_the_scope_is_checked_once(self):
+        scope = self.make_scope(8, topics=2)
+        self.add_session(self.student, scope, 1, submitted=STAMP, score=(3, 5))
+        client = self.client(self.student)
+        for path in self.paths(scope) + self.paths(scope, 1):
+            with self.subTest(path=path):
+                with patch.object(practice, "practice_scope_available", side_effect=AssertionError("second check")), \
+                        patch.object(practice, "read_practice_scope", side_effect=AssertionError("second check")), \
+                        patch.object(practice, "_resolve_scope", wraps=practice._resolve_scope) as resolve, \
+                        patch.object(practice, "read_practice_progress", wraps=practice.read_practice_progress) as read:
+                    self.assertEqual(client.get(path).status_code, 200)
+                self.assertEqual(resolve.call_count, 1)
+                self.assertEqual(read.call_count, 1)
+                self.assertEqual(read.call_args.args[1].user_id, self.student.user_id)
+
+    def test_the_account_id_of_the_read_is_the_trusted_principal_and_a_query_parameter_changes_nothing(self):
+        scope = self.make_scope(8)
+        self.add_session(self.student, scope, submitted=STAMP, score=(3, 5))
+        self.add_session(self.other_student, scope, submitted=STAMP, score=(5, 5))
+        path = self.subject_section_path(scope)
+        for query in (f"?user_id={self.other_student.user_id}", f"?account={self.other_student.user_id}",
+                      f"?student={self.other_student.user_id}&practice_progress=5/5"):
+            with self.subTest(query=query):
+                self.assertEqual(self.shown(self.get(self.student, path + query)), (1, 3, 5))
+        client = self.client(self.student)
+        response = client.get(path, headers={"X-User-Id": str(self.other_student.user_id)})
+        self.assertEqual(self.shown(self.page(response)), (1, 3, 5))
+
+    def test_signed_in_pages_are_never_cacheable_and_no_account_data_enters_the_public_page(self):
+        scope = self.make_scope(8)
+        path = self.subject_section_path(scope)
+        public_before = self.get(None, path)
+        self.add_session(self.student, scope, submitted=STAMP, score=(3, 5))
+        signed = self.client(self.student).get(path)
+        self.assertEqual(signed.headers["Cache-Control"], "no-store")
+        self.assertEqual(self.shown(self.page(signed)), (1, 3, 5))
+        anonymous = self.client().get(path)
+        self.assertEqual(self.page(anonymous), public_before)
+        self.assertNotIn("no-store", anonymous.headers.get("Cache-Control", ""))
+        self.assertIsNone(self.shown(self.page(anonymous)))
+        self.assertEqual(self.shown(self.get(self.other_student, path)), None)
+        # The second signed-in render of the other account after the first still carries only its own numbers.
+        self.add_session(self.other_student, scope, submitted=STAMP, score=(5, 5))
+        self.assertEqual(self.shown(self.get(self.other_student, path)), (1, 5, 5))
+        self.assertEqual(self.shown(self.get(self.student, path)), (1, 3, 5))
+
+    def test_a_signed_out_or_pending_visitor_gets_exactly_the_page_without_any_practice_sql(self):
+        scope = self.make_scope(8, topics=2)
+        self.add_session(self.student, scope, submitted=STAMP, score=(3, 5))
+        pending = self.client()
+        with pending.session_transaction() as session:
+            session.update(mfa_uid=self.admin.user_id, mfa_sk="x", mfa_iat=1_700_000_000)
+        paths = self.paths(scope) + self.paths(scope, 1)
+        for client in (self.client(), pending):
+            for path in paths:
+                with self.subTest(path=path):
+                    statements = self.record_sql(lambda: client.get(path).get_data())
+                    self.assertFalse([s for s in statements if "practice_" in s.lower()], statements)
+
+    def test_the_signed_in_page_adds_only_the_two_scoped_reads_and_the_scope_decision(self):
+        scope = self.make_scope(8, topics=2)
+        self.add_session(self.student, scope, 1, submitted=STAMP, score=(3, 5))
+        client = self.client(self.student)
+        # Topic 0 was never practised: the count alone answers it. The others also read the latest saved score.
+        for path, reads in ((self.subject_section_path(scope), 1), (self.legacy_section_path(scope), 1),
+                            (self.subject_topic_path(scope, 0), 1), (self.subject_topic_path(scope, 1), 2)):
+            with self.subTest(path=path):
+                statements = self.record_sql(lambda: client.get(path).get_data())
+                practice_sql = [s for s in statements if "practice_" in s.lower()]
+                self.assertEqual(len(practice_sql), reads, practice_sql)
+                self.assertTrue(practice_sql[0].lstrip().upper().startswith("SELECT COUNT(*)"))
+                if reads == 2:
+                    self.assertTrue(practice_sql[1].lstrip().upper().startswith("SELECT SCORE_CORRECT"))
+                for statement in practice_sql:
+                    self.assertIn("user_id =", statement)
+                    self.assertIn("section_id =", statement)
+                    self.assertIn("topic_id IS", statement)
+                    self.assertNotIn("practice_answers", statement)
+                keywords = [s.split()[0].upper() for s in statements]
+                self.assertFalse({"INSERT", "UPDATE", "DELETE", "REPLACE", "COMMIT"} & set(keywords), statements)
+                self.assertEqual(keywords.count("BEGIN"), 1)
+                self.assertEqual(keywords.count("ROLLBACK"), 1)
+
+    def test_the_progress_pages_write_nothing(self):
+        scope = self.make_scope(8, topics=2)
+        self.add_session(self.student, scope, submitted=STAMP, score=(3, 5))
+        self.add_session(self.student, scope, 1)
+        before = self.table_digests()
+        client = self.client(self.student)
+        for path in self.paths(scope) + self.paths(scope, 0) + self.paths(scope, 1):
+            self.assertEqual(client.get(path).status_code, 200)
+            self.assertEqual(client.head(path).status_code, 200)
+        self.assertEqual(self.table_digests(), before)
+
+    def test_a_deactivated_account_is_signed_out_and_sees_neither_the_entry_nor_its_progress(self):
+        scope = self.make_scope(8)
+        self.add_session(self.student, scope, submitted=STAMP, score=(3, 5))
+        path = self.subject_section_path(scope)
+        client = self.client(self.student)
+        self.assertEqual(self.shown(self.page(client.get(path))), (1, 3, 5))
+        self.conn.execute("UPDATE users SET is_active = 0 WHERE id = ?", (self.student.user_id,))
+        self.conn.commit()
+        html = self.page(client.get(path))
+        self.assertIsNone(self.shown(html))
+        self.assertEqual(self.entry_forms(html), [])
+
+    def test_refused_stored_state_shows_neither_a_number_nor_a_server_error_and_logs_the_class_only(self):
+        scope = self.make_scope(8)
+        self.add_session(self.student, scope, submitted=STAMP, score=(3, 5))
+        self.conn.execute("PRAGMA ignore_check_constraints = ON")
+        self.conn.execute("UPDATE practice_sessions SET score_total = 0")
+        self.conn.execute("PRAGMA ignore_check_constraints = OFF")
+        self.conn.commit()
+        with self.assertLogs(web_app.app.logger, level="ERROR") as logs:
+            response = self.client(self.student).get(self.subject_section_path(scope))
+        self.assertEqual(response.status_code, 200)
+        html = self.page(response)
+        self.assertIsNone(self.shown(html))
+        self.assertEqual(self.entry_forms(html), [])
+        self.assertEqual([record.args for record in logs.records],
+                         [("browsing.subject_topic_group_view", "PracticeStateError")])
+        self.assertNotIn("whole and bounded", "\n".join(record.getMessage() for record in logs.records))
+        self.assertEqual(self.entry_forms(self.page(self.client().get(self.subject_section_path(scope)))), [])
+
+    def record_sql(self, action):
+        """Every SQL statement the request connection runs while ``action`` performs one page request."""
+        statements, original = [], browsing.get_request_db
+
+        def traced():
+            conn = original()
+            conn.set_trace_callback(statements.append)
+            return conn
+        with patch.object(browsing, "get_request_db", traced):
+            action()
+        return statements
 
 
 # ====================================================================== armed: the read-only confirmation
@@ -1944,7 +2293,8 @@ class DisabledBrowseTest(PracticeCase, BrowseUrls):
         scope = self.make_scope(8, topics=2)
         paths = (self.subject_section_path(scope), self.subject_topic_path(scope, 1), self.legacy_section_path(scope))
         with patch.object(practice, "practice_scope_available", side_effect=AssertionError("queried")), \
-                patch.object(practice, "read_practice_scope", side_effect=AssertionError("queried")):
+                patch.object(practice, "read_practice_scope", side_effect=AssertionError("queried")), \
+                patch.object(practice, "read_practice_progress", side_effect=AssertionError("queried")):
             for who in (None, self.student, self.teacher, self.admin):
                 client = _client_for(self, who)
                 for path in paths:
@@ -1959,12 +2309,14 @@ class DisabledBrowseTest(PracticeCase, BrowseUrls):
         scope = self.make_scope(6)
         with web_app.app.test_request_context("/"):
             g.principal = self.student
+            none = {"practice_start_url": None, "practice_progress": None}
             self.assertFalse(practice.routes_armed())
-            self.assertIsNone(browsing.practice_entry_url(scope.section_id))
+            self.assertEqual(browsing.practice_entry_context(scope.section_id), none)
             # Armed by hand without the blueprint: still no entry and no url_for to an unregistered route.
-            with patch.object(practice, "ROUTES_ACTIVATION", True):
+            with patch.object(practice, "ROUTES_ACTIVATION", True), \
+                    patch.object(practice, "read_practice_progress", side_effect=AssertionError("queried")):
                 self.assertTrue(practice.routes_armed())
-                self.assertIsNone(browsing.practice_entry_url(scope.section_id))
+                self.assertEqual(browsing.practice_entry_context(scope.section_id), none)
 
     def test_the_browse_module_does_not_read_the_gate_or_the_environment(self):
         source = (ROOT / "web" / "blueprints" / "browsing.py").read_text(encoding="utf-8")

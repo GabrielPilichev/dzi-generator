@@ -4,9 +4,10 @@ health check and the favicon.
 
 Every view is public and declares it (:mod:`web.access`); all routes are GET
 (and the implicit HEAD/OPTIONS), so there is no unsafe-method integrity policy
-to declare. The section and topic pages may show a student-practice entry (see
-:func:`practice_entry_url`); only a signed-in account sees it, and only while the
-build's practice gate registers the practice routes. Browsing stays public.
+to declare. The section and topic pages may show a student-practice entry and the
+account's own saved progress there (see :func:`practice_entry_context`); only a
+signed-in account sees them, and only while the build's practice gate registers the
+practice routes. Browsing stays public.
 Subject metadata comes from :mod:`web.services.subject_catalog` and
 the cached browsing reads from :mod:`web.services.browsing`; the ownership and
 short-slug rules stay in ``src.subject_browsing``. The module imports neither
@@ -18,7 +19,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from flask import Blueprint, abort, current_app, redirect, render_template, send_file, url_for
+from flask import Blueprint, abort, current_app, redirect, render_template, request, send_file, url_for
 
 from src.subject_browsing import stored_slug_candidates
 from src.subject_content import IT
@@ -50,26 +51,45 @@ HEALTH_DB_TIMEOUT_SECONDS = 2.0
 DZI_SECTION_SLUG = "grade12-dzi-preparation"
 
 
-def practice_entry_url(section_id: int, topic_id: int | None = None) -> str | None:
-    """The POST target of "Упражнявай се" for one resolved browse scope, or ``None`` (no entry).
+def practice_entry_context(section_id: int, topic_id: int | None = None) -> dict:
+    """The template variables of "Упражнявай се" and the saved progress of one resolved browse scope.
 
-    The ids are the ones the browse view already resolved. The entry exists only while the practice
-    routes are registered in this build, for a signed-in account (the very decision the start routes
-    make) and for a scope the start itself would accept: the service's read-only scope check, which
-    excludes DZI training sections, sections without one known subject and topics that are not
-    consistent members. Nothing here counts questions: the pool, the minimum and an existing attempt
-    stay the start's decision. In the build that does not register the routes the first line returns
-    before any query or URL lookup, so an ordinary page renders exactly as it did.
+    ``practice_start_url`` is the POST target of the entry, ``practice_progress`` the signed-in account's own
+    submitted-session progress of the same scope; both are ``None`` (no entry) otherwise. The ids are the ones
+    the browse view already resolved. The entry exists only while the practice routes are registered in this
+    build, for a signed-in account (the very decision the start routes make) and for a scope the start itself
+    would accept. That scope decision and the progress come from one service read, so the page validates the
+    scope once and the numbers are read in the same snapshot as that decision, from the principal's own
+    account id alone. Nothing here counts questions: the pool, the minimum and an existing attempt stay the
+    start's decision. In the build that does not register the routes the first line returns before any query
+    or URL lookup, so an ordinary page renders exactly as it did, and a signed-out visitor never reaches the
+    service. The result is built per request and never stored, so no account data enters a shared cache. Stored
+    state the service refuses (a score that is not whole and bounded) shows neither the entry nor a number.
     """
+    none = {"practice_start_url": None, "practice_progress": None}
     if not practice_service.routes_armed() or "practice" not in current_app.blueprints:
-        return None
-    if not is_route_allowed(SIGNED_IN, current_principal()):
-        return None
-    if not practice_service.practice_scope_available(get_request_db(), section_id, topic_id):
-        return None
+        return none
+    principal = current_principal()
+    if not is_route_allowed(SIGNED_IN, principal):
+        return none
+    try:
+        progress = practice_service.read_practice_progress(get_request_db(), principal, section_id, topic_id)
+    except practice_service.PracticeAccessError:
+        return none
+    except practice_service.PracticeStateError as error:
+        # Stored progress the service refuses to read: no entry and no number, the public page itself still
+        # renders. Only the endpoint and the exception class are logged, never an id or a stored value.
+        current_app.logger.error(
+            "Practice progress refused: endpoint=%s error=%s", request.endpoint, type(error).__name__
+        )
+        return none
+    if progress is None:
+        return none
     if topic_id is None:
-        return url_for("practice.start_section", section_id=section_id)
-    return url_for("practice.start_topic", section_id=section_id, topic_id=topic_id)
+        url = url_for("practice.start_section", section_id=section_id)
+    else:
+        url = url_for("practice.start_topic", section_id=section_id, topic_id=topic_id)
+    return {"practice_start_url": url, "practice_progress": progress}
 
 
 def open_existing_database_read_only(path, *, timeout: float = 5.0) -> sqlite3.Connection:
@@ -165,7 +185,7 @@ def render_subject_topic_group_page(subject_slug: str, grade: int, topic_group_s
                 section=section,
                 topics=topics,
                 questions=questions,
-                practice_start_url=practice_entry_url(section["section_id"]),
+                **practice_entry_context(section["section_id"]),
             )
         # Once this class has DB content, the provisional configuration is no
         # longer a parallel source of real group routes.
@@ -217,7 +237,7 @@ def render_subject_topic_page(subject_slug: str, grade: int, section_slug: str, 
         topic=topic,
         questions=[q for q in section_questions if q["topic_id"] == topic["topic_id"]],
         section_question_count=len(section_questions),
-        practice_start_url=practice_entry_url(section["section_id"], topic["topic_id"]),
+        **practice_entry_context(section["section_id"], topic["topic_id"]),
     )
 
 
@@ -328,5 +348,5 @@ def section_view(slug: str):
         section=section,
         questions=questions,
         section_subject=next(subject for subject in subject_catalog() if subject["id"] == IT),
-        practice_start_url=practice_entry_url(section["section_id"]),
+        **practice_entry_context(section["section_id"]),
     )

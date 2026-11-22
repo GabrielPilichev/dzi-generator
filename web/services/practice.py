@@ -3,8 +3,8 @@
 Governed by docs/STUDENT_PRACTICE_DESIGN.md (sections 2, 4 and 5) over the
 runtime tables of migration 026. This module decides and writes the *start* of a
 session, its one *submission* and the read-only *loading* of an open session's attempt
-page and of a submitted session's result: there is no route, template, timer, progress
-query or change to the existing quiz scoring here. The routes that use it are
+page and of a submitted session's result, and the read-only *progress* of one scope: there is no
+route, template, timer or change to the existing quiz scoring here. The routes that use it are
 ``web.blueprints.practice``, registered only while :data:`ROUTES_ACTIVATION` is armed.
 
 Contract
@@ -194,6 +194,32 @@ positive integer is simply unavailable. :func:`read_practice_scope` also returns
 titles (:class:`PracticeScopeInfo`) for a confirmation page. Neither writes, so both work on a
 ``query_only`` connection or inside a caller's transaction. :func:`routes_armed` reports the build gate
 below without exposing a way to change it.
+
+Progress
+--------
+:func:`read_practice_progress` takes a configured connection (it may already be inside a caller
+transaction), the trusted principal, a section id and an optional topic id, and answers in one read
+snapshot both whether the scope is available (the very ``_resolve_scope`` of a start) and what the
+principal's own account has submitted there. It returns ``None`` for a scope a start would not accept
+(an id that is not a positive integer included), else a :class:`PracticeProgress`:
+
+* ``session_count``: the account's *submitted* sessions of exactly this section and topic. A topic of
+  ``None`` is the section-wide practice alone, never a roll-up of its topics, and a topic session never
+  counts in its section. Open and abandoned sessions are never counted; every submitted repeat is one
+  more; assignment attempts are not read at all.
+* ``latest_correct`` / ``latest_total``: the stored score of the most recent submitted session, by the
+  persisted UTC ``submitted_at`` (whole-second, fixed-width text, so text order is time order) and, for
+  the same second, the larger session id. Both are ``None`` while the count is zero.
+
+The score is only what was stored at submission: no answer, question or current content is read, so a
+changed question never moves a saved score or the count. The account id comes from the principal alone (a
+principal that is not an account raises :class:`PracticeAccessError`; an id never arrives as a form
+value). An account that is missing, inactive or of an unknown role has no progress to read: the scope is
+still reported as available (the browse entry is decided by the scope alone) with a zero count, and its
+stored sessions are not read. A stored submitted score that is not whole and bounded is
+:class:`PracticeStateError` and is never repaired. The scope, the account, the count and the latest score
+are read in one snapshot; the lookup uses ``idx_practice_sessions_user_scope`` on
+``(user_id, section_id, topic_id)``. Nothing is written, so a ``query_only`` connection works.
 
 Stored plans
 ------------
@@ -432,6 +458,16 @@ class PracticeScopeInfo(NamedTuple):
     topic_id: int | None
     section_title: str
     topic_title: str | None
+
+
+class PracticeProgress(NamedTuple):
+    """An available scope and the principal's own submitted sessions in it (module docstring, "Progress")."""
+
+    section_id: int
+    topic_id: int | None
+    session_count: int = 0
+    latest_correct: int | None = None
+    latest_total: int | None = None
 
 
 class PracticeAccessError(PermissionError):
@@ -951,3 +987,45 @@ def load_practice_attempt(conn: sqlite3.Connection, principal: Principal, sessio
     session_id = _positive_id(session_id, "session_id")
     _require_configured_connection(conn)
     return _in_read_snapshot(conn, lambda: _load_attempt(conn, user_id, session_id))
+
+
+# The submitted sessions of exactly one account and scope. ``topic_id IS :topic_id`` is the exact match: a NULL
+# topic selects the section-wide practice only. Submitted already excludes abandoned (a CHECK of migration 026),
+# which is restated so the rule does not rest on the schema alone.
+_SUBMITTED_SCOPE_SQL = (
+    "FROM practice_sessions WHERE user_id = :user_id AND section_id = :section_id "
+    "AND topic_id IS :topic_id AND submitted_at IS NOT NULL AND abandoned_at IS NULL"
+)
+
+
+def _read_progress(conn: sqlite3.Connection, user_id: int, section_id: int,
+                   topic_id: int | None) -> PracticeProgress | None:
+    """The scope decision and the account's submitted-session progress, inside the read snapshot."""
+    if _resolve_scope(conn, section_id, topic_id) is None:
+        return None
+    no_progress = PracticeProgress(section_id, topic_id)
+    if not _account_is_active(conn, user_id):
+        return no_progress
+    parameters = {"user_id": user_id, "section_id": section_id, "topic_id": topic_id}
+    count = conn.execute(f"SELECT COUNT(*) {_SUBMITTED_SCOPE_SQL}", parameters).fetchone()[0]
+    if count == 0:
+        return no_progress
+    latest = conn.execute(
+        f"SELECT score_correct, score_total {_SUBMITTED_SCOPE_SQL} ORDER BY submitted_at DESC, id DESC LIMIT 1",
+        parameters).fetchone()
+    if latest is None:  # impossible inside one snapshot: the count just saw a row
+        raise PracticeStateError("a counted practice session vanished inside one read snapshot")
+    correct, total = latest["score_correct"], latest["score_total"]
+    if type(correct) is not int or type(total) is not int or not 0 <= correct <= total or total <= 0:
+        raise PracticeStateError("a submitted practice session stores a score that is not whole and bounded")
+    return PracticeProgress(section_id, topic_id, int(count), correct, total)
+
+
+def read_practice_progress(conn: sqlite3.Connection, principal: Principal, section_id: int,
+                           topic_id: int | None = None) -> PracticeProgress | None:
+    """The principal's own submitted-session progress of one available scope, or ``None`` (module docstring, "Progress")."""
+    user_id = _account_id(principal)
+    if not _valid_scope_ids(section_id, topic_id):
+        return None
+    _require_configured_connection(conn)
+    return _in_read_snapshot(conn, lambda: _read_progress(conn, user_id, section_id, topic_id))
