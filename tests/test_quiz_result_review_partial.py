@@ -33,12 +33,13 @@ STALE_MESSAGE = (
 # SHA-256 of the content block of the rendered quiz_result.html for each fixture below,
 # produced by the template at base 0cb22d0 (before the partial was extracted).
 CONTENT_SHA256 = {
-    "normal": "b3bd5bc4d8ed4b5507c03376d90c0ee8beec04cd14e8ce274a972271c5a40871",
-    "mixed_combined": "ea94b6a28c1301688fe702ec214c0b9cc46c2f4a8e29e9cbcbbeb75ec9c3a951",
-    "open_not_combined": "2131a049fac5fb972980a712721eee5c3d2ee1a764864cb58adc23568e4d17b1",
+    "normal": "bd041d1919f243587c457f5a731662ef8f8c284f1e3c88e1bc99c24b9e5fefd8",
+    "mixed_combined": "7300a1408f2dd3ec1aad223d3d00d1d3313e11a7192a45e8b2517ba2bea0f422",
+    "open_not_combined": "9bf1e3e8a70d06696a7b3c7658023b238b0a396ab567150f1408346ebbe0eb46",
     "stale": "4cd97a451e1fa5e20f92b5a8b730a56be1421ddc3b56cb0651386c46e073ef73",
     "stale_with_questions": "5785f1593bbbe5df45310eadb1d7a681d75b679d7eb8cfcc551d10118b6ef2fb",
     "empty": "c8336de21e563ffbf9a1bbaaef89f86ea54ff4204d160deed6dabc9c7c4beb34",
+    "stale_escaped": "206c35dc02902a015c5141c6c73f8ffc70e9d253b48846bd5b000345e265af1e",
 }
 
 
@@ -75,7 +76,7 @@ def _question(prompt, *, correct, chosen, difficulty=None, visuals=(), order=("A
 def _questions():
     return [
         _question(
-            "Верен отговор с изображение.",
+            "Верен отговор <с> изображение.",
             correct="B",
             chosen="B",
             difficulty="hard",
@@ -87,7 +88,8 @@ def _questions():
             ],
             order=("C", "B", "A", "D"),
         ),
-        _question("Грешен отговор с числова трудност.", correct="A", chosen="C", difficulty=1),
+        _question("Грешен отговор с числова трудност.", correct="A", chosen="C", difficulty=1,
+                  order=("C", "A", "D", "B")),
         _question("Без избран отговор.", correct="D", chosen=None, difficulty="medium", order=("D", "A", "B", "C")),
         _question("Верен отговор без трудност.", correct="C", chosen="C"),
         _question("Грешен отговор с непозната трудност.", correct="B", chosen="A", difficulty="mystery"),
@@ -162,6 +164,7 @@ def fixture_contexts():
         # The stale message wins over any question or open answer still in the context.
         "stale_with_questions": _context(**mixed, stale_attempt_message=STALE_MESSAGE),
         "empty": _context(questions=[], original_question_count=0, renderable_question_count=0),
+        "stale_escaped": _context(stale_attempt_message="<b>Стар</b> тест"),
     }
 
 
@@ -222,6 +225,7 @@ class QuizResultReviewPartialTest(IsolatedAppTestCase):
             "Трудност: труден", "Трудност: много лесен", "Трудност: среден",
             "Въпрос 5",
             "Втори &lt;вариант&gt;",
+            "Верен отговор &lt;с&gt; изображение.",
         ):
             with self.subTest(fragment=fragment):
                 self.assertIn(fragment, normal)
@@ -248,6 +252,22 @@ class QuizResultReviewPartialTest(IsolatedAppTestCase):
                 self.assertIn('role="alert"', html)
                 for absent in ("question-card", "Отворени отговори", "Въпрос 1", "Учителски преглед"):
                     self.assertNotIn(absent, html)
+
+    def test_stale_message_is_escaped(self):
+        html = render_content_block("stale_escaped")
+        self.assertIn("&lt;b&gt;Стар&lt;/b&gt; тест", html)
+        self.assertNotIn("<b>Стар</b>", html)
+
+    def test_chosen_option_is_matched_by_stored_letter_not_display_position(self):
+        question = _question("Разбъркани варианти.", correct="A", chosen="C", order=("C", "A", "D", "B"))
+        cards = re.findall(r'<div class="result-option-card.*?</div>', render_partial(questions=[question]), re.S)
+        self.assertEqual(len(cards), 4)
+        self.assertIn("Трети &amp; четвърти", cards[0])
+        self.assertIn("твоят отговор", cards[0])
+        self.assertIn("is-wrong-chosen", cards[0])
+        self.assertIn("правилен", cards[1])
+        for card in cards[2:]:
+            self.assertNotIn("result-option-tag", card)
 
     def test_empty_question_list_shows_no_review(self):
         html = render_content_block("empty")
