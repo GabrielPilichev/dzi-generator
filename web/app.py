@@ -52,6 +52,7 @@ from web.services import accounts as accounts_service
 from web.services import google_oidc
 from web.services import lifecycle as lifecycle_service
 from web.services import mail as mail_service
+from web.services import practice as practice_service
 from web.services import profiles as profiles_service
 from web.services.subject_catalog import subject_catalog, subject_topic_groups
 from web.services import quiz as quiz_service
@@ -640,6 +641,13 @@ app.register_blueprint(dzi_bp)
 app.register_blueprint(practical_bp)
 app.register_blueprint(quiz_bp)
 app.register_blueprint(teacher_bp)
+# Student practice (C2): the build's gate is off, so no /practice route exists. Nothing but
+# the build constant arms it (no setting, no environment variable); an approved launch change
+# edits it, and tests arm it only in a separate interpreter before importing this module.
+if practice_service.ROUTES_ACTIVATION:
+    from web.blueprints.practice import practice_bp
+
+    app.register_blueprint(practice_bp)
 
 # === QUIZ PHASE 2 END ===
 

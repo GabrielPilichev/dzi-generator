@@ -119,7 +119,7 @@ a coverage test walks `app.url_map` and fails on any undeclared endpoint.
 | `public` | any session, signed in or not | `/`, `/grade/<n>`, `/section/<slug>`, `/subjects/...`, `/physics...`, `/healthz`, `/favicon.ico`, sign-in (`/login`, `POST /login/totp`, `POST /auth/google/start`, `GET /auth/google/callback`), `POST /logout`, `/quiz/s/<public_token>`, registration (`/register`, `/register/student`, `/register/teacher`, `/register/verify`, `POST /register/resend`, `POST /register/cancel`; see "Student registration") |
 | `teacher` | teacher or admin account | `/teacher/new`, `/teacher/assignment/<id>` |
 | `admin` | admin account only (after the second factor) | `/admin/open-question-candidates`, `/dzi...`, every other `/teacher...` route |
-| `signed_in` | any active account (student, teacher or admin) | `/account`, `/account/password`, `POST /auth/google/link`, `/auth/google/link/confirm`, `POST /auth/google/link/cancel` (the link routes admit the session; an admin is then refused by `POST /auth/google/link` and `POST /auth/google/link/confirm` with 403, while `GET .../confirm` redirects to the expired outcome and `POST .../cancel` answers `link_not_pending`; see "An admin session on the link routes") |
+| `signed_in` | any active account (student, teacher or admin) | `/account`, `/account/password`, the four `/practice...` routes (registered only when the practice build gate is armed, which it is not; see "Student practice"), `POST /auth/google/link`, `/auth/google/link/confirm`, `POST /auth/google/link/cancel` (the link routes admit the session; an admin is then refused by `POST /auth/google/link` and `POST /auth/google/link/confirm` with 403, while `GET .../confirm` redirects to the expired outcome and `POST .../cancel` answers `link_not_pending`; see "An admin session on the link routes") |
 | `quiz_taker` | any account that may take quizzes: student, teacher or admin (`can_take_quizzes`) | `/account/attempts` |
 | `assignment_owner` | admin account or teacher account; the view checks the loaded assignment and answers 404 | `/teacher/assignments`, `/teacher/assignment/<id>/edit`, `/duplicate`, `/close` (POST only), `/results` (GET and the open-answer review POST), `/results.csv`, `/qr.svg`, `/teacher/practical-submissions`, `/teacher/practical/submission-file/<file_id>/download` |
 | `attempt_owner` | route is reachable; the view checks attempt ownership and answers 404 | `/quiz/attempt/<id>`, `/quiz/attempt/<id>/result`, `/quiz/attempt/<id>/practical/...` |
@@ -878,6 +878,71 @@ attempts are never linked to an account.
 `/account/attempts` (`quiz_taker`) lists the signed-in account's own account-owned
 attempts.
 
+## Student practice
+
+Design: `docs/STUDENT_PRACTICE_DESIGN.md` (sections 3 to 6). Services: `web/services/practice.py`
+(start, submit, saved-result loader and the read-only attempt view). Routes:
+`web/blueprints/practice.py`. **The routes are not registered.** The build constant
+`practice.ROUTES_ACTIVATION` (`web/services/practice.py`) is `False`, no setting and no environment
+variable overrides it, and `web/app.py` registers the blueprint only when it is true, in development and
+in production alike. The ordinary application therefore has no `/practice` rule, endpoint or blueprint:
+every such URL is the generic 404 and the rest of the URL map, every gate and every policy are exactly
+what they were. Tests arm the constant only in a separate interpreter, before it imports the genuine
+`web.app` (`tests/test_practice_routes.py`). Arming it, a browse link and a navigation entry are a
+separate approved launch change.
+
+| Route | Endpoint | Methods | Access | Integrity |
+| --- | --- | --- | --- | --- |
+| `/practice/section/<int:section_id>/start` | `practice.start_section` | POST | `signed_in` | `same_origin` |
+| `/practice/section/<int:section_id>/topic/<int:topic_id>/start` | `practice.start_topic` | POST | `signed_in` | `same_origin` |
+| `/practice/session/<int:session_id>` | `practice.attempt` | GET (and HEAD), POST | `signed_in` | `same_origin` |
+| `/practice/session/<int:session_id>/result` | `practice.result` | GET (and HEAD) | `signed_in` | none (safe methods only) |
+
+The scheme is independent of `/quiz`. Every `/quiz` path, the retired numeric `/quiz/<assignment_id>`
+404 included, is unchanged.
+
+- **Hooks.** A practice request passes the application's own hooks, in the order of "Enforcement": the
+  same-origin check (every POST; a cross-origin one is 403 whatever the account, before any view or
+  write), the account loader, then the `signed_in` decision: signed out, or a pending second factor, is
+  redirected to `/login?next=<path>` and nothing is written; a disabled account never reaches a view.
+  No role is refused here: a student, a teacher and an admin each practice, and each only on sessions it
+  owns.
+- **Inputs.** The ids in the path, and on submit the fields `q_<question id>` whose value is the *stored*
+  option key (`multiple_choice_options.option_letter`), never the display letter. Everything else in a
+  request is ignored: no role, account id, seed, plan, score, timestamp or label is ever read from it. A
+  field sent twice is unanswered. The owner is always `current_principal()`.
+- **Ownership.** One answer for a missing session and for one owned by another account, a teacher or an
+  admin: the generic 404 (`404.html`), on the attempt page, its submit and the result, so an id cannot
+  be probed. An open or an abandoned session has no result: the same 404.
+- **No write on a read.** `GET` and `HEAD` of the attempt and of the result read one snapshot
+  (`load_practice_attempt`, `load_practice_result`) and write nothing; the attempt view keeps the stored
+  plan order and seed and applies the eligibility rules of a start and a submit, so it shows exactly the
+  questions a submit would grade. It never renders a correct marker, verdict or explanation.
+  `POST /practice/session/<id>` and the start routes write only through `submit_practice` and
+  `start_or_resume_practice`.
+
+| Situation | Answer |
+| --- | --- |
+| Start: session created or resumed | `303` to `/practice/session/<id>` |
+| Start: section or topic missing, not a member, no single subject, or a DZI training section; an id of 0 or beyond the integer range | `404`, Bulgarian "not available" page (`practice_unavailable.html`), nothing written |
+| Start: fewer than the minimum of eligible questions | `409`, Bulgarian "not enough questions" page; a stale open session of the scope is abandoned and not replaced |
+| Attempt `GET`: own open session | `200` with the form |
+| Attempt `GET` or `POST`: own submitted session | `GET` `302`, duplicate `POST` `303`, both to its own result; nothing written |
+| Attempt: missing, foreign (teacher and admin too) | `404` |
+| Attempt: own abandoned (replaced, old tab) | `409`, Bulgarian page with a POST to start the same scope again; nothing graded or adopted |
+| Attempt: own open session that presents no question any more | `409`, Bulgarian page with a POST to start the same scope again |
+| An own session whose scope is no longer available, or a malformed stored plan (start, attempt, submit, result alike) | `409`, one Bulgarian page that names no stored state |
+| Submit: usable choices | `303` to the result; answers, verdicts and score stored once, server-side |
+| Submit: no usable choice | `400`, the form again with a Bulgarian message; nothing stored, the session stays open |
+| Result: own submitted session | `200`: the saved score, the shared multiple-choice review, the skipped count when there is one, and "Нов опит" as a `POST` to the session's own scope |
+| Any other inconsistent stored state | `500` (`500.html`), logged by exception class only; no detail in the page |
+| Account unavailable at the service | `403` (`403.html`) |
+
+Known limits of this slice. The start routes accept `POST` only, so a signed-out visitor is redirected to
+`/login?next=<start path>` and the return `GET` there is a `405`; nothing links to a start route until the
+launch change adds the browse entry and the sign-in return. There is no timer, no progress indicator, no
+script beyond the highlight of the chosen option, and the pages show no section or topic title.
+
 ## Refactor Note
 
 Blueprint names change Flask endpoint names, but declared policies live on view
@@ -891,6 +956,6 @@ accepts no unsafe method.
 ## Endpoint names
 
 Every endpoint is blueprint-qualified: `account.*`, `browsing.*`, `dzi.*`,
-`oidc.*`, `practical.*`, `quiz.*`, `recovery.*`, `registration.*`, `teacher.*`. The unprefixed quiz endpoints
+`oidc.*`, `practical.*`, `practice.*` (registered only while the practice build gate is armed), `quiz.*`, `recovery.*`, `registration.*`, `teacher.*`. The unprefixed quiz endpoints
 (`quiz_start`, `quiz_attempt`, `quiz_result`) and the `auth.*` endpoints no
 longer exist.

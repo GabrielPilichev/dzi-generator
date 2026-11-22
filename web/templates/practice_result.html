@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block title %}Резултат от упражнение — LearnPilot{% endblock %}
+
+{% block body_class %}student-assessment-page student-assessment-result-page{% endblock %}
+
+{% block breadcrumb %}
+    <a href="{{ url_for('browsing.index') }}">Начало</a>
+    <span>›</span>
+    Резултат
+{% endblock %}
+
+{#- Reads only: result (the saved PracticeResult), success_rate, new_attempt_url and the review
+    context (questions, stale_attempt_message) of the shared review partial. The score is the
+    stored one, never recomputed. -#}
+{% block content %}
+<section class="quiz-hero result-summary">
+  <p class="eyebrow">Резултат</p>
+  <h1>Упражнение</h1>
+
+  <div class="result-score-card {{ 'is-complete' if result.score_correct == result.score_total else 'needs-review' }}">
+    <span class="result-score-label" data-motion="feedback">Резултат</span>
+    <span class="result-score">{{ result.score_correct }}/{{ result.score_total }}</span>
+    <span class="result-score-rate">Успеваемост: {{ success_rate }}%</span>
+    <span class="result-score-note">
+      {% if result.score_correct == result.score_total %}
+        Всички отговори са верни.
+      {% elif result.score_correct > 0 %}
+        Има верни отговори и въпроси за преговор.
+      {% else %}
+        Нужен е преговор на темата.
+      {% endif %}
+    </span>
+  </div>
+
+  {% if result.skipped_question_count %}
+    <div class="quiz-meta quiz-meta--center result-meta">
+      <span class="pill" id="practice-skipped-count">Пропуснати въпроси (не могат да бъдат показани): {{ result.skipped_question_count }}</span>
+    </div>
+  {% endif %}
+
+  <div class="result-next-steps" aria-label="Следващи стъпки">
+    <div>
+      <h2>Какво следва?</h2>
+      <p class="muted">
+        Прегледай въпросите по-долу. При грешен отговор ще видиш правилния отговор и обяснението, ако е налично.
+      </p>
+    </div>
+    <div class="result-actions">
+      <form method="post" action="{{ new_attempt_url }}">
+        <button type="submit">Нов опит</button>
+      </form>
+      <a class="button secondary" href="{{ url_for('browsing.index') }}">Към началото</a>
+    </div>
+  </div>
+</section>
+
+{% include "_multiple_choice_result_review.html" %}
+{% endblock %}

@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+
+{% block title %}Упражнение — LearnPilot{% endblock %}
+
+{% block body_class %}student-assessment-page student-assessment-attempt-page{% endblock %}
+
+{% block breadcrumb %}
+    <a href="{{ url_for('browsing.index') }}">Начало</a>
+    <span>›</span>
+    Упражнение
+{% endblock %}
+
+{#- The one page for every refused practice state (nothing to show, nothing to grade, not enough
+    questions). It names no stored state: only the message the route chose and, when a new start
+    is possible for the same scope, a POST button to it. -#}
+{% block content %}
+<section class="page-header">
+  <div>
+    <p class="eyebrow">Упражнение</p>
+    <h1>Упражнението не е достъпно</h1>
+  </div>
+</section>
+
+<section class="card warning warning--spaced form-message" id="practice-unavailable" role="alert">
+  <p>{{ message }}</p>
+</section>
+
+<div class="result-actions">
+  {% if restart_url %}
+    <form method="post" action="{{ restart_url }}">
+      <button type="submit">{{ restart_label }}</button>
+    </form>
+  {% endif %}
+  <a class="button secondary" href="{{ url_for('browsing.index') }}">Към началото</a>
+</div>
+{% endblock %}
