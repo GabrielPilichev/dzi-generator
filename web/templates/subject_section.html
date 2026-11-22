@@ -22,6 +22,11 @@
     <p class="subtitle">
         {% if questions %}{{ questions|length }} въпроса в този раздел.{% else %}Въпросите за този раздел са в подготовка.{% endif %}
     </p>
+    {%- if practice_start_url %}
+    <div class="actions">
+        {% include "_practice_start_form.html" %}
+    </div>
+    {%- endif %}
 </section>
 
 {% if topics %}

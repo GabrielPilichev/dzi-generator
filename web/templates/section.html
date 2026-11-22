@@ -24,6 +24,11 @@
         {% if section.module_title %}{{ section.module_title }} · {% endif %}
         {{ questions|length }} въпрос{{ '' if questions|length == 1 else 'а' }}
     </p>
+    {%- if practice_start_url %}
+    <div class="actions">
+        {% include "_practice_start_form.html" %}
+    </div>
+    {%- endif %}
 </section>
 
 <div class="question-toolbar">

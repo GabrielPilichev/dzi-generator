@@ -1,0 +1,6 @@
+{#- The one "Упражнявай се" entry: an explicit POST to a practice start URL. Reads only practice_start_url,
+    which the browse view sets for a signed-in account on an available scope while the practice routes are
+    registered. It is never rendered otherwise, so the page needs no practice route. -#}
+<form method="post" action="{{ practice_start_url }}">
+    <button type="submit">Упражнявай се</button>
+</form>

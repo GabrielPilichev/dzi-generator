@@ -888,13 +888,15 @@ variable overrides it, and `web/app.py` registers the blueprint only when it is 
 in production alike. The ordinary application therefore has no `/practice` rule, endpoint or blueprint:
 every such URL is the generic 404 and the rest of the URL map, every gate and every policy are exactly
 what they were. Tests arm the constant only in a separate interpreter, before it imports the genuine
-`web.app` (`tests/test_practice_routes.py`). Arming it, a browse link and a navigation entry are a
-separate approved launch change.
+`web.app` (`tests/test_practice_routes.py`). Arming it and a navigation entry are a separate approved
+launch change. The browse entry and the safe sign-in return below ship with the routes and exist only
+while they are registered: in this build the section and topic pages render, query and link exactly as
+before.
 
 | Route | Endpoint | Methods | Access | Integrity |
 | --- | --- | --- | --- | --- |
-| `/practice/section/<int:section_id>/start` | `practice.start_section` | POST | `signed_in` | `same_origin` |
-| `/practice/section/<int:section_id>/topic/<int:topic_id>/start` | `practice.start_topic` | POST | `signed_in` | `same_origin` |
+| `/practice/section/<int:section_id>/start` | `practice.start_section` | GET (and HEAD): read-only confirmation; POST: start | `signed_in` | `same_origin` |
+| `/practice/section/<int:section_id>/topic/<int:topic_id>/start` | `practice.start_topic` | GET (and HEAD): read-only confirmation; POST: start | `signed_in` | `same_origin` |
 | `/practice/session/<int:session_id>` | `practice.attempt` | GET (and HEAD), POST | `signed_in` | `same_origin` |
 | `/practice/session/<int:session_id>/result` | `practice.result` | GET (and HEAD) | `signed_in` | none (safe methods only) |
 
@@ -920,28 +922,64 @@ The scheme is independent of `/quiz`. Every `/quiz` path, the retired numeric `/
   questions a submit would grade. It never renders a correct marker, verdict or explanation.
   `POST /practice/session/<id>` and the start routes write only through `submit_practice` and
   `start_or_resume_practice`.
+- **Browse entry.** The real section and topic pages (`/subjects/<subject>/<grade>/<section>[/<topic>]`
+  and the legacy `/section/<slug>`) show a Bulgarian "Упражнявай се" button, an explicit `POST` form to
+  the start URL of the scope the page itself resolved (section id, and topic id on a topic page), only
+  when *all* of these hold: the practice routes are registered (`practice.routes_armed()`), the current
+  principal is signed in (the `signed_in` decision itself), and the scope passes the start's own
+  read-only validation (`practice_scope_available`: an existing section with one known subject that is
+  not a DZI training section, and a topic that is a consistent member of it). Placeholder groups, DZI
+  training sections, a signed-out visitor and every build without the routes get no form, no practice
+  URL lookup and no extra query (`practice_entry_url` returns before any of them). The page never
+  counts questions to guess eligibility: the minimum, the pool and an existing open attempt (which may
+  be resumed with fewer questions) stay the start's decision. Browsing stays public and the existing
+  teacher actions are untouched. The form carries no field; the owner is the principal.
+- **Sign-in return.** A signed-out `POST` to a start URL is redirected to `/login?next=<start path>` (the
+  existing flow, unchanged: no new redirect target and no replay of the request). The sign-in returns
+  with a `GET`, which the two start URLs now answer, for a signed-in account, with a confirmation page
+  (`practice_start.html`) for that exact scope: the section (and topic) title, a short Bulgarian text and
+  one `POST` form to the same URL. `GET` and `HEAD` there read the scope through
+  `read_practice_scope` on a connection that refuses writes; they never start, resume, abandon or look
+  up a session, so an open, stale or thin state is neither changed nor revealed. A scope the start would
+  refuse is the same `404` "not available" page, with nothing written. The explicit `POST` is the
+  unchanged start, behind the same same-origin check; a signed-out or cross-origin `POST` is still
+  refused as before. `PUT`, `PATCH` and `DELETE` stay `405`.
 
 | Situation | Answer |
 | --- | --- |
 | Start: session created or resumed | `303` to `/practice/session/<id>` |
-| Start: section or topic missing, not a member, no single subject, or a DZI training section; an id of 0 or beyond the integer range | `404`, Bulgarian "not available" page (`practice_unavailable.html`), nothing written |
+| Start `GET` or `HEAD`, signed in, available scope | `200`, the confirmation page with one `POST` form to the same URL; nothing written, nothing started, resumed or abandoned |
+| Start `GET` or `HEAD`, signed out or pending second factor | `302` to `/login?next=<start path>`; nothing written |
+| Start (`POST`, `GET` or `HEAD`): section or topic missing, not a member, no single subject, or a DZI training section (a retired scope included); an id of 0 or beyond the integer range | `404`, Bulgarian "not available" page (`practice_unavailable.html`), nothing written |
 | Start: fewer than the minimum of eligible questions | `409`, Bulgarian "not enough questions" page; a stale open session of the scope is abandoned and not replaced |
 | Attempt `GET`: own open session | `200` with the form |
 | Attempt `GET` or `POST`: own submitted session | `GET` `302`, duplicate `POST` `303`, both to its own result; nothing written |
 | Attempt: missing, foreign (teacher and admin too) | `404` |
 | Attempt: own abandoned (replaced, old tab) | `409`, Bulgarian page with a POST to start the same scope again; nothing graded or adopted |
 | Attempt: own open session that presents no question any more | `409`, Bulgarian page with a POST to start the same scope again |
-| An own session whose scope is no longer available, or a malformed stored plan (start, attempt, submit, result alike) | `409`, one Bulgarian page that names no stored state |
+| Attempt `GET` or submit `POST` of an own open session whose scope is no longer available (retired) | `409`, one Bulgarian page that names no stored state; nothing written |
+| Result of an own submitted session whose scope is no longer available (retired) | `200`: the saved score from submission with no review rows and the Bulgarian "only the saved score" message |
+| A malformed stored plan (start, attempt, submit, result alike) | `409`, the same Bulgarian page; nothing written, the row stays open and is never read as empty, abandoned or replaced. The log line names the endpoint and the exception class only (`Practice plan refused: endpoint=... error=PracticePlanError`), never an id, label or any plan content |
 | Submit: usable choices | `303` to the result; answers, verdicts and score stored once, server-side |
 | Submit: no usable choice | `400`, the form again with a Bulgarian message; nothing stored, the session stays open |
-| Result: own submitted session | `200`: the saved score, the shared multiple-choice review, the skipped count when there is one, and "Нов опит" as a `POST` to the session's own scope |
+| Result: own submitted session | `200`: the saved score, the shared multiple-choice review, the skipped count when there is one, and "Нов опит" as a `POST` to the session's own scope. When review questions are shown, a short Bulgarian note says the saved score is from submission and the review uses the questions' current content; the saved verdicts and score are never recomputed |
 | Any other inconsistent stored state | `500` (`500.html`), logged by exception class only; no detail in the page |
 | Account unavailable at the service | `403` (`403.html`) |
 
-Known limits of this slice. The start routes accept `POST` only, so a signed-out visitor is redirected to
-`/login?next=<start path>` and the return `GET` there is a `405`; nothing links to a start route until the
-launch change adds the browse entry and the sign-in return. There is no timer, no progress indicator, no
-script beyond the highlight of the chosen option, and the pages show no section or topic title.
+Operator repair decision for a malformed stored plan (a decision only; no repair tooling is implemented or
+run by this slice, and no request can trigger one). The route fails closed and the open row keeps blocking
+its scope until an operator acts. If a verified original plan is available, restore it; otherwise use
+explicitly authorized maintenance to abandon the open row (set its `abandoned_at`), after which the next
+start creates a fresh session. Submitted sessions are never edited: their saved score stays as stored.
+
+Saved score versus current content. A result keeps the verdicts and the score stored at submission. The
+review beside them is rendered from the questions' content *now* (prompts, options, correct options and
+explanations), so a question edited after submission can read differently from what the student saw while
+its stored verdict stays. The result page says so; it is a presentation note, not a change of grading.
+
+Known limits of this slice. The browse entry is in the section and topic pages only: there is no
+navigation entry, no timer, no progress indicator and no script beyond the highlight of the chosen option.
+The practice pages other than the confirmation and the attempt name no section or topic.
 
 ## Refactor Note
 

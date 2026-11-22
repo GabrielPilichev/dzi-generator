@@ -182,6 +182,19 @@ transaction), the trusted principal and a positive session id, and returns a
 The whole read is one snapshot (as for a result), nothing is ever written, and a
 ``query_only`` connection works.
 
+Scope reads
+-----------
+:func:`practice_scope_available` and :func:`read_practice_scope` answer, read-only, whether a section
+(and topic) is a scope a start would accept: the same ``_resolve_scope`` a start, an attempt view and a
+submit use (an existing section with one known subject that is not a DZI training section, and a topic
+that is a consistent member of it). They never look at a session, a plan, the pool size or the minimum:
+whether a *new* session can be created stays decided by :func:`start_or_resume_practice` alone, and an
+account with an open session can resume it however thin the pool has become. An id that is not a
+positive integer is simply unavailable. :func:`read_practice_scope` also returns the section and topic
+titles (:class:`PracticeScopeInfo`) for a confirmation page. Neither writes, so both work on a
+``query_only`` connection or inside a caller's transaction. :func:`routes_armed` reports the build gate
+below without exposing a way to change it.
+
 Stored plans
 ------------
 ``question_ids_json`` holds a JSON array of distinct positive integers (each at
@@ -252,6 +265,17 @@ MAX_QUESTIONS = 10
 # environment variable overrides it: an approved launch change edits it, and nothing else in
 # the code assigns it. Tests arm it only in a separate interpreter, before importing ``web.app``.
 ROUTES_ACTIVATION = False
+
+
+def routes_armed() -> bool:
+    """Whether the build gate is armed, so that the practice routes are registered (no override).
+
+    The browse pages ask this instead of reading the constant, so the registration in ``web.app`` stays
+    the only reader of the constant itself. A build arms it by editing the constant, and a test only
+    in a separate interpreter before importing ``web.app``.
+    """
+    return ROUTES_ACTIVATION is True
+
 
 OUTCOME_CREATED = "created"
 OUTCOME_RESUMED = "resumed"
@@ -401,6 +425,15 @@ class PracticeAttempt(NamedTuple):
         return self.outcome == OUTCOME_OPEN
 
 
+class PracticeScopeInfo(NamedTuple):
+    """An available scope and the titles a confirmation page shows (``topic_title`` only for a topic)."""
+
+    section_id: int
+    topic_id: int | None
+    section_title: str
+    topic_title: str | None
+
+
 class PracticeAccessError(PermissionError):
     """The principal is not an account principal: it cannot own a practice session."""
 
@@ -499,6 +532,33 @@ def _resolve_scope(conn: sqlite3.Connection, section_id: int, topic_id: int | No
         if member is None or not owner.is_consistent or owner.subject != scope.subject:
             return None
     return scope
+
+
+def _valid_scope_ids(section_id: object, topic_id: object) -> bool:
+    return (type(section_id) is int and 0 < section_id <= _SQLITE_MAX_INTEGER
+            and (topic_id is None or (type(topic_id) is int and 0 < topic_id <= _SQLITE_MAX_INTEGER)))
+
+
+def practice_scope_available(conn: sqlite3.Connection, section_id: int, topic_id: int | None = None) -> bool:
+    """Whether a start would accept this scope (module docstring, "Scope reads"). Reads only."""
+    if not _valid_scope_ids(section_id, topic_id):
+        return False
+    _require_configured_connection(conn)
+    return _resolve_scope(conn, section_id, topic_id) is not None
+
+
+def read_practice_scope(conn: sqlite3.Connection, section_id: int,
+                        topic_id: int | None = None) -> PracticeScopeInfo | None:
+    """The titles of an available scope, or ``None`` when a start would not accept it. Reads only."""
+    if not practice_scope_available(conn, section_id, topic_id):
+        return None
+    section = conn.execute("SELECT title_bg FROM curriculum_sections WHERE id = ?", (section_id,)).fetchone()
+    topic = None if topic_id is None else conn.execute(
+        "SELECT title_bg FROM curriculum_topics WHERE id = ?", (topic_id,)).fetchone()
+    if section is None or (topic_id is not None and topic is None):
+        return None
+    return PracticeScopeInfo(section_id, topic_id, str(section["title_bg"] or ""),
+                             None if topic is None else str(topic["title_bg"] or ""))
 
 
 def _open_session(conn: sqlite3.Connection, user_id: int, section_id: int, topic_id: int | None):
