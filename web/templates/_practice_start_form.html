@@ -1,6 +1,11 @@
-{#- The one "Упражнявай се" entry: an explicit POST to a practice start URL. Reads only practice_start_url,
-    which the browse view sets for a signed-in account on an available scope while the practice routes are
-    registered. It is never rendered otherwise, so the page needs no practice route. -#}
+{#- The one "Упражнявай се" entry: an explicit POST to a practice start URL, and beside it the signed-in account's own
+    saved progress of the same scope. Reads only practice_start_url and practice_progress, which the browse view sets
+    for a signed-in account on an available scope while the practice routes are registered. Neither is rendered
+    otherwise, so the page needs no practice route. The progress shows only once something was submitted. -#}
 <form method="post" action="{{ practice_start_url }}">
     <button type="submit">Упражнявай се</button>
 </form>
+{%- if practice_progress and practice_progress.session_count %}
+<span class="pill">Приключени упражнения: {{ practice_progress.session_count }}</span>
+<span class="pill">Последен резултат: {{ practice_progress.latest_correct }}/{{ practice_progress.latest_total }}</span>
+{%- endif %}
