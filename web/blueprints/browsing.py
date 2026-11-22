@@ -64,7 +64,8 @@ def practice_entry_context(section_id: int, topic_id: int | None = None) -> dict
     start's decision. In the build that does not register the routes the first line returns before any query
     or URL lookup, so an ordinary page renders exactly as it did, and a signed-out visitor never reaches the
     service. The result is built per request and never stored, so no account data enters a shared cache. Stored
-    state the service refuses (a score that is not whole and bounded) shows neither the entry nor a number.
+    state the service refuses (a score that is not whole and bounded) hides the number and keeps the entry,
+    because the scope was accepted and the start makes its own decision.
     """
     none = {"practice_start_url": None, "practice_progress": None}
     if not practice_service.routes_armed() or "practice" not in current_app.blueprints:
@@ -77,12 +78,12 @@ def practice_entry_context(section_id: int, topic_id: int | None = None) -> dict
     except practice_service.PracticeAccessError:
         return none
     except practice_service.PracticeStateError as error:
-        # Stored progress the service refuses to read: no entry and no number, the public page itself still
-        # renders. Only the endpoint and the exception class are logged, never an id or a stored value.
+        # The service refuses a stored score only after accepting the scope: omit the optional numbers and keep
+        # the entry. Only the endpoint and the exception class are logged, never an id or a stored value.
         current_app.logger.error(
             "Practice progress refused: endpoint=%s error=%s", request.endpoint, type(error).__name__
         )
-        return none
+        progress = practice_service.PracticeProgress(section_id, topic_id)
     if progress is None:
         return none
     if topic_id is None:

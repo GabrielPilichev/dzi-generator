@@ -1927,11 +1927,12 @@ class BrowseProgressTest(RouteCase, BrowseUrls):
         self.assertEqual(response.status_code, 200)
         html = self.page(response)
         self.assertIsNone(self.shown(html))
-        self.assertEqual(self.entry_forms(html), [])
+        self.assertEqual([action for action, _ in self.entry_forms(html)], [self.start_url(scope)])
         self.assertEqual([record.args for record in logs.records],
                          [("browsing.subject_topic_group_view", "PracticeStateError")])
         self.assertNotIn("whole and bounded", "\n".join(record.getMessage() for record in logs.records))
         self.assertEqual(self.entry_forms(self.page(self.client().get(self.subject_section_path(scope)))), [])
+        self.assertEqual(self.post(self.client(self.student), self.start_url(scope)).status_code, 303)
 
     def record_sql(self, action):
         """Every SQL statement the request connection runs while ``action`` performs one page request."""
