@@ -2,8 +2,9 @@
 
 Governed by docs/STUDENT_PRACTICE_DESIGN.md (sections 2, 4 and 5) over the
 runtime tables of migration 026. This module decides and writes the *start* of a
-session and its one *submission*: there is no route, template, timer, progress
-query or change to the existing quiz scoring here.
+session, its one *submission* and the read-only *loading* of a submitted session's
+result: there is no route, template, timer, progress query or change to the existing
+quiz scoring here.
 
 Contract
 --------
@@ -90,6 +91,64 @@ are never rewritten, and nothing outside ``practice_sessions`` and
 ``practice_answers`` is written. Exceptions are those of a start, plus ``ValueError``
 for ``choices`` that is not a mapping.
 
+Result
+------
+:func:`load_practice_result` takes a configured connection (as above, but it may already
+be inside a caller transaction), the trusted principal and a positive session id, and
+returns a :class:`PracticeResult` whose ``outcome`` is exactly one of:
+
+``loaded``
+    The caller's own *submitted* session. The persisted id, scope (``section_id`` and
+    ``topic_id``), ``submitted_at``, ``score_correct`` and ``score_total`` are returned
+    exactly as stored, together with the review rows and the counts below.
+``not_found``
+    No submitted session of that id belongs to the caller. A missing, a foreign-owned,
+    an open and an abandoned session are one indistinguishable outcome (the same
+    value, nothing else filled in), for a teacher or an admin too: there is no role
+    or profile shortcut, and ownership comes from the trusted principal only.
+``account_unavailable``
+    The account row is missing, inactive or of an unknown role, read in the same
+    snapshot as the session.
+
+Exceptions are those of a start (``ValueError``, :class:`PracticeAccessError`,
+``RuntimeError`` for an unconfigured connection) plus :class:`PracticePlanError` and
+:class:`PracticeStateError` for a submitted session whose stored state is
+inconsistent. Any other database error propagates unchanged.
+
+The saved result is *only* what was persisted: the score, the timestamp and each stored
+verdict are never recomputed, repaired or compared with current content. Stored state is
+confirmed, not fixed: a well-formed plan; a score with ``0 <= correct <= total`` and
+``total > 0``; answers that all belong to the plan, are unique, carry a boolean verdict
+and no correct verdict without a chosen key; and as many answers as ``score_total``
+whose correct ones add up to ``score_correct``. Anything else raises.
+
+Review rows are the graded planned questions only: the plan ids that have a stored
+answer, in stored order. A planned question that was ungraded at submission (it could
+not be presented then) never appears as graded later, however its content changed. Of
+those, only questions that are *now* presentable are shown, by the same rules as a start
+and a submit (an available non-DZI scope, ``filter_renderable_attempt_question_ids`` and
+the current eligible pool); prompts, options (in the order of the stored seed, with the
+stored option keys), correct options and explanations are loaded from current content
+with ``quiz_load_questions`` and the two explanation fetchers, and each row carries the
+*stored* ``is_correct`` and ``chosen_letter``. The rows have the shape of
+``quiz_load_result_questions``, which is what ``_multiple_choice_result_review.html``
+reads. Stale or unavailable current content only shrinks the review: the saved score is
+returned regardless, with ``only_saved_score`` set and a ``stale_attempt_message`` when
+no review question survives.
+
+``planned_question_count`` is the stored plan, ``graded_question_count`` the stored
+answers (equal to ``score_total``), ``ungraded_question_count`` the planned questions
+that were skipped at submission and ``unavailable_question_count`` the graded ones that
+cannot be shown now; ``skipped_question_count`` is their sum, the planned questions
+omitted from the review.
+
+The whole load is one read snapshot: the account, the session, the answers and all
+current content are read in one transaction. A transaction the caller already holds is
+reused and never ended; otherwise the loader starts one and ends it with an explicit
+``ROLLBACK`` (nothing was written), so a connection in Python's ``autocommit=True``
+mode is released too. Nothing is ever written, so a ``query_only`` connection works.
+The connection itself is never closed.
+
 Stored plans
 ------------
 ``question_ids_json`` holds a JSON array of distinct positive integers (each at
@@ -140,8 +199,12 @@ from web.access import Principal, account_principal, can_take_quizzes
 from web.services import lifecycle
 from web.services.dzi import dzi_question_sql
 from web.services.quiz import (
+    QUIZ_NO_EXPLANATION_MESSAGE,
+    fetch_option_explanations,
+    fetch_question_explanations,
     filter_renderable_attempt_question_ids,
     quiz_correct_mc_letters_by_id,
+    quiz_load_questions,
     quiz_section_question_ids,
 )
 
@@ -162,6 +225,15 @@ OUTCOME_ABANDONED = "abandoned"
 OUTCOME_NOT_FOUND = "not_found"
 OUTCOME_STALE = "stale"
 OUTCOME_EMPTY = "empty"
+
+OUTCOME_LOADED = "loaded"
+# A loaded result reuses OUTCOME_NOT_FOUND for the uniform missing/foreign/open/abandoned case
+# and OUTCOME_ACCOUNT_UNAVAILABLE for an account that cannot own a session.
+
+# Shown by the shared review partial in place of the questions when only the saved score is left.
+PRACTICE_STALE_RESULT_MESSAGE = (
+    "Въпросите от това упражнение вече не могат да бъдат показани, но резултатът ти е запазен."
+)
 
 _SQLITE_MAX_INTEGER = 2 ** 63 - 1
 _DZI_TRAINING_SECTION_TYPE = "dzi_training"
@@ -224,6 +296,46 @@ class PracticeSubmission(NamedTuple):
     @property
     def already_submitted(self) -> bool:
         return self.outcome == OUTCOME_ALREADY_SUBMITTED
+
+
+class PracticeResult(NamedTuple):
+    """The result of a load; ``outcome`` is one of the ``OUTCOME_*`` values.
+
+    Everything but ``outcome`` is filled in for ``loaded`` only (module docstring, "Result").
+    ``questions`` are review rows for the shared multiple-choice partial, in stored plan order.
+    """
+
+    outcome: str
+    session_id: int | None = None
+    section_id: int | None = None
+    topic_id: int | None = None
+    submitted_at: str | None = None
+    score_correct: int | None = None
+    score_total: int | None = None
+    questions: tuple[dict, ...] = ()
+    planned_question_count: int = 0
+    graded_question_count: int = 0
+    ungraded_question_count: int = 0
+    unavailable_question_count: int = 0
+    skipped_question_count: int = 0
+    stale_attempt_message: str | None = None
+
+    @property
+    def loaded(self) -> bool:
+        return self.outcome == OUTCOME_LOADED
+
+    @property
+    def renderable_question_count(self) -> int:
+        return len(self.questions)
+
+    @property
+    def only_saved_score(self) -> bool:
+        """The score was saved but no question can be reviewed now."""
+        return self.loaded and not self.questions
+
+    def review_context(self) -> dict:
+        """The template variables the shared review partial reads (and nothing else)."""
+        return {"questions": list(self.questions), "stale_attempt_message": self.stale_attempt_message}
 
 
 class PracticeAccessError(PermissionError):
@@ -533,3 +645,141 @@ def submit_practice(conn: sqlite3.Connection, principal: Principal, session_id: 
     chosen = {key: value for key, value in choices.items() if type(key) is int}
     _require_usable_connection(conn)
     return _in_write_transaction(conn, lambda: _decide_submission(conn, user_id, session_id, chosen))
+
+
+def _require_configured_connection(conn: sqlite3.Connection) -> None:
+    """Like a start's check, but a caller transaction is fine: a load reuses it."""
+    if conn.row_factory is not sqlite3.Row or conn.execute("PRAGMA foreign_keys").fetchone()[0] != 1:
+        raise RuntimeError("the connection is not configured (sqlite3.Row rows, foreign keys on)")
+
+
+def _in_read_snapshot(conn: sqlite3.Connection, read: Callable[[], _Result]) -> _Result:
+    """Run ``read`` in one read snapshot: the caller's transaction if any, else our own.
+
+    A caller transaction is reused and left exactly as it was, on success and on error. Our own is
+    ended with explicit SQL (``ROLLBACK``: nothing was written), so that ``autocommit=True``
+    connections, where ``Connection.rollback()`` is a no-op, are released too.
+    """
+    if conn.in_transaction:
+        return read()
+    conn.execute("BEGIN")  # deferred: the first read (the account row) fixes the snapshot
+    try:
+        result = read()
+        conn.execute("ROLLBACK")
+    except BaseException:
+        if conn.in_transaction:
+            conn.execute("ROLLBACK")
+        raise
+    return result
+
+
+def _stored_answers(conn: sqlite3.Connection, session_id: int, plan: list[int], score_correct: int,
+                    score_total: int) -> dict[int, tuple[str | None, bool]]:
+    """The stored verdicts of a submitted session, confirmed against its plan and score (never repaired)."""
+    def invalid(reason: str) -> PracticeStateError:
+        return PracticeStateError(f"practice session {session_id} stores inconsistent answers: {reason}")
+
+    planned = set(plan)
+    answers: dict[int, tuple[str | None, bool]] = {}
+    for row in conn.execute(
+            "SELECT question_id, chosen_letter, is_correct FROM practice_answers WHERE session_id = ?",
+            (session_id,)).fetchall():
+        question_id, letter, verdict = row["question_id"], row["chosen_letter"], row["is_correct"]
+        if type(question_id) is not int or question_id not in planned:
+            raise invalid("an answer outside the plan")
+        if question_id in answers:
+            raise invalid("a duplicate answer")
+        if letter is not None and type(letter) is not str:
+            raise invalid("a chosen key that is not text")
+        if type(verdict) is not int or verdict not in (0, 1):
+            raise invalid("a verdict that is not 0 or 1")
+        if letter is None and verdict == 1:
+            raise invalid("a correct verdict without a chosen key")
+        answers[question_id] = (letter, verdict == 1)
+    if len(answers) != score_total:
+        raise invalid("the answer count differs from the stored total")
+    if sum(verdict for _letter, verdict in answers.values()) != score_correct:
+        raise invalid("the correct verdicts differ from the stored score")
+    return answers
+
+
+def _review_rows(conn: sqlite3.Connection, question_ids: tuple[int, ...], seed: str,
+                 answers: dict[int, tuple[str | None, bool]]) -> tuple[dict, ...]:
+    """Current prompts, options and explanations around the stored verdicts, as ``quiz_load_result_questions`` shapes them."""
+    questions = quiz_load_questions(conn, list(question_ids), seed, include_correct=True)
+    loaded_ids = [int(question["id"]) for question in questions]
+    question_explanations = fetch_question_explanations(conn, loaded_ids)
+    option_explanations = fetch_option_explanations(conn, loaded_ids)
+    for question in questions:
+        question_id = int(question["id"])
+        chosen_letter, verdict = answers[question_id]
+        chosen_text = correct_text = None
+        for option in question["options"]:
+            if option["option_letter"] == chosen_letter:
+                chosen_text = option["option_text"]
+            if int(option.get("is_correct") or 0) == 1:
+                correct_text = option["option_text"]
+        question["chosen_letter"] = chosen_letter
+        question["chosen_text"] = chosen_text
+        question["correct_text"] = correct_text or "—"
+        question["is_correct"] = verdict  # the stored verdict, never a comparison with current content
+        question["feedback_explanation"] = (
+            option_explanations.get((question_id, chosen_letter))
+            or question_explanations.get(question_id)
+            or QUIZ_NO_EXPLANATION_MESSAGE
+        )
+    return tuple(questions)
+
+
+def _load_result(conn: sqlite3.Connection, user_id: int, session_id: int) -> PracticeResult:
+    """The result of the account's own submitted session, inside the read snapshot."""
+    if not _account_is_active(conn, user_id):
+        return PracticeResult(OUTCOME_ACCOUNT_UNAVAILABLE)
+    # The owner is part of the lookup: a missing and a foreign session are the same empty result.
+    session = conn.execute(
+        "SELECT section_id, topic_id, seed, question_ids_json, submitted_at, abandoned_at, "
+        "score_correct, score_total FROM practice_sessions WHERE id = ? AND user_id = ?",
+        (session_id, user_id)).fetchone()
+    if session is None or session["submitted_at"] is None:  # missing, foreign, open or abandoned
+        return PracticeResult(OUTCOME_NOT_FOUND)
+
+    def invalid(reason: str) -> PracticeStateError:
+        return PracticeStateError(f"practice session {session_id} stores an inconsistent result: {reason}")
+
+    if session["abandoned_at"] is not None:
+        raise invalid("both submitted and abandoned")
+    submitted_at, seed = session["submitted_at"], session["seed"]
+    score_correct, score_total = session["score_correct"], session["score_total"]
+    section_id, topic_id = session["section_id"], session["topic_id"]
+    if type(submitted_at) is not str or type(seed) is not str:
+        raise invalid("a timestamp or seed that is not text")
+    if type(score_correct) is not int or type(score_total) is not int or not 0 <= score_correct <= score_total \
+            or score_total <= 0:
+        raise invalid("a score that is not whole and bounded")
+    if type(section_id) is not int or (topic_id is not None and type(topic_id) is not int):
+        raise invalid("a scope that is not an id")
+
+    plan = _parse_stored_plan(session["question_ids_json"], session_id)
+    answers = _stored_answers(conn, session_id, plan, score_correct, score_total)
+    graded = [question_id for question_id in plan if question_id in answers]  # stored order; skipped ones stay out
+
+    scope = _resolve_scope(conn, section_id, topic_id)
+    presentable: tuple[int, ...] = ()
+    if scope is not None:
+        presentable = _presentable_question_ids(conn, graded, _eligible_question_ids(conn, scope, topic_id))
+    questions = _review_rows(conn, presentable, seed, answers)
+
+    ungraded = len(plan) - len(graded)
+    unavailable = len(graded) - len(questions)
+    return PracticeResult(
+        OUTCOME_LOADED, session_id, section_id, topic_id, submitted_at, score_correct, score_total,
+        questions, len(plan), len(graded), ungraded, unavailable, ungraded + unavailable,
+        None if questions else PRACTICE_STALE_RESULT_MESSAGE)
+
+
+def load_practice_result(conn: sqlite3.Connection, principal: Principal, session_id: int) -> PracticeResult:
+    """Load the principal's own submitted practice session for review (module docstring, "Result")."""
+    user_id = _account_id(principal)
+    session_id = _positive_id(session_id, "session_id")
+    _require_configured_connection(conn)
+    return _in_read_snapshot(conn, lambda: _load_result(conn, user_id, session_id))
