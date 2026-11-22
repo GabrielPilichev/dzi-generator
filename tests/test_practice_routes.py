@@ -46,6 +46,7 @@ from web.services import accounts as accounts_service
 from web.services import practice
 from web.services import profiles, recovery, registration
 from web.services import google_oidc
+from web.services import quiz as quiz_service
 from web.services.quiz import quiz_shuffle_options
 
 ARMED = practice.ROUTES_ACTIVATION is True
@@ -67,7 +68,7 @@ ARMED_CLASSES = (
     "ConfirmRouteTest",
     "SignInReturnTest",
 )
-ARMED_TEST_COUNT = 114
+ARMED_TEST_COUNT = 123
 
 IT_SLUG = "information-technologies"
 
@@ -485,6 +486,45 @@ class RouteCase(PracticeCase):
                          [f"Practice plan refused: endpoint={endpoint} error=PracticePlanError"])
         self.assertEqual([record.args for record in logs.records], [(endpoint, "PracticePlanError")])
         self.assertEqual([record.exc_info for record in logs.records], [None])
+
+    WRITE_KEYWORDS = {"INSERT", "UPDATE", "DELETE", "REPLACE", "COMMIT", "CREATE", "DROP", "ALTER"}
+
+    def trace_sql(self, action, *, view_only=False):
+        """``(action's return value, every SQL statement it ran)``.
+
+        By default every connection the request opens (the account loader's included); with ``view_only``
+        only the one a practice view opens itself through ``quiz_connection``.
+        """
+        statements = []
+        owner, name = (quiz_service, "quiz_db") if view_only else (web_db, "connect_db")
+        original = getattr(owner, name)
+
+        def traced(*args, **kwargs):
+            conn = original(*args, **kwargs)
+            conn.set_trace_callback(statements.append)
+            return conn
+
+        with patch.object(owner, name, traced):
+            value = action()
+        return value, statements
+
+    def assert_no_write(self, statements):
+        self.assertFalse({text.split()[0].upper() for text in statements if text.split()} & self.WRITE_KEYWORDS,
+                         statements)
+
+    def retire_section(self, scope):
+        self.conn.execute("UPDATE curriculum_sections SET section_type = 'dzi_training' WHERE id = ?",
+                          (scope.section_id,))
+        self.conn.commit()
+
+    def retire_topic(self, scope, index):
+        self.conn.execute("DELETE FROM topic_section_assignments WHERE topic_id = ? AND section_id = ?",
+                          (scope.topic_ids[index], scope.section_id))
+        self.conn.commit()
+
+    def practice_forms(self, html):
+        """The action of every form that posts to a practice URL."""
+        return re.findall(r'<form[^>]*action="(/practice/[^"]*)"', html)
 
     def assert_no_state_leak(self, html):
         for needle in ("Traceback", "PracticePlanError", "PracticeStateError", "not json", "malformed",
@@ -1241,6 +1281,145 @@ class ResultRouteTest(RouteCase):
         self.assertIn(practice.PRACTICE_STALE_RESULT_MESSAGE, html)
         self.assertNotIn("practice-current-content-note", html)
         self.assertNotIn("question-card", html)
+
+    # ------------------------------------------------------------------ a retired scope offers no restart
+    def assert_saved_result_without_restart(self, response, saved):
+        html = self.page(response)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.headers["Cache-Control"], "no-store")
+        row = saved[0]
+        self.assertIn(f'<span class="result-score">{row["score_correct"]}/{row["score_total"]}</span>', html)
+        self.assertIn("Успеваемост:", html)
+        self.assertIn(practice.PRACTICE_STALE_RESULT_MESSAGE, html)  # the unavailable review text
+        self.assertNotIn("question-card", html)
+        self.assertNotIn("Нов опит", html)
+        self.assertEqual(self.practice_forms(html), [])
+        self.assertIn('<a class="button secondary" href="/">Към началото</a>', html)  # the home link stays
+
+    def test_a_retired_section_keeps_the_saved_score_and_the_home_link_but_offers_no_restart(self):
+        scope, session_id = self.submitted(good=8)
+        path = f"/practice/session/{session_id}/result"
+        start = f"/practice/section/{scope.section_id}/start"
+        client = self.client(self.student)
+        self.assertEqual(self.practice_forms(self.page(client.get(path))), [start])  # the control
+        saved = self.stored(session_id)
+        self.retire_section(scope)
+        before = self.table_digests()
+        for method in ("get", "head", "options"):
+            self.assertEqual(getattr(client, method)(path).status_code, 200)
+        self.assert_saved_result_without_restart(client.get(path), saved)
+        # A stale tab that still holds the old form keeps the existing 404 and writes nothing.
+        stale = self.post(client, start)
+        self.assertEqual(stale.status_code, 404)
+        self.assertIn("Това упражнение не е налично.", self.page(stale))
+        self.assertEqual(self.table_digests(), before)
+        self.assertEqual(self.stored(session_id), saved)
+        # Reverting the retirement is the control: the same page shows its form again.
+        self.conn.execute("UPDATE curriculum_sections SET section_type = 'content' WHERE id = ?", (scope.section_id,))
+        self.conn.commit()
+        self.assertEqual(self.practice_forms(self.page(client.get(path))), [start])
+
+    def test_a_retired_topic_keeps_the_saved_score_and_the_home_link_but_offers_no_restart(self):
+        scope, session_id = self.submitted(good=6, topic_index=1)
+        path = f"/practice/session/{session_id}/result"
+        topic_start = f"/practice/section/{scope.section_id}/topic/{scope.topic_ids[1]}/start"
+        client = self.client(self.student)
+        self.assertEqual(self.practice_forms(self.page(client.get(path))), [topic_start])
+        saved = self.stored(session_id)
+        self.retire_topic(scope, 1)
+        before = self.table_digests()
+        self.assert_saved_result_without_restart(client.get(path), saved)
+        stale = self.post(client, topic_start)
+        self.assertEqual(stale.status_code, 404)
+        self.assertEqual(self.table_digests(), before)
+        self.assertEqual(self.stored(session_id), saved)
+        # Only that topic went: the section itself is still a live scope for a new start.
+        self.assertEqual(self.post(client, f"/practice/section/{scope.section_id}/start").status_code, 303)
+
+    def test_an_available_scope_whose_questions_are_all_unavailable_still_offers_the_explicit_start(self):
+        scope, session_id = self.submitted(good=20)
+        plan = self.plan_of(session_id)
+        self.assertEqual(len(plan), practice.MAX_QUESTIONS)
+        saved = self.stored(session_id)
+        for question_id in plan:
+            self.break_question(question_id)
+        self.conn.commit()
+        start = f"/practice/section/{scope.section_id}/start"
+        client = self.client(self.student)
+        response = client.get(f"/practice/session/{session_id}/result")
+        html = self.page(response)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(practice.PRACTICE_STALE_RESULT_MESSAGE, html)  # nothing to review, as for a retired scope
+        self.assertNotIn("question-card", html)
+        self.assertEqual(self.practice_forms(html), [start])          # but the scope is real: the form stays
+        self.assertEqual(html.count("Нов опит"), 1)
+        self.assertIn(f'<span class="result-score">{saved[0]["score_correct"]}/{saved[0]["score_total"]}</span>', html)
+        # The form is the unchanged start: it validates the pool itself, and other questions remain.
+        before = self.table_digests()
+        self.assertEqual(self.post(client, start, headers=CROSS).status_code, 403)
+        self.assertEqual(self.table_digests(), before)
+        again = self.post(client, start)
+        self.assertEqual(again.status_code, 303)
+        self.assertNotEqual(again.headers["Location"], f"/practice/session/{session_id}")
+        self.assertEqual(self.stored(session_id), saved)
+        # With every question of the scope gone, the same form leads to the start's own refusal instead.
+        thin, thin_id = self.submitted(good=8)
+        for question_id in thin.all_question_ids:
+            self.break_question(question_id)
+        self.conn.commit()
+        thin_start = f"/practice/section/{thin.section_id}/start"
+        html = self.page(client.get(f"/practice/session/{thin_id}/result"))
+        self.assertEqual(self.practice_forms(html), [thin_start])
+        refused = self.post(client, thin_start)
+        self.assertEqual(refused.status_code, 409)
+        self.assertIn("достатъчно въпроси", self.page(refused))
+
+    def test_a_foreign_owner_of_a_retired_result_gets_the_same_404_as_a_missing_one(self):
+        scope, session_id = self.submitted()
+        self.retire_section(scope)
+        path = f"/practice/session/{session_id}/result"
+        before = self.table_digests()
+        for who in (self.other_student, self.teacher, self.admin):
+            with self.subTest(role=who.role):
+                client = self.client(who)
+                missing = client.get("/practice/session/987654/result")
+                response = client.get(path)
+                self.assertEqual((missing.status_code, response.status_code), (404, 404))
+                self.assertEqual(self.page(response), self.page(missing))  # the page the same account gets for a missing id
+                self.assertNotIn("result-score", self.page(response))
+                self.assertNotIn("Нов опит", self.page(response))
+        self.assertEqual(self.client(self.student).get(path).status_code, 200)
+        self.assertEqual(self.table_digests(), before)
+
+    def test_the_retired_decision_is_the_one_scope_read_of_the_result_snapshot(self):
+        client = self.client(self.student)
+        for retired in (False, True):
+            with self.subTest(retired=retired):
+                scope, session_id = self.submitted(good=8)
+                if retired:
+                    self.retire_section(scope)
+                path = f"/practice/session/{session_id}/result"
+                with patch.object(practice, "_resolve_scope", wraps=practice._resolve_scope) as resolve, \
+                        patch.object(practice, "load_practice_result", wraps=practice.load_practice_result) as load, \
+                        patch.object(practice, "practice_scope_available", side_effect=AssertionError("second")), \
+                        patch.object(practice, "read_practice_scope", side_effect=AssertionError("second")), \
+                        patch.object(practice, "read_practice_progress", side_effect=AssertionError("second")):
+                    response, statements = self.trace_sql(lambda: client.get(path), view_only=True)
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual((resolve.call_count, load.call_count), (1, 1))
+                self.assertEqual(bool(self.practice_forms(self.page(response))), not retired)
+                # One snapshot, no write, and exactly the statements of the service call itself.
+                self.assert_no_write(statements)
+                keywords = [text.split()[0].upper() for text in statements if not text.upper().startswith("PRAGMA")]
+                self.assertEqual((keywords[0], keywords[-1], keywords.count("BEGIN")), ("BEGIN", "ROLLBACK", 1))
+                direct = []
+                conn = web_db.connect_db(self.db_path)
+                try:
+                    conn.set_trace_callback(direct.append)
+                    practice.load_practice_result(conn, self.student, session_id)
+                finally:
+                    conn.close()
+                self.assertEqual(statements, direct)
 
     def test_foreign_teacher_admin_missing_open_and_abandoned_results_are_the_generic_404(self):
         scope, session_id = self.submitted()
@@ -2033,6 +2212,118 @@ class ConfirmRouteTest(RouteCase, BrowseUrls):
         self.assertEqual(content(client.get(self.start_url(scope))),
                          content(self.client(self.admin).get(self.start_url(scope))))
 
+    def test_the_confirmation_reads_no_attempt_state_and_writes_nothing_on_get_or_head(self):
+        scope = self.make_scope(12, topics=2)
+        open_id = self.open_via_route(self.student, scope)
+        stale_scope = self.make_scope(8)
+        stale = self.insert_session(self.student, stale_scope, stale_scope.all_question_ids[:3])
+        for question_id in stale_scope.all_question_ids[:3]:
+            self.break_question(question_id)
+        thin = self.make_scope(3)
+        self.conn.commit()
+        before = self.table_digests()
+        client = self.client(self.student)
+        for path in (self.start_url(scope), self.start_url(scope, 0), self.start_url(scope, 1),
+                     self.start_url(stale_scope), self.start_url(thin)):
+            for method in ("get", "head"):
+                with self.subTest(path=path, method=method):
+                    response, statements = self.trace_sql(lambda: getattr(client, method)(path))
+                    self.assertEqual(response.status_code, 200)
+                    self.assertTrue(statements)
+                    joined = "\n".join(statements).lower()
+                    for table in ("practice_sessions", "practice_answers"):
+                        self.assertNotIn(table, joined)          # no attempt state is read, let alone written
+                    self.assert_no_write(statements)
+                    self.assertIn("pragma query_only = on", [text.lower() for text in statements])
+        self.assertEqual(self.table_digests(), before)
+        self.assertIsNone(self.stored(open_id)[0]["abandoned_at"])
+        self.assertIsNone(self.stored(stale)[0]["abandoned_at"])
+
+    def test_the_confirmation_copy_is_short_accurate_and_the_same_whatever_the_account_has(self):
+        scope = self.make_scope(12)
+        stale_scope = self.make_scope(8)
+        self.open_via_route(self.student, scope)
+        self.insert_session(self.teacher, stale_scope, stale_scope.all_question_ids[:3])
+        for question_id in stale_scope.all_question_ids[:3]:
+            self.break_question(question_id)
+        self.conn.commit()
+
+        def content(who, target):
+            html = self.page(self.client(who).get(self.start_url(target)))
+            return html.split('<section class="page-header">')[1].split("<footer")[0]
+
+        # An account with an open attempt, one with nothing, and a stale one see the very same words.
+        self.assertEqual(content(self.student, scope), content(self.other_student, scope))
+        self.assertEqual(content(self.student, scope), content(self.admin, scope))
+        self.assertEqual(content(self.teacher, stale_scope), content(self.other_student, stale_scope))
+        text = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", content(self.student, scope)))
+        self.assertIn("Упражнението е от въпроси с избор на отговор. То започва едва когато натиснеш бутона.", text)
+        self.assertIn("Ако тук имаш започнато упражнение, ще го продължиш, докато поне един от въпросите му още е "
+                      "наличен. Иначе ще започне ново упражнение, ако е възможно.", text)
+        # The former promise (an existing practice is always continued) is gone.
+        for gone in ("ще продължиш него", "вече имаш", "Ако вече"):
+            self.assertNotIn(gone, text)
+        # It states nothing about a session, a count, an id or another account's state.
+        for state in ("/practice/session", "достатъчно", "заменен", "не може да бъде показано"):
+            self.assertNotIn(state, content(self.student, scope))
+
+    def test_the_copy_conditional_matches_the_start_even_one_renderable_question_resumes(self):
+        scope = self.make_scope(30)
+        path = self.start_url(scope)
+        client = self.client(self.student)
+        session_id = self.open_via_route(self.student, scope)
+        plan = self.plan_of(session_id)
+        for question_id in plan[1:]:                       # all but one planned question are now unavailable
+            self.break_question(question_id)
+        self.conn.commit()
+        self.assertEqual(client.get(path).status_code, 200)
+        resumed = self.post(client, path)
+        self.assertEqual((resumed.status_code, resumed.headers["Location"]), (303, f"/practice/session/{session_id}"))
+        self.assertEqual(self.stored(session_id)[0]["question_ids_json"], json.dumps(plan))   # plan never rewritten
+        self.assertIsNone(self.stored(session_id)[0]["abandoned_at"])
+        self.break_question(plan[0])                       # now none is: the same POST replaces it
+        self.conn.commit()
+        replaced = self.post(client, path)
+        self.assertEqual(replaced.status_code, 303)
+        self.assertNotEqual(replaced.headers["Location"], f"/practice/session/{session_id}")
+        self.assertIsNotNone(self.stored(session_id)[0]["abandoned_at"])
+
+    def test_the_explicit_post_alone_decides_resume_replace_create_or_refuse(self):
+        open_scope, stale_scope, thin, fresh = (self.make_scope(12), self.make_scope(8), self.make_scope(3),
+                                                self.make_scope(8, topics=2))
+        retired = self.make_scope(8)
+        open_id = self.open_via_route(self.student, open_scope)
+        stale = self.insert_session(self.student, stale_scope, stale_scope.all_question_ids[:3])
+        for question_id in stale_scope.all_question_ids[:3]:
+            self.break_question(question_id)
+        gone = self.insert_session(self.student, retired, retired.all_question_ids[:3])
+        self.conn.commit()
+        self.retire_section(retired)
+        client = self.client(self.student)
+        before = self.table_digests()
+        for target, index in ((open_scope, None), (stale_scope, None), (thin, None), (fresh, None), (fresh, 1)):
+            for method in ("get", "head"):
+                self.assertEqual(getattr(client, method)(self.start_url(target, index)).status_code, 200)
+        for method in ("get", "head"):
+            self.assertEqual(getattr(client, method)(self.start_url(retired)).status_code, 404)
+        self.assertEqual(self.table_digests(), before)                    # the reads decided nothing
+        resumed = self.post(client, self.start_url(open_scope))
+        self.assertEqual((resumed.status_code, resumed.headers["Location"]), (303, f"/practice/session/{open_id}"))
+        self.assertIsNone(self.stored(open_id)[0]["abandoned_at"])
+        replaced = self.post(client, self.start_url(stale_scope))
+        self.assertEqual(replaced.status_code, 303)
+        self.assertNotEqual(replaced.headers["Location"], f"/practice/session/{stale}")
+        self.assertIsNotNone(self.stored(stale)[0]["abandoned_at"])
+        refused = self.post(client, self.start_url(thin))
+        self.assertEqual(refused.status_code, 409)
+        self.assertIn("достатъчно въпроси", self.page(refused))
+        created = self.post(client, self.start_url(fresh, 1))
+        self.assertEqual(created.status_code, 303)
+        self.assertEqual(self.stored(int(created.headers["Location"].rsplit("/", 1)[1]))[0]["topic_id"],
+                         fresh.topic_ids[1])
+        self.assertEqual(self.post(client, self.start_url(retired)).status_code, 404)
+        self.assertIsNone(self.stored(gone)[0]["abandoned_at"])           # a retired scope's row is not touched
+
     def test_signed_out_and_pending_second_factor_are_sent_to_login(self):
         scope = self.make_scope(8, topics=2)
         before = self.table_digests()
@@ -2112,7 +2403,7 @@ class ConfirmRouteTest(RouteCase, BrowseUrls):
         self.assertNotIn("<script>alert(3)</script>", html)
         self.assertIn("&lt;b&gt;Раздел&lt;/b&gt; &amp; &#34;x&#34;", html)
         self.assertIn("Упражнението е от въпроси с избор на отговор.", html)
-        self.assertIn("ще продължиш него", html)
+        self.assertNotIn("ще продължиш него", html)
 
 
 # ====================================================================== armed: the sign-in return

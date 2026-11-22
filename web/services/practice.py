@@ -137,6 +137,12 @@ reads. Stale or unavailable current content only shrinks the review: the saved s
 returned regardless, with ``only_saved_score`` set and a ``stale_attempt_message`` when
 no review question survives.
 
+``scope_available`` reports, from the scope resolution the load already performs in its
+snapshot (no further read), whether the session's section and topic are still a scope a
+start accepts. It is ``False`` for a retired scope only; an available scope whose questions
+are all unavailable for review stays ``True`` (an empty review never implies a retired
+scope), and a result page may offer a new attempt exactly when it is ``True``.
+
 ``planned_question_count`` is the stored plan, ``graded_question_count`` the stored
 answers (equal to ``score_total``), ``ungraded_question_count`` the planned questions
 that were skipped at submission and ``unavailable_question_count`` the graded ones that
@@ -394,6 +400,10 @@ class PracticeResult(NamedTuple):
 
     Everything but ``outcome`` is filled in for ``loaded`` only (module docstring, "Result").
     ``questions`` are review rows for the shared multiple-choice partial, in stored plan order.
+    ``scope_available`` is the scope decision (the very ``_resolve_scope`` of a start) the load made
+    inside its own snapshot: ``False`` means the session's section or topic was retired. It is never
+    inferred from ``questions``, which are also empty for an available scope whose questions can no
+    longer be presented.
     """
 
     outcome: str
@@ -410,6 +420,7 @@ class PracticeResult(NamedTuple):
     unavailable_question_count: int = 0
     skipped_question_count: int = 0
     stale_attempt_message: str | None = None
+    scope_available: bool = True
 
     @property
     def loaded(self) -> bool:
@@ -933,7 +944,7 @@ def _load_result(conn: sqlite3.Connection, user_id: int, session_id: int) -> Pra
     return PracticeResult(
         OUTCOME_LOADED, session_id, section_id, topic_id, submitted_at, score_correct, score_total,
         questions, len(plan), len(graded), ungraded, unavailable, ungraded + unavailable,
-        None if questions else PRACTICE_STALE_RESULT_MESSAGE)
+        None if questions else PRACTICE_STALE_RESULT_MESSAGE, scope is not None)
 
 
 def load_practice_result(conn: sqlite3.Connection, principal: Principal, session_id: int) -> PracticeResult:

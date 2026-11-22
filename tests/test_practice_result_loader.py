@@ -19,6 +19,8 @@ What is proved, and how:
 * stale and unavailable content: each eligibility exclusion as a pair with a control, an unavailable
   scope, an all-stale session that still returns its saved score, and questions that were ungraded at
   submission, which never reappear;
+* the scope fact of a loaded result (``scope_available``): ``False`` for a retired section or topic only,
+  taken from the one scope resolution of the snapshot and never from the absence of review rows;
 * one coherent read snapshot (a real writer on a separate connection between the loader's reads, in
   WAL mode, with a pass-through negative control and a rollback-journal lock check);
 * read-only behavior: a ``query_only`` connection, explicit ``autocommit=True`` and
@@ -813,6 +815,120 @@ class StaleContentTest(ResultCase):
         self.assertEqual((result.outcome, result.score_correct, result.score_total, result.questions),
                          (practice.OUTCOME_LOADED, 3, 5, ()))
         self.assertTrue(result.only_saved_score)
+
+    # ------------------------------------------------------------------ the scope fact of a result
+    def test_a_live_scope_reports_itself_available_for_a_section_and_a_topic_result(self):
+        scope = self.make_scope(8, topics=2)
+        section = self.load(self.student, self.finish(scope=scope).session_id)
+        topic = self.load(self.student, self.finish(scope=scope, topic_id=scope.topic_ids[1],
+                                                    plan=scope.question_ids[1][:5]).session_id)
+        for result in (section, topic):
+            self.assertTrue(result.scope_available)
+            self.assertFalse(result.only_saved_score)
+        self.assertEqual(self.load(self.student, section.session_id), section)       # repeatable
+
+    def test_only_a_retired_scope_reports_itself_unavailable_and_the_score_is_unchanged(self):
+        def retire_dzi(scope):
+            self.change("UPDATE curriculum_sections SET section_type = 'dzi_training' WHERE id = ?",
+                        (scope.section_id,))
+
+        def restore_dzi(scope):
+            self.change("UPDATE curriculum_sections SET section_type = 'content' WHERE id = ?", (scope.section_id,))
+
+        stored_membership = {}
+
+        def drop_membership(scope):
+            row = self.raw().execute("SELECT * FROM topic_section_assignments WHERE topic_id = ? AND section_id = ?",
+                                     (scope.topic_ids[0], scope.section_id)).fetchone()
+            stored_membership["row"] = tuple(row)
+            self.change("DELETE FROM topic_section_assignments WHERE topic_id = ? AND section_id = ?",
+                        (scope.topic_ids[0], scope.section_id))
+
+        def restore_membership(scope):                      # the very row, so nothing else differs afterwards
+            row = stored_membership["row"]
+            self.change(f"INSERT INTO topic_section_assignments VALUES ({', '.join('?' for _ in row)})", row)
+
+        def other_subject(scope):
+            self.change("UPDATE curricula SET subject = 'astrology' WHERE id = ?", (scope.curriculum_id,),
+                        check_constraints=False)
+
+        def known_subject(scope):
+            self.change("UPDATE curricula SET subject = 'it' WHERE id = ?", (scope.curriculum_id,))
+
+        cases = {
+            "DZI training section": (retire_dzi, restore_dzi, None),
+            "topic left the section": (drop_membership, restore_membership, 0),
+            "section of an unknown subject": (other_subject, known_subject, None),
+        }
+        for name, (apply, revert, topic_index) in cases.items():
+            with self.subTest(name):
+                scope = self.make_scope(8, topics=2)
+                topic_id = None if topic_index is None else scope.topic_ids[topic_index]
+                plan = None if topic_index is None else scope.question_ids[topic_index][:5]
+                done = self.finish(scope=scope, topic_id=topic_id, plan=plan, correct=2, wrong=2)
+                before = self.load(self.student, done.session_id)
+                self.assertTrue(before.scope_available)                           # the control
+                tables = self.every_table()
+                apply(scope)
+                retired = self.load(self.student, done.session_id)
+                self.assertFalse(retired.scope_available)
+                self.assertEqual((retired.outcome, retired.score_correct, retired.score_total, retired.submitted_at),
+                                 (practice.OUTCOME_LOADED, 2, 5, before.submitted_at))
+                self.assertEqual(retired.questions, ())
+                self.assertTrue(retired.only_saved_score)
+                self.assertEqual(retired.stale_attempt_message, practice.PRACTICE_STALE_RESULT_MESSAGE)
+                revert(scope)
+                self.assertEqual(self.load(self.student, done.session_id), before)  # it was this change
+                self.assertEqual(self.every_table(), tables)                        # nothing was repaired
+
+    def test_an_available_scope_with_every_question_unavailable_is_never_reported_retired(self):
+        scope = self.make_scope(8, topics=2)
+        done = self.finish(scope=scope, topic_id=scope.topic_ids[0], plan=scope.question_ids[0][:5], correct=4, wrong=1)
+        for question_id in done.plan:
+            self.break_question(question_id)
+        self.conn.commit()
+        result = self.load(self.student, done.session_id)
+        self.assertEqual(result.questions, ())                                       # no review rows at all ...
+        self.assertTrue(result.only_saved_score)
+        self.assertEqual(result.stale_attempt_message, practice.PRACTICE_STALE_RESULT_MESSAGE)
+        self.assertEqual((result.score_correct, result.score_total), (4, 5))
+        self.assertTrue(result.scope_available)                                      # ... yet the scope is real
+        # The section-wide scope of the same data, with questions moved out of the topic instead of broken.
+        other = self.make_scope(8)
+        moved = self.finish(scope=other, correct=3, wrong=1)
+        foreign_topic = self.make_scope(1).topic_ids[0]
+        for question_id in moved.plan:
+            self.change("UPDATE questions SET topic_id = ? WHERE id = ?", (foreign_topic, question_id))
+        result = self.load(self.student, moved.session_id)
+        self.assertEqual((self.shown(result), result.scope_available), ([], True))
+
+    def test_the_scope_fact_is_the_one_scope_resolution_the_snapshot_already_made(self):
+        scope = self.make_scope(8)
+        done = self.finish(scope=scope)
+        for retire in (False, True):
+            if retire:
+                self.change("UPDATE curriculum_sections SET section_type = 'dzi_training' WHERE id = ?",
+                            (scope.section_id,))
+            with patch.object(practice, "_resolve_scope", wraps=practice._resolve_scope) as resolve, \
+                    patch.object(practice, "practice_scope_available", side_effect=AssertionError("second read")), \
+                    patch.object(practice, "read_practice_scope", side_effect=AssertionError("second read")), \
+                    patch.object(practice, "read_practice_progress", side_effect=AssertionError("second read")):
+                statements = []
+                conn = self.autocommit_connection()
+                conn.set_trace_callback(statements.append)
+                result = self.load(self.student, done.session_id, conn=conn)
+                conn.set_trace_callback(None)
+            self.assertEqual(resolve.call_count, 1)
+            self.assertEqual(result.scope_available, not retire)
+            keywords = [text.split()[0].upper() for text in statements if not text.upper().startswith("PRAGMA")]
+            self.assertEqual((keywords[0], keywords[-1], keywords.count("BEGIN")), ("BEGIN", "ROLLBACK", 1))
+            self.assertFalse({"INSERT", "UPDATE", "DELETE", "REPLACE", "COMMIT"} & set(keywords))
+
+    def test_the_new_field_is_last_defaults_to_the_former_behavior_and_changes_no_review_context(self):
+        self.assertEqual(practice.PracticeResult._fields[-1], "scope_available")
+        self.assertEqual(practice.PracticeResult._field_defaults["scope_available"], True)
+        self.assertEqual(practice.PracticeResult(practice.OUTCOME_LOADED).review_context(),
+                         {"questions": [], "stale_attempt_message": None})
 
     def test_a_question_planned_but_ungraded_at_submission_never_reappears(self):
         scope = self.make_scope(8)
