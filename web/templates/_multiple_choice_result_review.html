@@ -1,0 +1,76 @@
+{#- Multiple-choice result review shared by quiz results and student practice results.
+    Included with the caller's context. Reads only:
+      questions              resolved result questions (prompt, difficulty, visual_assets, is_correct,
+                             chosen_letter, chosen_text, correct_text, feedback_explanation, options)
+      stale_attempt_message  optional; when set, only this warning is shown and no question
+    Needs no assignment, attempt, score or route data. Open-answer review stays with the caller. -#}
+{% from "_question_visuals.html" import render_question_visuals -%}
+{% if stale_attempt_message %}
+  <section class="card warning warning--spaced form-message" role="alert">
+    {{ stale_attempt_message }}
+  </section>
+{% else %}
+  {% for q in questions %}
+    <article class="card question-card {{ 'correct' if q.is_correct else 'incorrect' }}">
+      <div class="result-question-header">
+        <h2>Въпрос {{ loop.index }}</h2>
+        {% if q.is_correct %}
+          <span class="status-pill status-pill--correct">Вярно</span>
+        {% else %}
+          <span class="status-pill status-pill--wrong">Грешно</span>
+        {% endif %}
+      </div>
+
+      <p class="prompt">{{ q.prompt }}</p>
+      {{ render_question_visuals(q.visual_assets) }}
+      {% set difficulty_label = question_difficulty_label(q.difficulty) %}
+      {% if difficulty_label %}
+        <p class="muted">Трудност: {{ difficulty_label }}</p>
+      {% endif %}
+
+      <div class="answer-summary-grid">
+        {% if q.chosen_letter %}
+          <div class="answer-note {{ 'answer-note--correct' if q.is_correct else 'answer-note--wrong' }}">
+            <span class="answer-note-label">Твоят отговор</span>
+            <span>{{ q.chosen_text or '—' }}</span>
+          </div>
+        {% else %}
+          <div class="answer-note answer-note--unanswered">
+            <span class="answer-note-label">Твоят отговор</span>
+            <span>Няма избран отговор.</span>
+          </div>
+        {% endif %}
+
+        {% if not q.is_correct %}
+          <div class="answer-note answer-note--correct">
+            <span class="answer-note-label">Правилен отговор</span>
+            <span>{{ q.correct_text }}</span>
+          </div>
+          <div class="answer-note answer-note--unanswered">
+            <span class="answer-note-label">Обяснение</span>
+            <span>{{ q.feedback_explanation }}</span>
+          </div>
+        {% endif %}
+      </div>
+
+      <div class="quiz-options quiz-options--readonly">
+        {% for opt in q.options %}
+          {% set is_correct_option = opt.is_correct %}
+          {% set is_chosen = q.chosen_letter and opt.option_letter == q.chosen_letter %}
+          <div class="result-option-card
+            {% if is_correct_option %}is-correct{% endif %}
+            {% if is_chosen and not is_correct_option %}is-wrong-chosen{% endif %}
+            {% if is_chosen %}is-chosen{% endif %}">
+            <span class="quiz-option-letter">{{ opt.display_letter }})</span>
+            <span class="quiz-option-text">{{ opt.option_text }}</span>
+            {% if is_chosen %}
+              <span class="result-option-tag">твоят отговор</span>
+            {% elif is_correct_option %}
+              <span class="result-option-tag">правилен</span>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+    </article>
+  {% endfor %}
+{%- endif %}
