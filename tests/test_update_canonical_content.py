@@ -28,7 +28,7 @@ from tests.runtime_db_guard import RUNTIME_DB, RuntimeDatabaseAccess
 
 ROOT = fx.ROOT
 MODULE_SOURCE = (ROOT / "src" / "update_canonical_content.py").read_text(encoding="utf-8")
-LATE_MIGRATION = "027_fixture_marker.sql"
+LATE_MIGRATION = "028_fixture_marker.sql"
 
 
 def source_lines(directory, table):
@@ -668,8 +668,8 @@ class SourcePreimageSchemaTest(fx.UpdaterTestCase):
             "older migration level": manifest(lambda m: (m["schema"]["migrations"].pop(),
                                                          m["schema"].__setitem__("migration_level",
                                                                                  m["schema"]["migrations"][-1]))),
-            "newer migration level": manifest(lambda m: (m["schema"]["migrations"].append("027_future.sql"),
-                                                         m["schema"].__setitem__("migration_level", "027_future.sql"))),
+            "newer migration level": manifest(lambda m: (m["schema"]["migrations"].append("028_future.sql"),
+                                                         m["schema"].__setitem__("migration_level", "028_future.sql"))),
             "primary key differs": manifest(lambda m: m["tables"]["curricula"].__setitem__("primary_key", ["grade"])),
             "AUTOINCREMENT declared false": manifest(lambda m: m["tables"]["questions"].__setitem__("autoincrement",
                                                                                                     False)),
@@ -690,9 +690,9 @@ class SourcePreimageSchemaTest(fx.UpdaterTestCase):
             "different columns": manifest(lambda m: m["tables"]["curricula"]["columns"].reverse()),
             "different table set": manifest(lambda m: (m["canonical_tables"].remove("lessons"),
                                                        m["tables"].pop("lessons"))),
-            "newer than the source's list": manifest(lambda m: (m["schema"]["migrations"].append("027_future.sql"),
+            "newer than the source's list": manifest(lambda m: (m["schema"]["migrations"].append("028_future.sql"),
                                                                 m["schema"].__setitem__("migration_level",
-                                                                                        "027_future.sql"))),
+                                                                                        "028_future.sql"))),
             "primary key differs": manifest(lambda m: m["tables"]["curricula"].__setitem__("primary_key", ["grade"])),
             "AUTOINCREMENT differs": manifest(lambda m: m["tables"]["questions"].__setitem__("autoincrement", False)),
             "tampered file": lambda d: fx.table_path(d, "curricula").write_bytes(
@@ -833,11 +833,16 @@ class SourcePreimageSchemaTest(fx.UpdaterTestCase):
 
     def test_26_incompatible_or_unclean_targets_are_refused(self):
         statements_by_case = {
-            "pending migration": "DELETE FROM schema_migrations WHERE filename = '026_practice_runtime.sql'",
+            "pending migration": "DELETE FROM schema_migrations WHERE filename = '027_dzi_part1_runtime.sql'",
+            "previous migration unrecorded under the latest one": "DELETE FROM schema_migrations "
+                                                                  "WHERE filename = '026_practice_runtime.sql'",
             "earlier migration unrecorded under a later one": "DELETE FROM schema_migrations "
                                                               "WHERE filename = '025_password_recoveries.sql'",
             "practice open-scope index missing": "DROP INDEX uniq_practice_sessions_open_scope",
             "practice table missing": "DROP TABLE practice_answers",
+            "part 1 open-attempt index missing": "DROP INDEX uniq_dzi_part1_attempts_open_user",
+            "part 1 history index missing": "DROP INDEX idx_dzi_part1_attempts_user_started",
+            "part 1 table missing": "DROP TABLE dzi_part1_answers",
             "unknown applied filename": "INSERT INTO schema_migrations (filename) VALUES ('999_unknown.sql')",
             "middle migration missing": "DELETE FROM schema_migrations WHERE filename = '010_topic_section_display_order.sql'",
             "extra column": "ALTER TABLE questions ADD COLUMN extra_column TEXT",
@@ -1061,6 +1066,31 @@ class PreservationTest(fx.UpdaterTestCase):
         self.assertEqual((noop.exit, noop.report["status"]), (0, "no_change"), noop.out)
         self.assertEqual(self.practice_state(target), before)
 
+    PART1 = ("dzi_part1_attempts", "dzi_part1_answers")
+
+    def part1_state(self, target):
+        """Storage-class-exact rows of both Part 1 tables and the attempts' AUTOINCREMENT mark."""
+        snapshot = fx.db_snapshot(target)
+        return {table: snapshot[table] for table in self.PART1}, fx.sequence_map(target).get("dzi_part1_attempts")
+
+    def test_30b_part1_rows_and_their_sequence_survive_a_genuine_update_and_a_no_op(self):
+        self.assertTrue(set(self.PART1) <= set(tool.NONCANONICAL_TABLES))            # digested, not canonical
+        target = self.ws.target(runtime=True, mutate=lambda conn: conn.execute(
+            "UPDATE sqlite_sequence SET seq = 40 WHERE name = 'dzi_part1_attempts'"))
+        before = self.part1_state(target)
+        self.assertEqual([len(rows) for rows in before[0].values()], [4, 3])
+        self.assertEqual(before[1], 40)                                              # above MAX(id): a real high-water mark
+        source = self.ws.source(lambda conn: fx.add_new_family(conn))
+        token = self.plan_of(target, source, self.preimage).report["plan_sha256"]
+        result = self.apply(target, source, self.preimage, token)
+        self.assertEqual((result.exit, result.report["status"], result.report["preservation"]["equal"]),
+                         (0, "applied", True), result.out)
+        self.assertGreater(fx.scalar(target, "SELECT COUNT(*) FROM questions WHERE id >= 100"), 0)   # it did write
+        self.assertEqual(self.part1_state(target), before)
+        noop = self.dry(target, source, self.preimage)
+        self.assertEqual((noop.exit, noop.report["status"]), (0, "no_change"), noop.out)
+        self.assertEqual(self.part1_state(target), before)
+
     def test_31_the_preservation_digest_is_storage_class_exact_and_order_independent(self):
         with closing(sqlite3.connect(":memory:")) as conn:
             def digest(rows, *, without_rowid=False):
@@ -1144,6 +1174,15 @@ class PreservationTest(fx.UpdaterTestCase):
             "a practice session added": ("INSERT INTO practice_sessions (user_id, section_id, seed, question_ids_json, "
                                          "started_at) VALUES (3, 2, 'x', '[2]', '2026-01-01 00:00:00')", None),   # also moves the sequence, checked first
             "a practice sequence raised": ("UPDATE sqlite_sequence SET seq = 99 WHERE name = 'practice_sessions'", None),
+            "a part 1 attempt updated": ("UPDATE dzi_part1_attempts SET seed = 'changed' WHERE id = 1", False),
+            "a part 1 answer deleted": ("DELETE FROM dzi_part1_answers WHERE slot_number = 1", False),
+            "a part 1 answer raw text changed": ("UPDATE dzi_part1_answers SET raw_answer = 'changed' "
+                                                 "WHERE slot_number = 2 AND subquestion_number = 1", False),
+            "a part 1 attempt added": ("INSERT INTO dzi_part1_attempts (user_id, blueprint_id, seed, question_ids_json, "
+                                       "slot_format_json, max_points_planned, duration_seconds, started_at, deadline_at, "
+                                       "submit_cutoff_at) VALUES (1, 1, 'x', '[2]', '[]', 1, 60, '2026-01-02 00:00:00', "
+                                       "'2026-01-02 00:01:00', '2026-01-02 00:02:00')", None),   # also moves the sequence, checked first
+            "a part 1 sequence raised": ("UPDATE sqlite_sequence SET seq = 99 WHERE name = 'dzi_part1_attempts'", None),
             "a runtime sequence entry added": ("INSERT INTO sqlite_sequence (name, seq) VALUES ('ghost', 5)", None),
             "a canonical row changed": ("UPDATE questions SET prompt = 'changed' WHERE id = 1", None),
             "a canonical sequence lowered": ("UPDATE sqlite_sequence SET seq = 1 WHERE name = 'questions'", None),

@@ -109,7 +109,7 @@ class ClassificationTest(CanonicalTestCase):
             "totp_credentials", "totp_recovery_codes", "lifecycle_clock", "user_identities",
             "user_profiles", "teacher_subjects", "pending_registrations", "registration_sends",
             "registration_control", "assignment_creations", "password_recoveries",
-            "practice_sessions", "practice_answers"]))
+            "practice_sessions", "practice_answers", "dzi_part1_attempts", "dzi_part1_answers"]))
         self.assertEqual(ct.tables_of(ct.OPERATIONAL), sorted([
             "obsidian_notes", "note_question_links", "generated_exams", "scrape_log",
             "schema_migrations", "sqlite_sequence", "login_throttle", "oidc_consumed_transactions"]))

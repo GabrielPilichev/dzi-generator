@@ -80,6 +80,8 @@ TABLE_CLASSIFICATION: dict[str, tuple[str, str]] = {
     "assignment_creations": (RUNTIME, "ledger of assignment creations per account, kept after closure or deletion: ids and times only, never canonical content"),
     "practice_sessions": (RUNTIME, "student practice sessions: account-owned plans, seeds and scores; never canonical content"),
     "practice_answers": (RUNTIME, "student practice answer verdicts per session and question; never canonical content"),
+    "dzi_part1_attempts": (RUNTIME, "timed DZI Part 1 simulation attempts: account-owned plans, slot format, deadlines and scores; never canonical content"),
+    "dzi_part1_answers": (RUNTIME, "DZI Part 1 simulation answer verdicts per attempt, slot and part; never canonical content"),
     "generated_exams": (OPERATIONAL, "generated exam log"),
     "login_throttle": (OPERATIONAL, "per-identifier login throttle counters (keyed hashes, no emails)"),
     "oidc_consumed_transactions": (OPERATIONAL, "single-use records of OIDC transactions (keyed hashes only)"),

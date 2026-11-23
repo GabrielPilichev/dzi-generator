@@ -183,7 +183,8 @@ class RuntimeFixtureTest(TemporaryDirectoryTestCase):
             "totp_credentials": 0, "totp_recovery_codes": 0, "user_identities": 0,
             "user_profiles": 0, "teacher_subjects": 0, "pending_registrations": 0,
             "registration_sends": 0, "registration_control": 0, "assignment_creations": 0,
-            "password_recoveries": 0, "practice_sessions": 0, "practice_answers": 0})
+            "password_recoveries": 0, "practice_sessions": 0, "practice_answers": 0,
+            "dzi_part1_attempts": 0, "dzi_part1_answers": 0})
 
     def test_fixture_ids_do_not_depend_on_other_tests(self):
         results = []
