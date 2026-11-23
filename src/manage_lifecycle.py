@@ -414,6 +414,34 @@ def clock_lists(conn: sqlite3.Connection, verified: datetime, old_high_water: da
     return list_a, list_b
 
 
+# A DZI Part 1 simulation attempt (migration 027, C3) is open while none of its three terminal
+# timestamps is set: the open-state predicate of that table's unique index, restated.
+_PART1_OPEN_SQL = "submitted_at IS NULL AND expired_at IS NULL AND abandoned_at IS NULL"
+
+
+def count_open_part1_attempts(conn: sqlite3.Connection) -> int:
+    """Open DZI Part 1 attempts, any account, any age: what clock-recover would abandon (read-only).
+
+    Every command has already passed :func:`require_matching_schema`, so the table exists.
+    """
+    return int(conn.execute(f"SELECT COUNT(*) FROM dzi_part1_attempts WHERE {_PART1_OPEN_SQL}").fetchone()[0])
+
+
+def abandon_open_part1_attempts(conn: sqlite3.Connection, verified_text: str) -> int:
+    """Stamp every still-open Part 1 attempt abandoned at the verified time; return how many.
+
+    A row stamped during a forward clock fault cannot be told from a healthy one once lifecycle
+    time reaches its false stamp, so recovery does not try: the marking does not depend on a
+    suspect interval or on whether the verified time precedes the row's start (``abandoned_at``
+    has no ordering CHECK). The statement is guarded on the open state, so a submitted, expired
+    or abandoned row and every answer row are never touched. An honest open attempt is
+    abandoned too (design 7.4, "Cost").
+    """
+    cursor = conn.execute(
+        f"UPDATE dzi_part1_attempts SET abandoned_at = ? WHERE {_PART1_OPEN_SQL}", (verified_text,))
+    return cursor.rowcount
+
+
 def clock_agreement_problem(local_clock: datetime, verified: datetime) -> str | None:
     """Why the local clock does not agree well enough with the verified time for
     the state to return to ``ok``, or ``None``.
@@ -508,6 +536,8 @@ def cmd_clock_inspect(conn, args, out) -> int:
     list_a, list_b = clock_lists(conn, verified, None if row is None else row.high_water_at,
                                  suspect_from, suspect_to, local_clock=wall)
     _print_lists(list_a, list_b, out)
+    print(f"open DZI Part 1 attempts: {count_open_part1_attempts(conn)} "
+          "(clock-recover would mark every one of them abandoned)", file=out)
     print("nothing was changed; clock-recover would hold these assignments with clock_review", file=out)
     return 0
 
@@ -524,6 +554,9 @@ def cmd_clock_recover(conn, args, out, audit: AuditLog) -> int:
     because both happen in the same commit. No closure marker of any kind is
     written: the high-water mark is one reading of a clock known to have been
     wrong, and says nothing about any particular assignment.
+
+    In the same transaction every still-open DZI Part 1 simulation attempt is marked abandoned
+    at the verified time (:func:`abandon_open_part1_attempts`); the count is printed and audited.
     """
     verified = parse_utc(args.verified_utc, "--verified-utc")
     suspect_from, suspect_to = _suspect_interval(args)
@@ -554,6 +587,9 @@ def cmd_clock_recover(conn, args, out, audit: AuditLog) -> int:
     anchor = ((lifecycle.format_timestamp(wall), boot_id, boottime_ms)
               if boot_id is not None and boottime_ms is not None else (None, None, None))
     verified_text = lifecycle.format_timestamp(verified)
+    # Same transaction, after the verified-clock checks above: every open DZI Part 1 attempt is
+    # abandoned at the verified time, however the suspect interval was declared.
+    part1_abandoned = abandon_open_part1_attempts(conn, verified_text)
     if row is None:
         conn.execute("DELETE FROM lifecycle_clock")
         conn.execute(
@@ -574,11 +610,12 @@ def cmd_clock_recover(conn, args, out, audit: AuditLog) -> int:
                   "high_water": None if row is None else lifecycle.format_timestamp(row.high_water_at)},
         suspect_interval=[args.suspect_from, args.suspect_to],
         held={str(key): value for key, value in held.items()}, retention_floor_raised=floors,
-        boot_anchor_written=anchor[1] is not None)
+        boot_anchor_written=anchor[1] is not None, dzi_part1_abandoned=part1_abandoned)
     conn.commit()
 
     _print_lists(list_a, list_b, out)
     print(f"held with clock_review: {len(held)} assignment(s); retention floor raised: {len(floors)}", file=out)
+    print(f"DZI Part 1 attempts abandoned: {part1_abandoned}", file=out)
     print(f"clock confirmed: state ok, high-water mark {verified_text} (the verified time)"
           + ("" if anchor[1] is not None else "; no boot anchor (this host has no boot identity)"), file=out)
     print("no closure marker was written; passed deadlines are recorded by ordinary observation", file=out)
