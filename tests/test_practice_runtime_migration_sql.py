@@ -102,6 +102,13 @@ class PopulatedAt025(unittest.TestCase):
         for path in sorted(MIGRATIONS.glob("*.sql")):
             if path.name < MIGRATION:
                 shutil.copyfile(path, previous / path.name)
+        # The real runner over a directory that ends at 026: the 025-to-026 upgrade test stays exact, whatever
+        # migration is added later.
+        cls.through_026 = cls.root / "through-026"
+        cls.through_026.mkdir()
+        for path in sorted(MIGRATIONS.glob("*.sql")):
+            if path.name <= MIGRATION:
+                shutil.copyfile(path, cls.through_026 / path.name)
         cls.template = cls.root / "template-025.db"
         sqlite3.connect(cls.template).close()
         code, report = apply(cls.template, previous)
@@ -125,8 +132,8 @@ class PopulatedAt025(unittest.TestCase):
         conn.execute(f"PRAGMA foreign_keys = {'ON' if foreign_keys else 'OFF'}")
         return conn
 
-    def migrate(self):
-        code, report = apply(self.path)
+    def migrate(self, migrations_dir=MIGRATIONS):
+        code, report = apply(self.path, migrations_dir)
         self.assertEqual(code, 0, report)
         return report
 
@@ -160,7 +167,7 @@ class UpgradeTest(PopulatedAt025):
         before, objects_before = dump(conn, skip=("schema_migrations",)), objects(conn)
         ledger_before = conn.execute("SELECT filename FROM schema_migrations ORDER BY filename").fetchall()
         self.assertGreater(conn.execute("SELECT COUNT(*) FROM quiz_attempts").fetchone()[0], 0)
-        self.migrate()
+        self.migrate(self.through_026)               # exactly 025 -> 026: later migrations have their own tests
         conn = self.connect()
         self.assertEqual(dump(conn, skip=("schema_migrations", SESSIONS, ANSWERS)), before)   # every other row, as it was
         added = {row[1] for row in objects(conn) if row not in objects_before}
@@ -558,7 +565,8 @@ class FreshBuildAndExportTest(unittest.TestCase):
         self.assertEqual({SESSIONS, ANSWERS} - set(manifest["runtime_exclusions"]), set())
         self.assertEqual({SESSIONS, ANSWERS} & set(manifest["canonical_tables"]), set())
         self.assertIn(MIGRATION, manifest["schema"]["migrations"])
-        self.assertEqual(manifest["schema"]["migration_level"], MIGRATION)
+        # The level is the latest migration file that actually exists, so a later migration need not edit this test.
+        self.assertEqual(manifest["schema"]["migration_level"], sorted(p.name for p in MIGRATIONS.glob("*.sql"))[-1])
         self.assertFalse((ct.CANONICAL_DIR / f"{SESSIONS}.jsonl").exists())
         self.assertFalse((ct.CANONICAL_DIR / f"{ANSWERS}.jsonl").exists())
 

@@ -2,7 +2,7 @@
   "format": "learnpilot-canonical-content",
   "format_version": 1,
   "schema": {
-    "migration_level": "026_practice_runtime.sql",
+    "migration_level": "027_dzi_part1_runtime.sql",
     "migrations": [
       "000_baseline.sql",
       "001_quiz_tables.sql",
@@ -30,7 +30,8 @@
       "023_profile_required.sql",
       "024_assignment_creations.sql",
       "025_password_recoveries.sql",
-      "026_practice_runtime.sql"
+      "026_practice_runtime.sql",
+      "027_dzi_part1_runtime.sql"
     ]
   },
   "classification": {
@@ -65,6 +66,8 @@
     ],
     "runtime": [
       "assignment_creations",
+      "dzi_part1_answers",
+      "dzi_part1_attempts",
       "lifecycle_clock",
       "password_recoveries",
       "pending_registrations",
@@ -127,6 +130,8 @@
   ],
   "runtime_exclusions": [
     "assignment_creations",
+    "dzi_part1_answers",
+    "dzi_part1_attempts",
     "lifecycle_clock",
     "password_recoveries",
     "pending_registrations",

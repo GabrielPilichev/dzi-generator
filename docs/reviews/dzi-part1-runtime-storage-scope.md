@@ -19,6 +19,10 @@ runtime storage and its canonical tooling integration.
   tests/test_update_canonical_content_concurrency.py and
   tests/update_canonical_fixtures.py only for directly affected fixture
   levels, preservation, reference and build assertions.
+- Existing tests/test_practice_runtime_migration_sql.py only for directly
+  affected 026 fixtures: the upgrade test applies migrations through 026 in
+  its own scratch directory, and the manifest level is the latest actual
+  migration file.
 
 ## Contract
 

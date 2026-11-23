@@ -575,6 +575,26 @@ def populate_runtime(conn, marker: str = "marker") -> None:
            question_ids_json="[2]", started_at=FIXED_TS, abandoned_at=FIXED_TS)
     insert(conn, "practice_answers", session_id=1, question_id=1, chosen_letter="A", is_correct=1)
     insert(conn, "practice_answers", session_id=1, question_id=2, chosen_letter=None, is_correct=0)
+    # DZI Part 1 attempts in every terminal state; the plan is flat ids, the slot format separate (migration 027).
+    part1 = dict(blueprint_id=1, duration_seconds=5400, max_points_planned=4, started_at=FIXED_TS,
+                 deadline_at="2026-01-01 01:30:00", submit_cutoff_at="2026-01-01 01:31:00",
+                 slot_format_json='[{"kind": "multiple_choice", "points": 1}, {"kind": "short_answer", "points": 3}]')
+    insert(conn, "dzi_part1_attempts", id=1, user_id=3, seed=f"{marker}-d1", question_ids_json="[1, 2]",
+           submitted_at="2026-01-01 00:20:00", score_points=3, score_max=4, **part1)
+    insert(conn, "dzi_part1_attempts", id=2, user_id=3, seed="d2", question_ids_json="[1, 3]", **part1)
+    insert(conn, "dzi_part1_attempts", id=3, user_id=2, seed="d3", question_ids_json="[2, 3]",
+           expired_at="2026-01-01 02:00:00", **part1)
+    insert(conn, "dzi_part1_attempts", id=4, user_id=2, seed="d4", question_ids_json="[3, 1]",
+           abandoned_at="2025-12-31 23:00:00", **part1)       # earlier than started_at: allowed (design 7.4)
+    insert(conn, "dzi_part1_answers", attempt_id=1, slot_number=1, subquestion_number=0, question_id=1,
+           kind="multiple_choice", chosen_letter="A", is_correct=1, points_possible=1, points_awarded=1,
+           grader_version="fixture-1")
+    insert(conn, "dzi_part1_answers", attempt_id=1, slot_number=2, subquestion_number=1, question_id=2,
+           kind="short_answer", raw_answer=f"{marker}-raw", is_correct=1, points_possible=2, points_awarded=2,
+           grader_version="fixture-1")
+    insert(conn, "dzi_part1_answers", attempt_id=1, slot_number=2, subquestion_number=2, question_id=2,
+           kind="short_answer", raw_answer=None, is_correct=0, points_possible=1, points_awarded=0,
+           grader_version="fixture-1")
     insert(conn, "generated_exams", id=1, exam_name="gen", question_ids="[1, 2, 3]")
     insert(conn, "login_throttle", identifier_hash="4" * 64, failure_count=2)
     insert(conn, "oidc_consumed_transactions", tx_hash="5" * 64, expires_at=123)

@@ -127,9 +127,13 @@ PARENT_COUNTED = frozenset({
     "assessment_event_sections", "official_exam_sources", "dzi_blueprint_slots",
 })
 JSON_ID_COLUMNS = (("quiz_attempts", "question_ids_json"), ("quiz_assignments", "question_plan_json"),
-                   ("generated_exams", "question_ids"), ("practice_sessions", "question_ids_json"))
+                   ("generated_exams", "question_ids"), ("practice_sessions", "question_ids_json"),
+                   ("dzi_part1_attempts", "question_ids_json"))
+# dzi_part1_attempts.slot_format_json is deliberately absent: it holds no question id, and every integer
+# inside a registered JSON column is read as one (its "points" values would be unresolved references).
 # Integer question-id columns checked one value per row, besides the JSON ones above.
-INTEGER_ID_COLUMNS = (("quiz_answers", "question_id"), ("practice_answers", "question_id"))
+INTEGER_ID_COLUMNS = (("quiz_answers", "question_id"), ("practice_answers", "question_id"),
+                      ("dzi_part1_answers", "question_id"))
 
 
 class Stop(Exception):

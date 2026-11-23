@@ -284,6 +284,7 @@ class PreexistingReferencesTest(HistoryCase):
                                               "noninteger_reference_value")
         attempt = "UPDATE quiz_attempts SET question_ids_json = ? WHERE id = 1"
         practice = "UPDATE practice_sessions SET question_ids_json = ? WHERE id = 1"
+        part1 = "UPDATE dzi_part1_attempts SET question_ids_json = ? WHERE id = 1"
         cases = [
             ("questions.topic_id dangling to a would-be-new id", "UPDATE questions SET topic_id = 100 WHERE id = 3",
              unresolved, "questions.topic_id"),
@@ -331,6 +332,18 @@ class PreexistingReferencesTest(HistoryCase):
             ("an empty practice plan", (practice, ""), malformed, "practice_sessions.question_ids_json"),
             ("a numeric string practice id", (practice, '["100"]'), noninteger, "practice_sessions.question_ids_json"),
             ("a float practice id", (practice, "[100.0]"), noninteger, "practice_sessions.question_ids_json"),
+            # The two DZI Part 1 columns (migration 027). Only the flat plan column is a reference column; the
+            # separate slot_format_json is not (see the subtest below), and non-text plans and non-integer
+            # dzi_part1_answers.question_id values cannot be written (the migration's CHECKs refuse them).
+            ("a part 1 plan list", (part1, "[1, 100]"), unresolved, "dzi_part1_attempts.question_ids_json"),
+            ("a part 1 plan dict", (part1, '{"question_ids": [1, 100]}'), unresolved,
+             "dzi_part1_attempts.question_ids_json"),
+            ("a part 1 plan id matching no new id", (part1, "[1, 5000]"), unresolved,
+             "dzi_part1_attempts.question_ids_json"),
+            ("malformed part 1 plan JSON", (part1, "{bad"), malformed, "dzi_part1_attempts.question_ids_json"),
+            ("an empty part 1 plan", (part1, ""), malformed, "dzi_part1_attempts.question_ids_json"),
+            ("a numeric string part 1 id", (part1, '["100"]'), noninteger, "dzi_part1_attempts.question_ids_json"),
+            ("a float part 1 id", (part1, "[100.0]"), noninteger, "dzi_part1_attempts.question_ids_json"),
         ]
         for label, change, code, column in cases:
             with self.subTest(label):
@@ -353,6 +366,16 @@ class PreexistingReferencesTest(HistoryCase):
             self.refuse_target(
                 lambda conn: conn.execute("UPDATE practice_answers SET question_id = 100 WHERE question_id = 1"),
                 unresolved, "practice_answers.question_id", foreign_keys=False, source=source)
+        with self.subTest("a part 1 answer to a question that is not there (foreign keys off on this disposable copy)"):
+            result = self.refuse_target(
+                lambda conn: conn.execute("UPDATE dzi_part1_answers SET question_id = 100 WHERE question_id = 1"),
+                unresolved, "dzi_part1_answers.question_id", foreign_keys=False)
+            self.assertIn("preexisting_fk_violation", result.report["conflicts"]["by_code"])
+        with self.subTest("a part 1 answer to a would-be-new id must not be adopted by the update"):
+            source = self.ws.source(lambda conn: fx.add_question(conn, 100, number=50))
+            self.refuse_target(
+                lambda conn: conn.execute("UPDATE dzi_part1_answers SET question_id = 100 WHERE question_id = 1"),
+                unresolved, "dzi_part1_answers.question_id", foreign_keys=False, source=source)
         with self.subTest("a lowered sequence combined with a runtime reference to a would-be-new id"):
             def both(conn):
                 fx.raise_sequence(conn, "questions", 3)
@@ -365,6 +388,26 @@ class PreexistingReferencesTest(HistoryCase):
             result = self.dry(target, self.ws.source(lambda conn: fx.add_new_family(conn)), self.preimage)
             self.assertEqual(result.exit, 1)
             self.assertEqual(fx.db_snapshot(target), before)
+        with self.subTest("a part 1 plan reference is refused beside a valid one and never half-applied"):
+            target = self.ws.target(runtime=True, mutate=lambda conn: conn.execute(part1, ("[1, 100]",)))
+            before = fx.db_snapshot(target)
+            result = self.dry(target, self.ws.source(lambda conn: fx.add_new_family(conn)), self.preimage)
+            self.assertEqual(result.exit, 1)
+            self.assertEqual(fx.db_snapshot(target), before)
+        with self.subTest("slot-format integers are points, not question ids, and never enter the reference check"):
+            # 9999 resolves to no question and 100 is an id the update would create: if either validator read
+            # slot_format_json, the first would be an unresolved reference and the second an adopted one.
+            slots = '[{"kind": "multiple_choice", "points": 9999}, {"kind": "short_answer", "points": 100}]'
+            target = self.ws.target(runtime=True, mutate=lambda conn: conn.execute(
+                "UPDATE dzi_part1_attempts SET slot_format_json = ? WHERE id = 1", (slots,)))
+            with closing(fx.REAL_CONNECT(str(target))) as conn:
+                self.assertEqual(tool.reference_gate(conn), {})
+                self.assertEqual(parity.embedded_reference_problems(conn), [])
+            result = self.dry(target, self.ws.source(), self.preimage)
+            self.assertEqual((result.exit, result.report["status"]), (0, "no_change"), result.out)
+            planned = self.dry(target, self.ws.source(lambda conn: fx.add_question(conn, 100, number=50)), self.preimage)
+            self.assertEqual((planned.exit, planned.report["status"]), (0, "planned"), planned.out)
+            self.assertEqual(fx.scalar(target, "SELECT slot_format_json FROM dzi_part1_attempts WHERE id = 1"), slots)
         with self.subTest("a boolean element is ignored"):
             target = self.ws.target(runtime=True, mutate=lambda conn: conn.execute(attempt, ("[1, true]",)))
             result = self.dry(target, self.ws.source(), self.preimage)

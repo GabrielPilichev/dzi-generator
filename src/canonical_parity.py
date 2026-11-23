@@ -176,6 +176,15 @@ def runtime_reference_problems(conn: sqlite3.Connection, question_ids: set[int])
               (i for (text,) in conn.execute("SELECT question_ids_json FROM practice_sessions") for i in _ids_in(text)))
     if "practice_answers" in tables:
         check("practice_answers.question_id", (r[0] for r in conn.execute("SELECT question_id FROM practice_answers")))
+    # dzi_part1_attempts.slot_format_json carries no question references and is deliberately excluded.
+    # This walker (_ids_in) skips a scalar such as "points" under a dict key that is not id-like, but the
+    # updater's reference gate (update_canonical_content._json_ids) reads every integer in a registered
+    # JSON column, so the column is registered with neither.
+    if "dzi_part1_attempts" in tables:
+        check("dzi_part1_attempts.question_ids_json",
+              (i for (text,) in conn.execute("SELECT question_ids_json FROM dzi_part1_attempts") for i in _ids_in(text)))
+    if "dzi_part1_answers" in tables:
+        check("dzi_part1_answers.question_id", (r[0] for r in conn.execute("SELECT question_id FROM dzi_part1_answers")))
     if "quiz_assignments" in tables:
         check("quiz_assignments.question_plan_json",
               (i for (text,) in conn.execute("SELECT question_plan_json FROM quiz_assignments") for i in _ids_in(text)))
