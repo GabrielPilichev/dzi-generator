@@ -2,8 +2,9 @@
 
 Every database is a temporary clone of the migrations + canonical template
 (``tests.support.build_test_database``) at a frozen lifecycle time (``tests.support.lifecycle_time``).
-Nothing here reads, copies, stats or hashes ``data/questions.db``, and no test goes through the
-isolated-app connection guard.
+No connection opens ``data/questions.db`` and no test goes through the isolated-app connection guard.
+Building the template runs the migration runner, whose default-path check resolves that path
+(filesystem metadata only).
 
 What is proved, and how:
 
@@ -848,6 +849,18 @@ class StateTest(Part1Case):
         self.assertEqual(result.outcome, part1.OUTCOME_RESUMED)
         self.assertEqual(result.presentable_slots, tuple(n for n in range(1, 26) if n not in (1, 16)))
         self.assertEqual(result.question_ids, tuple(plan))  # the stored plan, never reordered or trimmed
+
+    def test_a_stored_short_answer_renumbered_to_part_2_is_not_presentable(self):
+        first = self.start()
+        plan = self.plan_of(first.attempt_id)
+        self.sql("UPDATE questions SET source_number = 27 WHERE id = ?", (plan[15],))
+        self.assertNotIn(16, self.start().presentable_slots)
+        for question_id in plan[:15]:
+            self.sql("DELETE FROM multiple_choice_options WHERE question_id = ?", (question_id,))
+        for question_id in plan[16:]:
+            self.sql("UPDATE fill_in_subquestions SET correct_answer = '-', answer_alternatives = NULL "
+                     "WHERE question_id = ?", (question_id,))
+        self.assertEqual(self.start().abandoned_attempt_id, first.attempt_id)
 
     def test_an_item_whose_kind_changed_is_not_presentable_under_its_stored_kind(self):
         first = self.start()

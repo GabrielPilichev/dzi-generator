@@ -2,8 +2,9 @@
 
 The real operator entry (``manage_lifecycle.main``) runs in-process on disposable databases built from
 migrations + canonical, at the controlled fixture clock (``tests.support.lifecycle_time`` and
-``TEST_CLOCK``): no host clock, boot identity or database of the machine is read or changed, and nothing
-here touches ``data/questions.db`` (these tests do not use the isolated-app connection guard).
+``TEST_CLOCK``): no host clock, boot identity or database of the machine is read or changed, and no
+connection opens ``data/questions.db`` (these tests do not use the isolated-app connection guard; building
+the template runs the migration runner, whose default-path check resolves that path, metadata only).
 
 What is proved:
 

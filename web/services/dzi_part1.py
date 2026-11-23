@@ -569,12 +569,13 @@ def _presentable_slots(conn: sqlite3.Connection, stored: StoredAttempt) -> tuple
     renderable = set(renderable)
     types = quiz_question_types_by_id(conn, list(stored.question_ids))
     parts = _subquestions_by_question(conn, open_ids)
-    prompts = {}
+    questions = {}
     for chunk in sql_chunks(stored.question_ids):
         marks = ",".join("?" for _ in chunk)
         # SAFE: placeholders only; values use ? params.
-        for row in conn.execute(f"SELECT id, prompt FROM questions WHERE id IN ({marks})", chunk):
-            prompts[int(row["id"])] = row["prompt"]
+        for row in conn.execute(
+                f"SELECT id, prompt, question_type, source_number FROM questions WHERE id IN ({marks})", chunk):
+            questions[int(row["id"])] = row
     slots = []
     for number, (question_id, slot) in enumerate(zip(stored.question_ids, stored.slots), start=1):
         if question_id not in renderable:
@@ -584,11 +585,15 @@ def _presentable_slots(conn: sqlite3.Connection, stored: StoredAttempt) -> tuple
                 continue
             # The shared helper also counts a path the loader never attaches; the same loader-based
             # check as at creation, for this one item (no pool, no exclusion list).
-            if quiz_prompt_needs_visual(prompts.get(question_id)) and not _resolved_visual_exists(conn, question_id):
+            if quiz_prompt_needs_visual(questions[question_id]["prompt"]) \
+                    and not _resolved_visual_exists(conn, question_id):
                 continue
         else:
+            # The shared render filter reads no source number, so the readiness rule is applied here in full.
+            item_parts = parts.get(question_id, [])
             if types.get(question_id) not in SHORT_ANSWER_QUESTION_TYPES \
-                    or not part_weights_valid(parts.get(question_id, []), slot.points):
+                    or not is_open_question_generation_ready(questions[question_id], item_parts) \
+                    or not part_weights_valid(item_parts, slot.points):
                 continue
         slots.append(number)
     return tuple(slots)
