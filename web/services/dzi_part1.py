@@ -1,11 +1,14 @@
-"""DZI Part 1 simulation pools and the account-owned start/resume service (C3.2).
+"""DZI Part 1 simulation pools, the account-owned start/resume service (C3.2) and the
+submit / grading service with its bounded-request helper (C3.3).
 
-Governed by docs/DZI_PART1_SIMULATION_DESIGN.md (sections 3-7, 9 and 10) and the scope
-docs/reviews/dzi-part1-start-service-scope.md, over the runtime tables of migration 027.
-This module decides and writes the *start* of a timed attempt and nothing else: there is
-no route, template, submit, grader, result loader, timer or exposure flag here, and no
-existing caller, shared eligibility rule or public rendering rule is changed. Nothing
-imports it yet, so it is dormant.
+Governed by docs/DZI_PART1_SIMULATION_DESIGN.md (sections 3-7, 9 and 10) and the scopes
+docs/reviews/dzi-part1-start-service-scope.md and docs/reviews/dzi-part1-submit-service-scope.md,
+over the runtime tables of migration 027. This module decides and writes the *start* of a
+timed attempt (:func:`start_or_resume_part1`) and the *submission and grading* of one
+(:func:`submit_part1`, with :func:`read_bounded_form` as the request boundary in front of it).
+There is no route, template, result loader, timer or exposure flag here, and no existing caller,
+shared eligibility rule, shared grader or public rendering rule is changed. Nothing imports it
+yet, so it is dormant: the submit service is documented in "Submission (C3.3)" at the end.
 
 Contract
 --------
@@ -123,16 +126,77 @@ Draw
 samples the multiple-choice items first and then the short-answer items, without
 replacement; each kind fills its slots in slot order (:func:`draw_plan`). The stored
 plan, never a recomputation, stays authoritative.
+
+Submission (C3.3)
+-----------------
+:func:`read_bounded_form` bounds a request *before* any field is parsed (below);
+:func:`submit_part1` takes a caller-owned connection, the trusted account principal, the **path**
+attempt id and the bounded fields, and runs one lifecycle writer transaction. Its ``outcome`` is
+exactly one of ``submitted``, ``already_submitted``, ``expired``, ``abandoned``, ``future_start``,
+``not_found``, ``stale``, ``empty``, ``invalid_input`` or ``account_unavailable``; the decisions
+and their order, all under the writer lock, are:
+
+1. the account is active, else ``account_unavailable``; the attempt is read by **id and owner**
+   together, so a foreign and an absent row are the same ``not_found``;
+2. a stored terminal state answers from the row alone: ``submitted_at`` -> ``already_submitted``
+   (with the stored score), ``abandoned_at`` -> ``abandoned``, ``expired_at`` -> ``expired``. The
+   row is never recalculated from a grace constant or from the clock, so an earlier abandonment
+   stays an abandonment even when the wall clock later passes its (false) stamp;
+3. an unmarked row is judged from its three **stored** instants and the one lifecycle ``now``
+   *before its plan is parsed*: ``now`` before ``started_at`` -> ``future_start`` (nothing graded,
+   nothing written); ``now >= submit_cutoff_at`` (the cutoff is exclusive) -> the row is marked
+   ``expired_at`` once and no answer is stored; otherwise (working time or grace) go on;
+4. the stored plan and slot format are validated as a pair (a malformed pair raises and writes
+   nothing); items still presentable now are those the resume path accepts
+   (:func:`_presentable_slots`: stored kind and points, current rendering, readiness and part
+   weights). None -> ``stale``;
+5. the fields are matched, by the fixed names ``q_<question id>`` (the stored option key) and
+   ``a_<question id>_<part>`` (text), against the *stored* plan only: an id outside the plan, a
+   name of another shape, a part that is not a current stored part of that planned short-answer
+   item and a field sent twice are ignored or unanswered. A recognized short-answer value longer
+   than :data:`MAX_ANSWER_CHARACTERS` code points or containing NUL refuses the whole submission,
+   ``invalid_input``, with nothing written; the bound is checked on every value of a recognized
+   field, so a duplicate holding one bad value refuses too, before the duplicate counts as
+   unanswered. It is checked only after the terminal, future-start, lapsed and stale decisions,
+   which keep their own no-write outcomes. Nothing the client sends names an owner, a plan, a
+   seed, a time, a weight or a mark;
+6. no usable answer (an option key that is a current key of a presentable multiple-choice item,
+   or a non-blank text for a presentable short-answer part) -> ``empty``, the attempt stays open;
+7. otherwise ``admit()`` once, then one row per presentable multiple-choice slot and per
+   short-answer part, then ``UPDATE ... WHERE id AND owner AND open`` with the row count verified.
+   Any failure raises and rolls back the rows, the terminal state and the clock admission together.
+
+Every outcome except ``submitted`` and the one marking above is read-only: the transaction is
+discarded, so the high-water mark does not move and a retry changes no table. ``check_factual`` is
+never called. Scoring: a multiple-choice row is worth the slot's *stored* points; a short-answer
+row is worth the current stored weight of its part (the weights of one item sum to the stored slot
+points, checked by presentability), matched with the existing normalizer and pure matcher in the
+slot's existing ordered / order-independent mode. ``score_max`` is the sum of the possible points
+of the presentable items, ``score_points`` the sum of the awarded ones; unanswered presentable
+parts keep a zero verdict with their possible points. Neither correct keys nor accepted answers
+are ever stored. Both numbers and every row are persisted and never recomputed.
+
+Request bound (:func:`read_bounded_form`, design 6.4). With ``request.content_length`` (``None``
+when absent or chunked, ``0`` when malformed): ``None`` -> 411 and over :data:`MAX_BODY_BYTES` ->
+413, both before the body is read; then the per-request cap is set, the body is read **once** into
+Werkzeug's cache and its byte count must equal the declared length (else 400) before
+``request.form`` is read. When the declared length is exactly the cap, a terminated stream that
+delivers more is read only up to the declared bytes: the excess is never seen, parsed, graded or
+stored. That is stated, not hidden: over-delivery past the cap is not always detected.
 """
 
 from __future__ import annotations
 
 import json
 import random
+import re
 import secrets
 import sqlite3
+from collections.abc import Mapping
 from datetime import datetime, timedelta
 from typing import NamedTuple
+
+from werkzeug.exceptions import HTTPException, RequestEntityTooLarge
 
 from src.dzi_open_questions import is_open_question_generation_ready
 from src.subject_content import IT, canonical_subject, sql_chunks
@@ -142,7 +206,11 @@ from web.services.question_visuals import QUESTION_VISUAL_STATIC_PREFIX, fetch_q
 from web.services.quiz import (
     QUIZ_APPROVED_FILTER,
     _quiz_candidate_grading_mode,
+    _quiz_subquestion_accepted_answers,
     filter_renderable_attempt_question_ids,
+    grade_quiz_text_answers,
+    quiz_correct_mc_letters_by_id,
+    quiz_normalize_text_answer,
     quiz_path_exists,
     quiz_prompt_needs_visual,
     quiz_question_types_by_id,
@@ -177,6 +245,22 @@ OUTCOME_RESUMED = "resumed"
 OUTCOME_BLUEPRINT_UNAVAILABLE = "blueprint_unavailable"
 OUTCOME_POOL_INSUFFICIENT = "pool_insufficient"
 OUTCOME_ACCOUNT_UNAVAILABLE = "account_unavailable"
+
+OUTCOME_SUBMITTED = "submitted"
+OUTCOME_ALREADY_SUBMITTED = "already_submitted"
+OUTCOME_EXPIRED = "expired"
+OUTCOME_ABANDONED = "abandoned"
+OUTCOME_FUTURE_START = "future_start"
+OUTCOME_NOT_FOUND = "not_found"
+OUTCOME_STALE = "stale"
+OUTCOME_EMPTY = "empty"
+OUTCOME_INVALID_INPUT = "invalid_input"
+
+# Submit bounds (design 6.4): the body a submit may carry and the text of one short-answer value.
+MAX_BODY_BYTES = 64 * 1024
+MAX_ANSWER_CHARACTERS = 200
+# Written on every stored answer row; a change of grading rules is a new value, never a rewrite.
+GRADER_VERSION = "dzi_part1_v1"
 
 STATE_FUTURE_START = "future_start"
 STATE_OPEN = "open"
@@ -698,3 +782,367 @@ def _decide(conn: sqlite3.Connection, transaction: lifecycle.LifecycleWrite,
         raise Part1StateError("the DZI Part 1 attempt was not inserted")
     return Part1Start(OUTCOME_CREATED, int(cursor.lastrowid), tuple(plan), seed, now_text, deadline_text,
                       cutoff_text, None, None, expired_id, abandoned_id), True
+
+
+# =========================================================================== submit (C3.3)
+
+# The fixed field names of the attempt form (design 6.4). Ids and parts are canonical positive
+# decimals of at most 19 digits: a longer or odd spelling is not a field of this form, and no
+# integer conversion ever sees an unbounded digit string.
+_CHOICE_FIELD = re.compile(r"q_([1-9][0-9]{0,18})", re.ASCII)
+_PART_FIELD = re.compile(r"a_([1-9][0-9]{0,18})_([1-9][0-9]{0,18})", re.ASCII)
+
+
+class Part1Answer(NamedTuple):
+    """One stored answer row: a multiple-choice slot (``subquestion_number`` 0) or one short-answer part.
+
+    ``chosen_letter`` / ``raw_answer`` are ``None`` when the part was left unanswered. No correct key
+    and no accepted answer is part of it.
+    """
+
+    slot_number: int
+    subquestion_number: int
+    question_id: int
+    kind: str
+    chosen_letter: str | None
+    raw_answer: str | None
+    is_correct: bool
+    points_possible: int
+    points_awarded: int
+
+
+class Part1Submission(NamedTuple):
+    """The result of a submit; ``outcome`` is one of the ``OUTCOME_*`` values.
+
+    ``attempt_id`` is set for every outcome except ``not_found`` and ``account_unavailable``.
+    ``score_points``, ``score_max`` and ``submitted_at`` are the persisted values, set for
+    ``submitted`` and ``already_submitted`` only; ``answers`` are the rows stored by *this* call
+    (``submitted`` only).
+    """
+
+    outcome: str
+    attempt_id: int | None = None
+    score_points: int | None = None
+    score_max: int | None = None
+    submitted_at: str | None = None
+    answers: tuple[Part1Answer, ...] = ()
+
+    @property
+    def submitted(self) -> bool:
+        return self.outcome == OUTCOME_SUBMITTED
+
+
+def _stored_instants(row) -> tuple[datetime, datetime, datetime]:
+    """The three stored instants of an unmarked row, checked against the stored duration.
+
+    Read before the plan is parsed (a lapsed row is expired from its time alone). Compared after
+    parsing, never by building a timedelta from the stored number.
+    """
+    attempt_id, duration = row["id"], row["duration_seconds"]
+    if type(duration) is not int or duration <= 0:
+        raise Part1StateError(f"DZI Part 1 attempt {attempt_id}: the saved duration is not positive")
+    try:
+        started = lifecycle.parse_timestamp(row["started_at"])
+        deadline = lifecycle.parse_timestamp(row["deadline_at"])
+        cutoff = lifecycle.parse_timestamp(row["submit_cutoff_at"])
+    except lifecycle.TimestampError:
+        raise Part1StateError(f"DZI Part 1 attempt {attempt_id}: a stored instant is unreadable") from None
+    if not started < deadline < cutoff or (deadline - started).total_seconds() != duration:
+        raise Part1StateError(
+            f"DZI Part 1 attempt {attempt_id}: the stored instants do not follow the stored duration")
+    return started, deadline, cutoff
+
+
+def _field_values(fields: object) -> dict[str, tuple]:
+    """Every field name with all of its values, from a ``getlist`` object (a Werkzeug ``MultiDict``) or a
+    mapping of name to value(s). A plain dict-style read of a ``MultiDict`` would show one value per
+    name and hide a duplicate, so that shape is read through ``getlist``."""
+    if hasattr(fields, "getlist"):
+        return {name: tuple(fields.getlist(name)) for name in fields.keys()}
+    if not isinstance(fields, Mapping):
+        raise ValueError("fields must be a mapping of field name to value(s)")
+    found = {}
+    for name, values in fields.items():
+        if isinstance(values, (str, bytes)):
+            found[name] = (values,)
+        elif isinstance(values, (list, tuple)):
+            found[name] = tuple(values)
+        else:
+            found[name] = (None, None)  # not a usable value: unanswered, like a field sent twice
+    return found
+
+
+def _option_keys(conn: sqlite3.Connection, question_ids: list[int]) -> dict[int, set[str]]:
+    """The current stored option keys of each multiple-choice question."""
+    keys: dict[int, set[str]] = {question_id: set() for question_id in question_ids}
+    for chunk in sql_chunks(sorted(set(question_ids))):
+        marks = ",".join("?" for _ in chunk)
+        # SAFE: placeholders only; the ids are bound parameters.
+        for row in conn.execute(
+                f"SELECT question_id, option_letter FROM multiple_choice_options WHERE question_id IN ({marks})",
+                chunk):
+            keys[int(row["question_id"])].add(row["option_letter"])
+    return keys
+
+
+class _Fields(NamedTuple):
+    """The recognized, single-valued fields of a submission: what the stored plan can accept."""
+
+    choices: dict[int, str]               # question id -> submitted option key (multiple choice)
+    texts: dict[tuple[int, int], str]     # (question id, part number) -> submitted text (short answer)
+    invalid: bool                         # a recognized short-answer value breaks the bound
+
+
+def _match_fields(stored: StoredAttempt, parts: dict[int, list[dict]], fields: dict[str, tuple]) -> _Fields:
+    """Match field names against the *stored* plan only (never the request's own claims).
+
+    ``q_<id>`` is recognized for a planned multiple-choice item; ``a_<id>_<n>`` for a planned
+    short-answer item whose current stored parts include ``n``. Anything else is ignored. The text
+    bound is applied to EVERY value of a recognized text field first; only then is a field sent
+    twice, or with a value that is not text, unanswered.
+    """
+    kind_of = {question_id: slot.kind for question_id, slot in zip(stored.question_ids, stored.slots)}
+    stored_parts = {question_id: {row["subquestion_number"] for row in rows} for question_id, rows in parts.items()}
+    choices: dict[int, str] = {}
+    texts: dict[tuple[int, int], str] = {}
+    invalid = False
+    for name, values in fields.items():
+        if type(name) is not str:
+            continue
+        choice = _CHOICE_FIELD.fullmatch(name)
+        if choice is not None:
+            question_id = int(choice.group(1))
+            if kind_of.get(question_id) == KIND_MULTIPLE_CHOICE and len(values) == 1 and type(values[0]) is str:
+                choices[question_id] = values[0]
+            continue
+        part = _PART_FIELD.fullmatch(name)
+        if part is None:
+            continue
+        question_id, number = int(part.group(1)), int(part.group(2))
+        if kind_of.get(question_id) != KIND_SHORT_ANSWER or number not in stored_parts.get(question_id, ()):
+            continue
+        # The bound applies to EVERY text value of a recognized field, before a duplicate is treated as
+        # unanswered: one over-long or NUL value among legal duplicates still refuses the whole submit.
+        for value in values:
+            if type(value) is str and (len(value) > MAX_ANSWER_CHARACTERS or "\x00" in value):
+                invalid = True
+        if len(values) == 1 and type(values[0]) is str:
+            texts[(question_id, number)] = values[0]
+    return _Fields(choices, texts, invalid)
+
+
+def _grade_submission(conn: sqlite3.Connection, stored: StoredAttempt, presentable: set[int],
+                      parts: dict[int, list[dict]], fields: _Fields) -> tuple[list[Part1Answer], bool]:
+    """A verdict row per presentable multiple-choice slot and short-answer part, and whether any
+    answer was usable. Reads only; nothing here knows a transaction."""
+    mc_ids = [question_id for number, (question_id, slot) in enumerate(zip(stored.question_ids, stored.slots), 1)
+              if number in presentable and slot.kind == KIND_MULTIPLE_CHOICE]
+    keys = _option_keys(conn, mc_ids)
+    correct = quiz_correct_mc_letters_by_id(conn, mc_ids)
+
+    answers: list[Part1Answer] = []
+    usable = False
+    for number, (question_id, slot) in enumerate(zip(stored.question_ids, stored.slots), start=1):
+        if number not in presentable:
+            continue  # an unpresentable item is neither graded nor part of the effective maximum
+        if slot.kind == KIND_MULTIPLE_CHOICE:
+            submitted = fields.choices.get(question_id)
+            chosen = submitted if submitted in keys[question_id] else None
+            correct_key = correct.get(question_id)
+            if correct_key is None:  # unreachable for a renderable item: exactly one correct option
+                raise Part1StateError(f"question {question_id} has no correct option")
+            is_correct = chosen is not None and chosen == correct_key
+            usable = usable or chosen is not None
+            # The slot's *stored* points: a re-seeded blueprint changes nothing here.
+            answers.append(Part1Answer(number, 0, question_id, KIND_MULTIPLE_CHOICE, chosen, None, is_correct,
+                                       slot.points, slot.points if is_correct else 0))
+            continue
+
+        rows = sorted(parts[question_id], key=lambda row: row["subquestion_number"])
+        submitted_by_part = {row["subquestion_number"]: fields.texts.get((question_id, row["subquestion_number"]), "")
+                             for row in rows}
+        graded = grade_quiz_text_answers(
+            submitted_by_part,
+            {row["subquestion_number"]: _quiz_subquestion_accepted_answers(row) for row in rows},
+            grading_mode=_quiz_candidate_grading_mode(rows))
+        verdict = {result["subquestion_number"]: bool(result["is_correct"]) for result in graded}
+        for row in rows:
+            part_number, weight = row["subquestion_number"], row["points"]
+            text = submitted_by_part[part_number]
+            answered = bool(quiz_normalize_text_answer(text))
+            usable = usable or answered
+            is_correct = verdict[part_number]
+            answers.append(Part1Answer(number, part_number, question_id, KIND_SHORT_ANSWER, None,
+                                       text if answered else None, is_correct, weight, weight if is_correct else 0))
+    return answers, usable
+
+
+def _store_submission(conn: sqlite3.Connection, attempt_id: int, user_id: int, now_text: str,
+                      answers: list[Part1Answer]) -> tuple[int, int]:
+    """Insert every answer row and finalize the attempt; the caller holds the writer lock and has admitted.
+
+    Returns the persisted ``(score_points, score_max)``. A row count that is not exactly one raises.
+    """
+    for answer in answers:
+        cursor = conn.execute(
+            "INSERT INTO dzi_part1_answers (attempt_id, slot_number, subquestion_number, question_id, kind, "
+            "chosen_letter, raw_answer, is_correct, points_possible, points_awarded, grader_version) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (attempt_id, answer.slot_number, answer.subquestion_number, answer.question_id, answer.kind,
+             answer.chosen_letter, answer.raw_answer, int(answer.is_correct), answer.points_possible,
+             answer.points_awarded, GRADER_VERSION))
+        if cursor.rowcount != 1:
+            raise Part1StateError(f"an answer of DZI Part 1 attempt {attempt_id} was not stored")
+    score_points = sum(answer.points_awarded for answer in answers)
+    score_max = sum(answer.points_possible for answer in answers)
+    # SAFE: _OPEN_SQL is a static fragment; values use ? params.
+    cursor = conn.execute(
+        "UPDATE dzi_part1_attempts SET submitted_at = ?, score_points = ?, score_max = ? "
+        f"WHERE id = ? AND user_id = ? AND {_OPEN_SQL}",
+        (now_text, score_points, score_max, attempt_id, user_id))
+    if cursor.rowcount != 1:
+        raise Part1StateError(f"DZI Part 1 attempt {attempt_id} could not be submitted")
+    return score_points, score_max
+
+
+def _decide_submission(conn: sqlite3.Connection, transaction: lifecycle.LifecycleWrite, user_id: int,
+                       attempt_id: int, raw_fields: dict[str, tuple]) -> tuple[Part1Submission, bool]:
+    """The submit decision under the writer lock: the result and whether it wrote anything."""
+    if not _account_is_active(conn, user_id):
+        return Part1Submission(OUTCOME_ACCOUNT_UNAVAILABLE), False
+    if not 0 < attempt_id <= _SQLITE_MAX_INTEGER:
+        return Part1Submission(OUTCOME_NOT_FOUND), False
+    # The owner is part of the lookup: a missing and a foreign attempt are the same empty result.
+    row = conn.execute(
+        "SELECT id, seed, question_ids_json, slot_format_json, max_points_planned, duration_seconds, "
+        "started_at, deadline_at, submit_cutoff_at, submitted_at, expired_at, abandoned_at, score_points, "
+        "score_max FROM dzi_part1_attempts WHERE id = ? AND user_id = ?", (attempt_id, user_id)).fetchone()
+    if row is None:
+        return Part1Submission(OUTCOME_NOT_FOUND), False
+
+    terminal = [column for column in ("submitted_at", "expired_at", "abandoned_at") if row[column] is not None]
+    if len(terminal) > 1:
+        raise Part1StateError(f"DZI Part 1 attempt {attempt_id} has more than one terminal state")
+    if terminal == ["submitted_at"]:
+        if type(row["score_points"]) is not int or type(row["score_max"]) is not int:
+            raise Part1StateError(f"DZI Part 1 attempt {attempt_id} is submitted without a stored score")
+        return Part1Submission(OUTCOME_ALREADY_SUBMITTED, attempt_id, row["score_points"], row["score_max"],
+                               row["submitted_at"]), False
+    if terminal == ["abandoned_at"]:
+        return Part1Submission(OUTCOME_ABANDONED, attempt_id), False
+    if terminal == ["expired_at"]:
+        return Part1Submission(OUTCOME_EXPIRED, attempt_id), False
+
+    # Unmarked: the stored instants and the one lifecycle now decide, before the plan is parsed.
+    now = transaction.now
+    started, deadline, cutoff = _stored_instants(row)
+    state = attempt_state(started, deadline, cutoff, now)
+    if state == STATE_FUTURE_START:
+        return Part1Submission(OUTCOME_FUTURE_START, attempt_id), False  # left as it is: nothing graded or written
+    if state == STATE_LAPSED:
+        transaction.admit()
+        _mark(conn, attempt_id, user_id, "expired_at", transaction.now_text)
+        return Part1Submission(OUTCOME_EXPIRED, attempt_id), True
+
+    stored = parse_stored_attempt(row)
+    if conn.execute("SELECT 1 FROM dzi_part1_answers WHERE attempt_id = ? LIMIT 1", (attempt_id,)).fetchone():
+        raise Part1StateError(f"open DZI Part 1 attempt {attempt_id} already has stored answers")
+    presentable = set(_presentable_slots(conn, stored))
+    if not presentable:
+        return Part1Submission(OUTCOME_STALE, attempt_id), False
+
+    open_ids = [question_id for question_id, slot in zip(stored.question_ids, stored.slots)
+                if slot.kind == KIND_SHORT_ANSWER]
+    parts = _subquestions_by_question(conn, open_ids)
+    fields = _match_fields(stored, parts, raw_fields)
+    if fields.invalid:
+        return Part1Submission(OUTCOME_INVALID_INPUT, attempt_id), False
+    answers, usable = _grade_submission(conn, stored, presentable, parts, fields)
+    if not usable:
+        return Part1Submission(OUTCOME_EMPTY, attempt_id), False
+
+    transaction.admit()  # once, after every read and before the first write
+    score_points, score_max = _store_submission(conn, attempt_id, user_id, transaction.now_text, answers)
+    return Part1Submission(OUTCOME_SUBMITTED, attempt_id, score_points, score_max, transaction.now_text,
+                           tuple(answers)), True
+
+
+def submit_part1(conn: sqlite3.Connection, principal: Principal, attempt_id: int, fields: object) -> Part1Submission:
+    """Grade and finalize the principal's own open Part 1 attempt (module docstring, "Submission (C3.3)").
+
+    ``fields`` is what :func:`read_bounded_form` returned (a mapping of field name to its values), or any
+    ``getlist`` object. The principal is trusted and never read from ``fields``; ``attempt_id`` is the path id.
+    Raises :class:`Part1AccessError` for a principal that is not an account, ``ValueError`` for an
+    ``attempt_id`` that is not an integer or ``fields`` of the wrong shape, ``RuntimeError`` for an unusable
+    connection, :class:`Part1StateError` / :class:`Part1PlanError` for stored state it refuses to interpret
+    (nothing is written) and ``web.services.lifecycle.LifecycleUnavailable`` for an unusable clock.
+    """
+    user_id = _account_id(principal)
+    if type(attempt_id) is not int:
+        raise ValueError("attempt_id must be an integer")
+    raw_fields = _field_values(fields)
+    _require_usable_connection(conn)
+    with lifecycle.write_transaction(conn) as transaction:
+        result, wrote = _decide_submission(conn, transaction, user_id, attempt_id, raw_fields)
+        if not wrote:
+            transaction.discard()  # nothing written, the high-water mark included
+    return result
+
+
+# --------------------------------------------------------------------------- bounded request
+
+REASON_OK = "ok"
+REASON_LENGTH_REQUIRED = "length_required"
+REASON_TOO_LARGE = "too_large"
+REASON_LENGTH_MISMATCH = "length_mismatch"
+REASON_UNREADABLE = "unreadable"
+
+
+class BoundedForm(NamedTuple):
+    """What :func:`read_bounded_form` decided: an HTTP ``status`` (200, 400, 411 or 413) and a stable ``reason``.
+
+    ``fields`` is set only for status 200 (a plain mapping of every field name to a tuple of all of its
+    values, so a duplicate stays visible). ``declared_length`` and ``received_length`` are for tests and logs.
+    """
+
+    status: int
+    reason: str
+    fields: dict[str, tuple[str, ...]] | None = None
+    declared_length: int | None = None
+    received_length: int | None = None
+
+    @property
+    def ok(self) -> bool:
+        return self.status == 200
+
+
+def read_bounded_form(request) -> BoundedForm:
+    """Bound a submit request before any field is parsed (module docstring, "Request bound").
+
+    ``request`` is a Werkzeug / Flask request; nothing here reads the application, a connection or the
+    clock, and nothing is written. Call it before anything else touches the body or ``request.form``
+    (a body read earlier makes the byte count differ and the request is refused 400, which fails closed).
+    The order is fixed: 411, 413, the bounded read and the length equality, then ``request.form``.
+    """
+    declared = request.content_length  # None: absent or chunked; 0: malformed (Werkzeug 3.1)
+    if declared is None:
+        return BoundedForm(411, REASON_LENGTH_REQUIRED)
+    if declared > MAX_BODY_BYTES:
+        return BoundedForm(413, REASON_TOO_LARGE, declared_length=declared)
+    request.max_content_length = MAX_BODY_BYTES
+    try:
+        data = request.get_data(cache=True)
+    except RequestEntityTooLarge:
+        return BoundedForm(413, REASON_TOO_LARGE, declared_length=declared)
+    except HTTPException:
+        return BoundedForm(400, REASON_UNREADABLE, declared_length=declared)
+    if len(data) != declared:
+        return BoundedForm(400, REASON_LENGTH_MISMATCH, declared_length=declared, received_length=len(data))
+    try:
+        form = request.form  # parsed from the cached bytes: exactly the bounded prefix
+        fields = {name: tuple(form.getlist(name)) for name in form.keys()}
+    except RequestEntityTooLarge:
+        return BoundedForm(413, REASON_TOO_LARGE, declared_length=declared, received_length=len(data))
+    except HTTPException:
+        return BoundedForm(400, REASON_UNREADABLE, declared_length=declared, received_length=len(data))
+    return BoundedForm(200, REASON_OK, fields, declared, len(data))
