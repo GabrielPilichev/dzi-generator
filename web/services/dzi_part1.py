@@ -220,9 +220,11 @@ award is all or nothing; one grader version; and the row sums equal the stored s
 A saved slot is reviewable when its item still passes the per-item rule that the start and submit
 services use (:func:`_presentable_slots`: stored kind and points, current rendering and readiness, current
 part weights summing to the stored points) and, for a short answer, still has exactly the parts that were
-graded. Reviewable items show the **current** prompt, options (in the attempt's seeded order, with the
-saved key), correct key, accepted answers, visuals and explanations through the existing read helpers; the
-saved verdict is shown as saved, so after a content change a review can disagree with it. Saved items that
+graded. A saved item whose current content that rule cannot interpret (a non-numeric flag, a prompt that is
+not text) is counted as unavailable and the saved result is still returned. Reviewable items show the
+**current** prompt, options (in the attempt's seeded order, with the saved key), correct key, accepted
+answers, visuals and explanations through the existing read helpers; the saved verdict is shown as saved,
+so after a content change a review can disagree with it. Saved items that
 are not reviewable are counted (``unavailable_slot_numbers``); planned items that have no saved row are
 counted separately (``omitted_slot_numbers``). No pool is composed and the stimulus list is not consulted.
 An empty review still returns the whole saved result (:attr:`Part1Result.only_saved_score`).
@@ -1346,7 +1348,7 @@ def _saved_answers(conn: sqlite3.Connection, stored: StoredAttempt, score_points
         else:
             if not _whole(part) or part < 1 or letter is not None or (raw is not None and type(raw) is not str):
                 raise _invalid_result(attempt_id, "a malformed short-answer row")
-            if raw is None and verdict:
+            if verdict and not quiz_normalize_text_answer(raw):  # the submit stores a blank part as NULL, always wrong
                 raise _invalid_result(attempt_id, "a correct verdict for an unanswered part")
         saved = by_slot.setdefault(slot_number, [])
         if any(earlier.subquestion_number == part for earlier in saved):
@@ -1374,10 +1376,41 @@ def _saved_answers(conn: sqlite3.Connection, stored: StoredAttempt, score_points
                          versions.pop(), *totals[KIND_MULTIPLE_CHOICE], *totals[KIND_SHORT_ANSWER])
 
 
+def _presentable_among(conn: sqlite3.Connection, stored: StoredAttempt, numbers: tuple[int, ...]) -> set[int]:
+    """The slot numbers among ``numbers`` that :func:`_presentable_slots` (the per-item rule) accepts."""
+    item = stored._replace(question_ids=tuple(stored.question_ids[number - 1] for number in numbers),
+                           slots=tuple(stored.slots[number - 1] for number in numbers))
+    return {numbers[position - 1] for position in _presentable_slots(conn, item)}
+
+
+def _presentable_saved_slots(conn: sqlite3.Connection, stored: StoredAttempt, saved: _SavedAnswers) -> set[int]:
+    """The saved slots whose item passes the per-item rule now.
+
+    One batched judgement of the saved slots, as the services do. Current content that rule cannot interpret
+    makes a shared helper raise (a non-numeric flag, a prompt that is not text): the saved result must survive
+    that, so the slots are then judged one at a time and an item that raises is unavailable. Only these three
+    errors are meant (``OverflowError`` is what ``int()`` raises on an infinite number); a database error, and
+    anything else, still propagates.
+    """
+    numbers = tuple(saved.by_slot)
+    try:
+        return _presentable_among(conn, stored, numbers)
+    except (TypeError, ValueError, OverflowError):
+        pass
+    presentable: set[int] = set()
+    for number in numbers:
+        try:
+            presentable |= _presentable_among(conn, stored, (number,))
+        except (TypeError, ValueError, OverflowError):
+            continue  # this item cannot be interpreted now: unavailable, not a lost result
+    return presentable
+
+
 def _review_slots(conn: sqlite3.Connection, stored: StoredAttempt, saved: _SavedAnswers) -> tuple[int, ...]:
     """The saved slots whose item can be reviewed now, ascending: presentable by the services' per-item rule
-    and, for a short answer, still made of exactly the parts that were graded."""
-    presentable = set(_presentable_slots(conn, stored))
+    (an item whose current content that rule cannot interpret is not presentable) and, for a short answer,
+    still made of exactly the parts that were graded."""
+    presentable = _presentable_saved_slots(conn, stored, saved)
     short_ids = [stored.question_ids[number - 1] for number in saved.by_slot
                  if stored.slots[number - 1].kind == KIND_SHORT_ANSWER and number in presentable]
     current_parts = _subquestions_by_question(conn, short_ids)

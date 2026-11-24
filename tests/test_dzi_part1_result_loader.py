@@ -22,8 +22,13 @@ What is proved, and how:
 * **Content drift**: a changed key, accepted answer, prompt and option text, removed or added parts, changed
   weights, a changed type, a re-seeded blueprint and the stimulus list; an empty review that still returns the
   saved score; every case keeps the saved verdicts and points.
+* **Content the per-item rule cannot interpret**: a non-numeric flag, a prompt that is not text or an infinite
+  number on one item makes that item unavailable and nothing else: the saved result, the saved verdicts and the
+  other items (with their original slot numbers) come back, the stored rows are untouched, a database error and
+  any other error still propagate, and the normal path judges the saved slots in one batch.
 * **Corrupt stored state**: every tamper of the attempt row or the answer rows raises, writes nothing and
-  leaves no transaction; the same tamper on an open row is still ``not_found``.
+  leaves no transaction (a correct verdict on a blank short answer included, whatever blank it is stored as); the
+  same tamper on an open row is still ``not_found``.
 * **Saved slot numbers**: the loader's own rows carry ``saved_slot_number`` and render the original slot numbers,
   gaps included; the same rows without it are numbered by position.
 * **Dormancy**: nothing imports the service and no simulation route exists.
@@ -785,6 +790,172 @@ class DriftTest(ResultCase):
         return render_partial(**result.review_context())
 
 
+# =========================================================================== content the per-item rule cannot interpret
+
+class UninterpretableContentTest(ResultCase):
+    """Current content a shared helper cannot read makes that one item unavailable; the saved result stays whole.
+
+    The shared per-item rule converts flags with ``int(...)`` and reads the prompt as text, and raises on content
+    that is not what the schema never prevented (no CHECK on those columns). That must cost one item, never the
+    saved score, the saved verdicts or the other items.
+    """
+
+    VISUAL_PROMPT = "Разгледайте графиката по-долу"
+
+    def setUp(self):
+        super().setUp()
+        self.attempt_id = self.finish()
+        self.mc = self.mc_ids(self.attempt_id)
+        self.sa = self.short_answer_ids(self.attempt_id)
+        self.baseline = self.load(self.attempt_id)
+
+    # ------------------------------------------------------------------ plumbing
+    def verdicts(self, result):
+        """The saved verdicts by original slot number, for every reviewed item."""
+        rows = [(q["saved_slot_number"], q["chosen_letter"], q["is_correct"], q["points_possible"], q["points_awarded"])
+                for q in result.questions]
+        rows += [(q["saved_slot_number"], tuple((p["subquestion_number"], p["raw_answer"], p["is_correct"],
+                                                 p["points_possible"], p["points_awarded"]) for p in q["parts"]))
+                 for q in result.short_answers]
+        return sorted(rows, key=lambda row: row[0])
+
+    def saved_numbers(self, result):
+        return (result.score_points, result.score_max, result.multiple_choice_points, result.multiple_choice_max,
+                result.short_answer_points, result.short_answer_max, result.saved_slot_numbers,
+                result.omitted_slot_numbers, result.grader_version)
+
+    def hostile_option(self, question_id, value, *, right=False):
+        self.sql("UPDATE multiple_choice_options SET is_correct = ? WHERE id = (SELECT id FROM multiple_choice_options "
+                 "WHERE question_id = ? AND is_correct = ? ORDER BY option_letter LIMIT 1)",
+                 (value, question_id, 1 if right else 0))
+
+    def hostile_visual(self, question_id, value):
+        """A prompt that needs a visual, no path and no asset: the flag is the only thing left to read."""
+        self.sql("UPDATE questions SET prompt = ?, image_path = NULL, has_image = ? WHERE id = ?",
+                 (self.VISUAL_PROMPT, value, question_id))
+        self.sql("DELETE FROM asset_links WHERE owner_type IN ('question', 'questions') AND owner_id = ?", (question_id,))
+        self.sql("DELETE FROM asset_links WHERE owner_type = 'exam_task' AND owner_id IN "
+                 "(SELECT task_id FROM exam_task_questions WHERE question_id = ?)", (question_id,))
+
+    def assert_only_these_unavailable(self, slots):
+        """The saved result is whole, exactly ``slots`` are counted unavailable and every other item is reviewed as
+        saved, with its original slot number, in the data and in the shared partial; no stored row is touched."""
+        state, rows, attempt = self.state(), self.answers(self.attempt_id), self.attempt(self.attempt_id)
+        result = self.load(self.attempt_id)
+        slots = tuple(sorted(slots))
+        self.assertTrue(result.loaded)
+        self.assertEqual(self.saved_numbers(result), self.saved_numbers(self.baseline))
+        self.assertEqual((result.score_points, result.score_max, result.multiple_choice_points, result.short_answer_points),
+                         (45, 45, 15, 30))
+        self.assertEqual(result.unavailable_slot_numbers, slots)
+        self.assertEqual(result.reviewed_slot_numbers, tuple(n for n in range(1, 26) if n not in slots))
+        self.assertEqual(self.verdicts(result), [row for row in self.verdicts(self.baseline) if row[0] not in slots])
+        self.assertEqual([q["saved_slot_number"] for q in result.questions], [n for n in range(1, 16) if n not in slots])
+        self.assertEqual([q["saved_slot_number"] for q in result.short_answers], [n for n in range(16, 26) if n not in slots])
+        self.assertEqual(NUMBER.findall(render_partial(**result.review_context())),
+                         [str(n) for n in range(1, 16) if n not in slots])
+        self.assertFalse(result.only_saved_score)
+        self.assertEqual((self.state(), self.answers(self.attempt_id), self.attempt(self.attempt_id)), (state, rows, attempt))
+        self.assert_released()
+        return result
+
+    # ------------------------------------------------------------------ the reproduced findings
+    def test_a_non_numeric_option_flag_makes_only_its_item_unavailable(self):
+        question_id = self.mc[3]  # slot 4
+        key = self.right_letter(question_id)
+        for label, value, on_the_key in (("text", "true", False), ("spaces", "  ", False), ("other text", "не", False),
+                                         ("infinity", 9e999, False), ("the key itself", "true", True)):
+            with self.subTest(value=label):
+                self.hostile_option(question_id, value, right=on_the_key)
+                self.assert_only_these_unavailable((4,))
+                self.restore_mc_key(question_id, key)
+                self.assert_only_these_unavailable(())
+
+    def test_a_non_numeric_image_flag_on_an_item_that_needs_a_visual_makes_only_it_unavailable(self):
+        question_id = self.mc[6]  # slot 7
+        self.hostile_visual(question_id, 1)  # control: the same item with a plain flag is unavailable without any raise
+        self.assert_only_these_unavailable((7,))
+        for label, value in (("text", "true"), ("spaces", "  "), ("infinity", 9e999)):
+            with self.subTest(value=label):
+                self.sql("UPDATE questions SET has_image = ? WHERE id = ?", (value, question_id))
+                self.assert_only_these_unavailable((7,))
+
+    def test_a_prompt_that_is_not_text_makes_only_its_item_unavailable(self):
+        for label, question_id, slot in (("multiple choice", self.mc[8], 9), ("short answer", self.sa[3], 19)):
+            with self.subTest(kind=label):
+                prompt = self.rows("SELECT prompt FROM questions WHERE id = ?", (question_id,))[0]["prompt"]
+                self.sql("UPDATE questions SET prompt = x'ff00fe' WHERE id = ?", (question_id,))
+                self.assert_only_these_unavailable((slot,))
+                self.sql("UPDATE questions SET prompt = ? WHERE id = ?", (prompt, question_id))
+                self.assert_only_these_unavailable(())
+
+    def test_several_uninterpretable_items_are_each_unavailable_and_the_rest_reviewed(self):
+        self.hostile_option(self.mc[1], "true")  # slot 2
+        self.hostile_visual(self.mc[10], "true")  # slot 11
+        self.sql("UPDATE questions SET prompt = x'00' WHERE id = ?", (self.sa[0],))  # slot 16
+        self.sql("UPDATE questions SET prompt = x'ff' WHERE id = ?", (self.sa[9],))  # slot 25
+        self.assert_only_these_unavailable((2, 11, 16, 25))
+
+    def test_an_item_that_cannot_be_interpreted_beside_one_that_is_merely_unavailable(self):
+        self.sql("DELETE FROM multiple_choice_options WHERE question_id = ?", (self.mc[0],))  # slot 1: removed
+        self.hostile_option(self.mc[4], "true")  # slot 5: cannot be read
+        self.assert_only_these_unavailable((1, 5))
+
+    # ------------------------------------------------------------------ bounded behaviour
+    def test_the_normal_path_judges_the_saved_slots_in_one_batch_and_only_a_failure_judges_them_singly(self):
+        with patch.object(part1, "_presentable_slots", wraps=part1._presentable_slots) as judged:
+            self.assertTrue(self.load(self.attempt_id).loaded)
+        self.assertEqual(judged.call_count, 1)
+        self.assertEqual(len(judged.call_args.args[1].question_ids), 25)
+        self.hostile_option(self.mc[3], "true")
+        with patch.object(part1, "_presentable_slots", wraps=part1._presentable_slots) as judged:
+            self.assert_only_these_unavailable((4,))
+        self.assertEqual(judged.call_count, 1 + 25)  # the failed batch, then each saved slot alone
+
+    def test_an_unsaved_planned_item_is_not_read_at_all(self):
+        """A planned item that was never graded has no saved row; hostile content on it cannot matter."""
+        dropped, owner = {}, self.add_account()
+        attempt_id = self.finish(who=owner, before_submit=lambda a: dropped.setdefault("id", self.drop_mc_slot(a, 2)))
+        self.hostile_option(dropped["id"], "true")
+        with patch.object(part1, "_presentable_slots", wraps=part1._presentable_slots) as judged:
+            result = self.load(attempt_id, owner)
+        self.assertEqual(judged.call_count, 1)
+        self.assertEqual(len(judged.call_args.args[1].question_ids), 24)
+        self.assertTrue(result.loaded)
+        self.assertEqual((result.score_points, result.score_max, result.omitted_slot_numbers, result.unavailable_slot_numbers),
+                         (44, 44, (3,), ()))
+        self.assertEqual(result.reviewed_slot_numbers, tuple(n for n in range(1, 26) if n != 3))
+
+    def test_a_database_error_and_any_other_error_still_propagate(self):
+        for error in (sqlite3.OperationalError("database is locked"), sqlite3.DatabaseError("malformed"),
+                      RuntimeError("unexpected"), KeyError("slot"), AttributeError("x"), ZeroDivisionError()):
+            with self.subTest(error=type(error).__name__):
+                with patch.object(part1, "_presentable_slots", side_effect=error), self.assertRaises(type(error)):
+                    self.load(self.attempt_id)
+                self.assert_released()
+
+    def test_a_database_error_while_judging_one_item_is_not_absorbed_with_the_value_errors(self):
+        calls = []
+
+        def judge(conn, stored):
+            calls.append(len(stored.question_ids))
+            if stored.question_ids == (self.mc[2],):  # slot 3, judged alone after the batch failed
+                raise sqlite3.OperationalError("database is locked")
+            raise ValueError("not a number")  # the batch, and the first two single items
+
+        with patch.object(part1, "_presentable_slots", side_effect=judge), self.assertRaises(sqlite3.OperationalError):
+            self.load(self.attempt_id)
+        self.assertEqual(calls, [25, 1, 1, 1])
+        self.assert_released()
+
+    def test_an_uninterpretable_item_does_not_hide_a_corrupt_saved_result(self):
+        self.hostile_option(self.mc[3], "true")
+        self.change("UPDATE dzi_part1_attempts SET score_points = 44 WHERE id = ?", (self.attempt_id,))
+        with self.assertRaises(part1.Part1StateError):
+            self.load(self.attempt_id)
+        self.assert_released()
+
+
 # =========================================================================== corrupt stored state
 
 class CorruptStateTest(ResultCase):
@@ -835,6 +1006,10 @@ class CorruptStateTest(ResultCase):
             ("a chosen key that is a blob", "UPDATE dzi_part1_answers SET chosen_letter = x'41' WHERE attempt_id = {a} AND slot_number = 1", ()),
             ("a short-answer text that is a blob", "UPDATE dzi_part1_answers SET raw_answer = x'41' WHERE rowid = (" + sa_part_one + ")", ()),
             ("correct for an unanswered part", "UPDATE dzi_part1_answers SET raw_answer = NULL WHERE rowid = (" + sa_part_one + ")", ()),
+            ("correct for a part stored as an empty text", "UPDATE dzi_part1_answers SET raw_answer = ? WHERE rowid = (" + sa_part_one + ")", ('',)),
+            ("correct for a part stored as spaces", "UPDATE dzi_part1_answers SET raw_answer = ? WHERE rowid = (" + sa_part_one + ")", ('   ',)),
+            ("correct for a part stored as a space and a tab", "UPDATE dzi_part1_answers SET raw_answer = ? WHERE rowid = (" + sa_part_one + ")", (' \t',)),
+            ("correct for a part stored as a no-break space", "UPDATE dzi_part1_answers SET raw_answer = ? WHERE rowid = (" + sa_part_one + ")", ('\xa0',)),
             ("a multiple-choice row not worth the slot", "UPDATE dzi_part1_answers SET points_possible = 2, points_awarded = 2 "
              "WHERE attempt_id = {a} AND slot_number = 1", ()),
             ("short-answer weights that do not sum", "UPDATE dzi_part1_answers SET points_possible = points_possible + 1, "
@@ -919,6 +1094,44 @@ class CorruptStateTest(ResultCase):
         self.sql("UPDATE multiple_choice_options SET is_correct = 0")  # nothing could be reviewed either
         with self.assertRaises(part1.Part1StateError):
             self.load(attempt_id)
+
+
+    def test_a_correct_verdict_on_a_blank_short_answer_is_refused_with_its_own_reason(self):
+        """The submit stores a blank part as NULL and always wrong, so a correct row whose text is empty, spaces, a
+        space and a tab, a no-break space (or NULL) is not something it wrote."""
+        for blank in ("", "   ", " \t", "\xa0", None):
+            with self.subTest(blank=blank):
+                who = self.add_account()
+                attempt_id = self.finish(who=who)
+                self.change("UPDATE dzi_part1_answers SET raw_answer = ? WHERE attempt_id = ? AND slot_number = 16 "
+                            "AND subquestion_number = 1", (blank, attempt_id), check_constraints=False)
+                before = self.state()
+                with self.assertRaisesRegex(part1.Part1StateError, "a correct verdict for an unanswered part") as caught:
+                    self.load(attempt_id, who)
+                self.assertIn(str(attempt_id), str(caught.exception))
+                self.assertEqual(self.state(), before)
+                self.assert_released()
+
+    def test_a_wrong_verdict_on_an_unanswered_short_answer_still_loads_as_saved(self):
+        def skip_slot_16(attempt_id):
+            skipped = f"a_{self.plan_of(attempt_id)[15]}_"
+            return {key: value for key, value in self.right_fields(attempt_id).items() if not key.startswith(skipped)}
+
+        attempt_id = self.finish(skip_slot_16)
+        saved = [row for row in self.answers(attempt_id) if row["slot_number"] == 16]
+        self.assertTrue(saved and all(row["raw_answer"] is None and row["is_correct"] == 0 for row in saved))
+        before = self.state()
+        result = self.load(attempt_id)
+        self.assertTrue(result.loaded)
+        self.assertEqual((result.score_points, result.score_max, result.short_answer_points, result.short_answer_max),
+                         (42, 45, 27, 30))
+        self.assertEqual(result.reviewed_slot_numbers, tuple(range(1, 26)))
+        item = next(q for q in result.short_answers if q["saved_slot_number"] == 16)
+        self.assertEqual([(p["raw_answer"], p["is_correct"], p["points_awarded"]) for p in item["parts"]],
+                         [(None, False, 0)] * len(saved))
+        self.assertEqual((item["points_possible"], item["points_awarded"]), (3, 0))
+        self.assertEqual(self.state(), before)
+        self.assert_released()
 
 
 # =========================================================================== saved slot numbers
