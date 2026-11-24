@@ -1,7 +1,7 @@
 # LearnPilot Script Inventory
 
 This inventory covers tracked files under `src/` and the three historical scripts
-that remain at the repository root (listed under **Historical / one-shot**). It
+archived in `scripts/archive/` (listed under **Historical / one-shot**). It
 intentionally excludes local artifacts that may appear in a working tree, such as
 `.DS_Store` files or `src/data/`.
 
@@ -130,9 +130,9 @@ Status is conservative:
 | `src/apply_curriculum_section_provenance.py` | One-off schema/data patch adding provenance fields to curriculum sections. |
 | `src/cleanup_sumif_renamed.py` | One-off cleanup for the duplicate `sumif-renamed` topic and related vault note. |
 | `src/cleanup_legacy_dzi_question_slugs.py` | Conservative cleanup tool for known legacy DZI `source_exam` slugs; keep for audit trail. |
-| `audit_reclassification_state.py` (repository root) | Old reclassification audit. Uses paths relative to the working directory: a local runtime DB, logs, the vault, source files and a named backup DB. It opens SQLite normally (not read-only) and writes its report to the old root path `audit_reclassification_report.md`, so running it from the repository root recreates that file there; the archived copy now lives under `docs/reviews/`. It embeds a historical raw database-copy suggestion, which is not the approved backup workflow (`src/backup_sqlite.py`). Not the current read-only canonical audit. |
-| `cleanup_old_backups_keep_current.sh` (repository root) | One-time cleanup of old local DB, `app.py`, template and vault backups, run relative to the working directory with `find … -delete` and `rm -rf`; it has no dry-run mode. It first requires all four named `current-stable-before-ui` snapshots to exist and exits before deleting anything if one is missing. It says it keeps all four, but its vault exclusion `-name './vault.backup-current-stable-before-ui'` can never match a basename, so that vault snapshot would also be deleted. Known defect, deliberately left unfixed; do not run. Not the current backup/retention workflow. |
-| `repair_topic_areas_from_vault.py` (repository root) | One-time repair that sets missing topic `area_id` values in the runtime DB from vault note frontmatter. It has no main guard and no dry-run mode: merely importing the module opens SQLite and runs the repair and commit. Do not import or run it. |
+| `scripts/archive/audit_reclassification_state.py` | Old reclassification audit. Uses paths relative to the working directory: a local runtime DB, logs, the vault, source files and a named backup DB. It opens SQLite normally (not read-only) and writes its report to the old root path `audit_reclassification_report.md`, so running it from the repository root recreates that file there; the archived copy now lives under `docs/reviews/`. It embeds a historical raw database-copy suggestion, which is not the approved backup workflow (`src/backup_sqlite.py`). Not the current read-only canonical audit. |
+| `scripts/archive/cleanup_old_backups_keep_current.sh` | One-time cleanup of old local DB, `app.py`, template and vault backups, run relative to the working directory with `find … -delete` and `rm -rf`; it has no dry-run mode. It first requires all four named `current-stable-before-ui` snapshots to exist and exits before deleting anything if one is missing. It says it keeps all four, but its vault exclusion `-name './vault.backup-current-stable-before-ui'` can never match a basename, so that vault snapshot would also be deleted. Known defect, deliberately left unfixed; do not run. Not the current backup/retention workflow. |
+| `scripts/archive/repair_topic_areas_from_vault.py` | One-time repair that sets missing topic `area_id` values in the runtime DB from vault note frontmatter. It has no main guard and no dry-run mode: merely importing the module opens SQLite and runs the repair and commit. Do not import or run it. |
 
 ## Historical report snapshots
 
@@ -144,4 +144,4 @@ edited.
 
 - [`REVIEW_2026-06-11.md`](reviews/REVIEW_2026-06-11.md)
 - [`REVIEW_2026-06-11_pass2.md`](reviews/REVIEW_2026-06-11_pass2.md)
-- [`audit_reclassification_report.md`](reviews/audit_reclassification_report.md) — output of the root `audit_reclassification_state.py` above.
+- [`audit_reclassification_report.md`](reviews/audit_reclassification_report.md) — output of the archived `scripts/archive/audit_reclassification_state.py` above.

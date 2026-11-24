@@ -1,15 +1,30 @@
 # LearnPilot
 
-LearnPilot is a local learning and assessment app. Its current focus is
-Bulgarian information technology preparation, including DZI preparation.
+LearnPilot is a learning and exam-prep platform, live at [learnpilot.bg](https://learnpilot.bg)
+and in testing with students and teachers. It serves 1,700+ questions across IT, physics and
+biology, mapped to 180 curriculum topics and 11 official Bulgarian state exams (DZI).
 
-DZI is a feature/module inside LearnPilot, not the product name. DZI-specific
-routes, scripts, schema tables, source slugs, and import flows keep their DZI
-names because they model the Bulgarian state exam domain.
+## Highlights
 
-The repository and local folder are still named `dzi-generator` for historical
-reasons. Path commands continue to use `~/dzi-generator` until the repo/folder
-rename is handled separately.
+- **Layered Flask app**: 11 blueprints (`web/blueprints/`) over a separate service layer
+  (`web/services/`), Jinja templates, SQLite in WAL mode.
+- **LLM pipelines on local models (Ollama)**, all kept out of the request path:
+  - topic router: embeddings (`nomic-embed-text`) and cosine similarity shortlist candidate
+    topics, the LLM picks one, and confidence and margin thresholds decide whether it is
+    accepted (`src/reclassify_topics.py`);
+  - answer predictor (`src/predict_answers.py`) and question generator with schema-validated
+    output (`src/generate_questions.py`);
+  - model output goes through validation, JSONL audit logs and human review before import,
+    with dry-run by default (`docs/question_batch_review.md`).
+- **Security**: deny-by-default role-based access (student, teacher, admin), same-origin checks
+  on every unsafe request (`web/request_integrity.py`), Google sign-in (OpenID Connect), TOTP
+  two-factor for admins, login throttling.
+- **Operations**: 28 versioned SQL migrations; production refuses to start with pending ones.
+  Nginx -> Gunicorn -> SQLite, with WAL-safe backups on systemd timers (`docs/DEPLOYMENT.md`).
+- **Testing**: 5,700+ unit tests on temporary databases built from migrations and canonical data
+  (`docs/TESTING.md`).
+- **Workflow**: built in small, reviewed pull requests with AI coding agents; each larger feature
+  has a design, scope and test plan in `docs/` (`AGENTS.md` holds the agent rules).
 
 ## Stack
 
@@ -114,3 +129,7 @@ app), then run `totp-enroll --email <email>` and `totp-confirm --email <email>`.
 - A teacher account sees and manages only the assignments it created, and their attempts and practical submissions. Another teacher's assignment answers 404.
 - An admin account (password plus TOTP or a recovery code) sees everything, including assignments without an owner.
 - Assignments created before ownership existed have no owner and are admin-only; nothing assigns them to a teacher automatically.
+
+> **Naming:** DZI is a module inside LearnPilot, not the product name, so DZI-specific
+> routes, scripts and tables keep their DZI names. The repository was renamed from
+> `dzi-generator` (old links redirect); local checkouts may still use that folder name.
