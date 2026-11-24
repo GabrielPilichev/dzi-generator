@@ -9,3 +9,7 @@ python-docx>=1.1
 # requests     # src/scrape/http.py
 # Ollama tooling (src/agents/ollama_client.py) needs a local `ollama serve`;
 # no extra pip package is required.
+
+# Question bank assistant (`python -m src.assistant`, operator CLI only).
+# The web app and the tests do not need this package; install it only to run the CLI.
+anthropic>=2.13,<3
