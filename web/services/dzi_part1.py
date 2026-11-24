@@ -1,14 +1,16 @@
 """DZI Part 1 simulation pools, the account-owned start/resume service (C3.2) and the
-submit / grading service with its bounded-request helper (C3.3).
+submit / grading service with its bounded-request helper (C3.3) and the saved-result loader (C3.4).
 
 Governed by docs/DZI_PART1_SIMULATION_DESIGN.md (sections 3-7, 9 and 10) and the scopes
-docs/reviews/dzi-part1-start-service-scope.md and docs/reviews/dzi-part1-submit-service-scope.md,
-over the runtime tables of migration 027. This module decides and writes the *start* of a
-timed attempt (:func:`start_or_resume_part1`) and the *submission and grading* of one
-(:func:`submit_part1`, with :func:`read_bounded_form` as the request boundary in front of it).
-There is no route, template, result loader, timer or exposure flag here, and no existing caller,
+docs/reviews/dzi-part1-start-service-scope.md, docs/reviews/dzi-part1-submit-service-scope.md and
+docs/reviews/dzi-part1-result-loader-scope.md, over the runtime tables of migration 027. This module
+decides and writes the *start* of a timed attempt (:func:`start_or_resume_part1`) and the *submission and
+grading* of one (:func:`submit_part1`, with :func:`read_bounded_form` as the request boundary in front of it),
+and it *reads* the saved result of a submitted one (:func:`load_part1_result`, read-only).
+There is no route, template, attempt view, timer or exposure flag here, and no existing caller,
 shared eligibility rule, shared grader or public rendering rule is changed. Nothing imports it
-yet, so it is dormant: the submit service is documented in "Submission (C3.3)" at the end.
+yet, so it is dormant: the submit service is documented in "Submission (C3.3)" and the loader in
+"Result (C3.4)" at the end.
 
 Contract
 --------
@@ -183,6 +185,50 @@ Werkzeug's cache and its byte count must equal the declared length (else 400) be
 ``request.form`` is read. When the declared length is exactly the cap, a terminated stream that
 delivers more is read only up to the declared bytes: the excess is never seen, parsed, graded or
 stored. That is stated, not hidden: over-delivery past the cap is not always detected.
+
+Result (C3.4)
+-------------
+:func:`load_part1_result` takes a caller-owned connection, the trusted account principal and the **path**
+attempt id, and returns a :class:`Part1Result` whose ``outcome`` is ``loaded``, ``not_found`` or
+``account_unavailable``. A missing, foreign, open, expired and abandoned attempt are one ``not_found``
+(the owner is part of the lookup; a teacher or admin principal owns only its own rows). It **never writes,
+admits, stamps or reads a clock**, and it does not look at the active blueprint: a submitted result stays
+readable whatever the blueprint, the grace constant or the clock say.
+
+*One snapshot.* The account, the attempt, its saved answers and every current-content read happen in one
+read transaction: the caller's own, reused and left exactly as it was on success and on error, otherwise a
+deferred ``BEGIN`` that is ended with an explicit ``ROLLBACK`` (so an ``autocommit=True`` connection is
+released too). A ``query_only`` connection works. A content edit on another connection is either wholly
+before or wholly after the read.
+
+*What is authoritative.* The saved verdicts, awarded and possible points, the raw typed text, the chosen
+option key and the stored score (``score_points`` / ``score_max``) are returned as saved. Nothing is
+regraded, repaired or derived from a current key, a saved maximum is never replaced by the planned one
+(``max_points_planned`` is returned beside it) and no row is invented for an item that was skipped at grading.
+The multiple-choice and short-answer subtotals are sums of the saved rows. ``score_max`` can be below the
+planned maximum (an item was unpresentable when it was graded); that is reported, not corrected.
+
+*Consistency, fail closed* (:class:`Part1StateError`, :class:`Part1PlanError`; nothing is repaired). Checked
+against the saved flat plan and slot format: only the submitted state, a readable ``submitted_at`` between
+the start and the cutoff, a score of whole numbers with ``0 <= points <= max`` and ``max`` no larger than the
+planned maximum; every answer row names a slot of the plan, the plan's question id and the slot's kind;
+a multiple-choice slot has exactly one row worth the slot's saved points; a short-answer slot has
+distinct positive parts whose saved weights sum to the slot's saved points; an unanswered part is wrong; every
+award is all or nothing; one grader version; and the row sums equal the stored score and maximum.
+
+*Review rows.* Only slots that have saved rows are reviewed, in the original slot order (gaps stay gaps).
+A saved slot is reviewable when its item still passes the per-item rule that the start and submit
+services use (:func:`_presentable_slots`: stored kind and points, current rendering and readiness, current
+part weights summing to the stored points) and, for a short answer, still has exactly the parts that were
+graded. Reviewable items show the **current** prompt, options (in the attempt's seeded order, with the
+saved key), correct key, accepted answers, visuals and explanations through the existing read helpers; the
+saved verdict is shown as saved, so after a content change a review can disagree with it. Saved items that
+are not reviewable are counted (``unavailable_slot_numbers``); planned items that have no saved row are
+counted separately (``omitted_slot_numbers``). No pool is composed and the stimulus list is not consulted.
+An empty review still returns the whole saved result (:attr:`Part1Result.only_saved_score`).
+
+*Carried to activation, unchanged.* The inherited order-independent matcher (a repeated accepted answer
+earns every part of such an item) and the clock limits of the start and submit services are not touched here.
 """
 
 from __future__ import annotations
@@ -192,7 +238,7 @@ import random
 import re
 import secrets
 import sqlite3
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from datetime import datetime, timedelta
 from typing import NamedTuple
 
@@ -205,11 +251,15 @@ from web.services import dzi_exams, lifecycle
 from web.services.question_visuals import QUESTION_VISUAL_STATIC_PREFIX, fetch_question_visual_assets
 from web.services.quiz import (
     QUIZ_APPROVED_FILTER,
+    QUIZ_NO_EXPLANATION_MESSAGE,
     _quiz_candidate_grading_mode,
     _quiz_subquestion_accepted_answers,
+    fetch_option_explanations,
+    fetch_question_explanations,
     filter_renderable_attempt_question_ids,
     grade_quiz_text_answers,
     quiz_correct_mc_letters_by_id,
+    quiz_load_questions,
     quiz_normalize_text_answer,
     quiz_path_exists,
     quiz_prompt_needs_visual,
@@ -255,6 +305,7 @@ OUTCOME_NOT_FOUND = "not_found"
 OUTCOME_STALE = "stale"
 OUTCOME_EMPTY = "empty"
 OUTCOME_INVALID_INPUT = "invalid_input"
+OUTCOME_LOADED = "loaded"  # the saved result (C3.4); a refusal there is OUTCOME_NOT_FOUND / OUTCOME_ACCOUNT_UNAVAILABLE
 
 # Submit bounds (design 6.4): the body a submit may carry and the text of one short-answer value.
 MAX_BODY_BYTES = 64 * 1024
@@ -1146,3 +1197,310 @@ def read_bounded_form(request) -> BoundedForm:
     except HTTPException:
         return BoundedForm(400, REASON_UNREADABLE, declared_length=declared, received_length=len(data))
     return BoundedForm(200, REASON_OK, fields, declared, len(data))
+
+
+# =========================================================================== result (C3.4)
+
+class _SavedPart(NamedTuple):
+    """One saved answer row, validated against the plan and the slot format."""
+
+    subquestion_number: int
+    chosen_letter: str | None
+    raw_answer: str | None
+    is_correct: bool
+    points_possible: int
+    points_awarded: int
+
+
+class _SavedAnswers(NamedTuple):
+    by_slot: dict[int, tuple[_SavedPart, ...]]  # slot number -> saved rows, only slots that have any
+    grader_version: str
+    multiple_choice_points: int
+    multiple_choice_max: int
+    short_answer_points: int
+    short_answer_max: int
+
+
+class Part1Result(NamedTuple):
+    """The saved result of a submitted attempt; ``outcome`` is ``loaded``, ``not_found`` or ``account_unavailable``.
+
+    Everything but ``outcome`` is filled in for ``loaded`` only (module docstring, "Result (C3.4)").
+
+    ``score_points`` / ``score_max`` and the four subtotals are the *saved* numbers (the subtotals are sums of
+    the saved answer rows); ``max_points_planned`` is the planned maximum, which ``score_max`` never replaces.
+    ``questions`` are the multiple-choice review rows for the shared partial and ``short_answers`` the
+    short-answer review rows, both in original slot order and both limited to ``reviewed_slot_numbers``.
+    ``planned_slot_count`` counts the 25 planned slots; ``saved_slot_numbers`` those with saved rows;
+    ``omitted_slot_numbers`` the planned slots without any saved row (not presentable when graded; never
+    invented); ``unavailable_slot_numbers`` the saved slots that cannot be reviewed now.
+    """
+
+    outcome: str
+    attempt_id: int | None = None
+    submitted_at: str | None = None
+    started_at: str | None = None
+    duration_seconds: int | None = None
+    score_points: int | None = None
+    score_max: int | None = None
+    max_points_planned: int | None = None
+    multiple_choice_points: int | None = None
+    multiple_choice_max: int | None = None
+    short_answer_points: int | None = None
+    short_answer_max: int | None = None
+    grader_version: str | None = None
+    planned_slot_count: int = 0
+    saved_slot_numbers: tuple[int, ...] = ()
+    omitted_slot_numbers: tuple[int, ...] = ()
+    reviewed_slot_numbers: tuple[int, ...] = ()
+    unavailable_slot_numbers: tuple[int, ...] = ()
+    questions: tuple[dict, ...] = ()
+    short_answers: tuple[dict, ...] = ()
+
+    @property
+    def loaded(self) -> bool:
+        return self.outcome == OUTCOME_LOADED
+
+    @property
+    def only_saved_score(self) -> bool:
+        """The score was saved but no item can be reviewed now."""
+        return self.loaded and not self.reviewed_slot_numbers
+
+    @property
+    def below_planned_maximum(self) -> bool:
+        """The saved maximum is under the planned one: some planned item was not graded."""
+        return self.loaded and self.score_max < self.max_points_planned
+
+    def review_context(self) -> dict:
+        """The template variables the shared multiple-choice partial reads. Each row carries ``saved_slot_number``,
+        which is what makes the partial number its cards by the saved slot instead of by position."""
+        return {"questions": list(self.questions), "stale_attempt_message": None}
+
+
+def _require_configured_connection(conn: sqlite3.Connection) -> None:
+    """Like the writers' check, but a caller transaction (and autocommit) is fine: a load reuses it."""
+    if conn.row_factory is not sqlite3.Row or conn.execute("PRAGMA foreign_keys").fetchone()[0] != 1:
+        raise RuntimeError("the connection is not configured (sqlite3.Row rows, foreign keys on)")
+
+
+def _in_read_snapshot(conn: sqlite3.Connection, read: Callable[[], Part1Result]) -> Part1Result:
+    """Run ``read`` in one read snapshot: the caller's transaction if any, else our own.
+
+    A caller transaction is reused and left exactly as it was, on success and on error. Our own is ended with
+    explicit SQL (``ROLLBACK``: nothing was written), so a connection opened with ``autocommit=True``, where
+    ``Connection.rollback()`` does nothing, is released too.
+    """
+    if conn.in_transaction:
+        return read()
+    conn.execute("BEGIN")  # deferred: the first read fixes the snapshot, no writer lock is taken
+    try:
+        result = read()
+        conn.execute("ROLLBACK")
+    except BaseException:
+        if conn.in_transaction:
+            conn.execute("ROLLBACK")
+        raise
+    return result
+
+
+def _invalid_result(attempt_id: int, reason: str) -> Part1StateError:
+    return Part1StateError(f"DZI Part 1 attempt {attempt_id} stores an inconsistent result: {reason}")
+
+
+def _whole(value: object) -> bool:
+    return type(value) is int and 0 <= value <= _SQLITE_MAX_INTEGER
+
+
+def _saved_answers(conn: sqlite3.Connection, stored: StoredAttempt, score_points: int, score_max: int) -> _SavedAnswers:
+    """The saved rows of a submitted attempt, confirmed against its plan, slot format and score; never repaired."""
+    attempt_id = stored.attempt_id
+    by_slot: dict[int, list[_SavedPart]] = {}
+    versions: set[str] = set()
+    for row in conn.execute(
+            "SELECT slot_number, subquestion_number, question_id, kind, chosen_letter, raw_answer, is_correct, "
+            "points_possible, points_awarded, grader_version FROM dzi_part1_answers WHERE attempt_id = ? "
+            "ORDER BY slot_number, subquestion_number", (attempt_id,)).fetchall():
+        slot_number, part, question_id = row["slot_number"], row["subquestion_number"], row["question_id"]
+        if not _whole(slot_number) or not 1 <= slot_number <= PART1_SLOT_COUNT:
+            raise _invalid_result(attempt_id, "an answer for a slot outside the plan")
+        slot = stored.slots[slot_number - 1]
+        if question_id != stored.question_ids[slot_number - 1]:
+            raise _invalid_result(attempt_id, "an answer for a question other than the planned one")
+        if row["kind"] != slot.kind:
+            raise _invalid_result(attempt_id, "an answer whose kind is not the slot's kind")
+        letter, raw, verdict = row["chosen_letter"], row["raw_answer"], row["is_correct"]
+        possible, awarded, version = row["points_possible"], row["points_awarded"], row["grader_version"]
+        if type(verdict) is not int or verdict not in (0, 1):
+            raise _invalid_result(attempt_id, "a verdict that is not 0 or 1")
+        if not _whole(possible) or possible <= 0 or not _whole(awarded) or awarded != (possible if verdict else 0):
+            raise _invalid_result(attempt_id, "an award that is not all or nothing of the possible points")
+        if type(version) is not str or not version:
+            raise _invalid_result(attempt_id, "a grader version that is not text")
+        versions.add(version)
+        if slot.kind == KIND_MULTIPLE_CHOICE:
+            if part != 0 or raw is not None or (letter is not None and type(letter) is not str):
+                raise _invalid_result(attempt_id, "a malformed multiple-choice row")
+            if letter is None and verdict:
+                raise _invalid_result(attempt_id, "a correct verdict without a chosen key")
+            if possible != slot.points:
+                raise _invalid_result(attempt_id, "a multiple-choice row not worth the slot's saved points")
+        else:
+            if not _whole(part) or part < 1 or letter is not None or (raw is not None and type(raw) is not str):
+                raise _invalid_result(attempt_id, "a malformed short-answer row")
+            if raw is None and verdict:
+                raise _invalid_result(attempt_id, "a correct verdict for an unanswered part")
+        saved = by_slot.setdefault(slot_number, [])
+        if any(earlier.subquestion_number == part for earlier in saved):
+            raise _invalid_result(attempt_id, "a duplicate answer row")
+        saved.append(_SavedPart(part, letter, raw, verdict == 1, possible, awarded))
+    if not by_slot:
+        raise _invalid_result(attempt_id, "no saved answer rows")
+    if len(versions) != 1:
+        raise _invalid_result(attempt_id, "more than one grader version")
+
+    totals = {KIND_MULTIPLE_CHOICE: [0, 0], KIND_SHORT_ANSWER: [0, 0]}
+    for slot_number, parts in by_slot.items():
+        slot = stored.slots[slot_number - 1]
+        if slot.kind == KIND_MULTIPLE_CHOICE and len(parts) != 1:
+            raise _invalid_result(attempt_id, "a multiple-choice slot with more than one row")
+        if sum(part.points_possible for part in parts) != slot.points:
+            raise _invalid_result(attempt_id, "saved weights that do not sum to the slot's saved points")
+        totals[slot.kind][0] += sum(part.points_awarded for part in parts)
+        totals[slot.kind][1] += sum(part.points_possible for part in parts)
+    if totals[KIND_MULTIPLE_CHOICE][0] + totals[KIND_SHORT_ANSWER][0] != score_points:
+        raise _invalid_result(attempt_id, "the saved awards differ from the stored score")
+    if totals[KIND_MULTIPLE_CHOICE][1] + totals[KIND_SHORT_ANSWER][1] != score_max:
+        raise _invalid_result(attempt_id, "the saved possible points differ from the stored maximum")
+    return _SavedAnswers({slot_number: tuple(parts) for slot_number, parts in sorted(by_slot.items())},
+                         versions.pop(), *totals[KIND_MULTIPLE_CHOICE], *totals[KIND_SHORT_ANSWER])
+
+
+def _review_slots(conn: sqlite3.Connection, stored: StoredAttempt, saved: _SavedAnswers) -> tuple[int, ...]:
+    """The saved slots whose item can be reviewed now, ascending: presentable by the services' per-item rule
+    and, for a short answer, still made of exactly the parts that were graded."""
+    presentable = set(_presentable_slots(conn, stored))
+    short_ids = [stored.question_ids[number - 1] for number in saved.by_slot
+                 if stored.slots[number - 1].kind == KIND_SHORT_ANSWER and number in presentable]
+    current_parts = _subquestions_by_question(conn, short_ids)
+    reviewable = []
+    for number, parts in saved.by_slot.items():
+        if number not in presentable:
+            continue
+        if stored.slots[number - 1].kind == KIND_SHORT_ANSWER:
+            now = {row["subquestion_number"] for row in current_parts.get(stored.question_ids[number - 1], [])}
+            if now != {part.subquestion_number for part in parts}:
+                continue
+        reviewable.append(number)
+    return tuple(reviewable)
+
+
+def _unique(values: list[str]) -> list[str]:
+    return list(dict.fromkeys(values))
+
+
+def _review_rows(conn: sqlite3.Connection, stored: StoredAttempt, saved: _SavedAnswers,
+                 slots: tuple[int, ...]) -> tuple[tuple[dict, ...], tuple[dict, ...], tuple[int, ...]]:
+    """Current content around the saved verdicts: multiple-choice rows for the shared partial, short-answer rows,
+    and the slots that were actually loaded (a snapshot that lost an item between two reads would drop it)."""
+    ids = [stored.question_ids[number - 1] for number in slots]
+    loaded = {int(question["id"]): question for question in quiz_load_questions(conn, ids, stored.seed, include_correct=True)}
+    question_explanations = fetch_question_explanations(conn, ids)
+    option_explanations = fetch_option_explanations(conn, ids)
+    short_ids = [question_id for number, question_id in zip(slots, ids) if stored.slots[number - 1].kind == KIND_SHORT_ANSWER]
+    current_parts = _subquestions_by_question(conn, short_ids)
+
+    multiple_choice, short_answers, shown = [], [], []
+    for number, question_id in zip(slots, ids):
+        question = loaded.get(question_id)
+        if question is None:
+            continue
+        shown.append(number)
+        parts = saved.by_slot[number]
+        slot = stored.slots[number - 1]
+        explanation = question_explanations.get(question_id)
+        question["saved_slot_number"] = number  # the shared partial numbers its card by this key when a row has it
+        question["kind"] = slot.kind
+        question["points_possible"] = sum(part.points_possible for part in parts)
+        question["points_awarded"] = sum(part.points_awarded for part in parts)
+        if slot.kind == KIND_MULTIPLE_CHOICE:
+            part = parts[0]
+            chosen_text = correct_text = None
+            for option in question["options"]:
+                if option["option_letter"] == part.chosen_letter:
+                    chosen_text = option["option_text"]
+                if int(option.get("is_correct") or 0) == 1:
+                    correct_text = option["option_text"]
+            question["chosen_letter"] = part.chosen_letter
+            question["chosen_text"] = chosen_text
+            question["correct_text"] = correct_text or "—"
+            question["is_correct"] = part.is_correct  # the saved verdict, never a comparison with current content
+            question["feedback_explanation"] = (
+                option_explanations.get((question_id, part.chosen_letter)) or explanation or QUIZ_NO_EXPLANATION_MESSAGE)
+            multiple_choice.append(question)
+            continue
+        rows = {row["subquestion_number"]: row for row in current_parts[question_id]}
+        question["grading_mode"] = _quiz_candidate_grading_mode(list(rows.values()))
+        question["feedback_explanation"] = explanation or QUIZ_NO_EXPLANATION_MESSAGE
+        question["parts"] = [
+            {"subquestion_number": part.subquestion_number, "raw_answer": part.raw_answer,
+             "is_correct": part.is_correct, "points_possible": part.points_possible,
+             "points_awarded": part.points_awarded,
+             "accepted_answers": _unique(_quiz_subquestion_accepted_answers(rows[part.subquestion_number]))}
+            for part in parts]
+        short_answers.append(question)
+    return tuple(multiple_choice), tuple(short_answers), tuple(shown)
+
+
+def _load_result(conn: sqlite3.Connection, user_id: int, attempt_id: int) -> Part1Result:
+    """The account's own submitted attempt, inside the read snapshot."""
+    if not _account_is_active(conn, user_id):
+        return Part1Result(OUTCOME_ACCOUNT_UNAVAILABLE)
+    if not 0 < attempt_id <= _SQLITE_MAX_INTEGER:
+        return Part1Result(OUTCOME_NOT_FOUND)
+    # The owner is part of the lookup: a missing and a foreign attempt are the same empty result.
+    row = conn.execute(
+        "SELECT id, seed, question_ids_json, slot_format_json, max_points_planned, duration_seconds, "
+        "started_at, deadline_at, submit_cutoff_at, submitted_at, expired_at, abandoned_at, score_points, "
+        "score_max FROM dzi_part1_attempts WHERE id = ? AND user_id = ?", (attempt_id, user_id)).fetchone()
+    if row is None or row["submitted_at"] is None:  # missing, foreign, open, expired or abandoned
+        return Part1Result(OUTCOME_NOT_FOUND)
+    if row["expired_at"] is not None or row["abandoned_at"] is not None:
+        raise _invalid_result(attempt_id, "submitted and also expired or abandoned")
+
+    stored = parse_stored_attempt(row)  # plan, slot format, planned maximum, duration and instants, fail closed
+    try:
+        submitted = lifecycle.parse_timestamp(row["submitted_at"])
+    except lifecycle.TimestampError:
+        raise _invalid_result(attempt_id, "an unreadable submission time") from None
+    if not stored.started_at <= submitted < stored.submit_cutoff_at:
+        raise _invalid_result(attempt_id, "a submission time outside the attempt's stored window")
+    score_points, score_max = row["score_points"], row["score_max"]
+    if not _whole(score_points) or not _whole(score_max) or not 0 <= score_points <= score_max or score_max <= 0:
+        raise _invalid_result(attempt_id, "a score that is not whole and bounded")
+    if score_max > row["max_points_planned"]:
+        raise _invalid_result(attempt_id, "a saved maximum above the planned maximum")
+
+    saved = _saved_answers(conn, stored, score_points, score_max)
+    slots = _review_slots(conn, stored, saved)
+    multiple_choice, short_answers, reviewed = _review_rows(conn, stored, saved, slots)
+    saved_numbers = tuple(saved.by_slot)
+    return Part1Result(
+        OUTCOME_LOADED, attempt_id, row["submitted_at"], row["started_at"], row["duration_seconds"],
+        score_points, score_max, row["max_points_planned"], saved.multiple_choice_points, saved.multiple_choice_max,
+        saved.short_answer_points, saved.short_answer_max, saved.grader_version, PART1_SLOT_COUNT, saved_numbers,
+        tuple(number for number in range(1, PART1_SLOT_COUNT + 1) if number not in saved.by_slot), reviewed,
+        tuple(number for number in saved_numbers if number not in reviewed), multiple_choice, short_answers)
+
+
+def load_part1_result(conn: sqlite3.Connection, principal: Principal, attempt_id: int) -> Part1Result:
+    """Load the principal's own submitted Part 1 attempt for review (module docstring, "Result (C3.4)").
+
+    Read-only: no admission, clock read, marking or other write, and no transaction is left open. Raises
+    :class:`Part1AccessError` for a principal that is not an account, ``ValueError`` for an ``attempt_id`` that is
+    not an integer, ``RuntimeError`` for an unconfigured connection and :class:`Part1StateError` /
+    :class:`Part1PlanError` for stored state it refuses to interpret. Any other database error propagates.
+    """
+    user_id = _account_id(principal)
+    if type(attempt_id) is not int:
+        raise ValueError("attempt_id must be an integer")
+    _require_configured_connection(conn)
+    return _in_read_snapshot(conn, lambda: _load_result(conn, user_id, attempt_id))

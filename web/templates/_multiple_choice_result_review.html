@@ -3,6 +3,9 @@
       questions              resolved result questions (prompt, difficulty, visual_assets, is_correct,
                              chosen_letter, chosen_text, correct_text, feedback_explanation, options)
       stale_attempt_message  optional; when set, only this warning is shown and no question
+    A question may also carry saved_slot_number (optional; only the DZI Part 1 result sets it). That number is then
+      the card number, so a saved result with a gap keeps its original slot numbers. A question without one, as
+      from every other caller, is numbered 1, 2, 3 ... in list order as before.
     Needs no assignment, attempt, score or route data. Open-answer review stays with the caller. -#}
 {% from "_question_visuals.html" import render_question_visuals -%}
 {% if stale_attempt_message %}
@@ -13,7 +16,7 @@
   {% for q in questions %}
     <article class="card question-card {{ 'correct' if q.is_correct else 'incorrect' }}">
       <div class="result-question-header">
-        <h2>Въпрос {{ loop.index }}</h2>
+        <h2>Въпрос {{ q.saved_slot_number if q.saved_slot_number else loop.index }}</h2>
         {% if q.is_correct %}
           <span class="status-pill status-pill--correct">Вярно</span>
         {% else %}
