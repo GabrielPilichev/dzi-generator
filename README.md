@@ -131,5 +131,5 @@ app), then run `totp-enroll --email <email>` and `totp-confirm --email <email>`.
 - Assignments created before ownership existed have no owner and are admin-only; nothing assigns them to a teacher automatically.
 
 > **Naming:** DZI is a module inside LearnPilot, not the product name, so DZI-specific
-> routes, scripts and tables keep their DZI names. The repository and local folder are still
-> named `dzi-generator` for historical reasons.
+> routes, scripts and tables keep their DZI names. The repository was renamed from
+> `dzi-generator` (old links redirect); local checkouts may still use that folder name.
