@@ -42,6 +42,9 @@ exam_v*.docx
 # Local generated output, if not needed in repo
 output/
 
+# Question bank assistant proposals and audit log (python -m src.assistant)
+data/assistant/
+
 # Stray shell typo/temp files
 =
 
