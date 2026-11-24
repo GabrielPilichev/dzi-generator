@@ -899,7 +899,8 @@ class SourcePreimageSchemaTest(fx.UpdaterTestCase):
 
         def mkdtemp(*args, **kwargs):
             directory = real_mkdtemp(*args, **kwargs)
-            created.append(directory)
+            # macOS: /var links to /private/var and the spy records resolved paths
+            created.extend({directory, os.path.realpath(directory)})
             return directory
         self.spy.clear()
         with mock.patch.object(manage_migrations, "apply_migrations", recording), \
@@ -1423,7 +1424,8 @@ class StaticGuardsAndCliTest(fx.UpdaterTestCase):
 
         def recording(*args, **kwargs):
             directory = real(*args, **kwargs)
-            created.append(directory)
+            # macOS: /var links to /private/var and the spy records resolved paths
+            created.extend({directory, os.path.realpath(directory)})
             return directory
         self.spy.clear()
         with mock.patch.object(tempfile, "mkdtemp", recording):
