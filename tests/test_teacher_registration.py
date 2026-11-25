@@ -957,7 +957,7 @@ class TeacherEnvironmentTest(TeacherRouteTestCase):
         self.assertIn("\nPRODUCTION_ACTIVATION = False\n", source)
         self.assertIn("\nTEACHER_ACTIVATION = False\n", source)
         self.assertIn("\nPRODUCTION_ACTIVATION = False\n", (root / "web/services/profiles.py").read_text(encoding="utf-8"))
-        self.assertIn("\nPRODUCTION_ACTIVATION = False\n", (root / "web/services/google_oidc.py").read_text(encoding="utf-8"))
+        self.assertIn("\nPRODUCTION_ACTIVATION = True\n", (root / "web/services/google_oidc.py").read_text(encoding="utf-8"))
         for path in sorted((root / "web").rglob("*.py")):
             text = path.read_text(encoding="utf-8")
             if path.name != "registration.py":
