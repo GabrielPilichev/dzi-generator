@@ -2375,6 +2375,16 @@ were before it. Forward fix first.
 
 ## 29. Google sign-in (PR #331): shipped disabled
 
+> **Status (2026-11-25): the activation gate is open.** `PRODUCTION_ACTIVATION` in
+> `web/services/google_oidc.py` is now `True`, opened by the owner before the identity
+> recovery tooling (item 2 below). With both `DZI_GOOGLE_CLIENT_ID` and
+> `DZI_GOOGLE_CLIENT_SECRET` unset the site stays as it was; with both set and valid the
+> sign-in page shows the Google button; exactly one or a malformed one stops the start.
+> Everything under "Accounts created through Google" still applies: until the recovery
+> tooling ships, a wrongly linked or lost Google identity cannot be corrected. The off
+> switch is unchanged: remove the two lines from `/etc/learnpilot/learnpilot.env` and
+> restart. The text below describes the original disabled release.
+
 **Google sign-in is not activated, and this build cannot activate it in
 production.** Nothing in this section has been carried out on any server: no
 client was registered with Google, no credential exists, and none of the checks

@@ -225,7 +225,7 @@ class AuthorizationRequestTest(unittest.TestCase):
         self.assertEqual(google_oidc.TOKEN_ENDPOINT, "https://oauth2.googleapis.com/token")
         self.assertEqual(google_oidc.JWKS_URI, "https://www.googleapis.com/oauth2/v3/certs")
         self.assertEqual(google_oidc.ID_TOKEN_ALGORITHM, "RS256")
-        self.assertIs(google_oidc.PRODUCTION_ACTIVATION, False)
+        self.assertIs(google_oidc.PRODUCTION_ACTIVATION, True)
 
     def test_the_configuration_rules_name_settings_and_never_values(self):
         good_id, good_secret = CLIENT_ID, CLIENT_SECRET

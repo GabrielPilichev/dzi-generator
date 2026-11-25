@@ -39,10 +39,12 @@ logger = logging.getLogger("learnpilot.oidc")
 # --------------------------------------------------------------------------- activation
 #
 # The build's activation gate (design 8.1, decision P2). While it is False a production
-# start keeps Google sign-in disabled whatever the two credential settings hold. The
-# release that delivers the identity recovery tooling (design 10) sets it to True. No
-# setting and no environment variable overrides it.
-PRODUCTION_ACTIVATION = False
+# start keeps Google sign-in disabled whatever the two credential settings hold. It is
+# True: both credential settings unset keep Google sign-in disabled, both valid enable it,
+# and exactly one or a malformed one stops the start. Opened by the owner before the
+# identity recovery tooling (design 10); docs/DEPLOYMENT.md section 29 lists what that
+# leaves uncorrectable. No setting and no environment variable overrides it.
+PRODUCTION_ACTIVATION = True
 
 # --------------------------------------------------------------------------- metadata
 #

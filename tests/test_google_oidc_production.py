@@ -47,8 +47,9 @@ MARKER = "LPPROBE_TEST_BODY_MARKER"
 GATE_PROBE = r'''
 import json, logging, os, sys
 from web.services import google_oidc
-if os.environ.get("PROBE_ACTIVATION") == "on":
-    google_oidc.PRODUCTION_ACTIVATION = True
+# "on" / "off" force the gate; "build" keeps the value this build ships.
+if os.environ.get("PROBE_ACTIVATION") in ("on", "off"):
+    google_oidc.PRODUCTION_ACTIVATION = os.environ["PROBE_ACTIVATION"] == "on"
 try:
     from web.wsgi import app
 except Exception as exc:
@@ -109,8 +110,8 @@ class ActivationGateTest(unittest.TestCase):
         {google_oidc.CLIENT_ID_ENV: CLIENT_ID, google_oidc.CLIENT_SECRET_ENV: ""},
     )
 
-    def test_the_constant_is_off_in_this_build_and_nothing_else_sets_it(self):
-        self.assertIs(google_oidc.PRODUCTION_ACTIVATION, False)
+    def test_the_constant_is_on_in_this_build_and_nothing_else_sets_it(self):
+        self.assertIs(google_oidc.PRODUCTION_ACTIVATION, True)
         assignments = []
         for directory in ("web", "src", "deploy"):
             for path in (ROOT / directory).rglob("*.py"):
@@ -122,15 +123,17 @@ class ActivationGateTest(unittest.TestCase):
                                                "web/services/recovery.py", "web/services/registration.py"])
         # No environment variable reads into it: the module reads none at all.
         source = (ROOT / "web/services/google_oidc.py").read_text(encoding="utf-8")
-        self.assertIn("\nPRODUCTION_ACTIVATION = False\n", source)
+        self.assertIn("\nPRODUCTION_ACTIVATION = True\n", source)
         for needle in ("os.environ", "getenv", "import os"):
             self.assertFalse(needle in source, needle)
 
+    @patch.object(google_oidc, "PRODUCTION_ACTIVATION", False)
     def test_off_the_presence_of_credentials_never_refuses_a_start(self):
         for environ in ({}, GOOD, *self.ONE_OF_TWO, *self.MALFORMED):
             with self.subTest(settings=sorted(environ)):
                 self.assertEqual(production.google_sign_in_errors(environ), [])
 
+    @patch.object(google_oidc, "PRODUCTION_ACTIVATION", False)
     def test_off_the_provider_is_disabled_and_one_warning_names_the_settings_and_no_value(self):
         for environ in (GOOD, *self.ONE_OF_TWO, *self.MALFORMED):
             with self.subTest(settings=sorted(environ)):
@@ -188,7 +191,16 @@ class ProductionStartTest(unittest.TestCase):
                 self.assertNotIn(value, result.stdout + result.stderr)
         return report_of(result), result.stderr
 
-    def test_the_build_of_this_pr_starts_normally_and_keeps_google_disabled(self):
+    def test_the_shipped_build_enables_google_with_both_settings(self):
+        report, stderr = self.start(GOOD, activation="build")
+        self.assertEqual((report["started"], report["enabled"], report["login"]), (True, True, 200))
+        self.assertTrue(report["button"])
+        self.assertNotIn(WARNING_TEXT, stderr)
+        # Neither setting: the shipped build starts with Google sign-in disabled.
+        report, _ = self.start({}, activation="build")
+        self.assertEqual((report["started"], report["enabled"], report["button"]), (True, False, False))
+
+    def test_with_the_gate_off_it_starts_normally_and_keeps_google_disabled(self):
         cases = {
             "neither": {},
             "both": GOOD,
@@ -243,8 +255,7 @@ class DevelopmentStartTest(unittest.TestCase):
         report, stderr = self.start({**GOOD, "DZI_PUBLIC_BASE_URL": "http://localhost:5001/"})
         self.assertEqual(report, {"enabled": True, "redirect_uri": "http://localhost:5001/auth/google/callback"})
         self.assertNotIn("Google sign-in", stderr)
-        # The gate is the production build's: it does not apply to a development run.
-        self.assertIs(google_oidc.PRODUCTION_ACTIVATION, False)
+        # The gate is the production build's: a development run does not read it.
 
     def test_without_the_settings_it_is_disabled_and_nothing_is_said(self):
         report, stderr = self.start({"DZI_PUBLIC_BASE_URL": "http://localhost:5001"})

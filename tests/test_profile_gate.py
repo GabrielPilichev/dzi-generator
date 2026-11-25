@@ -75,7 +75,7 @@ class GateConstantTest(unittest.TestCase):
         self.assertIs(profiles.PRODUCTION_ACTIVATION, False)
         self.assertIs(registration_service.PRODUCTION_ACTIVATION, False)
         self.assertIs(registration_service.TEACHER_ACTIVATION, False)
-        self.assertIs(google_oidc.PRODUCTION_ACTIVATION, False)
+        self.assertIs(google_oidc.PRODUCTION_ACTIVATION, True)
 
     def test_it_is_assigned_in_the_profile_service_only_and_reads_no_setting(self):
         source = (ROOT / "web/services/profiles.py").read_text(encoding="utf-8")

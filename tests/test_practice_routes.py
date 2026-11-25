@@ -208,8 +208,9 @@ class DisabledBuildTest(IsolatedAppTestCase):
     def test_existing_gates_keep_their_values(self):
         for gate in (profiles.PRODUCTION_ACTIVATION, recovery.PRODUCTION_ACTIVATION,
                      registration.PRODUCTION_ACTIVATION, registration.TEACHER_ACTIVATION,
-                     google_oidc.PRODUCTION_ACTIVATION, practice.ROUTES_ACTIVATION):
+                     practice.ROUTES_ACTIVATION):
             self.assertIs(gate, False)
+        self.assertIs(google_oidc.PRODUCTION_ACTIVATION, True)
 
     def test_the_legacy_numeric_quiz_entry_is_still_a_generic_404(self):
         rules = [rule.rule for rule in web_app.app.url_map.iter_rules()]
