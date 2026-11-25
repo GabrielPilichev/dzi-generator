@@ -2113,7 +2113,7 @@ class QuizAttemptRenderTest(IsolatedAppTestCase):
         response = self.client.get(f"/quiz/attempt/{attempt_id}")
         self.assertEqual(response.status_code, 200)
         body = response.data.decode("utf-8")
-        self.assertIn('src="/static/js/quiz-draft-autosave.js"', body)
+        self.assertRegex(body, r'src="/static/js/quiz-draft-autosave\.js\?v=[0-9a-f]{12}"')
         # Form has the attempt-specific marker that drives the storage key.
         self.assertIn(f'data-attempt-id="{attempt_id}"', body)
         # Hidden status target for the "Черновата е запазена" message.
@@ -2204,7 +2204,7 @@ class QuizAttemptRenderTest(IsolatedAppTestCase):
         self.assertIn('id="quiz-progress-bar"', body)
         self.assertIn('max="1"', body)
         self.assertIn('value="0"', body)
-        self.assertIn('src="/static/js/quiz-progress-indicator.js"', body)
+        self.assertRegex(body, r'src="/static/js/quiz-progress-indicator\.js\?v=[0-9a-f]{12}"')
 
     def test_motion_keeps_start_form_and_attempt_questions_immediately_available(self):
         assignment_id, attempt_id = self._create_attempt(

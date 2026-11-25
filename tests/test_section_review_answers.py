@@ -348,7 +348,7 @@ class SectionReviewAnswersTest(IsolatedAppTestCase):
         response = self.client.get(f"/section/{self.section_slug}")
         self.assertEqual(response.status_code, 200)
         body = response.data.decode("utf-8")
-        self.assertIn('src="/static/js/section-tools.js"', body)
+        self.assertRegex(body, r'src="/static/js/section\-tools\.js\?v=[0-9a-f]{12}"')
 
         asset = self.client.get("/static/js/section-tools.js")
         self.assertEqual(asset.status_code, 200)

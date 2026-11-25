@@ -182,7 +182,7 @@ class TesterFlowSmokeTest(IsolatedAppTestCase):
         self.assertIn('class="copy-question-button"', html)
         self.assertIn('id="question-type-filter"', html)
         self.assertIn('id="question-difficulty-filter"', html)
-        self.assertIn('src="/static/js/section-tools.js"', html)
+        self.assertRegex(html, r'src="/static/js/section\-tools\.js\?v=[0-9a-f]{12}"')
 
     def test_cyrillic_wrong_password_returns_the_normal_login_error(self):
         response = self.client.post(
@@ -228,8 +228,8 @@ class TesterFlowSmokeTest(IsolatedAppTestCase):
         self.assertIn('data-warning-threshold="300"', html)
         self.assertIn('id="quiz-progress"', html)
         self.assertIn('id="quiz-progress-bar"', html)
-        self.assertIn('src="/static/js/quiz-draft-autosave.js"', html)
-        self.assertIn('src="/static/js/quiz-progress-indicator.js"', html)
+        self.assertRegex(html, r'src="/static/js/quiz\-draft\-autosave\.js\?v=[0-9a-f]{12}"')
+        self.assertRegex(html, r'src="/static/js/quiz\-progress\-indicator\.js\?v=[0-9a-f]{12}"')
 
     def test_quiz_result_renders_analytics_and_wrong_answer_feedback(self):
         _assignment_id, attempt_id = self._create_attempt(

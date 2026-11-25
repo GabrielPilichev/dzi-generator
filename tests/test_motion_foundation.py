@@ -25,7 +25,7 @@ class MotionFoundationTest(IsolatedAppTestCase):
     def test_assets_are_local_and_loaded_after_main_ui_css(self):
         html = self.client.get("/").get_data(as_text=True)
         self.assertLess(html.index("css/ui-pass9.css"), html.index("css/motion.css"))
-        self.assertRegex(html, r'<script src="/static/js/motion\.js" defer></script>')
+        self.assertRegex(html, r'<script src="/static/js/motion\.js\?v=[0-9a-f]{12}" defer></script>')
         self.assertNotRegex(html, r'<(?:script|link)[^>]+(?:src|href)="https?://')
         for path in ("/static/js/motion.js", "/static/css/motion.css"):
             response = self.client.get(path)
