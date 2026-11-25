@@ -43,7 +43,7 @@ class FaviconTest(IsolatedAppTestCase):
             if "icon" in (attrs.get("rel") or "").split()
         ]
 
-        self.assertTrue(any(attrs.get("href", "").endswith("/favicon.ico") for attrs in icon_links))
+        self.assertTrue(any(attrs.get("href", "").split("?", 1)[0].endswith("/favicon.ico") for attrs in icon_links))
         self.assertTrue(
             any(attrs.get("type") == "image/png" and attrs.get("sizes") == "32x32" for attrs in icon_links)
         )

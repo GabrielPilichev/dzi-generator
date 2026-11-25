@@ -1684,7 +1684,7 @@ class PagesTest(RoutesTestCase):
             self.assertIn(notice, page)
         # The password form is unchanged beside it, and nothing is loaded from Google.
         self.assertIn('<form method="post" action="/login"', page)
-        self.assertIn('src="/static/img/brand/google-g.svg"', page)
+        self.assertRegex(page, r'src="/static/img/brand/google\-g\.svg\?v=[0-9a-f]{12}"')
         for external in ("googleapis.com", "gstatic.com", "accounts.google.com", "google.com/"):
             self.assertNotIn(external, page)
         self.assertNotIn("Set-Cookie", response.headers)

@@ -45,6 +45,7 @@ from web.access import (
 from web import oauth_state
 from web import recovery_settings
 from web import registration_settings
+from web import static_versions
 from web.request_db import get_request_db
 from web.production import production_startup_in_progress, warn_if_schema_migrations_pending
 from web.public_url import PUBLIC_BASE_URL_CONFIG, PUBLIC_BASE_URL_ENV, normalize_public_base_url
@@ -141,6 +142,8 @@ def build_session_cookie_secure() -> bool:
 
 
 app = Flask(__name__)
+# Static URLs carry ?v=<content hash> so caches never pair old CSS/JS with new HTML.
+static_versions.install(app)
 app.config["DB_PATH"] = str(DB_PATH)
 app.config["SECRET_KEY"] = build_secret_key()
 # Lax: a top-level GET from another site (a shared quiz link, a future OIDC
